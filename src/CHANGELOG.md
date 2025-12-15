@@ -11,8 +11,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Storage Pool Configuration
+- **Storage Pool Configuration Section** - New step after cluster size selection (Step 5.5/7.5)
+  - **Express Mode** - Quick deployment with standard settings (default)
+  - **Infra Only** - Infrastructure-only deployment without storage pool
+  - **Keep Storage** - Preserve existing storage configuration
+- **ARM Template Integration** - Maps to `configurationMode` parameter in deployment template
+
+#### Cloud Witness Type
+- **Cloud Witness Type Section** - New step after node count selection (Step 3.5/5.5)
+  - **Automatic Configuration** - Witness type automatically determined based on cluster configuration
+  - **Cloud Witness** - Azure cloud witness for high availability (required for Rack Aware and 2-node clusters)
+  - **No Witness** - No witness configuration (default for 3+ node Standard/Low Capacity clusters)
+- **Conditional Logic** - Witness type locked based on cluster configuration:
+  - Rack Aware clusters → Cloud witness (required)
+  - 2-node clusters → Cloud witness (required)
+  - All other node counts → No witness (default)
+- **ARM Template Integration** - Maps to `witnessType` parameter in deployment template
+- **Validation & Progress Tracking** - Witness type included in validation checks and progress tracking
+- **Summary Report** - Witness type displayed in configuration summary
+
 #### Security Configuration
-- **Security Configuration Section** - New step after Active Directory configuration (Step 15.5)
+- **Security Configuration Section** - New step after Active Directory configuration (Step 16)
   - **Recommended Option** - Secure by default configuration with all security controls enabled
   - **Customized Option** - Granular control over individual security settings
 - **Custom Security Controls** - Toggle switches for 7 security settings:
@@ -32,8 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Page Description** - Updated introductory text to better describe ALDA tool capabilities
-- **State Management** - Added `securityConfiguration` and `securitySettings` to wizard state
-- **Step Flow** - Integrated security configuration step into wizard flow visibility logic
+- **State Management** - Added `securityConfiguration`, `securitySettings`, `storagePoolConfiguration`, and `witnessType` to wizard state
+- **Step Flow** - Integrated new configuration steps into wizard flow visibility logic
 
 ---
 

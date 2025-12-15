@@ -9,9 +9,11 @@ const state = {
     localInstanceRegion: null,
     scale: null,
     nodes: null,
+    witnessType: null,
     ports: null,
     storage: null,
     switchlessLinkMode: null,
+    storagePoolConfiguration: null,
     rackAwareZones: null,
     rackAwareZonesConfirmed: false,
     rackAwareZoneSwapSelection: null,
@@ -267,6 +269,7 @@ function computeWizardProgress() {
 
     add('Ports', Boolean(state.ports));
     add('Storage Connectivity', Boolean(state.storage));
+    add('Storage Pool Configuration', Boolean(state.storagePoolConfiguration));
     add('Traffic Intent', Boolean(state.intent));
     add('Outbound Connectivity', Boolean(state.outbound));
     add('Arc Gateway', Boolean(state.arc));
@@ -349,6 +352,7 @@ function getReportReadiness() {
     if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
     if (!state.scale) missing.push('Scale');
     if (!state.nodes) missing.push('Nodes');
+    if (!state.witnessType) missing.push('Cloud Witness Type');
 
     if (state.scale === 'rack_aware') {
         const z = state.rackAwareZones;
@@ -360,6 +364,7 @@ function getReportReadiness() {
     }
     if (!state.storage) missing.push('Storage Connectivity');
     if (!state.ports) missing.push('Ports');
+    if (!state.storagePoolConfiguration) missing.push('Storage Pool Configuration');
     if (!state.intent) missing.push('Traffic Intent');
     if (!state.outbound) missing.push('Outbound Connectivity');
     if (!state.arc) missing.push('Azure Arc Gateway');
@@ -897,7 +902,7 @@ function generateArmParameters() {
 
         const nodeCountRaw = parseInt(state.nodes, 10);
         const nodeCount = Number.isFinite(nodeCountRaw) && nodeCountRaw > 0 ? nodeCountRaw : 2;
-        const witnessType = nodeCount === 2 ? 'Cloud' : 'No Witness';
+        const witnessType = state.witnessType || 'NoWitness';
 
         const getNodeNameForArm = (index0Based) => {
             const fromWizard = (Array.isArray(state.nodeSettings) && state.nodeSettings[index0Based]) ? state.nodeSettings[index0Based] : null;
@@ -1336,7 +1341,7 @@ function generateArmParameters() {
                     euLocation: { value: false },
                     episodicDataUpload: { value: true },
 
-                    configurationMode: { value: 'Express' },
+                    configurationMode: { value: state.storagePoolConfiguration || 'Express' },
 
                     subnetMask: { value: subnetMask },
                     defaultGateway: { value: useDhcp ? '' : (state.infraGateway || 'REPLACE_WITH_DEFAULT_GATEWAY') },
@@ -1423,7 +1428,7 @@ function generateArmParameters() {
                 euLocation: { value: false },
                 episodicDataUpload: { value: true },
 
-                configurationMode: { value: 'Express' },
+                configurationMode: { value: state.storagePoolConfiguration || 'Express' },
 
                 subnetMask: { value: subnetMask },
                 defaultGateway: { value: useDhcp ? '' : (state.infraGateway || 'REPLACE_WITH_DEFAULT_GATEWAY') },
@@ -1695,6 +1700,7 @@ function selectOption(category, value) {
         state.rackAwareTorsPerRoom = null;
         state.rackAwareTorArchitecture = null;
         state.nodeSettings = [];
+        updateWitnessType();
     } else if (category === 'nodes') {
         state.storage = null; state.ports = null; state.intent = null; state.customIntentConfirmed = false; state.storageAutoIp = null; state.outbound = null; state.arc = null; state.proxy = null; state.ip = null; state.infraVlan = null; state.infraVlanId = null;
         state.switchlessLinkMode = null;
@@ -1704,6 +1710,12 @@ function selectOption(category, value) {
         state.rackAwareTorsPerRoom = null;
         state.rackAwareTorArchitecture = null;
         state.nodeSettings = [];
+        updateWitnessType();
+    } else if (category === 'witnessType') {
+        // Only allow manual selection if not locked
+        if (!isWitnessTypeLocked()) {
+            state.witnessType = value;
+        }
     } else if (category === 'storage') {
         state.ports = null; state.intent = null; state.customIntentConfirmed = false; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
         state.switchlessLinkMode = null;
@@ -1722,6 +1734,7 @@ function selectOption(category, value) {
         state.rackAwareTorsPerRoom = value;
         state.rackAwareTorArchitecture = null;
     } else if (category === 'ports') {
+        state.storagePoolConfiguration = null;
         state.intent = null;
         state.customIntentConfirmed = false;
         state.customIntents = {};
@@ -1729,6 +1742,8 @@ function selectOption(category, value) {
         state.storageAutoIp = null;
         state.infraVlan = null;
         state.infraVlanId = null;
+    } else if (category === 'storagePoolConfiguration') {
+        state.storagePoolConfiguration = value;
     } else if (category === 'intent') {
         state.intent = value;
         state.customIntentConfirmed = false;
@@ -1901,6 +1916,29 @@ function toggleRackAwareZonesConfirmed() {
         if (!ready) return;
 
         const next = !state.rackAwareZonesConfirmed;
+        
+        // If confirming (not un-confirming), validate even split
+        if (next) {
+            const n = state.nodes ? parseInt(state.nodes, 10) : NaN;
+            if (isNaN(n) || n <= 0) return;
+            
+            // Count nodes in each zone
+            let zone1Count = 0;
+            let zone2Count = 0;
+            for (let i = 1; i <= n; i++) {
+                const zone = z.assignments[String(i)];
+                if (zone === 1) zone1Count++;
+                else if (zone === 2) zone2Count++;
+            }
+            
+            // Validate 50/50 split
+            const expectedPerZone = n / 2;
+            if (zone1Count !== expectedPerZone || zone2Count !== expectedPerZone) {
+                alert(`Rack Aware clusters require an even 50/50 split of nodes between zones.\n\nCurrent distribution:\n• ${z.zone1Name || 'Zone1'}: ${zone1Count} node${zone1Count !== 1 ? 's' : ''}\n• ${z.zone2Name || 'Zone2'}: ${zone2Count} node${zone2Count !== 1 ? 's' : ''}\n\nRequired:\n• Each zone must have exactly ${expectedPerZone} node${expectedPerZone !== 1 ? 's' : ''}\n\nPlease adjust the node assignments and try again.`);
+                return;
+            }
+        }
+        
         state.rackAwareZonesConfirmed = next;
         state.rackAwareZoneSwapSelection = null;
 
@@ -2262,8 +2300,10 @@ function updateUI() {
         document.getElementById('step-local-region'),
         document.getElementById('step-2'),
         document.getElementById('step-3'),
+        document.getElementById('step-3-5'),
         document.getElementById('step-4'),
         document.getElementById('step-5'),
+        document.getElementById('step-5-5'),
         document.getElementById('step-6'),
         document.getElementById('step-7'),
         document.getElementById('step-8'),
@@ -2523,6 +2563,10 @@ function updateUI() {
         storageAutoIp: {
             'enabled': document.querySelector('[data-value="enabled"][onclick*="storageAutoIp"]'),
             'disabled': document.querySelector('[data-value="disabled"][onclick*="storageAutoIp"]')
+        },
+        witnessType: {
+            'Cloud': document.querySelector('[data-value="Cloud"][onclick*="witnessType"]'),
+            'NoWitness': document.querySelector('[data-value="NoWitness"][onclick*="witnessType"]')
         }
     };
 
@@ -2679,6 +2723,19 @@ function updateUI() {
     // Nodes -> Storage -> Ports
     if (!state.nodes) Object.values(cards.storage).forEach(c => c.classList.add('disabled'));
     if (!state.storage) Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
+    
+    // Step 5 -> Step 5.5 (Storage Pool Configuration)
+    const storagePoolCards = {
+        'Express': document.querySelector('#step-5-5 [data-value="Express"]'),
+        'InfraOnly': document.querySelector('#step-5-5 [data-value="InfraOnly"]'),
+        'KeepStorage': document.querySelector('#step-5-5 [data-value="KeepStorage"]')
+    };
+    if (!state.ports) {
+        Object.values(storagePoolCards).forEach(c => c && c.classList.add('disabled'));
+    } else {
+        Object.values(storagePoolCards).forEach(c => c && c.classList.remove('disabled'));
+    }
+    
     if (!state.ports) Object.values(cards.intent).forEach(c => c.classList.add('disabled'));
 
     // Rack Aware constraints:
@@ -2756,6 +2813,49 @@ function updateUI() {
             }
         }
     }
+    
+    // Cloud Witness Type: Lock based on cluster configuration
+    const witnessLocked = isWitnessTypeLocked();
+    const witnessInfoBox = document.getElementById('witness-info');
+    
+    if (!state.nodes) {
+        // No nodes selected yet - disable both cards
+        Object.values(cards.witnessType).forEach(c => c && c.classList.add('disabled'));
+    } else if (witnessLocked) {
+        // Locked to Cloud - disable NoWitness card
+        const noWitnessCard = cards.witnessType && cards.witnessType.NoWitness;
+        if (noWitnessCard) {
+            noWitnessCard.classList.add('disabled');
+            noWitnessCard.classList.remove('selected');
+            
+            let reason = '';
+            if (state.scale === 'rack_aware') {
+                reason = 'Rack Aware clusters require Cloud witness';
+            } else if (state.nodes === '2') {
+                reason = '2-node clusters require Cloud witness';
+            }
+            noWitnessCard.title = reason;
+        }
+        
+        // Update info box
+        if (witnessInfoBox) {
+            witnessInfoBox.innerHTML = `<strong>Cloud witness is required</strong> for ${state.scale === 'rack_aware' ? 'Rack Aware clusters' : '2-node clusters'}.`;
+        }
+    } else {
+        // Not locked - enable both cards
+        Object.values(cards.witnessType).forEach(c => {
+            if (c) {
+                c.classList.remove('disabled');
+                c.title = '';
+            }
+        });
+        
+        // Update info box
+        if (witnessInfoBox) {
+            witnessInfoBox.innerHTML = 'The witness type is automatically determined based on your cluster configuration.';
+        }
+    }
+    
     if (!state.intent) {
         document.querySelectorAll('#outbound-connected .option-card').forEach(c => c.classList.add('disabled'));
         document.querySelectorAll('#outbound-disconnected .option-card').forEach(c => c.classList.add('disabled'));
@@ -3814,6 +3914,7 @@ function updateSummary() {
     if (state.localInstanceRegion) scenarioScaleRows += renderRow('Azure Local Instance Region', escapeHtml(formatLocalInstanceRegion(state.localInstanceRegion)));
     if (state.scale) scenarioScaleRows += renderRow('Scale', escapeHtml(formatScale(state.scale)));
     if (state.nodes) scenarioScaleRows += renderRow('Nodes', escapeHtml(state.nodes), { mono: true });
+    if (state.witnessType) scenarioScaleRows += renderRow('Cloud Witness Type', escapeHtml(state.witnessType));
 
     // Rack Aware additions (Availability Zones + ToR architecture)
     let rackAwareRows = '';
@@ -3863,6 +3964,7 @@ function updateSummary() {
     let hostNetworkingRows = '';
     if (state.storage) hostNetworkingRows += renderRow('Storage', escapeHtml(capitalize(state.storage)));
     if (state.ports) hostNetworkingRows += renderRow('Ports', escapeHtml(state.ports), { mono: true });
+    if (state.storagePoolConfiguration) hostNetworkingRows += renderRow('Storage Pool', escapeHtml(state.storagePoolConfiguration));
     if (state.intent) {
         hostNetworkingRows += renderRow('Intent', escapeHtml(formatIntent(state.intent)));
 
@@ -5057,6 +5159,36 @@ function updateSecuritySetting(settingName, value) {
         updateSummary();
         saveStateToLocalStorage();
     }
+}
+
+function isWitnessTypeLocked() {
+    // Rack Aware clusters must use Cloud witness
+    if (state.scale === 'rack_aware') {
+        return true;
+    }
+    
+    // 2-node clusters (Standard/Medium or Low Capacity) must use Cloud witness
+    if (state.nodes === '2' && (state.scale === 'medium' || state.scale === 'low_capacity')) {
+        return true;
+    }
+    
+    return false;
+}
+
+function updateWitnessType() {
+    const locked = isWitnessTypeLocked();
+    
+    if (locked) {
+        // For locked scenarios, always set to Cloud
+        state.witnessType = 'Cloud';
+    } else if (state.nodes) {
+        // For all other node counts, default to NoWitness
+        state.witnessType = 'NoWitness';
+    } else {
+        state.witnessType = null;
+    }
+    
+    updateUI();
 }
 
 function toggleSdnFeature(feature, checked) {
