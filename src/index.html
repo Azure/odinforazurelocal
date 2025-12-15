@@ -1515,6 +1515,12 @@
                             <div id="wizard-progress-fill" class="wizard-progress__fill" style="width:0%"></div>
                         </div>
                     </div>
+                    <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="auto-scroll-toggle" checked onchange="toggleAutoScroll()" style="cursor: pointer;">
+                            <span>Auto-scroll to next step</span>
+                        </label>
+                    </div>
                     <h3>Configuration Summary</h3>
                     <div id="summary-content"></div>
                     <div id="summary-diagram-container" class="summary-diagram"></div>
