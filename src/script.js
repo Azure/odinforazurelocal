@@ -1882,6 +1882,20 @@ function scrollToNextStep(currentCategory) {
         return;
     }
     
+    // Special case: For IP selection, don't auto-scroll if Static IP is selected and fields are not completed
+    if (currentCategory === 'ip') {
+        if (state.ip === 'static') {
+            // Check if required static IP fields are completed
+            const hasInfraPool = state.infra && state.infra.start && state.infra.end;
+            const hasGateway = state.infraGateway;
+            
+            // Don't auto-scroll if required fields are missing
+            if (!hasInfraPool || !hasGateway) {
+                return;
+            }
+        }
+    }
+    
     // Map categories to their step IDs
     const categoryToStepMap = {
         'scenario': 'step-1',
@@ -4906,6 +4920,17 @@ function updateInfraNetwork() {
 
     updateSummary();
     updateUI();
+    
+    // Trigger auto-scroll if Static IP is now complete
+    if (state.ip === 'static') {
+        const hasInfraPool = state.infra && state.infra.start && state.infra.end;
+        const hasGateway = state.infraGateway;
+        
+        // If all required fields are now complete, trigger auto-scroll
+        if (hasInfraPool && hasGateway) {
+            scrollToNextStep('ip');
+        }
+    }
 }
 
 function markInfraCidrManual(value) {
