@@ -3994,8 +3994,8 @@
 
         // Step 16: Security Configuration
         var securityRows = '';
-        if (s.securityConfiguration) securityRows += row('Configuration', s.securityConfiguration === 'Recommended' ? 'Recommended' : 'Customized');
-        if (s.securityConfiguration === 'Customized' && s.securitySettings) {
+        if (s.securityConfiguration) securityRows += row('Configuration', s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized');
+        if (s.securityConfiguration === 'customized' && s.securitySettings) {
             var secSettings = s.securitySettings;
             if (secSettings.wdac !== undefined) securityRows += row('WDAC', secSettings.wdac ? 'Enabled' : 'Disabled');
             if (secSettings.credentialGuard !== undefined) securityRows += row('Credential Guard', secSettings.credentialGuard ? 'Enabled' : 'Disabled');
