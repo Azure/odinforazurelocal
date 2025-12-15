@@ -1,5 +1,5 @@
 // Wizard version for tracking changes
-const WIZARD_VERSION = '3.1.0';
+const WIZARD_VERSION = '0.2.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -40,7 +40,17 @@ const state = {
     sdnFeatures: [],
     sdnManagement: null,
     intentOverrides: {},
-    customIntents: {}
+    customIntents: {},
+    securityConfiguration: null, // 'recommended' or 'customized'
+    securitySettings: {
+        driftControlEnforced: true,
+        bitlockerBootVolume: true,
+        bitlockerDataVolumes: true,
+        wdacEnforced: true,
+        credentialGuardEnforced: true,
+        smbSigningEnforced: true,
+        smbClusterEncryption: true
+    }
 };
 
 // Auto-save state to localStorage
@@ -289,6 +299,9 @@ function computeWizardProgress() {
         add('Local DNS Zone', Boolean(state.localDnsZone));
     }
 
+    // Security Configuration
+    add('Security Configuration', Boolean(state.securityConfiguration));
+
     // SDN management becomes required only when SDN features are selected.
     if (state.sdnFeatures && state.sdnFeatures.length > 0) {
         add('SDN Management', Boolean(state.sdnManagement));
@@ -371,6 +384,11 @@ function getReportReadiness() {
         // DNS required for both identity options in this wizard.
         if (!state.dnsServers || state.dnsServers.length <= 0) missing.push('DNS Servers');
         if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
+    }
+
+    // Security Configuration
+    if (!state.securityConfiguration) {
+        missing.push('Security Configuration');
     }
 
     // SDN: optional features; but if selected, management is required.
@@ -1392,14 +1410,14 @@ function generateArmParameters() {
                 namingPrefix: { value: 'hci' },
                 adouPath: { value: '' },
 
-                securityLevel: { value: 'Recommended' },
-                driftControlEnforced: { value: true },
-                credentialGuardEnforced: { value: true },
-                smbSigningEnforced: { value: true },
-                smbClusterEncryption: { value: false },
-                bitlockerBootVolume: { value: true },
-                bitlockerDataVolumes: { value: true },
-                wdacEnforced: { value: true },
+                securityLevel: { value: state.securityConfiguration === 'customized' ? 'Customized' : 'Recommended' },
+                driftControlEnforced: { value: state.securitySettings?.driftControlEnforced ?? true },
+                credentialGuardEnforced: { value: state.securitySettings?.credentialGuardEnforced ?? true },
+                smbSigningEnforced: { value: state.securitySettings?.smbSigningEnforced ?? true },
+                smbClusterEncryption: { value: state.securitySettings?.smbClusterEncryption ?? true },
+                bitlockerBootVolume: { value: state.securitySettings?.bitlockerBootVolume ?? true },
+                bitlockerDataVolumes: { value: state.securitySettings?.bitlockerDataVolumes ?? true },
+                wdacEnforced: { value: state.securitySettings?.wdacEnforced ?? true },
 
                 streamingDataClient: { value: true },
                 euLocation: { value: false },
@@ -1784,6 +1802,29 @@ function selectOption(category, value) {
         }
         // Add first DNS server automatically
         addDnsServer();
+    } else if (category === 'securityConfiguration') {
+        state.securityConfiguration = value;
+        const customSecuritySection = document.getElementById('custom-security-section');
+        if (customSecuritySection) {
+            if (value === 'customized') {
+                customSecuritySection.classList.remove('hidden');
+            } else {
+                customSecuritySection.classList.add('hidden');
+                // Reset to recommended defaults
+                state.securitySettings = {
+                    driftControlEnforced: true,
+                    bitlockerBootVolume: true,
+                    bitlockerDataVolumes: true,
+                    wdacEnforced: true,
+                    credentialGuardEnforced: true,
+                    smbSigningEnforced: true,
+                    smbClusterEncryption: true
+                };
+                // Update all checkboxes to checked
+                const checkboxes = customSecuritySection.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => cb.checked = true);
+            }
+        }
     } else if (category === 'sdnManagement') {
         state.sdnManagement = value;
     }
@@ -2231,6 +2272,7 @@ function updateUI() {
         document.getElementById('step-11'),
         document.getElementById('step-12'),
         document.getElementById('step-13'),
+        document.getElementById('step-13-5'),
         document.getElementById('step-14')
     ];
 
@@ -3921,6 +3963,43 @@ function updateSummary() {
         }
     }
 
+    // Security Configuration
+    let securityRows = '';
+    if (state.securityConfiguration) {
+        const secType = state.securityConfiguration === 'recommended' ? 'Recommended (Secure by default)' : 'Customized';
+        securityRows += renderRow('Security Level', escapeHtml(secType));
+        if (state.securityConfiguration === 'customized' && state.securitySettings) {
+            const settings = [];
+            if (state.securitySettings.driftControlEnforced !== undefined) {
+                settings.push(`Drift Control: ${state.securitySettings.driftControlEnforced ? 'On' : 'Off'}`);
+            }
+            if (state.securitySettings.bitlockerBootVolume !== undefined) {
+                settings.push(`Bitlocker Boot: ${state.securitySettings.bitlockerBootVolume ? 'On' : 'Off'}`);
+            }
+            if (state.securitySettings.bitlockerDataVolumes !== undefined) {
+                settings.push(`Bitlocker Data: ${state.securitySettings.bitlockerDataVolumes ? 'On' : 'Off'}`);
+            }
+            if (state.securitySettings.wdacEnforced !== undefined) {
+                settings.push(`WDAC: ${state.securitySettings.wdacEnforced ? 'On' : 'Off'}`);
+            }
+            if (state.securitySettings.credentialGuardEnforced !== undefined) {
+                settings.push(`Credential Guard: ${state.securitySettings.credentialGuardEnforced ? 'On' : 'Off'}`);
+            }
+            if (state.securitySettings.smbSigningEnforced !== undefined) {
+                settings.push(`SMB Signing: ${state.securitySettings.smbSigningEnforced ? 'On' : 'Off'}`);
+            }
+            if (state.securitySettings.smbClusterEncryption !== undefined) {
+                settings.push(`SMB Encryption: ${state.securitySettings.smbClusterEncryption ? 'On' : 'Off'}`);
+            }
+            if (settings.length > 0) {
+                securityRows += `<div class="summary-row">
+            <div class="summary-label">Security Controls</div>
+            ${renderMultilineValue(settings)}
+        </div>`;
+            }
+        }
+    }
+
     // Step 16: Software Defined Networking
     let sdnRows = '';
     if (state.sdnFeatures && state.sdnFeatures.length > 0) {
@@ -3944,9 +4023,10 @@ function updateSummary() {
     const connectivityHtml = renderSection('Connectivity', 'summary-section-title--mgmt', connectivityRows);
     const infraNetworkHtml = renderSection('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows);
     const activeDirectoryHtml = renderSection('Active Directory', 'summary-section-title--mgmt', activeDirectoryRows);
+    const securityHtml = renderSection('Security Configuration', 'summary-section-title--mgmt', securityRows);
     const sdnHtml = renderSection('Software Defined Networking', 'summary-section-title--net', sdnRows);
 
-    let html = scenarioScaleHtml + rackAwareHtml + hostNetworkingHtml + connectivityHtml + infraNetworkHtml + activeDirectoryHtml + sdnHtml;
+    let html = scenarioScaleHtml + rackAwareHtml + hostNetworkingHtml + connectivityHtml + infraNetworkHtml + activeDirectoryHtml + securityHtml + sdnHtml;
     if (!html) {
         html = '<div class="summary-section"><div style="color:var(--text-secondary); font-style:italic">Select options to see summary...</div></div>';
     }
@@ -4958,6 +5038,14 @@ function updateAdDomain() {
     const value = input.value.trim();
     state.adDomain = value || null;
     updateSummary();
+}
+
+function updateSecuritySetting(settingName, value) {
+    if (state.securitySettings && settingName in state.securitySettings) {
+        state.securitySettings[settingName] = value;
+        updateSummary();
+        saveStateToLocalStorage();
+    }
 }
 
 function toggleSdnFeature(feature, checked) {

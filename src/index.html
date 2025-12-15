@@ -83,7 +83,7 @@
                     <h1>Azure Local Design Assistant (ALDA) Tool</h1>
                     <p>The Azure Local design assistant (ALDA) tool provides a decision tree interface to select an Azure Local deployment type, and instance design using validated architecture and network configuration. Once complete you can optionally deploy your chosen solution using the ARM template that is automatically generated.</p>
                     <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
-                        Version 0.1.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.2.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -1192,6 +1192,118 @@
                         </div>
                         <div id="dns-success" class="hidden"
                             style="margin-top:1rem; color:var(--success); font-size:0.9rem;">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 13.5: Security Configuration -->
+                <section class="step" id="step-13-5">
+                    <div class="step-header">
+                        <span class="step-number">15.5</span>
+                        <h2>Security Configuration</h2>
+                    </div>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="recommended"
+                            onclick="selectOption('securityConfiguration', 'recommended')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
+                                        stroke-width="1.5" />
+                                    <path d="M9 12l2 2 4-4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <h3>Recommended</h3>
+                            <p>Secure by default configuration of security controls</p>
+                        </div>
+                        <div class="option-card" data-value="customized"
+                            onclick="selectOption('securityConfiguration', 'customized')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
+                                        stroke-width="1.5" />
+                                    <path d="M12 8v8M8 12h8" stroke-width="1.5" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                            <h3>Customized</h3>
+                            <p>Customize security controls. Note: it is not recommended to disable security controls.</p>
+                        </div>
+                    </div>
+
+                    <!-- Custom Security Settings -->
+                    <div id="custom-security-section" class="hidden"
+                        style="margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--glass-border);">
+                        <h4 style="color:var(--accent-purple); font-size:1.2rem; margin-bottom:1rem;">Custom Security Settings</h4>
+                        
+                        <div style="display:flex; flex-direction:column; gap:1rem;">
+                            <div class="security-toggle-item" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--glass-border);">
+                                <div>
+                                    <div style="font-weight:500; margin-bottom:0.25rem;">Drift Control Enforced</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked onchange="updateSecuritySetting('driftControlEnforced', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="security-toggle-item" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--glass-border);">
+                                <div>
+                                    <div style="font-weight:500; margin-bottom:0.25rem;">Bitlocker Boot Volume</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked onchange="updateSecuritySetting('bitlockerBootVolume', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="security-toggle-item" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--glass-border);">
+                                <div>
+                                    <div style="font-weight:500; margin-bottom:0.25rem;">Bitlocker Data Volumes</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked onchange="updateSecuritySetting('bitlockerDataVolumes', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="security-toggle-item" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--glass-border);">
+                                <div>
+                                    <div style="font-weight:500; margin-bottom:0.25rem;">Wdac Enforced</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked onchange="updateSecuritySetting('wdacEnforced', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="security-toggle-item" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--glass-border);">
+                                <div>
+                                    <div style="font-weight:500; margin-bottom:0.25rem;">Credential Guard Enforced</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked onchange="updateSecuritySetting('credentialGuardEnforced', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="security-toggle-item" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--glass-border);">
+                                <div>
+                                    <div style="font-weight:500; margin-bottom:0.25rem;">Smb Signing Enforced</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked onchange="updateSecuritySetting('smbSigningEnforced', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="security-toggle-item" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--glass-border);">
+                                <div>
+                                    <div style="font-weight:500; margin-bottom:0.25rem;">Smb Cluster Encryption</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" checked onchange="updateSecuritySetting('smbClusterEncryption', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </section>

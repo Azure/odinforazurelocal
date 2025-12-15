@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2025-12-15
+
+### Added
+
+#### Security Configuration
+- **Security Configuration Section** - New step after Active Directory configuration (Step 15.5)
+  - **Recommended Option** - Secure by default configuration with all security controls enabled
+  - **Customized Option** - Granular control over individual security settings
+- **Custom Security Controls** - Toggle switches for 7 security settings:
+  - Drift Control Enforced
+  - Bitlocker Boot Volume
+  - Bitlocker Data Volumes
+  - WDAC Enforced
+  - Credential Guard Enforced
+  - SMB Signing Enforced
+  - SMB Cluster Encryption
+- **ARM Template Integration** - Security settings automatically map to ARM template parameters
+  - `securityLevel` parameter set to "Recommended" or "Customized"
+  - Individual security control parameters (camelCase, no spaces)
+- **Validation & Progress Tracking** - Security configuration included in validation checks and progress tracking
+- **Summary Report** - Security settings displayed in configuration summary with detailed breakdown when customized
+- **Toggle Switch UI** - Custom-styled toggle switches with smooth animations and visual feedback
+
+### Changed
+- **Page Description** - Updated introductory text to better describe ALDA tool capabilities
+- **State Management** - Added `securityConfiguration` and `securitySettings` to wizard state
+- **Step Flow** - Integrated security configuration step into wizard flow visibility logic
+
+---
+
 ## [0.1.1] - 2025-12-15
 
 ### Fixed

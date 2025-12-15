@@ -1,8 +1,8 @@
 # Azure Local Design Assistant (ALDA) Tool
 
-## Version 0.1.0
+## Version 0.2.0
 
-A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, and generates ARM parameters for deployment.
+A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment.
 
 ---
 
@@ -27,6 +27,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ### ✨ Core Functionality
 - **Step-by-Step Wizard**: Guided decision flow for Azure Local network configuration
 - **Multiple Deployment Scenarios**: Hyperconverged, Disaggregated, Disconnected, and Multi-Rack
+- **Security Configuration**: Configure security controls with recommended or customized settings
 - **Intelligent Validation**: Real-time input validation with helpful error messages
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
