@@ -37,6 +37,8 @@ const state = {
     storageAutoIp: null,
     activeDirectory: null,
     adDomain: null,
+    adOuPath: null,
+    adfsServerName: null,
     dnsServers: [],
     localDnsZone: null,
     dnsServiceExisting: null,
@@ -5356,6 +5358,15 @@ function updateAdOuPath() {
         }
     }
     
+    updateSummary();
+}
+
+function updateAdfsServerName() {
+    const input = document.getElementById('adfs-server-name');
+    if (!input) return;
+
+    const value = input.value.trim();
+    state.adfsServerName = value || null;
     updateSummary();
 }
 

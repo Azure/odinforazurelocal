@@ -1185,7 +1185,7 @@
                             <h3>Azure Local with Active Directory</h3>
                             <p>Domain-joined with AD integration.</p>
                         </div>
-                        <div class="option-card" data-value="local_identity"
+                        <div class="option-card" id="ad-local-identity-card" data-value="local_identity"
                             onclick="selectOption('activeDirectory', 'local_identity')">
                             <div class="icon">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -1219,6 +1219,19 @@
                             </div>
                             <div id="ad-ou-path-error" class="hidden"
                                 style="margin-top:0.5rem; color:#ef4444; font-size:0.85rem; background:rgba(239,68,68,0.1); padding:0.5rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
+                            </div>
+                        </div>
+                        
+                        <div id="adfs-server-section" class="hidden" style="margin-top:1.5rem;">
+                            <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">
+                                ADFS Server Name
+                                <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Federation Services server name for disconnected deployments">ℹ️</span>
+                            </label>
+                            <input type="text" id="adfs-server-name" placeholder="e.g. adfs.contoso.com"
+                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                onchange="updateAdfsServerName()">
+                            <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+                                Required for disconnected deployments with Active Directory Federation Services
                             </div>
                         </div>
                     </div>
