@@ -2821,9 +2821,20 @@ function updateUI() {
         Object.values(adCards).forEach(c => c && c.classList.add('disabled'));
     }
 
-    // Step 13 -> Step 14 (SDN)
-    const sdnCheckboxes = document.querySelectorAll('.sdn-feature-card input[type="checkbox"]');
+    // Step 13 -> Step 13.5 (Security Configuration)
+    const securityCards = {
+        'recommended': document.querySelector('#step-13-5 [data-value="recommended"]'),
+        'customized': document.querySelector('#step-13-5 [data-value="customized"]')
+    };
     if (!state.activeDirectory) {
+        Object.values(securityCards).forEach(c => c && c.classList.add('disabled'));
+    } else {
+        Object.values(securityCards).forEach(c => c && c.classList.remove('disabled'));
+    }
+
+    // Step 13.5 -> Step 14 (SDN)
+    const sdnCheckboxes = document.querySelectorAll('.sdn-feature-card input[type="checkbox"]');
+    if (!state.securityConfiguration) {
         sdnCheckboxes.forEach(cb => {
             cb.disabled = true;
             cb.parentElement.style.opacity = '0.5';
