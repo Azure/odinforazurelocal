@@ -1861,6 +1861,24 @@ function scrollToNextStep(currentCategory) {
     // Check if auto-scroll is enabled
     if (!state.autoScrollEnabled) return;
     
+    // Special case: For ports selection, scroll to port-configuration section instead of next step
+    if (currentCategory === 'ports') {
+        const portConfigSection = document.getElementById('port-configuration');
+        if (portConfigSection && !portConfigSection.classList.contains('hidden')) {
+            setTimeout(() => {
+                const headerOffset = 80;
+                const elementPosition = portConfigSection.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+                
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
+                });
+            }, 1000);
+        }
+        return;
+    }
+    
     // Map categories to their step IDs
     const categoryToStepMap = {
         'scenario': 'step-1',
@@ -2389,7 +2407,6 @@ function updateUI() {
         document.getElementById('step-3-5'),
         document.getElementById('step-4'),
         document.getElementById('step-5'),
-        document.getElementById('step-5-5'),
         document.getElementById('step-6'),
         document.getElementById('step-7'),
         document.getElementById('step-8'),
@@ -2397,6 +2414,7 @@ function updateUI() {
         document.getElementById('step-10'),
         document.getElementById('step-11'),
         document.getElementById('step-12'),
+        document.getElementById('step-5-5'),
         document.getElementById('step-13'),
         document.getElementById('step-13-5'),
         document.getElementById('step-14')
@@ -3253,7 +3271,7 @@ function updateUI() {
 
             const defaultRdmaEnabled = isLowCapacity ? false : true;
             const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
-            const defaultPortSpeed = isLowCapacity ? '1GbE' : (isStandard ? '10GbE' : '25GbE');
+            const defaultPortSpeed = '25GbE'; // Default to 25Gbps for all scales
 
             state.portConfig = Array(pCount).fill().map(() => ({
                 speed: defaultPortSpeed,
