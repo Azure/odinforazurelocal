@@ -5527,11 +5527,54 @@ function showChangelog() {
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: var(--accent-blue);">What's New in v0.1.0</h3>
+                <h3 style="margin: 0; color: var(--accent-blue);">What's New</h3>
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
             </div>
             
             <div style="color: var(--text-primary); line-height: 1.8;">
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.2.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 15, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔒 Security Configuration</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New Security Step:</strong> Configure security controls for your Azure Local deployment.</li>
+                        <li><strong>Recommended Option:</strong> Secure by default with all security controls enabled.</li>
+                        <li><strong>Customized Option:</strong> Granular control over 7 individual security settings.</li>
+                        <li><strong>ARM Integration:</strong> Security settings automatically map to deployment parameters.</li>
+                    </ul>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛡️ Security Controls</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>Drift Control Enforced</li>
+                        <li>Bitlocker Boot Volume</li>
+                        <li>Bitlocker Data Volumes</li>
+                        <li>WDAC Enforced</li>
+                        <li>Credential Guard Enforced</li>
+                        <li>SMB Signing Enforced</li>
+                        <li>SMB Cluster Encryption</li>
+                    </ul>
+                </div>
+                
+                <div style="margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Sequential Flow:</strong> Security configuration step must be completed before SDN options.</li>
+                        <li><strong>Documentation Link:</strong> Direct link to Microsoft Learn security features documentation.</li>
+                        <li><strong>Summary Integration:</strong> Security settings displayed in configuration summary.</li>
+                        <li><strong>Validation:</strong> Security configuration included in readiness checks.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.1); border-left: 4px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.1.0</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 2025</div>
+                </div>
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎉 Major Enhancements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -5551,22 +5594,13 @@ function showChangelog() {
                     </ul>
                 </div>
                 
-                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                <div>
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Technical Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Enhanced Input Sanitization:</strong> Improved security for all user inputs.</li>
                         <li><strong>Version Tracking:</strong> All exports and saves include version information.</li>
                         <li><strong>Change Detection:</strong> See what changed when importing configurations.</li>
                         <li><strong>Better Error Handling:</strong> More informative error messages throughout.</li>
-                    </ul>
-                </div>
-                
-                <div>
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Export Options</h4>
-                    <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Copy to Clipboard:</strong> Quick copy buttons for JSON outputs.</li>
-                        <li><strong>Timestamped Exports:</strong> All exports include creation timestamps.</li>
-                        <li><strong>Documentation Support:</strong> Comprehensive README and inline docs.</li>
                     </ul>
                 </div>
             </div>
