@@ -3950,6 +3950,7 @@
         if (s.localInstanceRegion) scenarioScaleRows += row('Azure Local Instance Region', formatLocalInstanceRegion(s.localInstanceRegion));
         if (s.scale) scenarioScaleRows += row('Scale', formatScale(s.scale));
         if (s.nodes) scenarioScaleRows += row('Nodes', s.nodes, true);
+        if (s.witnessType) scenarioScaleRows += row('Cloud Witness', s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness');
 
         // Step 06–08: Host Networking
         var hostNetworkingRows = '';
@@ -3957,6 +3958,11 @@
         if (s.ports) hostNetworkingRows += row('Ports', s.ports, true);
         if (s.intent) hostNetworkingRows += row('Intent', formatIntent(s.intent));
         if (s.storageAutoIp) hostNetworkingRows += row('Storage Auto IP', s.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled');
+        if (s.storagePoolConfiguration) {
+            var spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' : 
+                          s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
+            hostNetworkingRows += row('Storage Pool Configuration', spConfig);
+        }
 
         // Step 09–11: Connectivity
         var connectivityRows = '';
@@ -3985,7 +3991,21 @@
         if (s.dnsServers && s.dnsServers.length) activeDirectoryRows += row('DNS Servers', s.dnsServers.join(', '), true);
         if (s.localDnsZone) activeDirectoryRows += row('Local DNS Zone', s.localDnsZone, true);
 
-        // Step 16: Software Defined Networking
+        // Step 16: Security Configuration
+        var securityRows = '';
+        if (s.securityConfiguration) securityRows += row('Configuration', s.securityConfiguration === 'Recommended' ? 'Recommended' : 'Customized');
+        if (s.securityConfiguration === 'Customized' && s.securitySettings) {
+            var secSettings = s.securitySettings;
+            if (secSettings.wdac !== undefined) securityRows += row('WDAC', secSettings.wdac ? 'Enabled' : 'Disabled');
+            if (secSettings.credentialGuard !== undefined) securityRows += row('Credential Guard', secSettings.credentialGuard ? 'Enabled' : 'Disabled');
+            if (secSettings.driftControl !== undefined) securityRows += row('Drift Control', secSettings.driftControl ? 'Enabled' : 'Disabled');
+            if (secSettings.smbSigning !== undefined) securityRows += row('SMB Signing', secSettings.smbSigning ? 'Enabled' : 'Disabled');
+            if (secSettings.smbEncryption !== undefined) securityRows += row('SMB Encryption', secSettings.smbEncryption ? 'Enabled' : 'Disabled');
+            if (secSettings.bitlocker !== undefined) securityRows += row('BitLocker', secSettings.bitlocker ? 'Enabled' : 'Disabled');
+            if (secSettings.sideChannelMitigation !== undefined) securityRows += row('Side Channel Mitigation', secSettings.sideChannelMitigation ? 'Enabled' : 'Disabled');
+        }
+
+        // Step 17: Software Defined Networking
         var sdnRows = '';
         if (s.sdnFeatures && s.sdnFeatures.length) sdnRows += row('SDN Features', s.sdnFeatures.join(', '));
         if (s.sdnManagement) sdnRows += row('SDN Management', s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed');
@@ -4014,6 +4034,7 @@
             + sectionWithExtra('Connectivity', 'summary-section-title--mgmt', connectivityRows, connectivityExtra, 'connectivity')
             + section('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows, 'infrastructure-network')
             + section('Active Directory', 'summary-section-title--mgmt', activeDirectoryRows, 'active-directory')
+            + section('Security Configuration', 'summary-section-title--mgmt', securityRows, 'security')
             + section('Software Defined Networking', 'summary-section-title--net', sdnRows, 'sdn');
     }
 
