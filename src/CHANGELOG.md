@@ -11,28 +11,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-#### Storage Pool Configuration
-- **Storage Pool Configuration Section** - New step after cluster size selection (Step 5.5/7.5)
-  - **Express Mode** - Quick deployment with standard settings (default)
-  - **Infra Only** - Infrastructure-only deployment without storage pool
-  - **Keep Storage** - Preserve existing storage configuration
-- **ARM Template Integration** - Maps to `configurationMode` parameter in deployment template
+#### Auto-Scroll Feature
+- **Auto-Scroll Toggle** - New toggle control below Progress bar to enable/disable automatic scrolling
+  - **Default Enabled** - Auto-scroll is on by default for smooth wizard flow
+  - **1 Second Delay** - Pauses 1 second before scrolling to allow review of selection
+  - **Persistent Preference** - Toggle state saved to localStorage across sessions
+  - **Smart Scrolling** - Port selection scrolls directly to Port Configuration section instead of next step
+- **Improved User Flow** - Automatically advances to next step after making a selection
+- **Enhanced Navigation** - Guides users through the wizard naturally without manual scrolling
 
 #### Cloud Witness Type
-- **Cloud Witness Type Section** - New step after node count selection (Step 3.5/5.5)
+- **Cloud Witness Type Section** - New step after node count selection (Step 05.5)
   - **Automatic Configuration** - Witness type automatically determined based on cluster configuration
   - **Cloud Witness** - Azure cloud witness for high availability (required for Rack Aware and 2-node clusters)
   - **No Witness** - No witness configuration (default for 3+ node Standard/Low Capacity clusters)
 - **Conditional Logic** - Witness type locked based on cluster configuration:
   - Rack Aware clusters → Cloud witness (required)
-  - 2-node clusters → Cloud witness (required)
+  - 2-node Standard/Medium clusters → Cloud witness (required)
+  - 2-node Low Capacity clusters → Cloud witness (required)
   - All other node counts → No witness (default)
 - **ARM Template Integration** - Maps to `witnessType` parameter in deployment template
 - **Validation & Progress Tracking** - Witness type included in validation checks and progress tracking
 - **Summary Report** - Witness type displayed in configuration summary
+- **Visual Feedback** - Disabled cards with tooltips when locked, info box explains requirements
+
+#### Storage Pool Configuration
+- **Storage Pool Configuration Section** - Repositioned to Step 15 (after Infrastructure Network, before Active Directory)
+  - **Express Mode** - Quick deployment with standard settings (default)
+  - **Infra Only** - Infrastructure-only deployment without storage pool
+  - **Keep Storage** - Preserve existing storage configuration
+- **ARM Template Integration** - Maps to `configurationMode` parameter in deployment template
 
 #### Security Configuration
-- **Security Configuration Section** - New step after Active Directory configuration (Step 16)
+- **Security Configuration Section** - Step 17 (after Active Directory)
   - **Recommended Option** - Secure by default configuration with all security controls enabled
   - **Customized Option** - Granular control over individual security settings
 - **Custom Security Controls** - Toggle switches for 7 security settings:
@@ -52,8 +63,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Page Description** - Updated introductory text to better describe ALDA tool capabilities
-- **State Management** - Added `securityConfiguration`, `securitySettings`, `storagePoolConfiguration`, and `witnessType` to wizard state
+- **Default Port Speed** - Changed default network adapter speed to 25GbE for all cluster scales (previously 1GbE for Low Capacity, 10GbE for Standard, 25GbE for Rack Aware)
+- **Step Numbering** - Updated step numbers due to Storage Pool Configuration repositioning:
+  - Storage Pool Configuration: Step 07.5 → Step 15
+  - Active Directory: Step 15 → Step 16
+  - Security Configuration: Step 16 → Step 17
+  - Software Defined Networking: Step 17 → Step 18
+- **State Management** - Added `securityConfiguration`, `securitySettings`, `storagePoolConfiguration`, `witnessType`, and `autoScrollEnabled` to wizard state
 - **Step Flow** - Integrated new configuration steps into wizard flow visibility logic
+- **Port Configuration Scrolling** - Selecting network adapter ports now scrolls directly to Port Configuration section for immediate setup
+
+### Fixed
+- **Auto-Scroll Accuracy** - Fixed mapping for scenario selection to properly scroll through all steps (was skipping Azure Cloud selection)
 
 ---
 

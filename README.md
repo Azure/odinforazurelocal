@@ -27,10 +27,20 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ### ✨ Core Functionality
 - **Step-by-Step Wizard**: Guided decision flow for Azure Local network configuration
 - **Multiple Deployment Scenarios**: Hyperconverged, Disaggregated, Disconnected, and Multi-Rack
+- **Cloud Witness Configuration**: Automatic witness type selection based on cluster topology
+- **Storage Pool Management**: Configure storage pool deployment mode (Express, InfraOnly, KeepStorage)
 - **Security Configuration**: Configure security controls with recommended or customized settings
+- **Auto-Scroll Navigation**: Optional automatic scrolling to next step with 1-second delay (toggle on/off)
 - **Intelligent Validation**: Real-time input validation with helpful error messages
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
+
+### 🎉 Version 0.2.0 Enhancements
+- **Auto-Scroll Toggle**: Control automatic navigation between wizard steps
+- **Cloud Witness Type**: Automatic witness configuration based on cluster size and topology
+- **Storage Pool Configuration**: Choose deployment mode at Step 15
+- **Enhanced Port Configuration**: Direct scroll to port settings, default 25GbE speed
+- **Updated Step Flow**: Reorganized steps for better logical progression
 
 ### 🎉 Version 0.1.0 Enhancements
 - **Auto-Save & Resume**: Automatic progress saving using browser localStorage

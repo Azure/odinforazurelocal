@@ -1889,13 +1889,13 @@ function scrollToNextStep(currentCategory) {
         'witnessType': 'step-3-5',
         'storage': 'step-4',
         'ports': 'step-5',
-        'storagePoolConfiguration': 'step-5-5',
         'intent': 'step-6',
         'outbound': 'step-7',
         'arc': 'step-8',
         'proxy': 'step-9',
         'ip': 'step-10',
         'infraVlan': 'step-11',
+        'storagePoolConfiguration': 'step-5-5',
         'activeDirectory': 'step-13',
         'securityConfiguration': 'step-13-5',
         'sdnManagement': 'step-14'
@@ -1914,7 +1914,6 @@ function scrollToNextStep(currentCategory) {
         'step-3-5',
         'step-4',
         'step-5',
-        'step-5-5',
         'step-6',
         'step-7',
         'step-8',
@@ -1922,6 +1921,7 @@ function scrollToNextStep(currentCategory) {
         'step-10',
         'step-11',
         'step-12',
+        'step-5-5',
         'step-13',
         'step-13-5',
         'step-14'
@@ -5781,9 +5781,41 @@ function showChangelog() {
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">� Auto-Scroll Navigation</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Smooth Wizard Flow:</strong> Automatically scrolls to the next step after making a selection.</li>
+                        <li><strong>Toggle Control:</strong> Enable or disable auto-scroll with the checkbox below the Progress bar.</li>
+                        <li><strong>Smart Delays:</strong> 1-second pause before scrolling allows you to review your selection.</li>
+                        <li><strong>Persistent Preference:</strong> Your toggle setting is saved across sessions.</li>
+                        <li><strong>Port Configuration:</strong> Selecting ports now scrolls directly to Port Configuration section.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">☁️ Cloud Witness Type</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New Step 05.5:</strong> Automatic witness type configuration based on cluster design.</li>
+                        <li><strong>Smart Defaults:</strong> Rack Aware and 2-node clusters require Cloud witness (locked).</li>
+                        <li><strong>Flexible Options:</strong> 3+ node clusters default to No Witness but can be changed.</li>
+                        <li><strong>Visual Feedback:</strong> Disabled options show tooltips explaining requirements.</li>
+                        <li><strong>ARM Integration:</strong> Witness type automatically included in deployment parameters.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">💾 Storage Pool Configuration</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Repositioned to Step 15:</strong> Now appears after Infrastructure Network configuration.</li>
+                        <li><strong>Express Mode:</strong> Create one UserStorage volume per physical machine (default).</li>
+                        <li><strong>InfraOnly Mode:</strong> Create only Infrastructure volume, no workload storage.</li>
+                        <li><strong>KeepStorage Mode:</strong> Retain existing volumes on data disks.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔒 Security Configuration</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>New Security Step:</strong> Configure security controls for your Azure Local deployment.</li>
+                        <li><strong>Step 17:</strong> Configure security controls for your Azure Local deployment.</li>
                         <li><strong>Recommended Option:</strong> Secure by default with all security controls enabled.</li>
                         <li><strong>Customized Option:</strong> Granular control over 7 individual security settings.</li>
                         <li><strong>ARM Integration:</strong> Security settings automatically map to deployment parameters.</li>
@@ -5804,12 +5836,12 @@ function showChangelog() {
                 </div>
                 
                 <div style="margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Additional Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Sequential Flow:</strong> Security configuration step must be completed before SDN options.</li>
-                        <li><strong>Documentation Link:</strong> Direct link to Microsoft Learn security features documentation.</li>
-                        <li><strong>Summary Integration:</strong> Security settings displayed in configuration summary.</li>
-                        <li><strong>Validation:</strong> Security configuration included in readiness checks.</li>
+                        <li><strong>Default Port Speed:</strong> Network adapters now default to 25GbE for all cluster scales.</li>
+                        <li><strong>Step Renumbering:</strong> Updated step numbers for better logical flow (Active Directory now Step 16, Security Step 17, SDN Step 18).</li>
+                        <li><strong>Documentation Links:</strong> Direct links to Microsoft Learn for security features and best practices.</li>
+                        <li><strong>Enhanced Validation:</strong> All new configuration options included in readiness checks.</li>
                     </ul>
                 </div>
 
