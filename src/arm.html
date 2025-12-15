@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="no-referrer">
+    <title>Azure Local Design Assistant (ALDA) Tool — ARM Parameters</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="background-globes"></div>
+
+    <main class="container">
+        <header>
+            <h1>Azure Local ARM Parameters JSON</h1>
+            <p>View and copy the generated Azure Quickstart-style ARM parameters file.</p>
+        </header>
+
+        <section class="step" style="margin-bottom:1.5rem;">
+            <div class="step-header">
+                <span class="step-number">A1</span>
+                <h2>Metadata</h2>
+            </div>
+            <div id="arm-meta" class="info-box visible"></div>
+        </section>
+
+        <section class="step" style="margin-bottom:1.5rem;">
+            <div class="step-header">
+                <span class="step-number">A2</span>
+                <h2>Placeholders</h2>
+            </div>
+            <div id="arm-placeholders"></div>
+        </section>
+
+        <section class="step" style="margin-bottom:2rem;">
+            <div class="step-header">
+                <span class="step-number">A3</span>
+                <h2>Parameters File Content</h2>
+            </div>
+
+            <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
+                <button id="arm-copy-btn" type="button" class="report-button" style="width:auto; padding:0.6rem 1rem;">Copy JSON</button>
+                <div id="arm-copy-status" style="color:var(--text-secondary); align-self:center;"></div>
+            </div>
+
+            <pre id="arm-json" class="json-viewer" aria-label="ARM parameters JSON"><code id="arm-json-code" class="json-viewer__code"></code></pre>
+
+            <div class="switchless-diagram__note" style="margin-top:0.75rem;">
+                Tip: Search for <strong style="color:var(--text-primary);">REPLACE_WITH_</strong> to find values the wizard doesn’t collect.
+            </div>
+        </section>
+
+        <button type="button" class="reset-button" onclick="window.close();">
+            Close
+        </button>
+    </main>
+
+    <script src="arm.js"></script>
+</body>
+
+</html>

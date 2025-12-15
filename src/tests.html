@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Tests - Azure Local Wizard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #0a0e27;
+            color: #e0e7ff;
+        }
+        .test-suite {
+            background: #1a1f3a;
+            border: 1px solid #2d3653;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-suite h2 {
+            color: #60a5fa;
+            margin-top: 0;
+        }
+        .test-case {
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .test-case.pass {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+        }
+        .test-case.fail {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid #ef4444;
+        }
+        .test-status {
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 4px;
+        }
+        .test-status.pass {
+            color: #10b981;
+        }
+        .test-status.fail {
+            color: #ef4444;
+        }
+        .summary {
+            background: #2d3653;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .summary-stat {
+            display: inline-block;
+            margin: 0 20px;
+            font-size: 18px;
+        }
+        .summary-stat .number {
+            font-size: 32px;
+            font-weight: bold;
+            display: block;
+        }
+        .summary-stat.pass .number {
+            color: #10b981;
+        }
+        .summary-stat.fail .number {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Unit Tests - Azure Local Wizard</h1>
+    <p>Validation function test suite</p>
+    
+    <div id="summary" class="summary">
+        <div class="summary-stat pass">
+            <span class="number" id="pass-count">0</span>
+            <span>Passed</span>
+        </div>
+        <div class="summary-stat fail">
+            <span class="number" id="fail-count">0</span>
+            <span>Failed</span>
+        </div>
+        <div class="summary-stat">
+            <span class="number" id="total-count">0</span>
+            <span>Total</span>
+        </div>
+    </div>
+    
+    <div id="test-results"></div>
+    
+    <script src="script.js"></script>
+    <script>
+        // Test framework
+        let passCount = 0;
+        let failCount = 0;
+        let totalCount = 0;
+        
+        function assert(condition, testName, expected, actual) {
+            totalCount++;
+            const testCase = document.createElement('div');
+            testCase.className = 'test-case';
+            
+            if (condition) {
+                passCount++;
+                testCase.classList.add('pass');
+                testCase.innerHTML = `
+                    <span>${testName}</span>
+                    <span class="test-status pass">✓ PASS</span>
+                `;
+            } else {
+                failCount++;
+                testCase.classList.add('fail');
+                testCase.innerHTML = `
+                    <span>${testName}<br><small>Expected: ${expected}, Got: ${actual}</small></span>
+                    <span class="test-status fail">✗ FAIL</span>
+                `;
+            }
+            
+            return testCase;
+        }
+        
+        function testSuite(name, tests) {
+            const suite = document.createElement('div');
+            suite.className = 'test-suite';
+            suite.innerHTML = `<h2>${name}</h2>`;
+            
+            tests.forEach(test => {
+                suite.appendChild(test);
+            });
+            
+            document.getElementById('test-results').appendChild(suite);
+        }
+        
+        function updateSummary() {
+            document.getElementById('pass-count').textContent = passCount;
+            document.getElementById('fail-count').textContent = failCount;
+            document.getElementById('total-count').textContent = totalCount;
+        }
+        
+        // Test: isValidNetbiosName
+        testSuite('isValidNetbiosName()', [
+            assert(isValidNetbiosName('SERVER01') === true, 'Valid: SERVER01', true, isValidNetbiosName('SERVER01')),
+            assert(isValidNetbiosName('Node-1') === true, 'Valid: Node-1 (with hyphen)', true, isValidNetbiosName('Node-1')),
+            assert(isValidNetbiosName('A') === true, 'Valid: Single character', true, isValidNetbiosName('A')),
+            assert(isValidNetbiosName('AAAAAAAAAAAAAAA') === true, 'Valid: 15 characters (max)', true, isValidNetbiosName('AAAAAAAAAAAAAAA')),
+            assert(isValidNetbiosName('-SERVER') === false, 'Invalid: Starts with hyphen', false, isValidNetbiosName('-SERVER')),
+            assert(isValidNetbiosName('SERVER-') === false, 'Invalid: Ends with hyphen', false, isValidNetbiosName('SERVER-')),
+            assert(isValidNetbiosName('AAAAAAAAAAAAAAAA') === false, 'Invalid: 16 characters (too long)', false, isValidNetbiosName('AAAAAAAAAAAAAAAA')),
+            assert(isValidNetbiosName('') === false, 'Invalid: Empty string', false, isValidNetbiosName('')),
+            assert(isValidNetbiosName('Server 01') === false, 'Invalid: Contains space', false, isValidNetbiosName('Server 01')),
+            assert(isValidNetbiosName('Server_01') === false, 'Invalid: Contains underscore', false, isValidNetbiosName('Server_01'))
+        ]);
+        
+        // Test: isValidIpv4Cidr
+        testSuite('isValidIpv4Cidr()', [
+            assert(isValidIpv4Cidr('192.168.1.0/24') === true, 'Valid: 192.168.1.0/24', true, isValidIpv4Cidr('192.168.1.0/24')),
+            assert(isValidIpv4Cidr('10.0.0.0/8') === true, 'Valid: 10.0.0.0/8', true, isValidIpv4Cidr('10.0.0.0/8')),
+            assert(isValidIpv4Cidr('172.16.0.0/16') === true, 'Valid: 172.16.0.0/16', true, isValidIpv4Cidr('172.16.0.0/16')),
+            assert(isValidIpv4Cidr('0.0.0.0/0') === true, 'Valid: 0.0.0.0/0', true, isValidIpv4Cidr('0.0.0.0/0')),
+            assert(isValidIpv4Cidr('255.255.255.255/32') === true, 'Valid: 255.255.255.255/32', true, isValidIpv4Cidr('255.255.255.255/32')),
+            assert(isValidIpv4Cidr('192.168.1.0') === false, 'Invalid: Missing CIDR', false, isValidIpv4Cidr('192.168.1.0')),
+            assert(isValidIpv4Cidr('192.168.1.0/33') === false, 'Invalid: /33 (out of range)', false, isValidIpv4Cidr('192.168.1.0/33')),
+            assert(isValidIpv4Cidr('256.168.1.0/24') === false, 'Invalid: 256 in octet', false, isValidIpv4Cidr('256.168.1.0/24')),
+            assert(isValidIpv4Cidr('192.168/24') === false, 'Invalid: Missing octets', false, isValidIpv4Cidr('192.168/24')),
+            assert(isValidIpv4Cidr('') === false, 'Invalid: Empty string', false, isValidIpv4Cidr(''))
+        ]);
+        
+        // Test: escapeHtml
+        testSuite('escapeHtml()', [
+            assert(escapeHtml('<script>alert("xss")</script>') === '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;', 
+                'Escapes script tags', 
+                '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;', 
+                escapeHtml('<script>alert("xss")</script>')),
+            assert(escapeHtml('Hello & Goodbye') === 'Hello &amp; Goodbye', 
+                'Escapes ampersand', 
+                'Hello &amp; Goodbye', 
+                escapeHtml('Hello & Goodbye')),
+            assert(escapeHtml('\'single\' "double"') === '&#39;single&#39; &quot;double&quot;', 
+                'Escapes quotes', 
+                '&#39;single&#39; &quot;double&quot;', 
+                escapeHtml('\'single\' "double"')),
+            assert(escapeHtml('Normal text') === 'Normal text', 
+                'No escaping needed', 
+                'Normal text', 
+                escapeHtml('Normal text'))
+        ]);
+        
+        // Test: sanitizeInput
+        testSuite('sanitizeInput()', [
+            assert(sanitizeInput('<b>Bold</b>', 'html') === '&lt;b&gt;Bold&lt;/b&gt;', 
+                'HTML sanitization', 
+                '&lt;b&gt;Bold&lt;/b&gt;', 
+                sanitizeInput('<b>Bold</b>', 'html')),
+            assert(sanitizeInput('file name.txt', 'filename') === 'file_name.txt', 
+                'Filename sanitization', 
+                'file_name.txt', 
+                sanitizeInput('file name.txt', 'filename')),
+            assert(sanitizeInput('hello world', 'url').includes('hello'), 
+                'URL encoding contains text', 
+                true, 
+                sanitizeInput('hello world', 'url').includes('hello'))
+        ]);
+        
+        // Test: ipToLong and longToIp
+        testSuite('IP Conversion Functions', [
+            assert(longToIp(ipToLong('192.168.1.1')) === '192.168.1.1', 
+                'Round-trip: 192.168.1.1', 
+                '192.168.1.1', 
+                longToIp(ipToLong('192.168.1.1'))),
+            assert(longToIp(ipToLong('10.0.0.1')) === '10.0.0.1', 
+                'Round-trip: 10.0.0.1', 
+                '10.0.0.1', 
+                longToIp(ipToLong('10.0.0.1'))),
+            assert(ipToLong('192.168.1.1') === 3232235777, 
+                'ipToLong: 192.168.1.1', 
+                3232235777, 
+                ipToLong('192.168.1.1')),
+            assert(longToIp(3232235777) === '192.168.1.1', 
+                'longToIp: 3232235777', 
+                '192.168.1.1', 
+                longToIp(3232235777))
+        ]);
+        
+        // Test: extractIpFromCidr
+        testSuite('extractIpFromCidr()', [
+            assert(extractIpFromCidr('192.168.1.0/24') === '192.168.1.0', 
+                'Extract from 192.168.1.0/24', 
+                '192.168.1.0', 
+                extractIpFromCidr('192.168.1.0/24')),
+            assert(extractIpFromCidr('10.0.0.0/8') === '10.0.0.0', 
+                'Extract from 10.0.0.0/8', 
+                '10.0.0.0', 
+                extractIpFromCidr('10.0.0.0/8')),
+            assert(extractIpFromCidr('') === '', 
+                'Extract from empty string', 
+                '', 
+                extractIpFromCidr(''))
+        ]);
+        
+        // Update summary
+        updateSummary();
+        
+        // Overall result
+        setTimeout(() => {
+            if (failCount === 0) {
+                document.body.style.borderTop = '5px solid #10b981';
+                console.log('✓ All tests passed!');
+            } else {
+                document.body.style.borderTop = '5px solid #ef4444';
+                console.log(`✗ ${failCount} test(s) failed`);
+            }
+        }, 100);
+    </script>
+</body>
+</html>

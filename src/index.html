@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="no-referrer">
+    <meta name="description" content="Azure Local Design Assistant (ALDA) Tool - Design your Azure Local network architecture">
+    <meta name="keywords" content="Azure Local, Azure Stack HCI, Network Architecture, ARM Templates">
+    <title>Azure Local Design Assistant (ALDA) Tool</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <style>
+        .reset-button {
+            width: 100%;
+            padding: 0.8rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .reset-button:hover {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.3));
+            color: #fff;
+            border-color: rgba(239, 68, 68, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+        }
+
+        .reset-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(185, 28, 28, 0.4));
+        }
+
+        .sdn-feature-card {
+            display: flex;
+            align-items: flex-start;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .sdn-feature-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--accent-blue);
+        }
+
+        .sdn-feature-card input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            margin-top: 2px;
+        }
+    </style>
+    <div class="background-globes"></div>
+
+    <main class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+                <div>
+                    <h1>Azure Local Design Assistant (ALDA) Tool</h1>
+                    <p>Design your Azure Local network architecture by following the decision path.</p>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                        Version 0.1.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <noscript>
+            <div class="info-box warning visible" style="margin-top: 1rem;">
+                <strong>JavaScript is required</strong>
+                <p>This wizard needs JavaScript enabled to work. If you're viewing this inside a restricted preview, open the page in a full browser.</p>
+            </div>
+        </noscript>
+
+        <div class="layout-flex">
+            <div class="steps-column">
+                <!-- Step 1: Scenario -->
+                <!-- Step 1: Scenario / Architecture -->
+                <section class="step" id="step-1">
+                    <div class="step-header">
+                        <span class="step-number">01</span>
+                        <h2>Deployment Type</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        <a href="https://learn.microsoft.com/azure/azure-local/scalability-deployments" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">
+                            📘 Help and information for Deployment Types
+                        </a>
+                    </p>
+                    <div class="options-grid">
+                        <!-- Option 1: Hyperconverged -->
+                        <div class="option-card" data-value="hyperconverged"
+                            onclick="selectOption('scenario', 'hyperconverged')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="4" width="20" height="16" rx="2" stroke-width="1.5" />
+                                    <line x1="2" y1="12" x2="22" y2="12" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Hyperconverged</h3>
+                            <p>Single rack, consolidated compute & storage.</p>
+                        </div>
+
+                        <!-- Option 2: Multi-Rack -->
+                        <div class="option-card" data-value="multirack" onclick="selectOption('scenario', 'multirack')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M4 2h5v20H4zM15 2h5v20h-5z" stroke-width="1.5" />
+                                    <path d="M9 12h6" stroke-width="1.5" stroke-dasharray="2 2" />
+                                </svg>
+                            </div>
+                            <h3>Multi-Rack</h3>
+                            <p>Scalable, multi-rack distributed architecture.</p>
+                        </div>
+
+                        <!-- Option 3: Disconnected -->
+                        <div class="option-card" data-value="disconnected"
+                            onclick="selectOption('scenario', 'disconnected')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.5"
+                                        fill="rgba(255, 255, 255, 0.05)" />
+                                </svg>
+                            </div>
+                            <h3>Disconnected</h3>
+                            <p>Air-gapped operation with local management.</p>
+                        </div>
+
+                        <!-- Option 4: M365 Local -->
+                        <div class="option-card" data-value="m365local"
+                            onclick="selectOption('scenario', 'm365local')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
+                                    <path d="M3 9h18M9 3v18" stroke-width="1.5" />
+                                    <circle cx="15" cy="15" r="3" stroke-width="1.5" fill="rgba(59, 130, 246, 0.1)" />
+                                </svg>
+                            </div>
+                            <h3>M365 Local</h3>
+                            <p>Microsoft 365 workloads with minimum 9 nodes.</p>
+                        </div>
+                    </div>
+
+                    <div id="scenario-explanation" class="info-box"></div>
+
+                    <div id="multirack-message" class="info-box warning hidden">
+                        <strong style="color: var(--accent-purple); font-size: 1.1rem;">Contact Microsoft</strong>
+                        <p>For Multi-Rack Network Architecture requirements, please contact your Microsoft
+                            representative to
+                            understand the network requirements.<br>
+                            <a href="https://learn.microsoft.com/en-us/azure/azure-local/multi-rack/multi-rack-overview?view=azloc-2511"
+                                target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Read the
+                                documentation</a>
+                        </p>
+                    </div>
+                </section>
+                <section class="step" id="step-cloud">
+                    <div class="step-header">
+                        <span class="step-number">02</span>
+                        <h2>Azure Cloud</h2>
+                    </div>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="azure_commercial"
+                            onclick="selectOption('region', 'azure_commercial')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                                </svg>
+                            </div>
+                            <h3>Azure Commercial</h3>
+                            <p>Global Azure regions.</p>
+                        </div>
+                        <div class="option-card" data-value="azure_government"
+                            onclick="selectOption('region', 'azure_government')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z">
+                                    </path>
+                                    <path d="M12 2v20"></path>
+                                    <path d="M2 12h20"></path>
+                                </svg>
+                            </div>
+                            <h3>Azure Government</h3>
+                            <p>US Government regions.</p>
+                        </div>
+                        <div class="option-card" data-value="azure_china"
+                            onclick="selectOption('region', 'azure_china')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path
+                                        d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
+                                    </path>
+                                    <path d="M2 12h20"></path>
+                                </svg>
+                            </div>
+                            <h3>Azure China</h3>
+                            <p>China regions.</p>
+                        </div>
+                    </div>
+                    <div id="china-warning" class="info-box warning hidden" style="margin-top:1rem;">
+                        <strong style="color:var(--accent-purple)">Unsupported Region</strong>
+                        <p>Azure Local is not supported in Azure China region.</p>
+                    </div>
+                </section>
+
+                <!-- Step 3: Azure Local Instance Region -->
+                <section class="step" id="step-local-region">
+                    <div class="step-header">
+                        <span class="step-number">03</span>
+                        <h2>Azure Local Instance Region</h2>
+                    </div>
+
+                    <div class="options-grid compact">
+                        <!-- Azure public cloud supported regions -->
+                        <div class="option-card" data-value="east_us" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'east_us')">
+                            <h3>East US</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="west_europe" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'west_europe')">
+                            <h3>West Europe</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="australia_east" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'australia_east')">
+                            <h3>Australia East</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="southeast_asia" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'southeast_asia')">
+                            <h3>Southeast Asia</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="india_central" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'india_central')">
+                            <h3>India Central</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="canada_central" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'canada_central')">
+                            <h3>Canada Central</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="japan_east" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'japan_east')">
+                            <h3>Japan East</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="south_central_us" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'south_central_us')">
+                            <h3>South Central US</h3>
+                            <p>Azure public</p>
+                        </div>
+
+                        <!-- Azure Government supported region -->
+                        <div class="option-card" data-value="us_gov_virginia" data-cloud="azure_government"
+                            onclick="selectOption('localInstanceRegion', 'us_gov_virginia')">
+                            <h3>US Gov Virginia</h3>
+                            <p>Azure Government</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 2: Scale (Conditional) -->
+                <section class="step" id="step-2">
+                    <div class="step-header">
+                        <span class="step-number">04</span>
+                        <h2>Cluster Scale</h2>
+                    </div>
+
+                    <!-- Scale Options -->
+                    <div class="options-grid" id="scale-options">
+                        <div class="option-card" data-value="low_capacity"
+                            onclick="selectOption('scale', 'low_capacity')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M4 4h16v16H4z" stroke-width="1.5" opacity="0.1" fill="currentColor" />
+                                    <rect x="4" y="4" width="16" height="16" rx="2" stroke-width="1.5" />
+                                    <circle cx="12" cy="12" r="3" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Low Capacity</h3>
+                            <p>Edge / Small Scale usage (Max 3 nodes).</p>
+                        </div>
+
+                        <div class="option-card" data-value="medium" onclick="selectOption('scale', 'medium')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="4" width="9" height="7" rx="1" stroke-width="1.5" />
+                                    <rect x="13" y="4" width="9" height="7" rx="1" stroke-width="1.5" />
+                                    <rect x="2" y="13" width="9" height="7" rx="1" stroke-width="1.5" />
+                                    <rect x="13" y="13" width="9" height="7" rx="1" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Standard</h3>
+                            <p>1 to 16 nodes.</p>
+                        </div>
+                        <div class="option-card" data-value="rack_aware" onclick="selectOption('scale', 'rack_aware')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
+                                    <rect x="14" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
+                                    <path d="M7 7h0M7 11h0M7 15h0M7 19h0" stroke-width="2" stroke-linecap="round" />
+                                    <path d="M18 7h0M18 11h0M18 15h0M18 19h0" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                            <h3>Rack Aware</h3>
+                            <p>Spread across rooms (2, 4, 6, 8 nodes).</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 3: Cluster Size -->
+                <section class="step" id="step-3">
+                    <div class="step-header">
+                        <span class="step-number">05</span>
+                        <h2>Cluster Size</h2>
+                    </div>
+                    <!-- Updated Node Selection Grid -->
+                    <div class="nodes-grid">
+                        <!-- Generated by Script or Static? Static for clarity -->
+                        <div class="node-chip" onclick="selectOption('nodes', '1')">1</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '2')">2</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '3')">3</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '4')">4</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '5')">5</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '6')">6</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '7')">7</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '8')">8</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '9')">9</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '10')">10</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '11')">11</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '12')">12</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '13')">13</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '14')">14</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '15')">15</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '16')">16</div>
+                        <div class="node-chip" onclick="selectOption('nodes', '16+')" style="font-weight: 700;">16+
+                        </div>
+
+                        <div id="nodes-context" class="node-context">
+                            <!-- Dynamic text will verify size implications -->
+                            Selected: <span id="nodes-count-display">-</span> Nodes. <span
+                                id="nodes-implication"></span>
+                        </div>
+                    </div>
+
+                    <!-- Conditional: Rack Aware only (after selecting nodes) -->
+                    <div id="rack-aware-zones" class="hidden" style="margin-top: 1.5rem;">
+                        <div style="margin-bottom: 0.9rem;">
+                            <div style="font-weight: 700; letter-spacing: -0.01em;">Local availability zones</div>
+                            <div style="color: var(--text-secondary); font-size: 0.95rem;">Define zone names and assign nodes to zones.</div>
+                        </div>
+
+                        <div class="rack-az-grid">
+                            <div class="rack-az-card">
+                                <div class="rack-az-card__title">Local availability zone 1</div>
+                                <div class="rack-az-field">
+                                    <label class="rack-az-label" for="rack-az1-name">Local availability zone name 1 <span style="color: var(--accent-purple);">*</span></label>
+                                    <input id="rack-az1-name" class="rack-az-input" type="text" value="Zone1" oninput="updateRackAwareZoneName(1, this.value)">
+                                </div>
+                                <div class="rack-az-field">
+                                    <div class="rack-az-label">Servers on local availability zone 1 <span style="color: var(--accent-purple);">*</span></div>
+                                    <div id="rack-az1-drop" class="rack-az-drop" aria-label="Zone 1 node assignment drop area"></div>
+                                </div>
+                                <div class="info-box visible" style="margin-top: 0.75rem;">
+                                    <strong>Note</strong>
+                                    You need to assign your servers equally across 2 Local availability zones. Nodes not placed in Zone 1 will automatically be assigned to Zone 2.
+                                </div>
+                            </div>
+
+                            <div class="rack-az-card">
+                                <div class="rack-az-card__title">Local availability zone 2</div>
+                                <div class="rack-az-field">
+                                    <label class="rack-az-label" for="rack-az2-name">Local availability zone name 2 <span style="color: var(--accent-purple);">*</span></label>
+                                    <input id="rack-az2-name" class="rack-az-input" type="text" value="Zone2" oninput="updateRackAwareZoneName(2, this.value)">
+                                </div>
+                                <div class="rack-az-field">
+                                    <div class="rack-az-label">Servers on local availability zone 2</div>
+                                    <div id="rack-az2-drop" class="rack-az-drop" aria-label="Zone 2 node assignment drop area"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="info-box visible" style="margin-top: 0.9rem;">
+                            <strong>Tip</strong>
+                            If drag-and-drop is restricted in your browser, click a node to select it, then click a node in the other zone to swap them.
+                        </div>
+
+                        <div style="margin-top: 0.9rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                            <button id="rack-aware-zones-confirm-btn" type="button" class="report-action-button rack-aware-zones-confirm-btn" style="flex: 0 0 auto; min-width: 260px;">Confirm zones &amp; node placement</button>
+                            <div id="rack-aware-zones-confirm-status" style="color: var(--text-secondary); font-size: 0.95rem;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Conditional: Rack Aware ToR switch architecture (after selecting nodes) -->
+                    <div id="rack-aware-tor" class="hidden" style="margin-top: 1.5rem;">
+                        <div style="margin-bottom: 0.9rem;">
+                            <div style="font-weight: 700; letter-spacing: -0.01em;">TOR switch architecture</div>
+                            <div style="color: var(--text-secondary); font-size: 0.95rem;">Select your top-of-rack (TOR) switch layout for a Rack Aware (multi-room) cluster.</div>
+                        </div>
+
+                        <div style="margin-bottom: 0.75rem; font-weight: 600;">How many TOR switches per room? <span style="color: var(--accent-purple);">*</span></div>
+                        <div class="options-grid">
+                            <div class="option-card" data-value="1" onclick="selectOption('rackAwareTorsPerRoom', '1')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="5" y="7" width="14" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
+                                        <circle cx="9" cy="12" r="1.2" fill="currentColor" />
+                                        <circle cx="13" cy="12" r="1.2" fill="currentColor" />
+                                        <circle cx="17" cy="12" r="1.2" fill="currentColor" />
+                                    </svg>
+                                </div>
+                                <h3>1 TOR per room</h3>
+                            </div>
+                            <div class="option-card" data-value="2" onclick="selectOption('rackAwareTorsPerRoom', '2')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="3" y="7" width="8" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
+                                        <rect x="13" y="7" width="8" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
+                                        <path d="M11 12H13" stroke-dasharray="2 2" />
+                                    </svg>
+                                </div>
+                                <h3>2 TORs per room</h3>
+                            </div>
+                        </div>
+
+                        <div id="rack-aware-tor-options-2" class="hidden" style="margin-top: 1rem;">
+                            <div style="margin-bottom: 0.75rem; font-weight: 600;">Select the architecture option <span style="color: var(--accent-purple);">*</span></div>
+                            <div class="options-grid">
+                                <div class="option-card" data-value="option_a" onclick="selectOption('rackAwareTorArchitecture', 'option_a')">
+                                    <div class="icon">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <path d="M4 8h16" />
+                                            <path d="M4 16h16" />
+                                            <path d="M8 8v8" stroke-dasharray="2 2" />
+                                            <path d="M16 8v8" stroke-dasharray="2 2" />
+                                        </svg>
+                                    </div>
+                                    <h3>Dedicated storage links</h3>
+                                    <p>4 TORs total. VLAN 711 and VLAN 712 use separate, dedicated room-to-room link sets (storage bypasses MLAG to reduce RDMA hops).</p>
+                                </div>
+                                <div class="option-card" data-value="option_b" onclick="selectOption('rackAwareTorArchitecture', 'option_b')">
+                                    <div class="icon">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <path d="M5 9h14" />
+                                            <path d="M5 15h14" />
+                                            <path d="M7 9l10 6" stroke-dasharray="3 3" />
+                                            <path d="M7 15l10-6" stroke-dasharray="3 3" />
+                                        </svg>
+                                    </div>
+                                    <h3>Aggregated storage links</h3>
+                                    <p>4 TORs total. Storage uses port-channels/vPC across rooms; traffic path depends on hashing and can traverse MLAG (potential latency increase).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="rack-aware-tor-options-1" class="hidden" style="margin-top: 1rem;">
+                            <div style="margin-bottom: 0.75rem; font-weight: 600;">Select the architecture option <span style="color: var(--accent-purple);">*</span></div>
+                            <div class="options-grid">
+                                <div class="option-card" data-value="option_c" onclick="selectOption('rackAwareTorArchitecture', 'option_c')">
+                                    <div class="icon">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <rect x="5" y="7" width="14" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
+                                            <path d="M7 12h10" stroke-dasharray="2 2" />
+                                        </svg>
+                                    </div>
+                                    <h3>Per-room node connectivity</h3>
+                                    <p>2 TORs total. SMB1 and SMB2 are hosted on the same TOR in each zone; simpler wiring but no TOR redundancy within a zone (single point of failure per zone).</p>
+                                </div>
+                                <div class="option-card" data-value="option_d" onclick="selectOption('rackAwareTorArchitecture', 'option_d')">
+                                    <div class="icon">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                            <path d="M6 8h12" />
+                                            <path d="M6 16h12" />
+                                            <path d="M6 8l12 8" stroke-dasharray="2 2" />
+                                        </svg>
+                                    </div>
+                                    <h3>Cross-room node connectivity</h3>
+                                    <p>2 TORs total. Each node connects to TORs in both rooms; reduces dependence on TOR-to-TOR RDMA room links but requires cross-room fiber per node interface.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 4: Storage Connectivity -->
+                <section class="step" id="step-4">
+                    <div class="step-header">
+                        <span class="step-number">06</span>
+                        <h2>Storage Connectivity</h2>
+                        <button type="button" onclick="event.stopPropagation(); showComparison('storage');" style="margin-left: auto; padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                            Compare Options
+                        </button>
+                    </div>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="switched" onclick="selectOption('storage', 'switched')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="6" width="20" height="12" rx="2" fill="rgba(0, 120, 212, 0.2)" />
+                                    <circle cx="6" cy="12" r="1.5" fill="currentColor" />
+                                    <circle cx="10" cy="12" r="1.5" fill="currentColor" />
+                                    <circle cx="14" cy="12" r="1.5" fill="currentColor" />
+                                    <circle cx="18" cy="12" r="1.5" fill="currentColor" />
+                                </svg>
+                            </div>
+                            <h3>Switched</h3>
+                            <p>Physical switch. Required for 5+ nodes.</p>
+                        </div>
+                        <div class="option-card" data-value="switchless"
+                            onclick="selectOption('storage', 'switchless')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="1.5">
+                                    <rect x="2" y="4" width="6" height="16" rx="1" fill="rgba(255, 255, 255, 0.1)" />
+                                    <rect x="16" y="4" width="6" height="16" rx="1" fill="rgba(255, 255, 255, 0.1)" />
+                                    <path d="M8 8H16" stroke-dasharray="2 2" />
+                                    <path d="M8 12H16" stroke-dasharray="2 2" />
+                                    <path d="M8 16H16" stroke-dasharray="2 2" />
+                                </svg>
+                            </div>
+                            <h3>Switchless</h3>
+                            <p>Direct connection. Only for 1-4 nodes.</p>
+                        </div>
+                    </div>
+
+                    <!-- Conditional: 3-node + Low Capacity + Switchless only -->
+                    <div id="switchless-link-mode" class="hidden" style="margin-top: 1.5rem;">
+                        <div style="margin-bottom: 0.9rem;">
+                            <div style="font-weight: 700; letter-spacing: -0.01em;">Switchless Link Configuration</div>
+                            <div style="color: var(--text-secondary); font-size: 0.95rem;">Select the storage fabric wiring pattern for this specific topology.</div>
+                        </div>
+                        <div class="options-grid">
+                            <div class="option-card" data-value="single_link"
+                                onclick="selectOption('switchlessLinkMode', 'single_link')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="6" cy="12" r="2" fill="rgba(255, 255, 255, 0.06)" />
+                                        <circle cx="18" cy="12" r="2" fill="rgba(255, 255, 255, 0.06)" />
+                                        <path d="M8 12H16" stroke-dasharray="3 3" />
+                                    </svg>
+                                </div>
+                                <h3>Single-Link configuration</h3>
+                                <p>One storage link per node-pair (no redundancy).</p>
+                            </div>
+                            <div class="option-card" data-value="dual_link"
+                                onclick="selectOption('switchlessLinkMode', 'dual_link')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <circle cx="6" cy="9" r="2" fill="rgba(255, 255, 255, 0.06)" />
+                                        <circle cx="18" cy="9" r="2" fill="rgba(255, 255, 255, 0.06)" />
+                                        <circle cx="6" cy="15" r="2" fill="rgba(255, 255, 255, 0.06)" />
+                                        <circle cx="18" cy="15" r="2" fill="rgba(255, 255, 255, 0.06)" />
+                                        <path d="M8 9H16" />
+                                        <path d="M8 15H16" />
+                                    </svg>
+                                </div>
+                                <h3>Dual-Link configuration</h3>
+                                <p>Two storage links per node-pair (redundant).</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 5: Network Adapter Ports -->
+                <section class="step" id="step-5">
+                    <div class="step-header">
+                        <span class="step-number">07</span>
+                        <h2>Network Adapter Ports</h2>
+                    </div>
+                    <div class="options-grid">
+                        <div id="port-option-1" class="option-card hidden" data-value="1"
+                            onclick="selectOption('ports', '1')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
+                                    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                                </svg>
+                            </div>
+                            <h3>1 Port</h3>
+                            <p>Single Node Only.</p>
+                        </div>
+                        <div class="option-card" data-value="2" onclick="selectOption('ports', '2')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
+                                    <circle cx="6" cy="12" r="1.5" fill="currentColor" />
+                                    <circle cx="10" cy="12" r="1.5" fill="currentColor" />
+                                </svg>
+                            </div>
+                            <h3>2 Ports</h3>
+                            <p>Minimum. Converged only.</p>
+                        </div>
+                        <div class="option-card" data-value="4" onclick="selectOption('ports', '4')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
+                                    <circle cx="5" cy="12" r="1.5" fill="currentColor" />
+                                    <circle cx="9" cy="12" r="1.5" fill="currentColor" />
+                                    <circle cx="15" cy="12" r="1.5" fill="currentColor" />
+                                    <circle cx="19" cy="12" r="1.5" fill="currentColor" />
+                                </svg>
+                            </div>
+                            <h3>4 Ports</h3>
+                            <p>Standard redundancy.</p>
+                        </div>
+                        <div class="option-card" data-value="6" onclick="selectOption('ports', '6')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="5" width="20" height="14" rx="2" fill="rgba(255, 255, 255, 0.05)" />
+                                    <circle cx="6" cy="9" r="1" fill="currentColor" />
+                                    <circle cx="10" cy="9" r="1" fill="currentColor" />
+                                    <circle cx="14" cy="9" r="1" fill="currentColor" />
+                                    <circle cx="6" cy="15" r="1" fill="currentColor" />
+                                    <circle cx="10" cy="15" r="1" fill="currentColor" />
+                                    <circle cx="14" cy="15" r="1" fill="currentColor" />
+                                </svg>
+                            </div>
+                            <h3>6 Ports</h3>
+                            <p>High flexibility.</p>
+                        </div>
+                        <div class="option-card" data-value="8" onclick="selectOption('ports', '8')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="5" width="20" height="14" rx="2" fill="rgba(255, 255, 255, 0.05)" />
+                                    <circle cx="5" cy="9" r="1" fill="currentColor" />
+                                    <circle cx="9" cy="9" r="1" fill="currentColor" />
+                                    <circle cx="15" cy="9" r="1" fill="currentColor" />
+                                    <circle cx="19" cy="9" r="1" fill="currentColor" />
+                                    <circle cx="5" cy="15" r="1" fill="currentColor" />
+                                    <circle cx="9" cy="15" r="1" fill="currentColor" />
+                                    <circle cx="15" cy="15" r="1" fill="currentColor" />
+                                    <circle cx="19" cy="15" r="1" fill="currentColor" />
+                                </svg>
+                            </div>
+                            <h3>8 Ports</h3>
+                            <p>Maximum Density.</p>
+                        </div>
+                    </div>
+                    <!-- Explanation Div -->
+                    <div id="ports-explanation" class="info-box">
+                        <strong style="color: var(--accent-purple);">Hardware Requirement</strong>
+                        At least two network ports must be RDMA-capable (iWARP/RoCEv2) to support high-performance Storage traffic.
+                        <br><br>
+                        For a 3-node Switchless deployment, you need at least 6 physical ports per node: two teamed ports for management/compute plus four standalone RDMA ports for storage.
+                    </div>
+
+                    <!-- NEW: Dynamic Port Configuration -->
+                    <div id="port-configuration" class="port-config-section">
+                        <h4>Port Configuration</h4>
+                        <div id="port-config-grid" class="port-config-grid">
+                            <!-- Dynamic Content -->
+                        </div>
+                    </div>
+                </section>
+
+
+
+                <!-- Step 6: Network Traffic Intents -->
+                <section class="step" id="step-6">
+                    <div class="step-header">
+                        <span class="step-number">08</span>
+                        <h2>Network Traffic Intents</h2>
+                    </div>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="all_traffic"
+                            onclick="selectOption('intent', 'all_traffic')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="9" stroke-width="1.5" fill="rgba(0, 120, 212, 0.1)" />
+                                    <path d="M12 7V17M7 12H17" stroke-width="2" />
+                                </svg>
+                            </div>
+                            <h3>Group All Traffic</h3>
+                            <p>Mgmt + Compute + Storage.</p>
+                        </div>
+                        <div class="option-card" data-value="mgmt_compute"
+                            onclick="selectOption('intent', 'mgmt_compute')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="3" width="8" height="18" rx="2" fill="rgba(0, 120, 212, 0.1)" />
+                                    <rect x="13" y="3" width="8" height="18" rx="2" fill="rgba(255, 255, 255, 0.05)" />
+                                </svg>
+                            </div>
+                            <h3>Mgmt + Compute</h3>
+                            <p>Storage separate.</p>
+                        </div>
+                        <div class="option-card" data-value="compute_storage"
+                            onclick="selectOption('intent', 'compute_storage')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="3" width="8" height="18" rx="2" fill="rgba(255, 255, 255, 0.05)" />
+                                    <rect x="13" y="3" width="8" height="18" rx="2" fill="rgba(139, 92, 246, 0.1)" />
+                                </svg>
+                            </div>
+                            <h3>Compute + Storage</h3>
+                            <p>Mgmt separate.</p>
+                        </div>
+                        <div class="option-card" data-value="custom" onclick="selectOption('intent', 'custom')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke-width="1.5" />
+                                    <path d="M2 17L12 22L22 17" stroke-width="1.5" />
+                                    <path d="M2 12L12 17L22 12" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Custom</h3>
+                            <p>Full manual control.</p>
+                        </div>
+
+                        <div id="intent-explanation" class="info-box"></div>
+                    </div>
+
+                    <!-- NEW: NIC Visualizer -->
+                    <div id="nic-visualizer" class="nic-visualizer">
+                        <h4>Adapter Mapping Configuration</h4>
+                        <div id="nic-grid-container" class="nic-grid">
+                            <!-- Dynamic NIC Cards will be injected here -->
+                        </div>
+
+                        <button id="custom-intent-confirm" type="button" class="confirm-button hidden" onclick="confirmCustomIntentSelection()">
+                            Confirm adapter mapping
+                        </button>
+
+                        <div id="intent-overrides" class="intent-overrides hidden">
+                            <h4>Overrides</h4>
+                            <div id="intent-overrides-container" class="intent-overrides-grid"></div>
+                        </div>
+                    </div>
+
+                    <div id="storage-auto-ip" style="margin-top:1.25rem;">
+                        <h4>Storage Auto IP</h4>
+                        <div class="options-grid">
+                            <div class="option-card" data-value="enabled" onclick="selectOption('storageAutoIp', 'enabled')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path d="M20 6L9 17l-5-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                                <h3>Storage Auto IP Enabled</h3>
+                                <p>Automatically assign Storage IPs.</p>
+                            </div>
+                            <div class="option-card" data-value="disabled" onclick="selectOption('storageAutoIp', 'disabled')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path d="M18 6L6 18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        <path d="M6 6l12 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                </div>
+                                <h3>Storage Auto IP Disabled</h3>
+                                <p>Manually specify Storage IPs.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 7: Outbound Connectivity -->
+                <section class="step" id="step-7">
+                    <div class="step-header">
+                        <span class="step-number">09</span>
+                        <h2>Outbound Connectivity</h2>
+                        <button type="button" onclick="event.stopPropagation(); showComparison('outbound');" style="margin-left: auto; padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                            Compare Options
+                        </button>
+                    </div>
+                    <!-- Connected Options -->
+                    <div id="outbound-connected" class="options-grid">
+                        <div class="option-card" data-value="public" onclick="selectOption('outbound', 'public')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5" />
+                                    <path d="M2 12H22" stroke-width="1.5" />
+                                    <path
+                                        d="M12 2C14.5013 4.73835 15.9228 8.29203 16 12C15.9228 15.708 14.5013 19.2616 12 22C9.49872 19.2616 8.07725 15.708 8 12C8.07725 8.29203 9.49872 4.73835 12 2Z"
+                                        stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Public Internet</h3>
+                            <p>Direct connectivity to cloud endpoints.</p>
+                        </div>
+                        <div class="option-card" data-value="private" onclick="selectOption('outbound', 'private')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M4 12L20 12" stroke-width="1.5" />
+                                    <rect x="2" y="6" width="4" height="12" fill="currentColor" fill-opacity="0.2" />
+                                    <rect x="18" y="6" width="4" height="12" fill="currentColor" fill-opacity="0.2" />
+                                    <path d="M12 2v20" stroke-dasharray="4 4" opacity="0.5" />
+                                </svg>
+                            </div>
+                            <h3>ExpressRoute / VPN</h3>
+                            <p>Private connectivity.</p>
+                        </div>
+                    </div>
+
+                    <!-- Disconnected Options -->
+                    <div id="outbound-disconnected" class="options-grid hidden">
+                        <div class="option-card" data-value="air_gapped"
+                            onclick="selectOption('outbound', 'air_gapped')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5" />
+                                    <path d="M4.93 4.93L19.07 19.07" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Air Gapped</h3>
+                            <p>No internet connectivity.</p>
+                        </div>
+                        <div class="option-card" data-value="limited" onclick="selectOption('outbound', 'limited')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5" />
+                                    <path d="M12 8v4" stroke-width="2" />
+                                    <path d="M12 16h.01" stroke-width="3" />
+                                </svg>
+                            </div>
+                            <h3>Limited Connectivity</h3>
+                            <p>Restricted access.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 8: Arc Gateway -->
+                <section class="step" id="step-8">
+                    <div class="step-header">
+                        <span class="step-number">10</span>
+                        <h2>Arc Gateway</h2>
+                        <button type="button" onclick="event.stopPropagation(); showComparison('arc');" style="margin-left: auto; padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                            Compare Options
+                        </button>
+                    </div>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="arc_gateway" onclick="selectOption('arc', 'arc_gateway')">
+                            <div class="badge-recommended">Recommended</div>
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="9" stroke-width="1.5" />
+                                    <path d="M12 8v8M8 12h8" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Enabled</h3>
+                            <p>Arc Gateway Service.</p>
+                        </div>
+                        <div class="option-card" data-value="no_arc" onclick="selectOption('arc', 'no_arc')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="9" stroke-width="1.5" />
+                                    <path d="M8 12h8" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Disabled</h3>
+                            <p>No Gateway.</p>
+                        </div>
+                    </div>
+                    <div id="arc-explanation" class="info-box"></div>
+                </section>
+
+                <!-- Step 9: Proxy Configuration -->
+                <section class="step" id="step-9">
+                    <div class="step-header">
+                        <span class="step-number">11</span>
+                        <h2>Proxy Configuration</h2>
+                    </div>
+                    <div class="options-grid">
+                        <!-- Added ID to proxy card for dynamic text updates -->
+                        <div id="proxy-enabled-card" class="option-card" data-value="proxy"
+                            onclick="selectOption('proxy', 'proxy')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
+                                    <path d="M12 2v20"></path>
+                                    <path d="M2 12h20"></path>
+                                    <path d="M12 12l5-5"></path>
+                                </svg>
+                            </div>
+                            <h3>Enabled</h3>
+                            <p id="proxy-enabled-text">Traffic routed through proxy.</p>
+                        </div>
+                        <div class="option-card" data-value="no_proxy" onclick="selectOption('proxy', 'no_proxy')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                                </svg>
+                            </div>
+                            <h3>Disabled</h3>
+                            <p>No Proxy.</p>
+                        </div>
+                    </div>
+                    <div id="proxy-warning" class="info-box warning hidden" style="margin-top:1.5rem;">
+                        <strong style="color:#ffc107;">⚠ Important</strong>
+                        <p>Proxy server cannot use .local FQDN and the IP address cannot be on AKS reserved subnets
+                            10.96.0.0/12 or 10.244.0.0/16.
+                            <br><a
+                                href="https://learn.microsoft.com/en-us/azure/azure-arc/resource-bridge/network-requirements#designated-ip-ranges-for-arc-resource-bridge"
+                                target="_blank" style="color:var(--accent-blue); text-decoration:underline;">Read
+                                documentation</a>
+                        </p>
+                        <p>Azure Local doesn't support HTTPS inspection. Make sure that HTTPS inspection is disabled along your networking path for Azure Local required endpoints to prevent any connectivity errors. This includes use of Entra ID tenant restrictions v1 which isn't supported for Azure Local management network communication.
+                            <br><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements?view=azloc-2511" target="_blank" style="color:var(--accent-blue); text-decoration:underline;">Review the required firewall endpoints</a>
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Step 10: Management Connectivity -->
+                <section class="step" id="step-10">
+                    <div class="step-header">
+                        <span class="step-number">12</span>
+                        <h2>Management Connectivity</h2>
+                    </div>
+
+                    <div class="sub-step">
+                        <h4>Nodes and Cluster IP Assignment</h4>
+                        <div class="options-grid">
+                            <div class="option-card" data-value="static" onclick="selectOption('ip', 'static')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                                    </svg>
+                                </div>
+                                <h3>Static IP</h3>
+                            </div>
+                            <div class="option-card" data-value="dhcp" onclick="selectOption('ip', 'dhcp')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <path
+                                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
+                                        </path>
+                                    </svg>
+                                </div>
+                                <h3>DHCP</h3>
+                            </div>
+                        </div>
+                        <div id="dhcp-warning" class="info-box warning hidden" style="margin-top:1.5rem;">
+                            <strong style="color:#ffc107;">⚠ Important</strong>
+                            <p>DHCP reservations must be configured to ensure the cluster nodes always get the same IP
+                                address. It is not supported to change IP address of the nodes.</p>
+                        </div>
+                    </div>
+
+                    <div id="node-config-section" class="sub-step hidden">
+                        <h4>Node Names and IPs</h4>
+                        <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">Provide one node name and one node IP (CIDR format) per node. Names must be NetBIOS-compatible (max 15 characters). Node IPs must be unique.</p>
+                        <div id="node-config-container"></div>
+
+                        <div id="node-config-error" class="hidden"
+                            style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
+                        </div>
+                        <div id="node-config-success" class="hidden"
+                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ Node settings valid</div>
+                    </div>
+                </section>
+
+                <!-- Step 11: Infrastructure VLAN -->
+                <section class="step" id="step-11">
+                    <div class="step-header">
+                        <span class="step-number">13</span>
+                        <h2>Infrastructure VLAN</h2>
+                    </div>
+                    <div class="options-grid" style="display:block;">
+                        <div class="options-grid" style="margin-bottom:1rem;">
+                            <div class="option-card" data-value="default" onclick="selectOption('infraVlan', 'default')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <circle cx="12" cy="12" r="10" stroke-width="1.5" />
+                                        <path d="M8 12h8" stroke-width="2" />
+                                        <path d="M12 8v8" stroke-width="2" />
+                                    </svg>
+                                </div>
+                                <h3>Default VLAN</h3>
+                                <p>Use the default VLAN (typically ID 0).</p>
+                            </div>
+                            <div class="option-card" data-value="custom" onclick="selectOption('infraVlan', 'custom')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="4" y="4" width="16" height="16" rx="2" stroke-width="1.5" />
+                                        <path d="M8 8h8v8H8z" stroke-width="1.5" />
+                                    </svg>
+                                </div>
+                                <h3>Custom VLAN</h3>
+                                <p>Apply a specific management VLAN.</p>
+                            </div>
+                        </div>
+                        <div id="infra-vlan-info" class="info-box hidden" style="margin-bottom:1rem;">
+                            <strong style="color:var(--accent-blue);">How to configure management VLAN</strong>
+                            <p>We recommend that the management subnet of your Azure Local instance use the default VLAN, which in most cases is declared as VLAN ID 0. However, if your network requirements are to use a specific management VLAN for your infrastructure network, it must be configured on your physical network adapters that you plan to use for management traffic.<br><br>If you plan to use two physical network adapters for management, you need to set the VLAN on both adapters. This must be done as part of the bootstrap configuration of your machines, and before they're registered to Azure Arc, to ensure you successfully register the nodes using this VLAN.
+                                <br><a href="https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511#management-vlan-id" target="_blank" style="color:var(--accent-blue); text-decoration:underline;">Read the VLAN guidance</a>
+                            </p>
+                        </div>
+                        <div id="infra-vlan-custom" class="hidden" style="margin-bottom:1rem;">
+                            <label for="infra-vlan-id" style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Custom VLAN ID (1-4096)</label>
+                            <input type="number" id="infra-vlan-id" min="1" max="4096" placeholder="e.g. 181" style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;" onchange="updateInfraVlanId()">
+                            <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">Enter the VLAN ID configured on all management adapters before Azure Arc registration.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 12: Infrastructure Network -->
+                <section class="step" id="step-12">
+                    <div class="step-header">
+                        <span class="step-number">14</span>
+                        <h2>Infrastructure Network</h2>
+                    </div>
+                    <div class="options-grid" style="display:block;">
+                        <div id="infra-warning-note" class="info-box warning hidden" style="margin-bottom:1rem;">
+                            <strong style="color:#ffc107;">⚠ Important</strong>
+                            <p>Cluster nodes must have IPs on this infrastructure network CIDR and cannot be within the
+                                reserved infrastructure IP range that you will define below. The Azure Local Infrastructure network cannot overlap with any of the AKS reserved networks required by Arc Resource Bridge (10.96.0.0/12 and 10.244.0.0/16).</p>
+                        </div>
+                        <div style="margin-bottom:1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:0.5rem;">
+                                <label style="display:block; font-size:0.9rem;">Infrastructure Network (CIDR)</label>
+                                <button type="button" onclick="showCidrCalculator()" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;">
+                                    🔢 Subnet Calculator
+                                </button>
+                            </div>
+                            <input type="text" id="infra-cidr" placeholder="e.g. 192.168.1.0/24"
+                                title="Enter a valid IPv4 CIDR (e.g. 192.168.1.0/24)"
+                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                oninput="markInfraCidrManual(this.value)"
+                                onchange="updateInfraNetwork()">
+                            <h5 style="margin-top:0.75rem; color:var(--text-primary); font-size:1rem;">Infrastructure Network IP Pool</h5>
+                            <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">Define the IP
+                                range for infrastructure components (min 6 consecutive IPs). Cluster IP, ARB VM, SDN Network Controller and other infrastructure services will use IPs out of this IP Pool range.</p>
+                        </div>
+                        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                            <div style="flex:1; min-width:200px;">
+                                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Starting
+                                    IP</label>
+                                <input type="text" id="infra-ip-start" placeholder="e.g. 192.168.1.10"
+                                    pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                    title="Enter a valid IPv4 address (e.g. 192.168.1.10)"
+                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    onchange="updateInfraNetwork()">
+                            </div>
+                            <div style="flex:1; min-width:200px;">
+                                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Ending IP</label>
+                                <input type="text" id="infra-ip-end" placeholder="e.g. 192.168.1.15"
+                                    pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                    title="Enter a valid IPv4 address (e.g. 192.168.1.15)"
+                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    onchange="updateInfraNetwork()">
+                            </div>
+                        </div>
+
+                        <div style="margin-top:1rem;">
+                            <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Default Gateway</label>
+                            <input type="text" id="infra-default-gateway" placeholder="e.g. 192.168.1.1"
+                                pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                title="Enter a valid IPv4 address (e.g. 192.168.1.1)"
+                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                oninput="markInfraGatewayManual(this.value)"
+                                onchange="updateInfraNetwork()">
+                            <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">Must be in the Infrastructure Network CIDR and outside the reserved Infrastructure IP Pool.</p>
+                        </div>
+                        <div id="infra-ip-error" class="hidden"
+                            style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
+                        </div>
+                        <div id="infra-ip-success" class="hidden"
+                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ Valid Range</div>
+
+                        <div id="infra-gateway-error" class="hidden"
+                            style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
+                        </div>
+                        <div id="infra-gateway-success" class="hidden"
+                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ Valid Default Gateway</div>
+                    </div>
+                </section>
+
+                <!-- Step 13: Active Directory -->
+                <section class="step" id="step-13">
+                    <div class="step-header">
+                        <span class="step-number">15</span>
+                        <h2>Active Directory</h2>
+                    </div>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="azure_ad"
+                            onclick="selectOption('activeDirectory', 'azure_ad')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
+                                        stroke-width="1.5" />
+                                    <path d="M12 12h.01" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                            <h3>Azure Local with Active Directory</h3>
+                            <p>Domain-joined with AD integration.</p>
+                        </div>
+                        <div class="option-card" data-value="local_identity"
+                            onclick="selectOption('activeDirectory', 'local_identity')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5" />
+                                    <path d="M12 6v6l4 2" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Azure Local with Local Identity</h3>
+                            <p>Local identity provider.</p>
+                        </div>
+                    </div>
+
+                    <div id="ad-domain-section" class="hidden"
+                        style="margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--glass-border);">
+                        <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Active Directory Domain
+                            Name</label>
+                        <input type="text" id="ad-domain" placeholder="e.g. contoso.com"
+                            style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                            onchange="updateAdDomain()">
+                    </div>
+
+                    <!-- DNS Configuration -->
+                    <div id="dns-config-section" class="hidden"
+                        style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
+                        <h4 id="dns-config-title"
+                            style="color:var(--accent-purple); font-size:1.2rem; margin-bottom:1rem;">DNS Configuration
+                        </h4>
+
+                        <!-- Local DNS Zone (only for local_identity) -->
+                        <div id="local-dns-zone" class="hidden" style="margin-top:1.5rem;">
+                            <h4 style="color:var(--accent-purple); font-size:1.2rem; margin-bottom:1rem;">DNS Service</h4>
+
+                            <div style="margin-bottom:1.25rem;">
+                                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">
+                                    Zone name <span style="color:#ef4444;">*</span>
+                                </label>
+                                <input type="text" id="local-dns-zone-input" placeholder=""
+                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    onchange="updateLocalDnsZone()">
+                            </div>
+
+                            <div style="margin-bottom:1rem;">
+                                <div style="margin-bottom:0.5rem; font-size:0.9rem;">Do you have an existing DNS Service?</div>
+                                <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.35rem; color:var(--text-secondary);">
+                                    <input type="radio" name="dns-service-existing" value="yes" checked
+                                        onchange="updateDnsServiceExisting(this.value)">
+                                    Yes
+                                </label>
+                                <label style="display:flex; align-items:center; gap:0.5rem; color:var(--text-secondary);">
+                                    <input type="radio" name="dns-service-existing" value="no"
+                                        onchange="updateDnsServiceExisting(this.value)">
+                                    No
+                                </label>
+
+                                <div id="dns-service-existing-note" class="switchless-diagram__note" style="margin-top:0.75rem;">
+                                    If <strong style="color:var(--text-primary);">No</strong> is selected, a Local DNS Server will be installed on the nodes and configured to use the DNS server as a forwarder to resolve external names.
+                                    If <strong style="color:var(--text-primary);">Yes</strong> is selected, an external DNS server is already configured and there is no need to deploy a Local DNS server on Azure Local nodes.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="dns-servers-container"></div>
+
+                        <button onclick="addDnsServer()"
+                            style="margin-top:1rem; padding:0.5rem 1rem; background:rgba(0,120,212,0.2); border:1px solid var(--accent-blue); color:var(--accent-blue); border-radius:4px; cursor:pointer; font-size:0.9rem;">
+                            + Add DNS server
+                        </button>
+
+                        <!-- DNS Warning -->
+                        <div class="info-box warning visible" style="margin-top:1.5rem;">
+                            <strong style="color:#ffc107;">⚠ Important</strong>
+                            <p>DNS servers cannot be changed after deployment. Ensure the configuration is correct
+                                before proceeding.</p>
+                        </div>
+
+                        <!-- DNS Validation Messages -->
+                        <div id="dns-error" class="hidden"
+                            style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
+                        </div>
+                        <div id="dns-success" class="hidden"
+                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 14: Software Defined Networking -->
+                <section class="step" id="step-14">
+                    <div class="step-header">
+                        <span class="step-number">16</span>
+                        <h2>Software Defined Networking</h2>
+                    </div>
+
+                    <p style="margin-bottom:1.5rem; color:var(--text-secondary);">Select the SDN features you want to
+                        enable (multiple selections allowed):</p>
+
+                    <div
+                        style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;">
+                        <label class="sdn-feature-card" data-feature="lnet">
+                            <input type="checkbox" onchange="toggleSdnFeature('lnet', this.checked)"
+                                style="margin-right:0.5rem;">
+                            <div>
+                                <strong>Logical Networks (LNET)</strong>
+                                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Network
+                                    virtualization</p>
+                            </div>
+                        </label>
+
+                        <label class="sdn-feature-card" data-feature="nsg">
+                            <input type="checkbox" onchange="toggleSdnFeature('nsg', this.checked)"
+                                style="margin-right:0.5rem;">
+                            <div>
+                                <strong>Network Security Groups (NSG)</strong>
+                                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
+                                    filtering</p>
+                            </div>
+                        </label>
+
+                        <label class="sdn-feature-card" data-feature="vnet">
+                            <input type="checkbox" onchange="toggleSdnFeature('vnet', this.checked)"
+                                style="margin-right:0.5rem;">
+                            <div>
+                                <strong>Virtual Networks (VNET)</strong>
+                                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">
+                                    Isolated networks</p>
+                            </div>
+                        </label>
+
+                        <label class="sdn-feature-card" data-feature="slb">
+                            <input type="checkbox" onchange="toggleSdnFeature('slb', this.checked)"
+                                style="margin-right:0.5rem;">
+                            <div>
+                                <strong>Load Balancers (SLB)</strong>
+                                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
+                                    distribution</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- SDN Management Options -->
+                    <div id="sdn-management-section" class="hidden"
+                        style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
+                        <h4 style="color:var(--accent-purple); font-size:1.2rem; margin-bottom:1rem;">SDN Management
+                        </h4>
+
+                        <div class="options-grid">
+                            <div class="option-card" id="sdn-arc-card" data-value="arc_managed"
+                                onclick="selectOption('sdnManagement', 'arc_managed')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <circle cx="12" cy="12" r="9" stroke-width="1.5" />
+                                        <path d="M12 3v18M3 12h18" stroke-width="1.5" />
+                                    </svg>
+                                </div>
+                                <h3>SDN Managed by Arc</h3>
+                                <p>Cloud-managed SDN via Azure Arc.</p>
+                            </div>
+
+                            <div class="option-card" id="sdn-onprem-card" data-value="onprem_managed"
+                                onclick="selectOption('sdnManagement', 'onprem_managed')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
+                                        <path d="M3 9h18M9 3v18" stroke-width="1.5" />
+                                    </svg>
+                                </div>
+                                <h3>SDN Managed by On-Premises Tools</h3>
+                                <p>Managed using on-premises SDN infrastructure.</p>
+                            </div>
+                        </div>
+
+                        <div id="sdn-info" class="info-box visible" style="margin-top:1.5rem;">
+                            <strong>SDN Management Selection</strong>
+                            <p id="sdn-info-text">Select SDN features above to see available management options.</p>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
+                        <button id="generate-report-btn" type="button" class="report-button" onclick="generateReport()" disabled>
+                            Generate configuration report
+                        </button>
+                        <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.9rem; line-height:1.4;">
+                            Creates a separate report page explaining your selections and the decision logic behind them.
+                        </p>
+
+                        <button id="generate-arm-btn" type="button" class="report-button" onclick="generateArmParameters()" disabled style="margin-top:0.75rem;">
+                            Generate ARM parameters file
+                        </button>
+                        <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.9rem; line-height:1.4;">
+                            Opens a separate page with an Azure Quickstart-style ARM parameters JSON, populated from your answers where possible, with placeholders for values not collected by this wizard.
+                        </p>
+                    </div>
+                </section>
+
+            </div> <!-- End steps-column -->
+
+            <div class="summary-column">
+                <div id="summary-panel" class="hidden">
+                    <div id="wizard-progress" class="wizard-progress" aria-label="Wizard progress">
+                        <div class="wizard-progress__top">
+                            <div class="wizard-progress__title">Progress</div>
+                            <div id="wizard-progress-text" class="wizard-progress__text">0% • 0/0</div>
+                        </div>
+                        <div class="wizard-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                            <div id="wizard-progress-fill" class="wizard-progress__fill" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <h3>Configuration Summary</h3>
+                    <div id="summary-content"></div>
+                    <div id="summary-diagram-container" class="summary-diagram"></div>
+
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button onclick="importConfiguration()" style="flex: 1; padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
+                            📁 Import
+                        </button>
+                        <button onclick="exportConfiguration()" style="flex: 1; padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
+                            💾 Export
+                        </button>
+                    </div>
+
+                    <button onclick="resetAll()" class="reset-button">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                            <path d="M3 3v5h5" />
+                        </svg>
+                        Start Over
+                    </button>
+                </div>
+            </div>
+        </div> <!-- End layout-flex -->
+
+    </main>
+    <script src="script.js"></script>
+</body>
+
+</html>
