@@ -1755,6 +1755,11 @@ function selectOption(category, value) {
     } else if (category === 'outbound') {
         state.arc = null; state.proxy = null; state.ip = null; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
         state.nodeSettings = [];
+        
+        // For disconnected scenarios, Arc Gateway must be disabled (no_arc)
+        if (state.scenario === 'disconnected') {
+            state.arc = 'no_arc';
+        }
     } else if (category === 'arc') {
         state.proxy = null; state.ip = null; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
         state.nodeSettings = [];
@@ -2991,6 +2996,10 @@ function updateUI() {
     // Step 6 -> 7 -> 8 (Arc)
     if (state.scenario === 'disconnected') {
         Object.values(cards.arc).forEach(c => c.classList.add('disabled'));
+        // Force Arc Gateway to be disabled for disconnected scenarios
+        if (state.arc !== 'no_arc') {
+            state.arc = 'no_arc';
+        }
     } else {
         if (!state.outbound) Object.values(cards.arc).forEach(c => c.classList.add('disabled'));
     }
