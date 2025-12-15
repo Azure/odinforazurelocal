@@ -3988,6 +3988,7 @@
         var activeDirectoryRows = '';
         if (s.activeDirectory) activeDirectoryRows += row('Identity', s.activeDirectory === 'azure_ad' ? 'Active Directory' : 'Local Identity');
         if (s.adDomain) activeDirectoryRows += row('AD Domain', s.adDomain, true);
+        if (s.adOuPath) activeDirectoryRows += row('AD OU Path', s.adOuPath, true);
         if (s.dnsServers && s.dnsServers.length) activeDirectoryRows += row('DNS Servers', s.dnsServers.join(', '), true);
         if (s.localDnsZone) activeDirectoryRows += row('Local DNS Zone', s.localDnsZone, true);
 

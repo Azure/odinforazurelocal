@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2025-12-15
+
+### Added
+
+#### Active Directory OU Path
+- **AD OU Path Field** - New optional field in Active Directory step (Step 16)
+  - **Appears with Active Directory** - Shown when "Azure Local with Active Directory" is selected
+  - **Format Validation** - Validates OU path syntax (e.g., OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com)
+  - **Helpful Tooltip** - Info icon with example and explanation
+  - **AD Preparation Tool Link** - Direct link to Microsoft documentation for AD preparation
+  - **ARM Template Integration** - Maps to `adouPath` parameter in deployment template
+  - **Report Integration** - Displays in Active Directory section of generated report
+  - **Real-time Validation** - Immediate feedback if format is invalid
+
+---
+
 ## [0.2.0] - 2025-12-15
 
 ### Added

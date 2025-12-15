@@ -1,5 +1,5 @@
 // Wizard version for tracking changes
-const WIZARD_VERSION = '0.2.0';
+const WIZARD_VERSION = '0.2.1';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -1414,7 +1414,7 @@ function generateArmParameters() {
 
                 domainFqdn: { value: domainFqdn },
                 namingPrefix: { value: 'hci' },
-                adouPath: { value: '' },
+                adouPath: { value: (state.activeDirectory === 'azure_ad' && state.adOuPath) ? state.adOuPath : '' },
 
                 securityLevel: { value: state.securityConfiguration === 'customized' ? 'Customized' : 'Recommended' },
                 driftControlEnforced: { value: state.securitySettings?.driftControlEnforced ?? true },
@@ -1771,6 +1771,7 @@ function selectOption(category, value) {
     } else if (category === 'activeDirectory') {
         state.activeDirectory = value;
         state.adDomain = null;
+        state.adOuPath = null;
         state.dnsServers = [];
         state.localDnsZone = null;
         state.dnsServiceExisting = (value === 'local_identity') ? true : null;
@@ -1780,6 +1781,7 @@ function selectOption(category, value) {
         const dnsTitle = document.getElementById('dns-config-title');
         const adDomainSection = document.getElementById('ad-domain-section');
         const adDomainInput = document.getElementById('ad-domain');
+        const adOuPathInput = document.getElementById('ad-ou-path');
         if (dnsSection) dnsSection.classList.remove('hidden');
         if (adDomainSection) {
             if (value === 'azure_ad') {
@@ -1787,6 +1789,7 @@ function selectOption(category, value) {
             } else {
                 adDomainSection.classList.add('hidden');
                 if (adDomainInput) adDomainInput.value = '';
+                if (adOuPathInput) adOuPathInput.value = '';
             }
         }
         if (localZone) {
@@ -5041,8 +5044,10 @@ function resetAll() {
     }
 
     const adDomainInput = document.getElementById('ad-domain');
+    const adOuPathInput = document.getElementById('ad-ou-path');
     const adDomainSection = document.getElementById('ad-domain-section');
     if (adDomainInput) adDomainInput.value = '';
+    if (adOuPathInput) adOuPathInput.value = '';
     if (adDomainSection) adDomainSection.classList.add('hidden');
 
     const infraVlanIdInput = document.getElementById('infra-vlan-id');
@@ -5254,6 +5259,49 @@ function updateAdDomain() {
 
     const value = input.value.trim();
     state.adDomain = value || null;
+    updateSummary();
+}
+
+function validateAdOuPath(ouPath) {
+    if (!ouPath || ouPath.trim() === '') {
+        return { valid: true, error: '' }; // Empty is valid (optional field)
+    }
+    
+    // Basic OU path validation: must contain OU= and DC= components
+    const ouPathPattern = /^(OU=[^,]+,)*(CN=[^,]+,)*(OU=[^,]+,)*DC=[^,]+(,DC=[^,]+)*$/i;
+    
+    if (!ouPathPattern.test(ouPath.trim())) {
+        return { 
+            valid: false, 
+            error: 'Invalid OU path format. Must follow pattern: OU=...,DC=...,DC=... (e.g., OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com)' 
+        };
+    }
+    
+    return { valid: true, error: '' };
+}
+
+function updateAdOuPath() {
+    const input = document.getElementById('ad-ou-path');
+    const errorDiv = document.getElementById('ad-ou-path-error');
+    if (!input) return;
+
+    const value = input.value.trim();
+    const validation = validateAdOuPath(value);
+    
+    if (validation.valid) {
+        state.adOuPath = value || null;
+        if (errorDiv) {
+            errorDiv.classList.add('hidden');
+            errorDiv.textContent = '';
+        }
+    } else {
+        state.adOuPath = null;
+        if (errorDiv) {
+            errorDiv.classList.remove('hidden');
+            errorDiv.textContent = validation.error;
+        }
+    }
+    
     updateSummary();
 }
 
@@ -5776,7 +5824,7 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.2.0 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.2.1 - Latest Release</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 15, 2025</div>
                 </div>
                 
