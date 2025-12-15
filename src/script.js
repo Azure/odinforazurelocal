@@ -1417,6 +1417,7 @@ function generateArmParameters() {
                 domainFqdn: { value: domainFqdn },
                 namingPrefix: { value: 'hci' },
                 adouPath: { value: (state.activeDirectory === 'azure_ad' && state.adOuPath) ? state.adOuPath : '' },
+                adfsServerName: { value: (state.scenario === 'disconnected' && state.adfsServerName) ? state.adfsServerName : '' },
 
                 securityLevel: { value: state.securityConfiguration === 'customized' ? 'Customized' : 'Recommended' },
                 driftControlEnforced: { value: state.securitySettings?.driftControlEnforced ?? true },
@@ -1774,6 +1775,7 @@ function selectOption(category, value) {
         state.activeDirectory = value;
         state.adDomain = null;
         state.adOuPath = null;
+        state.adfsServerName = null;
         state.dnsServers = [];
         state.localDnsZone = null;
         state.dnsServiceExisting = (value === 'local_identity') ? true : null;
@@ -1784,6 +1786,7 @@ function selectOption(category, value) {
         const adDomainSection = document.getElementById('ad-domain-section');
         const adDomainInput = document.getElementById('ad-domain');
         const adOuPathInput = document.getElementById('ad-ou-path');
+        const adfsServerInput = document.getElementById('adfs-server-name');
         if (dnsSection) dnsSection.classList.remove('hidden');
         if (adDomainSection) {
             if (value === 'azure_ad') {
@@ -1792,6 +1795,7 @@ function selectOption(category, value) {
                 adDomainSection.classList.add('hidden');
                 if (adDomainInput) adDomainInput.value = '';
                 if (adOuPathInput) adOuPathInput.value = '';
+                if (adfsServerInput) adfsServerInput.value = '';
             }
         }
         if (localZone) {
@@ -3037,11 +3041,40 @@ function updateUI() {
     // Step 11 -> Step 13 (Active Directory)
     const adCards = {
         'azure_ad': document.querySelector('[data-value="azure_ad"]'),
-        'local_identity': document.querySelector('[data-value="local_identity"]')
+        'local_identity': document.getElementById('ad-local-identity-card')
     };
     // Check if infra is properly set (not just truthy, but has start and end)
     if (!state.infra || !state.infra.start || !state.infra.end) {
         Object.values(adCards).forEach(c => c && c.classList.add('disabled'));
+    }
+    
+    // Disconnected scenario: Only Active Directory is allowed (disable Local Identity)
+    if (state.scenario === 'disconnected') {
+        if (adCards.local_identity) {
+            adCards.local_identity.classList.add('disabled');
+            adCards.local_identity.style.opacity = '0.5';
+            adCards.local_identity.style.pointerEvents = 'none';
+        }
+        // Force Active Directory if Local Identity was selected
+        if (state.activeDirectory === 'local_identity') {
+            state.activeDirectory = null;
+        }
+    } else {
+        if (adCards.local_identity) {
+            adCards.local_identity.classList.remove('disabled');
+            adCards.local_identity.style.opacity = '';
+            adCards.local_identity.style.pointerEvents = '';
+        }
+    }
+    
+    // ADFS Server section visibility
+    const adfsSection = document.getElementById('adfs-server-section');
+    if (adfsSection) {
+        if (state.scenario === 'disconnected' && state.activeDirectory === 'azure_ad') {
+            adfsSection.classList.remove('hidden');
+        } else {
+            adfsSection.classList.add('hidden');
+        }
     }
 
     // Step 13 -> Step 13.5 (Security Configuration)
@@ -5042,6 +5075,8 @@ function resetAll() {
     state.storageAutoIp = null;
     state.activeDirectory = null;
     state.adDomain = null;
+    state.adOuPath = null;
+    state.adfsServerName = null;
     state.dnsServers = [];
     state.localDnsZone = null;
     state.dnsServiceExisting = null;
@@ -5072,9 +5107,11 @@ function resetAll() {
 
     const adDomainInput = document.getElementById('ad-domain');
     const adOuPathInput = document.getElementById('ad-ou-path');
+    const adfsServerInput = document.getElementById('adfs-server-name');
     const adDomainSection = document.getElementById('ad-domain-section');
     if (adDomainInput) adDomainInput.value = '';
     if (adOuPathInput) adOuPathInput.value = '';
+    if (adfsServerInput) adfsServerInput.value = '';
     if (adDomainSection) adDomainSection.classList.add('hidden');
 
     const infraVlanIdInput = document.getElementById('infra-vlan-id');
