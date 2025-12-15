@@ -5259,10 +5259,17 @@ function updateAdDomain() {
 
     const value = input.value.trim();
     state.adDomain = value || null;
+    
+    // Revalidate OU path when domain changes
+    const ouPathInput = document.getElementById('ad-ou-path');
+    if (ouPathInput && ouPathInput.value.trim() !== '') {
+        updateAdOuPath();
+    }
+    
     updateSummary();
 }
 
-function validateAdOuPath(ouPath) {
+function validateAdOuPath(ouPath, domainName) {
     if (!ouPath || ouPath.trim() === '') {
         return { valid: true, error: '' }; // Empty is valid (optional field)
     }
@@ -5277,6 +5284,27 @@ function validateAdOuPath(ouPath) {
         };
     }
     
+    // Validate that OU path matches the domain name
+    if (domainName && domainName.trim() !== '') {
+        // Convert domain name to DC components (e.g., "contoso.com" -> "DC=contoso,DC=com")
+        const domainParts = domainName.trim().split('.');
+        const expectedDcSuffix = domainParts.map(part => `DC=${part}`).join(',');
+        
+        // Extract DC components from OU path (everything after the last OU= or CN=)
+        const ouPathUpper = ouPath.trim().toUpperCase();
+        const dcMatch = ouPathUpper.match(/DC=[^,]+(,DC=[^,]+)*$/i);
+        
+        if (dcMatch) {
+            const actualDcSuffix = dcMatch[0];
+            if (actualDcSuffix.toUpperCase() !== expectedDcSuffix.toUpperCase()) {
+                return {
+                    valid: false,
+                    error: `OU path does not match the domain name. Expected to end with: ${expectedDcSuffix}`
+                };
+            }
+        }
+    }
+    
     return { valid: true, error: '' };
 }
 
@@ -5286,7 +5314,8 @@ function updateAdOuPath() {
     if (!input) return;
 
     const value = input.value.trim();
-    const validation = validateAdOuPath(value);
+    const domainName = state.adDomain || '';
+    const validation = validateAdOuPath(value, domainName);
     
     if (validation.valid) {
         state.adOuPath = value || null;
