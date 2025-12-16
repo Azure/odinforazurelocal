@@ -8,7 +8,7 @@
     <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta name="referrer" content="no-referrer">
-    <title>Azure Local Design Assistant (ALDA) Tool — ARM Parameters</title>
+    <title>Odin for Azure Local — ARM Parameters</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -38,12 +38,74 @@
                 <h2>Placeholders</h2>
             </div>
             <div id="arm-placeholders"></div>
+            <div id="arm-placeholder-inputs" style="margin-top: 1rem; display: none;">
+                <div style="display: flex; flex-direction: column; gap: 1rem; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Subscription ID</label>
+                        <input type="text" id="input-subscription-id" placeholder="00000000-0000-0000-0000-000000000000" 
+                               style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-family: monospace;"
+                               oninput="updateParameters()">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Resource Group Name</label>
+                        <input type="text" id="input-resource-group" placeholder="rg-azurelocal-prod" 
+                               style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px;"
+                               oninput="updateParameters()">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Deployment Name</label>
+                        <input type="text" id="input-deployment-name" placeholder="azurelocal-deployment" 
+                               style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px;"
+                               oninput="updateParameters()">
+                    </div>
+                </div>
+            </div>
         </section>
 
         <section class="step" style="margin-bottom:2rem;">
             <div class="step-header">
                 <span class="step-number">A3</span>
-                <h2>Parameters File Content</h2>
+                <h2>Deployment Script Generation</h2>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:1rem; margin-bottom: 1rem;">
+                <button id="gen-powershell-btn" type="button" class="report-button" onclick="generatePowerShellScript()" style="width:100%; padding:0.8rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 17 10 11 4 5"/>
+                        <line x1="12" y1="19" x2="20" y2="19"/>
+                    </svg>
+                    Generate PowerShell Deployment Script
+                </button>
+
+                <button id="gen-azcli-btn" type="button" class="report-button" onclick="generateAzCLIScript()" style="width:100%; padding:0.8rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                        <line x1="15" y1="9" x2="9" y2="15"/>
+                    </svg>
+                    Generate Azure CLI Command Preview
+                </button>
+
+                <button id="show-alternatives-btn" type="button" class="report-button" onclick="showBicepTerraformAlternatives()" style="width:100%; padding:0.8rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="12" y1="18" x2="12" y2="12"/>
+                        <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                    View Bicep/Terraform Alternatives
+                </button>
+            </div>
+
+            <div class="switchless-diagram__note">
+                <strong>Deployment Options:</strong> Generate deployment scripts for PowerShell or Azure CLI, or explore alternative IaC formats.
+            </div>
+        </section>
+
+        <section class="step" style="margin-bottom:2rem;">
+            <div class="step-header">
+                <span class="step-number">A5</span>
+                <h2>Parameters File JSON</h2>
             </div>
 
             <div style="display:flex; gap:0.75rem; margin-bottom:0.75rem; flex-wrap:wrap;">
@@ -57,7 +119,43 @@
                 Tip: Search for <strong style="color:var(--text-primary);">REPLACE_WITH_</strong> to find values the wizard doesn’t collect.
             </div>
         </section>
+        <section class="step" style="margin-bottom:2rem;">
+            <div class="step-header">
+                <span class="step-number">A6</span>
+                <h2>Integration Features</h2>
+            </div>
 
+            <div style="display:flex; flex-direction:column; gap:1rem;">
+                <button id="export-devops-btn" type="button" class="report-button" onclick="generateDevOpsPipeline()" style="width:100%; padding:0.8rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                    Generate Azure DevOps Pipeline Template
+                </button>
+
+                <button id="export-github-btn" type="button" class="report-button" onclick="generateGitHubWorkflow()" style="width:100%; padding:0.8rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.477 2 2 6.477 2 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+                    </svg>
+                    Export GitHub Actions Workflow
+                </button>
+
+                <button id="export-api-btn" type="button" class="report-button" onclick="showRestApiInfo()" style="width:100%; padding:0.8rem 1rem; display:flex; align-items:center; gap:0.5rem;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                        <line x1="6" y1="6" x2="6.01" y2="6"/>
+                        <line x1="6" y1="18" x2="6.01" y2="18"/>
+                    </svg>
+                    REST API for Automation
+                </button>
+            </div>
+
+            <div class="switchless-diagram__note" style="margin-top:1rem;">
+                <strong>Integration Options:</strong> Export your configuration for CI/CD pipelines or access via REST API for automated deployments.
+            </div>
+        </section>
         <button type="button" class="reset-button" onclick="window.close();">
             Close
         </button>

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2025-12-16
+
+### Added
+
+#### ARM Parameters Page - Deployment Automation
+- **Deployment Script Generation** - Generate ready-to-use deployment scripts
+  - **PowerShell Deployment Script** - Complete PS1 script with Azure authentication and ARM template deployment
+  - **Azure CLI Command Preview** - Bash script with az CLI commands for deployment
+  - **Bicep/Terraform Alternatives** - Modal showing IaC conversion options with documentation links
+  - **Script Download** - One-click download of generated scripts
+
+- **Parameter Input Fields with Auto-Update** - Editable fields that update parameters in real-time
+  - **Subscription ID Field** - Input field for Azure subscription ID
+  - **Resource Group Name Field** - Input field for target resource group
+  - **Deployment Name Field** - Input field for deployment name
+  - **Live JSON Updates** - Parameters JSON updates automatically as fields are populated
+  - **Placeholder Replacement** - Automatically replaces REPLACE_WITH_* placeholders
+
+- **Enhanced User Experience**
+  - **Validation Notifications** - Shows error messages if required fields are missing
+  - **Success Feedback** - Confirmation notifications when scripts are downloaded
+  - **Input Guidance** - Helper text showing how to use parameter fields
+  - **Section Reorganization** - Clearer section numbering (A1-A6) for better navigation
+
+### Changed
+- **ARM Page Section Numbers** - Updated to accommodate new deployment features:
+  - A1: Metadata
+  - A2: Placeholders (now with input fields)
+  - A3: Deployment Script Generation (new)
+  - A4: Parameters File Content → A5: Parameters File JSON
+  - A5: Integration Features → A6: Integration Features
+
+---
+
 ## [0.3.0] - 2025-12-16
 
 ### Added
@@ -51,6 +85,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Documentation Modal** - Displays informational message with link to M365 Local overview
   - **Direct Link** - Takes users to Microsoft Learn M365 Local on Azure Local documentation
   - **Clean Exit** - Users can close modal and select different deployment type
+
+#### ARM Parameters Integration Features
+- **Azure DevOps Pipeline Template** - Generate ready-to-use Azure DevOps YAML pipeline
+  - **Validation Stage** - Automatic ARM template validation before deployment
+  - **Deployment Stage** - Automated deployment with environment approval gates
+  - **Download as File** - Export as azure-pipelines.yml
+
+- **GitHub Actions Workflow** - Export GitHub Actions workflow for CI/CD
+  - **Multi-Environment Support** - Separate validation and deployment jobs
+  - **Secrets Integration** - Uses GitHub secrets for Azure credentials
+  - **Deployment Summary** - Automatic summary in GitHub Actions output
+  - **Download as File** - Export as deploy.yml for .github/workflows
+
+- **REST API Documentation** - Information modal for automation capabilities
+  - **API Endpoint Details** - Example POST endpoint for parameter generation
+  - **Request Examples** - Sample JSON payload for configuration
+  - **Feature Overview** - Batch processing, validation, webhook integration
+  - **Future Availability** - Planned for future release
 
 ### Changed
 - **Summary Panel Layout** - Reorganized controls into two rows for better organization
