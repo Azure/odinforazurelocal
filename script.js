@@ -57,7 +57,8 @@ const state = {
         credentialGuardEnforced: true,
         smbSigningEnforced: true,
         smbClusterEncryption: true
-    }
+    },
+    rdmaGuardMessage: null
 };
 
 // Auto-save state to localStorage
@@ -411,6 +412,75 @@ function getReportReadiness() {
         missing.push('Confirm adapter mapping for Custom intent');
     }
 
+    // Step 07: Port Configuration validation
+    // Unless Low Capacity, require a minimum number of RDMA-capable ports (varies by topology).
+    try {
+        const requiredRdma = getRequiredRdmaPortCount();
+        const cfg = Array.isArray(state.portConfig) ? state.portConfig : null;
+        if (requiredRdma > 0 && cfg && cfg.length > 0) {
+            const rdmaEnabled = cfg.filter(p => p && p.rdma === true).length;
+            if (rdmaEnabled < requiredRdma) {
+                missing.push('RDMA: At least ' + String(requiredRdma) + ' port(s) must be RDMA-capable (Step 07)');
+            }
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    // Step 08: Ensure RDMA-enabled ports map to Storage traffic NICs.
+    try {
+        const cfg = Array.isArray(state.portConfig) ? state.portConfig : null;
+        const p = state.ports ? parseInt(state.ports, 10) : NaN;
+        const portCount = Number.isFinite(p) ? p : 0;
+        if (cfg && portCount > 0 && state.intent) {
+            const storageIndices = getStorageNicIndicesForIntent(state.intent, portCount);
+
+            const storageSet = new Set(storageIndices);
+            const rdmaEnabledIndices = [];
+            for (let i = 1; i <= portCount; i++) {
+                const pc = cfg[i - 1];
+                if (pc && pc.rdma === true) rdmaEnabledIndices.push(i);
+            }
+
+            const isStandard = state.scale === 'medium';
+            const allRdma = rdmaEnabledIndices.length === portCount && portCount > 0;
+
+            if (state.intent === 'mgmt_compute' && isStandard && portCount > 2 && !allRdma) {
+                const assignment = getMgmtComputeNicAssignment(portCount);
+                if (!assignment.valid) {
+                    missing.push('Mgmt + Compute mapping: requires at least 2 non-RDMA ports unless all ports are RDMA-capable (Step 08)');
+                }
+            }
+
+            // When all ports are RDMA-capable, allow Mgmt+Compute to share RDMA ports (standard scenarios only).
+            const allowMgmtComputeOnRdmaPorts =
+                isStandard && state.intent === 'mgmt_compute' && allRdma;
+            // Custom intent: RDMA can be enabled on non-Storage adapters (e.g., Compute).
+            const nonStorageRdma = (state.intent === 'custom')
+                ? []
+                : (allowMgmtComputeOnRdmaPorts ? [] : rdmaEnabledIndices.filter(i => !storageSet.has(i)));
+            const requiredRdma = getRequiredRdmaPortCount();
+            const rdmaOnStorage = rdmaEnabledIndices.filter(i => storageSet.has(i)).length;
+
+            // Custom intent helper: do not allow assigning Storage traffic to non-RDMA adapters.
+            if (state.intent === 'custom') {
+                const storageOnNonRdma = storageIndices.filter(i => {
+                    const pc = cfg[i - 1];
+                    return !(pc && pc.rdma === true);
+                });
+                if (storageOnNonRdma.length > 0) {
+                    missing.push('Custom mapping: Storage traffic must be assigned only to RDMA-capable adapters (Step 08)');
+                }
+            }
+
+            if (nonStorageRdma.length > 0 || (requiredRdma > 0 && rdmaOnStorage < requiredRdma)) {
+                missing.push('RDMA mapping: RDMA-enabled ports must be assigned to Storage traffic (Step 08)');
+            }
+        }
+    } catch (e) {
+        // ignore
+    }
+
     return { ready: missing.length === 0, missing };
 }
 
@@ -420,6 +490,95 @@ function getNumericNodeCount() {
     if (raw === '16+') return null;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function getRdmaEnabledNicIndices(portCount) {
+    const p = parseInt(portCount, 10) || 0;
+    const out = [];
+    const cfg = Array.isArray(state.portConfig) ? state.portConfig : null;
+    if (!cfg || p <= 0) return out;
+    for (let i = 1; i <= p; i++) {
+        const pc = cfg[i - 1];
+        if (pc && pc.rdma === true) out.push(i);
+    }
+    return out;
+}
+
+function getMgmtComputeNicAssignment(portCount) {
+    const p = parseInt(portCount, 10) || 0;
+    const indices = Array.from({ length: Math.max(0, p) }, (_, i) => i + 1);
+    const rdmaEnabled = getRdmaEnabledNicIndices(p);
+    const allRdma = rdmaEnabled.length === p && p > 0;
+    const nonRdma = indices.filter(i => !rdmaEnabled.includes(i));
+
+    // Preserve existing 2-port behavior used elsewhere in the wizard.
+    if (p === 2) {
+        return {
+            mgmtCompute: [1],
+            storage: [2],
+            allRdma,
+            valid: true,
+            reason: ''
+        };
+    }
+
+    const isStandard = state.scale === 'medium';
+    if (isStandard) {
+        // Exception: when all ports are RDMA-capable, keep NICs 1-2 as Mgmt+Compute.
+        if (allRdma) {
+            const mgmtCompute = [1, 2].filter(n => n <= p);
+            const mgmtComputeSet = new Set(mgmtCompute);
+            return {
+                mgmtCompute,
+                storage: indices.filter(n => !mgmtComputeSet.has(n)),
+                allRdma: true,
+                valid: true,
+                reason: ''
+            };
+        }
+
+        // Prefer Mgmt+Compute on non-RDMA ports.
+        const mgmtCompute = nonRdma.slice(0, 2);
+        const mgmtComputeSet = new Set(mgmtCompute);
+        const storage = indices.filter(n => !mgmtComputeSet.has(n));
+        const valid = mgmtCompute.length >= 2;
+        return {
+            mgmtCompute,
+            storage,
+            allRdma: false,
+            valid,
+            reason: valid ? '' : 'Mgmt + Compute requires at least 2 non-RDMA port(s) unless all ports are RDMA-capable.'
+        };
+    }
+
+    // Non-standard scales keep the fixed Pair 1 / Pair 2+ model.
+    const mgmtCompute = [1, 2].filter(n => n <= p);
+    const mgmtComputeSet = new Set(mgmtCompute);
+    return {
+        mgmtCompute,
+        storage: indices.filter(n => !mgmtComputeSet.has(n)),
+        allRdma,
+        valid: true,
+        reason: ''
+    };
+}
+
+function getStorageNicIndicesForIntent(intent, portCount) {
+    const p = parseInt(portCount, 10) || 0;
+    if (p <= 0) return [];
+    if (intent === 'all_traffic') return Array.from({ length: p }, (_, i) => i + 1);
+    if (intent === 'mgmt_compute') return getMgmtComputeNicAssignment(p).storage;
+    if (intent === 'compute_storage') return Array.from({ length: Math.max(0, p - 2) }, (_, i) => i + 3);
+    if (intent === 'custom') {
+        const out = [];
+        for (let i = 1; i <= p; i++) {
+            const assignment = (state.customIntents && state.customIntents[i]) || 'unused';
+            const carriesStorage = (assignment === 'storage' || assignment === 'compute_storage' || assignment === 'all');
+            if (carriesStorage) out.push(i);
+        }
+        return out;
+    }
+    return [];
 }
 
 function isValidNetbiosName(name) {
@@ -1007,8 +1166,7 @@ function generateArmParameters() {
             }
 
             if (state.intent === 'mgmt_compute') {
-                if (portCount === 2) return [2];
-                return Array.from({ length: Math.max(0, portCount - 2) }, (_, i) => i + 3);
+                return getStorageNicIndicesForIntent('mgmt_compute', portCount);
             }
 
             if (state.intent === 'compute_storage') {
@@ -1208,7 +1366,10 @@ function generateArmParameters() {
 
             const buildAdapterPropertyOverrides = (groupKey) => {
                 const ov = (state.intentOverrides && state.intentOverrides[groupKey]) ? state.intentOverrides[groupKey] : null;
-                const touched = !!(ov && ov.__touched);
+                const touched = !!(ov && (
+                    ov.__touchedAdapterProperty === true ||
+                    (ov.__touched === true && ov.__touchedAdapterProperty === undefined && ov.__touchedVswitch === undefined && ov.__touchedVlan === undefined)
+                ));
 
                 const jumbo = ov && ov.jumboFrames ? String(ov.jumboFrames) : '';
                 const rdmaMode = ov && ov.rdmaMode ? String(ov.rdmaMode) : '';
@@ -1221,6 +1382,19 @@ function generateArmParameters() {
                         jumboPacket: jumbo,
                         networkDirect: networkDirect,
                         networkDirectTechnology: networkDirectTechnology
+                    }
+                };
+            };
+
+            const buildVirtualSwitchConfigurationOverrides = (groupKey) => {
+                const ov = (state.intentOverrides && state.intentOverrides[groupKey]) ? state.intentOverrides[groupKey] : null;
+                const touched = !!(ov && ov.__touchedVswitch === true);
+                const enableIov = ov && ov.enableIov ? String(ov.enableIov) : '';
+                return {
+                    touched,
+                    overrides: {
+                        enableIov,
+                        loadBalancingAlgorithm: ''
                     }
                 };
             };
@@ -1262,13 +1436,14 @@ function generateArmParameters() {
                     : (Array.isArray(g.nics) ? g.nics : []).map(n => armAdapterNameForNic(n));
 
                 const adapterOverrides = buildAdapterPropertyOverrides(g.key);
+                const vswitchOverrides = buildVirtualSwitchConfigurationOverrides(g.key);
 
                 out.push({
                     name,
                     trafficType: baseKey === 'storage' ? ['Storage'] : trafficTypeForGroupBaseKey(baseKey),
                     adapter: adapters.length ? adapters : ['REPLACE_WITH_ADAPTER_1', 'REPLACE_WITH_ADAPTER_2'],
-                    overrideVirtualSwitchConfiguration: false,
-                    virtualSwitchConfigurationOverrides: { enableIov: '', loadBalancingAlgorithm: '' },
+                    overrideVirtualSwitchConfiguration: vswitchOverrides.touched,
+                    virtualSwitchConfigurationOverrides: vswitchOverrides.overrides,
                     overrideQosPolicy: false,
                     qosPolicyOverrides: { priorityValue8021Action_Cluster: '', priorityValue8021Action_SMB: '', bandwidthPercentage_SMB: '' },
                     // Apply adapter properties only when the user explicitly changed overrides in the UI.
@@ -2617,6 +2792,14 @@ function updateUI() {
     }
 
     // Defaults (must run before visual selection updates)
+    // Default intent selection (Step 08: Network Traffic Intents)
+    // If ports are selected and the user hasn't chosen an intent yet, default to Mgmt + Compute.
+    // Constraints later in updateUI may clear/override this if the topology disallows it.
+    if (state.ports && !state.intent) {
+        state.intent = 'mgmt_compute';
+        state.customIntentConfirmed = false;
+    }
+
     // Storage Auto IP defaults depend on storage connectivity and node count.
     // - Switched: Enabled is recommended
     // - Switchless: 3-4 nodes => Disabled is required; 2 nodes => Enabled recommended
@@ -3327,14 +3510,30 @@ function updateUI() {
         const selector = `.${badgeClass}[data-source="intent"]`;
         let intentBadge = mgmtComputeCard.querySelector(selector);
 
-        if (state.ports === '4') {
+        const nForIntentBadge = parseInt(state.nodes, 10);
+        const isSwitchless3NodeIntentRequired =
+            state.storage === 'switchless' &&
+            state.scale === 'low_capacity' &&
+            nForIntentBadge === 3 &&
+            (state.switchlessLinkMode === 'dual_link' || state.switchlessLinkMode === 'single_link');
+
+        // Required takes precedence over Recommended.
+        if (isSwitchless3NodeIntentRequired) {
             if (!intentBadge) {
                 intentBadge = document.createElement('div');
                 intentBadge.className = badgeClass;
-                intentBadge.innerText = 'Recommended';
                 intentBadge.dataset.source = 'intent';
                 mgmtComputeCard.appendChild(intentBadge);
             }
+            intentBadge.innerText = 'Required';
+        } else if (state.ports === '4') {
+            if (!intentBadge) {
+                intentBadge = document.createElement('div');
+                intentBadge.className = badgeClass;
+                intentBadge.dataset.source = 'intent';
+                mgmtComputeCard.appendChild(intentBadge);
+            }
+            intentBadge.innerText = 'Recommended';
         } else if (intentBadge) {
             intentBadge.remove();
         }
@@ -3343,6 +3542,7 @@ function updateUI() {
     // RDMA Explanation & Port Configuration
     const portsExp = document.getElementById('ports-explanation');
     const portConfigSec = document.getElementById('port-configuration');
+    const rdmaWarn = document.getElementById('rdma-validation-warning');
 
     if (state.ports) {
         portsExp.classList.add('visible');
@@ -3398,23 +3598,115 @@ function updateUI() {
             const isLowCapacity = state.scale === 'low_capacity';
             const isStandard = state.scale === 'medium';
 
+            const isSwitchless3NodeStandard =
+                isStandard &&
+                state.storage === 'switchless' &&
+                parseInt(state.nodes, 10) === 3;
+
             const defaultRdmaEnabled = isLowCapacity ? false : true;
             const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
             const defaultPortSpeed = '25GbE'; // Default to 25Gbps for all scales
 
-            state.portConfig = Array(pCount).fill().map(() => ({
-                speed: defaultPortSpeed,
-                rdma: defaultRdmaEnabled,
-                rdmaMode: defaultRdmaEnabled ? defaultRdmaMode : 'Disabled',
-                rdmaManual: false
-            }));
+            state.portConfig = Array(pCount).fill().map((_, idx) => {
+                // Special default: 3-node switchless standard uses non-RDMA teamed ports for Mgmt+Compute.
+                // Keep Port 1-2 non-RDMA by default; enable RDMA on the remaining ports.
+                const rdmaEnabled = (isSwitchless3NodeStandard && idx < 2) ? false : defaultRdmaEnabled;
+                return {
+                    speed: defaultPortSpeed,
+                    rdma: rdmaEnabled,
+                    rdmaMode: rdmaEnabled ? defaultRdmaMode : 'Disabled',
+                    rdmaManual: false
+                };
+            });
+        } else {
+            // If the user changes earlier choices (scale/nodes/storage) after portConfig was created,
+            // keep the defaults aligned for 3-node switchless standard unless the user manually changed a port.
+            const isLowCapacity = state.scale === 'low_capacity';
+            const isStandard = state.scale === 'medium';
+            const isSwitchless3NodeStandard =
+                isStandard &&
+                state.storage === 'switchless' &&
+                parseInt(state.nodes, 10) === 3;
+            const defaultRdmaEnabled = isLowCapacity ? false : true;
+            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
+
+            if (isSwitchless3NodeStandard) {
+                for (let idx = 0; idx < pCount; idx++) {
+                    const pc = state.portConfig[idx];
+                    if (!pc || pc.rdmaManual === true) continue;
+
+                    const shouldBeNonRdma = idx < 2;
+                    const rdmaEnabled = shouldBeNonRdma ? false : defaultRdmaEnabled;
+                    pc.rdma = rdmaEnabled;
+                    pc.rdmaMode = rdmaEnabled ? defaultRdmaMode : 'Disabled';
+                }
+            }
         }
 
         renderPortConfiguration(pCount);
+
+        // Step 07 validation: Unless Low Capacity, require a minimum number of RDMA ports.
+        if (rdmaWarn) {
+            const requiredRdma = getRequiredRdmaPortCount();
+            const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+            const rdmaEnabled = cfg.filter(p => p && p.rdma === true).length;
+            if (state.rdmaGuardMessage) {
+                rdmaWarn.innerHTML = '<strong style="color:#ffc107;">' + escapeHtml(state.rdmaGuardMessage) + '</strong>';
+                rdmaWarn.classList.remove('hidden');
+                rdmaWarn.classList.add('visible');
+                state.rdmaGuardMessage = null;
+            } else if (requiredRdma > 0 && rdmaEnabled < requiredRdma) {
+                rdmaWarn.innerHTML = '<strong style="color:#ffc107;">⚠ Not supported</strong><br>At least ' + escapeHtml(String(requiredRdma)) + ' port(s) must be RDMA capable unless you selected Low Capacity. Update Port Configuration to enable RDMA on at least ' + escapeHtml(String(requiredRdma)) + ' port(s).';
+                rdmaWarn.classList.remove('hidden');
+                rdmaWarn.classList.add('visible');
+            } else {
+                rdmaWarn.classList.add('hidden');
+                rdmaWarn.classList.remove('visible');
+                rdmaWarn.innerHTML = '';
+            }
+        }
+
+        // HARD BLOCK (Step 07): If RDMA requirements are not met, do not allow the user
+        // to proceed to Step 08 (Intent) or beyond.
+        try {
+            const requiredRdma = getRequiredRdmaPortCount();
+            const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+            const rdmaEnabled = cfg.filter(p => p && p.rdma === true).length;
+            const rdmaOk = (requiredRdma <= 0) || (rdmaEnabled >= requiredRdma);
+            if (!rdmaOk) {
+                // Clear downstream state so progress gates don't advance.
+                state.intent = null;
+                state.customIntentConfirmed = false;
+                state.storageAutoIp = null;
+                state.outbound = null;
+                state.arc = null;
+                state.proxy = null;
+                state.ip = null;
+                state.infraVlan = null;
+                state.infraVlanId = null;
+
+                // Disable intent cards.
+                if (cards && cards.intent) {
+                    Object.values(cards.intent).forEach(c => {
+                        if (!c) return;
+                        c.classList.add('disabled');
+                        c.classList.remove('selected');
+                    });
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
     } else {
         portsExp.classList.remove('visible');
         portConfigSec.classList.remove('visible');
         state.portConfig = null;
+
+        if (rdmaWarn) {
+            rdmaWarn.classList.add('hidden');
+            rdmaWarn.classList.remove('visible');
+            rdmaWarn.innerHTML = '';
+        }
     }
 
 
@@ -3484,6 +3776,19 @@ function updateUI() {
 
     // RULE 3: Storage -> Intent
     if (state.storage === 'switchless') {
+        // User request: 3-node switchless (dual-link) forces Mgmt + Compute intent and disables other intent options.
+        const nSwitchless = parseInt(state.nodes, 10);
+        const isSwitchless3NodeDualLink = (nSwitchless === 3) && (state.switchlessLinkMode === 'dual_link');
+        if (isSwitchless3NodeDualLink) {
+            cards.intent['custom'].classList.add('disabled');
+            cards.intent['all_traffic'].classList.add('disabled');
+            cards.intent['compute_storage'].classList.add('disabled');
+            if (state.intent !== 'mgmt_compute') {
+                state.intent = 'mgmt_compute';
+                state.customIntentConfirmed = false;
+            }
+        }
+
         if (state.scale !== 'low_capacity') {
             cards.intent['all_traffic'].classList.add('disabled');
             if (state.intent === 'all_traffic') state.intent = null;
@@ -3493,7 +3798,6 @@ function updateUI() {
 
         // Switchless 4-node uses all 8 ports for the required topology.
         // In this scenario, only Mgmt + Compute intent is allowed.
-        const nSwitchless = parseInt(state.nodes, 10);
         if (nSwitchless === 4 && state.ports === '8') {
             cards.intent['custom'].classList.add('disabled');
             cards.intent['all_traffic'].classList.add('disabled');
@@ -3519,6 +3823,7 @@ function updateUI() {
     // RULE 5: Intent Explanation & Visualization
     const intentExp = document.getElementById('intent-explanation');
     const nicVis = document.getElementById('nic-visualizer');
+    const rdmaIntentWarn = document.getElementById('rdma-intent-warning');
     const intentOverrides = document.getElementById('intent-overrides');
     const intentOverridesContainer = document.getElementById('intent-overrides-container');
     const customConfirmBtn = document.getElementById('custom-intent-confirm');
@@ -3532,7 +3837,13 @@ function updateUI() {
         if (state.intent === 'all_traffic') {
             text = `<strong>Fully Converged Network</strong><br>All traffic types (Management, Compute, Storage) are permanently grouped onto a single SET team.`;
         } else if (state.intent === 'mgmt_compute') {
-            text = `<strong>Converged Mgmt & Compute + Dedicated Storage</strong><br>Mgmt/Compute share Pair 1. Storage uses Pair 2${portCount > 4 ? '+' : ''}.`;
+            const isStandard = state.scale === 'medium';
+            const assignment = getMgmtComputeNicAssignment(portCount);
+            if (isStandard && portCount > 2 && !assignment.allRdma) {
+                text = `<strong>Converged Mgmt & Compute + Dedicated Storage</strong><br>Mgmt/Compute use the first two non-RDMA ports. Storage uses the remaining ports.`;
+            } else {
+                text = `<strong>Converged Mgmt & Compute + Dedicated Storage</strong><br>Mgmt/Compute share Pair 1. Storage uses Pair 2${portCount > 4 ? '+' : ''}.`;
+            }
         } else if (state.intent === 'compute_storage') {
             text = `<strong>Converged Compute & Storage + Dedicated Mgmt</strong><br>Mgmt on Pair 1. Compute/Storage share Pair 2${portCount > 4 ? '+' : ''}.`;
         } else if (state.intent === 'custom') {
@@ -3579,9 +3890,94 @@ function updateUI() {
         nicVis.classList.add('visible');
         renderNicVisualizer(portCount, state.intent, isSwitchless);
 
+        // Step 08 validation: RDMA-enabled ports must map to Storage traffic NICs.
+        if (rdmaIntentWarn) {
+            const cfg = Array.isArray(state.portConfig) ? state.portConfig : null;
+            const storageIndices = getStorageNicIndicesForIntent(state.intent, portCount);
+
+            const storageSet = new Set(storageIndices);
+            const rdmaEnabled = [];
+            if (cfg) {
+                for (let i = 1; i <= portCount; i++) {
+                    const pc = cfg[i - 1];
+                    if (pc && pc.rdma === true) rdmaEnabled.push(i);
+                }
+            }
+
+            const isStandard = state.scale === 'medium';
+            const allRdma = rdmaEnabled.length === portCount && portCount > 0;
+            const requiresTwoNonRdmaForMgmtCompute =
+                state.intent === 'mgmt_compute' && isStandard && portCount > 2 && !allRdma;
+            const nonRdmaCount = portCount - rdmaEnabled.length;
+
+            // When all ports are RDMA-capable, allow Mgmt+Compute to use RDMA ports (standard scenarios only).
+            const allowMgmtComputeOnRdmaPorts =
+                isStandard && state.intent === 'mgmt_compute' && allRdma;
+            // Custom intent: RDMA can be enabled on non-Storage adapters (e.g., Compute).
+            const nonStorageRdma = (state.intent === 'custom')
+                ? []
+                : (allowMgmtComputeOnRdmaPorts ? [] : rdmaEnabled.filter(i => !storageSet.has(i)));
+            const rdmaOnStorage = rdmaEnabled.filter(i => storageSet.has(i)).length;
+            const requiredRdma = getRequiredRdmaPortCount();
+
+            const storageOnNonRdma = (state.intent === 'custom')
+                ? storageIndices.filter(i => !(cfg && cfg[i - 1] && cfg[i - 1].rdma === true))
+                : [];
+
+            const mgmtComputeNonRdmaOk = !requiresTwoNonRdmaForMgmtCompute || nonRdmaCount >= 2;
+
+            const mappingOk =
+                mgmtComputeNonRdmaOk &&
+                (nonStorageRdma.length === 0) &&
+                (requiredRdma <= 0 || rdmaOnStorage >= requiredRdma) &&
+                (storageOnNonRdma.length === 0);
+            if (!mappingOk) {
+                const parts = [];
+                if (!mgmtComputeNonRdmaOk) {
+                    parts.push('Mgmt + Compute requires at least 2 non-RDMA port(s) for teamed adapters (unless all ports are RDMA-capable).');
+                }
+                if (storageOnNonRdma.length > 0) {
+                    parts.push('Storage traffic is assigned to non-RDMA port(s): ' + storageOnNonRdma.map(i => 'Port ' + i).join(', ') + '.');
+                }
+                if (requiredRdma > 0 && rdmaOnStorage < requiredRdma) {
+                    parts.push('At least ' + escapeHtml(String(requiredRdma)) + ' RDMA-enabled port(s) must be assigned to Storage traffic (SMB).');
+                }
+                if (nonStorageRdma.length > 0) {
+                    parts.push('RDMA is enabled on non-Storage port(s): ' + nonStorageRdma.map(i => 'Port ' + i).join(', ') + '.');
+                }
+                rdmaIntentWarn.innerHTML = '<strong style="color:#ffc107;">⚠ Not supported</strong><br>' + parts.join('<br>') + '<br>Update Step 07 Port Configuration so RDMA is enabled on the ports used for Storage traffic.';
+                rdmaIntentWarn.classList.remove('hidden');
+                rdmaIntentWarn.classList.add('visible');
+
+                // HARD BLOCK (Step 08): Do not allow the user to proceed to Step 09+.
+                // Keep the intent selection visible, but disable downstream selections.
+                state.outbound = null;
+                state.arc = null;
+                state.proxy = null;
+                state.ip = null;
+                state.infraVlan = null;
+                state.infraVlanId = null;
+                state.storageAutoIp = null;
+                document.querySelectorAll('#outbound-connected .option-card, #outbound-disconnected .option-card').forEach(c => {
+                    c.classList.add('disabled');
+                    c.classList.remove('selected');
+                });
+            } else {
+                rdmaIntentWarn.classList.add('hidden');
+                rdmaIntentWarn.classList.remove('visible');
+                rdmaIntentWarn.innerHTML = '';
+            }
+        }
+
     } else {
         intentExp.classList.remove('visible');
         nicVis.classList.remove('visible');
+
+        if (rdmaIntentWarn) {
+            rdmaIntentWarn.classList.add('hidden');
+            rdmaIntentWarn.classList.remove('visible');
+            rdmaIntentWarn.innerHTML = '';
+        }
 
         if (customConfirmBtn) {
             customConfirmBtn.classList.add('hidden');
@@ -3690,6 +4086,21 @@ function updateUI() {
     // Auto-fill Infrastructure Network CIDR from node IP CIDRs.
     autoFillInfraCidrFromNodes();
 
+    // Re-sync visual selection after constraint logic may have mutated state.
+    document.querySelectorAll('.option-card').forEach(card => {
+        const value = card.getAttribute('data-value');
+        const clickFn = card.getAttribute('onclick');
+        if (!clickFn) return;
+        const categoryMatch = clickFn.match(/selectOption\('([^']+)'/);
+        if (!categoryMatch) return;
+        const category = categoryMatch[1];
+        if (category === 'nodes') return;
+
+        const isSelected = state[category] === value;
+        if (isSelected) card.classList.add('selected');
+        else card.classList.remove('selected');
+    });
+
     updateSummary();
 
     // Progress indicator
@@ -3713,18 +4124,41 @@ function renderNicVisualizer(portCount, intent, isSwitchless) {
         return `<span class="traffic-tag tag-rdma">RDMA Enabled</span>`;
     };
 
-    const createCard = (i, tagsHTML, isCustom = false) => {
+    const ensureTag = (tagsHtml, tagHtml, testClass) => {
+        if (!tagsHtml) tagsHtml = '';
+        if (tagsHtml.indexOf(testClass) !== -1) return tagsHtml;
+        return tagsHtml + tagHtml;
+    };
+
+    const createCard = (i, tagsHTML, isCustom = false, isStorageRole = false) => {
+        const cfg = state.portConfig && state.portConfig[i - 1];
+        const isRdma = !!(cfg && cfg.rdma === true);
+        const nicLabel = (isCustom ? isRdma : isStorageRole) ? `SMB${i}` : `NIC${i}`;
         let content = tagsHTML;
         if (isCustom) {
-            const val = (state.customIntents && state.customIntents[i]) || 'unused';
+            let val = (state.customIntents && state.customIntents[i]) || 'unused';
+
+            // If the adapter is not RDMA-capable, prevent assigning Storage traffic in Custom intent.
+            const carriesStorage = (val === 'storage' || val === 'compute_storage' || val === 'all');
+            if (!isRdma && carriesStorage) {
+                if (!state.customIntents || typeof state.customIntents !== 'object') state.customIntents = {};
+                state.customIntents[i] = 'unused';
+                val = 'unused';
+            }
+
+            const rdmaTag = isRdma
+                ? getNicRdmaTag(i)
+                : `<span class="traffic-tag tag-rdma">RDMA: Not Supported</span>`;
+
             content = `
+                <div class="nic-tags">${rdmaTag || ''}</div>
                 <select class="custom-select" onchange="updateCustomNic(${i}, this.value)">
                     <option value="unused" ${val === 'unused' ? 'selected' : ''}>Unused</option>
                     <option value="compute" ${val === 'compute' ? 'selected' : ''}>Compute</option>
-                    <option value="storage" ${val === 'storage' ? 'selected' : ''}>Storage</option>
                     <option value="mgmt_compute" ${val === 'mgmt_compute' ? 'selected' : ''}>Mgmt + Comp</option>
-                    <option value="compute_storage" ${val === 'compute_storage' ? 'selected' : ''}>Comp + Stor</option>
-                    <option value="all" ${val === 'all' ? 'selected' : ''}>Group All</option>
+                    ${isRdma ? `<option value="storage" ${val === 'storage' ? 'selected' : ''}>Storage</option>` : ''}
+                    ${isRdma ? `<option value="compute_storage" ${val === 'compute_storage' ? 'selected' : ''}>Comp + Stor</option>` : ''}
+                    ${isRdma ? `<option value="all" ${val === 'all' ? 'selected' : ''}>Group All</option>` : ''}
                 </select>
             `;
         }
@@ -3732,31 +4166,59 @@ function renderNicVisualizer(portCount, intent, isSwitchless) {
         <div class="nic-card">
             <div class="nic-card-header">
                 <svg class="nic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-                <span>NIC ${i}</span>
+                <span>Port ${i} - ${nicLabel}</span>
             </div>
             <div class="nic-tags">${content}</div>
         </div>
         `;
     };
 
+    const mgmtComputeAssignment = (intent === 'mgmt_compute') ? getMgmtComputeNicAssignment(portCount) : null;
+    const mgmtComputeSet = mgmtComputeAssignment ? new Set(mgmtComputeAssignment.mgmtCompute) : null;
+    const storageSetForMgmtCompute = mgmtComputeAssignment ? new Set(mgmtComputeAssignment.storage) : null;
+
     for (let i = 1; i <= portCount; i++) {
         let tags = '';
+        let isStorageRole = false;
         if (intent === 'all_traffic') {
-            tags = TAG_MGMT + TAG_COMPUTE + TAG_STORAGE + getNicRdmaTag(i);
+            tags = TAG_MGMT + TAG_COMPUTE + TAG_STORAGE;
+            isStorageRole = true;
         } else if (intent === 'mgmt_compute') {
-            // Special case: with 2 ports, NIC1 is Mgmt+Compute and NIC2 is Storage.
             if (portCount === 2) {
                 if (i === 1) tags = TAG_MGMT + TAG_COMPUTE;
-                else tags = TAG_STORAGE + getNicRdmaTag(i);
+                else {
+                    tags = TAG_STORAGE;
+                    isStorageRole = true;
+                }
             } else {
-                if (i <= 2) tags = TAG_MGMT + TAG_COMPUTE;
-                else tags = TAG_STORAGE + getNicRdmaTag(i);
+                const isMgmtCompute = mgmtComputeSet ? mgmtComputeSet.has(i) : (i <= 2);
+                if (isMgmtCompute) {
+                    tags = TAG_MGMT + TAG_COMPUTE;
+                } else {
+                    tags = TAG_STORAGE;
+                    isStorageRole = true;
+                }
             }
         } else if (intent === 'compute_storage') {
             if (i <= 2) tags = TAG_MGMT;
-            else tags = TAG_COMPUTE + TAG_STORAGE + getNicRdmaTag(i);
+            else {
+                tags = TAG_COMPUTE + TAG_STORAGE;
+                isStorageRole = true;
+            }
         }
-        container.innerHTML += createCard(i, tags, intent === 'custom');
+
+        // Always show RDMA capability, but do not imply Storage on Mgmt+Compute ports.
+        const rdmaTag = getNicRdmaTag(i);
+        if (rdmaTag) {
+            tags = ensureTag(tags, rdmaTag, 'tag-rdma');
+        }
+        // For mgmt_compute we already computed the role. For other intents, infer from tag presence.
+        if (intent === 'mgmt_compute' && storageSetForMgmtCompute) {
+            isStorageRole = storageSetForMgmtCompute.has(i);
+        } else if (intent !== 'custom') {
+            isStorageRole = isStorageRole || (tags.indexOf('tag-storage') !== -1);
+        }
+        container.innerHTML += createCard(i, tags, intent === 'custom', isStorageRole);
     }
 }
 
@@ -3777,18 +4239,19 @@ function getIntentNicGroups(intent, portCount) {
 
     if (intent === 'mgmt_compute') {
         if (p === 2) {
-            addGroup('mgmt_compute', 'Mgmt + Compute (NIC 1)', [1]);
-            addGroup('storage', 'Storage (NIC 2)', [2]);
+            addGroup('mgmt_compute', 'Mgmt + Compute', [1]);
+            addGroup('storage', 'Storage', [2]);
         } else {
-            addGroup('mgmt_compute', 'Mgmt + Compute (NICs 1-2)', [1, 2]);
-            addGroup('storage', `Storage (NICs 3-${p})`, Array.from({ length: Math.max(0, p - 2) }, (_, i) => i + 3));
+            const assignment = getMgmtComputeNicAssignment(p);
+            addGroup('mgmt_compute', 'Mgmt + Compute', assignment.mgmtCompute);
+            addGroup('storage', 'Storage', assignment.storage);
         }
         return groups;
     }
 
     if (intent === 'compute_storage') {
-        addGroup('mgmt', 'Management (NICs 1-2)', [1, 2].filter(n => n <= p));
-        addGroup('compute_storage', `Compute + Storage (NICs 3-${p})`, Array.from({ length: Math.max(0, p - 2) }, (_, i) => i + 3));
+        addGroup('mgmt', 'Management', [1, 2].filter(n => n <= p));
+        addGroup('compute_storage', 'Compute + Storage', Array.from({ length: Math.max(0, p - 2) }, (_, i) => i + 3));
         return groups;
     }
 
@@ -3818,7 +4281,7 @@ function getIntentNicGroups(intent, portCount) {
         }
 
         for (const [key, nics] of buckets.entries()) {
-            addGroup(`custom_${key}`, `${trafficNames[key] || key} (${nics.length} NIC${nics.length > 1 ? 's' : ''})`, nics);
+            addGroup(`custom_${key}`, `${trafficNames[key] || key}`, nics);
         }
         return groups;
     }
@@ -3836,6 +4299,14 @@ function ensureDefaultOverridesForGroups(groups) {
         if (!state.intentOverrides[g.key]) state.intentOverrides[g.key] = {};
         if (!state.intentOverrides[g.key].rdmaMode) state.intentOverrides[g.key].rdmaMode = defaultRdmaMode;
         if (!state.intentOverrides[g.key].jumboFrames) state.intentOverrides[g.key].jumboFrames = defaultJumbo;
+
+        // vSwitch overrides are only relevant for Mgmt+Compute and Compute-only intents.
+        // Keep defaults empty (meaning: do not override template defaults).
+        const baseKey = String(g.key || '').startsWith('custom_') ? String(g.key).substring('custom_'.length) : String(g.key || '');
+        if (baseKey === 'mgmt_compute' || baseKey === 'compute') {
+            const ov = state.intentOverrides[g.key];
+            if (ov.enableIov === undefined) ov.enableIov = '';
+        }
 
         // Storage intent VLAN override (Network ATC defaults)
         // Includes Group All Traffic because it contains storage traffic.
@@ -3877,16 +4348,16 @@ function applyOverridesToPorts(groups) {
     for (const g of groups) {
         const ov = state.intentOverrides && state.intentOverrides[g.key];
         if (!ov) continue;
-
-        const enableRdma = ov.rdmaMode !== 'Disabled';
         for (const nic of g.nics) {
             const idx = nic - 1;
             if (!state.portConfig[idx]) continue;
-            // Do not override per-port manual RDMA choices from Step 07.
-            // Intent overrides should provide defaults, but user-selected RDMA capability is authoritative.
-            if (state.portConfig[idx].rdmaManual !== true) {
-                state.portConfig[idx].rdma = enableRdma;
-                state.portConfig[idx].rdmaMode = ov.rdmaMode;
+            // Do not change which ports are RDMA-capable from Step 08 overrides.
+            // Step 07 Port Configuration is authoritative for RDMA capability.
+            // Only apply RDMA technology when the port is already RDMA-enabled and wasn't manually set.
+            if (state.portConfig[idx].rdma === true && state.portConfig[idx].rdmaManual !== true) {
+                if (ov.rdmaMode && ov.rdmaMode !== 'Disabled') {
+                    state.portConfig[idx].rdmaMode = ov.rdmaMode;
+                }
             }
             state.portConfig[idx].jumboFrames = ov.jumboFrames;
         }
@@ -3905,9 +4376,16 @@ function renderIntentOverrides(container) {
 
     const rdmaOptions = ['RoCE', 'RoCEv2', 'iWarp', 'Disabled'];
     const jumboOptions = ['1514', '4088', '9014'];
+    const sriovOptions = [
+        { value: '', label: 'Enabled' },
+        { value: 'false', label: 'Disabled' }
+    ];
 
     for (const g of groups) {
         const ov = state.intentOverrides[g.key];
+
+        const baseKey = String(g.key || '').startsWith('custom_') ? String(g.key).substring('custom_'.length) : String(g.key || '');
+        const showVswitchOverrides = (baseKey === 'mgmt_compute' || baseKey === 'compute');
 
         const card = document.createElement('div');
         card.className = 'override-card';
@@ -3956,6 +4434,14 @@ function renderIntentOverrides(container) {
                     ${jumboOptions.map(o => `<option value="${o}" ${ov.jumboFrames === o ? 'selected' : ''}>${o}</option>`).join('')}
                 </select>
             </div>
+            ${showVswitchOverrides ? `
+            <div class="config-row" style="margin-top:0.75rem;">
+                <span class="config-label">SR-IOV</span>
+                <select class="speed-select" data-override-group="${g.key}" data-override-key="enableIov">
+                    ${sriovOptions.map(o => `<option value="${o.value}" ${String(ov.enableIov ?? '') === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+                </select>
+            </div>
+            ` : ''}
             ${storageVlanHtml}
         `;
 
@@ -3986,7 +4472,15 @@ function updateIntentGroupOverride(groupKey, key, value) {
     if (!state.intentOverrides || typeof state.intentOverrides !== 'object') state.intentOverrides = {};
     if (!state.intentOverrides[groupKey]) state.intentOverrides[groupKey] = {};
     state.intentOverrides[groupKey][key] = value;
+
+    // Track which section was touched so generated output only sets relevant override flags.
     state.intentOverrides[groupKey].__touched = true;
+    if (key === 'enableIov') {
+        state.intentOverrides[groupKey].__touchedVswitch = true;
+    } else {
+        // RDMA/Jumbo are adapter property overrides.
+        state.intentOverrides[groupKey].__touchedAdapterProperty = true;
+    }
     updateUI();
 }
 
@@ -3995,6 +4489,7 @@ function updateIntentGroupVlanOverride(groupKey, key, raw, inputEl) {
     if (!state.intentOverrides[groupKey]) state.intentOverrides[groupKey] = {};
 
     state.intentOverrides[groupKey].__touched = true;
+    state.intentOverrides[groupKey].__touchedVlan = true;
 
     const trimmed = String((raw === undefined || raw === null) ? '' : raw).trim();
     if (!trimmed) {
@@ -4450,8 +4945,9 @@ function renderDiagram() {
             if (p === 2) {
                 return portIdx === 0 ? ['m', 'c'] : ['s'];
             }
-            if (portIdx < 2) return ['m', 'c'];
-            return ['s'];
+            const assignment = getMgmtComputeNicAssignment(p);
+            const nic = portIdx + 1;
+            return assignment.mgmtCompute.includes(nic) ? ['m', 'c'] : ['s'];
         }
         if (intent === 'compute_storage') {
             if (portIdx < 2) return ['m'];
@@ -4628,6 +5124,22 @@ function capitalize(s) {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function getRequiredRdmaPortCount() {
+    // Low Capacity is exempt from minimum RDMA port requirements in this wizard.
+    if (state.scale === 'low_capacity') return 0;
+
+    const n = parseInt(state.nodes, 10);
+
+    // Standard (Hyperconverged) + Switchless topologies require more RDMA ports.
+    if (state.scale === 'medium' && state.storage === 'switchless') {
+        if (n === 3) return 4;
+        if (n === 4) return 6;
+    }
+
+    // Default rule: require at least two RDMA-capable ports.
+    return 2;
+}
+
 function renderPortConfiguration(count) {
     const container = document.getElementById('port-config-grid');
     container.innerHTML = '';
@@ -4665,6 +5177,28 @@ function renderPortConfiguration(count) {
 
 function updatePortConfig(index, key, value) {
     if (state.portConfig && state.portConfig[index]) {
+        // Guardrail: enforce minimum RDMA-enabled ports (unless Low Capacity).
+        // If the user attempts to disable RDMA and it would drop below the minimum, block the change.
+        try {
+            const requiredRdma = getRequiredRdmaPortCount();
+            if (requiredRdma > 0 && (key === 'rdma' || key === 'rdmaMode')) {
+                const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+                const currentRdmaEnabled = cfg.filter(p => p && p.rdma === true).length;
+
+                const isDisablingRdma =
+                    (key === 'rdma' && value === false && state.portConfig[index].rdma === true) ||
+                    (key === 'rdmaMode' && String(value) === 'Disabled' && state.portConfig[index].rdma === true);
+
+                if (isDisablingRdma && (currentRdmaEnabled - 1) < requiredRdma) {
+                    state.rdmaGuardMessage = '⚠ Not supported: At least ' + String(requiredRdma) + ' port(s) must remain RDMA capable unless you selected Low Capacity.';
+                    updateUI();
+                    return;
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+
         state.portConfig[index][key] = value;
 
         // Keep RDMA fields coherent and treat Step 07 actions as authoritative.
