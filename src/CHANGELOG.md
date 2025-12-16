@@ -46,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Required Endpoints Info** - Details on firewall rules and endpoints
   - **Lock Icon** - Visual indicator for security-related documentation
 
+- **M365 Local Documentation Redirect** - Special handling for M365 Local deployment type
+  - **Workflow Stop** - Selecting M365 Local stops the wizard flow
+  - **Documentation Modal** - Displays informational message with link to M365 Local overview
+  - **Direct Link** - Takes users to Microsoft Learn M365 Local on Azure Local documentation
+  - **Clean Exit** - Users can close modal and select different deployment type
+
 ### Changed
 - **Summary Panel Layout** - Reorganized controls into two rows for better organization
 - **Font and Theme Controls** - Grouped together below auto-scroll toggle

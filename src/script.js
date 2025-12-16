@@ -1590,6 +1590,12 @@ function generateReport() {
 }
 
 function selectOption(category, value) {
+    // Special handling for M365 Local - stop workflow and show documentation
+    if (category === 'scenario' && value === 'm365local') {
+        showM365LocalInfo();
+        return;
+    }
+    
     if (category === 'nodes') {
         const chip = document.querySelector(`.node-chip[onclick*="'${value}'"]`);
         if (chip && chip.classList.contains('disabled')) return;
@@ -6504,6 +6510,33 @@ function showNotification(message, type = 'info') {
         notification.style.animation = 'slideOut 0.3s ease-in';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+
+function showM365LocalInfo() {
+    const m365Msg = document.getElementById('m365local-message');
+    const steps = Array.from(document.querySelectorAll('.step')).filter(s => s.id !== 'step-1');
+    const summaryPanel = document.getElementById('summary-panel');
+    
+    // Hide all steps except step-1
+    steps.forEach(s => s && s.classList.add('hidden'));
+    
+    // Show M365 Local message
+    if (m365Msg) {
+        m365Msg.classList.remove('hidden');
+        m365Msg.classList.add('visible');
+    }
+    
+    // Hide summary panel
+    if (summaryPanel) summaryPanel.classList.add('hidden');
+    
+    // Keep M365 Local option visually selected
+    document.querySelectorAll('.option-card').forEach(card => {
+        const clickFn = card.getAttribute('onclick') || '';
+        if (!clickFn.includes("selectOption('scenario'")) return;
+        const value = card.getAttribute('data-value');
+        if (value === 'm365local') card.classList.add('selected');
+        else card.classList.remove('selected');
+    });
 }
 
 // Initialize enhanced features on page load
