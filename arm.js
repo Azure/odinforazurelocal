@@ -258,6 +258,9 @@
         attachCopy(copyBtn, statusEl, function () { return rawJsonText; });
     }
 
+    // Store payload globally for updateParameters
+    window.armPayload = payload;
+    
     main();
 })();
 
@@ -549,10 +552,112 @@ function updateParameters() {
         }
     }
     
-    // Update the display
+    // Update the display with syntax highlighting
     const jsonCode = document.getElementById('arm-json-code');
     if (jsonCode) {
-        jsonCode.textContent = JSON.stringify(paramsFile, null, 2);
+        const rawJsonText = JSON.stringify(paramsFile, null, 2);
+        // Use the same highlightJson function from the main initialization
+        jsonCode.innerHTML = (function () {
+            // Minimal JSON highlighter (no external deps).
+            // Produces HTML with spans. Assumes `rawJsonText` is already pretty-printed.
+            function escapeHtml(s) {
+                return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/\"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            var s = String(rawJsonText || '');
+            var out = '';
+            var i = 0;
+
+            function isWs(ch) { return ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t'; }
+            function peekNonWs(start) {
+                for (var j = start; j < s.length; j++) {
+                    var c = s[j];
+                    if (!isWs(c)) return c;
+                }
+                return '';
+            }
+
+            while (i < s.length) {
+                var ch = s[i];
+
+                // Whitespace
+                if (isWs(ch)) {
+                    out += ch;
+                    i++;
+                    continue;
+                }
+
+                // Strings
+                if (ch === '"') {
+                    var start = i;
+                    i++; // consume opening quote
+                    var escaped = false;
+                    while (i < s.length) {
+                        var c2 = s[i];
+                        if (escaped) {
+                            escaped = false;
+                            i++;
+                            continue;
+                        }
+                        if (c2 === '\\') {
+                            escaped = true;
+                            i++;
+                            continue;
+                        }
+                        if (c2 === '"') {
+                            i++; // consume closing quote
+                            break;
+                        }
+                        i++;
+                    }
+
+                    var strToken = s.slice(start, i);
+                    var next = peekNonWs(i);
+                    var cls = (next === ':') ? 'json-token--key' : 'json-token--string';
+                    out += '<span class="' + cls + '">' + escapeHtml(strToken) + '</span>';
+                    continue;
+                }
+
+                // Numbers
+                if (ch === '-' || (ch >= '0' && ch <= '9')) {
+                    var numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?/);
+                    if (numMatch && numMatch[0]) {
+                        var numTok = numMatch[0];
+                        out += '<span class="json-token--number">' + escapeHtml(numTok) + '</span>';
+                        i += numTok.length;
+                        continue;
+                    }
+                }
+
+                // Literals
+                if (s.slice(i, i + 4) === 'true') {
+                    out += '<span class="json-token--boolean">true</span>';
+                    i += 4;
+                    continue;
+                }
+                if (s.slice(i, i + 5) === 'false') {
+                    out += '<span class="json-token--boolean">false</span>';
+                    i += 5;
+                    continue;
+                }
+                if (s.slice(i, i + 4) === 'null') {
+                    out += '<span class="json-token--null">null</span>';
+                    i += 4;
+                    continue;
+                }
+
+                // Punctuation / fallback
+                out += '<span class="json-token--punct">' + escapeHtml(ch) + '</span>';
+                i++;
+            }
+
+            return out;
+        })();
     }
 }
 
