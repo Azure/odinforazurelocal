@@ -102,28 +102,41 @@
     }
 
     function tryParsePayload() {
+        console.log('tryParsePayload: Starting...');
+        console.log('window.location.hash:', window.location.hash);
+        
         // 1) URL hash payload (preferred for file:// reliability)
         try {
             var hash = window.location.hash || '';
             var idx = hash.indexOf('data=');
             if (idx >= 0) {
+                console.log('Found data= in hash at index:', idx);
                 var encoded = hash.substring(idx + 5);
+                console.log('Encoded data length:', encoded.length);
                 encoded = decodeURIComponent(encoded);
                 var json = decodeURIComponent(escape(atob(encoded)));
-                return JSON.parse(json);
+                var parsed = JSON.parse(json);
+                console.log('Successfully parsed from hash:', parsed);
+                return parsed;
             }
         } catch (e) {
-            // ignore
+            console.error('Error parsing hash:', e);
         }
 
         // 2) localStorage fallback
         try {
             var raw = localStorage.getItem('azloc_arm_payload');
-            if (raw) return JSON.parse(raw);
+            console.log('localStorage data exists:', !!raw);
+            if (raw) {
+                var parsed = JSON.parse(raw);
+                console.log('Successfully parsed from localStorage:', parsed);
+                return parsed;
+            }
         } catch (e2) {
-            // ignore
+            console.error('Error parsing localStorage:', e2);
         }
 
+        console.log('No payload found');
         return null;
     }
 
@@ -225,7 +238,9 @@
     }
 
     function main() {
+        console.log('main: Starting...');
         var payload = tryParsePayload();
+        console.log('Payload received:', payload);
         
         // Store payload globally for updateParameters
         window.armPayload = payload;
@@ -235,6 +250,14 @@
         var codeEl = document.getElementById('arm-json-code');
         var copyBtn = document.getElementById('arm-copy-btn');
         var statusEl = document.getElementById('arm-copy-status');
+
+        console.log('Elements found:', {
+            metaEl: !!metaEl,
+            placeholdersEl: !!placeholdersEl,
+            codeEl: !!codeEl,
+            copyBtn: !!copyBtn,
+            statusEl: !!statusEl
+        });
 
         setMeta(metaEl, payload);
 
