@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Azure Local Design Assistant (ALDA) Tool will be documented in this file.
+All notable changes to Odin for Azure Local (Optimal Deployment and Infrastructure Navigator) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Summary Panel Layout** - Reorganized controls into two rows for better organization
 - **Font and Theme Controls** - Grouped together below auto-scroll toggle
+- **Tool Rebranding** - Renamed from "Azure Local Design Assistant (ALDA) Tool" to "Odin for Azure Local"
+  - **Norse Mythology** - Named after Odin, the Norse god embodying strategic thinking and wisdom
+  - **Acronym** - ODIN: **O**ptimal **D**eployment and **I**nfrastructure **N**avigator
+  - **Updated Description** - Enhanced to reflect the tool's purpose as a strategic guide for Azure Local deployments
 
 ---
 
