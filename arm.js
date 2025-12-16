@@ -868,9 +868,3 @@ function showBicepTerraformAlternatives() {
         if (e.target === modal) modal.remove();
     });
 }
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-in';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
