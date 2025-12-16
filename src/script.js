@@ -1,5 +1,5 @@
 // Wizard version for tracking changes
-const WIZARD_VERSION = '0.2.1';
+const WIZARD_VERSION = '0.3.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -11,6 +11,8 @@ const state = {
     nodes: null,
     witnessType: null,
     autoScrollEnabled: true,
+    theme: 'dark',
+    fontSize: 'medium',
     ports: null,
     storage: null,
     switchlessLinkMode: null,
@@ -1869,6 +1871,65 @@ function toggleAutoScroll() {
     const checkbox = document.getElementById('auto-scroll-toggle');
     state.autoScrollEnabled = checkbox.checked;
     saveStateToLocalStorage();
+}
+
+function increaseFontSize() {
+    const sizes = ['small', 'medium', 'large', 'x-large'];
+    const currentIndex = sizes.indexOf(state.fontSize || 'medium');
+    if (currentIndex < sizes.length - 1) {
+        state.fontSize = sizes[currentIndex + 1];
+        applyFontSize();
+        saveStateToLocalStorage();
+    }
+}
+
+function decreaseFontSize() {
+    const sizes = ['small', 'medium', 'large', 'x-large'];
+    const currentIndex = sizes.indexOf(state.fontSize || 'medium');
+    if (currentIndex > 0) {
+        state.fontSize = sizes[currentIndex - 1];
+        applyFontSize();
+        saveStateToLocalStorage();
+    }
+}
+
+function applyFontSize() {
+    const sizes = {
+        'small': '14px',
+        'medium': '16px',
+        'large': '18px',
+        'x-large': '20px'
+    };
+    document.documentElement.style.fontSize = sizes[state.fontSize || 'medium'];
+}
+
+function toggleTheme() {
+    state.theme = state.theme === 'dark' ? 'light' : 'dark';
+    applyTheme();
+    saveStateToLocalStorage();
+}
+
+function applyTheme() {
+    const root = document.documentElement;
+    const themeButton = document.getElementById('theme-toggle');
+    
+    if (state.theme === 'light') {
+        root.style.setProperty('--bg-dark', '#f5f5f5');
+        root.style.setProperty('--card-bg', '#ffffff');
+        root.style.setProperty('--text-primary', '#1f2937');
+        root.style.setProperty('--text-secondary', '#6b7280');
+        root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
+        if (themeButton) themeButton.textContent = '☀️';
+        document.body.style.background = '#f5f5f5';
+    } else {
+        root.style.setProperty('--bg-dark', '#000000');
+        root.style.setProperty('--card-bg', '#111111');
+        root.style.setProperty('--text-primary', '#ffffff');
+        root.style.setProperty('--text-secondary', '#a1a1aa');
+        root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
+        if (themeButton) themeButton.textContent = '🌙';
+        document.body.style.background = '#000000';
+    }
 }
 
 function scrollToNextStep(currentCategory) {
@@ -4010,6 +4071,46 @@ function getCustomNicMapping(customIntents, portCount) {
     return mapping.length > 0 ? mapping.join('<br>') : 'No NICs assigned';
 }
 
+function updateStepIndicators() {
+    const steps = [
+        { id: 'step-1', field: 'scenario', validation: () => state.scenario !== null },
+        { id: 'step-2', field: 'region', validation: () => state.region !== null },
+        { id: 'step-3', field: 'localInstanceRegion', validation: () => state.localInstanceRegion !== null },
+        { id: 'step-4', field: 'scale', validation: () => state.scale !== null },
+        { id: 'step-5', field: 'nodes', validation: () => state.nodes !== null },
+        { id: 'step-6', field: 'ports', validation: () => state.ports !== null },
+        { id: 'step-7', field: 'outbound', validation: () => state.outbound !== null },
+        { id: 'step-8', field: 'arc', validation: () => state.arc !== null },
+        { id: 'step-9', field: 'ip', validation: () => state.ip !== null },
+        { id: 'step-10', field: 'activeDirectory', validation: () => state.activeDirectory !== null },
+        { id: 'step-11', field: 'securityConfiguration', validation: () => state.securityConfiguration !== null }
+    ];
+
+    steps.forEach(step => {
+        const stepElement = document.getElementById(step.id);
+        if (!stepElement) return;
+
+        const stepHeader = stepElement.querySelector('.step-header');
+        if (!stepHeader) return;
+
+        // Remove existing indicator
+        const existingIndicator = stepHeader.querySelector('.step-indicator');
+        if (existingIndicator) existingIndicator.remove();
+
+        // Check validation
+        const isValid = step.validation();
+        
+        if (isValid) {
+            // Add checkmark indicator
+            const indicator = document.createElement('span');
+            indicator.className = 'step-indicator';
+            indicator.innerHTML = '✓';
+            indicator.style.cssText = 'color: var(--success); font-size: 20px; font-weight: bold; margin-left: 8px;';
+            stepHeader.appendChild(indicator);
+        }
+    });
+}
+
 function updateSummary() {
     const summaryPanel = document.getElementById('summary-panel');
     const content = document.getElementById('summary-content');
@@ -4312,6 +4413,7 @@ function updateSummary() {
     content.innerHTML = html;
 
     renderDiagram();
+    updateStepIndicators();
 }
 
 function renderDiagram() {
@@ -6215,8 +6317,201 @@ function showComparison(category) {
     document.body.appendChild(overlay);
 }
 
+function showTemplates() {
+    const templates = [
+        {
+            name: '2-Node Standard Cluster',
+            description: 'Small production cluster with cloud witness',
+            config: {
+                scenario: 'hyperconverged',
+                scale: 'standard',
+                nodes: 2,
+                ports: 4,
+                storage: 'switched',
+                intent: 'storage_compute',
+                outbound: 'public',
+                arc: 'yes',
+                ip: 'dhcp'
+            }
+        },
+        {
+            name: '4-Node High Performance',
+            description: 'Medium cluster with dedicated storage network',
+            config: {
+                scenario: 'hyperconverged',
+                scale: 'standard',
+                nodes: 4,
+                ports: 4,
+                storage: 'switched',
+                intent: 'storage_compute',
+                outbound: 'public',
+                arc: 'yes',
+                ip: 'static'
+            }
+        },
+        {
+            name: '8-Node Rack Aware',
+            description: 'Large rack-aware cluster for production',
+            config: {
+                scenario: 'hyperconverged',
+                scale: 'rack_aware',
+                nodes: 8,
+                rackAwareZones: 2,
+                ports: 4,
+                storage: 'switched',
+                intent: 'storage_compute',
+                outbound: 'public',
+                arc: 'yes',
+                ip: 'static'
+            }
+        },
+        {
+            name: 'Disconnected 2-Node',
+            description: 'Air-gapped deployment with Active Directory',
+            config: {
+                scenario: 'disconnected',
+                scale: 'standard',
+                nodes: 2,
+                ports: 4,
+                storage: 'switched',
+                intent: 'storage_compute',
+                outbound: 'air_gapped',
+                arc: 'no_arc',
+                ip: 'static',
+                activeDirectory: 'azure_ad'
+            }
+        },
+        {
+            name: 'Edge 2-Node Switchless',
+            description: 'Cost-optimized edge deployment',
+            config: {
+                scenario: 'hyperconverged',
+                scale: 'low_capacity',
+                nodes: 2,
+                ports: 2,
+                storage: 'switchless',
+                switchlessLinkMode: 'full_mesh',
+                intent: 'compute_management',
+                outbound: 'public',
+                arc: 'yes',
+                ip: 'dhcp'
+            }
+        }
+    ];
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; backdrop-filter: blur(4px);';
+
+    const templatesHtml = templates.map((template, index) => `
+        <div onclick="loadTemplate(${index})" style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'; this.style.borderColor='rgba(59, 130, 246, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.03)'; this.style.borderColor='var(--glass-border)'">
+            <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">${escapeHtml(template.name)}</h4>
+            <p style="margin: 0; color: var(--text-secondary); font-size: 13px;">${escapeHtml(template.description)}</p>
+            <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px;">
+                <span style="padding: 2px 8px; background: rgba(59, 130, 246, 0.2); border-radius: 4px; color: var(--accent-blue);">${template.config.nodes} nodes</span>
+                <span style="padding: 2px 8px; background: rgba(139, 92, 246, 0.2); border-radius: 4px; color: var(--accent-purple);">${template.config.scale}</span>
+                <span style="padding: 2px 8px; background: rgba(16, 185, 129, 0.2); border-radius: 4px; color: var(--success);">${template.config.storage}</span>
+            </div>
+        </div>
+    `).join('');
+
+    overlay.innerHTML = `
+        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: var(--accent-blue);">📋 Configuration Templates</h3>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            
+            <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
+                Select a pre-configured template to quickly set up common deployment scenarios.
+            </p>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                ${templatesHtml}
+            </div>
+        </div>
+    `;
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+
+    // Store templates globally for loadTemplate function
+    window.configTemplates = templates;
+}
+
+function loadTemplate(templateIndex) {
+    if (!window.configTemplates || !window.configTemplates[templateIndex]) return;
+    
+    const template = window.configTemplates[templateIndex];
+    const config = template.config;
+
+    // Apply configuration
+    Object.keys(config).forEach(key => {
+        if (state.hasOwnProperty(key)) {
+            state[key] = config[key];
+        }
+    });
+
+    // Trigger UI updates for each selection
+    if (config.scenario) selectOption('scenario', config.scenario);
+    if (config.scale) selectOption('scale', config.scale);
+    if (config.nodes) selectOption('nodes', config.nodes);
+    if (config.ports) selectOption('ports', config.ports);
+    if (config.storage) selectOption('storage', config.storage);
+    if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
+    if (config.intent) selectOption('intent', config.intent);
+    if (config.outbound) selectOption('outbound', config.outbound);
+    if (config.arc) selectOption('arc', config.arc);
+    if (config.ip) selectOption('ip', config.ip);
+    if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
+
+    // Close the modal
+    document.querySelectorAll('div').forEach(el => {
+        if (el.style.position === 'fixed' && el.style.zIndex === '10000') {
+            el.remove();
+        }
+    });
+
+    // Show success message
+    showNotification('✅ Template loaded successfully!', 'success');
+    
+    // Save state
+    saveStateToLocalStorage();
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        background: ${type === 'success' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(59, 130, 246, 0.9)'};
+        color: white;
+        border-radius: 8px;
+        font-weight: 600;
+        z-index: 10001;
+        animation: slideIn 0.3s ease-out;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
 // Initialize enhanced features on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Apply saved theme and font size
+    applyTheme();
+    applyFontSize();
+    
     // Check for saved state
     setTimeout(checkForSavedState, 500);
     

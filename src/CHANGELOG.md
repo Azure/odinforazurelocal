@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2025-12-16
+
+### Added
+
+#### User Experience Enhancements
+- **Font Size Controls** - Adjust text size for better readability
+  - **Increase/Decrease Buttons** - A+ and A- buttons in summary panel
+  - **Four Size Options** - Small, Medium, Large, and X-Large
+  - **Persistent Preference** - Font size saved to localStorage across sessions
+  - **Instant Application** - Changes apply immediately to entire interface
+
+- **Dark/Light Theme Toggle** - Switch between dark and light themes
+  - **Theme Button** - Moon/sun icon toggle in summary panel
+  - **Complete Theme Support** - All UI elements adapt to selected theme
+  - **Persistent Preference** - Theme choice saved across sessions
+  - **Smooth Transitions** - Animated theme switching
+
+- **Step Progress Indicators** - Visual feedback on completed steps
+  - **Checkmark Indicators** - Green checkmarks appear on completed steps
+  - **Real-time Updates** - Indicators update as configuration progresses
+  - **Clear Visual Progress** - Easy to see which steps are complete
+
+- **Configuration Templates** - Pre-built templates for common scenarios
+  - **5 Ready-to-Use Templates** - Common deployment configurations
+    - 2-Node Standard Cluster (small production with cloud witness)
+    - 4-Node High Performance (medium cluster with dedicated storage)
+    - 8-Node Rack Aware (large rack-aware production cluster)
+    - Disconnected 2-Node (air-gapped with Active Directory)
+    - Edge 2-Node Switchless (cost-optimized edge deployment)
+  - **One-Click Loading** - Apply complete configurations instantly
+  - **Template Browser** - Modal dialog with template descriptions and tags
+  - **Success Notifications** - Confirmation when template loads
+
+#### Documentation Links
+- **Firewall Requirements Link** - Added to Outbound Connectivity section
+  - **Direct Documentation** - Links to Microsoft Learn firewall requirements
+  - **Required Endpoints Info** - Details on firewall rules and endpoints
+  - **Lock Icon** - Visual indicator for security-related documentation
+
+### Changed
+- **Summary Panel Layout** - Reorganized controls into two rows for better organization
+- **Font and Theme Controls** - Grouped together below auto-scroll toggle
+
+---
+
 ## [0.2.1] - 2025-12-15
 
 ### Added

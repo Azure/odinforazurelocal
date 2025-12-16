@@ -83,7 +83,7 @@
                     <h1>Azure Local Design Assistant (ALDA) Tool</h1>
                     <p>The Azure Local design assistant (ALDA) tool provides a decision tree interface to select an Azure Local deployment type, and instance design using validated architecture and network configuration. Once complete you can optionally deploy your chosen solution using the ARM template that is automatically generated.</p>
                     <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
-                        Version 0.2.1 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.3.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -830,6 +830,11 @@
                             Compare Options
                         </button>
                     </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        <a href="https://learn.microsoft.com/azure/azure-local/concepts/firewall-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">
+                            🔒 More information on Firewall and required endpoints
+                        </a>
+                    </p>
                     <!-- Connected Options -->
                     <div id="outbound-connected" class="options-grid">
                         <div class="option-card" data-value="public" onclick="selectOption('outbound', 'public')">
@@ -1554,15 +1559,30 @@
                             <div id="wizard-progress-fill" class="wizard-progress__fill" style="width:0%"></div>
                         </div>
                     </div>
-                    <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);">
+                    <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text-secondary);">
                         <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
                             <input type="checkbox" id="auto-scroll-toggle" checked onchange="toggleAutoScroll()" style="cursor: pointer;">
                             <span>Auto-scroll to next step</span>
                         </label>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <span style="margin-right: 4px;">Font:</span>
+                                <button onclick="decreaseFontSize()" title="Decrease font size" style="padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A−</button>
+                                <button onclick="increaseFontSize()" title="Increase font size" style="padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A+</button>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <span style="margin-right: 4px;">Theme:</span>
+                                <button onclick="toggleTheme()" id="theme-toggle" title="Toggle light/dark theme" style="padding: 4px 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px;">🌙</button>
+                            </div>
+                        </div>
                     </div>
                     <h3>Configuration Summary</h3>
                     <div id="summary-content"></div>
                     <div id="summary-diagram-container" class="summary-diagram"></div>
+
+                    <button onclick="showTemplates()" style="width: 100%; padding: 10px 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; margin-bottom: 8px;">
+                        📋 Load Configuration Template
+                    </button>
 
                     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
                         <button onclick="importConfiguration()" style="flex: 1; padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
