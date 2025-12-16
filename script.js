@@ -6044,70 +6044,46 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.2.1 - Latest Release</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">December 15, 2025</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.3.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 16, 2025</div>
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">� Auto-Scroll Navigation</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 User Experience Enhancements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Smooth Wizard Flow:</strong> Automatically scrolls to the next step after making a selection.</li>
-                        <li><strong>Toggle Control:</strong> Enable or disable auto-scroll with the checkbox below the Progress bar.</li>
-                        <li><strong>Smart Delays:</strong> 1-second pause before scrolling allows you to review your selection.</li>
-                        <li><strong>Persistent Preference:</strong> Your toggle setting is saved across sessions.</li>
-                        <li><strong>Port Configuration:</strong> Selecting ports now scrolls directly to Port Configuration section.</li>
+                        <li><strong>Font Size Controls:</strong> Adjust text size with A+ and A- buttons (4 size options: small, medium, large, x-large).</li>
+                        <li><strong>Dark/Light Theme Toggle:</strong> Switch between dark and light themes instantly.</li>
+                        <li><strong>Step Progress Indicators:</strong> Green checkmarks (✓) show completed configuration steps.</li>
+                        <li><strong>Configuration Templates:</strong> 5 pre-built templates for common deployment scenarios.</li>
                     </ul>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">☁️ Cloud Witness Type</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📚 Documentation & Branding</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>New Step 05.5:</strong> Automatic witness type configuration based on cluster design.</li>
-                        <li><strong>Smart Defaults:</strong> Rack Aware and 2-node clusters require Cloud witness (locked).</li>
-                        <li><strong>Flexible Options:</strong> 3+ node clusters default to No Witness but can be changed.</li>
-                        <li><strong>Visual Feedback:</strong> Disabled options show tooltips explaining requirements.</li>
-                        <li><strong>ARM Integration:</strong> Witness type automatically included in deployment parameters.</li>
+                        <li><strong>Tool Rebranding:</strong> Now called "Odin for Azure Local" (Optimal Deployment and Infrastructure Navigator).</li>
+                        <li><strong>Firewall Requirements Link:</strong> Direct access to firewall and endpoint documentation in Outbound Connectivity step.</li>
+                        <li><strong>M365 Local Guidance:</strong> Selecting M365 Local deployment type shows documentation link.</li>
                     </ul>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">💾 Storage Pool Configuration</h4>
+                    <h4 style="color: var(--success); margin: 0 0 12px 0;">🔧 Fixes & Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Repositioned to Step 15:</strong> Now appears after Infrastructure Network configuration.</li>
-                        <li><strong>Express Mode:</strong> Create one UserStorage volume per physical machine (default).</li>
-                        <li><strong>InfraOnly Mode:</strong> Create only Infrastructure volume, no workload storage.</li>
-                        <li><strong>KeepStorage Mode:</strong> Retain existing volumes on data disks.</li>
-                    </ul>
-                </div>
-
-                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔒 Security Configuration</h4>
-                    <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Step 17:</strong> Configure security controls for your Azure Local deployment.</li>
-                        <li><strong>Recommended Option:</strong> Secure by default with all security controls enabled.</li>
-                        <li><strong>Customized Option:</strong> Granular control over 7 individual security settings.</li>
-                        <li><strong>ARM Integration:</strong> Security settings automatically map to deployment parameters.</li>
+                        <li><strong>Rack Aware Restriction:</strong> Local Identity option is now properly disabled for Rack Aware deployments.</li>
                     </ul>
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛡️ Security Controls</h4>
+                    <h4 style="color: var(--accent-blue); margin: 0 0 12px 0;">📋 Configuration Templates Included</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li>Drift Control Enforced</li>
-                        <li>Bitlocker Boot Volume</li>
-                        <li>Bitlocker Data Volumes</li>
-                        <li>WDAC Enforced</li>
-                        <li>Credential Guard Enforced</li>
-                        <li>SMB Signing Enforced</li>
-                        <li>SMB Cluster Encryption</li>
+                        <li>2-Node Standard Cluster (small production with cloud witness)</li>
+                        <li>4-Node High Performance (medium cluster with dedicated storage)</li>
+                        <li>8-Node Rack Aware (large rack-aware production cluster)</li>
+                        <li>Disconnected 2-Node (air-gapped with Active Directory)</li>
+                        <li>Edge 2-Node Switchless (cost-optimized edge deployment)</li>
                     </ul>
                 </div>
-                
-                <div style="margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Additional Improvements</h4>
-                    <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Default Port Speed:</strong> Network adapters now default to 25GbE for all cluster scales.</li>
-                        <li><strong>Step Renumbering:</strong> Updated step numbers for better logical flow (Active Directory now Step 16, Security Step 17, SDN Step 18).</li>
                         <li><strong>Documentation Links:</strong> Direct links to Microsoft Learn for security features and best practices.</li>
                         <li><strong>Enhanced Validation:</strong> All new configuration options included in readiness checks.</li>
                     </ul>
