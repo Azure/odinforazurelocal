@@ -55,7 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Summary Panel Layout** - Reorganized controls into two rows for better organization
 - **Font and Theme Controls** - Grouped together below auto-scroll toggle
-- **Tool Rebranding** - Renamed from "Azure Local Design Assistant (ALDA) Tool" to "Odin for Azure Local"
+- **Tool Rebranding** - Renamed to "Odin for Azure Local"
   - **Norse Mythology** - Named after Odin, the Norse god embodying strategic thinking and wisdom
   - **Acronym** - ODIN: **O**ptimal **D**eployment and **I**nfrastructure **N**avigator
   - **Updated Description** - Enhanced to reflect the tool's purpose as a strategic guide for Azure Local deployments
@@ -168,7 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🎉 Major Release - Enhanced User Experience & Developer Tools
 
-This release represents a comprehensive enhancement of the Azure Local Design Assistant (ALDA) Tool with 23 major improvements spanning user experience, technical capabilities, security, and documentation.
+This release represents a comprehensive enhancement of Odin for Azure Local with 23 major improvements spanning user experience, technical capabilities, security, and documentation.
 
 ### Added
 

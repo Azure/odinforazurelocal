@@ -1,6 +1,6 @@
-# Azure Local Design Assistant (ALDA) Tool
+# Odin for Azure Local
 
-## Version 0.2.1
+## Version 0.3.0
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment.
 
