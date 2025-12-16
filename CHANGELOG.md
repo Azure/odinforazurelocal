@@ -60,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Acronym** - ODIN: **O**ptimal **D**eployment and **I**nfrastructure **N**avigator
   - **Updated Description** - Enhanced to reflect the tool's purpose as a strategic guide for Azure Local deployments
 
+### Fixed
+- **Rack Aware Identity Restriction** - Local Identity option is now disabled for Rack Aware deployments (only Active Directory is supported)
+
 ---
 
 ## [0.2.1] - 2025-12-15

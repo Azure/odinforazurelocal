@@ -3125,7 +3125,8 @@ function updateUI() {
     }
     
     // Disconnected scenario: Only Active Directory is allowed (disable Local Identity)
-    if (state.scenario === 'disconnected') {
+    // Rack Aware: Only Active Directory is allowed (disable Local Identity)
+    if (state.scenario === 'disconnected' || state.scale === 'rack_aware') {
         if (adCards.local_identity) {
             adCards.local_identity.classList.add('disabled');
             adCards.local_identity.style.opacity = '0.5';
