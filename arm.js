@@ -226,6 +226,9 @@
 
     function main() {
         var payload = tryParsePayload();
+        
+        // Store payload globally for updateParameters
+        window.armPayload = payload;
 
         var metaEl = document.getElementById('arm-meta');
         var placeholdersEl = document.getElementById('arm-placeholders');
@@ -258,9 +261,6 @@
         attachCopy(copyBtn, statusEl, function () { return rawJsonText; });
     }
 
-    // Store payload globally for updateParameters
-    window.armPayload = payload;
-    
     main();
 })();
 
