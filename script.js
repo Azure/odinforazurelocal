@@ -6504,7 +6504,21 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.4.0 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.4.1 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📋 Updates & Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Disclaimer Notice:</strong> Added disclaimer informing users this tool is provided as-is without Microsoft support.</li>
+                        <li><strong>Updated Description:</strong> Streamlined the main description text.</li>
+                        <li><strong>Report Page Title:</strong> Fixed title to use "Odin for Azure Local" branding.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 16, 2025</div>
                 </div>
                 

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.1] - 2025-12-17
+
+### Added
+- **Disclaimer Notice** - Added disclaimer informing users that this tool is provided as-is without Microsoft support and is an experimental project to help customers accelerate their Azure Local skills ramp up while helping IT architects validate desired configurations
+
+### Changed
+- **Updated Description** - Removed reference to ARM template deployment from the main description text
+
+### Fixed
+- **Report Page Title** - Corrected the title on the report page to use "Odin for Azure Local"
+
+---
+
 ## [0.4.0] - 2025-12-16
 
 ### Added
