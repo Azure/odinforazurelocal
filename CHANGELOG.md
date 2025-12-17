@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.3] - 2025-06-26
+
+### Fixed
+
+#### Issue #19 - Update Step 04 Cluster Configuration Option Names
+
+- **Renamed Scale Options** - Updated Step 04 option names for clarity:
+  - "Low Capacity" → "Hyperconverged Low Capacity"
+  - "Standard" → "Hyperconverged"
+  - "Rack Aware" → "Hyperconverged Rack Aware"
+
+#### Issue #20 - AD-Less Option Incorrectly Enabled on Page Load
+
+- **Fixed Initial State** - Added `updateUI()` call on DOMContentLoaded to ensure AD cards are properly disabled until infrastructure IP range is configured in Step 15
+
+#### Issue #21 - M365 Local Warning Persists After Selecting Another Option
+
+- **Fixed Message Hiding** - Added code in `selectOption()` to hide the M365 Local documentation message when user selects a different scenario option
+
+---
+
 ## [0.4.2] - 2025-12-17
 
 ### Added
