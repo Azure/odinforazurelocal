@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.4.2';
+const WIZARD_VERSION = '0.4.3';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -1777,6 +1777,15 @@ function selectOption(category, value) {
     if (category === 'scenario' && value === 'm365local') {
         showM365LocalInfo();
         return;
+    }
+    
+    // Hide M365 Local message when switching to another scenario option
+    if (category === 'scenario' && value !== 'm365local') {
+        const m365Msg = document.getElementById('m365local-message');
+        if (m365Msg) {
+            m365Msg.classList.add('hidden');
+            m365Msg.classList.remove('visible');
+        }
     }
     
     if (category === 'nodes') {
@@ -6559,7 +6568,21 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.4.2 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.4.3 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">June 26, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Scale Option Names:</strong> Renamed Step 04 options for clarity: "Low Capacity" → "Hyperconverged Low Capacity", "Standard" → "Hyperconverged", "Rack Aware" → "Hyperconverged Rack Aware".</li>
+                        <li><strong>AD-Less Initial State:</strong> Fixed AD-Less option showing enabled on page load before infra IP is configured.</li>
+                        <li><strong>M365 Local Warning:</strong> Fixed warning message persisting after selecting another deployment type.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
                 </div>
                 
@@ -7126,6 +7149,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Apply saved theme and font size
     applyTheme();
     applyFontSize();
+    
+    // Initialize UI state (ensure AD cards are disabled until infra is set)
+    updateUI();
     
     // Check for saved state
     setTimeout(checkForSavedState, 500);
