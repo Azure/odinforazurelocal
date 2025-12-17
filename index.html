@@ -849,20 +849,17 @@
 
                     <div id="rdma-intent-warning" class="info-box warning hidden" style="margin-top: 1rem;"></div>
 
-                    <!-- NEW: NIC Visualizer -->
+                    <!-- Drag & Drop Adapter Mapping -->
                     <div id="nic-visualizer" class="nic-visualizer">
-                        <h4>Adapter Mapping Configuration</h4>
-                        <div id="nic-grid-container" class="nic-grid">
-                            <!-- Dynamic NIC Cards will be injected here -->
-                        </div>
-
-                        <button id="custom-intent-confirm" type="button" class="confirm-button hidden" onclick="confirmCustomIntentSelection()">
-                            Confirm adapter mapping
-                        </button>
+                        <div id="adapter-mapping-container" class="adapter-mapping hidden"><div class="adapter-mapping-header"><h4>Adapter Mapping Configuration</h4><p style="color:var(--text-secondary);font-size:0.9rem;">Drag and drop network adapters to assign them to traffic intents.</p></div><div class="adapter-pool"><div class="adapter-pool-header"><span class="adapter-pool-title">Available Network Adapters</span><span class="adapter-pool-hint">Drag adapters to intents below</span></div><div id="adapter-pool-drop" class="adapter-drop-zone pool-zone"></div></div><div id="intent-zones-grid" class="intent-zones-grid"></div><div class="info-box visible" style="margin-top:0.9rem;"><strong>Tip</strong> Click an adapter, then click a drop zone to move it.</div><div style="margin-top:0.9rem;display:flex;gap:0.75rem;flex-wrap:wrap;"><button id="adapter-mapping-confirm-btn" type="button" class="report-action-button" onclick="confirmAdapterMapping()">Confirm Mapping</button><button id="adapter-mapping-reset-btn" type="button" class="report-action-button" onclick="resetAdapterMapping()" style="background:rgba(239,68,68,0.2);">Reset</button><div id="adapter-mapping-status" style="color:var(--text-secondary);"></div></div><div id="adapter-mapping-validation" class="info-box warning hidden" style="margin-top:0.9rem;"></div></div>
 
                         <div id="intent-overrides" class="intent-overrides hidden">
                             <h4>Overrides</h4>
                             <div id="intent-overrides-container" class="intent-overrides-grid"></div>
+                            <div style="margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                                <button id="overrides-confirm-btn" type="button" class="report-action-button" onclick="confirmOverrides()">Confirm Overrides</button>
+                                <span id="overrides-status" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
+                            </div>
                         </div>
                     </div>
 
