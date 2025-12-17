@@ -15,14 +15,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Complete Template Configurations** - All 5 example templates now include ALL required wizard settings:
+  - Added `region` (azure_commercial)
+  - Added `localInstanceRegion` (east_us)
   - Added `witnessType` (Cloud or NoWitness based on scenario)
+  - Added `storagePoolConfiguration` (Express)
+  - Added `infraVlan` (default)
   - Added `proxy` setting (no_proxy for all templates)
   - Added `securityConfiguration` (recommended for all templates)
   - Fixed Disconnected template to use `local_identity` instead of `azure_ad`
   - Fixed Disconnected template to use `NoWitness` since cloud witness isn't available
 
+- **Copilot Code Review Fixes** - Addressed all 6 GitHub Copilot review comments:
+  - Added unique ID to Print Friendly button for unambiguous selection
+  - Fixed `togglePrintFriendly()` to store/restore original styles instead of page reload
+  - Added filename sanitization using `sanitizeInput()` for export configuration
+  - Fixed PowerShell and Bash comment formatting for Tenant ID variable
+  - Added GUID pattern validation for Tenant ID input field
+
 ### Improved
-- **Template Loading** - `loadTemplate()` function now handles all new configuration properties (witnessType, proxy, securityConfiguration)
+- **Template Loading** - `loadTemplate()` function now handles all configuration properties in logical step order
 - **Modal Text** - Updated modal description to indicate templates include all required settings
 
 ---
