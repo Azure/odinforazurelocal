@@ -3,9 +3,59 @@
     window.downloadReportHtml = downloadReportHtml;
     window.downloadReportWord = downloadReportWord;
     window.downloadHostNetworkingDiagramSvg = downloadHostNetworkingDiagramSvg;
+    window.togglePrintFriendly = togglePrintFriendly;
 
     var CURRENT_REPORT_STATE = null;
     var ARC_GATEWAY_VM_DIAGRAM_URL = 'https://raw.githubusercontent.com/Azure/AzureLocal-Supportability/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/images/AzureLocalPublicPathFlowsFinal-1Node-Step6-VMFlows.dark.svg';
+    var isPrintFriendly = false;
+
+    function togglePrintFriendly() {
+        isPrintFriendly = !isPrintFriendly;
+        var body = document.body;
+        var btn = document.querySelector('.report-action-button');
+        
+        if (isPrintFriendly) {
+            // Apply print-friendly styles
+            body.style.background = '#ffffff';
+            body.style.color = '#000000';
+            
+            // Hide background globes
+            var globes = document.querySelector('.background-globes');
+            if (globes) globes.style.display = 'none';
+            
+            // Update container and sections
+            var container = document.querySelector('.container');
+            if (container) {
+                container.style.background = '#ffffff';
+            }
+            
+            // Make all text black and backgrounds white
+            var steps = document.querySelectorAll('.step');
+            steps.forEach(function(step) {
+                step.style.background = '#ffffff';
+                step.style.borderColor = '#cccccc';
+                step.style.color = '#000000';
+            });
+            
+            var headers = document.querySelectorAll('h1, h2, h3, h4, strong');
+            headers.forEach(function(h) {
+                h.style.color = '#000000';
+            });
+            
+            var infoBoxes = document.querySelectorAll('.info-box');
+            infoBoxes.forEach(function(box) {
+                box.style.background = '#f5f5f5';
+                box.style.borderColor = '#cccccc';
+                box.style.color = '#000000';
+            });
+            
+            // Update button text
+            if (btn) btn.textContent = 'Normal View';
+        } else {
+            // Restore normal styles - reload page is simplest
+            location.reload();
+        }
+    }
 
     function escapeHtml(s) {
         return String(s)

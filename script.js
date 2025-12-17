@@ -6119,6 +6119,19 @@ function updateSdnManagementOptions() {
 // Export configuration as JSON
 function exportConfiguration() {
     try {
+        const defaultFilename = `azure-local-config-${new Date().toISOString().split('T')[0]}.json`;
+        
+        // Show prompt for filename
+        const filename = prompt('Enter filename for the exported configuration:', defaultFilename);
+        
+        // User cancelled
+        if (filename === null) return;
+        
+        // Use default if empty
+        const finalFilename = filename.trim() || defaultFilename;
+        // Ensure .json extension
+        const safeFilename = finalFilename.endsWith('.json') ? finalFilename : finalFilename + '.json';
+        
         const config = {
             version: WIZARD_VERSION,
             exportedAt: new Date().toISOString(),
@@ -6129,7 +6142,7 @@ function exportConfiguration() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `azure-local-config-${new Date().toISOString().split('T')[0]}.json`;
+        a.download = safeFilename;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -6239,6 +6252,23 @@ function resumeSavedState() {
     const saved = loadStateFromLocalStorage();
     if (saved && saved.data) {
         Object.assign(state, saved.data);
+        
+        // Restore SDN feature checkboxes
+        if (state.sdnFeatures && state.sdnFeatures.length > 0) {
+            state.sdnFeatures.forEach(feature => {
+                const checkbox = document.querySelector(`.sdn-feature-card[data-feature="${feature}"] input[type="checkbox"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+        }
+        
+        // Restore SDN management selection
+        if (state.sdnManagement) {
+            const card = document.getElementById(state.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
+            if (card) card.classList.add('selected');
+        }
+        
+        // Update SDN management options visibility
+        updateSdnManagementOptions();
         
         updateUI();
         showToast('Session resumed successfully!', 'success');
