@@ -6842,16 +6842,20 @@ function showTemplates() {
             description: 'Small production cluster with cloud witness, ideal for branch offices',
             config: {
                 scenario: 'hyperconverged',
+                region: 'azure_commercial',
+                localInstanceRegion: 'east_us',
                 scale: 'standard',
                 nodes: 2,
                 witnessType: 'Cloud',
                 ports: 4,
                 storage: 'switched',
+                storagePoolConfiguration: 'Express',
                 intent: 'storage_compute',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
                 ip: 'dhcp',
+                infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 securityConfiguration: 'recommended'
             }
@@ -6861,16 +6865,20 @@ function showTemplates() {
             description: 'Medium cluster with dedicated storage network for production workloads',
             config: {
                 scenario: 'hyperconverged',
+                region: 'azure_commercial',
+                localInstanceRegion: 'east_us',
                 scale: 'standard',
                 nodes: 4,
                 witnessType: 'Cloud',
                 ports: 4,
                 storage: 'switched',
+                storagePoolConfiguration: 'Express',
                 intent: 'storage_compute',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
                 ip: 'static',
+                infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 securityConfiguration: 'recommended'
             }
@@ -6880,17 +6888,21 @@ function showTemplates() {
             description: 'Large rack-aware cluster for production with high availability',
             config: {
                 scenario: 'hyperconverged',
+                region: 'azure_commercial',
+                localInstanceRegion: 'east_us',
                 scale: 'rack_aware',
                 nodes: 8,
                 rackAwareZones: 2,
                 witnessType: 'Cloud',
                 ports: 4,
                 storage: 'switched',
+                storagePoolConfiguration: 'Express',
                 intent: 'storage_compute',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
                 ip: 'static',
+                infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 securityConfiguration: 'recommended'
             }
@@ -6900,16 +6912,20 @@ function showTemplates() {
             description: 'Air-gapped deployment with local identity for secure environments',
             config: {
                 scenario: 'disconnected',
+                region: 'azure_commercial',
+                localInstanceRegion: 'east_us',
                 scale: 'standard',
                 nodes: 2,
                 witnessType: 'NoWitness',
                 ports: 4,
                 storage: 'switched',
+                storagePoolConfiguration: 'Express',
                 intent: 'storage_compute',
                 outbound: 'air_gapped',
                 arc: 'no_arc',
                 proxy: 'no_proxy',
                 ip: 'static',
+                infraVlan: 'default',
                 activeDirectory: 'local_identity',
                 securityConfiguration: 'recommended'
             }
@@ -6919,17 +6935,21 @@ function showTemplates() {
             description: 'Cost-optimized edge deployment without storage switches',
             config: {
                 scenario: 'hyperconverged',
+                region: 'azure_commercial',
+                localInstanceRegion: 'east_us',
                 scale: 'low_capacity',
                 nodes: 2,
                 witnessType: 'Cloud',
                 ports: 2,
                 storage: 'switchless',
                 switchlessLinkMode: 'full_mesh',
+                storagePoolConfiguration: 'Express',
                 intent: 'compute_management',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
                 ip: 'dhcp',
+                infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 securityConfiguration: 'recommended'
             }
@@ -6991,19 +7011,23 @@ function loadTemplate(templateIndex) {
         }
     });
 
-    // Trigger UI updates for each selection
+    // Trigger UI updates for each selection in logical step order
     if (config.scenario) selectOption('scenario', config.scenario);
+    if (config.region) selectOption('region', config.region);
+    if (config.localInstanceRegion) selectOption('localInstanceRegion', config.localInstanceRegion);
     if (config.scale) selectOption('scale', config.scale);
     if (config.nodes) selectOption('nodes', config.nodes);
     if (config.witnessType) selectOption('witnessType', config.witnessType);
     if (config.ports) selectOption('ports', config.ports);
     if (config.storage) selectOption('storage', config.storage);
     if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
+    if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
     if (config.intent) selectOption('intent', config.intent);
     if (config.outbound) selectOption('outbound', config.outbound);
     if (config.arc) selectOption('arc', config.arc);
     if (config.proxy) selectOption('proxy', config.proxy);
     if (config.ip) selectOption('ip', config.ip);
+    if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
     if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
     if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
 
