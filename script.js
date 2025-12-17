@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.4.3';
+const WIZARD_VERSION = '0.5.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -4066,6 +4066,11 @@ function updateUI() {
 
     // Progress indicator
     updateProgressUi();
+
+    // Update breadcrumb navigation
+    if (typeof updateBreadcrumbs === 'function') {
+        updateBreadcrumbs();
+    }
 }
 
 function renderNicVisualizer(portCount, intent, isSwitchless) {
@@ -6568,8 +6573,25 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.4.3 - Latest Release</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">June 26, 2025</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.5.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Professional UX Enhancements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Configuration Preview:</strong> New preview button shows complete configuration summary before generating outputs.</li>
+                        <li><strong>Breadcrumb Navigation:</strong> Clickable step indicators at the top for quick navigation between sections.</li>
+                        <li><strong>Keyboard Shortcuts:</strong> Press Alt+? to see all shortcuts (Alt+P preview, Alt+R report, Alt+E export, etc.).</li>
+                        <li><strong>PDF Export:</strong> Export your configuration summary as a printable PDF document.</li>
+                        <li><strong>Onboarding Tutorial:</strong> First-time users see a helpful 3-step introduction to the wizard.</li>
+                        <li><strong>Animated Transitions:</strong> Smooth fade-in animations for steps and modals.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.3</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
@@ -7231,4 +7253,672 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     `;
     document.head.appendChild(style);
+
+    // Initialize keyboard shortcuts
+    initKeyboardShortcuts();
+
+    // Initialize breadcrumb navigation
+    updateBreadcrumbs();
+
+    // Check if first time user for onboarding
+    setTimeout(() => {
+        if (!localStorage.getItem('odin_onboarding_complete')) {
+            showOnboarding();
+        }
+    }, 1000);
 });
+
+// ============================================
+// BREADCRUMB NAVIGATION
+// ============================================
+
+function navigateToStep(stepId) {
+    const step = document.getElementById(stepId);
+    if (step && !step.classList.contains('hidden')) {
+        step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Add highlight effect
+        step.style.boxShadow = '0 0 0 2px var(--accent-blue)';
+        setTimeout(() => {
+            step.style.boxShadow = '';
+        }, 2000);
+    }
+}
+
+function updateBreadcrumbs() {
+    const breadcrumbNav = document.getElementById('breadcrumb-nav');
+    if (!breadcrumbNav) return;
+
+    // Show breadcrumb when at least step 1 is complete
+    if (state.scenario) {
+        breadcrumbNav.classList.remove('hidden');
+    }
+
+    const breadcrumbItems = breadcrumbNav.querySelectorAll('.breadcrumb-item');
+    breadcrumbItems.forEach(item => {
+        const stepId = item.dataset.step;
+        const stepEl = document.getElementById(stepId);
+        
+        // Check if step is complete
+        let isComplete = false;
+        switch (stepId) {
+            case 'step-1': isComplete = Boolean(state.scenario); break;
+            case 'step-cloud': isComplete = Boolean(state.region); break;
+            case 'step-local-region': isComplete = Boolean(state.localInstanceRegion); break;
+            case 'step-2': isComplete = Boolean(state.scale); break;
+            case 'step-3': isComplete = Boolean(state.nodes); break;
+            case 'step-11': isComplete = Boolean(state.infraCidr && state.infra); break;
+            case 'step-13': isComplete = Boolean(state.activeDirectory); break;
+            case 'step-14': isComplete = Boolean(state.securityConfiguration); break;
+        }
+
+        item.classList.toggle('completed', isComplete);
+        item.classList.toggle('active', stepEl && isElementInViewport(stepEl));
+    });
+}
+
+function isElementInViewport(el) {
+    const rect = el.getBoundingClientRect();
+    return rect.top >= 0 && rect.top < window.innerHeight / 2;
+}
+
+// Update breadcrumbs on scroll
+let scrollTimeout;
+window.addEventListener('scroll', () => {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(updateBreadcrumbs, 100);
+});
+
+// ============================================
+// KEYBOARD SHORTCUTS
+// ============================================
+
+function initKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Escape to close modals
+        if (e.key === 'Escape') {
+            const modals = document.querySelectorAll('.preview-modal, .onboarding-overlay, div[style*="position: fixed"][style*="z-index: 1000"]');
+            modals.forEach(m => m.remove());
+        }
+
+        // Alt+P for preview
+        if (e.altKey && e.key === 'p') {
+            e.preventDefault();
+            showConfigurationPreview();
+        }
+
+        // Alt+R for generate report
+        if (e.altKey && e.key === 'r') {
+            e.preventDefault();
+            const reportBtn = document.getElementById('generate-report-btn');
+            if (reportBtn && !reportBtn.disabled) {
+                generateReport();
+            }
+        }
+
+        // Alt+E for export
+        if (e.altKey && e.key === 'e') {
+            e.preventDefault();
+            exportConfiguration();
+        }
+
+        // Alt+I for import
+        if (e.altKey && e.key === 'i') {
+            e.preventDefault();
+            importConfiguration();
+        }
+
+        // Alt+S for start over
+        if (e.altKey && e.key === 's') {
+            e.preventDefault();
+            resetAll();
+        }
+
+        // Alt+? for shortcuts help
+        if (e.altKey && e.key === '?') {
+            e.preventDefault();
+            showShortcutsHelp();
+        }
+
+        // Number keys 1-8 to navigate breadcrumbs (when Alt held)
+        if (e.altKey && e.key >= '1' && e.key <= '8') {
+            e.preventDefault();
+            const stepMap = ['step-1', 'step-cloud', 'step-local-region', 'step-2', 'step-3', 'step-11', 'step-13', 'step-14'];
+            const stepId = stepMap[parseInt(e.key) - 1];
+            if (stepId) navigateToStep(stepId);
+        }
+    });
+}
+
+function showShortcutsHelp() {
+    const overlay = document.createElement('div');
+    overlay.className = 'preview-modal';
+    overlay.innerHTML = `
+        <div class="preview-content" style="max-width: 500px;">
+            <div class="preview-header">
+                <h2>⌨️ Keyboard Shortcuts</h2>
+                <button class="preview-close" onclick="this.closest('.preview-modal').remove()">&times;</button>
+            </div>
+            <div class="preview-body">
+                <div style="display: grid; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
+                        <span>Preview Configuration</span>
+                        <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">P</kbd></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
+                        <span>Generate Report</span>
+                        <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">R</kbd></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
+                        <span>Export Configuration</span>
+                        <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">E</kbd></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
+                        <span>Import Configuration</span>
+                        <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">I</kbd></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
+                        <span>Start Over</span>
+                        <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">S</kbd></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
+                        <span>Navigate to Step (1-8)</span>
+                        <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">1-8</kbd></span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                        <span>Close Modal / Cancel</span>
+                        <span><kbd class="kbd">Esc</kbd></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+}
+
+// ============================================
+// CONFIGURATION PREVIEW MODAL
+// ============================================
+
+function showConfigurationPreview() {
+    const readiness = getReportReadiness();
+    
+    const formatValue = (val, fallback = 'Not configured') => {
+        if (val === null || val === undefined || val === '') return `<span class="preview-item-value missing">${fallback}</span>`;
+        return `<span class="preview-item-value">${escapeHtml(String(val))}</span>`;
+    };
+
+    const getDisplayName = (key, value) => {
+        const displayNames = {
+            scenario: { hyperconverged: 'Hyperconverged', disconnected: 'Disconnected', m365local: 'M365 Local', multirack: 'Multi-Rack' },
+            region: { azure_commercial: 'Azure Commercial', azure_government: 'Azure Government', azure_china: 'Azure China' },
+            scale: { low_capacity: 'Hyperconverged Low Capacity', medium: 'Hyperconverged', rack_aware: 'Hyperconverged Rack Aware' },
+            storage: { switched: 'Switched Storage', switchless: 'Switchless Storage' },
+            witnessType: { cloud: 'Cloud Witness', fileshare: 'File Share Witness', none: 'No Witness' },
+            ip: { static: 'Static IP', dhcp: 'DHCP' },
+            outbound: { direct: 'Direct Internet', proxy: 'Corporate Proxy' },
+            arc: { enabled: 'Arc Gateway Enabled', disabled: 'Arc Gateway Disabled' },
+            proxy: { none: 'No Proxy', configured: 'Proxy Configured' },
+            activeDirectory: { azure_ad: 'Active Directory', local_identity: 'Local Identity (AD-Less)' },
+            securityConfiguration: { recommended: 'Recommended Security', customized: 'Customized Security' },
+            infraVlan: { default: 'Default (untagged)', custom: 'Custom VLAN' }
+        };
+        if (displayNames[key] && displayNames[key][value]) return displayNames[key][value];
+        return value;
+    };
+
+    const overlay = document.createElement('div');
+    overlay.className = 'preview-modal';
+    overlay.innerHTML = `
+        <div class="preview-content">
+            <div class="preview-header">
+                <h2>📋 Configuration Preview</h2>
+                <button class="preview-close" onclick="this.closest('.preview-modal').remove()">&times;</button>
+            </div>
+            <div class="preview-body">
+                <!-- Deployment Section -->
+                <div class="preview-section">
+                    <div class="preview-section-title">🏢 Deployment Configuration</div>
+                    <div class="preview-grid">
+                        <div class="preview-item">
+                            <div class="preview-item-label">Deployment Type</div>
+                            ${formatValue(getDisplayName('scenario', state.scenario))}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Azure Cloud</div>
+                            ${formatValue(getDisplayName('region', state.region))}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Azure Region</div>
+                            ${formatValue(state.localInstanceRegion?.replace(/_/g, ' '))}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Scale</div>
+                            ${formatValue(getDisplayName('scale', state.scale))}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cluster Section -->
+                <div class="preview-section">
+                    <div class="preview-section-title">🖥️ Cluster Configuration</div>
+                    <div class="preview-grid">
+                        <div class="preview-item">
+                            <div class="preview-item-label">Node Count</div>
+                            ${formatValue(state.nodes)}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Witness Type</div>
+                            ${formatValue(getDisplayName('witnessType', state.witnessType))}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Ports per Node</div>
+                            ${formatValue(state.ports)}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Storage Connectivity</div>
+                            ${formatValue(getDisplayName('storage', state.storage))}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Section -->
+                <div class="preview-section">
+                    <div class="preview-section-title">🌐 Network Configuration</div>
+                    <div class="preview-grid">
+                        <div class="preview-item">
+                            <div class="preview-item-label">IP Assignment</div>
+                            ${formatValue(getDisplayName('ip', state.ip))}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Infrastructure CIDR</div>
+                            ${formatValue(state.infraCidr)}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Default Gateway</div>
+                            ${formatValue(state.infraGateway)}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Infrastructure VLAN</div>
+                            ${formatValue(state.infraVlan === 'custom' ? state.infraVlanId : getDisplayName('infraVlan', state.infraVlan))}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Outbound Connectivity</div>
+                            ${formatValue(getDisplayName('outbound', state.outbound))}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Arc Gateway</div>
+                            ${formatValue(getDisplayName('arc', state.arc))}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Identity Section -->
+                <div class="preview-section">
+                    <div class="preview-section-title">🔐 Identity & Security</div>
+                    <div class="preview-grid">
+                        <div class="preview-item">
+                            <div class="preview-item-label">Identity Provider</div>
+                            ${formatValue(getDisplayName('activeDirectory', state.activeDirectory))}
+                        </div>
+                        ${state.activeDirectory === 'azure_ad' ? `
+                        <div class="preview-item">
+                            <div class="preview-item-label">AD Domain</div>
+                            ${formatValue(state.adDomain)}
+                        </div>
+                        ` : ''}
+                        <div class="preview-item">
+                            <div class="preview-item-label">DNS Servers</div>
+                            ${formatValue(state.dnsServers?.join(', '))}
+                        </div>
+                        <div class="preview-item">
+                            <div class="preview-item-label">Security Configuration</div>
+                            ${formatValue(getDisplayName('securityConfiguration', state.securityConfiguration))}
+                        </div>
+                    </div>
+                </div>
+
+                ${state.nodeSettings && state.nodeSettings.length > 0 ? `
+                <!-- Node Settings Section -->
+                <div class="preview-section">
+                    <div class="preview-section-title">📝 Node Settings</div>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="background: rgba(59, 130, 246, 0.1);">
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--glass-border);">Node</th>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--glass-border);">Name</th>
+                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--glass-border);">IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${state.nodeSettings.map((node, i) => `
+                                <tr>
+                                    <td style="padding: 8px; border-bottom: 1px solid var(--glass-border);">${i + 1}</td>
+                                    <td style="padding: 8px; border-bottom: 1px solid var(--glass-border);">${escapeHtml(node.name || 'Not set')}</td>
+                                    <td style="padding: 8px; border-bottom: 1px solid var(--glass-border);">${escapeHtml(node.ipCidr || 'Not set')}</td>
+                                </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${!readiness.ready ? `
+                <!-- Missing Items -->
+                <div class="preview-section" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 16px; margin-top: 16px;">
+                    <div class="preview-section-title" style="color: #ef4444;">⚠️ Missing Configuration (${readiness.missing.length} items)</div>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 13px;">
+                        ${readiness.missing.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+            </div>
+            <div class="preview-footer">
+                <div class="preview-status ${readiness.ready ? 'ready' : 'incomplete'}">
+                    ${readiness.ready ? '✓ Configuration Complete' : `⚠ ${readiness.missing.length} item(s) need attention`}
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button onclick="this.closest('.preview-modal').remove()" style="padding: 10px 20px; background: transparent; border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer;">Close</button>
+                    ${readiness.ready ? `<button onclick="this.closest('.preview-modal').remove(); generateReport();" style="padding: 10px 20px; background: var(--accent-blue); border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: 600;">Generate Report</button>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+}
+
+// ============================================
+// PDF EXPORT
+// ============================================
+
+function exportToPDF() {
+    const readiness = getReportReadiness();
+    
+    // Generate a printable HTML document
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        showToast('Pop-up blocked. Please allow pop-ups for PDF export.', 'error');
+        return;
+    }
+
+    const getDisplayName = (key, value) => {
+        const displayNames = {
+            scenario: { hyperconverged: 'Hyperconverged', disconnected: 'Disconnected', m365local: 'M365 Local', multirack: 'Multi-Rack' },
+            region: { azure_commercial: 'Azure Commercial', azure_government: 'Azure Government', azure_china: 'Azure China' },
+            scale: { low_capacity: 'Hyperconverged Low Capacity', medium: 'Hyperconverged', rack_aware: 'Hyperconverged Rack Aware' },
+            storage: { switched: 'Switched Storage', switchless: 'Switchless Storage' },
+            witnessType: { cloud: 'Cloud Witness', fileshare: 'File Share Witness', none: 'No Witness' },
+            ip: { static: 'Static IP', dhcp: 'DHCP' },
+            outbound: { direct: 'Direct Internet', proxy: 'Corporate Proxy' },
+            arc: { enabled: 'Arc Gateway Enabled', disabled: 'Arc Gateway Disabled' },
+            activeDirectory: { azure_ad: 'Active Directory', local_identity: 'Local Identity (AD-Less)' },
+            securityConfiguration: { recommended: 'Recommended Security', customized: 'Customized Security' }
+        };
+        if (displayNames[key] && displayNames[key][value]) return displayNames[key][value];
+        return value || 'Not configured';
+    };
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Odin for Azure Local - Configuration Summary</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+        .header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #0078d4; }
+        .header h1 { color: #0078d4; font-size: 28px; margin-bottom: 8px; }
+        .header p { color: #666; font-size: 14px; }
+        .section { margin-bottom: 30px; }
+        .section-title { font-size: 16px; font-weight: 600; color: #0078d4; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e0e0e0; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .item { background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #e0e0e0; }
+        .item-label { font-size: 12px; color: #666; margin-bottom: 4px; }
+        .item-value { font-size: 14px; color: #333; font-weight: 500; }
+        .missing { color: #dc3545; font-style: italic; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+        th { background: #f0f7ff; color: #0078d4; font-weight: 600; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; text-align: center; color: #999; font-size: 12px; }
+        .status { padding: 8px 16px; border-radius: 20px; display: inline-block; margin-top: 20px; }
+        .status.ready { background: #d4edda; color: #155724; }
+        .status.incomplete { background: #fff3cd; color: #856404; }
+        @media print { body { padding: 20px; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Odin for Azure Local</h1>
+        <p>Configuration Summary - Generated ${new Date().toLocaleString()}</p>
+        <div class="status ${readiness.ready ? 'ready' : 'incomplete'}">
+            ${readiness.ready ? '✓ Configuration Complete' : `⚠ ${readiness.missing.length} items need attention`}
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🏢 Deployment Configuration</div>
+        <div class="grid">
+            <div class="item"><div class="item-label">Deployment Type</div><div class="item-value">${getDisplayName('scenario', state.scenario)}</div></div>
+            <div class="item"><div class="item-label">Azure Cloud</div><div class="item-value">${getDisplayName('region', state.region)}</div></div>
+            <div class="item"><div class="item-label">Azure Region</div><div class="item-value">${state.localInstanceRegion?.replace(/_/g, ' ') || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">Scale</div><div class="item-value">${getDisplayName('scale', state.scale)}</div></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🖥️ Cluster Configuration</div>
+        <div class="grid">
+            <div class="item"><div class="item-label">Node Count</div><div class="item-value">${state.nodes || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">Witness Type</div><div class="item-value">${getDisplayName('witnessType', state.witnessType)}</div></div>
+            <div class="item"><div class="item-label">Ports per Node</div><div class="item-value">${state.ports || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">Storage Connectivity</div><div class="item-value">${getDisplayName('storage', state.storage)}</div></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🌐 Network Configuration</div>
+        <div class="grid">
+            <div class="item"><div class="item-label">IP Assignment</div><div class="item-value">${getDisplayName('ip', state.ip)}</div></div>
+            <div class="item"><div class="item-label">Infrastructure CIDR</div><div class="item-value">${state.infraCidr || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">Default Gateway</div><div class="item-value">${state.infraGateway || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">Infrastructure VLAN</div><div class="item-value">${state.infraVlan === 'custom' ? state.infraVlanId : (state.infraVlan || 'Not configured')}</div></div>
+            <div class="item"><div class="item-label">Outbound Connectivity</div><div class="item-value">${getDisplayName('outbound', state.outbound)}</div></div>
+            <div class="item"><div class="item-label">Arc Gateway</div><div class="item-value">${getDisplayName('arc', state.arc)}</div></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">🔐 Identity & Security</div>
+        <div class="grid">
+            <div class="item"><div class="item-label">Identity Provider</div><div class="item-value">${getDisplayName('activeDirectory', state.activeDirectory)}</div></div>
+            <div class="item"><div class="item-label">AD Domain</div><div class="item-value">${state.adDomain || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">DNS Servers</div><div class="item-value">${state.dnsServers?.join(', ') || 'Not configured'}</div></div>
+            <div class="item"><div class="item-label">Security Configuration</div><div class="item-value">${getDisplayName('securityConfiguration', state.securityConfiguration)}</div></div>
+        </div>
+    </div>
+
+    ${state.nodeSettings && state.nodeSettings.length > 0 ? `
+    <div class="section">
+        <div class="section-title">📝 Node Settings</div>
+        <table>
+            <thead>
+                <tr><th>Node</th><th>Name</th><th>IP Address</th></tr>
+            </thead>
+            <tbody>
+                ${state.nodeSettings.map((node, i) => `<tr><td>${i + 1}</td><td>${node.name || 'Not set'}</td><td>${node.ipCidr || 'Not set'}</td></tr>`).join('')}
+            </tbody>
+        </table>
+    </div>
+    ` : ''}
+
+    ${!readiness.ready ? `
+    <div class="section">
+        <div class="section-title" style="color: #dc3545;">⚠️ Missing Configuration</div>
+        <ul style="padding-left: 20px;">
+            ${readiness.missing.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+    </div>
+    ` : ''}
+
+    <div class="footer">
+        <p>Generated by Odin for Azure Local v${WIZARD_VERSION}</p>
+        <p>This document is for planning purposes only.</p>
+    </div>
+</body>
+</html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    
+    // Wait for content to load then trigger print
+    printWindow.onload = () => {
+        setTimeout(() => {
+            printWindow.print();
+        }, 500);
+    };
+
+    showToast('PDF export opened in new window. Use Print to save as PDF.', 'success');
+}
+
+// ============================================
+// ONBOARDING TUTORIAL
+// ============================================
+
+const onboardingSteps = [
+    {
+        icon: '🎯',
+        title: 'Welcome to Odin for Azure Local',
+        description: 'Your intelligent guide for planning Azure Local deployments. This wizard helps you make informed decisions and generates deployment-ready configurations.',
+        features: [
+            { icon: '🧭', title: 'Guided Workflow', text: 'Step-by-step configuration with intelligent defaults' },
+            { icon: '💾', title: 'Auto-Save', text: 'Progress is automatically saved to your browser' },
+            { icon: '📊', title: 'Visual Reports', text: 'Generate detailed deployment reports and diagrams' },
+            { icon: '⚡', title: 'ARM Templates', text: 'Export Azure Resource Manager parameters' }
+        ]
+    },
+    {
+        icon: '🔧',
+        title: 'How It Works',
+        description: 'Follow the numbered steps on the left to configure your Azure Local deployment. The summary panel on the right shows your progress.',
+        features: [
+            { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Select Hyperconverged, Disconnected, or other options' },
+            { icon: '2️⃣', title: 'Configure Cluster', text: 'Set up nodes, storage, and network settings' },
+            { icon: '3️⃣', title: 'Set Identity & Security', text: 'Configure AD, DNS, and security policies' },
+            { icon: '4️⃣', title: 'Generate Outputs', text: 'Create reports and ARM parameter files' }
+        ]
+    },
+    {
+        icon: '⌨️',
+        title: 'Pro Tips',
+        description: 'Make the most of Odin with these helpful features.',
+        features: [
+            { icon: '📋', title: 'Templates', text: 'Load pre-configured templates for common scenarios' },
+            { icon: '🔄', title: 'Import/Export', text: 'Save and share configurations as JSON files' },
+            { icon: '🎨', title: 'Customization', text: 'Adjust font size and toggle dark/light theme' },
+            { icon: '⌨️', title: 'Shortcuts', text: 'Press Alt+? anytime to see keyboard shortcuts' }
+        ]
+    }
+];
+
+let currentOnboardingStep = 0;
+
+function showOnboarding() {
+    currentOnboardingStep = 0;
+    renderOnboardingStep();
+}
+
+function renderOnboardingStep() {
+    const step = onboardingSteps[currentOnboardingStep];
+    
+    // Remove existing overlay if any
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.innerHTML = `
+        <div class="onboarding-card">
+            <div class="onboarding-icon">${step.icon}</div>
+            <h2 class="onboarding-title">${step.title}</h2>
+            <p class="onboarding-description">${step.description}</p>
+            
+            <div class="onboarding-features">
+                ${step.features.map(f => `
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">${f.icon}</span>
+                        <div class="onboarding-feature-text">
+                            <strong>${f.title}</strong>
+                            ${f.text}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+            
+            <div class="onboarding-progress">
+                ${onboardingSteps.map((_, i) => `<div class="onboarding-dot ${i === currentOnboardingStep ? 'active' : ''}"></div>`).join('')}
+            </div>
+            
+            <div class="onboarding-buttons">
+                <button class="onboarding-btn onboarding-btn-secondary" onclick="skipOnboarding()">Skip</button>
+                <button class="onboarding-btn onboarding-btn-primary" onclick="${currentOnboardingStep === onboardingSteps.length - 1 ? 'finishOnboarding()' : 'nextOnboardingStep()'}">
+                    ${currentOnboardingStep === onboardingSteps.length - 1 ? 'Get Started' : 'Next'}
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+}
+
+function nextOnboardingStep() {
+    currentOnboardingStep++;
+    if (currentOnboardingStep < onboardingSteps.length) {
+        renderOnboardingStep();
+    } else {
+        finishOnboarding();
+    }
+}
+
+function skipOnboarding() {
+    localStorage.setItem('odin_onboarding_complete', 'true');
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+}
+
+function finishOnboarding() {
+    localStorage.setItem('odin_onboarding_complete', 'true');
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+    showToast('Welcome! Start by selecting a Deployment Type.', 'success', 4000);
+}
+
+// ============================================
+// COLLAPSIBLE SECTIONS
+// ============================================
+
+function toggleStepCollapse(stepId) {
+    const step = document.getElementById(stepId);
+    if (step && step.classList.contains('collapsible')) {
+        step.classList.toggle('collapsed');
+    }
+}
+
+// ============================================
+// UPDATE EXISTING FUNCTIONS
+// ============================================
+
+// Override updateUI to also update breadcrumbs
+const originalUpdateUI = typeof updateUI === 'function' ? updateUI : null;
+if (originalUpdateUI) {
+    const newUpdateUI = function() {
+        originalUpdateUI.apply(this, arguments);
+        updateBreadcrumbs();
+    };
+    // Note: We can't override updateUI directly here, so breadcrumbs update via scroll listener
+}

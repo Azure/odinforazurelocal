@@ -7,6 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.0] - 2025-12-17
+
+### Added
+
+#### Professional UX Enhancements
+
+- **Configuration Preview Modal** - New preview button shows complete configuration summary before generating outputs
+  - Organized sections: Deployment, Cluster, Network, Identity & Security
+  - Visual status indicator for completion state
+  - Direct "Generate Report" action from preview
+  - Shows missing configuration items with count
+
+- **Breadcrumb Step Navigation** - Clickable step indicators for quick navigation
+  - 8-step progress indicator at top of page
+  - Visual completion checkmarks (✓) for finished steps
+  - Click to jump directly to any step
+  - Sticky positioning for always-visible access
+
+- **Keyboard Shortcuts** - Power-user shortcuts for common actions
+  - `Alt+P` - Preview Configuration
+  - `Alt+R` - Generate Report
+  - `Alt+E` - Export Configuration
+  - `Alt+I` - Import Configuration
+  - `Alt+S` - Start Over
+  - `Alt+1-8` - Navigate to steps 1-8
+  - `Esc` - Close modals
+  - `Alt+?` - Show shortcuts help
+
+- **PDF Export** - Export configuration summary as printable PDF
+  - Professional layout optimized for printing
+  - Includes all configuration sections
+  - Shows completion status and missing items
+  - Browser print dialog for save as PDF
+
+- **Onboarding Tutorial** - First-time user walkthrough
+  - 3-step interactive introduction
+  - Feature highlights with icons
+  - Progress dots indicator
+  - Skip option for returning users
+  - Stored preference in localStorage
+
+- **Animated Step Transitions** - Smooth visual feedback
+  - Fade-in animation for steps
+  - Scale-in for modals
+  - Smooth scroll for navigation
+
+### Changed
+
+- **Step Visibility** - Steps now use CSS animations when appearing/hiding
+- **Modal Design** - Consistent modal styling across all overlays
+- **Button Styling** - New preview button with gradient background
+
+### Technical
+
+- **CSS Additions** - 300+ lines of new styles for:
+  - Breadcrumb navigation components
+  - Preview modal layout
+  - Onboarding overlay cards
+  - Keyboard shortcuts display
+  - Animation keyframes
+- **JavaScript Functions** - New functions added:
+  - `navigateToStep()` - Scroll to and highlight step
+  - `updateBreadcrumbs()` - Update breadcrumb state
+  - `initKeyboardShortcuts()` - Register keyboard handlers
+  - `showShortcutsHelp()` - Display shortcuts modal
+  - `showConfigurationPreview()` - Render preview modal
+  - `exportToPDF()` - Generate print-friendly HTML
+  - `showOnboarding()` - Display tutorial overlay
+  - `renderOnboardingStep()` - Render tutorial step
+
+---
+
 ## [0.4.3] - 2025-06-26
 
 ### Fixed
