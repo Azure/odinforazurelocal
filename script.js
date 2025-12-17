@@ -1067,6 +1067,15 @@ function generateArmParameters() {
         const nodeCount = Number.isFinite(nodeCountRaw) && nodeCountRaw > 0 ? nodeCountRaw : 2;
         const witnessType = state.witnessType || 'NoWitness';
 
+        // Generate arcNodeResourceIds placeholder array based on node count
+        const generateArcNodeResourceIds = (count) => {
+            return Array.from({ length: count }, (_, i) => {
+                const nodeNum = String(i + 1).padStart(2, '0');
+                return `/subscriptions/<SubscriptionId>/resourceGroups/<ResourceGroup>/providers/Microsoft.HybridCompute/machines/<NodeName${nodeNum}>`;
+            });
+        };
+        const arcNodeResourceIds = generateArcNodeResourceIds(nodeCount);
+
         const getNodeNameForArm = (index0Based) => {
             const fromWizard = (Array.isArray(state.nodeSettings) && state.nodeSettings[index0Based]) ? state.nodeSettings[index0Based] : null;
             const name = fromWizard && fromWizard.name ? String(fromWizard.name).trim() : '';
@@ -1502,7 +1511,7 @@ function generateArmParameters() {
                     localAdminPassword: { value: null },
 
                     hciResourceProviderObjectID: { value: '' },
-                    arcNodeResourceIds: { value: ['REPLACE_WITH_ARC_NODE_RESOURCE_ID_1'] },
+                    arcNodeResourceIds: { value: arcNodeResourceIds },
 
                     namingPrefix: { value: 'hci' },
                     identityProvider: { value: identityProvider },
@@ -1588,7 +1597,7 @@ function generateArmParameters() {
                 AzureStackLCMAdminUsername: { value: 'REPLACE_WITH_LCM_USERNAME' },
 
                 hciResourceProviderObjectID: { value: '' },
-                arcNodeResourceIds: { value: ['REPLACE_WITH_ARC_NODE_RESOURCE_ID_1'] },
+                arcNodeResourceIds: { value: arcNodeResourceIds },
 
                 domainFqdn: { value: domainFqdn },
                 namingPrefix: { value: 'hci' },
