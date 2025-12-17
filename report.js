@@ -3554,6 +3554,8 @@
                 add('StoragePorts', 'Switchless (2 nodes) blocks 1 port', s.ports !== '1', 'Wizard disables 1 port for 2-node switchless.');
                 if (s.scale !== 'low_capacity') {
                     add('StoragePorts', 'Switchless (2 nodes, Standard) blocks 2 ports', s.ports !== '2', 'Wizard disables 2 ports unless Low Capacity.');
+                } else {
+                    add('StoragePorts', 'Switchless (2 nodes, Low Cap) requires 4 ports', s.ports === '4', 'Wizard forces 4 ports for 2-node switchless in Low Capacity.');
                 }
             }
             if (n === 3) {
