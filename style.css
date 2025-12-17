@@ -48,18 +48,18 @@ header {
     position: relative;
 }
 
-header h1 {
+header h1,
+header .header-title {
     font-size: 2.5rem;
     font-weight: 600;
-    background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--text-primary);
     margin-bottom: 0.5rem;
     letter-spacing: -0.02em;
 }
 
-header p {
-    color: var(--text-secondary);
+header p,
+header .header-description {
+    color: var(--text-primary);
     font-size: 1.1rem;
 }
 
