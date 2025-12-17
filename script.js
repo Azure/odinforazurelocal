@@ -6127,10 +6127,11 @@ function exportConfiguration() {
         // User cancelled
         if (filename === null) return;
         
-        // Use default if empty
-        const finalFilename = filename.trim() || defaultFilename;
+        // Use default if empty, then sanitize for safe filename
+        const rawFilename = filename.trim() || defaultFilename;
+        const sanitizedFilename = sanitizeInput(rawFilename, 'filename');
         // Ensure .json extension
-        const safeFilename = finalFilename.endsWith('.json') ? finalFilename : finalFilename + '.json';
+        const safeFilename = sanitizedFilename.endsWith('.json') ? sanitizedFilename : sanitizedFilename + '.json';
         
         const config = {
             version: WIZARD_VERSION,

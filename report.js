@@ -8,42 +8,60 @@
     var CURRENT_REPORT_STATE = null;
     var ARC_GATEWAY_VM_DIAGRAM_URL = 'https://raw.githubusercontent.com/Azure/AzureLocal-Supportability/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/images/AzureLocalPublicPathFlowsFinal-1Node-Step6-VMFlows.dark.svg';
     var isPrintFriendly = false;
+    var originalStyles = null; // Store original styles for restoration
 
     function togglePrintFriendly() {
         isPrintFriendly = !isPrintFriendly;
         var body = document.body;
-        var btn = document.querySelector('.report-action-button');
+        var btn = document.getElementById('print-friendly-btn');
         
         if (isPrintFriendly) {
+            // Store original styles before modifying
+            originalStyles = {
+                body: { background: body.style.background, color: body.style.color },
+                globes: null,
+                container: null,
+                steps: [],
+                headers: [],
+                infoBoxes: []
+            };
+            
             // Apply print-friendly styles
             body.style.background = '#ffffff';
             body.style.color = '#000000';
             
             // Hide background globes
             var globes = document.querySelector('.background-globes');
-            if (globes) globes.style.display = 'none';
+            if (globes) {
+                originalStyles.globes = globes.style.display;
+                globes.style.display = 'none';
+            }
             
             // Update container and sections
             var container = document.querySelector('.container');
             if (container) {
+                originalStyles.container = container.style.background;
                 container.style.background = '#ffffff';
             }
             
             // Make all text black and backgrounds white
             var steps = document.querySelectorAll('.step');
-            steps.forEach(function(step) {
+            steps.forEach(function(step, i) {
+                originalStyles.steps[i] = { background: step.style.background, borderColor: step.style.borderColor, color: step.style.color };
                 step.style.background = '#ffffff';
                 step.style.borderColor = '#cccccc';
                 step.style.color = '#000000';
             });
             
             var headers = document.querySelectorAll('h1, h2, h3, h4, strong');
-            headers.forEach(function(h) {
+            headers.forEach(function(h, i) {
+                originalStyles.headers[i] = h.style.color;
                 h.style.color = '#000000';
             });
             
             var infoBoxes = document.querySelectorAll('.info-box');
-            infoBoxes.forEach(function(box) {
+            infoBoxes.forEach(function(box, i) {
+                originalStyles.infoBoxes[i] = { background: box.style.background, borderColor: box.style.borderColor, color: box.style.color };
                 box.style.background = '#f5f5f5';
                 box.style.borderColor = '#cccccc';
                 box.style.color = '#000000';
@@ -52,8 +70,43 @@
             // Update button text
             if (btn) btn.textContent = 'Normal View';
         } else {
-            // Restore normal styles - reload page is simplest
-            location.reload();
+            // Restore original styles without page reload
+            if (originalStyles) {
+                body.style.background = originalStyles.body.background;
+                body.style.color = originalStyles.body.color;
+                
+                var globes = document.querySelector('.background-globes');
+                if (globes && originalStyles.globes !== null) globes.style.display = originalStyles.globes;
+                
+                var container = document.querySelector('.container');
+                if (container && originalStyles.container !== null) container.style.background = originalStyles.container;
+                
+                var steps = document.querySelectorAll('.step');
+                steps.forEach(function(step, i) {
+                    if (originalStyles.steps[i]) {
+                        step.style.background = originalStyles.steps[i].background;
+                        step.style.borderColor = originalStyles.steps[i].borderColor;
+                        step.style.color = originalStyles.steps[i].color;
+                    }
+                });
+                
+                var headers = document.querySelectorAll('h1, h2, h3, h4, strong');
+                headers.forEach(function(h, i) {
+                    if (originalStyles.headers[i] !== undefined) h.style.color = originalStyles.headers[i];
+                });
+                
+                var infoBoxes = document.querySelectorAll('.info-box');
+                infoBoxes.forEach(function(box, i) {
+                    if (originalStyles.infoBoxes[i]) {
+                        box.style.background = originalStyles.infoBoxes[i].background;
+                        box.style.borderColor = originalStyles.infoBoxes[i].borderColor;
+                        box.style.color = originalStyles.infoBoxes[i].color;
+                    }
+                });
+            }
+            
+            // Update button text
+            if (btn) btn.textContent = 'Print Friendly';
         }
     }
 

@@ -42,8 +42,10 @@
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Tenant ID <span style="font-weight: normal; color: var(--text-secondary);">(Optional)</span></label>
                         <input type="text" id="input-tenant-id" placeholder="00000000-0000-0000-0000-000000000000" 
+                               pattern="^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
                                style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-family: monospace;"
-                               oninput="updateParameters()">
+                               oninput="validateTenantId(this); updateParameters()">
+                        <p id="tenant-id-error" style="font-size: 0.8rem; color: #ef4444; margin-top: 0.25rem; display: none;">Invalid GUID format. Expected: 00000000-0000-0000-0000-000000000000</p>
                         <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Required when logging into Azure across multiple tenants.</p>
                     </div>
                     <div>
