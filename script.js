@@ -6476,7 +6476,7 @@ function showChangelog() {
 
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.3</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">June 26, 2025</div>
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
@@ -7150,7 +7150,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!localStorage.getItem('odin_onboarding_complete')) {
             showOnboarding();
         }
-    }, 1000);
+    }, 2000);
 });
 
 // ============================================
@@ -7206,12 +7206,20 @@ function isElementInViewport(el) {
     return rect.top >= 0 && rect.top < window.innerHeight / 2;
 }
 
-// Update breadcrumbs on scroll
+// Update breadcrumbs on scroll with cleanup support
 let scrollTimeout;
-window.addEventListener('scroll', () => {
+let scrollHandler;
+
+if (scrollHandler) {
+    window.removeEventListener('scroll', scrollHandler);
+}
+
+scrollHandler = () => {
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(updateBreadcrumbs, 100);
-});
+};
+
+window.addEventListener('scroll', scrollHandler);
 
 // ============================================
 // KEYBOARD SHORTCUTS
@@ -7219,9 +7227,9 @@ window.addEventListener('scroll', () => {
 
 function initKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-        // Escape to close modals
+        // Escape to close modals - use specific classes for safety
         if (e.key === 'Escape') {
-            const modals = document.querySelectorAll('.preview-modal, .onboarding-overlay, div[style*="position: fixed"][style*="z-index: 1000"]');
+            const modals = document.querySelectorAll('.preview-modal, .onboarding-overlay, [data-close-on-escape="true"]');
             modals.forEach(m => m.remove());
         }
 
@@ -7638,7 +7646,11 @@ function exportToPDF() {
                 <tr><th>Node</th><th>Name</th><th>IP Address</th></tr>
             </thead>
             <tbody>
-                ${state.nodeSettings.map((node, i) => `<tr><td>${i + 1}</td><td>${node.name || 'Not set'}</td><td>${node.ipCidr || 'Not set'}</td></tr>`).join('')}
+                ${state.nodeSettings.map((node, i) => {
+                    const escName = (node.name || 'Not set').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const escIp = (node.ipCidr || 'Not set').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    return `<tr><td>${i + 1}</td><td>${escName}</td><td>${escIp}</td></tr>`;
+                }).join('')}
             </tbody>
         </table>
     </div>
@@ -7648,7 +7660,7 @@ function exportToPDF() {
     <div class="section">
         <div class="section-title" style="color: #dc3545;">⚠️ Missing Configuration</div>
         <ul style="padding-left: 20px;">
-            ${readiness.missing.map(item => `<li>${item}</li>`).join('')}
+            ${readiness.missing.map(item => item.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')).map(item => `<li>${item}</li>`).join('')}
         </ul>
     </div>
     ` : ''}
@@ -7794,19 +7806,7 @@ function toggleStepCollapse(stepId) {
     }
 }
 
-// ============================================
-// UPDATE EXISTING FUNCTIONS
-// ============================================
-
-// Override updateUI to also update breadcrumbs
-const originalUpdateUI = typeof updateUI === 'function' ? updateUI : null;
-if (originalUpdateUI) {
-    const newUpdateUI = function() {
-        originalUpdateUI.apply(this, arguments);
-        updateBreadcrumbs();
-    };
-    // Note: We can't override updateUI directly here, so breadcrumbs update via scroll listener
-}
+// Note: Breadcrumbs are updated via scroll listener and updateUI() call in main code
 
 // ============================================
 // DRAG & DROP ADAPTER MAPPING
