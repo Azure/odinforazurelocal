@@ -6133,6 +6133,21 @@ function exportConfiguration() {
         // Ensure .json extension
         const safeFilename = sanitizedFilename.endsWith('.json') ? sanitizedFilename : sanitizedFilename + '.json';
         
+        // Inform user if filename was changed during sanitization
+        const intendedFilename = rawFilename.endsWith('.json') ? rawFilename : rawFilename + '.json';
+        if (safeFilename !== intendedFilename) {
+            const proceed = confirm(
+                'Some characters in the filename were adjusted for safety.\n\n' +
+                'The configuration will be saved as:\n' +
+                safeFilename +
+                '\n\nDo you want to continue?'
+            );
+            if (!proceed) {
+                showToast('Export cancelled', 'info');
+                return;
+            }
+        }
+        
         const config = {
             version: WIZARD_VERSION,
             exportedAt: new Date().toISOString(),

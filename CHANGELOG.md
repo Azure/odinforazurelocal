@@ -9,32 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.2] - 2025-12-17
 
-### Changed
-- **Example Configuration Templates** - Renamed button and modal from "Load Configuration Template" to "Load Example Configuration Template" for clarity
-- **Template Descriptions** - Updated template descriptions to be more informative about use cases
+### Added
+
+#### Issue #11 - Odin Branding on Output Pages
+- **Report Page Branding** - Added "Odin for Azure Local" branding to report.html header
+- **ARM Parameters Branding** - Added "Odin for Azure Local" branding to arm.html header
+
+#### Issue #13 - Print Friendly Option
+- **Print Friendly Toggle** - Added "Print Friendly" button to report.html
+- **CSS Class Toggle** - Uses CSS class `print-friendly-mode` for robust style switching
+- **White Background Mode** - Optimizes report for printing with white backgrounds and black text
+
+#### Issue #14 - Export Filename Prompt
+- **Custom Filename Support** - Export configuration now prompts for custom filename
+- **Filename Sanitization** - Uses `sanitizeInput()` to prevent unsafe characters
+- **User Confirmation** - Shows confirmation dialog if filename was adjusted during sanitization
+
+#### Issue #15 - ARM Parameters Improvements
+- **Tenant ID Field** - Added optional Tenant ID input field with GUID validation
+- **GUID Pattern Validation** - Validates Tenant ID format (00000000-0000-0000-0000-000000000000)
+- **ARM Template Reference Links** - Added links to Azure Quickstart Templates for reference
+- **Renamed Identity Options** - Changed labels to "Active Directory Domain Services (AD) for Identity" and "Azure KeyVault for Identity (AD-Less)"
+
+#### Issue #17 - Example Configuration Templates
+- **Renamed Button & Modal** - Changed "Load Configuration Template" to "Load Example Configuration Template"
+- **Complete Configurations** - All 5 templates now include ALL required wizard settings
 
 ### Fixed
-- **Complete Template Configurations** - All 5 example templates now include ALL required wizard settings:
-  - Added `region` (azure_commercial)
-  - Added `localInstanceRegion` (east_us)
-  - Added `witnessType` (Cloud or NoWitness based on scenario)
-  - Added `storagePoolConfiguration` (Express)
-  - Added `infraVlan` (default)
-  - Added `proxy` setting (no_proxy for all templates)
-  - Added `securityConfiguration` (recommended for all templates)
-  - Fixed Disconnected template to use `local_identity` instead of `azure_ad`
-  - Fixed Disconnected template to use `NoWitness` since cloud witness isn't available
 
-- **Copilot Code Review Fixes** - Addressed all 6 GitHub Copilot review comments:
-  - Added unique ID to Print Friendly button for unambiguous selection
-  - Fixed `togglePrintFriendly()` to store/restore original styles instead of page reload
-  - Added filename sanitization using `sanitizeInput()` for export configuration
-  - Fixed PowerShell and Bash comment formatting for Tenant ID variable
-  - Added GUID pattern validation for Tenant ID input field
+#### Issue #12 - Session Restore for SDN Settings
+- **SDN Features Restore** - Fixed session restore to properly cache and restore SDN feature checkboxes
+- **SDN Management Restore** - SDN management selection is now properly restored from saved state
+
+#### Copilot Code Review Fixes
+- **Print Friendly Button Selector** - Added unique ID `print-friendly-btn` for unambiguous selection
+- **Print Friendly Style Toggle** - Refactored to use CSS classes instead of inline styles for proper computed style handling
+- **Filename Sanitization** - Added user confirmation when filename is modified during sanitization
+- **PowerShell Comment Formatting** - Moved Tenant ID explanation to separate line above variable
+- **Bash Comment Formatting** - Moved Tenant ID explanation to separate line above variable
+- **Tenant ID Validation** - Added GUID pattern validation with visual error feedback
+
+### Changed
+- **Template Descriptions** - Updated to be more informative about use cases
+- **Deployment Scripts** - Tenant ID is now included with proper comment formatting
 
 ### Improved
-- **Template Loading** - `loadTemplate()` function now handles all configuration properties in logical step order
-- **Modal Text** - Updated modal description to indicate templates include all required settings
+- **Template Loading** - `loadTemplate()` function handles all configuration properties in logical step order
+- **Modal Description** - Updated to indicate templates include all required settings
 
 ---
 
