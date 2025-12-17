@@ -3440,10 +3440,23 @@ function updateUI() {
             }
         } else if (n === 2) {
             cards.ports['1'].classList.add('disabled');
-            // User Request: Allow 2 ports for Low Capacity
             if (state.scale !== 'low_capacity') {
                 cards.ports['2'].classList.add('disabled');
                 if (state.ports === '2') state.ports = null;
+            } else {
+                // Low Capacity + 2 nodes + switchless: only 4 ports are valid.
+                cards.ports['2'].classList.add('disabled');
+                cards.ports['6'].classList.add('disabled');
+                cards.ports['8'].classList.add('disabled');
+                if (state.ports === '2' || state.ports === '6' || state.ports === '8') state.ports = null;
+
+                // UX: Since only one option remains valid, auto-select it.
+                if (state.ports !== '4') {
+                    const card4 = cards.ports['4'];
+                    if (card4 && !card4.classList.contains('disabled')) {
+                        state.ports = '4';
+                    }
+                }
             }
             if (state.ports === '1') state.ports = null;
         } else if (n === 3) {
@@ -3489,18 +3502,38 @@ function updateUI() {
     // Recommendation Rule: Low Capacity + Switched -> Recommend 4 Ports
     const port4Card = cards.ports['4'];
     const badgeClass = 'badge-recommended';
-    const existingBadge = port4Card ? port4Card.querySelector('.' + badgeClass) : null;
+    const portsBadgeSelector = `.${badgeClass}[data-source="ports"]`;
+    const existingPortsBadge = port4Card ? port4Card.querySelector(portsBadgeSelector) : null;
 
-    if (state.scale === 'low_capacity' && state.storage === 'switched') {
-        if (!existingBadge && port4Card && !port4Card.classList.contains('disabled')) {
+    const nForPortsBadge = state.nodes ? parseInt(state.nodes, 10) : NaN;
+    const isSwitchless2NodeLowCapacityPortsRequired =
+        state.scale === 'low_capacity' &&
+        state.storage === 'switchless' &&
+        nForPortsBadge === 2;
+
+    if (isSwitchless2NodeLowCapacityPortsRequired) {
+        if (!existingPortsBadge && port4Card && !port4Card.classList.contains('disabled')) {
             const badge = document.createElement('div');
             badge.className = badgeClass;
-            badge.innerText = 'Recommended';
+            badge.dataset.source = 'ports';
             port4Card.appendChild(badge);
         }
+        if (port4Card && !port4Card.classList.contains('disabled')) {
+            (port4Card.querySelector(portsBadgeSelector)).innerText = 'Required';
+        }
+    } else if (state.scale === 'low_capacity' && state.storage === 'switched') {
+        if (!existingPortsBadge && port4Card && !port4Card.classList.contains('disabled')) {
+            const badge = document.createElement('div');
+            badge.className = badgeClass;
+            badge.dataset.source = 'ports';
+            port4Card.appendChild(badge);
+        }
+        if (port4Card && !port4Card.classList.contains('disabled')) {
+            (port4Card.querySelector(portsBadgeSelector)).innerText = 'Recommended';
+        }
     } else {
-        if (existingBadge) {
-            existingBadge.remove();
+        if (existingPortsBadge) {
+            existingPortsBadge.remove();
         }
     }
 
@@ -3517,8 +3550,13 @@ function updateUI() {
             nForIntentBadge === 3 &&
             (state.switchlessLinkMode === 'dual_link' || state.switchlessLinkMode === 'single_link');
 
+        const isSwitchless2NodeLowCapacityIntentRequired =
+            state.storage === 'switchless' &&
+            state.scale === 'low_capacity' &&
+            nForIntentBadge === 2;
+
         // Required takes precedence over Recommended.
-        if (isSwitchless3NodeIntentRequired) {
+        if (isSwitchless3NodeIntentRequired || isSwitchless2NodeLowCapacityIntentRequired) {
             if (!intentBadge) {
                 intentBadge = document.createElement('div');
                 intentBadge.className = badgeClass;
@@ -3605,7 +3643,7 @@ function updateUI() {
 
             const defaultRdmaEnabled = isLowCapacity ? false : true;
             const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
-            const defaultPortSpeed = '25GbE'; // Default to 25Gbps for all scales
+            const defaultPortSpeed = isLowCapacity ? '1GbE' : '25GbE';
 
             state.portConfig = Array(pCount).fill().map((_, idx) => {
                 // Special default: 3-node switchless standard uses non-RDMA teamed ports for Mgmt+Compute.
@@ -3629,6 +3667,15 @@ function updateUI() {
                 parseInt(state.nodes, 10) === 3;
             const defaultRdmaEnabled = isLowCapacity ? false : true;
             const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
+
+            // Low Capacity default: always use 1GbE.
+            if (isLowCapacity) {
+                for (let idx = 0; idx < pCount; idx++) {
+                    const pc = state.portConfig[idx];
+                    if (!pc) continue;
+                    pc.speed = '1GbE';
+                }
+            }
 
             if (isSwitchless3NodeStandard) {
                 for (let idx = 0; idx < pCount; idx++) {
@@ -3799,6 +3846,20 @@ function updateUI() {
         // Switchless 4-node uses all 8 ports for the required topology.
         // In this scenario, only Mgmt + Compute intent is allowed.
         if (nSwitchless === 4 && state.ports === '8') {
+            cards.intent['custom'].classList.add('disabled');
+            cards.intent['all_traffic'].classList.add('disabled');
+            cards.intent['compute_storage'].classList.add('disabled');
+            if (state.intent !== 'mgmt_compute') {
+                state.intent = 'mgmt_compute';
+                state.customIntentConfirmed = false;
+            }
+        }
+
+        // Low Capacity + 2 nodes + switchless: only Mgmt + Compute intent is allowed.
+        const isSwitchless2NodeLowCapacity =
+            (nSwitchless === 2) &&
+            (state.scale === 'low_capacity');
+        if (isSwitchless2NodeLowCapacity) {
             cards.intent['custom'].classList.add('disabled');
             cards.intent['all_traffic'].classList.add('disabled');
             cards.intent['compute_storage'].classList.add('disabled');
