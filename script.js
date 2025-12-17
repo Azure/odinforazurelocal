@@ -10,7 +10,6 @@ const state = {
     scale: null,
     nodes: null,
     witnessType: null,
-    autoScrollEnabled: true,
     theme: 'dark',
     fontSize: 'medium',
     ports: null,
@@ -2043,15 +2042,6 @@ function selectOption(category, value) {
     }
 
     updateUI();
-    
-    // Auto-scroll to next step for better user flow
-    scrollToNextStep(category);
-}
-
-function toggleAutoScroll() {
-    const checkbox = document.getElementById('auto-scroll-toggle');
-    state.autoScrollEnabled = checkbox.checked;
-    saveStateToLocalStorage();
 }
 
 function increaseFontSize() {
@@ -2110,114 +2100,6 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
         if (themeButton) themeButton.textContent = '🌙';
         document.body.style.background = '#000000';
-    }
-}
-
-function scrollToNextStep(currentCategory) {
-    // Check if auto-scroll is enabled
-    if (!state.autoScrollEnabled) return;
-    
-    // Special case: For ports selection, scroll to port-configuration section instead of next step
-    if (currentCategory === 'ports') {
-        const portConfigSection = document.getElementById('port-configuration');
-        if (portConfigSection && !portConfigSection.classList.contains('hidden')) {
-            setTimeout(() => {
-                const headerOffset = 80;
-                const elementPosition = portConfigSection.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-                
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                });
-            }, 1000);
-        }
-        return;
-    }
-    
-    // Special case: For IP selection, don't auto-scroll if Static IP is selected and fields are not completed
-    if (currentCategory === 'ip') {
-        if (state.ip === 'static') {
-            // Check if required static IP fields are completed
-            const hasInfraPool = state.infra && state.infra.start && state.infra.end;
-            const hasGateway = state.infraGateway;
-            
-            // Don't auto-scroll if required fields are missing
-            if (!hasInfraPool || !hasGateway) {
-                return;
-            }
-        }
-    }
-    
-    // Map categories to their step IDs
-    const categoryToStepMap = {
-        'scenario': 'step-1',
-        'region': 'step-cloud',
-        'localInstanceRegion': 'step-local-region',
-        'scale': 'step-2',
-        'nodes': 'step-3',
-        'witnessType': 'step-3-5',
-        'storage': 'step-4',
-        'ports': 'step-5',
-        'intent': 'step-6',
-        'outbound': 'step-7',
-        'arc': 'step-8',
-        'proxy': 'step-9',
-        'ip': 'step-10',
-        'infraVlan': 'step-11',
-        'storagePoolConfiguration': 'step-5-5',
-        'activeDirectory': 'step-13',
-        'securityConfiguration': 'step-13-5',
-        'sdnManagement': 'step-14'
-    };
-    
-    const currentStepId = categoryToStepMap[currentCategory];
-    if (!currentStepId) return;
-    
-    // Get all steps in order
-    const allSteps = [
-        'step-1',
-        'step-cloud',
-        'step-local-region',
-        'step-2',
-        'step-3',
-        'step-3-5',
-        'step-4',
-        'step-5',
-        'step-6',
-        'step-7',
-        'step-8',
-        'step-9',
-        'step-10',
-        'step-11',
-        'step-12',
-        'step-5-5',
-        'step-13',
-        'step-13-5',
-        'step-14'
-    ];
-    
-    // Find current step index
-    const currentIndex = allSteps.indexOf(currentStepId);
-    if (currentIndex === -1) return;
-    
-    // Find next visible step
-    for (let i = currentIndex + 1; i < allSteps.length; i++) {
-        const nextStep = document.getElementById(allSteps[i]);
-        if (nextStep && !nextStep.classList.contains('hidden')) {
-            // Scroll to next step with smooth behavior and small offset for better visibility
-            setTimeout(() => {
-                const headerOffset = 80;
-                const elementPosition = nextStep.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-                
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                });
-            }, 1000); // 1 second delay before auto-scroll
-            break;
-        }
     }
 }
 
@@ -5668,17 +5550,6 @@ function updateInfraNetwork() {
 
     updateSummary();
     updateUI();
-    
-    // Trigger auto-scroll if Static IP is now complete
-    if (state.ip === 'static') {
-        const hasInfraPool = state.infra && state.infra.start && state.infra.end;
-        const hasGateway = state.infraGateway;
-        
-        // If all required fields are now complete, trigger auto-scroll
-        if (hasInfraPool && hasGateway) {
-            scrollToNextStep('ip');
-        }
-    }
 }
 
 function markInfraCidrManual(value) {
@@ -6368,12 +6239,6 @@ function resumeSavedState() {
     const saved = loadStateFromLocalStorage();
     if (saved && saved.data) {
         Object.assign(state, saved.data);
-        
-        // Sync auto-scroll checkbox with loaded state
-        const autoScrollCheckbox = document.getElementById('auto-scroll-toggle');
-        if (autoScrollCheckbox) {
-            autoScrollCheckbox.checked = state.autoScrollEnabled !== false; // Default to true if undefined
-        }
         
         updateUI();
         showToast('Session resumed successfully!', 'success');
