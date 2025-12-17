@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.2] - 2025-12-17
+
+### Changed
+- **Example Configuration Templates** - Renamed button and modal from "Load Configuration Template" to "Load Example Configuration Template" for clarity
+- **Template Descriptions** - Updated template descriptions to be more informative about use cases
+
+### Fixed
+- **Complete Template Configurations** - All 5 example templates now include ALL required wizard settings:
+  - Added `witnessType` (Cloud or NoWitness based on scenario)
+  - Added `proxy` setting (no_proxy for all templates)
+  - Added `securityConfiguration` (recommended for all templates)
+  - Fixed Disconnected template to use `local_identity` instead of `azure_ad`
+  - Fixed Disconnected template to use `NoWitness` since cloud witness isn't available
+
+### Improved
+- **Template Loading** - `loadTemplate()` function now handles all new configuration properties (witnessType, proxy, securityConfiguration)
+- **Modal Text** - Updated modal description to indicate templates include all required settings
+
+---
+
 ## [0.4.1] - 2025-12-17
 
 ### Added

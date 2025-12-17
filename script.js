@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.3.0';
+const WIZARD_VERSION = '0.4.2';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -6534,7 +6534,22 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.4.1 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.4.2 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📋 Example Configuration Templates</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Renamed Button & Modal:</strong> "Load Configuration Template" → "Load Example Configuration Template" for clarity.</li>
+                        <li><strong>Complete Templates:</strong> All 5 templates now include ALL required wizard settings (witnessType, proxy, securityConfiguration, activeDirectory).</li>
+                        <li><strong>Fixed Disconnected Template:</strong> Now correctly uses local_identity and NoWitness for air-gapped scenarios.</li>
+                        <li><strong>Improved Descriptions:</strong> Updated template descriptions to be more informative about use cases.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
                 </div>
                 
@@ -6823,80 +6838,99 @@ function showTemplates() {
     const templates = [
         {
             name: '2-Node Standard Cluster',
-            description: 'Small production cluster with cloud witness',
+            description: 'Small production cluster with cloud witness, ideal for branch offices',
             config: {
                 scenario: 'hyperconverged',
                 scale: 'standard',
                 nodes: 2,
+                witnessType: 'Cloud',
                 ports: 4,
                 storage: 'switched',
                 intent: 'storage_compute',
                 outbound: 'public',
                 arc: 'yes',
-                ip: 'dhcp'
+                proxy: 'no_proxy',
+                ip: 'dhcp',
+                activeDirectory: 'azure_ad',
+                securityConfiguration: 'recommended'
             }
         },
         {
             name: '4-Node High Performance',
-            description: 'Medium cluster with dedicated storage network',
+            description: 'Medium cluster with dedicated storage network for production workloads',
             config: {
                 scenario: 'hyperconverged',
                 scale: 'standard',
                 nodes: 4,
+                witnessType: 'Cloud',
                 ports: 4,
                 storage: 'switched',
                 intent: 'storage_compute',
                 outbound: 'public',
                 arc: 'yes',
-                ip: 'static'
+                proxy: 'no_proxy',
+                ip: 'static',
+                activeDirectory: 'azure_ad',
+                securityConfiguration: 'recommended'
             }
         },
         {
             name: '8-Node Rack Aware',
-            description: 'Large rack-aware cluster for production',
+            description: 'Large rack-aware cluster for production with high availability',
             config: {
                 scenario: 'hyperconverged',
                 scale: 'rack_aware',
                 nodes: 8,
                 rackAwareZones: 2,
+                witnessType: 'Cloud',
                 ports: 4,
                 storage: 'switched',
                 intent: 'storage_compute',
                 outbound: 'public',
                 arc: 'yes',
-                ip: 'static'
+                proxy: 'no_proxy',
+                ip: 'static',
+                activeDirectory: 'azure_ad',
+                securityConfiguration: 'recommended'
             }
         },
         {
             name: 'Disconnected 2-Node',
-            description: 'Air-gapped deployment with Active Directory',
+            description: 'Air-gapped deployment with local identity for secure environments',
             config: {
                 scenario: 'disconnected',
                 scale: 'standard',
                 nodes: 2,
+                witnessType: 'NoWitness',
                 ports: 4,
                 storage: 'switched',
                 intent: 'storage_compute',
                 outbound: 'air_gapped',
                 arc: 'no_arc',
+                proxy: 'no_proxy',
                 ip: 'static',
-                activeDirectory: 'azure_ad'
+                activeDirectory: 'local_identity',
+                securityConfiguration: 'recommended'
             }
         },
         {
             name: 'Edge 2-Node Switchless',
-            description: 'Cost-optimized edge deployment',
+            description: 'Cost-optimized edge deployment without storage switches',
             config: {
                 scenario: 'hyperconverged',
                 scale: 'low_capacity',
                 nodes: 2,
+                witnessType: 'Cloud',
                 ports: 2,
                 storage: 'switchless',
                 switchlessLinkMode: 'full_mesh',
                 intent: 'compute_management',
                 outbound: 'public',
                 arc: 'yes',
-                ip: 'dhcp'
+                proxy: 'no_proxy',
+                ip: 'dhcp',
+                activeDirectory: 'azure_ad',
+                securityConfiguration: 'recommended'
             }
         }
     ];
@@ -6919,12 +6953,12 @@ function showTemplates() {
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: var(--accent-blue);">📋 Configuration Templates</h3>
+                <h3 style="margin: 0; color: var(--accent-blue);">📋 Example Configuration Templates</h3>
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
             </div>
             
             <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
-                Select a pre-configured template to quickly set up common deployment scenarios.
+                Select a pre-configured example template to quickly set up common deployment scenarios. These templates include all required settings.
             </p>
             
             <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -6960,14 +6994,17 @@ function loadTemplate(templateIndex) {
     if (config.scenario) selectOption('scenario', config.scenario);
     if (config.scale) selectOption('scale', config.scale);
     if (config.nodes) selectOption('nodes', config.nodes);
+    if (config.witnessType) selectOption('witnessType', config.witnessType);
     if (config.ports) selectOption('ports', config.ports);
     if (config.storage) selectOption('storage', config.storage);
     if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
     if (config.intent) selectOption('intent', config.intent);
     if (config.outbound) selectOption('outbound', config.outbound);
     if (config.arc) selectOption('arc', config.arc);
+    if (config.proxy) selectOption('proxy', config.proxy);
     if (config.ip) selectOption('ip', config.ip);
     if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
+    if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
 
     // Close the modal
     document.querySelectorAll('div').forEach(el => {
