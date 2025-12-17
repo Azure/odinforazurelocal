@@ -3,9 +3,27 @@
     window.downloadReportHtml = downloadReportHtml;
     window.downloadReportWord = downloadReportWord;
     window.downloadHostNetworkingDiagramSvg = downloadHostNetworkingDiagramSvg;
+    window.togglePrintFriendly = togglePrintFriendly;
 
     var CURRENT_REPORT_STATE = null;
     var ARC_GATEWAY_VM_DIAGRAM_URL = 'https://raw.githubusercontent.com/Azure/AzureLocal-Supportability/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/images/AzureLocalPublicPathFlowsFinal-1Node-Step6-VMFlows.dark.svg';
+    var isPrintFriendly = false;
+
+    function togglePrintFriendly() {
+        isPrintFriendly = !isPrintFriendly;
+        var body = document.body;
+        var btn = document.getElementById('print-friendly-btn');
+        
+        // Use CSS class toggle for robust style handling
+        // This approach doesn't rely on inline styles and works with computed CSS
+        if (isPrintFriendly) {
+            body.classList.add('print-friendly-mode');
+            if (btn) btn.textContent = 'Normal View';
+        } else {
+            body.classList.remove('print-friendly-mode');
+            if (btn) btn.textContent = 'Print Friendly';
+        }
+    }
 
     function escapeHtml(s) {
         return String(s)

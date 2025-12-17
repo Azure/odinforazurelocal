@@ -13,6 +13,36 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Print-friendly mode styles - toggled via CSS class */
+        body.print-friendly-mode {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        body.print-friendly-mode .background-globes {
+            display: none !important;
+        }
+        body.print-friendly-mode .container {
+            background: #ffffff !important;
+        }
+        body.print-friendly-mode .step {
+            background: #ffffff !important;
+            border-color: #cccccc !important;
+            color: #000000 !important;
+        }
+        body.print-friendly-mode h1,
+        body.print-friendly-mode h2,
+        body.print-friendly-mode h3,
+        body.print-friendly-mode h4,
+        body.print-friendly-mode strong {
+            color: #000000 !important;
+        }
+        body.print-friendly-mode .info-box {
+            background: #f5f5f5 !important;
+            border-color: #cccccc !important;
+            color: #000000 !important;
+        }
+    </style>
 </head>
 
 <body>
@@ -20,6 +50,9 @@
 
     <main class="container">
         <div class="report-actions report-actions--floating no-print">
+            <button type="button" id="print-friendly-btn" class="report-action-button" onclick="togglePrintFriendly()">
+                Print Friendly
+            </button>
             <button type="button" class="report-action-button" onclick="downloadReportWord()">
                 Download Word
             </button>
@@ -29,7 +62,7 @@
         </div>
 
         <header>
-            <h1>Configuration Report</h1>
+            <h1>Odin for Azure Local — Configuration Report</h1>
             <p>Explains what was selected and why, based on the wizard decision rules.</p>
         </header>
 
