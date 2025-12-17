@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.1] - 2025-06-12
+
+### Added
+
+#### Drag & Drop Adapter Mapping
+
+- **Interactive Adapter Mapping UI** - New visual drag-and-drop interface for assigning network adapters to traffic intents
+  - Drag adapters between pool and intent zones
+  - Click-to-select fallback for accessibility
+  - RDMA status shown on adapter pills
+  - Real-time validation of assignments
+
+- **Scale-Aware Minimum Adapter Requirements** - Validation rules adapt to deployment scale
+  - Standard deployments: Minimum 2 adapters per intent
+  - Low Capacity deployments: Minimum 1 adapter per intent
+  - RDMA requirement checking for storage intents
+
+- **Intent Zone Cards** - Visual cards for each traffic intent zone
+  - Color-coded headers (Management=Blue, Compute=Green, Storage=Purple)
+  - Badge indicators for requirements (Required, Optional, RDMA Required)
+  - Visual completion state (green border when requirements met)
+  - Error state highlighting for RDMA issues
+
+- **Confirm Overrides Button** - Lock mechanism for intent overrides
+  - Prevents accidental changes after configuration
+  - Edit mode toggle for adjustments
+  - Status indicator showing confirmation state
+
+### Changed
+
+- **Intent Override Gate** - Overrides section now gates on adapter mapping confirmation
+  - Custom intent flow requires adapter mapping to be confirmed before showing overrides
+  - Provides clearer progression through configuration
+
+### Fixed
+
+- **State Reset Consistency** - Adapter mapping state properly resets when changing:
+  - Scenario selection
+  - Region selection
+  - Scale selection
+  - Node count selection
+  - Port count selection
+  - Intent type selection
+
+---
+
 ## [0.5.0] - 2025-12-17
 
 ### Added

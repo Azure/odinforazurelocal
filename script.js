@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.5.0';
+const WIZARD_VERSION = '0.5.1';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -47,6 +47,10 @@ const state = {
     sdnManagement: null,
     intentOverrides: {},
     customIntents: {},
+    adapterMapping: {},
+    adapterMappingConfirmed: false,
+    adapterMappingSelection: null,
+    overridesConfirmed: false,
     securityConfiguration: null, // 'recommended' or 'customized'
     securitySettings: {
         driftControlEnforced: true,
@@ -1792,7 +1796,7 @@ function selectOption(category, value) {
         const chip = document.querySelector(`.node-chip[onclick*="'${value}'"]`);
         if (chip && chip.classList.contains('disabled')) return;
         state.nodes = value;
-        state.ports = null; state.storage = null; state.intent = null; state.outbound = null; state.arc = null; state.proxy = null; state.ip = null; state.customIntents = {};
+        state.ports = null; state.storage = null; state.intent = null; state.outbound = null; state.arc = null; state.proxy = null; state.ip = null; state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
         state.switchlessLinkMode = null;
         state.rackAwareZones = null;
         state.rackAwareZonesConfirmed = false;
@@ -1826,7 +1830,7 @@ function selectOption(category, value) {
         state.rackAwareTorsPerRoom = null;
         state.rackAwareTorArchitecture = null;
         state.intent = null;
-        state.customIntentConfirmed = false;
+        state.customIntentConfirmed = false; state.adapterMapping = {}; state.adapterMappingConfirmed = false;
         state.outbound = null;
         state.arc = null;
         state.proxy = null;
@@ -1839,7 +1843,7 @@ function selectOption(category, value) {
         state.infraVlan = null;
         state.infraVlanId = null;
         state.storageAutoIp = null;
-        state.customIntents = {};
+        state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
     } else if (category === 'region') {
         state.region = value;
         state.localInstanceRegion = null;
@@ -1854,7 +1858,7 @@ function selectOption(category, value) {
         state.rackAwareTorsPerRoom = null;
         state.rackAwareTorArchitecture = null;
         state.intent = null;
-        state.customIntentConfirmed = false;
+        state.customIntentConfirmed = false; state.adapterMapping = {}; state.adapterMappingConfirmed = false;
         state.outbound = null;
         state.arc = null;
         state.proxy = null;
@@ -1867,7 +1871,7 @@ function selectOption(category, value) {
         state.infraVlan = null;
         state.infraVlanId = null;
         state.storageAutoIp = null;
-        state.customIntents = {};
+        state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
     } else if (category === 'localInstanceRegion') {
         state.localInstanceRegion = value;
         state.scale = null;
@@ -1881,7 +1885,7 @@ function selectOption(category, value) {
         state.rackAwareTorsPerRoom = null;
         state.rackAwareTorArchitecture = null;
         state.intent = null;
-        state.customIntentConfirmed = false;
+        state.customIntentConfirmed = false; state.adapterMapping = {}; state.adapterMappingConfirmed = false;
         state.outbound = null;
         state.arc = null;
         state.proxy = null;
@@ -1894,7 +1898,7 @@ function selectOption(category, value) {
         state.infraVlan = null;
         state.infraVlanId = null;
         state.storageAutoIp = null;
-        state.customIntents = {};
+        state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
     } else if (category === 'scale') {
         state.nodes = null; state.ports = null; state.storage = null; state.intent = null; state.customIntentConfirmed = false; state.storageAutoIp = null; state.outbound = null; state.arc = null; state.proxy = null; state.ip = null; state.infraVlan = null; state.infraVlanId = null;
         state.switchlessLinkMode = null;
@@ -1941,7 +1945,7 @@ function selectOption(category, value) {
         state.storagePoolConfiguration = null;
         state.intent = null;
         state.customIntentConfirmed = false;
-        state.customIntents = {};
+        state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
         state.intentOverrides = {};
         state.storageAutoIp = null;
         state.infraVlan = null;
@@ -1951,6 +1955,10 @@ function selectOption(category, value) {
     } else if (category === 'intent') {
         state.intent = value;
         state.customIntentConfirmed = false;
+        state.adapterMapping = {};
+        state.adapterMappingConfirmed = false;
+        state.adapterMappingSelection = null;
+        state.overridesConfirmed = false;
         state.storageAutoIp = null;
     } else if (category === 'outbound') {
         state.arc = null; state.proxy = null; state.ip = null; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
@@ -3787,7 +3795,6 @@ function updateUI() {
     const rdmaIntentWarn = document.getElementById('rdma-intent-warning');
     const intentOverrides = document.getElementById('intent-overrides');
     const intentOverridesContainer = document.getElementById('intent-overrides-container');
-    const customConfirmBtn = document.getElementById('custom-intent-confirm');
 
     if (state.intent) {
         intentExp.classList.add('visible');
@@ -3808,31 +3815,13 @@ function updateUI() {
         } else if (state.intent === 'compute_storage') {
             text = `<strong>Converged Compute & Storage + Dedicated Mgmt</strong><br>Mgmt on Pair 1. Compute/Storage share Pair 2${portCount > 4 ? '+' : ''}.`;
         } else if (state.intent === 'custom') {
-            text = `<strong>Custom Configuration</strong><br>Use the controls below to verify or modify adapter assignments.`;
+            text = `<strong>Custom Configuration</strong><br>Use the drag & drop interface below to assign adapters to traffic intents.`;
         }
         intentExp.innerHTML = text;
 
-        // Custom intent confirmation (gates Overrides)
-        if (customConfirmBtn) {
-            if (state.intent === 'custom') {
-                const groups = getIntentNicGroups('custom', portCount);
-                const hasAnyMapping = groups && groups.length > 0;
-
-                if (state.customIntentConfirmed) {
-                    customConfirmBtn.classList.add('hidden');
-                } else {
-                    customConfirmBtn.classList.remove('hidden');
-                }
-
-                customConfirmBtn.disabled = !hasAnyMapping;
-            } else {
-                customConfirmBtn.classList.add('hidden');
-            }
-        }
-
         // Intent overrides UI (per intent NIC set)
         if (intentOverrides && intentOverridesContainer) {
-            const allowOverrides = (state.intent !== 'custom') || !!state.customIntentConfirmed;
+            const allowOverrides = (state.intent !== 'custom') || !!state.customIntentConfirmed || !!state.adapterMappingConfirmed;
             if (!allowOverrides) {
                 intentOverrides.classList.add('hidden');
                 intentOverrides.classList.remove('visible');
@@ -3849,7 +3838,20 @@ function updateUI() {
         }
 
         nicVis.classList.add('visible');
-        renderNicVisualizer(portCount, state.intent, isSwitchless);
+
+        // Render adapter mapping UI (drag & drop)
+        try {
+            renderAdapterMappingUi();
+        } catch (e) {
+            reportUiError(e, 'renderAdapterMappingUi');
+        }
+
+        // Update overrides UI
+        try {
+            updateOverridesUI();
+        } catch (e) {
+            reportUiError(e, 'updateOverridesUI');
+        }
 
         // Step 08 validation: RDMA-enabled ports must map to Storage traffic NICs.
         if (rdmaIntentWarn) {
@@ -3938,10 +3940,6 @@ function updateUI() {
             rdmaIntentWarn.classList.add('hidden');
             rdmaIntentWarn.classList.remove('visible');
             rdmaIntentWarn.innerHTML = '';
-        }
-
-        if (customConfirmBtn) {
-            customConfirmBtn.classList.add('hidden');
         }
 
         if (intentOverrides) {
@@ -4073,120 +4071,7 @@ function updateUI() {
     }
 }
 
-function renderNicVisualizer(portCount, intent, isSwitchless) {
-    const container = document.getElementById('nic-grid-container');
-    container.innerHTML = '';
-    const TAG_MGMT = `<span class="traffic-tag tag-mgmt">Mgmt</span>`;
-    const TAG_COMPUTE = `<span class="traffic-tag tag-compute">Compute</span>`;
-    const TAG_STORAGE = `<span class="traffic-tag tag-storage">Storage</span>`;
-    const getNicRdmaTag = (nicIndex1Based) => {
-        const cfg = state.portConfig && state.portConfig[nicIndex1Based - 1];
-        if (!cfg) return '';
-        if (cfg.rdma === false) return '';
-        if (cfg.rdmaMode && cfg.rdmaMode !== 'Disabled') {
-            return `<span class="traffic-tag tag-rdma">RDMA: ${cfg.rdmaMode}</span>`;
-        }
-        // Fallback when rdma is enabled but mode isn't specified
-        return `<span class="traffic-tag tag-rdma">RDMA Enabled</span>`;
-    };
-
-    const ensureTag = (tagsHtml, tagHtml, testClass) => {
-        if (!tagsHtml) tagsHtml = '';
-        if (tagsHtml.indexOf(testClass) !== -1) return tagsHtml;
-        return tagsHtml + tagHtml;
-    };
-
-    const createCard = (i, tagsHTML, isCustom = false, isStorageRole = false) => {
-        const cfg = state.portConfig && state.portConfig[i - 1];
-        const isRdma = !!(cfg && cfg.rdma === true);
-        const nicLabel = (isCustom ? isRdma : isStorageRole) ? `SMB${i}` : `NIC${i}`;
-        let content = tagsHTML;
-        if (isCustom) {
-            let val = (state.customIntents && state.customIntents[i]) || 'unused';
-
-            // If the adapter is not RDMA-capable, prevent assigning Storage traffic in Custom intent.
-            const carriesStorage = (val === 'storage' || val === 'compute_storage' || val === 'all');
-            if (!isRdma && carriesStorage) {
-                if (!state.customIntents || typeof state.customIntents !== 'object') state.customIntents = {};
-                state.customIntents[i] = 'unused';
-                val = 'unused';
-            }
-
-            const rdmaTag = isRdma
-                ? getNicRdmaTag(i)
-                : `<span class="traffic-tag tag-rdma">RDMA: Not Supported</span>`;
-
-            content = `
-                <div class="nic-tags">${rdmaTag || ''}</div>
-                <select class="custom-select" onchange="updateCustomNic(${i}, this.value)">
-                    <option value="unused" ${val === 'unused' ? 'selected' : ''}>Unused</option>
-                    <option value="compute" ${val === 'compute' ? 'selected' : ''}>Compute</option>
-                    <option value="mgmt_compute" ${val === 'mgmt_compute' ? 'selected' : ''}>Mgmt + Comp</option>
-                    ${isRdma ? `<option value="storage" ${val === 'storage' ? 'selected' : ''}>Storage</option>` : ''}
-                    ${isRdma ? `<option value="compute_storage" ${val === 'compute_storage' ? 'selected' : ''}>Comp + Stor</option>` : ''}
-                    ${isRdma ? `<option value="all" ${val === 'all' ? 'selected' : ''}>Group All</option>` : ''}
-                </select>
-            `;
-        }
-        return `
-        <div class="nic-card">
-            <div class="nic-card-header">
-                <svg class="nic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-                <span>Port ${i} - ${nicLabel}</span>
-            </div>
-            <div class="nic-tags">${content}</div>
-        </div>
-        `;
-    };
-
-    const mgmtComputeAssignment = (intent === 'mgmt_compute') ? getMgmtComputeNicAssignment(portCount) : null;
-    const mgmtComputeSet = mgmtComputeAssignment ? new Set(mgmtComputeAssignment.mgmtCompute) : null;
-    const storageSetForMgmtCompute = mgmtComputeAssignment ? new Set(mgmtComputeAssignment.storage) : null;
-
-    for (let i = 1; i <= portCount; i++) {
-        let tags = '';
-        let isStorageRole = false;
-        if (intent === 'all_traffic') {
-            tags = TAG_MGMT + TAG_COMPUTE + TAG_STORAGE;
-            isStorageRole = true;
-        } else if (intent === 'mgmt_compute') {
-            if (portCount === 2) {
-                if (i === 1) tags = TAG_MGMT + TAG_COMPUTE;
-                else {
-                    tags = TAG_STORAGE;
-                    isStorageRole = true;
-                }
-            } else {
-                const isMgmtCompute = mgmtComputeSet ? mgmtComputeSet.has(i) : (i <= 2);
-                if (isMgmtCompute) {
-                    tags = TAG_MGMT + TAG_COMPUTE;
-                } else {
-                    tags = TAG_STORAGE;
-                    isStorageRole = true;
-                }
-            }
-        } else if (intent === 'compute_storage') {
-            if (i <= 2) tags = TAG_MGMT;
-            else {
-                tags = TAG_COMPUTE + TAG_STORAGE;
-                isStorageRole = true;
-            }
-        }
-
-        // Always show RDMA capability, but do not imply Storage on Mgmt+Compute ports.
-        const rdmaTag = getNicRdmaTag(i);
-        if (rdmaTag) {
-            tags = ensureTag(tags, rdmaTag, 'tag-rdma');
-        }
-        // For mgmt_compute we already computed the role. For other intents, infer from tag presence.
-        if (intent === 'mgmt_compute' && storageSetForMgmtCompute) {
-            isStorageRole = storageSetForMgmtCompute.has(i);
-        } else if (intent !== 'custom') {
-            isStorageRole = isStorageRole || (tags.indexOf('tag-storage') !== -1);
-        }
-        container.innerHTML += createCard(i, tags, intent === 'custom', isStorageRole);
-    }
-}
+// Legacy NIC visualizer removed - replaced by drag & drop adapter mapping UI
 
 function getIntentNicGroups(intent, portCount) {
     const groups = [];
@@ -7921,4 +7806,681 @@ if (originalUpdateUI) {
         updateBreadcrumbs();
     };
     // Note: We can't override updateUI directly here, so breadcrumbs update via scroll listener
+}
+
+// ============================================
+// DRAG & DROP ADAPTER MAPPING
+// ============================================
+
+function initializeAdapterMapping() {
+    if (!state.adapterMapping) {
+        state.adapterMapping = {};
+    }
+    if (typeof state.adapterMappingConfirmed === 'undefined') {
+        state.adapterMappingConfirmed = false;
+    }
+    if (!state.adapterMappingSelection) {
+        state.adapterMappingSelection = null;
+    }
+}
+
+function getIntentZonesForIntent(intent) {
+    // Returns the available zones for a given intent type
+    // Minimum adapters: 2 for standard scenarios, 1 for Low Capacity
+    const zones = [];
+    const isLowCapacity = state.scale === 'low_capacity';
+    const minStandard = 2;
+    const minLowCap = 1;
+
+    if (intent === 'all_traffic') {
+        zones.push({
+            key: 'all',
+            title: 'Group All Traffic',
+            titleClass: '',
+            description: 'Management, Compute, and Storage traffic share these adapters.',
+            badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
+            badgeClass: 'rdma-required',
+            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            requiresRdma: true
+        });
+    } else if (intent === 'mgmt_compute') {
+        zones.push({
+            key: 'mgmt_compute',
+            title: 'Management + Compute',
+            titleClass: 'mgmt',
+            description: 'Shared traffic for management and compute workloads.',
+            badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters',
+            badgeClass: 'required',
+            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            requiresRdma: false
+        });
+        zones.push({
+            key: 'storage',
+            title: 'Storage',
+            titleClass: 'storage',
+            description: 'Dedicated storage traffic (SMB Direct).',
+            badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
+            badgeClass: 'rdma-required',
+            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            requiresRdma: true
+        });
+    } else if (intent === 'compute_storage') {
+        zones.push({
+            key: 'mgmt',
+            title: 'Management',
+            titleClass: 'mgmt',
+            description: 'Dedicated management traffic.',
+            badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters',
+            badgeClass: 'required',
+            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            requiresRdma: false
+        });
+        zones.push({
+            key: 'compute_storage',
+            title: 'Compute + Storage',
+            titleClass: 'storage',
+            description: 'Shared compute and storage traffic.',
+            badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
+            badgeClass: 'rdma-required',
+            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            requiresRdma: true
+        });
+    } else if (intent === 'custom') {
+        zones.push({
+            key: 'mgmt',
+            title: 'Management',
+            titleClass: 'mgmt',
+            description: 'Management traffic only.',
+            badge: 'Optional',
+            badgeClass: 'optional',
+            minAdapters: 0,
+            requiresRdma: false
+        });
+        zones.push({
+            key: 'compute',
+            title: 'Compute',
+            titleClass: 'compute',
+            description: 'Compute traffic only.',
+            badge: 'Optional',
+            badgeClass: 'optional',
+            minAdapters: 0,
+            requiresRdma: false
+        });
+        zones.push({
+            key: 'storage',
+            title: 'Storage',
+            titleClass: 'storage',
+            description: 'Storage traffic (SMB Direct).',
+            badge: 'RDMA Required',
+            badgeClass: 'rdma-required',
+            minAdapters: 0,
+            requiresRdma: true
+        });
+        zones.push({
+            key: 'mgmt_compute',
+            title: 'Mgmt + Compute',
+            titleClass: 'mgmt',
+            description: 'Shared management and compute.',
+            badge: 'Optional',
+            badgeClass: 'optional',
+            minAdapters: 0,
+            requiresRdma: false
+        });
+        zones.push({
+            key: 'compute_storage',
+            title: 'Compute + Storage',
+            titleClass: 'storage',
+            description: 'Shared compute and storage.',
+            badge: 'RDMA Required',
+            badgeClass: 'rdma-required',
+            minAdapters: 0,
+            requiresRdma: true
+        });
+        zones.push({
+            key: 'all',
+            title: 'Group All Traffic',
+            titleClass: '',
+            description: 'All traffic types combined.',
+            badge: 'RDMA Required',
+            badgeClass: 'rdma-required',
+            minAdapters: 0,
+            requiresRdma: true
+        });
+    }
+
+    return zones;
+}
+
+function getDefaultAdapterMapping(intent, portCount) {
+    // Returns a default adapter mapping based on intent type
+    const mapping = {};
+    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+
+    // Find RDMA-capable ports
+    const rdmaPorts = [];
+    const nonRdmaPorts = [];
+    for (let i = 1; i <= portCount; i++) {
+        const pc = cfg[i - 1];
+        if (pc && pc.rdma === true) {
+            rdmaPorts.push(i);
+        } else {
+            nonRdmaPorts.push(i);
+        }
+    }
+
+    if (intent === 'all_traffic') {
+        // All ports go to 'all' zone
+        for (let i = 1; i <= portCount; i++) {
+            mapping[i] = 'all';
+        }
+    } else if (intent === 'mgmt_compute') {
+        // First 2 non-RDMA (or first 2 if all RDMA) go to mgmt_compute, rest to storage
+        if (nonRdmaPorts.length >= 2) {
+            mapping[nonRdmaPorts[0]] = 'mgmt_compute';
+            mapping[nonRdmaPorts[1]] = 'mgmt_compute';
+            for (let i = 1; i <= portCount; i++) {
+                if (!mapping[i]) mapping[i] = 'storage';
+            }
+        } else {
+            // All RDMA or insufficient non-RDMA
+            if (portCount === 2) {
+                mapping[1] = 'mgmt_compute';
+                mapping[2] = 'storage';
+            } else {
+                mapping[1] = 'mgmt_compute';
+                mapping[2] = 'mgmt_compute';
+                for (let i = 3; i <= portCount; i++) {
+                    mapping[i] = 'storage';
+                }
+            }
+        }
+    } else if (intent === 'compute_storage') {
+        // First 2 ports to mgmt, rest to compute_storage
+        mapping[1] = 'mgmt';
+        if (portCount >= 2) mapping[2] = 'mgmt';
+        for (let i = 3; i <= portCount; i++) {
+            mapping[i] = 'compute_storage';
+        }
+    } else if (intent === 'custom') {
+        // All start in pool (unassigned)
+        for (let i = 1; i <= portCount; i++) {
+            mapping[i] = 'pool';
+        }
+    }
+
+    return mapping;
+}
+
+function renderAdapterMappingUi() {
+    const container = document.getElementById('adapter-mapping-container');
+    if (!container) return;
+
+    const portCount = parseInt(state.ports) || 0;
+    const intent = state.intent;
+
+    if (!intent || portCount <= 0) {
+        container.classList.add('hidden');
+        container.classList.remove('visible');
+        return;
+    }
+
+    initializeAdapterMapping();
+
+    // Initialize default mapping if empty or intent changed
+    if (!state.adapterMapping || Object.keys(state.adapterMapping).length === 0) {
+        state.adapterMapping = getDefaultAdapterMapping(intent, portCount);
+        state.adapterMappingConfirmed = false;
+    }
+
+    container.classList.remove('hidden');
+    container.classList.add('visible');
+
+    const confirmed = Boolean(state.adapterMappingConfirmed);
+    container.classList.toggle('is-locked', confirmed);
+
+    // Render pool (unassigned adapters)
+    renderAdapterPool(portCount, confirmed);
+
+    // Render intent zones
+    renderIntentZones(intent, portCount, confirmed);
+
+    // Update buttons and status
+    updateAdapterMappingButtons(intent, portCount, confirmed);
+
+    // Validate mapping
+    validateAdapterMapping(intent, portCount);
+}
+
+function renderAdapterPool(portCount, confirmed) {
+    const poolDrop = document.getElementById('adapter-pool-drop');
+    if (!poolDrop) return;
+
+    poolDrop.innerHTML = '';
+
+    const poolAdapters = [];
+    for (let i = 1; i <= portCount; i++) {
+        if (state.adapterMapping[i] === 'pool' || !state.adapterMapping[i]) {
+            poolAdapters.push(i);
+        }
+    }
+
+    if (poolAdapters.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'adapter-empty';
+        empty.textContent = 'All adapters assigned.';
+        poolDrop.appendChild(empty);
+    } else {
+        poolAdapters.forEach(portId => {
+            poolDrop.appendChild(buildAdapterPill(portId, confirmed));
+        });
+    }
+
+    // Set drop handlers for pool
+    setAdapterDropHandlers(poolDrop, 'pool', confirmed);
+}
+
+function renderIntentZones(intent, portCount, confirmed) {
+    const zonesGrid = document.getElementById('intent-zones-grid');
+    if (!zonesGrid) return;
+
+    zonesGrid.innerHTML = '';
+
+    const zones = getIntentZonesForIntent(intent);
+
+    zones.forEach(zone => {
+        const card = document.createElement('div');
+        card.className = 'intent-zone-card';
+        card.dataset.zone = zone.key;
+
+        // Get adapters assigned to this zone
+        const assignedAdapters = [];
+        for (let i = 1; i <= portCount; i++) {
+            if (state.adapterMapping[i] === zone.key) {
+                assignedAdapters.push(i);
+            }
+        }
+
+        // Check if zone requirements are met
+        const meetsMin = assignedAdapters.length >= zone.minAdapters;
+        const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+        const hasRdmaIssue = zone.requiresRdma && assignedAdapters.some(portId => {
+            const pc = cfg[portId - 1];
+            return !pc || pc.rdma !== true;
+        });
+
+        if (assignedAdapters.length > 0) {
+            card.classList.add('has-adapters');
+        }
+        if (meetsMin && !hasRdmaIssue && assignedAdapters.length > 0) {
+            card.classList.add('is-complete');
+        }
+        if (hasRdmaIssue) {
+            card.classList.add('has-error');
+        }
+
+        card.innerHTML = `
+            <div class="intent-zone-header">
+                <span class="intent-zone-title ${zone.titleClass}">${zone.title}</span>
+                <span class="intent-zone-badge ${zone.badgeClass}">${zone.badge}</span>
+            </div>
+            <div class="intent-zone-desc">${zone.description}</div>
+            <div id="zone-drop-${zone.key}" class="intent-zone-drop" data-zone="${zone.key}" aria-label="${zone.title} drop zone"></div>
+            ${zone.minAdapters > 0 ? `<div class="intent-zone-min ${meetsMin ? 'met' : 'not-met'}">
+                ${meetsMin ? '' : '!'} Minimum: ${zone.minAdapters} adapter(s)
+            </div>` : ''}
+        `;
+
+        zonesGrid.appendChild(card);
+
+        // Populate the drop zone with assigned adapters
+        const dropZone = card.querySelector(`#zone-drop-${zone.key}`);
+        if (dropZone) {
+            if (assignedAdapters.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'adapter-empty';
+                empty.textContent = 'Drop adapters here';
+                dropZone.appendChild(empty);
+            } else {
+                assignedAdapters.forEach(portId => {
+                    dropZone.appendChild(buildAdapterPill(portId, confirmed));
+                });
+            }
+
+            setAdapterDropHandlers(dropZone, zone.key, confirmed);
+        }
+    });
+}
+
+function buildAdapterPill(portId, locked) {
+    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+    const pc = cfg[portId - 1];
+    const isRdma = pc && pc.rdma === true;
+    const rdmaMode = (pc && pc.rdmaMode) || 'Disabled';
+
+    const pill = document.createElement('div');
+    pill.className = 'adapter-pill';
+    pill.dataset.portId = String(portId);
+    pill.draggable = !locked;
+    pill.setAttribute('aria-grabbed', 'false');
+    pill.setAttribute('role', 'button');
+    pill.setAttribute('tabindex', '0');
+
+    if (isRdma) {
+        pill.classList.add('is-rdma');
+    }
+
+    const selectedId = state.adapterMappingSelection ? parseInt(String(state.adapterMappingSelection), 10) : NaN;
+    if (!isNaN(selectedId) && selectedId === portId) {
+        pill.classList.add('is-selected');
+    }
+
+    pill.innerHTML = `
+        <svg class="adapter-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+        </svg>
+        <span class="adapter-pill__id">Port ${portId}</span>
+        <span class="adapter-pill-rdma">${isRdma ? rdmaMode : 'No RDMA'}</span>
+    `;
+
+    // Drag events
+    pill.addEventListener('dragstart', (e) => {
+        if (locked) return;
+        pill.setAttribute('aria-grabbed', 'true');
+        pill.classList.add('is-dragging');
+        e.dataTransfer.setData('text/plain', String(portId));
+        e.dataTransfer.effectAllowed = 'move';
+    });
+
+    pill.addEventListener('dragend', () => {
+        pill.setAttribute('aria-grabbed', 'false');
+        pill.classList.remove('is-dragging');
+    });
+
+    // Click-to-select fallback
+    pill.addEventListener('click', (e) => {
+        if (locked) return;
+        handleAdapterClick(portId);
+    });
+
+    pill.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (!locked) handleAdapterClick(portId);
+        }
+    });
+
+    return pill;
+}
+
+function handleAdapterClick(portId) {
+    const selectedRaw = state.adapterMappingSelection;
+    const selected = selectedRaw ? parseInt(String(selectedRaw), 10) : NaN;
+
+    if (isNaN(selected)) {
+        // Select this adapter
+        state.adapterMappingSelection = String(portId);
+    } else if (selected === portId) {
+        // Deselect
+        state.adapterMappingSelection = null;
+    } else {
+        // Different adapter selected - swap them
+        const currentZoneA = state.adapterMapping[selected] || 'pool';
+        const currentZoneB = state.adapterMapping[portId] || 'pool';
+
+        state.adapterMapping[selected] = currentZoneB;
+        state.adapterMapping[portId] = currentZoneA;
+        state.adapterMappingSelection = null;
+        state.adapterMappingConfirmed = false;
+    }
+
+    renderAdapterMappingUi();
+}
+
+function setAdapterDropHandlers(dropZone, targetZone, locked) {
+    if (!dropZone || (dropZone.dataset && dropZone.dataset.dndBound === '1')) return;
+    if (dropZone.dataset) dropZone.dataset.dndBound = '1';
+
+    dropZone.addEventListener('dragover', (e) => {
+        if (locked) return;
+        e.preventDefault();
+        dropZone.classList.add('is-over');
+        try { e.dataTransfer.dropEffect = 'move'; } catch (err) { /* ignore */ }
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('is-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('is-over');
+
+        if (locked) return;
+
+        try {
+            const portId = parseInt(e.dataTransfer.getData('text/plain'), 10);
+            if (isNaN(portId)) return;
+
+            const currentZone = state.adapterMapping[portId] || 'pool';
+            if (currentZone === targetZone) return;
+
+            // Move adapter to target zone
+            state.adapterMapping[portId] = targetZone;
+            state.adapterMappingConfirmed = false;
+            state.adapterMappingSelection = null;
+
+            renderAdapterMappingUi();
+        } catch (err) {
+            console.error('Adapter drop error:', err);
+        }
+    });
+
+    // Click handler for zone (for click-to-move fallback)
+    dropZone.addEventListener('click', (e) => {
+        if (locked) return;
+        if (e.target.closest('.adapter-pill')) return; // Don't trigger if clicking on pill
+
+        const selected = state.adapterMappingSelection;
+        if (!selected) return;
+
+        const portId = parseInt(selected, 10);
+        const currentZone = state.adapterMapping[portId] || 'pool';
+
+        if (currentZone !== targetZone) {
+            state.adapterMapping[portId] = targetZone;
+            state.adapterMappingConfirmed = false;
+        }
+
+        state.adapterMappingSelection = null;
+        renderAdapterMappingUi();
+    });
+}
+
+function updateAdapterMappingButtons(intent, portCount, confirmed) {
+    const confirmBtn = document.getElementById('adapter-mapping-confirm-btn');
+    const resetBtn = document.getElementById('adapter-mapping-reset-btn');
+    const statusEl = document.getElementById('adapter-mapping-status');
+
+    if (confirmBtn) {
+        if (confirmed) {
+            confirmBtn.textContent = 'Edit Adapter Mapping';
+            confirmBtn.classList.add('is-confirmed');
+        } else {
+            confirmBtn.textContent = 'Confirm Adapter Mapping';
+            confirmBtn.classList.remove('is-confirmed');
+        }
+
+        // Enable/disable based on validation
+        const validation = getAdapterMappingValidation(intent, portCount);
+        confirmBtn.disabled = !validation.isValid && !confirmed;
+    }
+
+    if (resetBtn) {
+        resetBtn.disabled = confirmed;
+    }
+
+    if (statusEl) {
+        statusEl.textContent = confirmed ? 'Mapping confirmed.' : 'Drag adapters to assign them to intents.';
+    }
+}
+
+function getAdapterMappingValidation(intent, portCount) {
+    const errors = [];
+    const zones = getIntentZonesForIntent(intent);
+    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+
+    zones.forEach(zone => {
+        const assignedAdapters = [];
+        for (let i = 1; i <= portCount; i++) {
+            if (state.adapterMapping[i] === zone.key) {
+                assignedAdapters.push(i);
+            }
+        }
+
+        // Check minimum adapters
+        if (assignedAdapters.length < zone.minAdapters) {
+            errors.push(`${zone.title} requires at least ${zone.minAdapters} adapter(s).`);
+        }
+
+        // Check RDMA requirement
+        if (zone.requiresRdma && assignedAdapters.length > 0) {
+            const nonRdmaAdapters = assignedAdapters.filter(portId => {
+                const pc = cfg[portId - 1];
+                return !pc || pc.rdma !== true;
+            });
+
+            if (nonRdmaAdapters.length > 0) {
+                errors.push(`${zone.title}: Ports ${nonRdmaAdapters.join(', ')} are not RDMA-capable.`);
+            }
+        }
+    });
+
+    // Check for unassigned adapters (except for custom intent)
+    if (intent !== 'custom') {
+        const unassigned = [];
+        for (let i = 1; i <= portCount; i++) {
+            if (!state.adapterMapping[i] || state.adapterMapping[i] === 'pool') {
+                unassigned.push(i);
+            }
+        }
+        if (unassigned.length > 0) {
+            errors.push(`Unassigned adapters: Ports ${unassigned.join(', ')}`);
+        }
+    }
+
+    return {
+        isValid: errors.length === 0,
+        errors: errors
+    };
+}
+
+function validateAdapterMapping(intent, portCount) {
+    const validationEl = document.getElementById('adapter-mapping-validation');
+    if (!validationEl) return;
+
+    const validation = getAdapterMappingValidation(intent, portCount);
+
+    if (validation.isValid) {
+        validationEl.classList.add('hidden');
+        validationEl.classList.remove('visible');
+    } else {
+        validationEl.innerHTML = `<strong>Validation Issues:</strong><ul style="margin: 0.5rem 0 0 1rem; padding: 0;">
+            ${validation.errors.map(e => `<li>${e}</li>`).join('')}
+        </ul>`;
+        validationEl.classList.remove('hidden');
+        validationEl.classList.add('visible');
+    }
+}
+
+function confirmAdapterMapping() {
+    const portCount = parseInt(state.ports) || 0;
+    const intent = state.intent;
+
+    if (state.adapterMappingConfirmed) {
+        // Toggle to edit mode
+        state.adapterMappingConfirmed = false;
+    } else {
+        // Validate before confirming
+        const validation = getAdapterMappingValidation(intent, portCount);
+        if (!validation.isValid) {
+            return;
+        }
+
+        state.adapterMappingConfirmed = true;
+
+        // Sync with customIntents for backward compatibility
+        syncAdapterMappingToCustomIntents();
+    }
+
+    renderAdapterMappingUi();
+    updateUI();
+}
+
+function resetAdapterMapping() {
+    const portCount = parseInt(state.ports) || 0;
+    const intent = state.intent;
+
+    state.adapterMapping = getDefaultAdapterMapping(intent, portCount);
+    state.adapterMappingConfirmed = false;
+    state.adapterMappingSelection = null;
+
+    renderAdapterMappingUi();
+}
+
+function confirmOverrides() {
+    if (state.overridesConfirmed) {
+        // Toggle to edit mode
+        state.overridesConfirmed = false;
+    } else {
+        state.overridesConfirmed = true;
+    }
+    updateOverridesUI();
+    updateUI();
+}
+
+function updateOverridesUI() {
+    const confirmBtn = document.getElementById('overrides-confirm-btn');
+    const statusEl = document.getElementById('overrides-status');
+    const container = document.getElementById('intent-overrides-container');
+
+    if (confirmBtn) {
+        if (state.overridesConfirmed) {
+            confirmBtn.textContent = 'Edit Overrides';
+            confirmBtn.classList.add('is-confirmed');
+        } else {
+            confirmBtn.textContent = 'Confirm Overrides';
+            confirmBtn.classList.remove('is-confirmed');
+        }
+    }
+
+    if (statusEl) {
+        statusEl.textContent = state.overridesConfirmed ? 'Overrides confirmed.' : '';
+    }
+
+    // Disable inputs when confirmed
+    if (container) {
+        const inputs = container.querySelectorAll('select, input');
+        inputs.forEach(input => {
+            input.disabled = state.overridesConfirmed;
+        });
+    }
+}
+
+function syncAdapterMappingToCustomIntents() {
+    // Sync adapter mapping to customIntents for backward compatibility with export/report
+    if (!state.customIntents) state.customIntents = {};
+
+    const portCount = parseInt(state.ports) || 0;
+    for (let i = 1; i <= portCount; i++) {
+        const zone = state.adapterMapping[i] || 'pool';
+        if (zone === 'pool') {
+            state.customIntents[i] = 'unused';
+        } else {
+            state.customIntents[i] = zone;
+        }
+    }
+
+    // Mark as confirmed for legacy code
+    state.customIntentConfirmed = state.adapterMappingConfirmed;
 }

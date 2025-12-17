@@ -1643,3 +1643,284 @@ header .header-description {
     background: rgba(255,255,255,0.05) !important;
     border-color: rgba(255, 255, 255, 0.2) !important;
 }
+
+/* Drag & Drop Adapter Mapping */
+.adapter-mapping {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    display: none;
+}
+
+.adapter-mapping.visible {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.adapter-mapping-header h4 {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.adapter-pool {
+    margin: 1rem 0;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+}
+
+.adapter-pool-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.adapter-pool-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.adapter-pool-hint {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.adapter-drop-zone {
+    min-height: 60px;
+    padding: 0.75rem;
+    border-radius: 10px;
+    border: 2px dashed rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    transition: all 0.2s ease;
+}
+
+.adapter-drop-zone.pool-zone {
+    border-style: solid;
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.adapter-drop-zone.is-over {
+    border-color: rgba(0, 120, 212, 0.7);
+    background: rgba(0, 120, 212, 0.08);
+    box-shadow: 0 0 15px rgba(0, 120, 212, 0.15);
+}
+
+.adapter-drop-zone.is-valid-target {
+    border-color: rgba(34, 197, 94, 0.5);
+}
+
+.adapter-drop-zone.is-invalid-target {
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.adapter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    cursor: grab;
+    user-select: none;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.adapter-pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.adapter-pill:active {
+    cursor: grabbing;
+}
+
+.adapter-pill.is-selected {
+    background: rgba(0, 120, 212, 0.2);
+    border-color: rgba(0, 120, 212, 0.5);
+    box-shadow: 0 0 10px rgba(0, 120, 212, 0.2);
+}
+
+.adapter-pill.is-dragging {
+    opacity: 0.5;
+}
+
+.adapter-pill.is-rdma {
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+.adapter-pill.is-rdma .adapter-pill-rdma {
+    display: inline-flex;
+}
+
+.adapter-pill__id {
+    font-weight: 700;
+    color: var(--accent-blue);
+}
+
+.adapter-pill-rdma {
+    display: none;
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    background: rgba(139, 92, 246, 0.2);
+    border-radius: 4px;
+    color: var(--accent-purple);
+    font-weight: 600;
+}
+
+.adapter-pill-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+}
+
+.adapter-empty {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    font-style: italic;
+}
+
+/* Intent Zones Grid */
+.intent-zones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.intent-zone-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.intent-zone-card.has-adapters {
+    border-color: rgba(0, 120, 212, 0.3);
+}
+
+.intent-zone-card.is-complete {
+    border-color: rgba(34, 197, 94, 0.4);
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.intent-zone-card.has-error {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.intent-zone-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.intent-zone-title {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.intent-zone-title.mgmt {
+    color: #3b82f6;
+}
+
+.intent-zone-title.compute {
+    color: #22c55e;
+}
+
+.intent-zone-title.storage {
+    color: #8b5cf6;
+}
+
+.intent-zone-badge {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+.intent-zone-badge.required {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.intent-zone-badge.optional {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.intent-zone-badge.rdma-required {
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.intent-zone-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.intent-zone-drop {
+    min-height: 52px;
+    padding: 0.5rem;
+    border-radius: 10px;
+    border: 2px dashed rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.intent-zone-drop.is-over {
+    border-color: rgba(0, 120, 212, 0.7);
+    background: rgba(0, 120, 212, 0.08);
+}
+
+.intent-zone-min {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+
+.intent-zone-min.met {
+    color: #22c55e;
+}
+
+.intent-zone-min.not-met {
+    color: #ef4444;
+}
+
+/* Locked state for confirmed mapping */
+.adapter-mapping.is-locked .adapter-pill {
+    cursor: default;
+    opacity: 0.8;
+}
+
+.adapter-mapping.is-locked .adapter-drop-zone {
+    border-style: solid;
+    pointer-events: none;
+}
+
+.adapter-mapping.is-locked .intent-zone-drop {
+    border-style: solid;
+}
