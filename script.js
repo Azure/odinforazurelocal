@@ -2109,6 +2109,7 @@ function toggleTheme() {
 function applyTheme() {
     const root = document.documentElement;
     const themeButton = document.getElementById('theme-toggle');
+    const logo = document.getElementById('odin-logo');
     
     if (state.theme === 'light') {
         root.style.setProperty('--bg-dark', '#f5f5f5');
@@ -2117,6 +2118,7 @@ function applyTheme() {
         root.style.setProperty('--text-secondary', '#6b7280');
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
         if (themeButton) themeButton.textContent = '☀️';
+        if (logo) logo.src = 'odin-logo-white-background.png';
         document.body.style.background = '#f5f5f5';
     } else {
         root.style.setProperty('--bg-dark', '#000000');
@@ -2125,6 +2127,7 @@ function applyTheme() {
         root.style.setProperty('--text-secondary', '#a1a1aa');
         root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
         if (themeButton) themeButton.textContent = '🌙';
+        if (logo) logo.src = 'odin-logo.png';
         document.body.style.background = '#000000';
     }
 }

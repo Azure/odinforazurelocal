@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.5.2] - 2025-12-18
+
+### Changed
+
+#### Logo and Header Improvements
+
+- **Updated Logo** - New Odin logo with improved design and proper aspect ratio
+- **Theme-Aware Logo** - Logo automatically switches between dark and light variants when toggling theme
+  - Dark theme: `odin-logo.png`
+  - Light theme: `odin-logo-white-background.png`
+- **Improved Header Layout** - Restructured header for better visual balance
+  - Title now centered independently
+  - Logo positioned on the right with version info below
+  - Description text with constrained width for better readability
+- **Updated Disclaimer** - Revised disclaimer text for clarity
+- **Centered Disclaimer Box** - Disclaimer now centered with fit-content width
+
+---
+
 ## [0.5.1] - 2025-06-12
 
 ### Added
