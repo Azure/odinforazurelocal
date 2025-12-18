@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.2] - 2025-12-18
+
+### Fixed
+
+#### iOS Mobile Layout Fixes
+
+- **Fixed Configuration Summary Blocking Page** - The Configuration Summary panel was blocking the entire page on iOS and mobile devices due to the fixed 460px width sidebar. Added `!important` CSS overrides to force proper column stacking on mobile.
+
+- **Fixed Header Logo Overlapping Title** - Replaced inline styles in header HTML with proper CSS classes (`.header-title-wrapper`, `.header-logo-wrapper`) that can be properly overridden by media queries. On mobile, the logo now displays above the title instead of overlapping it.
+
+- **Improved Mobile Layout Reliability** - Added stronger CSS specificity with `!important` rules for mobile layout to ensure proper rendering on iOS Safari:
+  - `.layout-flex` forces `flex-direction: column`
+  - `.steps-column` and `.summary-column` force `width: 100%` and proper ordering
+  - `#summary-panel` forces `position: relative` to prevent sticky floating behavior
+
+---
+
 ## [0.6.1] - 2025-12-18
 
 ### Added

@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.6.1';
+const WIZARD_VERSION = '0.6.2';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -6559,18 +6559,34 @@ function showChangelog() {
         align-items: center;
         justify-content: center;
         animation: fadeIn 0.2s ease;
+        padding: 10px;
+        box-sizing: border-box;
     `;
     
     overlay.innerHTML = `
-        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: var(--accent-blue);">What's New</h3>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
+                <h3 style="margin: 0; color: var(--accent-blue); font-size: 18px;">What's New</h3>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1;">&times;</button>
             </div>
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.6.1 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.6.2 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 iOS Mobile Layout Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Summary Panel Fixed:</strong> Configuration Summary no longer blocks the page on iOS - now properly stacks below wizard steps.</li>
+                        <li><strong>Header Layout Fixed:</strong> Logo no longer overlaps title on mobile - displays above with proper sizing.</li>
+                        <li><strong>Improved Reliability:</strong> Stronger CSS rules ensure proper mobile layout on iOS Safari.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.6.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
                 

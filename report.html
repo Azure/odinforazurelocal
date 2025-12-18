@@ -42,6 +42,67 @@
             border-color: #cccccc !important;
             color: #000000 !important;
         }
+
+        /* Mobile responsive styles for Report page */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem !important;
+                padding-bottom: 80px !important;
+            }
+
+            header h1 {
+                font-size: 1.3rem !important;
+            }
+
+            header p {
+                font-size: 0.9rem !important;
+            }
+
+            .step {
+                padding: 1rem !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .step-header h2 {
+                font-size: 1.1rem !important;
+            }
+
+            .info-box {
+                padding: 0.75rem !important;
+                font-size: 0.9rem !important;
+            }
+
+            /* Report sections */
+            #report-meta,
+            #report-summary,
+            #report-validations,
+            #report-rationale {
+                font-size: 0.9rem !important;
+            }
+
+            /* Close button spacing */
+            .reset-button {
+                margin-bottom: 70px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0.75rem !important;
+            }
+
+            header h1 {
+                font-size: 1.1rem !important;
+            }
+
+            .step-header h2 {
+                font-size: 1rem !important;
+            }
+
+            .info-box {
+                font-size: 0.85rem !important;
+            }
+        }
     </style>
 </head>
 
