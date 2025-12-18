@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0] - 2025-12-18
+
+### Added
+
+#### Visual Feedback Improvements
+
+- **Selected Option Checkmarks** - Option cards now display a blue checkmark (✓) in the top-right corner when selected, providing clear visual feedback of the current selection.
+
+- **Checkmark Animation** - Smooth pop-in animation when checkmarks appear for a polished user experience.
+
+### Changed
+
+#### UI/UX Improvements
+
+- **Renamed Action Buttons** - Export buttons renamed for clarity:
+  - "Generate Report" → "📋 Generate Cluster Design Document"
+  - "Generate ARM" → "🚀 Generate Cluster ARM Deployment Files"
+
+- **Removed PDF Export** - Removed the PDF export button as it was not providing value.
+
+- **8 Ports Tooltip** - Updated tooltip from "Maximum Density" to "Maximum resiliency and performance" for accuracy.
+
+### Fixed
+
+#### Step Indicator Validation
+
+- **Step Indicators** - Fixed all 19 step indicators to correctly show completion status with proper validation logic.
+
+- **Network Traffic Intents (Step 6)** - Fixed validation to check actual intent state and custom intent confirmation.
+
+- **Management Connectivity (Step 10)** - Fixed validation to require all node IPs when static IP is selected.
+
+- **Infrastructure Network (Step 12)** - Fixed validation to require all fields (CIDR, start IP, end IP, gateway).
+
+- **Active Directory (Step 13)** - Fixed validation to require all mandatory fields based on selected AD option.
+
+#### Stability Improvements
+
+- **Import Configuration Stability** - Fixed browser crash when importing configuration files. Added asynchronous processing, error handling, and loading feedback to prevent UI blocking.
+
+---
+
 ## [0.5.4] - 2025-12-18
 
 ### Fixed
@@ -121,7 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Sticky positioning for always-visible access
 
 - **Keyboard Shortcuts** - Power-user shortcuts for common actions
-  - `Alt+P` - Preview Configuration
+  - `Alt+P` - Preview Cluster Configuration
   - `Alt+R` - Generate Report
   - `Alt+E` - Export Configuration
   - `Alt+I` - Import Configuration

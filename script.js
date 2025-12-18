@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.5.1';
+const WIZARD_VERSION = '0.6.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -4462,17 +4462,59 @@ function getCustomNicMapping(customIntents, portCount) {
 
 function updateStepIndicators() {
     const steps = [
-        { id: 'step-1', field: 'scenario', validation: () => state.scenario !== null },
-        { id: 'step-2', field: 'region', validation: () => state.region !== null },
-        { id: 'step-3', field: 'localInstanceRegion', validation: () => state.localInstanceRegion !== null },
-        { id: 'step-4', field: 'scale', validation: () => state.scale !== null },
-        { id: 'step-5', field: 'nodes', validation: () => state.nodes !== null },
-        { id: 'step-6', field: 'ports', validation: () => state.ports !== null },
-        { id: 'step-7', field: 'outbound', validation: () => state.outbound !== null },
-        { id: 'step-8', field: 'arc', validation: () => state.arc !== null },
-        { id: 'step-9', field: 'ip', validation: () => state.ip !== null },
-        { id: 'step-10', field: 'activeDirectory', validation: () => state.activeDirectory !== null },
-        { id: 'step-11', field: 'securityConfiguration', validation: () => state.securityConfiguration !== null }
+        { id: 'step-1', validation: () => state.scenario !== null },
+        { id: 'step-cloud', validation: () => state.region !== null },
+        { id: 'step-local-region', validation: () => state.localInstanceRegion !== null },
+        { id: 'step-2', validation: () => state.scale !== null },
+        { id: 'step-3', validation: () => state.nodes !== null },
+        { id: 'step-3-5', validation: () => state.witnessType !== null },
+        { id: 'step-4', validation: () => state.storage !== null },
+        { id: 'step-5', validation: () => state.ports !== null },
+        { id: 'step-6', validation: () => {
+            // Intent must be selected
+            if (!state.intent) return false;
+            // For custom intent, adapter mapping must be confirmed
+            if (state.intent === 'custom' && !state.customIntentConfirmed) return false;
+            return true;
+        }},
+        { id: 'step-7', validation: () => state.outbound !== null },
+        { id: 'step-8', validation: () => state.arc !== null },
+        { id: 'step-9', validation: () => state.proxy !== null },
+        { id: 'step-10', validation: () => {
+            // IP assignment must be selected
+            if (!state.ip) return false;
+            // For static IP, all node IPs must be filled
+            if (state.ip === 'static') {
+                const nodeReadiness = getNodeSettingsReadiness();
+                return nodeReadiness.ready;
+            }
+            // DHCP is complete immediately
+            return true;
+        }},
+        { id: 'step-11', validation: () => state.infraVlan !== null },
+        { id: 'step-12', validation: () => {
+            // Infrastructure CIDR must be set
+            if (!state.infraCidr) return false;
+            // Infrastructure IP Pool (start and end) must be set
+            if (!state.infra || !state.infra.start || !state.infra.end) return false;
+            // Default Gateway is required for static IP
+            if (state.ip === 'static' && !state.infraGateway) return false;
+            return true;
+        }},
+        { id: 'step-5-5', validation: () => state.storagePoolConfiguration !== null },
+        { id: 'step-13', validation: () => {
+            // Identity option must be selected
+            if (!state.activeDirectory) return false;
+            // DNS servers required for both options
+            if (!state.dnsServers || state.dnsServers.filter(s => s && String(s).trim()).length === 0) return false;
+            // For Active Directory: domain name required
+            if (state.activeDirectory === 'azure_ad' && !state.adDomain) return false;
+            // For Local Identity (AD-Less): local DNS zone required
+            if (state.activeDirectory === 'local_identity' && !state.localDnsZone) return false;
+            return true;
+        }},
+        { id: 'step-13-5', validation: () => state.securityConfiguration !== null },
+        { id: 'step-14', validation: () => state.sdnFeatures.length === 0 || state.sdnManagement !== null }
     ];
 
     steps.forEach(step => {
@@ -6133,6 +6175,9 @@ function importConfiguration() {
                         return;
                     }
                     
+                    // Show loading indicator
+                    showToast('Importing configuration...', 'info', 2000);
+                    
                     // Track changes if there was previous state
                     const hadPreviousState = Object.keys(state).some(k => state[k] != null);
                     const changes = [];
@@ -6145,20 +6190,51 @@ function importConfiguration() {
                         });
                     }
                     
-                    // Apply imported state
-                    Object.assign(state, imported.state);
-                    updateUI();
-                    saveStateToLocalStorage();
+                    // Use setTimeout to prevent blocking and allow UI to update
+                    setTimeout(() => {
+                        try {
+                            // Apply imported state safely - only copy known properties
+                            const safeKeys = Object.keys(state);
+                            safeKeys.forEach(key => {
+                                if (imported.state.hasOwnProperty(key)) {
+                                    state[key] = imported.state[key];
+                                }
+                            });
+                            
+                            // Also copy any additional properties from import
+                            Object.keys(imported.state).forEach(key => {
+                                if (!safeKeys.includes(key)) {
+                                    state[key] = imported.state[key];
+                                }
+                            });
+                            
+                            // Update UI with error handling
+                            try {
+                                updateUI();
+                            } catch (uiErr) {
+                                console.error('UI update error during import:', uiErr);
+                            }
+                            
+                            saveStateToLocalStorage();
+                            
+                            if (changes.length > 0) {
+                                showToast(`Configuration imported! Changed: ${changes.length} fields`, 'success', 5000);
+                            } else {
+                                showToast('Configuration imported successfully!', 'success');
+                            }
+                        } catch (applyErr) {
+                            showToast('Error applying imported configuration', 'error');
+                            console.error('Apply import error:', applyErr);
+                        }
+                    }, 100);
                     
-                    if (changes.length > 0) {
-                        showToast(`Configuration imported! Changed: ${changes.length} fields`, 'success', 5000);
-                    } else {
-                        showToast('Configuration imported successfully!', 'success');
-                    }
                 } catch (err) {
                     showToast('Failed to parse configuration file', 'error');
                     console.error('Import error:', err);
                 }
+            };
+            reader.onerror = () => {
+                showToast('Failed to read configuration file', 'error');
             };
             reader.readAsText(file);
         };
@@ -6494,7 +6570,26 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.5.3 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.6.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Selected Option Checkmarks:</strong> Option cards now display a blue checkmark when selected for clear visual feedback.</li>
+                        <li><strong>Renamed Action Buttons:</strong> "Generate Report" → "📋 Generate Cluster Design Document", "Generate ARM" → "🚀 Generate Cluster ARM Deployment Files".</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Step Indicators:</strong> Fixed all 19 step indicators to correctly show completion status.</li>
+                        <li><strong>Validation Fixes:</strong> Improved validation for Network Traffic Intents, Management Connectivity, Infrastructure Network, and Active Directory steps.</li>
+                        <li><strong>Import Stability:</strong> Fixed browser crash when importing configuration files.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.5.3</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
                 
@@ -6502,7 +6597,6 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Multi-Rack Message Visibility:</strong> Fixed issue where Multi-Rack option note remained visible after changing scenarios.</li>
-                        <li><strong>Multi-Rack with M365 Local:</strong> Fixed Multi-Rack note persisting when switching to M365 Local deployment type.</li>
                         <li><strong>RDMA Dropdown Auto-Disable:</strong> RDMA dropdown now auto-disables when NICs don't have RDMA enabled in Port Configuration.</li>
                         <li><strong>Low Capacity RDMA Enforcement:</strong> Low Capacity scenarios with Switched storage no longer enforce RDMA for storage intent.</li>
                     </ul>
@@ -7404,7 +7498,7 @@ function showShortcutsHelp() {
             <div class="preview-body">
                 <div style="display: grid; gap: 12px;">
                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
-                        <span>Preview Configuration</span>
+                        <span>Preview Cluster Configuration</span>
                         <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">P</kbd></span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
