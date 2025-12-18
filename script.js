@@ -4492,7 +4492,15 @@ function updateStepIndicators() {
             return true;
         }},
         { id: 'step-11', validation: () => state.infraVlan !== null },
-        { id: 'step-12', validation: () => state.infraCidr !== null },
+        { id: 'step-12', validation: () => {
+            // Infrastructure CIDR must be set
+            if (!state.infraCidr) return false;
+            // Infrastructure IP Pool (start and end) must be set
+            if (!state.infra || !state.infra.start || !state.infra.end) return false;
+            // Default Gateway is required for static IP
+            if (state.ip === 'static' && !state.infraGateway) return false;
+            return true;
+        }},
         { id: 'step-5-5', validation: () => state.storagePoolConfiguration !== null },
         { id: 'step-13', validation: () => state.activeDirectory !== null },
         { id: 'step-13-5', validation: () => state.securityConfiguration !== null },
