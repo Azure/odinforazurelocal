@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.5.1';
+const WIZARD_VERSION = '0.6.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -6570,7 +6570,26 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.5.3 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.6.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Selected Option Checkmarks:</strong> Option cards now display a blue checkmark when selected for clear visual feedback.</li>
+                        <li><strong>Renamed Action Buttons:</strong> "Generate Report" → "📋 Generate Cluster Design Document", "Generate ARM" → "🚀 Generate Cluster ARM Deployment Files".</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Step Indicators:</strong> Fixed all 19 step indicators to correctly show completion status.</li>
+                        <li><strong>Validation Fixes:</strong> Improved validation for Network Traffic Intents, Management Connectivity, Infrastructure Network, and Active Directory steps.</li>
+                        <li><strong>Import Stability:</strong> Fixed browser crash when importing configuration files.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.5.3</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
                 
@@ -6578,7 +6597,6 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Multi-Rack Message Visibility:</strong> Fixed issue where Multi-Rack option note remained visible after changing scenarios.</li>
-                        <li><strong>Multi-Rack with M365 Local:</strong> Fixed Multi-Rack note persisting when switching to M365 Local deployment type.</li>
                         <li><strong>RDMA Dropdown Auto-Disable:</strong> RDMA dropdown now auto-disables when NICs don't have RDMA enabled in Port Configuration.</li>
                         <li><strong>Low Capacity RDMA Enforcement:</strong> Low Capacity scenarios with Switched storage no longer enforce RDMA for storage intent.</li>
                     </ul>
