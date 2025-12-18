@@ -6175,6 +6175,9 @@ function importConfiguration() {
                         return;
                     }
                     
+                    // Show loading indicator
+                    showToast('Importing configuration...', 'info', 2000);
+                    
                     // Track changes if there was previous state
                     const hadPreviousState = Object.keys(state).some(k => state[k] != null);
                     const changes = [];
@@ -6187,20 +6190,51 @@ function importConfiguration() {
                         });
                     }
                     
-                    // Apply imported state
-                    Object.assign(state, imported.state);
-                    updateUI();
-                    saveStateToLocalStorage();
+                    // Use setTimeout to prevent blocking and allow UI to update
+                    setTimeout(() => {
+                        try {
+                            // Apply imported state safely - only copy known properties
+                            const safeKeys = Object.keys(state);
+                            safeKeys.forEach(key => {
+                                if (imported.state.hasOwnProperty(key)) {
+                                    state[key] = imported.state[key];
+                                }
+                            });
+                            
+                            // Also copy any additional properties from import
+                            Object.keys(imported.state).forEach(key => {
+                                if (!safeKeys.includes(key)) {
+                                    state[key] = imported.state[key];
+                                }
+                            });
+                            
+                            // Update UI with error handling
+                            try {
+                                updateUI();
+                            } catch (uiErr) {
+                                console.error('UI update error during import:', uiErr);
+                            }
+                            
+                            saveStateToLocalStorage();
+                            
+                            if (changes.length > 0) {
+                                showToast(`Configuration imported! Changed: ${changes.length} fields`, 'success', 5000);
+                            } else {
+                                showToast('Configuration imported successfully!', 'success');
+                            }
+                        } catch (applyErr) {
+                            showToast('Error applying imported configuration', 'error');
+                            console.error('Apply import error:', applyErr);
+                        }
+                    }, 100);
                     
-                    if (changes.length > 0) {
-                        showToast(`Configuration imported! Changed: ${changes.length} fields`, 'success', 5000);
-                    } else {
-                        showToast('Configuration imported successfully!', 'success');
-                    }
                 } catch (err) {
                     showToast('Failed to parse configuration file', 'error');
                     console.error('Import error:', err);
                 }
+            };
+            reader.onerror = () => {
+                showToast('Failed to read configuration file', 'error');
             };
             reader.readAsText(file);
         };
