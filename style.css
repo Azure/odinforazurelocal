@@ -1995,6 +1995,26 @@ header .header-description {
         padding: 1rem 0.75rem;
     }
 
+    /* Layout - stack columns on mobile */
+    .layout-flex {
+        flex-direction: column;
+    }
+
+    .steps-column {
+        order: 1;
+    }
+
+    .summary-column {
+        order: 2;
+        width: 100%;
+    }
+
+    #summary-panel {
+        position: relative;
+        top: 0;
+        max-height: none;
+    }
+
     header {
         margin-bottom: 2rem;
     }
