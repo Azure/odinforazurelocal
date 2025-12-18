@@ -4480,7 +4480,17 @@ function updateStepIndicators() {
         { id: 'step-7', validation: () => state.outbound !== null },
         { id: 'step-8', validation: () => state.arc !== null },
         { id: 'step-9', validation: () => state.proxy !== null },
-        { id: 'step-10', validation: () => state.ip !== null },
+        { id: 'step-10', validation: () => {
+            // IP assignment must be selected
+            if (!state.ip) return false;
+            // For static IP, all node IPs must be filled
+            if (state.ip === 'static') {
+                const nodeReadiness = getNodeSettingsReadiness();
+                return nodeReadiness.ready;
+            }
+            // DHCP is complete immediately
+            return true;
+        }},
         { id: 'step-11', validation: () => state.infraVlan !== null },
         { id: 'step-12', validation: () => state.infraCidr !== null },
         { id: 'step-5-5', validation: () => state.storagePoolConfiguration !== null },
