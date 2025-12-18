@@ -4514,7 +4514,7 @@ function updateStepIndicators() {
             return true;
         }},
         { id: 'step-13-5', validation: () => state.securityConfiguration !== null },
-        { id: 'step-14', validation: () => state.sdn !== null }
+        { id: 'step-14', validation: () => state.sdnFeatures.length === 0 || state.sdnManagement !== null }
     ];
 
     steps.forEach(step => {
