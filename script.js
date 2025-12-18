@@ -7329,6 +7329,12 @@ window.addEventListener('scroll', scrollHandler);
 
 function initKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
+        // Skip shortcuts when user is typing in input fields (except Escape)
+        const activeTag = document.activeElement?.tagName;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) && e.key !== 'Escape') {
+            return;
+        }
+
         // Escape to close modals - use specific classes for safety
         if (e.key === 'Escape') {
             const modals = document.querySelectorAll('.preview-modal, .onboarding-overlay, [data-close-on-escape="true"]');
@@ -7362,10 +7368,12 @@ function initKeyboardShortcuts() {
             importConfiguration();
         }
 
-        // Alt+S for start over
+        // Alt+S for start over (with confirmation)
         if (e.altKey && e.key === 's') {
             e.preventDefault();
-            resetAll();
+            if (confirm('Are you sure you want to start over? All current configuration will be lost.')) {
+                resetAll();
+            }
         }
 
         // Alt+? for shortcuts help
@@ -7391,7 +7399,7 @@ function showShortcutsHelp() {
         <div class="preview-content" style="max-width: 500px;">
             <div class="preview-header">
                 <h2>⌨️ Keyboard Shortcuts</h2>
-                <button class="preview-close" onclick="this.closest('.preview-modal').remove()">&times;</button>
+                <button class="preview-close" data-action="close-modal">&times;</button>
             </div>
             <div class="preview-body">
                 <div style="display: grid; gap: 12px;">
@@ -7866,13 +7874,23 @@ function renderOnboardingStep() {
             </div>
             
             <div class="onboarding-buttons">
-                <button class="onboarding-btn onboarding-btn-secondary" onclick="skipOnboarding()">Skip</button>
-                <button class="onboarding-btn onboarding-btn-primary" onclick="${currentOnboardingStep === onboardingSteps.length - 1 ? 'finishOnboarding()' : 'nextOnboardingStep()'}">
+                <button class="onboarding-btn onboarding-btn-secondary" data-action="skip">Skip</button>
+                <button class="onboarding-btn onboarding-btn-primary" data-action="next">
                     ${currentOnboardingStep === onboardingSteps.length - 1 ? 'Get Started' : 'Next'}
                 </button>
             </div>
         </div>
     `;
+    
+    // Use event delegation instead of inline onclick handlers
+    overlay.querySelector('[data-action="skip"]').addEventListener('click', skipOnboarding);
+    overlay.querySelector('[data-action="next"]').addEventListener('click', () => {
+        if (currentOnboardingStep === onboardingSteps.length - 1) {
+            finishOnboarding();
+        } else {
+            nextOnboardingStep();
+        }
+    });
     
     document.body.appendChild(overlay);
 }
