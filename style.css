@@ -1,12 +1,15 @@
 :root {
     --bg-dark: #000000;
     --card-bg: #111111;
+    --card-bg-transparent: rgba(17, 17, 17, 0.95);
     --text-primary: #ffffff;
     --text-secondary: #a1a1aa;
     --accent-blue: #0078d4;
     --accent-purple: #8b5cf6;
     --success: #10b981;
     --glass-border: rgba(255, 255, 255, 0.1);
+    --subtle-bg: rgba(255, 255, 255, 0.03);
+    --subtle-bg-hover: rgba(255, 255, 255, 0.06);
 }
 
 * {
@@ -29,7 +32,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: rgba(17, 17, 17, 0.95);
+    background: var(--card-bg-transparent);
     backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--glass-border);
     padding: 12px 0;
@@ -586,7 +589,7 @@ header .header-description {
 .wizard-progress__bar {
     height: 10px;
     width: 100%;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--subtle-bg-hover);
     border: 1px solid var(--glass-border);
     border-radius: 999px;
     overflow: hidden;
@@ -838,9 +841,9 @@ header .header-description {
     width: 100%;
     max-height: calc(100vh - 4rem);
     overflow-y: auto;
-    background: rgba(17, 17, 17, 0.95);
+    background: var(--card-bg-transparent);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-border);
     border-radius: 16px;
     padding: 1.5rem;
     transition: all 0.3s ease;
@@ -866,7 +869,7 @@ header .header-description {
     margin-bottom: 1rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--glass-border);
     padding-bottom: 0.5rem;
 }
 

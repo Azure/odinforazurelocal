@@ -466,7 +466,8 @@ function getReportReadiness() {
             const rdmaOnStorage = rdmaEnabledIndices.filter(i => storageSet.has(i)).length;
 
             // Custom intent helper: do not allow assigning Storage traffic to non-RDMA adapters.
-            if (state.intent === 'custom') {
+            // Exception: Low Capacity scenarios do not require RDMA for storage intent.
+            if (state.intent === 'custom' && requiredRdma > 0) {
                 const storageOnNonRdma = storageIndices.filter(i => {
                     const pc = cfg[i - 1];
                     return !(pc && pc.rdma === true);
@@ -1792,6 +1793,15 @@ function selectOption(category, value) {
         }
     }
     
+    // Hide Multi-Rack message when switching to another scenario option
+    if (category === 'scenario' && value !== 'multirack') {
+        const multiRackMsg = document.getElementById('multirack-message');
+        if (multiRackMsg) {
+            multiRackMsg.classList.add('hidden');
+            multiRackMsg.classList.remove('visible');
+        }
+    }
+    
     if (category === 'nodes') {
         const chip = document.querySelector(`.node-chip[onclick*="'${value}'"]`);
         if (chip && chip.classList.contains('disabled')) return;
@@ -2114,18 +2124,24 @@ function applyTheme() {
     if (state.theme === 'light') {
         root.style.setProperty('--bg-dark', '#f5f5f5');
         root.style.setProperty('--card-bg', '#ffffff');
+        root.style.setProperty('--card-bg-transparent', 'rgba(255, 255, 255, 0.95)');
         root.style.setProperty('--text-primary', '#000000');
         root.style.setProperty('--text-secondary', '#6b7280');
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
+        root.style.setProperty('--subtle-bg', 'rgba(0, 0, 0, 0.03)');
+        root.style.setProperty('--subtle-bg-hover', 'rgba(0, 0, 0, 0.06)');
         if (themeButton) themeButton.textContent = '☀️';
         if (logo) logo.src = 'odin-logo-white-background.png';
         document.body.style.background = '#f5f5f5';
     } else {
         root.style.setProperty('--bg-dark', '#000000');
         root.style.setProperty('--card-bg', '#111111');
+        root.style.setProperty('--card-bg-transparent', 'rgba(17, 17, 17, 0.95)');
         root.style.setProperty('--text-primary', '#ffffff');
         root.style.setProperty('--text-secondary', '#a1a1aa');
         root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
+        root.style.setProperty('--subtle-bg', 'rgba(255, 255, 255, 0.03)');
+        root.style.setProperty('--subtle-bg-hover', 'rgba(255, 255, 255, 0.06)');
         if (themeButton) themeButton.textContent = '🌙';
         if (logo) logo.src = 'odin-logo.png';
         document.body.style.background = '#000000';
@@ -4241,6 +4257,17 @@ function renderIntentOverrides(container) {
         const baseKey = String(g.key || '').startsWith('custom_') ? String(g.key).substring('custom_'.length) : String(g.key || '');
         const showVswitchOverrides = (baseKey === 'mgmt_compute' || baseKey === 'compute');
 
+        // Check if any NIC in this group has RDMA enabled (from Step 07 Port Configuration)
+        const groupHasRdma = g.nics.some(nic => {
+            const idx = nic - 1;
+            return state.portConfig && state.portConfig[idx] && state.portConfig[idx].rdma === true;
+        });
+
+        // If no NICs in the group have RDMA enabled, auto-set rdmaMode to 'Disabled'
+        if (!groupHasRdma && ov.rdmaMode !== 'Disabled') {
+            ov.rdmaMode = 'Disabled';
+        }
+
         const card = document.createElement('div');
         card.className = 'override-card';
 
@@ -4278,7 +4305,7 @@ function renderIntentOverrides(container) {
             </h5>
             <div class="config-row">
                 <span class="config-label">RDMA</span>
-                <select class="speed-select" data-override-group="${g.key}" data-override-key="rdmaMode">
+                <select class="speed-select" data-override-group="${g.key}" data-override-key="rdmaMode" ${!groupHasRdma ? 'disabled title="No RDMA-capable NICs in this group"' : ''}>
                     ${rdmaOptions.map(o => `<option value="${o}" ${ov.rdmaMode === o ? 'selected' : ''}>${o}</option>`).join('')}
                 </select>
             </div>
@@ -6461,7 +6488,21 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.5.2 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.5.3 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Multi-Rack Message Visibility:</strong> Fixed issue where Multi-Rack option note remained visible after changing scenarios.</li>
+                        <li><strong>RDMA Dropdown Auto-Disable:</strong> RDMA dropdown now auto-disables when NICs don't have RDMA enabled in Port Configuration.</li>
+                        <li><strong>Low Capacity RDMA Enforcement:</strong> Low Capacity scenarios with Switched storage no longer enforce RDMA for storage intent.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.5.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
                 
@@ -6817,13 +6858,14 @@ function showTemplates() {
                 scenario: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
-                scale: 'standard',
+                scale: 'medium',
                 nodes: 2,
                 witnessType: 'Cloud',
                 ports: 4,
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
-                intent: 'storage_compute',
+                intent: 'compute_storage',
+                storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
@@ -6840,13 +6882,14 @@ function showTemplates() {
                 scenario: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
-                scale: 'standard',
+                scale: 'medium',
                 nodes: 4,
                 witnessType: 'Cloud',
                 ports: 4,
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
-                intent: 'storage_compute',
+                intent: 'compute_storage',
+                storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
@@ -6870,7 +6913,8 @@ function showTemplates() {
                 ports: 4,
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
-                intent: 'storage_compute',
+                intent: 'compute_storage',
+                storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
@@ -6887,13 +6931,14 @@ function showTemplates() {
                 scenario: 'disconnected',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
-                scale: 'standard',
+                scale: 'medium',
                 nodes: 2,
                 witnessType: 'NoWitness',
                 ports: 4,
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
-                intent: 'storage_compute',
+                intent: 'compute_storage',
+                storageAutoIp: 'enabled',
                 outbound: 'air_gapped',
                 arc: 'no_arc',
                 proxy: 'no_proxy',
@@ -6917,7 +6962,8 @@ function showTemplates() {
                 storage: 'switchless',
                 switchlessLinkMode: 'full_mesh',
                 storagePoolConfiguration: 'Express',
-                intent: 'compute_management',
+                intent: 'mgmt_compute',
+                storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
@@ -6996,6 +7042,7 @@ function loadTemplate(templateIndex) {
     if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
     if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
     if (config.intent) selectOption('intent', config.intent);
+    if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
     if (config.outbound) selectOption('outbound', config.outbound);
     if (config.arc) selectOption('arc', config.arc);
     if (config.proxy) selectOption('proxy', config.proxy);
