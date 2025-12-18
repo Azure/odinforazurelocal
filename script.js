@@ -7435,6 +7435,10 @@ function showShortcutsHelp() {
             </div>
         </div>
     `;
+    
+    // Event delegation for close button
+    overlay.querySelector('[data-action="close-modal"]').addEventListener('click', () => overlay.remove());
+    
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
