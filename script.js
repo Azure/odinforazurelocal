@@ -4462,17 +4462,25 @@ function getCustomNicMapping(customIntents, portCount) {
 
 function updateStepIndicators() {
     const steps = [
-        { id: 'step-1', field: 'scenario', validation: () => state.scenario !== null },
-        { id: 'step-2', field: 'region', validation: () => state.region !== null },
-        { id: 'step-3', field: 'localInstanceRegion', validation: () => state.localInstanceRegion !== null },
-        { id: 'step-4', field: 'scale', validation: () => state.scale !== null },
-        { id: 'step-5', field: 'nodes', validation: () => state.nodes !== null },
-        { id: 'step-6', field: 'ports', validation: () => state.ports !== null },
-        { id: 'step-7', field: 'outbound', validation: () => state.outbound !== null },
-        { id: 'step-8', field: 'arc', validation: () => state.arc !== null },
-        { id: 'step-9', field: 'ip', validation: () => state.ip !== null },
-        { id: 'step-10', field: 'activeDirectory', validation: () => state.activeDirectory !== null },
-        { id: 'step-11', field: 'securityConfiguration', validation: () => state.securityConfiguration !== null }
+        { id: 'step-1', validation: () => state.scenario !== null },
+        { id: 'step-cloud', validation: () => state.region !== null },
+        { id: 'step-local-region', validation: () => state.localInstanceRegion !== null },
+        { id: 'step-2', validation: () => state.scale !== null },
+        { id: 'step-3', validation: () => state.nodes !== null },
+        { id: 'step-3-5', validation: () => state.witnessType !== null },
+        { id: 'step-4', validation: () => state.storage !== null },
+        { id: 'step-5', validation: () => state.ports !== null },
+        { id: 'step-6', validation: () => state.intents && Object.keys(state.intents).length > 0 },
+        { id: 'step-7', validation: () => state.outbound !== null },
+        { id: 'step-8', validation: () => state.arc !== null },
+        { id: 'step-9', validation: () => state.proxy !== null },
+        { id: 'step-10', validation: () => state.ip !== null },
+        { id: 'step-11', validation: () => state.infraVlan !== null },
+        { id: 'step-12', validation: () => state.infraCidr !== null },
+        { id: 'step-5-5', validation: () => state.storagePoolConfiguration !== null },
+        { id: 'step-13', validation: () => state.activeDirectory !== null },
+        { id: 'step-13-5', validation: () => state.securityConfiguration !== null },
+        { id: 'step-14', validation: () => state.sdn !== null }
     ];
 
     steps.forEach(step => {
