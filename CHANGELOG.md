@@ -163,7 +163,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Sticky positioning for always-visible access
 
 - **Keyboard Shortcuts** - Power-user shortcuts for common actions
-  - `Alt+P` - Preview Configuration
+  - `Alt+P` - Preview Cluster Configuration
   - `Alt+R` - Generate Report
   - `Alt+E` - Export Configuration
   - `Alt+I` - Import Configuration

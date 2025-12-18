@@ -7498,7 +7498,7 @@ function showShortcutsHelp() {
             <div class="preview-body">
                 <div style="display: grid; gap: 12px;">
                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
-                        <span>Preview Configuration</span>
+                        <span>Preview Cluster Configuration</span>
                         <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">P</kbd></span>
                     </div>
                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
