@@ -2124,18 +2124,24 @@ function applyTheme() {
     if (state.theme === 'light') {
         root.style.setProperty('--bg-dark', '#f5f5f5');
         root.style.setProperty('--card-bg', '#ffffff');
+        root.style.setProperty('--card-bg-transparent', 'rgba(255, 255, 255, 0.95)');
         root.style.setProperty('--text-primary', '#000000');
         root.style.setProperty('--text-secondary', '#6b7280');
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
+        root.style.setProperty('--subtle-bg', 'rgba(0, 0, 0, 0.03)');
+        root.style.setProperty('--subtle-bg-hover', 'rgba(0, 0, 0, 0.06)');
         if (themeButton) themeButton.textContent = '☀️';
         if (logo) logo.src = 'odin-logo-white-background.png';
         document.body.style.background = '#f5f5f5';
     } else {
         root.style.setProperty('--bg-dark', '#000000');
         root.style.setProperty('--card-bg', '#111111');
+        root.style.setProperty('--card-bg-transparent', 'rgba(17, 17, 17, 0.95)');
         root.style.setProperty('--text-primary', '#ffffff');
         root.style.setProperty('--text-secondary', '#a1a1aa');
         root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
+        root.style.setProperty('--subtle-bg', 'rgba(255, 255, 255, 0.03)');
+        root.style.setProperty('--subtle-bg-hover', 'rgba(255, 255, 255, 0.06)');
         if (themeButton) themeButton.textContent = '🌙';
         if (logo) logo.src = 'odin-logo.png';
         document.body.style.background = '#000000';
