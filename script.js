@@ -4470,7 +4470,13 @@ function updateStepIndicators() {
         { id: 'step-3-5', validation: () => state.witnessType !== null },
         { id: 'step-4', validation: () => state.storage !== null },
         { id: 'step-5', validation: () => state.ports !== null },
-        { id: 'step-6', validation: () => state.intents && Object.keys(state.intents).length > 0 },
+        { id: 'step-6', validation: () => {
+            // Intent must be selected
+            if (!state.intent) return false;
+            // For custom intent, adapter mapping must be confirmed
+            if (state.intent === 'custom' && !state.customIntentConfirmed) return false;
+            return true;
+        }},
         { id: 'step-7', validation: () => state.outbound !== null },
         { id: 'step-8', validation: () => state.arc !== null },
         { id: 'step-9', validation: () => state.proxy !== null },
