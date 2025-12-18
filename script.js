@@ -4502,7 +4502,17 @@ function updateStepIndicators() {
             return true;
         }},
         { id: 'step-5-5', validation: () => state.storagePoolConfiguration !== null },
-        { id: 'step-13', validation: () => state.activeDirectory !== null },
+        { id: 'step-13', validation: () => {
+            // Identity option must be selected
+            if (!state.activeDirectory) return false;
+            // DNS servers required for both options
+            if (!state.dnsServers || state.dnsServers.filter(s => s && String(s).trim()).length === 0) return false;
+            // For Active Directory: domain name required
+            if (state.activeDirectory === 'azure_ad' && !state.adDomain) return false;
+            // For Local Identity (AD-Less): local DNS zone required
+            if (state.activeDirectory === 'local_identity' && !state.localDnsZone) return false;
+            return true;
+        }},
         { id: 'step-13-5', validation: () => state.securityConfiguration !== null },
         { id: 'step-14', validation: () => state.sdn !== null }
     ];
