@@ -1780,6 +1780,12 @@ function generateReport() {
 function selectOption(category, value) {
     // Special handling for M365 Local - stop workflow and show documentation
     if (category === 'scenario' && value === 'm365local') {
+        // Hide Multi-Rack message when switching to M365 Local
+        const multiRackMsg = document.getElementById('multirack-message');
+        if (multiRackMsg) {
+            multiRackMsg.classList.add('hidden');
+            multiRackMsg.classList.remove('visible');
+        }
         showM365LocalInfo();
         return;
     }
@@ -6496,6 +6502,7 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Multi-Rack Message Visibility:</strong> Fixed issue where Multi-Rack option note remained visible after changing scenarios.</li>
+                        <li><strong>Multi-Rack with M365 Local:</strong> Fixed Multi-Rack note persisting when switching to M365 Local deployment type.</li>
                         <li><strong>RDMA Dropdown Auto-Disable:</strong> RDMA dropdown now auto-disables when NICs don't have RDMA enabled in Port Configuration.</li>
                         <li><strong>Low Capacity RDMA Enforcement:</strong> Low Capacity scenarios with Switched storage no longer enforce RDMA for storage intent.</li>
                     </ul>
