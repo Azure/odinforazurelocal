@@ -1959,3 +1959,413 @@ header .header-description {
 .adapter-mapping.is-locked .intent-zone-drop {
     border-style: solid;
 }
+
+/* ===========================================
+   Mobile Responsive Styles
+   =========================================== */
+
+/* Tablets and smaller (max-width: 1024px) */
+@media (max-width: 1024px) {
+    .container {
+        padding: 1.5rem 1rem;
+    }
+
+    header h1,
+    header .header-title {
+        font-size: 2rem;
+    }
+
+    .preview-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+
+    .preview-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+}
+
+/* Mobile devices (max-width: 768px) */
+@media (max-width: 768px) {
+    body {
+        padding-bottom: 6rem;
+    }
+
+    .container {
+        padding: 1rem 0.75rem;
+    }
+
+    header {
+        margin-bottom: 2rem;
+    }
+
+    header h1,
+    header .header-title {
+        font-size: 1.5rem;
+    }
+
+    header p,
+    header .header-description {
+        font-size: 0.95rem;
+    }
+
+    /* Header layout for mobile */
+    .header-layout {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .header-logo-section {
+        order: -1;
+        margin-bottom: 0.5rem;
+    }
+
+    .header-logo-section img {
+        max-width: 80px;
+    }
+
+    /* Breadcrumb navigation mobile */
+    .breadcrumb-nav {
+        margin: -1rem -0.75rem 1.5rem -0.75rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .breadcrumb-item {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+
+    .breadcrumb-number {
+        width: 18px;
+        height: 18px;
+        font-size: 10px;
+    }
+
+    /* Wizard progress mobile */
+    .wizard-progress {
+        padding: 0.75rem 1rem;
+    }
+
+    .wizard-progress__top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .wizard-progress__text {
+        font-size: 0.85rem;
+    }
+
+    /* Step styling mobile */
+    .step {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .step-header h2,
+    .step h2 {
+        font-size: 1.1rem;
+    }
+
+    .step-header p,
+    .step p {
+        font-size: 0.9rem;
+    }
+
+    /* Options grid mobile - already handled but enhance */
+    .options-grid {
+        gap: 1rem;
+    }
+
+    .option-card {
+        padding: 1rem;
+    }
+
+    .option-card .icon svg {
+        width: 36px;
+        height: 36px;
+    }
+
+    .option-card h3 {
+        font-size: 1rem;
+    }
+
+    .option-card p {
+        font-size: 0.85rem;
+    }
+
+    /* Selected checkmark mobile */
+    .option-card.selected::after {
+        width: 18px;
+        height: 18px;
+        font-size: 10px;
+        top: 6px;
+        right: 6px;
+    }
+
+    /* Input groups mobile */
+    .input-group {
+        margin-bottom: 1rem;
+    }
+
+    .input-group label {
+        font-size: 0.85rem;
+    }
+
+    .input-group input,
+    .input-group select,
+    .input-group textarea {
+        font-size: 16px; /* Prevents iOS zoom on focus */
+        padding: 0.75rem;
+    }
+
+    /* Info boxes mobile */
+    .info-box {
+        padding: 0.75rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    /* Preview modal mobile */
+    .preview-content {
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .preview-header {
+        padding: 16px;
+    }
+
+    .preview-header h2 {
+        font-size: 16px;
+    }
+
+    .preview-body {
+        padding: 16px;
+    }
+
+    .preview-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .preview-footer {
+        flex-direction: column;
+        padding: 12px 16px;
+    }
+
+    /* Onboarding mobile */
+    .onboarding-card {
+        padding: 20px;
+        margin: 10px;
+        width: calc(100% - 20px);
+    }
+
+    .onboarding-icon {
+        font-size: 48px;
+    }
+
+    .onboarding-title {
+        font-size: 20px;
+    }
+
+    .onboarding-features {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .onboarding-buttons {
+        flex-direction: column;
+    }
+
+    .onboarding-btn {
+        width: 100%;
+    }
+
+    /* Shortcuts help mobile - hide on small screens */
+    .shortcuts-help {
+        display: none;
+    }
+
+    /* Report actions floating bar mobile */
+    .report-actions--floating {
+        flex-direction: column;
+        padding: 0.75rem;
+        gap: 0.5rem;
+    }
+
+    .report-actions--floating .report-action-button {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 0.85rem;
+    }
+
+    /* Node settings table mobile */
+    .node-settings-table {
+        display: block;
+        overflow-x: auto;
+    }
+
+    /* Adapter mapping mobile */
+    .adapter-mapping {
+        padding: 1rem;
+    }
+
+    .adapter-drop-zone,
+    .intent-zone-drop {
+        min-height: 48px;
+    }
+
+    .adapter-pill {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+
+    /* Intent zones mobile */
+    .intent-zones-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .intent-zone-card {
+        padding: 1rem;
+    }
+
+    /* Switchless diagram mobile */
+    .switchless-diagram {
+        padding: 0.5rem;
+    }
+
+    .switchless-diagram__legend-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Small mobile devices (max-width: 480px) */
+@media (max-width: 480px) {
+    .container {
+        padding: 0.75rem 0.5rem;
+    }
+
+    header h1,
+    header .header-title {
+        font-size: 1.3rem;
+    }
+
+    header p,
+    header .header-description {
+        font-size: 0.85rem;
+    }
+
+    /* Compact breadcrumbs */
+    .breadcrumb-item {
+        padding: 5px 8px;
+        font-size: 10px;
+    }
+
+    .breadcrumb-label {
+        display: none;
+    }
+
+    .breadcrumb-separator {
+        font-size: 12px;
+    }
+
+    /* Step styling */
+    .step {
+        padding: 0.75rem;
+    }
+
+    .step-header h2,
+    .step h2 {
+        font-size: 1rem;
+    }
+
+    /* Option cards */
+    .option-card {
+        padding: 0.75rem;
+    }
+
+    .option-card .icon {
+        margin-bottom: 0.5rem;
+    }
+
+    .option-card .icon svg {
+        width: 32px;
+        height: 32px;
+    }
+
+    .option-card h3 {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .option-card p {
+        font-size: 0.8rem;
+    }
+
+    /* Preview modal */
+    .preview-item {
+        padding: 10px;
+    }
+
+    .preview-item-label {
+        font-size: 11px;
+    }
+
+    .preview-item-value {
+        font-size: 13px;
+    }
+
+    /* Buttons */
+    .btn,
+    button {
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    /* Report actions */
+    .report-actions--floating {
+        left: 0.5rem;
+        right: 0.5rem;
+        bottom: 0.5rem;
+    }
+
+    /* Toast notifications mobile */
+    .toast {
+        left: 0.5rem;
+        right: 0.5rem;
+        max-width: none;
+    }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .option-card {
+        min-height: 80px;
+    }
+
+    .breadcrumb-item {
+        min-height: 36px;
+    }
+
+    /* Remove hover effects on touch devices */
+    .option-card:hover {
+        transform: none;
+    }
+
+    .onboarding-btn-primary:hover {
+        transform: none;
+    }
+
+    /* Ensure tap feedback */
+    .option-card:active {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .breadcrumb-item:active {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.1] - 2025-12-18
+
+### Added
+
+#### Mobile Browser Support (Issue #38)
+
+- **Comprehensive Mobile Responsive Design** - Added full responsive CSS support for mobile and tablet devices:
+  - Tablet breakpoint (1024px): Adjusted container padding and preview grid
+  - Mobile breakpoint (768px): Reorganized header, breadcrumbs, wizard progress, steps, and modals for mobile screens
+  - Small mobile breakpoint (480px): Further optimized compact layouts for very small screens
+  - Touch device improvements: Larger touch targets, removed hover effects, added active states
+
+- **Mobile-Optimized Components**:
+  - Header and logo scale appropriately on smaller screens
+  - Breadcrumb navigation becomes scrollable with compact styling
+  - Option cards and step containers adapt to single-column layouts
+  - Preview modal becomes full-screen on mobile for better usability
+  - Onboarding tutorial optimized for mobile with stacked buttons
+  - Report action buttons stack vertically on narrow screens
+  - Input fields use 16px font size to prevent iOS zoom on focus
+  - Keyboard shortcuts help hidden on mobile (touch devices)
+
+---
+
 ## [0.6.0] - 2025-12-18
 
 ### Added
