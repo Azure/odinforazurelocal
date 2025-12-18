@@ -2045,6 +2045,10 @@ header .header-description {
 
     .header-version {
         font-size: 11px;
+        white-space: normal;
+        text-align: center;
+        display: block !important;
+        visibility: visible !important;
     }
 
     /* Layout - stack columns on mobile */

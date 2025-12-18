@@ -6559,13 +6559,15 @@ function showChangelog() {
         align-items: center;
         justify-content: center;
         animation: fadeIn 0.2s ease;
+        padding: 10px;
+        box-sizing: border-box;
     `;
     
     overlay.innerHTML = `
-        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto;">
+        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: var(--accent-blue);">What's New</h3>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
+                <h3 style="margin: 0; color: var(--accent-blue); font-size: 18px;">What's New</h3>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1;">&times;</button>
             </div>
             
             <div style="color: var(--text-primary); line-height: 1.8;">
