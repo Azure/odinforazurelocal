@@ -6859,17 +6859,28 @@ function showTemplates() {
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
-                nodes: 2,
+                nodes: '2',
                 witnessType: 'Cloud',
-                ports: 4,
+                ports: '4',
+                portConfig: [
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: true },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: true }
+                ],
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
                 intent: 'compute_storage',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'yes',
-                proxy: 'no_proxy',
-                ip: 'dhcp',
+                proxy: 'proxy',
+                ip: 'static',
+                nodeSettings: [
+                    { name: 'node1', ipCidr: '192.168.1.2/24' },
+                    { name: 'node2', ipCidr: '192.168.1.3/24' }
+                ],
+                infraGateway: '192.168.1.1',
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 securityConfiguration: 'recommended'
@@ -6883,9 +6894,9 @@ function showTemplates() {
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
-                nodes: 4,
+                nodes: '4',
                 witnessType: 'Cloud',
-                ports: 4,
+                ports: '4',
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
                 intent: 'compute_storage',
@@ -6907,10 +6918,10 @@ function showTemplates() {
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'rack_aware',
-                nodes: 8,
+                nodes: '8',
                 rackAwareZones: 2,
                 witnessType: 'Cloud',
-                ports: 4,
+                ports: '4',
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
                 intent: 'compute_storage',
@@ -6932,9 +6943,9 @@ function showTemplates() {
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
-                nodes: 2,
+                nodes: '2',
                 witnessType: 'NoWitness',
-                ports: 4,
+                ports: '4',
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
                 intent: 'compute_storage',
@@ -6956,9 +6967,9 @@ function showTemplates() {
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'low_capacity',
-                nodes: 2,
+                nodes: '2',
                 witnessType: 'Cloud',
-                ports: 2,
+                ports: '2',
                 storage: 'switchless',
                 switchlessLinkMode: 'full_mesh',
                 storagePoolConfiguration: 'Express',
@@ -7038,6 +7049,12 @@ function loadTemplate(templateIndex) {
     if (config.nodes) selectOption('nodes', config.nodes);
     if (config.witnessType) selectOption('witnessType', config.witnessType);
     if (config.ports) selectOption('ports', config.ports);
+    
+    // Apply portConfig after ports selection (since selectOption may reset it)
+    if (config.portConfig && Array.isArray(config.portConfig)) {
+        state.portConfig = config.portConfig;
+    }
+    
     if (config.storage) selectOption('storage', config.storage);
     if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
     if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
@@ -7047,9 +7064,21 @@ function loadTemplate(templateIndex) {
     if (config.arc) selectOption('arc', config.arc);
     if (config.proxy) selectOption('proxy', config.proxy);
     if (config.ip) selectOption('ip', config.ip);
+    
+    // Apply nodeSettings and infraGateway after ip selection (since selectOption may reset them)
+    if (config.nodeSettings && Array.isArray(config.nodeSettings)) {
+        state.nodeSettings = config.nodeSettings;
+    }
+    if (config.infraGateway) {
+        state.infraGateway = config.infraGateway;
+    }
+    
     if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
     if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
     if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
+
+    // Final UI update to reflect all state changes
+    updateUI();
 
     // Close the modal
     document.querySelectorAll('div').forEach(el => {
