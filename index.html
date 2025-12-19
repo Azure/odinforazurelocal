@@ -624,12 +624,12 @@
                 <section class="step" id="step-4">
                     <div class="step-header">
                         <span class="step-number">06</span>
-                        <h2>Storage Connectivity</h2>
-                        <button type="button" onclick="event.stopPropagation(); showComparison('storage');" style="margin-left: auto; padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                        <h2 id="step-4-title">Storage Connectivity</h2>
+                        <button id="storage-compare-btn" type="button" onclick="event.stopPropagation(); showComparison('storage');" style="margin-left: auto; padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
                             Compare Options
                         </button>
                     </div>
-                    <div class="options-grid">
+                    <div id="storage-options-grid" class="options-grid">
                         <div class="option-card" data-value="switched" onclick="selectOption('storage', 'switched')">
                             <div class="icon">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -664,7 +664,7 @@
                     <div id="tor-switch-count" class="hidden" style="margin-top: 1.5rem;">
                         <div style="margin-bottom: 0.9rem;">
                             <div style="font-weight: 700; letter-spacing: -0.01em;">ToR Switch Configuration</div>
-                            <div style="color: var(--text-secondary); font-size: 0.95rem;">Select the number of Top-of-Rack switches for storage connectivity.</div>
+                            <div id="tor-switch-description" style="color: var(--text-secondary); font-size: 0.95rem;">Select the number of Top-of-Rack switches for storage connectivity.</div>
                         </div>
                         <div class="options-grid">
                             <div id="tor-single-option" class="option-card" data-value="single"

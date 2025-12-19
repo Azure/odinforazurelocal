@@ -2910,13 +2910,27 @@ function updateUI() {
         if (outboundDisconnected) outboundDisconnected.classList.add('hidden');
     }
 
-    // Single-node clusters: Hide Storage Connectivity step (no storage intent needed)
-    const storageStep = document.getElementById('step-4');
-    if (state.nodes === '1' && storageStep) {
-        storageStep.classList.add('hidden');
-        // Clear storage selection for single-node
+    // Single-node clusters: Hide storage options but show ToR switch selection (for mgmt/compute)
+    const storageOptionsGrid = document.getElementById('storage-options-grid');
+    const storageCompareBtn = document.getElementById('storage-compare-btn');
+    const stepTitle = document.getElementById('step-4-title');
+    const torDescription = document.getElementById('tor-switch-description');
+    
+    if (state.nodes === '1') {
+        // Hide storage switched/switchless options (no storage intent for 1-node)
+        if (storageOptionsGrid) storageOptionsGrid.classList.add('hidden');
+        if (storageCompareBtn) storageCompareBtn.classList.add('hidden');
+        // Change title to reflect it's for network, not storage
+        if (stepTitle) stepTitle.textContent = 'Network Connectivity';
+        if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for management and compute traffic.';
+        // Clear storage selection but keep the step visible
         state.storage = null;
-        state.torSwitchCount = null;
+    } else {
+        // Show storage options for multi-node clusters
+        if (storageOptionsGrid) storageOptionsGrid.classList.remove('hidden');
+        if (storageCompareBtn) storageCompareBtn.classList.remove('hidden');
+        if (stepTitle) stepTitle.textContent = 'Storage Connectivity';
+        if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for storage connectivity.';
     }
 
     // ... remainder of updateUI unchanged ...
@@ -3606,6 +3620,7 @@ function updateUI() {
     })();
 
     // Conditional UI: Storage Switched + Hyperconverged/Low Capacity -> ToR Switch Count (Single/Dual)
+    // Also show for 1-node clusters (for mgmt/compute traffic, not storage)
     (function updateTorSwitchCountUi() {
         const torBlock = document.getElementById('tor-switch-count');
         if (!torBlock) return;
@@ -3613,7 +3628,10 @@ function updateUI() {
         const n = state.nodes ? parseInt(state.nodes, 10) : NaN;
         const isStorageSwitched = state.storage === 'switched';
         const isHyperconvergedOrLowCap = state.scale === 'medium' || state.scale === 'low_capacity';
-        const shouldShow = isStorageSwitched && isHyperconvergedOrLowCap && !isNaN(n) && n >= 1;
+        const isSingleNode = n === 1;
+        
+        // Show ToR selection for: 1-node clusters OR (storage switched + hyperconverged/low cap)
+        const shouldShow = (isSingleNode && isHyperconvergedOrLowCap) || (isStorageSwitched && isHyperconvergedOrLowCap && !isNaN(n) && n >= 1);
 
         const singleOption = document.getElementById('tor-single-option');
         const dualOption = document.getElementById('tor-dual-option');
