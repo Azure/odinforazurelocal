@@ -7015,7 +7015,7 @@ function checkForSavedState() {
             <div style="font-size: 12px; opacity: 0.9;">Last saved: ${escapeHtml(timestamp)}</div>
         </div>
         <button onclick="resumeSavedState()" style="padding: 8px 16px; background: white; color: #2563eb; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Resume</button>
-        <button onclick="dismissResumeBanner()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Start Fresh</button>
+        <button onclick="startFresh()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Start Fresh</button>
     `;
     
     document.body.appendChild(banner);
@@ -7046,17 +7046,92 @@ function resumeSavedState() {
         updateUI();
         showToast('Session resumed successfully!', 'success');
     }
-    dismissResumeBanner();
+    dismissResumeBanner(false); // Don't scroll to top when resuming
 }
 
-function dismissResumeBanner() {
+function dismissResumeBanner(scrollToTop) {
     const banner = document.getElementById('resume-banner');
     if (banner) {
         banner.style.animation = 'slideUp 0.3s ease';
         setTimeout(() => banner.remove(), 300);
     }
-    // Scroll to top of page when starting fresh
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll to top of page only when starting fresh
+    if (scrollToTop !== false) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+// Start fresh - clear saved state and reset all inputs
+function startFresh() {
+    // Clear localStorage
+    clearSavedState();
+    
+    // Reset the global state object to initial values
+    Object.keys(state).forEach(key => {
+        if (key === 'theme' || key === 'fontSize') return; // Keep theme/font preferences
+        if (Array.isArray(state[key])) {
+            state[key] = [];
+        } else if (typeof state[key] === 'object' && state[key] !== null) {
+            state[key] = key === 'securitySettings' ? {
+                driftControlEnforced: true,
+                bitlockerBootVolume: true,
+                bitlockerDataVolumes: true,
+                wdacEnforced: true,
+                credentialGuardEnforced: true,
+                smbSigningEnforced: true,
+                smbClusterEncryption: true
+            } : {};
+        } else if (typeof state[key] === 'boolean') {
+            state[key] = key === 'infraCidrAuto' ? true : false;
+        } else {
+            state[key] = null;
+        }
+    });
+    
+    // Dismiss the banner and scroll to top
+    dismissResumeBanner(true);
+    
+    // Update UI to reflect clean state
+    updateUI();
+    
+    // Clear all input fields AFTER updateUI to ensure they stay cleared
+    const infraCidrInput = document.getElementById('infra-cidr');
+    const infraStartInput = document.getElementById('infra-ip-start');
+    const infraEndInput = document.getElementById('infra-ip-end');
+    const infraGatewayInput = document.getElementById('infra-default-gateway');
+    const adDomainInput = document.getElementById('ad-domain');
+    const adOuPathInput = document.getElementById('ad-ou-path');
+    const adfsServerInput = document.getElementById('adfs-server-name');
+    const infraVlanIdInput = document.getElementById('infra-vlan-id');
+    const localDnsZoneInput = document.getElementById('local-dns-zone-input');
+    
+    if (infraCidrInput) infraCidrInput.value = '';
+    if (infraStartInput) infraStartInput.value = '';
+    if (infraEndInput) infraEndInput.value = '';
+    if (infraGatewayInput) infraGatewayInput.value = '';
+    if (adDomainInput) adDomainInput.value = '';
+    if (adOuPathInput) adOuPathInput.value = '';
+    if (adfsServerInput) adfsServerInput.value = '';
+    if (infraVlanIdInput) infraVlanIdInput.value = '';
+    if (localDnsZoneInput) localDnsZoneInput.value = '';
+    
+    // Hide sections that should only show after selections are made
+    const adDomainSection = document.getElementById('ad-domain-section');
+    const dnsConfigSection = document.getElementById('dns-config-section');
+    const localDnsZone = document.getElementById('local-dns-zone');
+    const adfsSection = document.getElementById('adfs-server-section');
+    
+    if (adDomainSection) adDomainSection.classList.add('hidden');
+    if (dnsConfigSection) dnsConfigSection.classList.add('hidden');
+    if (localDnsZone) localDnsZone.classList.add('hidden');
+    if (adfsSection) adfsSection.classList.add('hidden');
+    
+    // Remove selected state from all option cards
+    document.querySelectorAll('.option-card.selected').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    showToast('Started fresh - all previous data cleared', 'info');
 }
 
 // Enhanced validation with real-time feedback
