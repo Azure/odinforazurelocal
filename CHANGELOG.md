@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.2] - 2025-12-19
+
+### Fixed
+
+#### Bug Fixes
+
+- **Custom Storage Subnets in Diagrams (Issue #50)** - Fixed the switchless storage diagram legends to display custom storage subnet CIDRs when Storage Auto IP is disabled:
+  - Legend now shows actual custom subnet values instead of conceptual/example CIDRs
+  - Legend title changes from "Storage subnets (conceptual)" to "Storage subnets (custom)" when using custom subnets
+  - Applied to all switchless diagram variants (2-node, 3-node single-link, 3-node dual-link, 4-node)
+
+- **RDMA Hardware Requirement Tooltip** - Clarified that the RDMA port requirement applies to multi-node clusters, not single-node deployments
+
+- **Code Cleanup** - Simplified redundant null/undefined checks per Copilot review
+
+### Added
+
+- **MLAG Peer Links in Diagram** - Added visual representation of MLAG connectivity between ToR switches in the Storage Switched diagram when dual ToR configuration is used
+
+---
+
 ## [0.8.1] - 2025-12-19
 
 ### Fixed
