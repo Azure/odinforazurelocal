@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.6.2';
+const WIZARD_VERSION = '0.7.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -36,6 +36,8 @@ const state = {
     infraVlan: null,
     infraVlanId: null,
     storageAutoIp: null,
+    customStorageSubnets: [], // User-defined storage subnets when Storage Auto IP is disabled
+    customStorageSubnetsConfirmed: false, // Confirmation state for custom storage subnets
     activeDirectory: null,
     adDomain: null,
     adOuPath: null,
@@ -650,6 +652,92 @@ function prefixToMask(prefix) {
     return p === 0 ? 0 : ((0xFFFFFFFF << (32 - p)) >>> 0);
 }
 
+// Maximum SAM Account name length for computer accounts in Active Directory is 15 characters.
+const MAX_NODE_NAME_LENGTH = 15;
+
+/**
+ * Parse a node name into base prefix and numeric suffix.
+ * E.g., "customname01" → { base: "customname", num: 1, padding: 2 }
+ *       "node5"        → { base: "node", num: 5, padding: 1 }
+ *       "myserver"     → { base: "myserver", num: null, padding: 0 }
+ */
+function parseNodeNamePattern(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return { base: '', num: null, padding: 0 };
+
+    // Match trailing digits.
+    const match = trimmed.match(/^(.*?)(\d+)$/);
+    if (!match) {
+        return { base: trimmed, num: null, padding: 0 };
+    }
+
+    const base = match[1];
+    const numStr = match[2];
+    const num = parseInt(numStr, 10);
+    const padding = numStr.length;
+
+    return { base, num, padding };
+}
+
+/**
+ * Generate a node name from base, number, and padding.
+ * Respects the MAX_NODE_NAME_LENGTH limit.
+ */
+function generateNodeName(base, num, padding) {
+    const numStr = String(num).padStart(padding, '0');
+    let name = base + numStr;
+
+    // Truncate if necessary to fit within MAX_NODE_NAME_LENGTH.
+    if (name.length > MAX_NODE_NAME_LENGTH) {
+        // Try to truncate the base to fit.
+        const maxBaseLen = MAX_NODE_NAME_LENGTH - numStr.length;
+        if (maxBaseLen > 0) {
+            name = base.substring(0, maxBaseLen) + numStr;
+        } else {
+            // Number alone exceeds limit; just truncate the whole thing.
+            name = name.substring(0, MAX_NODE_NAME_LENGTH);
+        }
+    }
+
+    return name;
+}
+
+/**
+ * Auto-fill Node 2..N names based on Node 1's naming pattern.
+ * If Node 1 is "customname01", fills Node 2 as "customname02", Node 3 as "customname03", etc.
+ * Only fills empty node name fields; never overwrites user-provided values.
+ */
+function tryAutoFillSequentialNodeNamesFromFirst() {
+    const count = getNumericNodeCount();
+    if (!count || count < 2) return;
+    if (!Array.isArray(state.nodeSettings) || state.nodeSettings.length < 2) return;
+
+    const first = state.nodeSettings[0] || {};
+    const firstName = String(first.name || '').trim();
+    if (!firstName) return;
+
+    const { base, num, padding } = parseNodeNamePattern(firstName);
+
+    // Determine padding: use existing padding, or if no number was present, use minimal padding.
+    const effectivePadding = num !== null ? padding : 1;
+
+    for (let i = 1; i < count; i++) {
+        const cur = state.nodeSettings[i] || {};
+        const curVal = String(cur.name || '').trim();
+
+        // Only fill empty fields.
+        if (curVal) continue;
+
+        const newNum = (num !== null) ? (num + i) : (i + 1);
+        const newName = generateNodeName(base, newNum, effectivePadding);
+
+        // Validate the generated name.
+        if (newName && newName.length <= MAX_NODE_NAME_LENGTH && isValidNetbiosName(newName)) {
+            state.nodeSettings[i].name = newName;
+        }
+    }
+}
+
 function tryAutoFillSequentialNodeIpsFromFirst() {
     // Fill Node 2..N using Node 1's IP as the base, incrementing by 1.
     // Only fills empty node IP fields; never overwrites user-provided values.
@@ -718,6 +806,12 @@ function updateNodeName(index, value) {
     ensureNodeSettingsInitialized();
     if (!state.nodeSettings[index]) return;
     state.nodeSettings[index].name = String(value || '').trim();
+
+    // Convenience: if the user sets Node 1 name, auto-fill remaining empty node names sequentially.
+    if (index === 0) {
+        tryAutoFillSequentialNodeNamesFromFirst();
+    }
+
     validateNodeSettings();
     updateSummary();
     updateUI();
@@ -817,7 +911,7 @@ function renderNodeSettings() {
             <div style="flex:1; min-width:220px;">
                 <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${i + 1} Name</label>
                 <input type="text" value="${escapeHtml(node.name)}" maxlength="15" placeholder="e.g. node${i + 1}"
-                    title="NetBIOS name: max 15 chars; letters/numbers/hyphen; start/end alphanumeric"
+                    title="SAM Account name (max 15 chars). Enter Node 1 name with a number suffix (e.g. server01) to auto-fill other nodes."
                     style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
                     onchange="updateNodeName(${i}, this.value)">
             </div>
@@ -1196,13 +1290,55 @@ function generateArmParameters() {
         const storageNicsForNetworks = storageCandidates.slice(0, Math.max(0, storageNetworkCount));
         const { v1: storageVlan1, v2: storageVlan2 } = getStorageVlans();
 
+        // Helper to get custom subnet or fall back to default
+        const getCustomSubnetOrDefault = (subnetIndex, defaultSubnet) => {
+            if (Array.isArray(state.customStorageSubnets) && state.customStorageSubnets[subnetIndex]) {
+                return state.customStorageSubnets[subnetIndex];
+            }
+            return defaultSubnet;
+        };
+
+        // Helper to extract network prefix and calculate IP from custom CIDR or default
+        // defaultThirdOctet should be a number (e.g., 1, 2, 3) used to construct 10.0.{n}.0/24
+        const getSubnetInfo = (subnetIndex, defaultThirdOctet) => {
+            const defaultCidr = `10.0.${defaultThirdOctet}.0/24`;
+            const rawCidr = getCustomSubnetOrDefault(subnetIndex, defaultCidr);
+            // Ensure we are working with a string and trim whitespace
+            let cidr = (typeof rawCidr === 'string' ? rawCidr : defaultCidr).trim();
+
+            // Validate CIDR structure: "<ip>/<prefix>", where <ip> has 4 dot-separated numeric octets
+            const parts = cidr.split('/');
+            let ipParts = [];
+            let useDefault = false;
+
+            if (parts.length !== 2) {
+                useDefault = true;
+            } else {
+                ipParts = parts[0].split('.');
+                if (ipParts.length !== 4) {
+                    useDefault = true;
+                } else if (ipParts.some(p => p === '' || Number.isNaN(Number(p)))) {
+                    useDefault = true;
+                }
+            }
+
+            if (useDefault) {
+                cidr = defaultCidr;
+                const defaultParts = cidr.split('/');
+                ipParts = defaultParts[0].split('.');
+            }
+
+            const prefix = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
+            const mask = cidrToSubnetMask(cidr) || '255.255.255.0';
+            return { prefix, mask, cidr };
+        };
+
         const storageNetworkList = (() => {
             // Special-case: 3-node switchless requires explicit storage subnet/IP assignment.
             // Use the same example subnet numbering shown in the report:
             // 1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
             if (state.storage === 'switchless' && nodeCount === 3) {
                 const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? storageVlan1 : 'REPLACE_WITH_STORAGE_VLAN_1';
-                const storageSubnetMask = cidrToSubnetMask('10.0.1.0/24') || '255.255.255.0';
 
                 const subnetPairs = {
                     1: [1, 2],
@@ -1226,7 +1362,20 @@ function generateArmParameters() {
                     getNodeNameForArm(2)
                 ];
 
-                const makeIpv4 = (subnetNumber, hostOctet) => `10.0.${subnetNumber}.${hostOctet}`;
+                // Get subnet info for each of the 6 subnets (custom or default)
+                const subnetInfoMap = {};
+                for (let i = 1; i <= 6; i++) {
+                    subnetInfoMap[i] = getSubnetInfo(i - 1, i);
+                }
+
+                const makeIpv4 = (subnetNumber, hostOctet) => {
+                    const info = subnetInfoMap[subnetNumber];
+                    return info ? `${info.prefix}.${hostOctet}` : `10.0.${subnetNumber}.${hostOctet}`;
+                };
+                const getSubnetMask = (subnetNumber) => {
+                    const info = subnetInfoMap[subnetNumber];
+                    return info ? info.mask : '255.255.255.0';
+                };
                 const hostOctetForNodeInSubnet = (subnetNumber, nodeNumber) => {
                     const pair = subnetPairs[subnetNumber];
                     if (!pair) return null;
@@ -1246,7 +1395,7 @@ function generateArmParameters() {
                         storageAdapterIPInfo.push({
                             physicalNode: nodeNames[nodeNumber - 1] || `node${nodeNumber}`,
                             ipv4Address: (subnetNumber && hostOctet) ? makeIpv4(subnetNumber, hostOctet) : `REPLACE_WITH_NODE_${nodeNumber}_SMB${smbIdx}_IP`,
-                            subnetMask: storageSubnetMask
+                            subnetMask: subnetNumber ? getSubnetMask(subnetNumber) : '255.255.255.0'
                         });
                     }
 
@@ -1266,7 +1415,6 @@ function generateArmParameters() {
             // so the generated parameters file is complete and matches the reference pattern.
             if (state.storage === 'switchless' && nodeCount === 4) {
                 const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? storageVlan1 : 'REPLACE_WITH_STORAGE_VLAN_1';
-                const storageSubnetMask = cidrToSubnetMask('10.0.1.0/24') || '255.255.255.0';
 
                 // Subnet pairs (two subnets per node pair).
                 const subnetPairs = {
@@ -1300,7 +1448,25 @@ function generateArmParameters() {
                     getNodeNameForArm(3)
                 ];
 
-                const makeIpv4 = (subnetNumber, hostOctet) => `10.0.${subnetNumber}.${hostOctet}`;
+                // Build subnet info map for all 12 subnets (custom or default)
+                const subnetInfoMap = {};
+                for (let i = 1; i <= 12; i++) {
+                    subnetInfoMap[i] = getSubnetInfo(i - 1, i);
+                }
+
+                const makeIpv4 = (subnetNumber, hostOctet) => {
+                    const subnetInfo = subnetInfoMap[subnetNumber];
+                    if (!subnetInfo || !subnetInfo.prefix) {
+                        // Missing or invalid subnet info; return fallback
+                        return `10.0.${subnetNumber}.${hostOctet}`;
+                    }
+                    return `${subnetInfo.prefix}.${hostOctet}`;
+                };
+                const getSubnetMask = (subnetNumber) => {
+                    const subnetInfo = subnetInfoMap[subnetNumber];
+                    // Fall back to a default mask if subnet info is missing or malformed
+                    return (subnetInfo && subnetInfo.mask) ? subnetInfo.mask : '255.255.255.0';
+                };
                 const hostOctetForNodeInSubnet = (subnetNumber, nodeNumber) => {
                     const pair = subnetPairs[subnetNumber];
                     if (!pair) return null;
@@ -1320,7 +1486,7 @@ function generateArmParameters() {
                         storageAdapterIPInfo.push({
                             physicalNode: nodeNames[nodeNumber - 1] || `node${nodeNumber}`,
                             ipv4Address: (subnetNumber && hostOctet) ? makeIpv4(subnetNumber, hostOctet) : `REPLACE_WITH_NODE_${nodeNumber}_SMB${smbIdx}_IP`,
-                            subnetMask: storageSubnetMask
+                            subnetMask: subnetNumber ? getSubnetMask(subnetNumber) : '255.255.255.0'
                         });
                     }
 
@@ -1340,17 +1506,44 @@ function generateArmParameters() {
 
             const nic1 = storageNicsForNetworks[0];
             const nic2 = storageNicsForNetworks[1];
-            list.push({
+            
+            // For switched storage with Auto IP disabled, include storageAdapterIPInfo with custom or default subnets
+            const includeStorageAdapterIPInfo = state.storage === 'switched' && state.storageAutoIp === 'disabled';
+            
+            const buildStorageAdapterIPInfo = (subnetIndex) => {
+                if (!includeStorageAdapterIPInfo) return undefined;
+                const subnetInfo = getSubnetInfo(subnetIndex, subnetIndex + 1);
+                const adapterInfo = [];
+                for (let i = 0; i < nodeCount; i++) {
+                    adapterInfo.push({
+                        physicalNode: getNodeNameForArm(i),
+                        ipv4Address: `${subnetInfo.prefix}.${i + 2}`,
+                        subnetMask: subnetInfo.mask
+                    });
+                }
+                return adapterInfo;
+            };
+            
+            const network1 = {
                 name: 'StorageNetwork1',
                 networkAdapterName: nic1 ? `SMB${nic1}` : 'REPLACE_WITH_STORAGE_ADAPTER_1',
                 vlanId: (storageVlan1 !== null && storageVlan1 !== undefined) ? storageVlan1 : 'REPLACE_WITH_STORAGE_VLAN_1'
-            });
+            };
+            if (includeStorageAdapterIPInfo) {
+                network1.storageAdapterIPInfo = buildStorageAdapterIPInfo(0);
+            }
+            list.push(network1);
+            
             if (storageNetworkCount >= 2) {
-                list.push({
+                const network2 = {
                     name: 'StorageNetwork2',
                     networkAdapterName: nic2 ? `SMB${nic2}` : 'REPLACE_WITH_STORAGE_ADAPTER_2',
                     vlanId: (storageVlan2 !== null && storageVlan2 !== undefined) ? storageVlan2 : 'REPLACE_WITH_STORAGE_VLAN_2'
-                });
+                };
+                if (includeStorageAdapterIPInfo) {
+                    network2.storageAdapterIPInfo = buildStorageAdapterIPInfo(1);
+                }
+                list.push(network2);
             }
             return list;
         })();
@@ -1412,6 +1605,23 @@ function generateArmParameters() {
                 };
             };
 
+            const buildQosPolicyOverrides = (groupKey) => {
+                const ov = (state.intentOverrides && state.intentOverrides[groupKey]) ? state.intentOverrides[groupKey] : null;
+                const touched = !!(ov && ov.__touchedQos === true);
+                // DCB QoS values: priorityValue8021Action_SMB is Storage priority, priorityValue8021Action_Cluster is System priority
+                const storagePriority = ov && ov.dcbStoragePriority ? String(ov.dcbStoragePriority) : '';
+                const systemPriority = ov && ov.dcbSystemPriority ? String(ov.dcbSystemPriority) : '';
+                const storageBandwidth = ov && ov.dcbStorageBandwidth ? String(ov.dcbStorageBandwidth) : '';
+                return {
+                    touched,
+                    overrides: {
+                        priorityValue8021Action_Cluster: systemPriority,
+                        priorityValue8021Action_SMB: storagePriority,
+                        bandwidthPercentage_SMB: storageBandwidth
+                    }
+                };
+            };
+
             const baseGroups = (Array.isArray(intentGroups) ? intentGroups : []);
 
             if (baseGroups.length === 0) {
@@ -1450,6 +1660,7 @@ function generateArmParameters() {
 
                 const adapterOverrides = buildAdapterPropertyOverrides(g.key);
                 const vswitchOverrides = buildVirtualSwitchConfigurationOverrides(g.key);
+                const qosOverrides = buildQosPolicyOverrides(g.key);
 
                 out.push({
                     name,
@@ -1457,8 +1668,8 @@ function generateArmParameters() {
                     adapter: adapters.length ? adapters : ['REPLACE_WITH_ADAPTER_1', 'REPLACE_WITH_ADAPTER_2'],
                     overrideVirtualSwitchConfiguration: vswitchOverrides.touched,
                     virtualSwitchConfigurationOverrides: vswitchOverrides.overrides,
-                    overrideQosPolicy: false,
-                    qosPolicyOverrides: { priorityValue8021Action_Cluster: '', priorityValue8021Action_SMB: '', bandwidthPercentage_SMB: '' },
+                    overrideQosPolicy: qosOverrides.touched,
+                    qosPolicyOverrides: qosOverrides.overrides,
                     // Apply adapter properties only when the user explicitly changed overrides in the UI.
                     // (Defaults are still emitted but not enforced unless touched.)
                     overrideAdapterProperty: adapterOverrides.touched,
@@ -1942,6 +2153,7 @@ function selectOption(category, value) {
         }
     } else if (category === 'storage') {
         state.ports = null; state.intent = null; state.customIntentConfirmed = false; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
+        state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
         state.switchlessLinkMode = null;
         // Storage choice should not invalidate Rack Aware zone placement or ToR architecture.
         // (Rack Aware is a scale/topology decision; users expect ToR selections to persist
@@ -1953,6 +2165,7 @@ function selectOption(category, value) {
         state.intent = null;
         state.customIntentConfirmed = false;
         state.storageAutoIp = null;
+        state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
         try { state.portConfig = null; } catch (e) { /* ignore */ }
     } else if (category === 'rackAwareTorsPerRoom') {
         state.rackAwareTorsPerRoom = value;
@@ -1964,6 +2177,7 @@ function selectOption(category, value) {
         state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
         state.intentOverrides = {};
         state.storageAutoIp = null;
+        state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
         state.infraVlan = null;
         state.infraVlanId = null;
     } else if (category === 'storagePoolConfiguration') {
@@ -2000,6 +2214,11 @@ function selectOption(category, value) {
         }
 
         applyInfraVlanVisibility();
+    } else if (category === 'storageAutoIp') {
+        state.storageAutoIp = value;
+        // Reset custom storage subnets when changing auto IP setting
+        state.customStorageSubnets = [];
+        state.customStorageSubnetsConfirmed = false;
     } else if (category === 'activeDirectory') {
         state.activeDirectory = value;
         state.adDomain = null;
@@ -3128,6 +3347,18 @@ function updateUI() {
             }
         }
     }
+
+    // Custom Storage Subnets UI - show when Storage Auto IP is disabled
+    const customStorageSubnetsSection = document.getElementById('custom-storage-subnets');
+    if (customStorageSubnetsSection) {
+        if (state.storageAutoIp === 'disabled') {
+            customStorageSubnetsSection.classList.remove('hidden');
+            updateCustomStorageSubnetsUI();
+        } else {
+            customStorageSubnetsSection.classList.add('hidden');
+            state.customStorageSubnets = [];
+        }
+    }
     
     // Cloud Witness Type: Lock based on cluster configuration
     const witnessLocked = isWitnessTypeLocked();
@@ -4207,6 +4438,193 @@ function ensureDefaultOverridesForGroups(groups) {
     }
 }
 
+// Calculate how many storage subnets are required based on configuration
+function getRequiredStorageSubnetCount() {
+    const nodeCount = parseInt(state.nodes, 10) || 0;
+
+    if (state.storage === 'switchless') {
+        // 2-node switchless: 2 subnets
+        if (nodeCount === 2) return 2;
+        // 3-node switchless: 6 subnets (one per node pair link)
+        if (nodeCount === 3) return 6;
+        // 4-node switchless: 12 subnets
+        if (nodeCount === 4) return 12;
+        return 0;
+    }
+    
+    if (state.storage === 'switched') {
+        // Switched always needs 2 storage subnets
+        return 2;
+    }
+    
+    return 0;
+}
+
+// Update the custom storage subnets UI
+function updateCustomStorageSubnetsUI() {
+    const container = document.getElementById('custom-storage-subnet-inputs');
+    if (!container) return;
+
+    const requiredCount = getRequiredStorageSubnetCount();
+    
+    // Initialize customStorageSubnets array if needed
+    if (!Array.isArray(state.customStorageSubnets)) {
+        state.customStorageSubnets = [];
+    }
+    
+    // Preserve existing values while ensuring the array is the right size
+    while (state.customStorageSubnets.length < requiredCount) {
+        state.customStorageSubnets.push('');
+    }
+    state.customStorageSubnets = state.customStorageSubnets.slice(0, requiredCount);
+    
+    // Generate default example subnets
+    const defaultSubnets = [];
+    for (let i = 0; i < requiredCount; i++) {
+        defaultSubnets.push(`10.0.${i + 1}.0/24`);
+    }
+    
+    container.innerHTML = '';
+    
+    if (requiredCount === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary);">Storage subnet configuration is not available for the current settings.</p>';
+        return;
+    }
+    
+    let html = '';
+    for (let i = 0; i < requiredCount; i++) {
+        const value = state.customStorageSubnets[i] || '';
+        const placeholder = defaultSubnets[i];
+        const label = state.storage === 'switched' 
+            ? `Storage Network ${i + 1} Subnet`
+            : `Storage Subnet ${i + 1}`;
+        
+        html += `
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                <label style="font-weight: 600; color: var(--text-primary);">${label}</label>
+                <input type="text" 
+                       class="custom-storage-subnet-input"
+                       data-subnet-index="${i}"
+                       value="${escapeHtml(value)}"
+                       placeholder="${placeholder}"
+                       style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-family: monospace;"
+                       oninput="updateCustomStorageSubnet(${i}, this.value)" />
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Update confirm button state
+    updateCustomStorageSubnetsConfirmButton();
+}
+
+// Toggle confirmation state for custom storage subnets
+function toggleCustomStorageSubnetsConfirmed() {
+    state.customStorageSubnetsConfirmed = !state.customStorageSubnetsConfirmed;
+    updateUI();
+}
+
+// Update the confirm button UI for custom storage subnets
+function updateCustomStorageSubnetsConfirmButton() {
+    const confirmBtn = document.getElementById('custom-storage-subnets-confirm-btn');
+    const confirmStatus = document.getElementById('custom-storage-subnets-confirm-status');
+    const confirmed = state.customStorageSubnetsConfirmed;
+    const requiredCount = getRequiredStorageSubnetCount();
+    
+    // Check if all required subnets have values and are valid CIDR format
+    const subnetsToCheck = Array.isArray(state.customStorageSubnets) 
+        ? state.customStorageSubnets.slice(0, requiredCount) 
+        : [];
+    const allFilled = subnetsToCheck.length >= requiredCount &&
+                      subnetsToCheck.every(s => s && s.trim().length > 0);
+    const allValid = allFilled && subnetsToCheck.every(s => isValidCidrFormat(s));
+    
+    if (confirmBtn) {
+        if (confirmBtn.dataset && confirmBtn.dataset.bound !== '1') {
+            confirmBtn.dataset.bound = '1';
+            confirmBtn.addEventListener('click', () => toggleCustomStorageSubnetsConfirmed());
+        }
+        // Only allow confirmation when all subnets are filled AND valid
+        confirmBtn.disabled = !allValid && !confirmed;
+        confirmBtn.classList.toggle('is-confirmed', confirmed);
+        confirmBtn.textContent = confirmed ? 'Edit Storage Subnets' : 'Confirm Storage Subnets';
+    }
+    
+    if (confirmStatus) {
+        if (confirmed) {
+            confirmStatus.textContent = '✓ Confirmed';
+            confirmStatus.style.color = 'var(--accent-blue)';
+        } else if (allFilled && !allValid) {
+            confirmStatus.textContent = 'Fix invalid CIDR format';
+            confirmStatus.style.color = 'var(--accent-red, #ef4444)';
+        } else {
+            confirmStatus.textContent = allFilled ? 'Click to confirm' : 'Enter all subnet values';
+            confirmStatus.style.color = 'var(--text-secondary)';
+        }
+    }
+    
+    // Disable/enable inputs based on confirmation state
+    const inputs = document.querySelectorAll('.custom-storage-subnet-input');
+    inputs.forEach(input => {
+        input.disabled = confirmed;
+        input.style.opacity = confirmed ? '0.7' : '1';
+    });
+}
+
+// Validate CIDR format (e.g., 10.0.1.0/24)
+function isValidCidrFormat(cidr) {
+    if (!cidr || typeof cidr !== 'string') return false;
+    const trimmed = cidr.trim();
+    const parts = trimmed.split('/');
+    if (parts.length !== 2) return false;
+    
+    const ip = parts[0];
+    const prefixStr = parts[1];
+    const prefix = parseInt(prefixStr, 10);
+    
+    // Validate prefix is a number between 0 and 32
+    if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+    
+    // Validate IP has 4 octets, each 0-255
+    const octets = ip.split('.');
+    if (octets.length !== 4) return false;
+    
+    for (const octet of octets) {
+        if (octet === '' || Number.isNaN(Number(octet))) return false;
+        const num = parseInt(octet, 10);
+        if (num < 0 || num > 255) return false;
+    }
+    
+    return true;
+}
+
+// Update a specific custom storage subnet
+function updateCustomStorageSubnet(index, value) {
+    if (!Array.isArray(state.customStorageSubnets)) {
+        state.customStorageSubnets = [];
+    }
+    const trimmed = value.trim();
+    state.customStorageSubnets[index] = trimmed;
+    
+    // Provide visual feedback for invalid CIDR format
+    const input = document.querySelector(`.custom-storage-subnet-input[data-subnet-index="${index}"]`);
+    if (input) {
+        if (trimmed && !isValidCidrFormat(trimmed)) {
+            input.style.borderColor = 'var(--accent-red, #ef4444)';
+            input.title = 'Invalid CIDR format. Use format like 10.0.1.0/24';
+        } else {
+            input.style.borderColor = 'var(--glass-border)';
+            input.title = '';
+        }
+    }
+    
+    // Reset confirmation when values change
+    state.customStorageSubnetsConfirmed = false;
+    updateCustomStorageSubnetsConfirmButton();
+    updateSummary();
+}
+
 function getStorageVlanOverrideNetworkCount() {
     // Step 05 Storage Connectivity controls how many storage networks exist.
     // - Switched: 2 storage networks
@@ -4281,6 +4699,45 @@ function renderIntentOverrides(container) {
             ? `NIC${g.nics.length > 1 ? 's' : ''}: ${g.nics.join(', ')}`
             : `NICs: ${Math.min(...g.nics)}-${Math.max(...g.nics)}`;
 
+        // Determine if this group handles storage traffic (for DCB/QoS options)
+        const isStorageGroup = (g.key === 'storage' || g.key === 'custom_storage' || 
+                                g.key === 'all' || g.key === 'compute_storage' || 
+                                g.key === 'custom_compute_storage' || g.key === 'custom_all');
+
+        // DCB QoS Policy overrides for storage intents
+        const dcbQosHtml = isStorageGroup ? `
+            <div class="config-row" style="margin-top:1rem;border-top:1px solid var(--glass-border);padding-top:0.75rem;">
+                <span class="config-label" style="font-weight:600;color:var(--accent-blue);">DCB QoS Overrides</span>
+            </div>
+            <div class="config-row" style="margin-top:0.5rem;">
+                <span class="config-label">Storage Priority (SMB)</span>
+                <select class="speed-select" data-override-group="${g.key}" data-override-key="dcbStoragePriority">
+                    <option value="" ${!ov.dcbStoragePriority ? 'selected' : ''}>Default (3)</option>
+                    <option value="3" ${ov.dcbStoragePriority === '3' ? 'selected' : ''}>3</option>
+                    <option value="4" ${ov.dcbStoragePriority === '4' ? 'selected' : ''}>4</option>
+                </select>
+            </div>
+            <div class="config-row" style="margin-top:0.5rem;">
+                <span class="config-label">System/Cluster Priority</span>
+                <select class="speed-select" data-override-group="${g.key}" data-override-key="dcbSystemPriority">
+                    <option value="" ${!ov.dcbSystemPriority ? 'selected' : ''}>Default (5)</option>
+                    <option value="5" ${ov.dcbSystemPriority === '5' ? 'selected' : ''}>5</option>
+                    <option value="6" ${ov.dcbSystemPriority === '6' ? 'selected' : ''}>6</option>
+                    <option value="7" ${ov.dcbSystemPriority === '7' ? 'selected' : ''}>7</option>
+                </select>
+            </div>
+            <div class="config-row" style="margin-top:0.5rem;">
+                <span class="config-label">Storage Bandwidth %</span>
+                <select class="speed-select" data-override-group="${g.key}" data-override-key="dcbStorageBandwidth">
+                    <option value="" ${!ov.dcbStorageBandwidth ? 'selected' : ''}>Default (50%)</option>
+                    <option value="40" ${ov.dcbStorageBandwidth === '40' ? 'selected' : ''}>40%</option>
+                    <option value="50" ${ov.dcbStorageBandwidth === '50' ? 'selected' : ''}>50%</option>
+                    <option value="60" ${ov.dcbStorageBandwidth === '60' ? 'selected' : ''}>60%</option>
+                    <option value="70" ${ov.dcbStorageBandwidth === '70' ? 'selected' : ''}>70%</option>
+                </select>
+            </div>
+        ` : '';
+
         const storageVlanCount = getStorageVlanOverrideNetworkCount();
         const storageVlanHtml = (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') ? (() => {
             if (storageVlanCount <= 0) return '';
@@ -4330,6 +4787,7 @@ function renderIntentOverrides(container) {
             </div>
             ` : ''}
             ${storageVlanHtml}
+            ${dcbQosHtml}
         `;
 
         // Wire change handlers
@@ -4364,6 +4822,9 @@ function updateIntentGroupOverride(groupKey, key, value) {
     state.intentOverrides[groupKey].__touched = true;
     if (key === 'enableIov') {
         state.intentOverrides[groupKey].__touchedVswitch = true;
+    } else if (key.startsWith('dcb')) {
+        // DCB QoS policy overrides
+        state.intentOverrides[groupKey].__touchedQos = true;
     } else {
         // RDMA/Jumbo are adapter property overrides.
         state.intentOverrides[groupKey].__touchedAdapterProperty = true;
@@ -6572,7 +7033,23 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.6.2 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.7.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Deploy to Azure Button:</strong> One-click deployment button on ARM Parameters page that redirects to the Azure Portal with the correct ARM template pre-loaded. Supports Commercial and Government clouds.</li>
+                        <li><strong>Node Name Auto-Population:</strong> Enter a name with a numeric suffix in Node 1 (e.g., "server01") and remaining node names are auto-filled sequentially (server02, server03...). Preserves number padding and validates the 15-character SAM Account name limit.</li>
+                        <li><strong>DCB QoS Overrides for Storage Intents:</strong> New override options in Network Traffic Intents to customize Data Center Bridging (DCB) QoS policy - Storage Priority (3 or 4), System/Cluster Priority (5, 6, or 7), and Bandwidth Reservation % (40-70%).</li>
+                        <li><strong>Proxy Bypass String Generation:</strong> Report now shows a ready-to-use proxy bypass string when proxy is enabled, including localhost, node names, node IPs, domain wildcard, and infrastructure subnet wildcard.</li>
+                        <li><strong>Custom Storage Subnets:</strong> When Storage Auto IP is disabled, you can now specify custom storage subnet CIDRs instead of the default 10.0.x.0/24 networks. Supports 2-12 subnets depending on storage configuration.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.6.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
                 

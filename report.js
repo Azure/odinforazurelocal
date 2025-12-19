@@ -34,6 +34,37 @@
             .replace(/'/g, '&#39;');
     }
 
+    // Convert CIDR notation to wildcard format for proxy bypass
+    // e.g., 192.168.20.0/24 -> 192.168.20.*
+    // e.g., 172.16.0.0/16 -> 172.16.*.*
+    // e.g., 10.0.0.0/8 -> 10.*.*.*
+    function convertCidrToWildcard(cidr) {
+        if (!cidr) return null;
+        var parts = cidr.split('/');
+        if (parts.length !== 2) return null;
+        
+        var ip = parts[0];
+        var prefix = parseInt(parts[1], 10);
+        var octets = ip.split('.');
+        if (octets.length !== 4) return null;
+        
+        // Validate prefix is a valid number between 0 and 32
+        if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) return null;
+        
+        // Determine how many octets to keep based on CIDR prefix
+        if (prefix <= 8) {
+            return octets[0] + '.*.*.*';
+        } else if (prefix <= 16) {
+            return octets[0] + '.' + octets[1] + '.*.*';
+        } else if (prefix <= 24) {
+            return octets[0] + '.' + octets[1] + '.' + octets[2] + '.*';
+        } else {
+            // /25 or larger - return full IP (documented limitation: not a valid wildcard pattern)
+            // For proxy bypass, this will match only the exact network address
+            return ip;
+        }
+    }
+
     function buildStandaloneReportHtml(opts) {
         opts = opts || {};
         var inlineCss = opts.inlineCss || '';
@@ -3331,14 +3362,67 @@
             outboundNotes.push('Implementation note: proxy bypass lists usually need to include at least the node IPs, cluster IP, and the infrastructure IPs/subnet so internal cluster traffic (and infrastructure services) do not get forced through the proxy path.');
             outboundNotes.push('Proxy planning note: Azure Local guidance emphasizes configuring proxy settings before registering nodes to Azure Arc, and keeping proxy configuration consistent across OS proxy components (WinINET, WinHTTP, and environment variables).');
         } else if (s.outbound === 'public') {
-            outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allowlisting).');
+            outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allow-listing).');
             outboundNotes.push('Even with public outbound, Arc-related components still require outbound HTTPS to Microsoft endpoints; ensure your firewall policy allows the required destinations.');
         }
+
+        // Generate proxy bypass string when proxy is enabled
+        var proxyBypassHtml = '';
+        if (s.proxy === 'proxy') {
+            var bypassItems = [];
+            
+            // Always add localhost and loopback
+            bypassItems.push('localhost');
+            bypassItems.push('127.0.0.1');
+            
+            // Add node names if available
+            if (s.nodeSettings && s.nodeSettings.length) {
+                s.nodeSettings.forEach(function(node, idx) {
+                    if (node && node.name) {
+                        bypassItems.push(node.name);
+                    }
+                });
+            }
+            
+            // Add node IPs if available
+            if (s.nodeSettings && s.nodeSettings.length) {
+                s.nodeSettings.forEach(function(node, idx) {
+                    if (node && node.ipCidr) {
+                        // Extract IP from CIDR notation
+                        var ip = node.ipCidr.split('/')[0];
+                        if (ip) bypassItems.push(ip);
+                    }
+                });
+            }
+            
+            // Add domain name wildcard if AD domain is specified
+            if (s.adDomain) {
+                bypassItems.push('*.' + s.adDomain);
+            }
+            
+            // Add infrastructure subnet as wildcard
+            if (s.infraCidr) {
+                var infraSubnetWildcard = convertCidrToWildcard(s.infraCidr);
+                if (infraSubnetWildcard) {
+                    bypassItems.push(infraSubnetWildcard);
+                }
+            }
+            
+            proxyBypassHtml = '<div style="margin-top: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">'
+                + '<strong style="color: var(--accent-blue);">Minimum Proxy Bypass String:</strong>'
+                + '<div style="margin-top: 0.5rem; font-family: monospace; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 4px; word-break: break-all;">'
+                + escapeHtml(bypassItems.join(','))
+                + '</div>'
+                + '<p style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-secondary);">Add this bypass string to your Arc registration script. You may also need to add a cluster name and any additional internal resources.</p>'
+                + '</div>';
+        }
+
         sections.push(block('Outbound, Arc, Proxy',
             '<strong>Outbound:</strong> ' + escapeHtml(formatOutbound(s.outbound))
             + '<br><strong>Arc Gateway:</strong> ' + escapeHtml(s.arc === 'arc_gateway' ? 'Enabled (Recommended)' : (s.arc === 'no_arc' ? 'Disabled' : '-'))
             + '<br><strong>Proxy:</strong> ' + escapeHtml(s.proxy === 'no_proxy' ? 'Disabled' : (s.proxy ? 'Enabled' : '-'))
             + (outboundNotes.length ? list(outboundNotes) : '')
+            + proxyBypassHtml
             + renderValidationInline(validations.byArea.Outbound)
         ));
 

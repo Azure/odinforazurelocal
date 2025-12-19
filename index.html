@@ -142,7 +142,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.6.2 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.7.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -884,6 +884,20 @@
                                 </div>
                                 <h3>Storage Auto IP Disabled</h3>
                                 <p>Manually specify Storage IPs.</p>
+                            </div>
+                        </div>
+                        <!-- Custom Storage Subnets Input -->
+                        <div id="custom-storage-subnets" class="hidden" style="margin-top: 1rem;">
+                            <div class="info-box visible" style="margin-bottom: 1rem;">
+                                <strong>Custom Storage Subnets</strong>
+                                <p style="margin-top: 0.5rem; font-size: 0.9rem;">Specify the storage subnets to use for Storage Network configuration. Enter subnets in CIDR notation (e.g., 10.0.1.0/24).</p>
+                            </div>
+                            <div id="custom-storage-subnet-inputs" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+                            <div style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;">
+                                <button type="button" id="custom-storage-subnets-confirm-btn" class="report-button" style="padding: 0.6rem 1.2rem;">
+                                    Confirm Storage Subnets
+                                </button>
+                                <span id="custom-storage-subnets-confirm-status" style="font-size: 0.85rem; color: var(--text-secondary);">Not confirmed yet.</span>
                             </div>
                         </div>
                     </div>
