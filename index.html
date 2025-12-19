@@ -142,7 +142,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.7.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.8.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -640,8 +640,8 @@
                                     <circle cx="18" cy="12" r="1.5" fill="currentColor" />
                                 </svg>
                             </div>
-                            <h3>Switched</h3>
-                            <p>Physical switch. Required for 5+ nodes.</p>
+                            <h3>Storage Switched</h3>
+                            <p>Physical ToR switch. Required for 5+ nodes.</p>
                         </div>
                         <div class="option-card" data-value="switchless"
                             onclick="selectOption('storage', 'switchless')">
@@ -655,8 +655,51 @@
                                     <path d="M8 16H16" stroke-dasharray="2 2" />
                                 </svg>
                             </div>
-                            <h3>Switchless</h3>
+                            <h3>Storage Switchless</h3>
                             <p>Direct connection. Only for 1-4 nodes.</p>
+                        </div>
+                    </div>
+
+                    <!-- Conditional: Storage Switched + Hyperconverged/Low Capacity -->
+                    <div id="tor-switch-count" class="hidden" style="margin-top: 1.5rem;">
+                        <div style="margin-bottom: 0.9rem;">
+                            <div style="font-weight: 700; letter-spacing: -0.01em;">ToR Switch Configuration</div>
+                            <div style="color: var(--text-secondary); font-size: 0.95rem;">Select the number of Top-of-Rack switches for storage connectivity.</div>
+                        </div>
+                        <div class="options-grid">
+                            <div id="tor-single-option" class="option-card" data-value="single"
+                                onclick="selectOption('torSwitchCount', 'single')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="4" y="4" width="16" height="6" rx="2" fill="rgba(0, 120, 212, 0.2)" />
+                                        <circle cx="8" cy="7" r="1" fill="currentColor" />
+                                        <circle cx="12" cy="7" r="1" fill="currentColor" />
+                                        <circle cx="16" cy="7" r="1" fill="currentColor" />
+                                        <path d="M12 10V14" stroke-dasharray="2 2" />
+                                        <rect x="8" y="14" width="8" height="6" rx="1" fill="rgba(255, 255, 255, 0.1)" />
+                                    </svg>
+                                </div>
+                                <h3>Single ToR Switch</h3>
+                                <p>One ToR switch (no redundancy at switch level).</p>
+                            </div>
+                            <div id="tor-dual-option" class="option-card" data-value="dual"
+                                onclick="selectOption('torSwitchCount', 'dual')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <rect x="2" y="4" width="8" height="5" rx="1.5" fill="rgba(0, 120, 212, 0.2)" />
+                                        <rect x="14" y="4" width="8" height="5" rx="1.5" fill="rgba(0, 120, 212, 0.2)" />
+                                        <circle cx="5" cy="6.5" r="0.8" fill="currentColor" />
+                                        <circle cx="8" cy="6.5" r="0.8" fill="currentColor" />
+                                        <circle cx="17" cy="6.5" r="0.8" fill="currentColor" />
+                                        <circle cx="20" cy="6.5" r="0.8" fill="currentColor" />
+                                        <path d="M6 9V14" stroke-dasharray="2 2" />
+                                        <path d="M18 9V14" stroke-dasharray="2 2" />
+                                        <rect x="8" y="14" width="8" height="6" rx="1" fill="rgba(255, 255, 255, 0.1)" />
+                                    </svg>
+                                </div>
+                                <h3>Dual ToR Switches</h3>
+                                <p>Two ToR switches (recommended for redundancy).</p>
+                            </div>
                         </div>
                     </div>
 

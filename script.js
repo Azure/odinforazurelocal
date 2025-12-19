@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.7.0';
+const WIZARD_VERSION = '0.8.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -14,6 +14,7 @@ const state = {
     fontSize: 'medium',
     ports: null,
     storage: null,
+    torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged/Low Capacity
     switchlessLinkMode: null,
     storagePoolConfiguration: null,
     rackAwareZones: null,
@@ -2155,9 +2156,13 @@ function selectOption(category, value) {
         state.ports = null; state.intent = null; state.customIntentConfirmed = false; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
         state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
         state.switchlessLinkMode = null;
+        state.torSwitchCount = null; // Reset ToR switch selection when changing storage type
         // Storage choice should not invalidate Rack Aware zone placement or ToR architecture.
         // (Rack Aware is a scale/topology decision; users expect ToR selections to persist
         // when moving to Step 06 and beyond.)
+    } else if (category === 'torSwitchCount') {
+        // ToR switch selection (single/dual) - only used for diagram generation
+        state.torSwitchCount = value;
     } else if (category === 'switchlessLinkMode') {
         // Changing link mode changes the physical wiring requirements; force the user
         // to re-pick ports and downstream intent mappings.
@@ -3588,6 +3593,53 @@ function updateUI() {
         } else {
             linkModeBlock.classList.add('hidden');
             state.switchlessLinkMode = null;
+        }
+    })();
+
+    // Conditional UI: Storage Switched + Hyperconverged/Low Capacity -> ToR Switch Count (Single/Dual)
+    (function updateTorSwitchCountUi() {
+        const torBlock = document.getElementById('tor-switch-count');
+        if (!torBlock) return;
+
+        const n = state.nodes ? parseInt(state.nodes, 10) : NaN;
+        const isStorageSwitched = state.storage === 'switched';
+        const isHyperconvergedOrLowCap = state.scale === 'standard' || state.scale === 'low_capacity';
+        const shouldShow = isStorageSwitched && isHyperconvergedOrLowCap && !isNaN(n) && n >= 1;
+
+        const singleOption = document.getElementById('tor-single-option');
+        const dualOption = document.getElementById('tor-dual-option');
+
+        if (shouldShow) {
+            torBlock.classList.remove('hidden');
+
+            // For 4+ nodes on Hyperconverged (standard), only Dual ToR is allowed
+            const singleDisabled = (state.scale === 'standard' && n >= 4);
+
+            if (singleOption) {
+                if (singleDisabled) {
+                    singleOption.classList.add('disabled');
+                    singleOption.title = 'Single ToR Switch is not supported for 4+ node Hyperconverged clusters';
+                } else {
+                    singleOption.classList.remove('disabled');
+                    singleOption.title = '';
+                }
+            }
+
+            if (dualOption) {
+                dualOption.classList.remove('disabled');
+            }
+
+            // Auto-select Dual if not set, or if Single is disabled and currently selected
+            if (!state.torSwitchCount || (singleDisabled && state.torSwitchCount === 'single')) {
+                state.torSwitchCount = 'dual';
+            }
+
+            // Update visual selection
+            if (singleOption) singleOption.classList.toggle('selected', state.torSwitchCount === 'single');
+            if (dualOption) dualOption.classList.toggle('selected', state.torSwitchCount === 'dual');
+        } else {
+            torBlock.classList.add('hidden');
+            state.torSwitchCount = null;
         }
     })();
 
@@ -7033,7 +7085,7 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.7.0 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.8.0 - Latest Release</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
                 </div>
                 
