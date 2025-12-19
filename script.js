@@ -6802,6 +6802,7 @@ function showChangelog() {
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features</h4>
                     <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Deploy to Azure Button:</strong> One-click deployment button on ARM Parameters page that redirects to the Azure Portal with the correct ARM template pre-loaded. Supports Commercial, Government, and China clouds.</li>
                         <li><strong>DCB QoS Overrides for Storage Intents:</strong> New override options in Network Traffic Intents to customize Data Center Bridging (DCB) QoS policy - Storage Priority (3 or 4), System/Cluster Priority (5, 6, or 7), and Bandwidth Reservation % (40-70%).</li>
                         <li><strong>Proxy Bypass String Generation:</strong> Report now shows a ready-to-use proxy bypass string when proxy is enabled, including localhost, node names, node IPs, domain wildcard, and infrastructure subnet wildcard.</li>
                         <li><strong>Custom Storage Subnets:</strong> When Storage Auto IP is disabled, you can now specify custom storage subnet CIDRs instead of the default 10.0.x.0/24 networks. Supports 2-12 subnets depending on storage configuration.</li>

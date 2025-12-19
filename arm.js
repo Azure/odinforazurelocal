@@ -257,12 +257,44 @@
         });
     }
 
+    function updateDeployToAzureSection(payload) {
+        var deployBtn = document.getElementById('deploy-to-azure-btn');
+        var deployBtnText = document.getElementById('deploy-btn-text');
+        var templateNameEl = document.getElementById('deploy-template-name');
+        
+        if (!payload || !payload.referenceTemplate) {
+            if (deployBtn) deployBtn.disabled = true;
+            if (templateNameEl) templateNameEl.textContent = 'No template available';
+            return;
+        }
+        
+        var ref = payload.referenceTemplate;
+        var cloud = payload.cloud || 'azure_commercial';
+        
+        if (templateNameEl) {
+            templateNameEl.textContent = ref.name || 'Unknown template';
+        }
+        
+        // Update button text based on cloud
+        if (deployBtnText) {
+            if (cloud === 'azure_government') {
+                deployBtnText.textContent = 'Deploy to Azure Government';
+            } else if (cloud === 'azure_china') {
+                deployBtnText.textContent = 'Deploy to Azure China';
+            } else {
+                deployBtnText.textContent = 'Deploy to Azure';
+            }
+        }
+        
+        if (deployBtn) deployBtn.disabled = false;
+    }
+
     function main() {
         console.log('main: Starting...');
         var payload = tryParsePayload();
         console.log('Payload received:', payload);
         
-        // Store payload globally for updateParameters
+        // Store payload globally for updateParameters and deployToAzure
         window.armPayload = payload;
 
         var metaEl = document.getElementById('arm-meta');
@@ -280,6 +312,7 @@
         });
 
         setMeta(metaEl, payload);
+        updateDeployToAzureSection(payload);
 
         if (!payload || !payload.parametersFile) {
             if (placeholdersEl) placeholdersEl.innerHTML = '<div class="info-box visible">No data to display.</div>';
@@ -306,6 +339,55 @@
 
     main();
 })();
+
+// Deploy to Azure function
+function deployToAzure() {
+    var payload = window.armPayload;
+    
+    if (!payload || !payload.referenceTemplate || !payload.referenceTemplate.url) {
+        alert('No ARM template reference found. Please generate the ARM parameters from the wizard first.');
+        return;
+    }
+    
+    var ref = payload.referenceTemplate;
+    var cloud = payload.cloud || 'azure_commercial';
+    
+    // Convert GitHub blob URL to raw URL for the ARM template
+    // GitHub blob: https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/.../azuredeploy.json
+    // GitHub raw:  https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/.../azuredeploy.json
+    var templateUrl = ref.url
+        .replace('github.com', 'raw.githubusercontent.com')
+        .replace('/blob/', '/');
+    
+    // Determine the Azure Portal URL based on cloud
+    var portalBaseUrl;
+    if (cloud === 'azure_government') {
+        portalBaseUrl = 'https://portal.azure.us';
+    } else if (cloud === 'azure_china') {
+        portalBaseUrl = 'https://portal.azure.cn';
+    } else {
+        portalBaseUrl = 'https://portal.azure.com';
+    }
+    
+    // Build the Deploy to Azure URL
+    // Format: https://portal.azure.com/#create/Microsoft.Template/uri/{encoded-template-url}
+    var encodedTemplateUrl = encodeURIComponent(templateUrl);
+    var deployUrl = portalBaseUrl + '/#create/Microsoft.Template/uri/' + encodedTemplateUrl;
+    
+    // Show confirmation dialog with instructions
+    var confirmMsg = 'You will be redirected to the Azure Portal to deploy using:\n\n' +
+        'Template: ' + (ref.name || 'Unknown') + '\n' +
+        'Cloud: ' + (cloud === 'azure_government' ? 'Azure Government' : cloud === 'azure_china' ? 'Azure China' : 'Azure Commercial') + '\n\n' +
+        'Important:\n' +
+        '• Copy the parameters JSON from this page first\n' +
+        '• In the Azure Portal, paste the parameters or fill in the values manually\n' +
+        '• Replace any remaining REPLACE_WITH_ placeholders\n\n' +
+        'Continue to Azure Portal?';
+    
+    if (confirm(confirmMsg)) {
+        window.open(deployUrl, '_blank', 'noopener,noreferrer');
+    }
+}
 
 // Integration Features Functions
 function generateDevOpsPipeline() {

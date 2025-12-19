@@ -174,9 +174,33 @@
         <section class="step" style="margin-bottom:2rem;">
             <div class="step-header">
                 <span class="step-number">A3</span>
-                <h2>ARM Template Reference</h2>
+                <h2>Deploy to Azure</h2>
             </div>
-            <div id="arm-template-links" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            
+            <div id="deploy-to-azure-section" style="margin-bottom: 1.5rem;">
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Deploy your cluster configuration directly to Azure using the appropriate ARM template:</p>
+                
+                <button id="deploy-to-azure-btn" type="button" class="report-button" onclick="deployToAzure()" style="width:100%; padding:1rem 1.5rem; display:flex; align-items:center; justify-content:center; gap:0.75rem; background: linear-gradient(135deg, #0078d4 0%, #106ebe 100%); border: none; font-size: 1rem; font-weight: 600;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13.05 4.24L6.56 18.05L2 18l5.45-8.27L13.05 4.24zM14.4 4.58l-2.93 6.87l3.49 5.29 6.94-1.42L14.4 4.58zM12.73 12.63l-3.46 5.22 6.73 1.18-3.27-6.4z"/>
+                    </svg>
+                    <span id="deploy-btn-text">Deploy to Azure</span>
+                </button>
+                
+                <div id="deploy-template-info" style="margin-top: 0.75rem; padding: 0.75rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px;">
+                    <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                        <strong style="color: var(--text-primary);">Template:</strong> <span id="deploy-template-name">-</span>
+                    </div>
+                </div>
+                
+                <div class="switchless-diagram__note" style="margin-top: 0.75rem;">
+                    <strong>Note:</strong> You'll be redirected to the Azure Portal where you can review and modify the parameters before deployment. Make sure to replace any remaining <code>REPLACE_WITH_</code> placeholders.
+                </div>
+            </div>
+            
+            <details style="margin-top: 1rem;">
+                <summary style="cursor: pointer; color: var(--accent-blue); font-weight: 500; padding: 0.5rem 0;">View all available ARM templates</summary>
+                <div id="arm-template-links" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
                 <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">Use the generated parameters file with one of these Azure Quickstart ARM templates:</p>
                 <a href="https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster/azuredeploy.json" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--accent-blue); text-decoration: none; transition: all 0.2s;">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
@@ -194,7 +218,8 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                     <span><strong>AD-Less Cluster (KeyVault Identity)</strong> - For Azure KeyVault identity deployments</span>
                 </a>
-            </div>
+                </div>
+            </details>
         </section>
 
         <section class="step" style="margin-bottom:2rem;">
