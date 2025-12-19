@@ -2051,26 +2051,10 @@ function selectOption(category, value) {
             parseInt(state.ports, 10) >= 4
         );
         
-        // DEBUG: Log intent selection attempts
-        if (category === 'intent') {
-            console.log('[DEBUG] Intent selection attempt:', {
-                value,
-                nodes: state.nodes,
-                ports: state.ports,
-                portsParsed: parseInt(state.ports, 10),
-                cardFound: !!card,
-                cardDisabled: card ? card.classList.contains('disabled') : 'N/A',
-                isSingleNodeCustomOverride,
-                cardClasses: card ? card.className : 'N/A'
-            });
-        }
-        
         if (card && card.classList && card.classList.contains('disabled') && !isSingleNodeCustomOverride) {
-            console.log('[DEBUG] Selection blocked - card is disabled and no override applies');
             return;
         }
         state[category] = value;
-        console.log('[DEBUG] Selection allowed - state.' + category + ' set to:', value);
     }
 
     // Reset chains
@@ -3029,7 +3013,6 @@ function updateUI() {
     }
 
     // 2. Visual Updates (Cards)
-    console.log('[DEBUG updateUI] Visual update starting. state.intent =', state.intent);
     document.querySelectorAll('.option-card').forEach(card => {
         const value = card.getAttribute('data-value');
         const clickFn = card.getAttribute('onclick');
@@ -3040,9 +3023,6 @@ function updateUI() {
         if (category === 'nodes') return;
 
         let isSelected = state[category] === value;
-        if (category === 'intent') {
-            console.log('[DEBUG updateUI] Intent card:', value, 'isSelected:', isSelected);
-        }
         if (isSelected) card.classList.add('selected');
         else card.classList.remove('selected');
     });
@@ -4251,7 +4231,6 @@ function updateUI() {
     // NOTE: This rule runs LAST to override any earlier port-based or storage-based rules
     if (state.nodes === '1') {
         const portCount = parseInt(state.ports, 10);
-        console.log('[DEBUG updateUI] Single-node rule: intent BEFORE=', state.intent, 'portCount=', portCount);
         
         // Single node: always disable All Traffic and Compute+Storage
         cards.intent['all_traffic'].classList.add('disabled');
@@ -4267,17 +4246,14 @@ function updateUI() {
         
         // Default to Mgmt + Compute
         if (state.intent !== 'mgmt_compute' && state.intent !== 'custom') {
-            console.log('[DEBUG updateUI] Resetting intent to mgmt_compute (was:', state.intent, ')');
             state.intent = 'mgmt_compute';
             state.customIntentConfirmed = false;
         }
         // If custom is selected but ports < 4, reset to mgmt_compute
         if (state.intent === 'custom' && (isNaN(portCount) || portCount < 4)) {
-            console.log('[DEBUG updateUI] Resetting custom to mgmt_compute (ports < 4)');
             state.intent = 'mgmt_compute';
             state.customIntentConfirmed = false;
         }
-        console.log('[DEBUG updateUI] Single-node rule: intent AFTER=', state.intent);
     }
 
     // RULE 4: Outbound -> Arc & Proxy
