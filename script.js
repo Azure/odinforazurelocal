@@ -8758,8 +8758,6 @@ function getIntentZonesForIntent(intent) {
             requiresRdma: true
         });
     } else if (intent === 'custom') {
-        const isSingleNode = state.nodes === '1';
-        
         zones.push({
             key: 'mgmt',
             title: 'Management',
@@ -8816,15 +8814,16 @@ function getIntentZonesForIntent(intent) {
                 requiresRdma: true
             });
         }
+        // For 1-node, "Group All" is just Mgmt + Compute (no RDMA needed)
         zones.push({
             key: 'all',
             title: 'Group All Traffic',
             titleClass: '',
-            description: 'All traffic types combined.',
-            badge: 'RDMA Required',
-            badgeClass: 'rdma-required',
+            description: isSingleNode ? 'Management and Compute traffic combined.' : 'All traffic types combined.',
+            badge: isSingleNode ? 'Optional' : 'RDMA Required',
+            badgeClass: isSingleNode ? 'optional' : 'rdma-required',
             minAdapters: 0,
-            requiresRdma: true
+            requiresRdma: !isSingleNode
         });
     }
 
