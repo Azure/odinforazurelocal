@@ -8697,6 +8697,7 @@ function getIntentZonesForIntent(intent) {
     // Minimum adapters: 2 for standard scenarios, 1 for Low Capacity
     const zones = [];
     const isLowCapacity = state.scale === 'low_capacity';
+    const isSingleNode = state.nodes === '1';
     const minStandard = 2;
     const minLowCap = 1;
 
