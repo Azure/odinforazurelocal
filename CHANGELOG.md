@@ -16,11 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One-Click Azure Deployment** - Added a prominent "Deploy to Azure" button on the ARM Parameters page that redirects users to the Azure Portal with the appropriate ARM template pre-loaded based on their configuration:
   - Commercial Azure deployments use `portal.azure.com`
   - Azure Government deployments use `portal.azure.us`
-  - Azure China deployments use `portal.azure.cn`
 
 - **Template Auto-Selection** - The button automatically selects the correct ARM quickstart template based on the scenario configured in the wizard (standard cluster, rack-aware, AD-less, US Gov, etc.).
 
 - **Collapsible Template Reference** - The list of all available ARM templates is now in a collapsible section to reduce clutter and highlight the Deploy button.
+
+#### Node Name Auto-Population
+
+- **Smart Node Naming** - When entering a name in the "Node 1 Name" field with a numeric suffix (e.g., `server01` or `customname1`), the remaining node name fields are automatically populated with sequential names:
+  - `server01` → `server02`, `server03`, `server04`...
+  - `node5` → `node6`, `node7`, `node8`...
+  - `myhost` → `myhost2`, `myhost3`, `myhost4`...
+
+- **Padding Preservation** - Number padding is preserved (e.g., `host001` → `host002`, `host003`).
+
+- **SAM Account Name Validation** - Validates the maximum 15-character limit for Active Directory computer account names (SAM Account name).
+
+- **Non-Destructive** - Only fills empty node name fields; never overwrites user-provided values.
 
 #### DCB QoS Overrides for Storage Intents (Issue #44)
 
