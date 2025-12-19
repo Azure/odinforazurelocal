@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2025-12-19
+
+### Added
+
+#### DCB QoS Overrides for Storage Intents (Issue #44)
+
+- **QoS Policy Customization** - Added new override options in the Network Traffic Intents section for storage intents that allow customization of Data Center Bridging (DCB) QoS policies:
+  - **Storage Priority**: Choose between priority 3 (default) or 4 for SMB traffic
+  - **System/Cluster Priority**: Choose between priority 5 (default), 6, or 7 for cluster heartbeat traffic
+  - **Bandwidth Reservation**: Set the percentage of bandwidth reserved for storage traffic (40-70%, default 50%)
+
+- **ARM Template Support** - When QoS overrides are configured, the ARM template includes `overrideQosPolicy: true` and a `qosPolicyOverrides` object with the custom settings.
+
+#### Proxy Bypass String Generation (Issue #43)
+
+- **Automatic Bypass String** - When proxy is enabled in the cluster configuration, the report now displays a ready-to-use proxy bypass string that includes:
+  - `localhost` and `127.0.0.1`
+  - All cluster node hostnames
+  - All cluster node IP addresses
+  - Domain wildcard (e.g., `*.contoso.local`)
+  - Infrastructure subnet wildcard (e.g., `192.168.1.*` for 192.168.1.0/24)
+
+- **CIDR to Wildcard Conversion** - Added helper function to convert CIDR notation to proxy bypass wildcard format.
+
+#### Custom Storage Subnets (Issue #42)
+
+- **Custom Subnet Input** - When Storage Auto IP is disabled, users can now specify custom storage subnet CIDRs instead of using the default 10.0.x.0/24 networks. The number of subnets required depends on the storage configuration:
+  - 2-node switchless: 2 subnets
+  - 3-node switchless: 6 subnets
+  - 4-node switchless: 12 subnets
+  - Switched storage with Auto IP disabled: 2 subnets
+
+- **Dynamic UI** - Subnet input fields are automatically shown/hidden based on storage configuration and Auto IP setting.
+
+- **ARM Template Integration** - Custom subnets are applied to the `storageNetworkList` in the ARM template with proper IP address and subnet mask calculations.
+
+---
+
 ## [0.6.2] - 2025-12-18
 
 ### Fixed
