@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] - 2025-12-19
+
+### Fixed
+
+#### Bug Fixes (Issue #48)
+
+- **Compare Options Popup** - Fixed styling issues with the Compare Options modal:
+  - Added `max-height: 90vh` with scrolling support so content fits within the viewport
+  - Made the close button (X) visible with proper styling and hover effect
+  - Added sticky header so title and close button remain visible while scrolling
+
+- **ToR Switch Logic** - Fixed the conditional logic for Single/Dual ToR switch availability:
+  - Hyperconverged clusters with 1-3 nodes can now correctly choose Single or Dual ToR
+  - Hyperconverged clusters with 4+ nodes correctly restrict to Dual ToR only (Single is greyed out)
+  - Fixed incorrect scale value check (was using wrong value for Hyperconverged detection)
+
+---
+
 ## [0.8.0] - 2025-12-19
 
 ### Added
