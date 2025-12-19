@@ -925,7 +925,10 @@
         var sections = [];
 
         function renderSwitchedIntentDiagram(state) {
-            if (!state || state.storage !== 'switched') return '';
+            // Single-node clusters have no storage connectivity choice (state.storage is null)
+            // but should still render a diagram showing the ToR switch and node
+            var isSingleNode = state && state.nodes === '1';
+            if (!state || (state.storage !== 'switched' && !isSingleNode)) return '';
 
             if (String(state.nodes) === '16+') {
                 return '<div style="color:var(--text-secondary);">Diagram is not generated for 16+ nodes (the wizard does not collect per-node details for this case).</div>';
@@ -933,10 +936,15 @@
 
             var nAll = parseInt(state.nodes, 10);
             if (isNaN(nAll) || nAll < 1) nAll = 1;
-            var n = Math.min(3, nAll);
+            // Show max 2 nodes for cleaner diagram with ToR switches
+            var n = Math.min(2, nAll);
 
             var ports = parseInt(state.ports, 10);
             if (isNaN(ports) || ports < 0) ports = 0;
+
+            // Determine ToR switch configuration (single or dual)
+            var torCount = (state.torSwitchCount === 'single') ? 1 : 2;
+            var showTorSwitches = (state.scale === 'medium' || state.scale === 'low_capacity') && state.torSwitchCount;
 
             function getNodeLabel(idx) {
                 if (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name) {
@@ -1032,295 +1040,331 @@
             var storagePortCount = (!isCustom && showStorageGroup) ? Math.max(0, ports - 2) : 0;
             var customGroups = isCustom ? getCustomIntentGroups(state.customIntents, ports) : [];
 
-            // Layout: up to 3 columns.
-            var cols = Math.min(3, Math.max(1, n));
-            var rows = Math.ceil(n / cols);
-
-            var nodeW = 260;
-
-            // Compute a node height that can fit all custom intent groups when needed.
-            var nodeH = 260;
-            if (isCustom) {
-                var groupCount = customGroups.length || 0;
-                // Rough sizing: header + group blocks + padding.
-                nodeH = Math.max(260, 70 + (groupCount * 86) + 20);
-                // Cap to avoid extreme sizes.
-                nodeH = Math.min(520, nodeH);
-            }
-            var gapX = 20;
-            var gapY = 22;
+            // Layout constants
+            var nodeW = 320;
+            var nodeH = 180;
+            var gapX = 40;
             var marginX = 50;
-            var marginTop = 90;
-            var marginBottom = 40;
-            // When we show the "+N more nodes" badge, reserve extra footer space so the badge can
-            // sit below the nodes (still inside the outer dotted container) without overlapping.
-            var extraFooterH = (nAll > 3) ? 44 : 0;
+            var torSwitchH = 50;
+            var torSwitchW = 140;
+            var torGap = 60;
+            var torToNodeGap = 80;
+            var marginTop = showTorSwitches ? 90 : 70;
+            var marginBottom = 50;
 
-            var svgW = marginX * 2 + (cols * nodeW) + ((cols - 1) * gapX);
-            var svgH = marginTop + (rows * nodeH) + ((rows - 1) * gapY) + marginBottom + extraFooterH;
+            // Calculate adapter dimensions based on port count
+            var adapterW = 54;
+            var adapterH = 36;
+            var adapterGap = 10;
+            var totalAdapterW = (ports * adapterW) + ((ports - 1) * adapterGap);
+
+            // Ensure node width accommodates all adapters
+            nodeW = Math.max(nodeW, totalAdapterW + 40);
+
+            // Calculate SVG dimensions
+            var svgW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
+            var torAreaH = showTorSwitches ? (torSwitchH + torToNodeGap) : 0;
+            var svgH = marginTop + torAreaH + nodeH + marginBottom + (nAll > 2 ? 40 : 0);
+
+            // ToR switch positions
+            var torY = marginTop + 10;
+            var tor1X, tor2X;
+            if (torCount === 2) {
+                var totalTorW = (2 * torSwitchW) + torGap;
+                tor1X = (svgW - totalTorW) / 2;
+                tor2X = tor1X + torSwitchW + torGap;
+            } else {
+                tor1X = (svgW - torSwitchW) / 2;
+                tor2X = tor1X; // Not used for single ToR
+            }
+
+            // Node positions (horizontally centered)
+            var nodesStartX = (svgW - (n * nodeW) - ((n - 1) * gapX)) / 2;
+            var nodeY = marginTop + torAreaH + 10;
 
             function nodePos(i) {
-                var r = Math.floor(i / cols);
-                var c = i % cols;
                 return {
-                    x: marginX + (c * (nodeW + gapX)),
-                    y: marginTop + (r * (nodeH + gapY))
+                    x: nodesStartX + (i * (nodeW + gapX)),
+                    y: nodeY
                 };
             }
 
-            function renderSetTeam(nodeLeft, nodeTop) {
-                var setW = 210;
-                var setH = 62;
-                var setX = nodeLeft + (nodeW - setW) / 2;
-                var setY = nodeTop + 78;
+            // Collect all adapter positions for drawing uplinks later
+            var adapterPositions = [];
 
-                var nicW = 70;
-                var nicH = 34;
-                var gap = 14;
-                var nic1X = setX + 18;
-                var nic2X = nic1X + nicW + gap;
-                var nicY = setY + 18;
-
+            function renderAdaptersHorizontal(nodeLeft, nodeTop, nodeIdx) {
                 var out = '';
-                out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (nodeTop + 62) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">' + escapeHtml(intentLabelForSet(state.intent)) + '</text>';
-                out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
-                out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
+                var adaptersY = nodeTop + nodeH - adapterH - 20;
+                var startX = nodeLeft + (nodeW - totalAdapterW) / 2;
 
-                function nicTile(x, y, label) {
-                    var t = '';
-                    t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                    t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
-                    return t;
+                // Draw adapter container boxes for each intent group
+                if (!isCustom && ports >= 2) {
+                    // Management + Compute box (first 2 NICs)
+                    var setW = (2 * adapterW) + adapterGap + 12;
+                    var setH = adapterH + 24;
+                    var setX = startX - 6;
+                    var setY = adaptersY - 12;
+                    out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
+                    
+                    // Label for Mgmt + Compute group
+                    var mgmtLabel = (state.intent === 'all_traffic') ? 'Mgmt + Compute + Storage' : 'Mgmt + Compute';
+                    out += '<text x="' + (setX + setW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(mgmtLabel) + '</text>';
+                    
+                    // Storage box (NICs 3+) if applicable - add gap between boxes
+                    if (showStorageGroup && storagePortCount > 0) {
+                        var intentGap = 8; // Gap between intent boxes
+                        var storageW = (storagePortCount * adapterW) + ((storagePortCount - 1) * adapterGap) + 12;
+                        var storageX = startX + (2 * (adapterW + adapterGap)) - 6 + intentGap;
+                        out += '<rect x="' + storageX + '" y="' + setY + '" width="' + storageW + '" height="' + setH + '" rx="10" fill="rgba(139,92,246,0.07)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="5 3" />';
+                        out += '<text x="' + (storageX + storageW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Storage</text>';
+                    }
                 }
+                
+                // Calculate intent gap for storage adapter positioning
+                var storageIntentGap = (!isCustom && showStorageGroup && storagePortCount > 0) ? 8 : 0;
 
-                out += nicTile(nic1X, nicY, getNicLabel(1));
-                out += nicTile(nic2X, nicY, getNicLabel(2));
-                return out;
-            }
+                // Draw all adapters horizontally
+                for (var i = 0; i < ports; i++) {
+                    // Storage adapters (index 2+) need to shift by the intent gap to center in purple box
+                    var adapterOffset = (i >= 2 && storageIntentGap > 0) ? storageIntentGap : 0;
+                    var x = startX + (i * (adapterW + adapterGap)) + adapterOffset;
+                    var y = adaptersY;
+                    var nicIdx = i + 1;
 
-            function renderStorageGroup(nodeLeft, nodeTop, startNicIdx, count) {
-                if (!count || count <= 0) return '';
+                    // Determine if this is a storage adapter (NIC 3+) or SET adapter (NIC 1-2)
+                    var isStorage = !isCustom && showStorageGroup && i >= 2;
+                    var fill = isStorage ? 'rgba(139,92,246,0.25)' : 'rgba(0,120,212,0.20)';
+                    var stroke = isStorage ? 'rgba(139,92,246,0.65)' : 'rgba(0,120,212,0.55)';
+                    var label = isStorage ? ('SMB' + (i - 1)) : getNicLabel(nicIdx);
 
-                var gW = 240;
-                var gH = 118;
-                var gX = nodeLeft + (nodeW - gW) / 2;
-                var gY = nodeTop + 150;
+                    out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
+                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="11" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
 
-                var tileW = 46;
-                var tileH = 38;
-                var gapX2 = 12;
-                var gapY2 = 10;
-                var cols2 = 3;
-                var rows2 = Math.ceil(count / cols2);
-
-                var totalW = (cols2 * tileW) + ((cols2 - 1) * gapX2);
-                var startX = gX + (gW - totalW) / 2;
-                var startY = gY + 36;
-
-                var out = '';
-                out += '<rect x="' + gX + '" y="' + gY + '" width="' + gW + '" height="' + gH + '" rx="12" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
-                out += '<text x="' + (gX + gW / 2) + '" y="' + (gY + 16) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">Storage intent (RDMA)</text>';
-
-                var startIdx = parseInt(startNicIdx, 10);
-                if (isNaN(startIdx) || startIdx < 1) startIdx = 1;
-
-                for (var i = 0; i < count; i++) {
-                    var r = Math.floor(i / cols2);
-                    var c = i % cols2;
-                    var x = startX + (c * (tileW + gapX2));
-                    var y = startY + (r * (tileH + gapY2));
-                    out += '<rect x="' + x + '" y="' + y + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                    out += '<text x="' + (x + tileW / 2) + '" y="' + (y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">SMB' + (startIdx + i) + '</text>';
+                    // Store adapter center position for uplink drawing
+                    adapterPositions.push({
+                        nodeIdx: nodeIdx,
+                        nicIdx: nicIdx,
+                        x: x + adapterW / 2,
+                        y: y,
+                        isStorage: isStorage
+                    });
                 }
 
                 return out;
             }
 
-            function renderCustomIntentGroup(nodeLeft, nodeTop, y, group) {
-                // Back-compat wrapper: full-width group centered in node.
-                var gW = 240;
-                var gX = nodeLeft + (nodeW - gW) / 2;
-                return renderCustomIntentGroupAt(gX, y, gW, group, { compact: false });
-            }
-
-            function renderCustomIntentGroupAt(gX, gY, gW, group, opts) {
-                // Shared intent group visual: dashed rounded box + NIC tiles.
-                var compact = !!(opts && opts.compact);
-                // Compact mode is used for the top row (two boxes side-by-side). Keep tiles small enough
-                // to comfortably fit and center within the half-width box.
-                var tileW = compact ? 52 : 70;
-                var tileH = compact ? 32 : 34;
-                var tileGapX = compact ? 8 : 12;
-                var tileGapY = compact ? 8 : 10;
-                var colsT = (opts && opts.cols) ? opts.cols : (compact ? 2 : 3);
-                colsT = Math.max(1, Math.min(3, colsT));
-
-                var headerH = 26;
-                var padBottom = 14;
-                var nics = (group && group.nics) ? group.nics : [];
-                var rowsT = Math.max(1, Math.ceil(nics.length / colsT));
-                var gH = headerH + (rowsT * tileH) + ((rowsT - 1) * tileGapY) + padBottom;
-
-                // Color: storage-like groups use purple; compute-only uses success green; other groups use blue.
-                var isComputeOnly = group && group.key === 'compute';
-                var isStorageLike = !!(group && group.isStorageLike);
-                var fill = isStorageLike
-                    ? 'rgba(139,92,246,0.06)'
-                    : (isComputeOnly ? 'var(--success)' : 'rgba(0,120,212,0.07)');
-                var stroke = isStorageLike
-                    ? 'rgba(139,92,246,0.45)'
-                    : (isComputeOnly ? 'var(--success)' : 'rgba(0,120,212,0.45)');
-                var tileFill = isStorageLike
-                    ? 'rgba(139,92,246,0.25)'
-                    : (isComputeOnly ? 'var(--success)' : 'rgba(0,120,212,0.20)');
-                var tileStroke = isStorageLike
-                    ? 'rgba(139,92,246,0.65)'
-                    : (isComputeOnly ? 'var(--success)' : 'rgba(0,120,212,0.55)');
-
+            function renderCustomAdaptersHorizontal(nodeLeft, nodeTop, nodeIdx) {
                 var out = '';
-                if (isComputeOnly) {
-                    out += '<rect x="' + gX + '" y="' + gY + '" width="' + gW + '" height="' + gH + '" rx="12" fill="' + fill + '" fill-opacity="0.08" stroke="' + stroke + '" stroke-opacity="0.55" stroke-dasharray="6 4" />';
-                } else {
-                    out += '<rect x="' + gX + '" y="' + gY + '" width="' + gW + '" height="' + gH + '" rx="12" fill="' + fill + '" stroke="' + stroke + '" stroke-dasharray="6 4" />';
-                }
-                out += '<text x="' + (gX + gW / 2) + '" y="' + (gY + 16) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">' + escapeHtml(group && group.label ? group.label : 'Intent') + '</text>';
+                var adaptersY = nodeTop + nodeH - adapterH - 20;
+                var startX = nodeLeft + (nodeW - totalAdapterW) / 2;
 
-                var startY = gY + headerH;
-
-                // Center NIC tiles row-by-row.
-                for (var r = 0; r < rowsT; r++) {
-                    var rowStartIdx = r * colsT;
-                    var remaining = nics.length - rowStartIdx;
-                    var colCount = Math.max(1, Math.min(colsT, remaining));
-                    var rowTotalW = (colCount * tileW) + ((colCount - 1) * tileGapX);
-                    var startX = gX + (gW - rowTotalW) / 2;
-                    var y = startY + (r * (tileH + tileGapY));
-
-                    for (var c = 0; c < colCount; c++) {
-                        var idx = rowStartIdx + c;
-                        var nicIdx = nics[idx];
-                        var lbl = isStorageLike ? ('SMB' + nicIdx) : getNicLabel(nicIdx);
-                        var x = startX + (c * (tileW + tileGapX));
-                        if (isComputeOnly) {
-                            out += '<rect x="' + x + '" y="' + y + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="' + tileFill + '" fill-opacity="0.22" stroke="' + tileStroke + '" stroke-opacity="0.7" />';
-                        } else {
-                            out += '<rect x="' + x + '" y="' + y + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="' + tileFill + '" stroke="' + tileStroke + '" />';
-                        }
-                        out += '<text x="' + (x + tileW / 2) + '" y="' + (y + 21) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
+                // Build a map of port to intent
+                var portIntent = {};
+                for (var gi2 = 0; gi2 < customGroups.length; gi2++) {
+                    var grp = customGroups[gi2];
+                    for (var ni = 0; ni < grp.nics.length; ni++) {
+                        portIntent[grp.nics[ni]] = grp;
                     }
                 }
 
-                return { html: out, height: gH };
+                // Draw boxes around each intent group
+                // First, find contiguous groups of adapters with the same intent
+                var intentBoxes = [];
+                var currentGroup = null;
+                var currentGroupStart = -1;
+                
+                for (var i = 0; i < ports; i++) {
+                    var nicIdx = i + 1;
+                    var grp = portIntent[nicIdx];
+                    var grpKey = grp ? grp.key : 'unused';
+                    
+                    if (currentGroup !== grpKey) {
+                        // Save previous group if it existed
+                        if (currentGroup && currentGroup !== 'unused' && currentGroupStart >= 0) {
+                            intentBoxes.push({
+                                key: currentGroup,
+                                startIdx: currentGroupStart,
+                                endIdx: i - 1,
+                                label: portIntent[currentGroupStart + 1] ? portIntent[currentGroupStart + 1].label : currentGroup
+                            });
+                        }
+                        currentGroup = grpKey;
+                        currentGroupStart = i;
+                    }
+                }
+                // Don't forget the last group
+                if (currentGroup && currentGroup !== 'unused' && currentGroupStart >= 0) {
+                    intentBoxes.push({
+                        key: currentGroup,
+                        startIdx: currentGroupStart,
+                        endIdx: ports - 1,
+                        label: portIntent[currentGroupStart + 1] ? portIntent[currentGroupStart + 1].label : currentGroup
+                    });
+                }
+
+                // Draw boxes for each intent group
+                for (var bi = 0; bi < intentBoxes.length; bi++) {
+                    var box = intentBoxes[bi];
+                    var boxStartX = startX + (box.startIdx * (adapterW + adapterGap)) - 8;
+                    var boxW = ((box.endIdx - box.startIdx + 1) * adapterW) + ((box.endIdx - box.startIdx) * adapterGap) + 16;
+                    var boxY = adaptersY - 12;
+                    var boxH = adapterH + 24;
+                    
+                    // Color based on intent type
+                    var isStorageLike = (box.key === 'storage' || box.key === 'compute_storage' || box.key === 'all');
+                    var isCompute = (box.key === 'compute');
+                    var boxFill, boxStroke;
+                    if (isStorageLike) {
+                        boxFill = 'rgba(139,92,246,0.07)';
+                        boxStroke = 'rgba(139,92,246,0.45)';
+                    } else if (isCompute) {
+                        boxFill = 'rgba(16,185,129,0.07)';
+                        boxStroke = 'rgba(16,185,129,0.45)';
+                    } else {
+                        boxFill = 'rgba(0,120,212,0.07)';
+                        boxStroke = 'rgba(0,120,212,0.45)';
+                    }
+                    
+                    out += '<rect x="' + boxStartX + '" y="' + boxY + '" width="' + boxW + '" height="' + boxH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
+                    out += '<text x="' + (boxStartX + boxW / 2) + '" y="' + (boxY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(box.label) + '</text>';
+                }
+
+                // Draw all adapters horizontally
+                for (var i = 0; i < ports; i++) {
+                    var x = startX + (i * (adapterW + adapterGap));
+                    var y = adaptersY;
+                    var nicIdx = i + 1;
+
+                    var grp2 = portIntent[nicIdx];
+                    var isStorage = grp2 && grp2.isStorageLike;
+                    var isCompute = grp2 && grp2.key === 'compute';
+                    var fill, stroke;
+
+                    if (isStorage) {
+                        fill = 'rgba(139,92,246,0.25)';
+                        stroke = 'rgba(139,92,246,0.65)';
+                    } else if (isCompute) {
+                        fill = 'rgba(16,185,129,0.22)';
+                        stroke = 'rgba(16,185,129,0.7)';
+                    } else {
+                        fill = 'rgba(0,120,212,0.20)';
+                        stroke = 'rgba(0,120,212,0.55)';
+                    }
+
+                    var label = isStorage ? ('SMB' + nicIdx) : getNicLabel(nicIdx);
+
+                    out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
+                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="11" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
+
+                    // Store adapter center position for uplink drawing
+                    adapterPositions.push({
+                        nodeIdx: nodeIdx,
+                        nicIdx: nicIdx,
+                        x: x + adapterW / 2,
+                        y: y,
+                        isStorage: isStorage
+                    });
+                }
+
+                return out;
             }
 
+            function renderUplinks() {
+                if (!showTorSwitches) return '';
+                var out = '';
+                var torBottomY = torY + torSwitchH;
+
+                for (var ai = 0; ai < adapterPositions.length; ai++) {
+                    var ap = adapterPositions[ai];
+                    var adapterTopY = ap.y;
+
+                    // Determine which ToR switch to connect to
+                    // For dual ToR: alternate or use odd/even NIC assignment
+                    // For single ToR: all connect to the single switch
+                    var targetTorX;
+                    if (torCount === 2) {
+                        // Odd NICs to ToR 1, even NICs to ToR 2 (common redundancy pattern)
+                        targetTorX = (ap.nicIdx % 2 === 1) ? (tor1X + torSwitchW / 2) : (tor2X + torSwitchW / 2);
+                    } else {
+                        targetTorX = tor1X + torSwitchW / 2;
+                    }
+
+                    // Draw uplink line from adapter to ToR switch
+                    var lineColor = ap.isStorage ? 'rgba(139,92,246,0.5)' : 'rgba(0,120,212,0.4)';
+                    out += '<line x1="' + ap.x + '" y1="' + adapterTopY + '" x2="' + targetTorX + '" y2="' + torBottomY + '" stroke="' + lineColor + '" stroke-width="1.5" stroke-dasharray="4 2" />';
+                }
+
+                return out;
+            }
+
+            // Build intro text
+            var torLabel = showTorSwitches ? (torCount === 1 ? 'Single ToR' : 'Dual ToR') : '';
+            var scenarioLabel = isSingleNode ? 'Single-node' : 'Storage Switched';
             var intro = ''
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
-                + '<strong style="color:var(--text-primary);">Switched</strong> scenario diagram (connectors omitted).'
-                + '<br>Shows per-node intent groupings and port inventory; physical cabling depends on your switch fabric design.'
-                + (nAll > 3 ? ('<br><span style="color:var(--text-secondary);">Showing first 3 of ' + escapeHtml(String(nAll)) + ' nodes.</span>') : '')
+                + '<strong style="color:var(--text-primary);">' + scenarioLabel + '</strong> scenario diagram'
+                + (showTorSwitches ? (' with ' + torLabel + ' switch' + (torCount === 1 ? '' : 'es')) : '') + '.'
+                + '<br>Shows per-node intent groupings and uplinks to ToR switch' + (torCount === 1 ? '' : 'es') + '.'
+                + (nAll > 2 ? ('<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(nAll)) + ' nodes.</span>') : '')
                 + '</div>';
 
             var svg = '';
-            svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="Switched intent diagram (no connectors)">';
-            svg += '<rect x="30" y="55" width="' + (svgW - 60) + '" height="' + (svgH - 85) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
-            svg += '<text x="' + (svgW / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Switched storage connectivity — Switchless=false, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + (nAll > 4 ? (' — Total nodes: ' + escapeHtml(String(nAll))) : '') + '</text>';
+            svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="' + (isSingleNode ? 'Single-node network' : 'Switched intent') + ' diagram with ToR switch' + (torCount === 1 ? '' : 'es') + '">';
 
-            if (nAll > 3) {
-                // Visual hint that more nodes exist beyond those rendered.
-                // Place the badge in the footer area (below nodes) while keeping it inside the
-                // outer dotted container.
-                var more = nAll - 3;
-                var badgeW = 210;
+            // Outer container
+            svg += '<rect x="30" y="55" width="' + (svgW - 60) + '" height="' + (svgH - 85) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
+
+            // Title text
+            var titleText = isSingleNode 
+                ? 'Single-node network connectivity — ' + escapeHtml(autoIpLabel(state.storageAutoIp))
+                : 'Storage Switched connectivity — Switchless=false, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + (nAll > 2 ? (' — Total nodes: ' + escapeHtml(String(nAll))) : '');
+            svg += '<text x="' + (svgW / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">' + titleText + '</text>';
+
+            // Render ToR switches
+            if (showTorSwitches) {
+                // ToR Switch 1
+                svg += '<rect x="' + tor1X + '" y="' + torY + '" width="' + torSwitchW + '" height="' + torSwitchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+                svg += '<text x="' + (tor1X + torSwitchW / 2) + '" y="' + (torY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch 1</text>';
+
+                // ToR Switch 2 (if dual)
+                if (torCount === 2) {
+                    svg += '<rect x="' + tor2X + '" y="' + torY + '" width="' + torSwitchW + '" height="' + torSwitchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+                    svg += '<text x="' + (tor2X + torSwitchW / 2) + '" y="' + (torY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch 2</text>';
+                }
+            }
+
+            // Render nodes
+            for (var ni = 0; ni < n; ni++) {
+                var pos = nodePos(ni);
+                svg += '<rect x="' + pos.x + '" y="' + pos.y + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
+                svg += '<text x="' + (pos.x + nodeW / 2) + '" y="' + (pos.y + 30) + '" text-anchor="middle" font-size="15" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(ni)) + '</text>';
+
+                if (!isCustom) {
+                    svg += renderAdaptersHorizontal(pos.x, pos.y, ni);
+                } else {
+                    svg += renderCustomAdaptersHorizontal(pos.x, pos.y, ni);
+                }
+            }
+
+            // Render uplinks after nodes so we have adapter positions
+            svg += renderUplinks();
+
+            // "+N more nodes" badge
+            if (nAll > 2) {
+                var more = nAll - 2;
+                var badgeW = 180;
                 var badgeH = 26;
-                // Nudge left a bit so it doesn't sit flush against the right edge.
                 var badgeX = svgW - 50 - badgeW;
-                var outerBottom = svgH - 30;
-                var badgeY = outerBottom - badgeH - 10;
+                var badgeY = svgH - 60;
                 svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
                 svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + escapeHtml(String(more)) + ' more node' + (more === 1 ? '' : 's') + '</text>';
             }
 
-            for (var ni = 0; ni < n; ni++) {
-                var pos = nodePos(ni);
-                svg += '<rect x="' + pos.x + '" y="' + pos.y + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
-                svg += '<text x="' + (pos.x + nodeW / 2) + '" y="' + (pos.y + 34) + '" text-anchor="middle" font-size="16" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(ni)) + '</text>';
-
-                if (!isCustom) {
-                    svg += renderSetTeam(pos.x, pos.y);
-                    if (showStorageGroup) {
-                        // Storage ports are the remaining ports after NIC1-2 (SET).
-                        svg += renderStorageGroup(pos.x, pos.y, 3, storagePortCount);
-                    } else {
-                        svg += '<text x="' + (pos.x + nodeW / 2) + '" y="' + (pos.y + 214) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Storage traffic runs on SET</text>';
-                    }
-                } else {
-                    var yCursor = pos.y + 64;
-                    if (!customGroups || customGroups.length === 0) {
-                        svg += '<text x="' + (pos.x + nodeW / 2) + '" y="' + (pos.y + 120) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">No custom intent NICs assigned</text>';
-                        svg += '<text x="' + (pos.x + nodeW / 2) + '" y="' + (pos.y + 140) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Assign NICs in the wizard</text>';
-                    } else {
-                        // Layout rule:
-                        // - Put Mgmt + Compute and Compute-only on the same row (when both exist)
-                        // - Keep storage-like intents below
-                        var byKey = {};
-                        for (var z = 0; z < customGroups.length; z++) byKey[customGroups[z].key] = customGroups[z];
-
-                        var topLeft = byKey['mgmt_compute'] || null;
-                        var topRight = byKey['compute'] || null;
-
-                        // Remove top-row keys from the remaining list.
-                        var remainingNonStorage = [];
-                        var remainingStorage = [];
-                        for (var k = 0; k < customGroups.length; k++) {
-                            var g = customGroups[k];
-                            if (g.key === 'mgmt_compute' || g.key === 'compute') continue;
-                            if (g.isStorageLike) remainingStorage.push(g);
-                            else remainingNonStorage.push(g);
-                        }
-
-                        // Top row: two columns when both exist; otherwise full width.
-                        if (topLeft && topRight) {
-                            // Slightly tighter layout so two-nic rows can be centered cleanly.
-                            var pad = 8;
-                            var gap = 8;
-                            var gW2 = Math.floor((nodeW - (pad * 2) - gap) / 2);
-                            var leftX = pos.x + pad;
-                            var rightX = pos.x + pad + gW2 + gap;
-                            var r1 = renderCustomIntentGroupAt(leftX, yCursor, gW2, topLeft, { compact: true, cols: 2 });
-                            var r2 = renderCustomIntentGroupAt(rightX, yCursor, gW2, topRight, { compact: true, cols: 2 });
-                            svg += r1.html;
-                            svg += r2.html;
-                            yCursor += Math.max(r1.height, r2.height) + 10;
-                        } else if (topLeft) {
-                            var rOnly = renderCustomIntentGroup(pos.x, pos.y, yCursor, topLeft);
-                            svg += rOnly.html;
-                            yCursor += rOnly.height + 10;
-                        } else if (topRight) {
-                            var rOnly2 = renderCustomIntentGroup(pos.x, pos.y, yCursor, topRight);
-                            svg += rOnly2.html;
-                            yCursor += rOnly2.height + 10;
-                        }
-
-                        // Remaining non-storage intents (if any) stay above storage.
-                        for (var gi2 = 0; gi2 < remainingNonStorage.length; gi2++) {
-                            var rn = renderCustomIntentGroup(pos.x, pos.y, yCursor, remainingNonStorage[gi2]);
-                            svg += rn.html;
-                            yCursor += rn.height + 10;
-                        }
-
-                        // Storage-like intents at the bottom.
-                        for (var gi3 = 0; gi3 < remainingStorage.length; gi3++) {
-                            var rs = renderCustomIntentGroup(pos.x, pos.y, yCursor, remainingStorage[gi3]);
-                            svg += rs.html;
-                            yCursor += rs.height + 10;
-                        }
-                    }
-                }
-            }
-
             svg += '</svg>';
 
-            var note = '<div class="switchless-diagram__note">Note: Switched scenarios do not require the point-to-point storage subnet pairs shown in switchless diagrams; those subnets are specific to switchless storage intent patterns.</div>';
+            var note = isSingleNode
+                ? '<div class="switchless-diagram__note">Note: Single-node deployments connect the node to the ToR switch for management and compute traffic. No storage connectivity is required as there is no cluster storage replication.</div>'
+                : '<div class="switchless-diagram__note">Note: Storage Switched scenarios connect all nodes through ToR switches. The diagram shows uplink connectivity from each node\'s network adapters to the ToR switch fabric.</div>';
 
             return '<div class="switchless-diagram">' + intro + svg + note + '</div>';
         }
@@ -3331,8 +3375,9 @@
             sections.push(block('Rack Aware TOR Architecture (Diagram)',
                 renderRackAwareTorArchitectureDiagram(s)
             ));
-        } else if (s.storage === 'switched') {
-            sections.push(block('Switched Connectivity (Diagram)',
+        } else if (s.storage === 'switched' || s.nodes === '1') {
+            // Single-node clusters (s.nodes === '1') have no storage connectivity but should still show a network diagram
+            sections.push(block(s.nodes === '1' ? 'Network Connectivity (Diagram)' : 'Switched Connectivity (Diagram)',
                 renderSwitchedIntentDiagram(s)
             ));
         }
@@ -3672,22 +3717,31 @@
         // Intent validations
         add('Intent', 'Intent selected', !!s.intent, s.intent ? ('Selected: ' + formatIntent(s.intent)) : '');
 
-        // Ports -> intent rules (mirror updateUI)
-        if (s.ports === '1') {
-            add('Intent', '1 port disables Switchless storage', s.storage !== 'switchless', 'Wizard disables Switchless when only 1 port is available.');
-
-            var isLowCapSingleNodeSwitched = (s.scale === 'low_capacity' && s.nodes === '1' && s.storage === 'switched');
-            add('Intent', '1 port blocks Compute+Storage intent', s.intent !== 'compute_storage', 'Compute+Storage is disabled with 1 port.');
-            if (isLowCapSingleNodeSwitched) {
-                add('Intent', 'Low Cap (1 node, Switched, 1 port) allows only All Traffic or Mgmt+Compute', (s.intent === 'all_traffic' || s.intent === 'mgmt_compute'), 'Custom is disabled in this special case.');
-                add('Intent', 'Low Cap (1 node, Switched, 1 port) disables Custom intent', s.intent !== 'custom', 'Custom is disabled in this special case.');
+        // Single node cluster intent rules (takes priority)
+        if (s.nodes === '1') {
+            var singleNodePorts = parseInt(s.ports, 10);
+            
+            // Single node: always disable All Traffic and Compute+Storage
+            add('Intent', 'Single node disables All Traffic', s.intent !== 'all_traffic', 'Single node deployments cannot use Group All Traffic.');
+            add('Intent', 'Single node disables Compute+Storage', s.intent !== 'compute_storage', 'Compute+Storage intent is not available for single node deployments.');
+            
+            if (!isNaN(singleNodePorts) && singleNodePorts >= 4) {
+                add('Intent', 'Single node (4+ ports) allows Mgmt+Compute or Custom', (s.intent === 'mgmt_compute' || s.intent === 'custom'), 'Only Mgmt+Compute or Custom intents are available for single node with 4+ ports.');
             } else {
-                add('Intent', '1 port disables Mgmt+Compute intent (general case)', s.intent !== 'mgmt_compute', 'Wizard disables Mgmt+Compute unless in the Low Cap special case.');
-                add('Intent', '1 port general case allows All Traffic or Custom', (s.intent === 'all_traffic' || s.intent === 'custom'), '');
+                add('Intent', 'Single node (<4 ports) disables Custom', s.intent !== 'custom', 'Custom intent requires at least 4 ports for single node deployments.');
+                add('Intent', 'Single node (<4 ports) requires Mgmt+Compute', s.intent === 'mgmt_compute', 'Only Mgmt+Compute intent is available for single node with fewer than 4 ports.');
             }
         }
 
-        if (s.ports === '2') {
+        // Ports -> intent rules (mirror updateUI) - only apply for multi-node scenarios
+        if (s.nodes !== '1' && s.ports === '1') {
+            add('Intent', '1 port disables Switchless storage', s.storage !== 'switchless', 'Wizard disables Switchless when only 1 port is available.');
+            add('Intent', '1 port blocks Compute+Storage intent', s.intent !== 'compute_storage', 'Compute+Storage is disabled with 1 port.');
+            add('Intent', '1 port disables Mgmt+Compute intent', s.intent !== 'mgmt_compute', 'Wizard disables Mgmt+Compute for multi-node with 1 port.');
+            add('Intent', '1 port allows All Traffic or Custom', (s.intent === 'all_traffic' || s.intent === 'custom'), '');
+        }
+
+        if (s.nodes !== '1' && s.ports === '2') {
             if (s.scale !== 'low_capacity') {
                 add('StoragePorts', '2 ports (Standard) disables Switchless storage', s.storage !== 'switchless', 'Wizard disables Switchless for 2 ports unless Low Capacity.');
             }
@@ -3701,7 +3755,7 @@
             }
         }
 
-        if (s.ports === '4') {
+        if (s.nodes !== '1' && s.ports === '4') {
             add('Intent', '4 ports disables Custom intent', s.intent !== 'custom', 'Wizard disables Custom with 4 ports.');
             if (s.scale === 'low_capacity') {
                 add('Intent', '4 ports (Low Cap) only allows Mgmt+Compute', s.intent === 'mgmt_compute', 'Wizard disables All Traffic and Compute+Storage for this case.');

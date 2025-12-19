@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] - 2025-12-19
+
+### Fixed
+
+#### Bug Fixes (Issue #48)
+
+- **Compare Options Popup** - Fixed styling issues with the Compare Options modal:
+  - Added `max-height: 90vh` with scrolling support so content fits within the viewport
+  - Made the close button (X) visible with proper styling and hover effect
+  - Added sticky header so title and close button remain visible while scrolling
+
+- **ToR Switch Logic** - Fixed the conditional logic for Single/Dual ToR switch availability:
+  - Hyperconverged clusters with 1-3 nodes can now correctly choose Single or Dual ToR
+  - Hyperconverged clusters with 4+ nodes correctly restrict to Dual ToR only (Single is greyed out)
+  - Fixed incorrect scale value check (was using wrong value for Hyperconverged detection)
+
+---
+
+## [0.8.0] - 2025-12-19
+
+### Added
+
+#### ToR Switch Selection (Issue #47)
+
+- **ToR Switch Options** - Added "Single ToR Switch" and "Dual ToR Switches" selection options for Storage Switched scenarios with Hyperconverged or Low Capacity clusters:
+  - **Hyperconverged (4+ nodes)**: Only Dual ToR is available (Single ToR is disabled)
+  - **Hyperconverged (2-3 nodes)**: Both Single and Dual ToR options available, defaulting to Dual
+  - **Low Capacity**: Both Single and Dual ToR options available
+
+- **Improved Storage Switched Diagram** - Completely redesigned the network diagram for Storage Switched scenarios:
+  - **ToR Switch Visualization**: Shows ToR switches at the top of the diagram (1 or 2 based on selection)
+  - **Horizontal Adapter Layout**: All network adapters are now displayed horizontally within each node box for better visual clarity
+  - **Uplink Connections**: Dashed lines show the uplink paths from adapters to ToR switches (odd NICs to ToR 1, even NICs to ToR 2 for dual configurations)
+  - **Simplified View**: Shows maximum 2 nodes regardless of cluster size, with a badge indicating additional nodes
+
+### Changed
+
+- **Storage Connectivity Labels** - Renamed storage connectivity options from "Switched"/"Switchless" to "Storage Switched"/"Storage Switchless" for clarity
+
+---
+
 ## [0.7.0] - 2025-12-19
 
 ### Added

@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.7.0';
+const WIZARD_VERSION = '0.8.1';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -14,6 +14,7 @@ const state = {
     fontSize: 'medium',
     ports: null,
     storage: null,
+    torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged/Low Capacity
     switchlessLinkMode: null,
     storagePoolConfiguration: null,
     rackAwareZones: null,
@@ -373,7 +374,8 @@ function getReportReadiness() {
         if (!state.rackAwareTorsPerRoom) missing.push('ToR switches per room');
         if (!state.rackAwareTorArchitecture) missing.push('ToR switch architecture');
     }
-    if (!state.storage) missing.push('Storage Connectivity');
+    // Storage connectivity is not required for single-node clusters (no storage intent)
+    if (!state.storage && state.nodes !== '1') missing.push('Storage Connectivity');
     if (!state.ports) missing.push('Ports');
     if (!state.storagePoolConfiguration) missing.push('Storage Pool Configuration');
     if (!state.intent) missing.push('Traffic Intent');
@@ -705,7 +707,7 @@ function generateNodeName(base, num, padding) {
 /**
  * Auto-fill Node 2..N names based on Node 1's naming pattern.
  * If Node 1 is "customname01", fills Node 2 as "customname02", Node 3 as "customname03", etc.
- * Only fills empty node name fields; never overwrites user-provided values.
+ * Only fills empty node name fields or default placeholder names; never overwrites user-provided values.
  */
 function tryAutoFillSequentialNodeNamesFromFirst() {
     const count = getNumericNodeCount();
@@ -725,8 +727,10 @@ function tryAutoFillSequentialNodeNamesFromFirst() {
         const cur = state.nodeSettings[i] || {};
         const curVal = String(cur.name || '').trim();
 
-        // Only fill empty fields.
-        if (curVal) continue;
+        // Only fill empty fields or default placeholder names (e.g., "node2", "node3").
+        const defaultName = `node${i + 1}`;
+        const isDefault = !curVal || curVal === defaultName || curVal.toLowerCase() === defaultName.toLowerCase();
+        if (!isDefault) continue;
 
         const newNum = (num !== null) ? (num + i) : (i + 1);
         const newName = generateNodeName(base, newNum, effectivePadding);
@@ -2037,8 +2041,36 @@ function selectOption(category, value) {
         const catCandidates = Array.from(document.querySelectorAll(`.option-card[onclick*="selectOption('${category}'"]`));
         const v = (value == null ? '' : String(value));
         const card = catCandidates.find(c => String(c.getAttribute('data-value') || '') === v) || null;
-        if (card && card.classList && card.classList.contains('disabled')) return;
+        
+        // Special override: Allow Custom intent for single-node clusters with 4+ ports
+        const isSingleNodeCustomOverride = (
+            category === 'intent' && 
+            value === 'custom' && 
+            state.nodes === '1' && 
+            state.ports && 
+            parseInt(state.ports, 10) >= 4
+        );
+        
+        // DEBUG: Log intent selection attempts
+        if (category === 'intent') {
+            console.log('[DEBUG] Intent selection attempt:', {
+                value,
+                nodes: state.nodes,
+                ports: state.ports,
+                portsParsed: parseInt(state.ports, 10),
+                cardFound: !!card,
+                cardDisabled: card ? card.classList.contains('disabled') : 'N/A',
+                isSingleNodeCustomOverride,
+                cardClasses: card ? card.className : 'N/A'
+            });
+        }
+        
+        if (card && card.classList && card.classList.contains('disabled') && !isSingleNodeCustomOverride) {
+            console.log('[DEBUG] Selection blocked - card is disabled and no override applies');
+            return;
+        }
         state[category] = value;
+        console.log('[DEBUG] Selection allowed - state.' + category + ' set to:', value);
     }
 
     // Reset chains
@@ -2155,9 +2187,13 @@ function selectOption(category, value) {
         state.ports = null; state.intent = null; state.customIntentConfirmed = false; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
         state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
         state.switchlessLinkMode = null;
+        state.torSwitchCount = null; // Reset ToR switch selection when changing storage type
         // Storage choice should not invalidate Rack Aware zone placement or ToR architecture.
         // (Rack Aware is a scale/topology decision; users expect ToR selections to persist
         // when moving to Step 06 and beyond.)
+    } else if (category === 'torSwitchCount') {
+        // ToR switch selection (single/dual) - only used for diagram generation
+        state.torSwitchCount = value;
     } else if (category === 'switchlessLinkMode') {
         // Changing link mode changes the physical wiring requirements; force the user
         // to re-pick ports and downstream intent mappings.
@@ -2905,6 +2941,29 @@ function updateUI() {
         if (outboundDisconnected) outboundDisconnected.classList.add('hidden');
     }
 
+    // Single-node clusters: Hide storage options but show ToR switch selection (for mgmt/compute)
+    const storageOptionsGrid = document.getElementById('storage-options-grid');
+    const storageCompareBtn = document.getElementById('storage-compare-btn');
+    const stepTitle = document.getElementById('step-4-title');
+    const torDescription = document.getElementById('tor-switch-description');
+    
+    if (state.nodes === '1') {
+        // Hide storage switched/switchless options (no storage intent for 1-node)
+        if (storageOptionsGrid) storageOptionsGrid.classList.add('hidden');
+        if (storageCompareBtn) storageCompareBtn.classList.add('hidden');
+        // Change title to reflect it's for network, not storage
+        if (stepTitle) stepTitle.textContent = 'Network Connectivity';
+        if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for management and compute traffic.';
+        // Clear storage selection but keep the step visible
+        state.storage = null;
+    } else {
+        // Show storage options for multi-node clusters
+        if (storageOptionsGrid) storageOptionsGrid.classList.remove('hidden');
+        if (storageCompareBtn) storageCompareBtn.classList.remove('hidden');
+        if (stepTitle) stepTitle.textContent = 'Storage Connectivity';
+        if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for storage connectivity.';
+    }
+
     // ... remainder of updateUI unchanged ...
 
     } catch (err) {
@@ -2970,6 +3029,7 @@ function updateUI() {
     }
 
     // 2. Visual Updates (Cards)
+    console.log('[DEBUG updateUI] Visual update starting. state.intent =', state.intent);
     document.querySelectorAll('.option-card').forEach(card => {
         const value = card.getAttribute('data-value');
         const clickFn = card.getAttribute('onclick');
@@ -2980,6 +3040,9 @@ function updateUI() {
         if (category === 'nodes') return;
 
         let isSelected = state[category] === value;
+        if (category === 'intent') {
+            console.log('[DEBUG updateUI] Intent card:', value, 'isSelected:', isSelected);
+        }
         if (isSelected) card.classList.add('selected');
         else card.classList.remove('selected');
     });
@@ -3073,10 +3136,10 @@ function updateUI() {
             'switchless': document.querySelector('[data-value="switchless"]')
         },
         intent: {
-            'all_traffic': document.querySelector('[data-value="all_traffic"]'),
-            'mgmt_compute': document.querySelector('[data-value="mgmt_compute"]'),
-            'compute_storage': document.querySelector('[data-value="compute_storage"]'),
-            'custom': document.querySelector('[data-value="custom"]')
+            'all_traffic': document.querySelector('[data-value="all_traffic"][onclick*="intent"]'),
+            'mgmt_compute': document.querySelector('[data-value="mgmt_compute"][onclick*="intent"]'),
+            'compute_storage': document.querySelector('[data-value="compute_storage"][onclick*="intent"]'),
+            'custom': document.querySelector('[data-value="custom"][onclick*="intent"]')
         },
         arc: {
             'arc_gateway': document.querySelector('[data-value="arc_gateway"]'),
@@ -3148,7 +3211,7 @@ function updateUI() {
     // NEW: Manage 1-Port Option Visibility
     const portOneOption = document.getElementById('port-option-1');
     if (portOneOption) {
-        if (state.scale === 'low_capacity' && state.nodes === '1') {
+        if (state.nodes === '1') {
             portOneOption.classList.remove('hidden');
         } else {
             portOneOption.classList.add('hidden');
@@ -3256,7 +3319,12 @@ function updateUI() {
 
     // Nodes -> Storage -> Ports
     if (!state.nodes) Object.values(cards.storage).forEach(c => c.classList.add('disabled'));
-    if (!state.storage) Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
+    // For 1-node clusters, storage is not required (no storage intent), so enable ports if ToR is selected
+    if (!state.storage && state.nodes !== '1') {
+        Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
+    } else if (state.nodes === '1' && !state.torSwitchCount) {
+        Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
+    }
     
     // Step 5 -> Step 5.5 (Storage Pool Configuration)
     const storagePoolCards = {
@@ -3469,6 +3537,9 @@ function updateUI() {
     // Check if infra is properly set (not just truthy, but has start and end)
     if (!state.infra || !state.infra.start || !state.infra.end) {
         Object.values(adCards).forEach(c => c && c.classList.add('disabled'));
+    } else {
+        // Enable Azure AD card when infra is properly set
+        if (adCards.azure_ad) adCards.azure_ad.classList.remove('disabled');
     }
     
     // Disconnected scenario: Only Active Directory is allowed (disable Local Identity)
@@ -3500,6 +3571,43 @@ function updateUI() {
             adfsSection.classList.add('hidden');
         }
     }
+    
+    // AD Domain section - restore visibility and input values for Resume/Import
+    const adDomainSection = document.getElementById('ad-domain-section');
+    const adDomainInput = document.getElementById('ad-domain');
+    const adOuPathInput = document.getElementById('ad-ou-path');
+    const adfsServerInput = document.getElementById('adfs-server-name');
+    if (adDomainSection && state.activeDirectory === 'azure_ad') {
+        adDomainSection.classList.remove('hidden');
+        // Restore input values from state
+        if (adDomainInput && state.adDomain && !adDomainInput.value) {
+            adDomainInput.value = state.adDomain;
+        }
+        if (adOuPathInput && state.adOuPath && !adOuPathInput.value) {
+            adOuPathInput.value = state.adOuPath;
+        }
+        if (adfsServerInput && state.adfsServerName && !adfsServerInput.value) {
+            adfsServerInput.value = state.adfsServerName;
+        }
+    }
+    
+    // DNS Configuration section - restore visibility for Resume/Import
+    const dnsConfigSection = document.getElementById('dns-config-section');
+    const dnsConfigTitle = document.getElementById('dns-config-title');
+    const localDnsZone = document.getElementById('local-dns-zone');
+    if (dnsConfigSection && state.activeDirectory) {
+        dnsConfigSection.classList.remove('hidden');
+        // Show/hide Local DNS Zone based on identity type
+        if (localDnsZone) {
+            if (state.activeDirectory === 'local_identity') {
+                localDnsZone.classList.remove('hidden');
+                if (dnsConfigTitle) dnsConfigTitle.classList.add('hidden');
+            } else {
+                localDnsZone.classList.add('hidden');
+                if (dnsConfigTitle) dnsConfigTitle.classList.remove('hidden');
+            }
+        }
+    }
 
     // Step 13 -> Step 13.5 (Security Configuration)
     const securityCards = {
@@ -3529,6 +3637,7 @@ function updateUI() {
     const infraInputCidr = document.getElementById('infra-cidr');
     const infraInputStart = document.getElementById('infra-ip-start');
     const infraInputEnd = document.getElementById('infra-ip-end');
+    const infraInputGateway = document.getElementById('infra-default-gateway');
     if (infraInputStart && infraInputEnd) {
         if (!state.ip) {
             if (infraInputCidr) {
@@ -3548,6 +3657,22 @@ function updateUI() {
             infraInputEnd.disabled = false;
             infraInputStart.parentElement.style.opacity = '1';
             infraInputEnd.parentElement.style.opacity = '1';
+        }
+        
+        // Restore input values from state (for Resume/Import functionality)
+        if (infraInputCidr && state.infraCidr && !infraInputCidr.value) {
+            infraInputCidr.value = state.infraCidr;
+        }
+        if (state.infra) {
+            if (state.infra.start && !infraInputStart.value) {
+                infraInputStart.value = state.infra.start;
+            }
+            if (state.infra.end && !infraInputEnd.value) {
+                infraInputEnd.value = state.infra.end;
+            }
+        }
+        if (infraInputGateway && state.infraGateway && !infraInputGateway.value) {
+            infraInputGateway.value = state.infraGateway;
         }
     }
 
@@ -3588,6 +3713,59 @@ function updateUI() {
         } else {
             linkModeBlock.classList.add('hidden');
             state.switchlessLinkMode = null;
+        }
+    })();
+
+    // Conditional UI: Storage Switched + Hyperconverged/Low Capacity -> ToR Switch Count (Single/Dual)
+    // Also show for 1-node clusters (for mgmt/compute traffic, not storage)
+    (function updateTorSwitchCountUi() {
+        const torBlock = document.getElementById('tor-switch-count');
+        if (!torBlock) return;
+
+        const n = state.nodes ? parseInt(state.nodes, 10) : NaN;
+        const isStorageSwitched = state.storage === 'switched';
+        const isHyperconvergedOrLowCap = state.scale === 'medium' || state.scale === 'low_capacity';
+        const isSingleNode = n === 1;
+        
+        // Show ToR selection for: 1-node clusters OR (storage switched + hyperconverged/low cap)
+        const shouldShow = (isSingleNode && isHyperconvergedOrLowCap) || (isStorageSwitched && isHyperconvergedOrLowCap && !isNaN(n) && n >= 1);
+
+        const singleOption = document.getElementById('tor-single-option');
+        const dualOption = document.getElementById('tor-dual-option');
+
+        if (shouldShow) {
+            torBlock.classList.remove('hidden');
+
+            // For 4+ nodes on Hyperconverged (medium scale), only Dual ToR is allowed
+            const singleDisabled = (state.scale === 'medium' && n >= 4);
+
+            if (singleOption) {
+                if (singleDisabled) {
+                    singleOption.classList.add('disabled');
+                    singleOption.title = 'Single ToR Switch is not supported for 4+ node Hyperconverged clusters';
+                } else {
+                    singleOption.classList.remove('disabled');
+                    singleOption.title = '';
+                }
+            }
+
+            if (dualOption) {
+                dualOption.classList.remove('disabled');
+            }
+
+            // Auto-select: Single for 1-node clusters, Dual for others (or if Single is disabled)
+            if (!state.torSwitchCount) {
+                state.torSwitchCount = isSingleNode ? 'single' : 'dual';
+            } else if (singleDisabled && state.torSwitchCount === 'single') {
+                state.torSwitchCount = 'dual';
+            }
+
+            // Update visual selection
+            if (singleOption) singleOption.classList.toggle('selected', state.torSwitchCount === 'single');
+            if (dualOption) dualOption.classList.toggle('selected', state.torSwitchCount === 'dual');
+        } else {
+            torBlock.classList.add('hidden');
+            state.torSwitchCount = null;
         }
     })();
 
@@ -3664,6 +3842,7 @@ function updateUI() {
     }
 
     // Recommendation Rule: Low Capacity + Switched -> Recommend 4 Ports
+    // Also: 2+ nodes + Storage Switched -> Recommend 4 Ports
     const port4Card = cards.ports['4'];
     const badgeClass = 'badge-recommended';
     const portsBadgeSelector = `.${badgeClass}[data-source="ports"]`;
@@ -3674,6 +3853,9 @@ function updateUI() {
         state.scale === 'low_capacity' &&
         state.storage === 'switchless' &&
         nForPortsBadge === 2;
+
+    // Show "Recommended" for 2+ nodes with Storage Switched
+    const isMultiNodeSwitched = !isNaN(nForPortsBadge) && nForPortsBadge >= 2 && state.storage === 'switched';
 
     if (isSwitchless2NodeLowCapacityPortsRequired) {
         if (!existingPortsBadge && port4Card && !port4Card.classList.contains('disabled')) {
@@ -3686,6 +3868,17 @@ function updateUI() {
             (port4Card.querySelector(portsBadgeSelector)).innerText = 'Required';
         }
     } else if (state.scale === 'low_capacity' && state.storage === 'switched') {
+        if (!existingPortsBadge && port4Card && !port4Card.classList.contains('disabled')) {
+            const badge = document.createElement('div');
+            badge.className = badgeClass;
+            badge.dataset.source = 'ports';
+            port4Card.appendChild(badge);
+        }
+        if (port4Card && !port4Card.classList.contains('disabled')) {
+            (port4Card.querySelector(portsBadgeSelector)).innerText = 'Recommended';
+        }
+    } else if (isMultiNodeSwitched) {
+        // 2+ nodes with Storage Switched: recommend 4 ports
         if (!existingPortsBadge && port4Card && !port4Card.classList.contains('disabled')) {
             const badge = document.createElement('div');
             badge.className = badgeClass;
@@ -3799,15 +3992,17 @@ function updateUI() {
         if (!state.portConfig || state.portConfig.length !== pCount) {
             const isLowCapacity = state.scale === 'low_capacity';
             const isStandard = state.scale === 'medium';
+            const isSingleNode = state.nodes === '1';
 
             const isSwitchless3NodeStandard =
                 isStandard &&
                 state.storage === 'switchless' &&
                 parseInt(state.nodes, 10) === 3;
 
-            const defaultRdmaEnabled = isLowCapacity ? false : true;
-            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
-            const defaultPortSpeed = isLowCapacity ? '1GbE' : '25GbE';
+            const defaultRdmaEnabled = (isLowCapacity || isSingleNode) ? false : true;
+            const defaultRdmaMode = (isLowCapacity || isSingleNode) ? 'Disabled' : 'RoCEv2';
+            // Single-node defaults to 10GbE, Low Capacity to 1GbE, otherwise 25GbE
+            const defaultPortSpeed = isSingleNode ? '10GbE' : (isLowCapacity ? '1GbE' : '25GbE');
 
             state.portConfig = Array(pCount).fill().map((_, idx) => {
                 // Special default: 3-node switchless standard uses non-RDMA teamed ports for Mgmt+Compute.
@@ -3825,15 +4020,28 @@ function updateUI() {
             // keep the defaults aligned for 3-node switchless standard unless the user manually changed a port.
             const isLowCapacity = state.scale === 'low_capacity';
             const isStandard = state.scale === 'medium';
+            const isSingleNode = state.nodes === '1';
             const isSwitchless3NodeStandard =
                 isStandard &&
                 state.storage === 'switchless' &&
                 parseInt(state.nodes, 10) === 3;
-            const defaultRdmaEnabled = isLowCapacity ? false : true;
-            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
+            const defaultRdmaEnabled = (isLowCapacity || isSingleNode) ? false : true;
+            const defaultRdmaMode = (isLowCapacity || isSingleNode) ? 'Disabled' : 'RoCEv2';
 
+            // Single-node default: 10GbE, no RDMA.
+            if (isSingleNode) {
+                for (let idx = 0; idx < pCount; idx++) {
+                    const pc = state.portConfig[idx];
+                    if (!pc) continue;
+                    pc.speed = '10GbE';
+                    if (!pc.rdmaManual) {
+                        pc.rdma = false;
+                        pc.rdmaMode = 'Disabled';
+                    }
+                }
+            }
             // Low Capacity default: always use 1GbE.
-            if (isLowCapacity) {
+            else if (isLowCapacity) {
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
                     if (!pc) continue;
@@ -3972,8 +4180,11 @@ function updateUI() {
         }
     }
     if (state.ports === '4') {
-        cards.intent['custom'].classList.add('disabled');
-        if (state.intent === 'custom') state.intent = null;
+        // NOTE: Single-node clusters can use Custom intent with 4+ ports, so skip this for them
+        if (state.nodes !== '1') {
+            cards.intent['custom'].classList.add('disabled');
+            if (state.intent === 'custom') state.intent = null;
+        }
 
         // Low Capacity: only allow Mgmt + Compute
         if (state.scale === 'low_capacity') {
@@ -3981,11 +4192,12 @@ function updateUI() {
             cards.intent['compute_storage'].classList.add('disabled');
 
             if (state.intent === 'all_traffic' || state.intent === 'compute_storage') state.intent = null;
-            if (state.intent !== 'mgmt_compute') state.intent = null;
+            // Single-node can use Custom, so don't reset it
+            if (state.nodes !== '1' && state.intent !== 'mgmt_compute') state.intent = null;
         }
     }
 
-    // RULE 3: Storage -> Intent
+    // RULE 4: Outbound -> Arc & Proxy
     if (state.storage === 'switchless') {
         // User request: 3-node switchless (dual-link) forces Mgmt + Compute intent and disables other intent options.
         const nSwitchless = parseInt(state.nodes, 10);
@@ -4034,6 +4246,40 @@ function updateUI() {
         }
     }
 
+    // RULE: 1-node clusters only allow Mgmt + Compute (or Custom with 4+ ports)
+    // No storage intent for single-node deployments
+    // NOTE: This rule runs LAST to override any earlier port-based or storage-based rules
+    if (state.nodes === '1') {
+        const portCount = parseInt(state.ports, 10);
+        console.log('[DEBUG updateUI] Single-node rule: intent BEFORE=', state.intent, 'portCount=', portCount);
+        
+        // Single node: always disable All Traffic and Compute+Storage
+        cards.intent['all_traffic'].classList.add('disabled');
+        cards.intent['compute_storage'].classList.add('disabled');
+        
+        // Allow Custom only with 4+ ports (for separate Mgmt and Compute adapters)
+        if (isNaN(portCount) || portCount < 4) {
+            cards.intent['custom'].classList.add('disabled');
+        } else {
+            // Explicitly enable Custom for single node with 4+ ports (override earlier rules)
+            cards.intent['custom'].classList.remove('disabled');
+        }
+        
+        // Default to Mgmt + Compute
+        if (state.intent !== 'mgmt_compute' && state.intent !== 'custom') {
+            console.log('[DEBUG updateUI] Resetting intent to mgmt_compute (was:', state.intent, ')');
+            state.intent = 'mgmt_compute';
+            state.customIntentConfirmed = false;
+        }
+        // If custom is selected but ports < 4, reset to mgmt_compute
+        if (state.intent === 'custom' && (isNaN(portCount) || portCount < 4)) {
+            console.log('[DEBUG updateUI] Resetting custom to mgmt_compute (ports < 4)');
+            state.intent = 'mgmt_compute';
+            state.customIntentConfirmed = false;
+        }
+        console.log('[DEBUG updateUI] Single-node rule: intent AFTER=', state.intent);
+    }
+
     // RULE 4: Outbound -> Arc & Proxy
     if (state.outbound === 'private') {
         cards.arc['no_arc'].classList.add('disabled');
@@ -4042,6 +4288,18 @@ function updateUI() {
         cards.proxy['no_proxy'].classList.add('disabled');
         if (proxyText) proxyText.innerText = 'Azure Firewall Explicit Proxy';
         if (state.proxy !== 'proxy') { state.proxy = 'proxy'; cards.proxy['proxy'].classList.add('selected'); }
+    }
+
+    // FINAL OVERRIDE: Ensure single-node 4+ ports can use Custom intent
+    // This is a direct DOM fix to ensure the Custom card is clickable
+    if (state.nodes === '1') {
+        const portCount = parseInt(state.ports, 10);
+        if (!isNaN(portCount) && portCount >= 4) {
+            const customIntentCard = document.querySelector('.option-card[data-value="custom"][onclick*="intent"]');
+            if (customIntentCard) {
+                customIntentCard.classList.remove('disabled');
+            }
+        }
     }
 
 
@@ -4929,7 +5187,12 @@ function updateStepIndicators() {
         { id: 'step-2', validation: () => state.scale !== null },
         { id: 'step-3', validation: () => state.nodes !== null },
         { id: 'step-3-5', validation: () => state.witnessType !== null },
-        { id: 'step-4', validation: () => state.storage !== null },
+        { id: 'step-4', validation: () => {
+            // 1-node clusters: require ToR switch selection (no storage intent)
+            if (state.nodes === '1') return state.torSwitchCount !== null;
+            // Multi-node clusters: require storage selection
+            return state.storage !== null;
+        }},
         { id: 'step-5', validation: () => state.ports !== null },
         { id: 'step-6', validation: () => {
             // Intent must be selected
@@ -5519,6 +5782,9 @@ function getRequiredRdmaPortCount() {
     if (state.scale === 'low_capacity') return 0;
 
     const n = parseInt(state.nodes, 10);
+
+    // Single-node clusters have no storage intent, so RDMA is not required.
+    if (n === 1) return 0;
 
     // Standard (Hyperconverged) + Switchless topologies require more RDMA ports.
     if (state.scale === 'medium' && state.storage === 'switchless') {
@@ -6369,10 +6635,20 @@ function validateAdOuPath(ouPath, domainName) {
         return { valid: true, error: '' }; // Empty is valid (optional field)
     }
     
-    // Basic OU path validation: must contain OU= and DC= components
-    const ouPathPattern = /^(OU=[^,]+,)*(CN=[^,]+,)*(OU=[^,]+,)*DC=[^,]+(,DC=[^,]+)*$/i;
+    const trimmedPath = ouPath.trim();
     
-    if (!ouPathPattern.test(ouPath.trim())) {
+    // Must start with "OU="
+    if (!trimmedPath.toUpperCase().startsWith('OU=')) {
+        return { 
+            valid: false, 
+            error: 'OU path must start with "OU=" (e.g., OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com)' 
+        };
+    }
+    
+    // Basic OU path validation: must contain OU= and DC= components
+    const ouPathPattern = /^(OU=[^,]+,)+(CN=[^,]+,)*(OU=[^,]+,)*DC=[^,]+(,DC=[^,]+)*$/i;
+    
+    if (!ouPathPattern.test(trimmedPath)) {
         return { 
             valid: false, 
             error: 'Invalid OU path format. Must follow pattern: OU=...,DC=...,DC=... (e.g., OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com)' 
@@ -6739,7 +7015,7 @@ function checkForSavedState() {
             <div style="font-size: 12px; opacity: 0.9;">Last saved: ${escapeHtml(timestamp)}</div>
         </div>
         <button onclick="resumeSavedState()" style="padding: 8px 16px; background: white; color: #2563eb; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Resume</button>
-        <button onclick="dismissResumeBanner()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Start Fresh</button>
+        <button onclick="startFresh()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Start Fresh</button>
     `;
     
     document.body.appendChild(banner);
@@ -6770,15 +7046,95 @@ function resumeSavedState() {
         updateUI();
         showToast('Session resumed successfully!', 'success');
     }
-    dismissResumeBanner();
+    dismissResumeBanner(false); // Don't scroll to top when resuming
 }
 
-function dismissResumeBanner() {
+function dismissResumeBanner(scrollToTop) {
     const banner = document.getElementById('resume-banner');
     if (banner) {
         banner.style.animation = 'slideUp 0.3s ease';
         setTimeout(() => banner.remove(), 300);
     }
+    // Scroll to top of page only when starting fresh
+    if (scrollToTop !== false) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+// Start fresh - clear saved state and reset all inputs
+function startFresh() {
+    // Clear localStorage
+    clearSavedState();
+    
+    // Reset the global state object to initial values
+    Object.keys(state).forEach(key => {
+        if (key === 'theme' || key === 'fontSize') return; // Keep theme/font preferences
+        if (Array.isArray(state[key])) {
+            state[key] = [];
+        } else if (key === 'securitySettings') {
+            state[key] = {
+                driftControlEnforced: true,
+                bitlockerBootVolume: true,
+                bitlockerDataVolumes: true,
+                wdacEnforced: true,
+                credentialGuardEnforced: true,
+                smbSigningEnforced: true,
+                smbClusterEncryption: true
+            };
+        } else if (key === 'infra' || key === 'intentOverrides' || key === 'customIntents' || key === 'adapterMapping') {
+            // These object properties should be null or empty object initially
+            state[key] = (key === 'infra') ? null : {};
+        } else if (typeof state[key] === 'boolean') {
+            state[key] = key === 'infraCidrAuto' ? true : false;
+        } else {
+            state[key] = null;
+        }
+    });
+    
+    // Dismiss the banner and scroll to top
+    dismissResumeBanner(true);
+    
+    // Update UI to reflect clean state
+    updateUI();
+    
+    // Clear all input fields AFTER updateUI to ensure they stay cleared
+    const infraCidrInput = document.getElementById('infra-cidr');
+    const infraStartInput = document.getElementById('infra-ip-start');
+    const infraEndInput = document.getElementById('infra-ip-end');
+    const infraGatewayInput = document.getElementById('infra-default-gateway');
+    const adDomainInput = document.getElementById('ad-domain');
+    const adOuPathInput = document.getElementById('ad-ou-path');
+    const adfsServerInput = document.getElementById('adfs-server-name');
+    const infraVlanIdInput = document.getElementById('infra-vlan-id');
+    const localDnsZoneInput = document.getElementById('local-dns-zone-input');
+    
+    if (infraCidrInput) infraCidrInput.value = '';
+    if (infraStartInput) infraStartInput.value = '';
+    if (infraEndInput) infraEndInput.value = '';
+    if (infraGatewayInput) infraGatewayInput.value = '';
+    if (adDomainInput) adDomainInput.value = '';
+    if (adOuPathInput) adOuPathInput.value = '';
+    if (adfsServerInput) adfsServerInput.value = '';
+    if (infraVlanIdInput) infraVlanIdInput.value = '';
+    if (localDnsZoneInput) localDnsZoneInput.value = '';
+    
+    // Hide sections that should only show after selections are made
+    const adDomainSection = document.getElementById('ad-domain-section');
+    const dnsConfigSection = document.getElementById('dns-config-section');
+    const localDnsZone = document.getElementById('local-dns-zone');
+    const adfsSection = document.getElementById('adfs-server-section');
+    
+    if (adDomainSection) adDomainSection.classList.add('hidden');
+    if (dnsConfigSection) dnsConfigSection.classList.add('hidden');
+    if (localDnsZone) localDnsZone.classList.add('hidden');
+    if (adfsSection) adfsSection.classList.add('hidden');
+    
+    // Remove selected state from all option cards
+    document.querySelectorAll('.option-card.selected').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    showToast('Started fresh - all previous data cleared', 'info');
 }
 
 // Enhanced validation with real-time feedback
@@ -7033,18 +7389,45 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.7.0 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.8.1 - Latest Release</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issue #48)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Deploy to Azure Button:</strong> One-click deployment button on ARM Parameters page that redirects to the Azure Portal with the correct ARM template pre-loaded. Supports Commercial and Government clouds.</li>
-                        <li><strong>Node Name Auto-Population:</strong> Enter a name with a numeric suffix in Node 1 (e.g., "server01") and remaining node names are auto-filled sequentially (server02, server03...). Preserves number padding and validates the 15-character SAM Account name limit.</li>
-                        <li><strong>DCB QoS Overrides for Storage Intents:</strong> New override options in Network Traffic Intents to customize Data Center Bridging (DCB) QoS policy - Storage Priority (3 or 4), System/Cluster Priority (5, 6, or 7), and Bandwidth Reservation % (40-70%).</li>
-                        <li><strong>Proxy Bypass String Generation:</strong> Report now shows a ready-to-use proxy bypass string when proxy is enabled, including localhost, node names, node IPs, domain wildcard, and infrastructure subnet wildcard.</li>
-                        <li><strong>Custom Storage Subnets:</strong> When Storage Auto IP is disabled, you can now specify custom storage subnet CIDRs instead of the default 10.0.x.0/24 networks. Supports 2-12 subnets depending on storage configuration.</li>
+                        <li><strong>Compare Options Popup:</strong> Fixed styling - added max-height with scrolling, visible close button with hover effect, and sticky header.</li>
+                        <li><strong>ToR Switch Logic:</strong> Fixed conditional logic so 1-3 node Hyperconverged clusters can choose Single or Dual ToR, while 4+ nodes correctly restrict to Dual only.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.8.0</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features (Issue #47)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>ToR Switch Options:</strong> Added Single/Dual ToR Switch selection for Storage Switched scenarios with Hyperconverged or Low Capacity clusters. Dual is required for 4+ node Hyperconverged clusters.</li>
+                        <li><strong>Improved Storage Switched Diagram:</strong> Completely redesigned network diagram showing ToR switches at top, horizontal adapter layout, and uplink connections from adapters to switches.</li>
+                        <li><strong>Storage Connectivity Labels:</strong> Renamed options to "Storage Switched" and "Storage Switchless" for clarity.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.7.0</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Features</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Deploy to Azure Button:</strong> One-click deployment to Azure Portal with correct ARM template pre-loaded.</li>
+                        <li><strong>Node Name Auto-Population:</strong> Auto-fill sequential node names from Node 1 pattern.</li>
+                        <li><strong>DCB QoS Overrides:</strong> Customize Storage Priority, System/Cluster Priority, and Bandwidth Reservation.</li>
+                        <li><strong>Proxy Bypass String:</strong> Auto-generated bypass string when proxy is enabled.</li>
+                        <li><strong>Custom Storage Subnets:</strong> Specify custom storage subnet CIDRs when Auto IP is disabled.</li>
                     </ul>
                 </div>
 
@@ -7439,10 +7822,10 @@ function showComparison(category) {
     });
     
     overlay.innerHTML = `
-        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 900px; width: 100%;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; position: sticky; top: 0; background: var(--card-bg); padding-bottom: 12px; border-bottom: 1px solid var(--glass-border);">
                 <h3 style="margin: 0; color: var(--accent-blue);">${escapeHtml(comparison.title)}</h3>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--text-primary); font-size: 20px; cursor: pointer; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.borderColor='#ef4444'; this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-primary)';">&times;</button>
             </div>
             
             <div style="color: var(--text-primary); line-height: 1.6;">
@@ -8555,6 +8938,7 @@ function getIntentZonesForIntent(intent) {
     // Minimum adapters: 2 for standard scenarios, 1 for Low Capacity
     const zones = [];
     const isLowCapacity = state.scale === 'low_capacity';
+    const isSingleNode = state.nodes === '1';
     const minStandard = 2;
     const minLowCap = 1;
 
@@ -8580,16 +8964,19 @@ function getIntentZonesForIntent(intent) {
             minAdapters: isLowCapacity ? minLowCap : minStandard,
             requiresRdma: false
         });
-        zones.push({
-            key: 'storage',
-            title: 'Storage',
-            titleClass: 'storage',
-            description: 'Dedicated storage traffic (SMB Direct).',
-            badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
-            badgeClass: 'rdma-required',
-            minAdapters: isLowCapacity ? minLowCap : minStandard,
-            requiresRdma: true
-        });
+        // Only add storage zone for multi-node clusters (1-node clusters don't have storage intent)
+        if (!isSingleNode) {
+            zones.push({
+                key: 'storage',
+                title: 'Storage',
+                titleClass: 'storage',
+                description: 'Dedicated storage traffic (SMB Direct).',
+                badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
+                badgeClass: 'rdma-required',
+                minAdapters: isLowCapacity ? minLowCap : minStandard,
+                requiresRdma: true
+            });
+        }
     } else if (intent === 'compute_storage') {
         zones.push({
             key: 'mgmt',
@@ -8632,16 +9019,19 @@ function getIntentZonesForIntent(intent) {
             minAdapters: 0,
             requiresRdma: false
         });
-        zones.push({
-            key: 'storage',
-            title: 'Storage',
-            titleClass: 'storage',
-            description: 'Storage traffic (SMB Direct).',
-            badge: 'RDMA Required',
-            badgeClass: 'rdma-required',
-            minAdapters: 0,
-            requiresRdma: true
-        });
+        // Storage zones only for multi-node clusters
+        if (!isSingleNode) {
+            zones.push({
+                key: 'storage',
+                title: 'Storage',
+                titleClass: 'storage',
+                description: 'Storage traffic (SMB Direct).',
+                badge: 'RDMA Required',
+                badgeClass: 'rdma-required',
+                minAdapters: 0,
+                requiresRdma: true
+            });
+        }
         zones.push({
             key: 'mgmt_compute',
             title: 'Mgmt + Compute',
@@ -8652,25 +9042,29 @@ function getIntentZonesForIntent(intent) {
             minAdapters: 0,
             requiresRdma: false
         });
-        zones.push({
-            key: 'compute_storage',
-            title: 'Compute + Storage',
-            titleClass: 'storage',
-            description: 'Shared compute and storage.',
-            badge: 'RDMA Required',
-            badgeClass: 'rdma-required',
-            minAdapters: 0,
-            requiresRdma: true
-        });
+        // Compute + Storage zone only for multi-node clusters
+        if (!isSingleNode) {
+            zones.push({
+                key: 'compute_storage',
+                title: 'Compute + Storage',
+                titleClass: 'storage',
+                description: 'Shared compute and storage.',
+                badge: 'RDMA Required',
+                badgeClass: 'rdma-required',
+                minAdapters: 0,
+                requiresRdma: true
+            });
+        }
+        // For 1-node, "Group All" is just Mgmt + Compute (no RDMA needed)
         zones.push({
             key: 'all',
             title: 'Group All Traffic',
             titleClass: '',
-            description: 'All traffic types combined.',
-            badge: 'RDMA Required',
-            badgeClass: 'rdma-required',
+            description: isSingleNode ? 'Management and Compute traffic combined.' : 'All traffic types combined.',
+            badge: isSingleNode ? 'Optional' : 'RDMA Required',
+            badgeClass: isSingleNode ? 'optional' : 'rdma-required',
             minAdapters: 0,
-            requiresRdma: true
+            requiresRdma: !isSingleNode
         });
     }
 
@@ -8681,6 +9075,7 @@ function getDefaultAdapterMapping(intent, portCount) {
     // Returns a default adapter mapping based on intent type
     const mapping = {};
     const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+    const isSingleNode = state.nodes === '1';
 
     // Find RDMA-capable ports
     const rdmaPorts = [];
@@ -8700,23 +9095,30 @@ function getDefaultAdapterMapping(intent, portCount) {
             mapping[i] = 'all';
         }
     } else if (intent === 'mgmt_compute') {
-        // First 2 non-RDMA (or first 2 if all RDMA) go to mgmt_compute, rest to storage
-        if (nonRdmaPorts.length >= 2) {
-            mapping[nonRdmaPorts[0]] = 'mgmt_compute';
-            mapping[nonRdmaPorts[1]] = 'mgmt_compute';
+        // For single-node clusters: all ports go to mgmt_compute (no storage intent)
+        if (isSingleNode) {
             for (let i = 1; i <= portCount; i++) {
-                if (!mapping[i]) mapping[i] = 'storage';
+                mapping[i] = 'mgmt_compute';
             }
         } else {
-            // All RDMA or insufficient non-RDMA
-            if (portCount === 2) {
-                mapping[1] = 'mgmt_compute';
-                mapping[2] = 'storage';
+            // Multi-node: First 2 non-RDMA (or first 2 if all RDMA) go to mgmt_compute, rest to storage
+            if (nonRdmaPorts.length >= 2) {
+                mapping[nonRdmaPorts[0]] = 'mgmt_compute';
+                mapping[nonRdmaPorts[1]] = 'mgmt_compute';
+                for (let i = 1; i <= portCount; i++) {
+                    if (!mapping[i]) mapping[i] = 'storage';
+                }
             } else {
-                mapping[1] = 'mgmt_compute';
-                mapping[2] = 'mgmt_compute';
-                for (let i = 3; i <= portCount; i++) {
-                    mapping[i] = 'storage';
+                // All RDMA or insufficient non-RDMA
+                if (portCount === 2) {
+                    mapping[1] = 'mgmt_compute';
+                    mapping[2] = 'storage';
+                } else {
+                    mapping[1] = 'mgmt_compute';
+                    mapping[2] = 'mgmt_compute';
+                    for (let i = 3; i <= portCount; i++) {
+                        mapping[i] = 'storage';
+                    }
                 }
             }
         }
