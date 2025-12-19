@@ -3883,15 +3883,17 @@ function updateUI() {
         if (!state.portConfig || state.portConfig.length !== pCount) {
             const isLowCapacity = state.scale === 'low_capacity';
             const isStandard = state.scale === 'medium';
+            const isSingleNode = state.nodes === '1';
 
             const isSwitchless3NodeStandard =
                 isStandard &&
                 state.storage === 'switchless' &&
                 parseInt(state.nodes, 10) === 3;
 
-            const defaultRdmaEnabled = isLowCapacity ? false : true;
-            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
-            const defaultPortSpeed = isLowCapacity ? '1GbE' : '25GbE';
+            const defaultRdmaEnabled = (isLowCapacity || isSingleNode) ? false : true;
+            const defaultRdmaMode = (isLowCapacity || isSingleNode) ? 'Disabled' : 'RoCEv2';
+            // Single-node defaults to 10GbE, Low Capacity to 1GbE, otherwise 25GbE
+            const defaultPortSpeed = isSingleNode ? '10GbE' : (isLowCapacity ? '1GbE' : '25GbE');
 
             state.portConfig = Array(pCount).fill().map((_, idx) => {
                 // Special default: 3-node switchless standard uses non-RDMA teamed ports for Mgmt+Compute.
@@ -3909,15 +3911,28 @@ function updateUI() {
             // keep the defaults aligned for 3-node switchless standard unless the user manually changed a port.
             const isLowCapacity = state.scale === 'low_capacity';
             const isStandard = state.scale === 'medium';
+            const isSingleNode = state.nodes === '1';
             const isSwitchless3NodeStandard =
                 isStandard &&
                 state.storage === 'switchless' &&
                 parseInt(state.nodes, 10) === 3;
-            const defaultRdmaEnabled = isLowCapacity ? false : true;
-            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
+            const defaultRdmaEnabled = (isLowCapacity || isSingleNode) ? false : true;
+            const defaultRdmaMode = (isLowCapacity || isSingleNode) ? 'Disabled' : 'RoCEv2';
 
+            // Single-node default: 10GbE, no RDMA.
+            if (isSingleNode) {
+                for (let idx = 0; idx < pCount; idx++) {
+                    const pc = state.portConfig[idx];
+                    if (!pc) continue;
+                    pc.speed = '10GbE';
+                    if (!pc.rdmaManual) {
+                        pc.rdma = false;
+                        pc.rdmaMode = 'Disabled';
+                    }
+                }
+            }
             // Low Capacity default: always use 1GbE.
-            if (isLowCapacity) {
+            else if (isLowCapacity) {
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
                     if (!pc) continue;
