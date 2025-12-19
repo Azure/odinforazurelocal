@@ -3612,8 +3612,8 @@ function updateUI() {
         if (shouldShow) {
             torBlock.classList.remove('hidden');
 
-            // For 4+ nodes on Hyperconverged (standard), only Dual ToR is allowed
-            const singleDisabled = (state.scale === 'standard' && n >= 4);
+            // For 4+ nodes on Hyperconverged (medium scale), only Dual ToR is allowed
+            const singleDisabled = (state.scale === 'medium' && n >= 4);
 
             if (singleOption) {
                 if (singleDisabled) {
@@ -7505,10 +7505,10 @@ function showComparison(category) {
     });
     
     overlay.innerHTML = `
-        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 900px; width: 100%;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; position: sticky; top: 0; background: var(--card-bg); padding-bottom: 12px; border-bottom: 1px solid var(--glass-border);">
                 <h3 style="margin: 0; color: var(--accent-blue);">${escapeHtml(comparison.title)}</h3>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--text-primary); font-size: 20px; cursor: pointer; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.borderColor='#ef4444'; this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-primary)';">&times;</button>
             </div>
             
             <div style="color: var(--text-primary); line-height: 1.6;">
