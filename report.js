@@ -65,6 +65,34 @@
         }
     }
 
+    // Get storage subnet CIDR for diagram legends.
+    // Uses custom subnets when Storage Auto IP is disabled, otherwise returns default examples.
+    function getStorageSubnetCidr(state, subnetIndex, defaultCidr) {
+        // subnetIndex is 1-based (Subnet 1, Subnet 2, etc.)
+        if (state && state.storageAutoIp === 'disabled' &&
+            Array.isArray(state.customStorageSubnets) &&
+            state.customStorageSubnets[subnetIndex - 1]) {
+            var customCidr = String(state.customStorageSubnets[subnetIndex - 1]).trim();
+            if (customCidr) return customCidr;
+        }
+        return defaultCidr;
+    }
+
+    // Check if custom storage subnets are being used (for legend title)
+    function hasCustomStorageSubnets(state) {
+        return state && state.storageAutoIp === 'disabled' &&
+               Array.isArray(state.customStorageSubnets) &&
+               state.customStorageSubnets.some(function(s) { return s && String(s).trim(); });
+    }
+
+    // Get legend note text based on whether custom subnets are used
+    function getStorageSubnetNote(state, defaultNote) {
+        if (hasCustomStorageSubnets(state)) {
+            return 'CIDRs shown are your custom storage subnet configuration.';
+        }
+        return defaultNote;
+    }
+
     function buildStandaloneReportHtml(opts) {
         opts = opts || {};
         var inlineCss = opts.inlineCss || '';
@@ -2420,12 +2448,14 @@
                 svg2 += '</svg>';
 
                 var subnetExamples2 = {
-                    1: '10.0.1.0/24',
-                    2: '10.0.2.0/24'
+                    1: getStorageSubnetCidr(state, 1, '10.0.1.0/24'),
+                    2: getStorageSubnetCidr(state, 2, '10.0.2.0/24')
                 };
+                var legendTitle2 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
+                var legendNote2 = getStorageSubnetNote(state, "CIDRs shown are an extrapolated example consistent with Microsoft Learn's 4-node switchless storage intent numbering; use your own addressing plan.");
 
                 var legend2 = '<div class="switchless-diagram__legend">'
-                    + '<div class="switchless-diagram__legend-title">Storage subnets (conceptual)</div>'
+                    + '<div class="switchless-diagram__legend-title">' + legendTitle2 + '</div>'
                     + '<div class="switchless-diagram__legend-grid">'
                     + [1, 2].map(function (num) {
                         var edge = edges2.filter(function (e) { return e.subnet === num; })[0];
@@ -2441,7 +2471,7 @@
                             + '</div>';
                     }).join('')
                     + '</div>'
-                    + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). CIDRs shown are an extrapolated example consistent with Microsoft Learn’s 4-node switchless storage intent numbering; use your own addressing plan.</div>'
+                    + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). ' + legendNote2 + '</div>'
                     + '</div>';
 
                 var foot2 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
@@ -2612,13 +2642,15 @@
                     svgS += '</svg>';
 
                     var subnetExamplesS = {
-                        1: '10.0.1.0/24',
-                        2: '10.0.2.0/24',
-                        3: '10.0.3.0/24'
+                        1: getStorageSubnetCidr(state, 1, '10.0.1.0/24'),
+                        2: getStorageSubnetCidr(state, 2, '10.0.2.0/24'),
+                        3: getStorageSubnetCidr(state, 3, '10.0.3.0/24')
                     };
+                    var legendTitleS = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
+                    var legendNoteS = getStorageSubnetNote(state, 'CIDRs shown are an extrapolated example; use your own addressing plan.');
 
                     var legendS = '<div class="switchless-diagram__legend">'
-                        + '<div class="switchless-diagram__legend-title">Storage subnets (conceptual)</div>'
+                        + '<div class="switchless-diagram__legend-title">' + legendTitleS + '</div>'
                         + '<div class="switchless-diagram__legend-grid">'
                         + [1, 2, 3].map(function (num) {
                             var edge = edgesS.filter(function (e) { return e.subnet === num; })[0];
@@ -2634,7 +2666,7 @@
                                 + '</div>';
                         }).join('')
                         + '</div>'
-                        + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). CIDRs shown are an extrapolated example; use your own addressing plan.</div>'
+                        + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). ' + legendNoteS + '</div>'
                         + '</div>';
 
                     var footS = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
@@ -2847,15 +2879,18 @@
 
                 // Legend
                 var subnetExamples3 = {
-                    1: '10.0.1.0/24',
-                    2: '10.0.2.0/24',
-                    3: '10.0.3.0/24',
-                    4: '10.0.4.0/24',
-                    5: '10.0.5.0/24',
-                    6: '10.0.6.0/24'
+                    1: getStorageSubnetCidr(state, 1, '10.0.1.0/24'),
+                    2: getStorageSubnetCidr(state, 2, '10.0.2.0/24'),
+                    3: getStorageSubnetCidr(state, 3, '10.0.3.0/24'),
+                    4: getStorageSubnetCidr(state, 4, '10.0.4.0/24'),
+                    5: getStorageSubnetCidr(state, 5, '10.0.5.0/24'),
+                    6: getStorageSubnetCidr(state, 6, '10.0.6.0/24')
                 };
+                var legendTitle3 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
+                var legendNote3 = getStorageSubnetNote(state, "CIDRs shown are an extrapolated example based on Microsoft Learn's 4-node switchless storage intent pattern (same logic, fewer node pairs). Use your own addressing plan.");
+
                 var legend = '<div class="switchless-diagram__legend">'
-                    + '<div class="switchless-diagram__legend-title">Storage subnets (conceptual)</div>'
+                    + '<div class="switchless-diagram__legend-title">' + legendTitle3 + '</div>'
                     + '<div class="switchless-diagram__legend-grid">'
                     + subnetStyles.map(function (st, idx) {
                         var num = idx + 1;
@@ -2873,7 +2908,7 @@
                             + '</div>';
                     }).join('')
                     + '</div>'
-                    + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). CIDRs shown are an extrapolated example based on Microsoft Learn’s 4-node switchless storage intent pattern (same logic, fewer node pairs). Use your own addressing plan.</div>'
+                    + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). ' + legendNote3 + '</div>'
                     + '</div>';
 
                 var foot3 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
@@ -3118,14 +3153,17 @@
                 svg4 += '</svg>';
 
                 // Legend
+                var legendTitle4 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
+                var legendNote4 = getStorageSubnetNote(state, "CIDRs shown are the example values from Microsoft Learn's 4-node switchless storage intent section; use your own addressing plan.");
+
                 var legend4 = '<div class="switchless-diagram__legend">'
-                    + '<div class="switchless-diagram__legend-title">Storage subnets (conceptual)</div>'
+                    + '<div class="switchless-diagram__legend-title">' + legendTitle4 + '</div>'
                     + '<div class="switchless-diagram__legend-grid">'
                     + subnetStyles4.map(function (st, idx) {
                         var num = idx + 1;
                         var edge = edges4.filter(function (e) { return e.subnet === num; })[0];
                         var pair = edge ? edge.pair : '';
-                        var ex4 = '10.0.' + num + '.0/24';
+                        var ex4 = getStorageSubnetCidr(state, num, '10.0.' + num + '.0/24');
                         var preview = ''
                             + '<svg width="56" height="10" viewBox="0 0 56 10" aria-hidden="true">'
                             + '<line x1="0" y1="5" x2="56" y2="5" stroke="' + subnetColor4(num) + '" stroke-width="2" ' + (st.dash ? ('stroke-dasharray="' + st.dash + '"') : '') + ' opacity="' + st.opacity + '" />'
@@ -3136,7 +3174,7 @@
                             + '</div>';
                     }).join('')
                     + '</div>'
-                    + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). CIDRs shown are the example values from Microsoft Learn’s 4-node switchless storage intent section; use your own addressing plan.</div>'
+                    + '<div class="switchless-diagram__note">Note: This diagram shows storage connectivity only (RDMA). ' + legendNote4 + '</div>'
                     + '</div>';
 
                 var foot4 = '<div style="margin-top:0.5rem; color:var(--text-secondary);">'
