@@ -1363,6 +1363,17 @@
                 if (torCount === 2) {
                     svg += '<rect x="' + tor2X + '" y="' + torY + '" width="' + torSwitchW + '" height="' + torSwitchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
                     svg += '<text x="' + (tor2X + torSwitchW / 2) + '" y="' + (torY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch 2</text>';
+
+                    // MLAG peer links between ToR switches
+                    var mlagX1 = tor1X + torSwitchW; // Right edge of ToR 1
+                    var mlagX2 = tor2X;              // Left edge of ToR 2
+                    var mlagY1 = torY + torSwitchH / 2 - 6; // Upper link
+                    var mlagY2 = torY + torSwitchH / 2 + 6; // Lower link
+                    var mlagMidX = (mlagX1 + mlagX2) / 2;
+                    var mlagLabelY = torY + torSwitchH / 2 - 14;
+                    svg += '<line x1="' + mlagX1 + '" y1="' + mlagY1 + '" x2="' + mlagX2 + '" y2="' + mlagY1 + '" stroke="rgba(59,130,246,0.8)" stroke-width="2" />';
+                    svg += '<line x1="' + mlagX1 + '" y1="' + mlagY2 + '" x2="' + mlagX2 + '" y2="' + mlagY2 + '" stroke="rgba(59,130,246,0.8)" stroke-width="2" />';
+                    svg += '<text x="' + mlagMidX + '" y="' + mlagLabelY + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">MLAG</text>';
                 }
             }
 
