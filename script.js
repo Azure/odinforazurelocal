@@ -652,6 +652,102 @@ function prefixToMask(prefix) {
     return p === 0 ? 0 : ((0xFFFFFFFF << (32 - p)) >>> 0);
 }
 
+// Maximum SAM Account name length for computer accounts in Active Directory is 15 characters.
+const MAX_NODE_NAME_LENGTH = 15;
+
+/**
+ * Parse a node name into base prefix and numeric suffix.
+ * E.g., "customname01" → { base: "customname", num: 1, padding: 2 }
+ *       "node5"        → { base: "node", num: 5, padding: 1 }
+ *       "myserver"     → { base: "myserver", num: null, padding: 0 }
+ */
+function parseNodeNamePattern(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return { base: '', num: null, padding: 0 };
+
+    // Match trailing digits.
+    const match = trimmed.match(/^(.*?)(\d+)$/);
+    if (!match) {
+        return { base: trimmed, num: null, padding: 0 };
+    }
+
+    const base = match[1];
+    const numStr = match[2];
+    const num = parseInt(numStr, 10);
+    const padding = numStr.length;
+
+    return { base, num, padding };
+}
+
+/**
+ * Generate a node name from base, number, and padding.
+ * Respects the MAX_NODE_NAME_LENGTH limit.
+ */
+function generateNodeName(base, num, padding) {
+    const numStr = String(num).padStart(padding, '0');
+    let name = base + numStr;
+
+    // Truncate if necessary to fit within MAX_NODE_NAME_LENGTH.
+    if (name.length > MAX_NODE_NAME_LENGTH) {
+        // Try to truncate the base to fit.
+        const maxBaseLen = MAX_NODE_NAME_LENGTH - numStr.length;
+        if (maxBaseLen > 0) {
+            name = base.substring(0, maxBaseLen) + numStr;
+        } else {
+            // Number alone exceeds limit; just truncate the whole thing.
+            name = name.substring(0, MAX_NODE_NAME_LENGTH);
+        }
+    }
+
+    return name;
+}
+
+/**
+ * Auto-fill Node 2..N names based on Node 1's naming pattern.
+ * If Node 1 is "customname01", fills Node 2 as "customname02", Node 3 as "customname03", etc.
+ * Only fills empty node name fields; never overwrites user-provided values.
+ */
+function tryAutoFillSequentialNodeNamesFromFirst() {
+    const count = getNumericNodeCount();
+    if (!count || count < 2) return;
+    if (!Array.isArray(state.nodeSettings) || state.nodeSettings.length < 2) return;
+
+    const first = state.nodeSettings[0] || {};
+    const firstName = String(first.name || '').trim();
+    if (!firstName) return;
+
+    const { base, num, padding } = parseNodeNamePattern(firstName);
+
+    // Determine starting number for subsequent nodes.
+    let startNum;
+    if (num !== null) {
+        // User provided a number, continue from there.
+        startNum = num + 1;
+    } else {
+        // No trailing number; append "2", "3", etc.
+        startNum = 2;
+    }
+
+    // Determine padding: use existing padding, or if no number was present, use minimal padding.
+    const effectivePadding = num !== null ? padding : 1;
+
+    for (let i = 1; i < count; i++) {
+        const cur = state.nodeSettings[i] || {};
+        const curVal = String(cur.name || '').trim();
+
+        // Only fill empty fields.
+        if (curVal) continue;
+
+        const newNum = (num !== null) ? (num + i) : (i + 1);
+        const newName = generateNodeName(base, newNum, effectivePadding);
+
+        // Validate the generated name.
+        if (newName && newName.length <= MAX_NODE_NAME_LENGTH && isValidNetbiosName(newName)) {
+            state.nodeSettings[i].name = newName;
+        }
+    }
+}
+
 function tryAutoFillSequentialNodeIpsFromFirst() {
     // Fill Node 2..N using Node 1's IP as the base, incrementing by 1.
     // Only fills empty node IP fields; never overwrites user-provided values.
@@ -720,6 +816,12 @@ function updateNodeName(index, value) {
     ensureNodeSettingsInitialized();
     if (!state.nodeSettings[index]) return;
     state.nodeSettings[index].name = String(value || '').trim();
+
+    // Convenience: if the user sets Node 1 name, auto-fill remaining empty node names sequentially.
+    if (index === 0) {
+        tryAutoFillSequentialNodeNamesFromFirst();
+    }
+
     validateNodeSettings();
     updateSummary();
     updateUI();
@@ -819,7 +921,7 @@ function renderNodeSettings() {
             <div style="flex:1; min-width:220px;">
                 <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${i + 1} Name</label>
                 <input type="text" value="${escapeHtml(node.name)}" maxlength="15" placeholder="e.g. node${i + 1}"
-                    title="NetBIOS name: max 15 chars; letters/numbers/hyphen; start/end alphanumeric"
+                    title="SAM Account name (max 15 chars). Enter Node 1 name with a number suffix (e.g. server01) to auto-fill other nodes."
                     style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
                     onchange="updateNodeName(${i}, this.value)">
             </div>
