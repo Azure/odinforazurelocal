@@ -4069,6 +4069,17 @@ function updateUI() {
         }
     }
 
+    // RULE: 1-node clusters only allow Mgmt + Compute (no storage intent)
+    if (state.nodes === '1') {
+        cards.intent['all_traffic'].classList.add('disabled');
+        cards.intent['compute_storage'].classList.add('disabled');
+        cards.intent['custom'].classList.add('disabled');
+        if (state.intent !== 'mgmt_compute') {
+            state.intent = 'mgmt_compute';
+            state.customIntentConfirmed = false;
+        }
+    }
+
     // RULE 3: Storage -> Intent
     if (state.storage === 'switchless') {
         // User request: 3-node switchless (dual-link) forces Mgmt + Compute intent and disables other intent options.
