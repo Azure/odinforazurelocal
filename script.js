@@ -3284,7 +3284,12 @@ function updateUI() {
 
     // Nodes -> Storage -> Ports
     if (!state.nodes) Object.values(cards.storage).forEach(c => c.classList.add('disabled'));
-    if (!state.storage) Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
+    // For 1-node clusters, storage is not required (no storage intent), so enable ports if ToR is selected
+    if (!state.storage && state.nodes !== '1') {
+        Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
+    } else if (state.nodes === '1' && !state.torSwitchCount) {
+        Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
+    }
     
     // Step 5 -> Step 5.5 (Storage Pool Configuration)
     const storagePoolCards = {
