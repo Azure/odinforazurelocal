@@ -279,8 +279,6 @@
         if (deployBtnText) {
             if (cloud === 'azure_government') {
                 deployBtnText.textContent = 'Deploy to Azure Government';
-            } else if (cloud === 'azure_china') {
-                deployBtnText.textContent = 'Deploy to Azure China';
             } else {
                 deployBtnText.textContent = 'Deploy to Azure';
             }
@@ -360,11 +358,10 @@ function deployToAzure() {
         .replace('/blob/', '/');
     
     // Determine the Azure Portal URL based on cloud
+    // Note: Azure China is not supported for Azure Local deployments
     var portalBaseUrl;
     if (cloud === 'azure_government') {
         portalBaseUrl = 'https://portal.azure.us';
-    } else if (cloud === 'azure_china') {
-        portalBaseUrl = 'https://portal.azure.cn';
     } else {
         portalBaseUrl = 'https://portal.azure.com';
     }
@@ -377,7 +374,7 @@ function deployToAzure() {
     // Show confirmation dialog with instructions
     var confirmMsg = 'You will be redirected to the Azure Portal to deploy using:\n\n' +
         'Template: ' + (ref.name || 'Unknown') + '\n' +
-        'Cloud: ' + (cloud === 'azure_government' ? 'Azure Government' : cloud === 'azure_china' ? 'Azure China' : 'Azure Commercial') + '\n\n' +
+        'Cloud: ' + (cloud === 'azure_government' ? 'Azure Government' : 'Azure Commercial') + '\n\n' +
         'Important:\n' +
         '• Copy the parameters JSON from this page first\n' +
         '• In the Azure Portal, paste the parameters or fill in the values manually\n' +
