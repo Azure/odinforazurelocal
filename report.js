@@ -925,7 +925,10 @@
         var sections = [];
 
         function renderSwitchedIntentDiagram(state) {
-            if (!state || state.storage !== 'switched') return '';
+            // Single-node clusters have no storage connectivity choice (state.storage is null)
+            // but should still render a diagram showing the ToR switch and node
+            var isSingleNode = state && state.nodes === '1';
+            if (!state || (state.storage !== 'switched' && !isSingleNode)) return '';
 
             if (String(state.nodes) === '16+') {
                 return '<div style="color:var(--text-secondary);">Diagram is not generated for 16+ nodes (the wizard does not collect per-node details for this case).</div>';
@@ -1094,23 +1097,37 @@
                 var adaptersY = nodeTop + nodeH - adapterH - 20;
                 var startX = nodeLeft + (nodeW - totalAdapterW) / 2;
 
-                // Intent label above adapters
-                var intentLabel = intentLabelForSet(state.intent);
-                out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (adaptersY - 30) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">' + escapeHtml(intentLabel) + '</text>';
-
-                // Draw adapter container (SET/vSwitch box for first 2 NICs if not custom)
+                // Draw adapter container boxes for each intent group
                 if (!isCustom && ports >= 2) {
-                    var setW = (2 * adapterW) + adapterGap + 16;
+                    // Management + Compute box (first 2 NICs)
+                    var setW = (2 * adapterW) + adapterGap + 12;
                     var setH = adapterH + 24;
-                    var setX = startX - 8;
+                    var setX = startX - 6;
                     var setY = adaptersY - 12;
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
-                    out += '<text x="' + (setX + setW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">SET (vSwitch)</text>';
+                    
+                    // Label for Mgmt + Compute group
+                    var mgmtLabel = (state.intent === 'all_traffic') ? 'Mgmt + Compute + Storage' : 'Mgmt + Compute';
+                    out += '<text x="' + (setX + setW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(mgmtLabel) + '</text>';
+                    
+                    // Storage box (NICs 3+) if applicable - add gap between boxes
+                    if (showStorageGroup && storagePortCount > 0) {
+                        var intentGap = 8; // Gap between intent boxes
+                        var storageW = (storagePortCount * adapterW) + ((storagePortCount - 1) * adapterGap) + 12;
+                        var storageX = startX + (2 * (adapterW + adapterGap)) - 6 + intentGap;
+                        out += '<rect x="' + storageX + '" y="' + setY + '" width="' + storageW + '" height="' + setH + '" rx="10" fill="rgba(139,92,246,0.07)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="5 3" />';
+                        out += '<text x="' + (storageX + storageW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Storage</text>';
+                    }
                 }
+                
+                // Calculate intent gap for storage adapter positioning
+                var storageIntentGap = (!isCustom && showStorageGroup && storagePortCount > 0) ? 8 : 0;
 
                 // Draw all adapters horizontally
                 for (var i = 0; i < ports; i++) {
-                    var x = startX + (i * (adapterW + adapterGap));
+                    // Storage adapters (index 2+) need to shift by the intent gap to center in purple box
+                    var adapterOffset = (i >= 2 && storageIntentGap > 0) ? storageIntentGap : 0;
+                    var x = startX + (i * (adapterW + adapterGap)) + adapterOffset;
                     var y = adaptersY;
                     var nicIdx = i + 1;
 
@@ -1141,14 +1158,6 @@
                 var adaptersY = nodeTop + nodeH - adapterH - 20;
                 var startX = nodeLeft + (nodeW - totalAdapterW) / 2;
 
-                // Group adapters by intent for labeling
-                var intentLabels = [];
-                for (var gi = 0; gi < customGroups.length; gi++) {
-                    intentLabels.push(customGroups[gi].label);
-                }
-                var intentText = intentLabels.length > 0 ? intentLabels.join(' + ') : 'Custom intents';
-                out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (adaptersY - 30) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">' + escapeHtml(intentText) + '</text>';
-
                 // Build a map of port to intent
                 var portIntent = {};
                 for (var gi2 = 0; gi2 < customGroups.length; gi2++) {
@@ -1156,6 +1165,68 @@
                     for (var ni = 0; ni < grp.nics.length; ni++) {
                         portIntent[grp.nics[ni]] = grp;
                     }
+                }
+
+                // Draw boxes around each intent group
+                // First, find contiguous groups of adapters with the same intent
+                var intentBoxes = [];
+                var currentGroup = null;
+                var currentGroupStart = -1;
+                
+                for (var i = 0; i < ports; i++) {
+                    var nicIdx = i + 1;
+                    var grp = portIntent[nicIdx];
+                    var grpKey = grp ? grp.key : 'unused';
+                    
+                    if (currentGroup !== grpKey) {
+                        // Save previous group if it existed
+                        if (currentGroup && currentGroup !== 'unused' && currentGroupStart >= 0) {
+                            intentBoxes.push({
+                                key: currentGroup,
+                                startIdx: currentGroupStart,
+                                endIdx: i - 1,
+                                label: portIntent[currentGroupStart + 1] ? portIntent[currentGroupStart + 1].label : currentGroup
+                            });
+                        }
+                        currentGroup = grpKey;
+                        currentGroupStart = i;
+                    }
+                }
+                // Don't forget the last group
+                if (currentGroup && currentGroup !== 'unused' && currentGroupStart >= 0) {
+                    intentBoxes.push({
+                        key: currentGroup,
+                        startIdx: currentGroupStart,
+                        endIdx: ports - 1,
+                        label: portIntent[currentGroupStart + 1] ? portIntent[currentGroupStart + 1].label : currentGroup
+                    });
+                }
+
+                // Draw boxes for each intent group
+                for (var bi = 0; bi < intentBoxes.length; bi++) {
+                    var box = intentBoxes[bi];
+                    var boxStartX = startX + (box.startIdx * (adapterW + adapterGap)) - 8;
+                    var boxW = ((box.endIdx - box.startIdx + 1) * adapterW) + ((box.endIdx - box.startIdx) * adapterGap) + 16;
+                    var boxY = adaptersY - 12;
+                    var boxH = adapterH + 24;
+                    
+                    // Color based on intent type
+                    var isStorageLike = (box.key === 'storage' || box.key === 'compute_storage' || box.key === 'all');
+                    var isCompute = (box.key === 'compute');
+                    var boxFill, boxStroke;
+                    if (isStorageLike) {
+                        boxFill = 'rgba(139,92,246,0.07)';
+                        boxStroke = 'rgba(139,92,246,0.45)';
+                    } else if (isCompute) {
+                        boxFill = 'rgba(16,185,129,0.07)';
+                        boxStroke = 'rgba(16,185,129,0.45)';
+                    } else {
+                        boxFill = 'rgba(0,120,212,0.07)';
+                        boxStroke = 'rgba(0,120,212,0.45)';
+                    }
+                    
+                    out += '<rect x="' + boxStartX + '" y="' + boxY + '" width="' + boxW + '" height="' + boxH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
+                    out += '<text x="' + (boxStartX + boxW / 2) + '" y="' + (boxY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(box.label) + '</text>';
                 }
 
                 // Draw all adapters horizontally
@@ -1228,22 +1299,26 @@
 
             // Build intro text
             var torLabel = showTorSwitches ? (torCount === 1 ? 'Single ToR' : 'Dual ToR') : '';
+            var scenarioLabel = isSingleNode ? 'Single-node' : 'Storage Switched';
             var intro = ''
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
-                + '<strong style="color:var(--text-primary);">Storage Switched</strong> scenario diagram'
-                + (showTorSwitches ? (' with ' + torLabel + ' switches') : '') + '.'
-                + '<br>Shows per-node intent groupings and uplinks to ToR switches.'
+                + '<strong style="color:var(--text-primary);">' + scenarioLabel + '</strong> scenario diagram'
+                + (showTorSwitches ? (' with ' + torLabel + ' switch' + (torCount === 1 ? '' : 'es')) : '') + '.'
+                + '<br>Shows per-node intent groupings and uplinks to ToR switch' + (torCount === 1 ? '' : 'es') + '.'
                 + (nAll > 2 ? ('<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(nAll)) + ' nodes.</span>') : '')
                 + '</div>';
 
             var svg = '';
-            svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="Switched intent diagram with ToR switches">';
+            svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="' + (isSingleNode ? 'Single-node network' : 'Switched intent') + ' diagram with ToR switch' + (torCount === 1 ? '' : 'es') + '">';
 
             // Outer container
             svg += '<rect x="30" y="55" width="' + (svgW - 60) + '" height="' + (svgH - 85) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
 
             // Title text
-            svg += '<text x="' + (svgW / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Switched connectivity — Switchless=false, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + (nAll > 2 ? (' — Total nodes: ' + escapeHtml(String(nAll))) : '') + '</text>';
+            var titleText = isSingleNode 
+                ? 'Single-node network connectivity — ' + escapeHtml(autoIpLabel(state.storageAutoIp))
+                : 'Storage Switched connectivity — Switchless=false, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + (nAll > 2 ? (' — Total nodes: ' + escapeHtml(String(nAll))) : '');
+            svg += '<text x="' + (svgW / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">' + titleText + '</text>';
 
             // Render ToR switches
             if (showTorSwitches) {
@@ -1287,7 +1362,9 @@
 
             svg += '</svg>';
 
-            var note = '<div class="switchless-diagram__note">Note: Storage Switched scenarios connect all nodes through ToR switches. The diagram shows uplink connectivity from each node\'s network adapters to the ToR switch fabric.</div>';
+            var note = isSingleNode
+                ? '<div class="switchless-diagram__note">Note: Single-node deployments connect the node to the ToR switch for management and compute traffic. No storage connectivity is required as there is no cluster storage replication.</div>'
+                : '<div class="switchless-diagram__note">Note: Storage Switched scenarios connect all nodes through ToR switches. The diagram shows uplink connectivity from each node\'s network adapters to the ToR switch fabric.</div>';
 
             return '<div class="switchless-diagram">' + intro + svg + note + '</div>';
         }
@@ -3298,8 +3375,9 @@
             sections.push(block('Rack Aware TOR Architecture (Diagram)',
                 renderRackAwareTorArchitectureDiagram(s)
             ));
-        } else if (s.storage === 'switched') {
-            sections.push(block('Switched Connectivity (Diagram)',
+        } else if (s.storage === 'switched' || s.nodes === '1') {
+            // Single-node clusters (s.nodes === '1') have no storage connectivity but should still show a network diagram
+            sections.push(block(s.nodes === '1' ? 'Network Connectivity (Diagram)' : 'Switched Connectivity (Diagram)',
                 renderSwitchedIntentDiagram(s)
             ));
         }
@@ -3639,22 +3717,31 @@
         // Intent validations
         add('Intent', 'Intent selected', !!s.intent, s.intent ? ('Selected: ' + formatIntent(s.intent)) : '');
 
-        // Ports -> intent rules (mirror updateUI)
-        if (s.ports === '1') {
-            add('Intent', '1 port disables Switchless storage', s.storage !== 'switchless', 'Wizard disables Switchless when only 1 port is available.');
-
-            var isLowCapSingleNodeSwitched = (s.scale === 'low_capacity' && s.nodes === '1' && s.storage === 'switched');
-            add('Intent', '1 port blocks Compute+Storage intent', s.intent !== 'compute_storage', 'Compute+Storage is disabled with 1 port.');
-            if (isLowCapSingleNodeSwitched) {
-                add('Intent', 'Low Cap (1 node, Switched, 1 port) allows only All Traffic or Mgmt+Compute', (s.intent === 'all_traffic' || s.intent === 'mgmt_compute'), 'Custom is disabled in this special case.');
-                add('Intent', 'Low Cap (1 node, Switched, 1 port) disables Custom intent', s.intent !== 'custom', 'Custom is disabled in this special case.');
+        // Single node cluster intent rules (takes priority)
+        if (s.nodes === '1') {
+            var singleNodePorts = parseInt(s.ports, 10);
+            
+            // Single node: always disable All Traffic and Compute+Storage
+            add('Intent', 'Single node disables All Traffic', s.intent !== 'all_traffic', 'Single node deployments cannot use Group All Traffic.');
+            add('Intent', 'Single node disables Compute+Storage', s.intent !== 'compute_storage', 'Compute+Storage intent is not available for single node deployments.');
+            
+            if (!isNaN(singleNodePorts) && singleNodePorts >= 4) {
+                add('Intent', 'Single node (4+ ports) allows Mgmt+Compute or Custom', (s.intent === 'mgmt_compute' || s.intent === 'custom'), 'Only Mgmt+Compute or Custom intents are available for single node with 4+ ports.');
             } else {
-                add('Intent', '1 port disables Mgmt+Compute intent (general case)', s.intent !== 'mgmt_compute', 'Wizard disables Mgmt+Compute unless in the Low Cap special case.');
-                add('Intent', '1 port general case allows All Traffic or Custom', (s.intent === 'all_traffic' || s.intent === 'custom'), '');
+                add('Intent', 'Single node (<4 ports) disables Custom', s.intent !== 'custom', 'Custom intent requires at least 4 ports for single node deployments.');
+                add('Intent', 'Single node (<4 ports) requires Mgmt+Compute', s.intent === 'mgmt_compute', 'Only Mgmt+Compute intent is available for single node with fewer than 4 ports.');
             }
         }
 
-        if (s.ports === '2') {
+        // Ports -> intent rules (mirror updateUI) - only apply for multi-node scenarios
+        if (s.nodes !== '1' && s.ports === '1') {
+            add('Intent', '1 port disables Switchless storage', s.storage !== 'switchless', 'Wizard disables Switchless when only 1 port is available.');
+            add('Intent', '1 port blocks Compute+Storage intent', s.intent !== 'compute_storage', 'Compute+Storage is disabled with 1 port.');
+            add('Intent', '1 port disables Mgmt+Compute intent', s.intent !== 'mgmt_compute', 'Wizard disables Mgmt+Compute for multi-node with 1 port.');
+            add('Intent', '1 port allows All Traffic or Custom', (s.intent === 'all_traffic' || s.intent === 'custom'), '');
+        }
+
+        if (s.nodes !== '1' && s.ports === '2') {
             if (s.scale !== 'low_capacity') {
                 add('StoragePorts', '2 ports (Standard) disables Switchless storage', s.storage !== 'switchless', 'Wizard disables Switchless for 2 ports unless Low Capacity.');
             }
@@ -3668,7 +3755,7 @@
             }
         }
 
-        if (s.ports === '4') {
+        if (s.nodes !== '1' && s.ports === '4') {
             add('Intent', '4 ports disables Custom intent', s.intent !== 'custom', 'Wizard disables Custom with 4 ports.');
             if (s.scale === 'low_capacity') {
                 add('Intent', '4 ports (Low Cap) only allows Mgmt+Compute', s.intent === 'mgmt_compute', 'Wizard disables All Traffic and Compute+Storage for this case.');
