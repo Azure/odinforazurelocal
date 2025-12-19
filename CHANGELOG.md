@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **ToR Switch Options** - Added "Single ToR Switch" and "Dual ToR Switches" selection options for Storage Switched scenarios with Hyperconverged or Low Capacity clusters:
   - **Hyperconverged (4+ nodes)**: Only Dual ToR is available (Single ToR is disabled)
-  - **Hyperconverged (2-3 nodes)**: Both Single and Dual ToR options available, defaulting to Dual
+  - **Hyperconverged (1-3 nodes)**: Both Single and Dual ToR options available, defaulting to Dual
   - **Low Capacity**: Both Single and Dual ToR options available
 
 - **Improved Storage Switched Diagram** - Completely redesigned the network diagram for Storage Switched scenarios:

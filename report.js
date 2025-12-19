@@ -944,7 +944,10 @@
 
             // Determine ToR switch configuration (single or dual)
             var torCount = (state.torSwitchCount === 'single') ? 1 : 2;
-            var showTorSwitches = (state.scale === 'medium' || state.scale === 'low_capacity') && state.torSwitchCount;
+            var showTorSwitches = (state.scale === 'medium' || state.scale === 'low_capacity') &&
+                state.torSwitchCount !== null &&
+                state.torSwitchCount !== undefined &&
+                state.torSwitchCount;
 
             function getNodeLabel(idx) {
                 if (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name) {
@@ -1056,7 +1059,7 @@
             var adapterW = 54;
             var adapterH = 36;
             var adapterGap = 10;
-            var totalAdapterW = (ports * adapterW) + ((ports - 1) * adapterGap);
+            var totalAdapterW = (ports * adapterW) + (Math.max(0, ports - 1) * adapterGap);
 
             // Ensure node width accommodates all adapters
             nodeW = Math.max(nodeW, totalAdapterW + 40);
@@ -1135,7 +1138,7 @@
                     var isStorage = !isCustom && showStorageGroup && i >= 2;
                     var fill = isStorage ? 'rgba(139,92,246,0.25)' : 'rgba(0,120,212,0.20)';
                     var stroke = isStorage ? 'rgba(139,92,246,0.65)' : 'rgba(0,120,212,0.55)';
-                    var label = isStorage ? ('SMB' + (i - 1)) : getNicLabel(nicIdx);
+                    var label = isStorage ? ('SMB' + nicIdx) : getNicLabel(nicIdx);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="11" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -1304,7 +1307,9 @@
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                 + '<strong style="color:var(--text-primary);">' + scenarioLabel + '</strong> scenario diagram'
                 + (showTorSwitches ? (' with ' + torLabel + ' switch' + (torCount === 1 ? '' : 'es')) : '') + '.'
-                + '<br>Shows per-node intent groupings and uplinks to ToR switch' + (torCount === 1 ? '' : 'es') + '.'
+                + (showTorSwitches
+                    ? '<br>Shows per-node intent groupings and uplinks to ToR switch' + (torCount === 1 ? '' : 'es') + '.'
+                    : '<br>Shows per-node intent groupings.')
                 + (nAll > 2 ? ('<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(nAll)) + ' nodes.</span>') : '')
                 + '</div>';
 
@@ -1357,14 +1362,14 @@
                 var badgeX = svgW - 50 - badgeW;
                 var badgeY = svgH - 60;
                 svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
-                svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + escapeHtml(String(more)) + ' more node' + (more === 1 ? '' : 's') + '</text>';
+                svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + more + ' more node' + (more === 1 ? '' : 's') + '</text>';
             }
 
             svg += '</svg>';
 
             var note = isSingleNode
                 ? '<div class="switchless-diagram__note">Note: Single-node deployments connect the node to the ToR switch for management and compute traffic. No storage connectivity is required as there is no cluster storage replication.</div>'
-                : '<div class="switchless-diagram__note">Note: Storage Switched scenarios connect all nodes through ToR switches. The diagram shows uplink connectivity from each node\'s network adapters to the ToR switch fabric.</div>';
+                : `<div class="switchless-diagram__note">Note: Storage Switched scenarios connect all nodes through ToR switches. The diagram shows uplink connectivity from each node's network adapters to the ToR switch fabric.</div>`;
 
             return '<div class="switchless-diagram">' + intro + svg + note + '</div>';
         }
