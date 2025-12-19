@@ -5609,6 +5609,9 @@ function getRequiredRdmaPortCount() {
 
     const n = parseInt(state.nodes, 10);
 
+    // Single-node clusters have no storage intent, so RDMA is not required.
+    if (n === 1) return 0;
+
     // Standard (Hyperconverged) + Switchless topologies require more RDMA ports.
     if (state.scale === 'medium' && state.storage === 'switchless') {
         if (n === 3) return 4;
