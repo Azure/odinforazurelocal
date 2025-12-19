@@ -2910,6 +2910,15 @@ function updateUI() {
         if (outboundDisconnected) outboundDisconnected.classList.add('hidden');
     }
 
+    // Single-node clusters: Hide Storage Connectivity step (no storage intent needed)
+    const storageStep = document.getElementById('step-4');
+    if (state.nodes === '1' && storageStep) {
+        storageStep.classList.add('hidden');
+        // Clear storage selection for single-node
+        state.storage = null;
+        state.torSwitchCount = null;
+    }
+
     // ... remainder of updateUI unchanged ...
 
     } catch (err) {
@@ -4981,7 +4990,7 @@ function updateStepIndicators() {
         { id: 'step-2', validation: () => state.scale !== null },
         { id: 'step-3', validation: () => state.nodes !== null },
         { id: 'step-3-5', validation: () => state.witnessType !== null },
-        { id: 'step-4', validation: () => state.storage !== null },
+        { id: 'step-4', validation: () => state.nodes === '1' || state.storage !== null },
         { id: 'step-5', validation: () => state.ports !== null },
         { id: 'step-6', validation: () => {
             // Intent must be selected
