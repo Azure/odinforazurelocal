@@ -3603,7 +3603,7 @@ function updateUI() {
 
         const n = state.nodes ? parseInt(state.nodes, 10) : NaN;
         const isStorageSwitched = state.storage === 'switched';
-        const isHyperconvergedOrLowCap = state.scale === 'standard' || state.scale === 'low_capacity';
+        const isHyperconvergedOrLowCap = state.scale === 'medium' || state.scale === 'low_capacity';
         const shouldShow = isStorageSwitched && isHyperconvergedOrLowCap && !isNaN(n) && n >= 1;
 
         const singleOption = document.getElementById('tor-single-option');
