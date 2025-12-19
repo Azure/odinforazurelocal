@@ -973,9 +973,7 @@
             // Determine ToR switch configuration (single or dual)
             var torCount = (state.torSwitchCount === 'single') ? 1 : 2;
             var showTorSwitches = (state.scale === 'medium' || state.scale === 'low_capacity') &&
-                state.torSwitchCount !== null &&
-                state.torSwitchCount !== undefined &&
-                state.torSwitchCount;
+                !!state.torSwitchCount;
 
             function getNodeLabel(idx) {
                 if (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name) {
