@@ -4069,12 +4069,24 @@ function updateUI() {
         }
     }
 
-    // RULE: 1-node clusters only allow Mgmt + Compute (no storage intent)
+    // RULE: 1-node clusters only allow Mgmt + Compute (or Custom with 4+ ports)
+    // No storage intent for single-node deployments
     if (state.nodes === '1') {
         cards.intent['all_traffic'].classList.add('disabled');
         cards.intent['compute_storage'].classList.add('disabled');
-        cards.intent['custom'].classList.add('disabled');
-        if (state.intent !== 'mgmt_compute') {
+        
+        // Allow Custom only with 4+ ports (for separate Mgmt and Compute adapters)
+        const portCount = parseInt(state.ports, 10);
+        if (isNaN(portCount) || portCount < 4) {
+            cards.intent['custom'].classList.add('disabled');
+        }
+        
+        if (state.intent !== 'mgmt_compute' && state.intent !== 'custom') {
+            state.intent = 'mgmt_compute';
+            state.customIntentConfirmed = false;
+        }
+        // If custom is selected but ports < 4, reset to mgmt_compute
+        if (state.intent === 'custom' && (isNaN(portCount) || portCount < 4)) {
             state.intent = 'mgmt_compute';
             state.customIntentConfirmed = false;
         }
@@ -8710,16 +8722,19 @@ function getIntentZonesForIntent(intent) {
             minAdapters: isLowCapacity ? minLowCap : minStandard,
             requiresRdma: false
         });
-        zones.push({
-            key: 'storage',
-            title: 'Storage',
-            titleClass: 'storage',
-            description: 'Dedicated storage traffic (SMB Direct).',
-            badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
-            badgeClass: 'rdma-required',
-            minAdapters: isLowCapacity ? minLowCap : minStandard,
-            requiresRdma: true
-        });
+        // Only add storage zone for multi-node clusters (1-node clusters don't have storage intent)
+        if (!isSingleNode) {
+            zones.push({
+                key: 'storage',
+                title: 'Storage',
+                titleClass: 'storage',
+                description: 'Dedicated storage traffic (SMB Direct).',
+                badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
+                badgeClass: 'rdma-required',
+                minAdapters: isLowCapacity ? minLowCap : minStandard,
+                requiresRdma: true
+            });
+        }
     } else if (intent === 'compute_storage') {
         zones.push({
             key: 'mgmt',
@@ -8742,6 +8757,8 @@ function getIntentZonesForIntent(intent) {
             requiresRdma: true
         });
     } else if (intent === 'custom') {
+        const isSingleNode = state.nodes === '1';
+        
         zones.push({
             key: 'mgmt',
             title: 'Management',
@@ -8762,16 +8779,19 @@ function getIntentZonesForIntent(intent) {
             minAdapters: 0,
             requiresRdma: false
         });
-        zones.push({
-            key: 'storage',
-            title: 'Storage',
-            titleClass: 'storage',
-            description: 'Storage traffic (SMB Direct).',
-            badge: 'RDMA Required',
-            badgeClass: 'rdma-required',
-            minAdapters: 0,
-            requiresRdma: true
-        });
+        // Storage zones only for multi-node clusters
+        if (!isSingleNode) {
+            zones.push({
+                key: 'storage',
+                title: 'Storage',
+                titleClass: 'storage',
+                description: 'Storage traffic (SMB Direct).',
+                badge: 'RDMA Required',
+                badgeClass: 'rdma-required',
+                minAdapters: 0,
+                requiresRdma: true
+            });
+        }
         zones.push({
             key: 'mgmt_compute',
             title: 'Mgmt + Compute',
@@ -8782,16 +8802,19 @@ function getIntentZonesForIntent(intent) {
             minAdapters: 0,
             requiresRdma: false
         });
-        zones.push({
-            key: 'compute_storage',
-            title: 'Compute + Storage',
-            titleClass: 'storage',
-            description: 'Shared compute and storage.',
-            badge: 'RDMA Required',
-            badgeClass: 'rdma-required',
-            minAdapters: 0,
-            requiresRdma: true
-        });
+        // Compute + Storage zone only for multi-node clusters
+        if (!isSingleNode) {
+            zones.push({
+                key: 'compute_storage',
+                title: 'Compute + Storage',
+                titleClass: 'storage',
+                description: 'Shared compute and storage.',
+                badge: 'RDMA Required',
+                badgeClass: 'rdma-required',
+                minAdapters: 0,
+                requiresRdma: true
+            });
+        }
         zones.push({
             key: 'all',
             title: 'Group All Traffic',
