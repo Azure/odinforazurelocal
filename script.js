@@ -7071,8 +7071,8 @@ function startFresh() {
         if (key === 'theme' || key === 'fontSize') return; // Keep theme/font preferences
         if (Array.isArray(state[key])) {
             state[key] = [];
-        } else if (typeof state[key] === 'object' && state[key] !== null) {
-            state[key] = key === 'securitySettings' ? {
+        } else if (key === 'securitySettings') {
+            state[key] = {
                 driftControlEnforced: true,
                 bitlockerBootVolume: true,
                 bitlockerDataVolumes: true,
@@ -7080,7 +7080,10 @@ function startFresh() {
                 credentialGuardEnforced: true,
                 smbSigningEnforced: true,
                 smbClusterEncryption: true
-            } : {};
+            };
+        } else if (key === 'infra' || key === 'intentOverrides' || key === 'customIntents' || key === 'adapterMapping') {
+            // These object properties should be null or empty object initially
+            state[key] = (key === 'infra') ? null : {};
         } else if (typeof state[key] === 'boolean') {
             state[key] = key === 'infraCidrAuto' ? true : false;
         } else {
