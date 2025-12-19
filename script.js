@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.8.1';
+const WIZARD_VERSION = '0.8.2';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -2051,26 +2051,10 @@ function selectOption(category, value) {
             parseInt(state.ports, 10) >= 4
         );
         
-        // DEBUG: Log intent selection attempts
-        if (category === 'intent') {
-            console.log('[DEBUG] Intent selection attempt:', {
-                value,
-                nodes: state.nodes,
-                ports: state.ports,
-                portsParsed: parseInt(state.ports, 10),
-                cardFound: !!card,
-                cardDisabled: card ? card.classList.contains('disabled') : 'N/A',
-                isSingleNodeCustomOverride,
-                cardClasses: card ? card.className : 'N/A'
-            });
-        }
-        
         if (card && card.classList && card.classList.contains('disabled') && !isSingleNodeCustomOverride) {
-            console.log('[DEBUG] Selection blocked - card is disabled and no override applies');
             return;
         }
         state[category] = value;
-        console.log('[DEBUG] Selection allowed - state.' + category + ' set to:', value);
     }
 
     // Reset chains
@@ -3029,7 +3013,6 @@ function updateUI() {
     }
 
     // 2. Visual Updates (Cards)
-    console.log('[DEBUG updateUI] Visual update starting. state.intent =', state.intent);
     document.querySelectorAll('.option-card').forEach(card => {
         const value = card.getAttribute('data-value');
         const clickFn = card.getAttribute('onclick');
@@ -3040,9 +3023,6 @@ function updateUI() {
         if (category === 'nodes') return;
 
         let isSelected = state[category] === value;
-        if (category === 'intent') {
-            console.log('[DEBUG updateUI] Intent card:', value, 'isSelected:', isSelected);
-        }
         if (isSelected) card.classList.add('selected');
         else card.classList.remove('selected');
     });
@@ -3948,7 +3928,7 @@ function updateUI() {
         // to the selected topology.
         if (portsExp) {
             const header = '<strong style="color: var(--accent-purple);">Hardware Requirement</strong>';
-            const rdmaSentence = 'At least two network ports must be RDMA-capable (iWARP/RoCEv2) to support high-performance Storage traffic.';
+            const rdmaSentence = 'For multi-node clusters, at least two network ports must be RDMA-capable (iWARP/RoCEv2) to support high-performance Storage traffic.';
 
             const n = parseInt(state.nodes, 10);
             const isSwitchless = state.storage === 'switchless';
@@ -4251,7 +4231,6 @@ function updateUI() {
     // NOTE: This rule runs LAST to override any earlier port-based or storage-based rules
     if (state.nodes === '1') {
         const portCount = parseInt(state.ports, 10);
-        console.log('[DEBUG updateUI] Single-node rule: intent BEFORE=', state.intent, 'portCount=', portCount);
         
         // Single node: always disable All Traffic and Compute+Storage
         cards.intent['all_traffic'].classList.add('disabled');
@@ -4267,17 +4246,14 @@ function updateUI() {
         
         // Default to Mgmt + Compute
         if (state.intent !== 'mgmt_compute' && state.intent !== 'custom') {
-            console.log('[DEBUG updateUI] Resetting intent to mgmt_compute (was:', state.intent, ')');
             state.intent = 'mgmt_compute';
             state.customIntentConfirmed = false;
         }
         // If custom is selected but ports < 4, reset to mgmt_compute
         if (state.intent === 'custom' && (isNaN(portCount) || portCount < 4)) {
-            console.log('[DEBUG updateUI] Resetting custom to mgmt_compute (ports < 4)');
             state.intent = 'mgmt_compute';
             state.customIntentConfirmed = false;
         }
-        console.log('[DEBUG updateUI] Single-node rule: intent AFTER=', state.intent);
     }
 
     // RULE 4: Outbound -> Arc & Proxy
@@ -7389,7 +7365,25 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.8.1 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.8.2 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Custom Storage Subnets (Issue #50):</strong> Switchless diagram legends now display custom subnet CIDRs when Storage Auto IP is disabled.</li>
+                        <li><strong>RDMA Tooltip:</strong> Clarified hardware requirement applies to multi-node clusters only.</li>
+                        <li><strong>Code Cleanup:</strong> Simplified redundant null checks per Copilot review.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">✨ Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>MLAG Peer Links:</strong> Added visual MLAG links between ToR switches in Storage Switched diagram.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.8.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
                 </div>
                 
