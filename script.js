@@ -5008,7 +5008,12 @@ function updateStepIndicators() {
         { id: 'step-2', validation: () => state.scale !== null },
         { id: 'step-3', validation: () => state.nodes !== null },
         { id: 'step-3-5', validation: () => state.witnessType !== null },
-        { id: 'step-4', validation: () => state.nodes === '1' || state.storage !== null },
+        { id: 'step-4', validation: () => {
+            // 1-node clusters: require ToR switch selection (no storage intent)
+            if (state.nodes === '1') return state.torSwitchCount !== null;
+            // Multi-node clusters: require storage selection
+            return state.storage !== null;
+        }},
         { id: 'step-5', validation: () => state.ports !== null },
         { id: 'step-6', validation: () => {
             // Intent must be selected
