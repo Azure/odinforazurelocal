@@ -48,6 +48,9 @@
         var octets = ip.split('.');
         if (octets.length !== 4) return null;
         
+        // Validate prefix is a valid number between 0 and 32
+        if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) return null;
+        
         // Determine how many octets to keep based on CIDR prefix
         if (prefix <= 8) {
             return octets[0] + '.*.*.*';
@@ -56,7 +59,8 @@
         } else if (prefix <= 24) {
             return octets[0] + '.' + octets[1] + '.' + octets[2] + '.*';
         } else {
-            // /25 or larger - return full IP
+            // /25 or larger - return full IP (documented limitation: not a valid wildcard pattern)
+            // For proxy bypass, this will match only the exact network address
             return ip;
         }
     }
@@ -3358,7 +3362,7 @@
             outboundNotes.push('Implementation note: proxy bypass lists usually need to include at least the node IPs, cluster IP, and the infrastructure IPs/subnet so internal cluster traffic (and infrastructure services) do not get forced through the proxy path.');
             outboundNotes.push('Proxy planning note: Azure Local guidance emphasizes configuring proxy settings before registering nodes to Azure Arc, and keeping proxy configuration consistent across OS proxy components (WinINET, WinHTTP, and environment variables).');
         } else if (s.outbound === 'public') {
-            outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allowlisting).');
+            outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allow-listing).');
             outboundNotes.push('Even with public outbound, Arc-related components still require outbound HTTPS to Microsoft endpoints; ensure your firewall policy allows the required destinations.');
         }
 

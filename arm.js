@@ -353,9 +353,17 @@ function deployToAzure() {
     // Convert GitHub blob URL to raw URL for the ARM template
     // GitHub blob: https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/.../azuredeploy.json
     // GitHub raw:  https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/quickstarts/.../azuredeploy.json
-    var templateUrl = ref.url
-        .replace('github.com', 'raw.githubusercontent.com')
-        .replace('/blob/', '/');
+    var templateUrl = ref.url;
+    
+    // Only perform GitHub URL conversion if it matches the expected format
+    if (templateUrl && templateUrl.indexOf('github.com') !== -1 && templateUrl.indexOf('/blob/') !== -1) {
+        templateUrl = templateUrl
+            .replace('github.com', 'raw.githubusercontent.com')
+            .replace('/blob/', '/');
+    } else if (templateUrl && templateUrl.indexOf('raw.githubusercontent.com') === -1 && templateUrl.indexOf('github.com') !== -1) {
+        // GitHub URL without /blob/ - may be an invalid format, warn user
+        console.warn('GitHub URL format may not be supported for raw conversion:', templateUrl);
+    }
     
     // Determine the Azure Portal URL based on cloud
     // Note: Azure China is not supported for Azure Local deployments

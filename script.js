@@ -718,16 +718,6 @@ function tryAutoFillSequentialNodeNamesFromFirst() {
 
     const { base, num, padding } = parseNodeNamePattern(firstName);
 
-    // Determine starting number for subsequent nodes.
-    let startNum;
-    if (num !== null) {
-        // User provided a number, continue from there.
-        startNum = num + 1;
-    } else {
-        // No trailing number; append "2", "3", etc.
-        startNum = 2;
-    }
-
     // Determine padding: use existing padding, or if no number was present, use minimal padding.
     const effectivePadding = num !== null ? padding : 1;
 
@@ -1309,11 +1299,35 @@ function generateArmParameters() {
         };
 
         // Helper to extract network prefix and calculate IP from custom CIDR or default
+        // defaultThirdOctet should be a number (e.g., 1, 2, 3) used to construct 10.0.{n}.0/24
         const getSubnetInfo = (subnetIndex, defaultThirdOctet) => {
             const defaultCidr = `10.0.${defaultThirdOctet}.0/24`;
-            const cidr = getCustomSubnetOrDefault(subnetIndex, defaultCidr);
+            const rawCidr = getCustomSubnetOrDefault(subnetIndex, defaultCidr);
+            // Ensure we are working with a string and trim whitespace
+            let cidr = (typeof rawCidr === 'string' ? rawCidr : defaultCidr).trim();
+
+            // Validate CIDR structure: "<ip>/<prefix>", where <ip> has 4 dot-separated numeric octets
             const parts = cidr.split('/');
-            const ipParts = parts[0].split('.');
+            let ipParts = [];
+            let useDefault = false;
+
+            if (parts.length !== 2) {
+                useDefault = true;
+            } else {
+                ipParts = parts[0].split('.');
+                if (ipParts.length !== 4) {
+                    useDefault = true;
+                } else if (ipParts.some(p => p === '' || Number.isNaN(Number(p)))) {
+                    useDefault = true;
+                }
+            }
+
+            if (useDefault) {
+                cidr = defaultCidr;
+                const defaultParts = cidr.split('/');
+                ipParts = defaultParts[0].split('.');
+            }
+
             const prefix = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
             const mask = cidrToSubnetMask(cidr) || '255.255.255.0';
             return { prefix, mask, cidr };
@@ -1437,11 +1451,22 @@ function generateArmParameters() {
                 // Build subnet info map for all 12 subnets (custom or default)
                 const subnetInfoMap = {};
                 for (let i = 1; i <= 12; i++) {
-                    subnetInfoMap[i] = getSubnetInfo(i - 1, `10.0.${i}.0/24`);
+                    subnetInfoMap[i] = getSubnetInfo(i - 1, i);
                 }
 
-                const makeIpv4 = (subnetNumber, hostOctet) => `${subnetInfoMap[subnetNumber].prefix}.${hostOctet}`;
-                const getSubnetMask = (subnetNumber) => subnetInfoMap[subnetNumber].mask;
+                const makeIpv4 = (subnetNumber, hostOctet) => {
+                    const subnetInfo = subnetInfoMap[subnetNumber];
+                    if (!subnetInfo || !subnetInfo.prefix) {
+                        // Missing or invalid subnet info; return fallback
+                        return `10.0.${subnetNumber}.${hostOctet}`;
+                    }
+                    return `${subnetInfo.prefix}.${hostOctet}`;
+                };
+                const getSubnetMask = (subnetNumber) => {
+                    const subnetInfo = subnetInfoMap[subnetNumber];
+                    // Fall back to a default mask if subnet info is missing or malformed
+                    return (subnetInfo && subnetInfo.mask) ? subnetInfo.mask : '255.255.255.0';
+                };
                 const hostOctetForNodeInSubnet = (subnetNumber, nodeNumber) => {
                     const pair = subnetPairs[subnetNumber];
                     if (!pair) return null;
@@ -1487,7 +1512,7 @@ function generateArmParameters() {
             
             const buildStorageAdapterIPInfo = (subnetIndex) => {
                 if (!includeStorageAdapterIPInfo) return undefined;
-                const subnetInfo = getSubnetInfo(subnetIndex, `10.0.${subnetIndex + 1}.0/24`);
+                const subnetInfo = getSubnetInfo(subnetIndex, subnetIndex + 1);
                 const adapterInfo = [];
                 for (let i = 0; i < nodeCount; i++) {
                     adapterInfo.push({
@@ -4418,6 +4443,8 @@ function getRequiredStorageSubnetCount() {
     const nodeCount = parseInt(state.nodes, 10) || 0;
 
     if (state.storage === 'switchless') {
+        // 2-node switchless: 2 subnets
+        if (nodeCount === 2) return 2;
         // 3-node switchless: 6 subnets (one per node pair link)
         if (nodeCount === 3) return 6;
         // 4-node switchless: 12 subnets
@@ -4505,17 +4532,21 @@ function updateCustomStorageSubnetsConfirmButton() {
     const confirmed = state.customStorageSubnetsConfirmed;
     const requiredCount = getRequiredStorageSubnetCount();
     
-    // Check if all required subnets have values
-    const allFilled = Array.isArray(state.customStorageSubnets) && 
-                      state.customStorageSubnets.length >= requiredCount &&
-                      state.customStorageSubnets.slice(0, requiredCount).every(s => s && s.trim().length > 0);
+    // Check if all required subnets have values and are valid CIDR format
+    const subnetsToCheck = Array.isArray(state.customStorageSubnets) 
+        ? state.customStorageSubnets.slice(0, requiredCount) 
+        : [];
+    const allFilled = subnetsToCheck.length >= requiredCount &&
+                      subnetsToCheck.every(s => s && s.trim().length > 0);
+    const allValid = allFilled && subnetsToCheck.every(s => isValidCidrFormat(s));
     
     if (confirmBtn) {
         if (confirmBtn.dataset && confirmBtn.dataset.bound !== '1') {
             confirmBtn.dataset.bound = '1';
             confirmBtn.addEventListener('click', () => toggleCustomStorageSubnetsConfirmed());
         }
-        confirmBtn.disabled = !allFilled && !confirmed;
+        // Only allow confirmation when all subnets are filled AND valid
+        confirmBtn.disabled = !allValid && !confirmed;
         confirmBtn.classList.toggle('is-confirmed', confirmed);
         confirmBtn.textContent = confirmed ? 'Edit Storage Subnets' : 'Confirm Storage Subnets';
     }
@@ -4524,6 +4555,9 @@ function updateCustomStorageSubnetsConfirmButton() {
         if (confirmed) {
             confirmStatus.textContent = '✓ Confirmed';
             confirmStatus.style.color = 'var(--accent-blue)';
+        } else if (allFilled && !allValid) {
+            confirmStatus.textContent = 'Fix invalid CIDR format';
+            confirmStatus.style.color = 'var(--accent-red, #ef4444)';
         } else {
             confirmStatus.textContent = allFilled ? 'Click to confirm' : 'Enter all subnet values';
             confirmStatus.style.color = 'var(--text-secondary)';
@@ -4538,12 +4572,53 @@ function updateCustomStorageSubnetsConfirmButton() {
     });
 }
 
+// Validate CIDR format (e.g., 10.0.1.0/24)
+function isValidCidrFormat(cidr) {
+    if (!cidr || typeof cidr !== 'string') return false;
+    const trimmed = cidr.trim();
+    const parts = trimmed.split('/');
+    if (parts.length !== 2) return false;
+    
+    const ip = parts[0];
+    const prefixStr = parts[1];
+    const prefix = parseInt(prefixStr, 10);
+    
+    // Validate prefix is a number between 0 and 32
+    if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
+    
+    // Validate IP has 4 octets, each 0-255
+    const octets = ip.split('.');
+    if (octets.length !== 4) return false;
+    
+    for (const octet of octets) {
+        if (octet === '' || Number.isNaN(Number(octet))) return false;
+        const num = parseInt(octet, 10);
+        if (num < 0 || num > 255) return false;
+    }
+    
+    return true;
+}
+
 // Update a specific custom storage subnet
 function updateCustomStorageSubnet(index, value) {
     if (!Array.isArray(state.customStorageSubnets)) {
         state.customStorageSubnets = [];
     }
-    state.customStorageSubnets[index] = value.trim();
+    const trimmed = value.trim();
+    state.customStorageSubnets[index] = trimmed;
+    
+    // Provide visual feedback for invalid CIDR format
+    const input = document.querySelector(`.custom-storage-subnet-input[data-subnet-index="${index}"]`);
+    if (input) {
+        if (trimmed && !isValidCidrFormat(trimmed)) {
+            input.style.borderColor = 'var(--accent-red, #ef4444)';
+            input.title = 'Invalid CIDR format. Use format like 10.0.1.0/24';
+        } else {
+            input.style.borderColor = 'var(--glass-border)';
+            input.title = '';
+        }
+    }
+    
     // Reset confirmation when values change
     state.customStorageSubnetsConfirmed = false;
     updateCustomStorageSubnetsConfirmButton();
@@ -4643,9 +4718,9 @@ function renderIntentOverrides(container) {
                 </select>
             </div>
             <div class="config-row" style="margin-top:0.5rem;">
-                <span class="config-label">System Priority (Cluster)</span>
+                <span class="config-label">System/Cluster Priority</span>
                 <select class="speed-select" data-override-group="${g.key}" data-override-key="dcbSystemPriority">
-                    <option value="" ${!ov.dcbSystemPriority ? 'selected' : ''}>Default (7)</option>
+                    <option value="" ${!ov.dcbSystemPriority ? 'selected' : ''}>Default (5)</option>
                     <option value="5" ${ov.dcbSystemPriority === '5' ? 'selected' : ''}>5</option>
                     <option value="6" ${ov.dcbSystemPriority === '6' ? 'selected' : ''}>6</option>
                     <option value="7" ${ov.dcbSystemPriority === '7' ? 'selected' : ''}>7</option>
