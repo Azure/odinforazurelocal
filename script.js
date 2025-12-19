@@ -37,6 +37,7 @@ const state = {
     infraVlanId: null,
     storageAutoIp: null,
     customStorageSubnets: [], // User-defined storage subnets when Storage Auto IP is disabled
+    customStorageSubnetsConfirmed: false, // Confirmation state for custom storage subnets
     activeDirectory: null,
     adDomain: null,
     adOuPath: null,
@@ -2025,6 +2026,7 @@ function selectOption(category, value) {
         }
     } else if (category === 'storage') {
         state.ports = null; state.intent = null; state.customIntentConfirmed = false; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
+        state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
         state.switchlessLinkMode = null;
         // Storage choice should not invalidate Rack Aware zone placement or ToR architecture.
         // (Rack Aware is a scale/topology decision; users expect ToR selections to persist
@@ -2036,6 +2038,7 @@ function selectOption(category, value) {
         state.intent = null;
         state.customIntentConfirmed = false;
         state.storageAutoIp = null;
+        state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
         try { state.portConfig = null; } catch (e) { /* ignore */ }
     } else if (category === 'rackAwareTorsPerRoom') {
         state.rackAwareTorsPerRoom = value;
@@ -2047,6 +2050,7 @@ function selectOption(category, value) {
         state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
         state.intentOverrides = {};
         state.storageAutoIp = null;
+        state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
         state.infraVlan = null;
         state.infraVlanId = null;
     } else if (category === 'storagePoolConfiguration') {
@@ -2083,6 +2087,11 @@ function selectOption(category, value) {
         }
 
         applyInfraVlanVisibility();
+    } else if (category === 'storageAutoIp') {
+        state.storageAutoIp = value;
+        // Reset custom storage subnets when changing auto IP setting
+        state.customStorageSubnets = [];
+        state.customStorageSubnetsConfirmed = false;
     } else if (category === 'activeDirectory') {
         state.activeDirectory = value;
         state.adDomain = null;
@@ -4376,6 +4385,55 @@ function updateCustomStorageSubnetsUI() {
     }
     
     container.innerHTML = html;
+    
+    // Update confirm button state
+    updateCustomStorageSubnetsConfirmButton();
+}
+
+// Toggle confirmation state for custom storage subnets
+function toggleCustomStorageSubnetsConfirmed() {
+    state.customStorageSubnetsConfirmed = !state.customStorageSubnetsConfirmed;
+    updateUI();
+}
+
+// Update the confirm button UI for custom storage subnets
+function updateCustomStorageSubnetsConfirmButton() {
+    const confirmBtn = document.getElementById('custom-storage-subnets-confirm-btn');
+    const confirmStatus = document.getElementById('custom-storage-subnets-confirm-status');
+    const confirmed = state.customStorageSubnetsConfirmed;
+    const requiredCount = getRequiredStorageSubnetCount();
+    
+    // Check if all required subnets have values
+    const allFilled = Array.isArray(state.customStorageSubnets) && 
+                      state.customStorageSubnets.length >= requiredCount &&
+                      state.customStorageSubnets.slice(0, requiredCount).every(s => s && s.trim().length > 0);
+    
+    if (confirmBtn) {
+        if (confirmBtn.dataset && confirmBtn.dataset.bound !== '1') {
+            confirmBtn.dataset.bound = '1';
+            confirmBtn.addEventListener('click', () => toggleCustomStorageSubnetsConfirmed());
+        }
+        confirmBtn.disabled = !allFilled && !confirmed;
+        confirmBtn.classList.toggle('is-confirmed', confirmed);
+        confirmBtn.textContent = confirmed ? 'Edit Storage Subnets' : 'Confirm Storage Subnets';
+    }
+    
+    if (confirmStatus) {
+        if (confirmed) {
+            confirmStatus.textContent = '✓ Confirmed';
+            confirmStatus.style.color = 'var(--accent-blue)';
+        } else {
+            confirmStatus.textContent = allFilled ? 'Click to confirm' : 'Enter all subnet values';
+            confirmStatus.style.color = 'var(--text-secondary)';
+        }
+    }
+    
+    // Disable/enable inputs based on confirmation state
+    const inputs = document.querySelectorAll('.custom-storage-subnet-input');
+    inputs.forEach(input => {
+        input.disabled = confirmed;
+        input.style.opacity = confirmed ? '0.7' : '1';
+    });
 }
 
 // Update a specific custom storage subnet
@@ -4384,6 +4442,9 @@ function updateCustomStorageSubnet(index, value) {
         state.customStorageSubnets = [];
     }
     state.customStorageSubnets[index] = value.trim();
+    // Reset confirmation when values change
+    state.customStorageSubnetsConfirmed = false;
+    updateCustomStorageSubnetsConfirmButton();
     updateSummary();
 }
 
