@@ -3928,7 +3928,7 @@ function updateUI() {
         // to the selected topology.
         if (portsExp) {
             const header = '<strong style="color: var(--accent-purple);">Hardware Requirement</strong>';
-            const rdmaSentence = 'At least two network ports must be RDMA-capable (iWARP/RoCEv2) to support high-performance Storage traffic.';
+            const rdmaSentence = 'For multi-node clusters, at least two network ports must be RDMA-capable (iWARP/RoCEv2) to support high-performance Storage traffic.';
 
             const n = parseInt(state.nodes, 10);
             const isSwitchless = state.storage === 'switchless';
