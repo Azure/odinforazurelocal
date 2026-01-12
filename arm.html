@@ -198,6 +198,32 @@
                 </div>
             </div>
             
+            <!-- Disconnected Operations Section (shown instead of Deploy to Azure for disconnected scenarios) -->
+            <div id="disconnected-operations-section" style="margin-bottom: 1.5rem; display: none;">
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, rgba(234, 88, 12, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%); border: 1px solid rgba(234, 88, 12, 0.3); border-radius: 12px;">
+                    <div style="display: flex; align-items: flex-start; gap: 1rem;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" style="flex-shrink: 0; margin-top: 2px;">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            <line x1="12" y1="8" x2="12" y2="12"/>
+                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                        </svg>
+                        <div>
+                            <h3 style="margin: 0 0 0.75rem 0; color: #ea580c; font-size: 1.1rem;">Disconnected Operations Deployment</h3>
+                            <p style="margin: 0 0 1rem 0; color: var(--text-secondary); line-height: 1.6;">Azure Local Disconnected Operations deployments do <strong style="color: var(--text-primary);">not</strong> use Azure to deploy the cluster. The "Deploy to Azure" functionality is not available for air-gapped environments.</p>
+                            <p style="margin: 0 0 1.25rem 0; color: var(--text-secondary); line-height: 1.6;">Please refer to the official Microsoft documentation for instructions on deploying Azure Local in disconnected mode:</p>
+                            <a href="https://learn.microsoft.com/en-us/azure/azure-local/manage/disconnected-operations-deploy" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1.5rem; background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.2s;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                    <polyline points="15 3 21 3 21 9"/>
+                                    <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                                Disconnected Operations Deployment Guide
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <details style="margin-top: 1rem;">
                 <summary style="cursor: pointer; color: var(--accent-blue); font-weight: 500; padding: 0.5rem 0;">View all available ARM templates</summary>
                 <div id="arm-template-links" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;">
