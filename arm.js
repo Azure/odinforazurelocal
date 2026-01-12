@@ -261,6 +261,23 @@
         var deployBtn = document.getElementById('deploy-to-azure-btn');
         var deployBtnText = document.getElementById('deploy-btn-text');
         var templateNameEl = document.getElementById('deploy-template-name');
+        var deploySection = document.getElementById('deploy-to-azure-section');
+        var disconnectedSection = document.getElementById('disconnected-operations-section');
+        
+        // Check if this is a disconnected scenario
+        var isDisconnected = payload && payload.scenario === 'disconnected';
+        
+        // Toggle visibility based on scenario
+        if (isDisconnected) {
+            // Hide Deploy to Azure section, show Disconnected Operations section
+            if (deploySection) deploySection.style.display = 'none';
+            if (disconnectedSection) disconnectedSection.style.display = 'block';
+            return;
+        } else {
+            // Show Deploy to Azure section, hide Disconnected Operations section
+            if (deploySection) deploySection.style.display = 'block';
+            if (disconnectedSection) disconnectedSection.style.display = 'none';
+        }
         
         if (!payload || !payload.referenceTemplate) {
             if (deployBtn) deployBtn.disabled = true;
