@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0] - 2026-01-13
+
+### Added
+
+#### Missing Sections Display (Issue #55)
+
+- **Dynamic Missing Sections Display** - Added a prominent red-bordered container above the Generate buttons that shows which configuration sections are incomplete:
+  - Displays clickable anchor links for each missing section
+  - Updates dynamically as users complete fields
+  - Provides instant visibility into what's needed before generating outputs
+
+- **Navigation to Missing Sections** - Clicking on any missing section link:
+  - Smoothly scrolls to the relevant wizard step
+  - Highlights the target step with a brief animation
+  - Works with partial matches for flexible navigation
+
+- **Complete Example Templates** - Fixed all 5 example templates to be 100% complete with all required fields:
+  - **Small AD-Joined Cluster**: 2-node, switchless, Azure AD with full network config
+  - **Medium Switched Cluster**: 4-node, switched storage, compute+storage intent
+  - **Large Enterprise Cluster**: 8-node, switched, all traffic intent, full security
+  - **Single Node (Dev/Test)**: 1-node, local identity, minimal configuration
+  - **Rack-Aware Multi-Rack**: 4-node across 2 fault domains, full rack-aware settings
+
+#### Import ARM Templates from Azure Portal (Issue #56)
+
+- **ARM Template Import** - Extended the Import Configuration feature to accept Azure ARM templates exported from the Azure Portal:
+  - Auto-detects ARM templates by checking the `$schema` property
+  - Supports both ARM template files and parameters files
+  - Shows informative toast message when ARM format is detected
+
+- **Comprehensive Parameter Mapping** - Maps ARM template parameters to Odin wizard state:
+  - `physicalNodesSettings` → Node names and IP addresses
+  - `domainFqdn` → Active Directory domain
+  - `dnsServers` → DNS server configuration
+  - `subnetMask`, `startingIPAddress`, `endingIPAddress` → Network ranges
+  - `networkingType` → Storage switched/switchless
+  - `networkingPattern` → Traffic intent configuration
+  - Security settings: driftControl, credentialGuard, SMB signing, BitLocker, WDAC
+
+- **Graceful Import** - After importing an ARM template:
+  - Prompts user to review and complete any missing fields
+  - Preserves existing Odin export/import functionality
+  - Provides clear error messages for invalid files
+
+---
+
 ## [0.8.2] - 2025-12-19
 
 ### Fixed
