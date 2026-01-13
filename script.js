@@ -766,8 +766,11 @@ function getReportReadiness() {
             }
 
             // When all ports are RDMA-capable, allow Mgmt+Compute to share RDMA ports (standard scenarios only).
+            // For rack_aware scenarios with mgmt_compute intent, RDMA is allowed (but not required) on Mgmt & Compute ports.
+            const isRackAware = state.scale === 'rack_aware';
             const allowMgmtComputeOnRdmaPorts =
-                isStandard && state.intent === 'mgmt_compute' && allRdma;
+                (isStandard && state.intent === 'mgmt_compute' && allRdma) ||
+                (isRackAware && state.intent === 'mgmt_compute');
             // Custom intent: RDMA can be enabled on non-Storage adapters (e.g., Compute).
             const nonStorageRdma = (state.intent === 'custom')
                 ? []
@@ -4677,8 +4680,11 @@ function updateUI() {
             const nonRdmaCount = portCount - rdmaEnabled.length;
 
             // When all ports are RDMA-capable, allow Mgmt+Compute to use RDMA ports (standard scenarios only).
+            // For rack_aware scenarios with mgmt_compute intent, RDMA is allowed (but not required) on Mgmt & Compute ports.
+            const isRackAware = state.scale === 'rack_aware';
             const allowMgmtComputeOnRdmaPorts =
-                isStandard && state.intent === 'mgmt_compute' && allRdma;
+                (isStandard && state.intent === 'mgmt_compute' && allRdma) ||
+                (isRackAware && state.intent === 'mgmt_compute');
             // Custom intent: RDMA can be enabled on non-Storage adapters (e.g., Compute).
             const nonStorageRdma = (state.intent === 'custom')
                 ? []
