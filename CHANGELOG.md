@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.1] - 2026-01-13
+
+### Changed
+
+#### UI Improvements
+
+- **Page Statistics Repositioned** - Moved the Page Statistics box (Page Views, Designs Generated, ARM Deployments) from above the disclaimer to below the header description paragraph for better visual flow
+- **Renamed Statistics Label** - Changed "Documents Generated" to "Designs Generated" for clarity
+- **Reduced Header Spacing** - Tightened the spacing below the header section from 4rem to 2.5rem for a more compact layout
+
+---
+
 ## [0.9.0] - 2026-01-13
 
 ### Added
