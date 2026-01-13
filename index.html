@@ -139,35 +139,6 @@
             </div>
         </div>
 
-        <!-- Page Statistics -->
-        <div id="page-statistics" style="display: flex; justify-content: center; align-items: center; margin-bottom: 16px;">
-            <div style="display: flex; gap: 24px; padding: 10px 20px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; font-size: 13px;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                    <span style="color: var(--text-secondary);">Page Views:</span>
-                    <span id="stat-page-views" style="color: var(--text-primary); font-weight: 600;">—</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                    <span style="color: var(--text-secondary);">Designs Generated:</span>
-                    <span id="stat-design-docs" style="color: var(--text-primary); font-weight: 600;">—</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                    </svg>
-                    <span style="color: var(--text-secondary);">ARM Deployments:</span>
-                    <span id="stat-arm-deployments" style="color: var(--text-primary); font-weight: 600;">—</span>
-                </div>
-            </div>
-        </div>
-
         <header>
             <div class="header-title-wrapper">
                 <h1 class="header-title">Odin for Azure Local</h1>
@@ -179,6 +150,35 @@
                 </div>
             </div>
             <p class="header-description">Odin, the Norse god embodying strategic thinking and architecture, is your guide for Azure Local deployments. This <strong>O</strong>ptimal <strong>D</strong>eployment and <strong>I</strong>nfrastructure <strong>N</strong>avigator provides a decision tree interface to select an Azure Local deployment type, and instance design using validated architecture and network configuration.</p>
+            
+            <!-- Page Statistics -->
+            <div id="page-statistics" style="display: flex; justify-content: center; align-items: center; margin-top: 16px;">
+                <div style="display: flex; gap: 24px; padding: 10px 20px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; font-size: 13px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span style="color: var(--text-secondary);">Page Views:</span>
+                        <span id="stat-page-views" style="color: var(--text-primary); font-weight: 600;">—</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <span style="color: var(--text-secondary);">Designs Generated:</span>
+                        <span id="stat-design-docs" style="color: var(--text-primary); font-weight: 600;">—</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        </svg>
+                        <span style="color: var(--text-secondary);">ARM Deployments:</span>
+                        <span id="stat-arm-deployments" style="color: var(--text-primary); font-weight: 600;">—</span>
+                    </div>
+                </div>
+            </div>
         </header>
 
         <noscript>
