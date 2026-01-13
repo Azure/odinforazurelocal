@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.3] - 2026-01-13
+
+### Fixed
+
+#### DNS Server Display (Issue #64)
+
+- **Fixed DNS Server Display After Import** - DNS servers now properly render in the UI after:
+  - ARM template import (dnsServers array parsed from ARM parameters)
+  - Odin configuration file import
+  - Session resume from localStorage
+- **Root Cause**: The `renderDnsServers()` function was not being called after `updateUI()` in import/resume handlers, leaving the DNS servers container empty even though `state.dnsServers` was populated
+
+#### Deploy to Azure Enhancement (Issue #65)
+
+- **Pre-filled Parameters in Azure Portal** - The "Deploy to Azure" button now passes configured parameters directly to the Azure Portal URL:
+  - `domainFqdn` - Active Directory domain FQDN
+  - `adouPath` - Active Directory OU path
+  - `dnsServers` - DNS server IP addresses
+  - `arcNodeResourceIds` - Arc node resource IDs (if not placeholders)
+  - `location` - Azure region
+  - `witnessType` - Cluster witness type
+  - `networkingPattern` - Network intent pattern
+  - `subnetMask`, `startingIPAddress`, `endingIPAddress`, `defaultGateway` - IP configuration
+  - `securityLevel`, `configurationMode` - Security and storage settings
+- **Improved User Experience**: Users no longer need to manually copy/paste all parameters - key values are automatically pre-filled when redirected to Azure Portal
+
+---
+
 ## [0.9.2] - 2026-01-13
 
 ### Fixed

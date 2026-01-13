@@ -7422,6 +7422,10 @@ function importConfiguration() {
                                 // Update UI
                                 try {
                                     updateUI();
+                                    // Render DNS servers if imported (fixes Issue #64)
+                                    if (state.dnsServers && state.dnsServers.length > 0) {
+                                        renderDnsServers();
+                                    }
                                 } catch (uiErr) {
                                     console.error('UI update error during ARM import:', uiErr);
                                 }
@@ -7478,6 +7482,10 @@ function importConfiguration() {
                             // Update UI with error handling
                             try {
                                 updateUI();
+                                // Render DNS servers if imported (fixes Issue #64)
+                                if (state.dnsServers && state.dnsServers.length > 0) {
+                                    renderDnsServers();
+                                }
                             } catch (uiErr) {
                                 console.error('UI update error during import:', uiErr);
                             }
@@ -7574,6 +7582,12 @@ function resumeSavedState() {
         updateSdnManagementOptions();
         
         updateUI();
+        
+        // Render DNS servers if present (fixes Issue #64)
+        if (state.dnsServers && state.dnsServers.length > 0) {
+            renderDnsServers();
+        }
+        
         showToast('Session resumed successfully!', 'success');
     }
     dismissResumeBanner(false); // Don't scroll to top when resuming
@@ -7919,7 +7933,20 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.2 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.3 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issues #64, #65)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>DNS Server Display Fixed:</strong> DNS servers now properly display after ARM template import or session resume.</li>
+                        <li><strong>Deploy to Azure Enhanced:</strong> The "Deploy to Azure" button now pre-fills parameters (domainFqdn, adouPath, dnsServers, networking, etc.) in the Azure Portal.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
                 </div>
                 
