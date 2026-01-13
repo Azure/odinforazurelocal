@@ -537,23 +537,23 @@ function updateProgressUi() {
 const missingSectionToStep = {
     'Deployment Type': 'step-1',
     'Scenario must not be Multi-Rack (report is not available for Multi-Rack flow)': 'step-1',
-    'Azure Cloud': 'step-2',
-    'Azure Local Instance Region': 'step-2',
-    'Scale': 'step-3',
-    'Cluster Scale': 'step-3',
-    'Nodes': 'step-4',
-    'Cloud Witness Type': 'step-5',
-    'Local availability zones': 'step-3',
-    'ToR switches per room': 'step-3',
-    'ToR switch architecture': 'step-3',
-    'TOR switch architecture': 'step-3',
-    'Storage Connectivity': 'step-6',
-    'Ports': 'step-7',
+    'Azure Cloud': 'step-cloud',
+    'Azure Local Instance Region': 'step-local-region',
+    'Scale': 'step-2',
+    'Cluster Scale': 'step-2',
+    'Nodes': 'step-3',
+    'Cloud Witness Type': 'step-3-5',
+    'Local availability zones': 'step-3-5',
+    'ToR switches per room': 'step-3-5',
+    'ToR switch architecture': 'step-3-5',
+    'TOR switch architecture': 'step-3-5',
+    'Storage Connectivity': 'step-4',
+    'Ports': 'step-5',
     'Storage Pool Configuration': 'step-6',
-    'Traffic Intent': 'step-8',
-    'Outbound Connectivity': 'step-9',
-    'Azure Arc Gateway': 'step-9',
-    'Arc Gateway': 'step-9',
+    'Traffic Intent': 'step-6',
+    'Outbound Connectivity': 'step-7',
+    'Azure Arc Gateway': 'step-8',
+    'Arc Gateway': 'step-8',
     'Proxy': 'step-9',
     'IP Assignment': 'step-10',
     'Default Gateway': 'step-10',
@@ -571,11 +571,11 @@ const missingSectionToStep = {
     'Local DNS Zone Name': 'step-11',
     'Security Configuration': 'step-12',
     'SDN Management': 'step-13',
-    'Confirm adapter mapping for Custom intent': 'step-8',
-    'RDMA: At least': 'step-7',
-    'RDMA mapping': 'step-8',
-    'Custom mapping': 'step-8',
-    'Mgmt + Compute mapping': 'step-8'
+    'Confirm adapter mapping for Custom intent': 'step-6',
+    'RDMA: At least': 'step-5',
+    'RDMA mapping': 'step-6',
+    'Custom mapping': 'step-6',
+    'Mgmt + Compute mapping': 'step-6'
 };
 
 function updateMissingSectionsDisplay() {
@@ -7913,7 +7913,20 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.1 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.2 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issue #59)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Template Loading Fixed:</strong> Example configurations now load all fields correctly (Ports, Traffic Intent, Outbound).</li>
+                        <li><strong>Missing Sections Navigation:</strong> Clicking on missing section links now scrolls to the correct step.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
                 </div>
                 
@@ -8686,6 +8699,12 @@ function loadTemplate(templateIndex) {
     if (config.scale) selectOption('scale', config.scale);
     if (config.nodes) selectOption('nodes', config.nodes);
     if (config.witnessType) selectOption('witnessType', config.witnessType);
+    
+    // Storage must be set BEFORE ports, because selectOption('storage') resets ports
+    if (config.storage) selectOption('storage', config.storage);
+    if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
+    
+    // Now set ports (after storage, so it won't be reset)
     if (config.ports) selectOption('ports', config.ports);
     
     // Apply portConfig after ports selection (since selectOption may reset it)
@@ -8693,8 +8712,6 @@ function loadTemplate(templateIndex) {
         state.portConfig = config.portConfig;
     }
     
-    if (config.storage) selectOption('storage', config.storage);
-    if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
     if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
     if (config.intent) selectOption('intent', config.intent);
     if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
