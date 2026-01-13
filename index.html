@@ -1688,6 +1688,23 @@
                     </div>
 
                     <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
+                        <!-- Missing Sections Display -->
+                        <div id="missing-sections-container" style="margin-bottom: 1.5rem; display: none;">
+                            <div style="padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <line x1="12" y1="8" x2="12" y2="12"/>
+                                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                    </svg>
+                                    <strong style="color: #ef4444; font-size: 0.9rem;">Complete These Sections:</strong>
+                                </div>
+                                <div id="missing-sections-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <!-- Dynamically populated -->
+                                </div>
+                            </div>
+                        </div>
+
                         <button id="preview-config-btn" type="button" class="report-button preview-button" onclick="showConfigurationPreview()" style="margin-bottom: 0.75rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));">
                             👁️ Preview Cluster Configuration
                         </button>

@@ -528,6 +528,125 @@ function updateProgressUi() {
 
     const bar = root.querySelector('[role="progressbar"]');
     if (bar) bar.setAttribute('aria-valuenow', String(p.percent));
+    
+    // Update missing sections display
+    updateMissingSectionsDisplay();
+}
+
+// Mapping of missing item labels to step IDs for navigation
+const missingSectionToStep = {
+    'Deployment Type': 'step-1',
+    'Scenario must not be Multi-Rack (report is not available for Multi-Rack flow)': 'step-1',
+    'Azure Cloud': 'step-2',
+    'Azure Local Instance Region': 'step-2',
+    'Scale': 'step-3',
+    'Cluster Scale': 'step-3',
+    'Nodes': 'step-4',
+    'Cloud Witness Type': 'step-5',
+    'Local availability zones': 'step-3',
+    'ToR switches per room': 'step-3',
+    'ToR switch architecture': 'step-3',
+    'TOR switch architecture': 'step-3',
+    'Storage Connectivity': 'step-6',
+    'Ports': 'step-7',
+    'Storage Pool Configuration': 'step-6',
+    'Traffic Intent': 'step-8',
+    'Outbound Connectivity': 'step-9',
+    'Azure Arc Gateway': 'step-9',
+    'Arc Gateway': 'step-9',
+    'Proxy': 'step-9',
+    'IP Assignment': 'step-10',
+    'Default Gateway': 'step-10',
+    'Node Names/IPs': 'step-10',
+    'Infrastructure VLAN': 'step-10',
+    'Infrastructure VLAN ID': 'step-10',
+    'Infrastructure CIDR': 'step-10',
+    'Infrastructure IP Pool': 'step-10',
+    'Identity (Active Directory / Local Identity)': 'step-11',
+    'Identity Selection': 'step-11',
+    'Active Directory Domain Name': 'step-11',
+    'AD Domain': 'step-11',
+    'DNS Servers': 'step-11',
+    'Local DNS Zone': 'step-11',
+    'Local DNS Zone Name': 'step-11',
+    'Security Configuration': 'step-12',
+    'SDN Management': 'step-13',
+    'Confirm adapter mapping for Custom intent': 'step-8',
+    'RDMA: At least': 'step-7',
+    'RDMA mapping': 'step-8',
+    'Custom mapping': 'step-8',
+    'Mgmt + Compute mapping': 'step-8'
+};
+
+function updateMissingSectionsDisplay() {
+    const container = document.getElementById('missing-sections-container');
+    const list = document.getElementById('missing-sections-list');
+    if (!container || !list) return;
+    
+    const readiness = getReportReadiness();
+    
+    if (readiness.ready) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    // Show container and populate list
+    container.style.display = 'block';
+    list.innerHTML = '';
+    
+    readiness.missing.forEach((item, index) => {
+        const stepId = findStepForMissingItem(item);
+        const link = document.createElement('a');
+        link.href = '#' + stepId;
+        link.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px; color: var(--text-primary); text-decoration: none; font-size: 0.85rem; transition: all 0.2s;';
+        link.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"/>
+            </svg>
+            <span>${escapeHtml(item)}</span>
+        `;
+        link.onclick = (e) => {
+            e.preventDefault();
+            scrollToStep(stepId);
+        };
+        link.onmouseover = () => {
+            link.style.background = 'rgba(59, 130, 246, 0.2)';
+            link.style.color = 'var(--accent-blue)';
+        };
+        link.onmouseout = () => {
+            link.style.background = 'rgba(255, 255, 255, 0.05)';
+            link.style.color = 'var(--text-primary)';
+        };
+        list.appendChild(link);
+    });
+}
+
+function findStepForMissingItem(item) {
+    // Exact match first
+    if (missingSectionToStep[item]) {
+        return missingSectionToStep[item];
+    }
+    // Partial match for RDMA messages and others
+    for (const key in missingSectionToStep) {
+        if (item.includes(key) || key.includes(item)) {
+            return missingSectionToStep[key];
+        }
+    }
+    // Default to step-1 if no match found
+    return 'step-1';
+}
+
+function scrollToStep(stepId) {
+    const step = document.getElementById(stepId);
+    if (step) {
+        step.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Flash highlight the step
+        step.style.transition = 'box-shadow 0.3s ease';
+        step.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.5)';
+        setTimeout(() => {
+            step.style.boxShadow = '';
+        }, 2000);
+    }
 }
 
 window.addEventListener('error', (e) => {
@@ -7063,6 +7182,207 @@ function exportConfiguration() {
     }
 }
 
+// Parse an Azure ARM template and convert it to Odin wizard state
+function parseArmTemplateToState(armTemplate) {
+    const result = {};
+    
+    // Check if this is an ARM template
+    const isArmTemplate = armTemplate.$schema && 
+        (armTemplate.$schema.includes('deploymentTemplate') || armTemplate.$schema.includes('deploymentParameters'));
+    
+    if (!isArmTemplate) {
+        return null;
+    }
+    
+    // Get parameters - could be in 'parameters' directly or in nested structure
+    let params = armTemplate.parameters || {};
+    
+    // If this is a parameters file, extract values
+    const isParametersFile = armTemplate.$schema && armTemplate.$schema.includes('deploymentParameters');
+    if (isParametersFile) {
+        // Parameters file format: { "paramName": { "value": actualValue } }
+        const extractedParams = {};
+        Object.keys(params).forEach(key => {
+            if (params[key] && params[key].value !== undefined) {
+                extractedParams[key] = params[key].value;
+            } else if (params[key] && params[key].defaultValue !== undefined) {
+                extractedParams[key] = params[key].defaultValue;
+            }
+        });
+        params = extractedParams;
+    } else {
+        // Template file format: { "paramName": { "defaultValue": actualValue } }
+        const extractedParams = {};
+        Object.keys(params).forEach(key => {
+            if (params[key] && params[key].defaultValue !== undefined) {
+                extractedParams[key] = params[key].defaultValue;
+            }
+        });
+        params = extractedParams;
+    }
+    
+    // Map ARM parameters to Odin state
+    
+    // Scenario - detect from template structure
+    result.scenario = 'hyperconverged'; // Default
+    
+    // Node count from arcNodeResourceIds or physicalNodesSettings
+    if (params.arcNodeResourceIds && Array.isArray(params.arcNodeResourceIds)) {
+        const nodeCount = params.arcNodeResourceIds.length;
+        result.nodes = String(nodeCount);
+    } else if (params.physicalNodesSettings && Array.isArray(params.physicalNodesSettings)) {
+        const nodeCount = params.physicalNodesSettings.length;
+        result.nodes = String(nodeCount);
+    }
+    
+    // Node settings from physicalNodesSettings
+    if (params.physicalNodesSettings && Array.isArray(params.physicalNodesSettings)) {
+        result.nodeSettings = params.physicalNodesSettings.map(node => ({
+            name: node.name || '',
+            ipCidr: node.ipv4Address ? `${node.ipv4Address}/24` : ''
+        }));
+    }
+    
+    // Witness type
+    if (params.witnessType) {
+        result.witnessType = params.witnessType;
+    }
+    
+    // Domain FQDN
+    if (params.domainFqdn) {
+        result.adDomain = params.domainFqdn;
+        result.activeDirectory = 'azure_ad';
+    }
+    
+    // DNS servers
+    if (params.dnsServers && Array.isArray(params.dnsServers)) {
+        result.dnsServers = params.dnsServers.filter(d => d && d.trim());
+    }
+    
+    // Network settings
+    if (params.subnetMask) {
+        // Convert subnet mask to CIDR
+        const maskToCidr = {
+            '255.255.255.0': '/24',
+            '255.255.254.0': '/23',
+            '255.255.252.0': '/22',
+            '255.255.248.0': '/21',
+            '255.255.240.0': '/20',
+            '255.255.0.0': '/16'
+        };
+        const cidrSuffix = maskToCidr[params.subnetMask] || '/24';
+        if (params.startingIPAddress) {
+            const ipParts = params.startingIPAddress.split('.');
+            if (ipParts.length === 4) {
+                ipParts[3] = '0';
+                result.infraCidr = ipParts.join('.') + cidrSuffix;
+            }
+        }
+    }
+    
+    // IP pool
+    if (params.startingIPAddress && params.endingIPAddress) {
+        result.infra = {
+            start: params.startingIPAddress,
+            end: params.endingIPAddress
+        };
+    }
+    
+    // Default gateway
+    if (params.defaultGateway) {
+        result.infraGateway = params.defaultGateway;
+    }
+    
+    // DHCP or static
+    if (params.useDhcp !== undefined) {
+        result.ip = params.useDhcp ? 'dhcp' : 'static';
+    }
+    
+    // Storage configuration
+    if (params.configurationMode) {
+        result.storagePoolConfiguration = params.configurationMode;
+    }
+    
+    // Networking type - switchless or switched
+    if (params.networkingType) {
+        if (params.networkingType.toLowerCase().includes('switchless')) {
+            result.storage = 'switchless';
+        } else {
+            result.storage = 'switched';
+        }
+    }
+    
+    if (params.storageConnectivitySwitchless !== undefined) {
+        result.storage = params.storageConnectivitySwitchless ? 'switchless' : 'switched';
+    }
+    
+    // Storage auto IP
+    if (params.enableStorageAutoIp !== undefined) {
+        result.storageAutoIp = params.enableStorageAutoIp ? 'enabled' : 'disabled';
+    }
+    
+    // Networking pattern to intent
+    if (params.networkingPattern) {
+        const patternToIntent = {
+            'hyperConverged': 'all_traffic',
+            'convergedManagementCompute': 'mgmt_compute',
+            'convergedComputeStorage': 'compute_storage',
+            'custom': 'custom'
+        };
+        result.intent = patternToIntent[params.networkingPattern] || 'compute_storage';
+    }
+    
+    // Port count from intentList
+    if (params.intentList && Array.isArray(params.intentList)) {
+        const allAdapters = new Set();
+        params.intentList.forEach(intent => {
+            if (intent.adapter && Array.isArray(intent.adapter)) {
+                intent.adapter.forEach(a => allAdapters.add(a));
+            }
+        });
+        result.ports = String(allAdapters.size);
+    }
+    
+    // Security settings
+    if (params.securityLevel) {
+        result.securityConfiguration = params.securityLevel.toLowerCase() === 'recommended' ? 'recommended' : 'customized';
+    }
+    
+    result.securitySettings = {
+        driftControlEnforced: params.driftControlEnforced !== undefined ? params.driftControlEnforced : true,
+        credentialGuardEnforced: params.credentialGuardEnforced !== undefined ? params.credentialGuardEnforced : true,
+        smbSigningEnforced: params.smbSigningEnforced !== undefined ? params.smbSigningEnforced : true,
+        smbClusterEncryption: params.smbClusterEncryption !== undefined ? params.smbClusterEncryption : true,
+        bitlockerBootVolume: params.bitlockerBootVolume !== undefined ? params.bitlockerBootVolume : true,
+        bitlockerDataVolumes: params.bitlockerDataVolumes !== undefined ? params.bitlockerDataVolumes : true,
+        wdacEnforced: params.wdacEnforced !== undefined ? params.wdacEnforced : true
+    };
+    
+    // OU Path
+    if (params.adouPath) {
+        result.adOuPath = params.adouPath;
+    }
+    
+    // Set defaults for fields not in ARM template
+    if (!result.region) result.region = 'azure_commercial';
+    if (!result.localInstanceRegion) result.localInstanceRegion = 'east_us';
+    if (!result.scale) {
+        // Determine scale based on node count
+        const nodeCount = parseInt(result.nodes, 10) || 2;
+        if (nodeCount >= 4) {
+            result.scale = 'medium';
+        } else {
+            result.scale = 'low_capacity';
+        }
+    }
+    if (!result.outbound) result.outbound = 'public';
+    if (!result.arc) result.arc = 'yes';
+    if (!result.proxy) result.proxy = 'no_proxy';
+    if (!result.infraVlan) result.infraVlan = 'default';
+    
+    return result;
+}
+
 // Import configuration from JSON
 function importConfiguration() {
     try {
@@ -7077,8 +7397,42 @@ function importConfiguration() {
             reader.onload = (event) => {
                 try {
                     const imported = JSON.parse(event.target.result);
+                    
+                    // Check if this is an Azure ARM template
+                    const armState = parseArmTemplateToState(imported);
+                    if (armState) {
+                        // This is an ARM template - apply the parsed state
+                        showToast('Detected Azure ARM template, importing...', 'info', 2000);
+                        
+                        setTimeout(() => {
+                            try {
+                                // Apply ARM state
+                                Object.keys(armState).forEach(key => {
+                                    if (state.hasOwnProperty(key) || key === 'nodeSettings' || key === 'infra') {
+                                        state[key] = armState[key];
+                                    }
+                                });
+                                
+                                // Update UI
+                                try {
+                                    updateUI();
+                                } catch (uiErr) {
+                                    console.error('UI update error during ARM import:', uiErr);
+                                }
+                                
+                                saveStateToLocalStorage();
+                                showToast('ARM template imported! Review and complete any missing fields.', 'success', 5000);
+                            } catch (applyErr) {
+                                showToast('Error applying ARM template', 'error');
+                                console.error('ARM import error:', applyErr);
+                            }
+                        }, 100);
+                        return;
+                    }
+                    
+                    // Check if this is an Odin configuration export
                     if (!imported.state) {
-                        showToast('Invalid configuration file', 'error');
+                        showToast('Invalid configuration file. Expected Odin export or Azure ARM template.', 'error');
                         return;
                     }
                     
@@ -8054,8 +8408,10 @@ function showTemplates() {
                 storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'yes',
-                proxy: 'proxy',
+                proxy: 'no_proxy',
                 ip: 'static',
+                infraCidr: '192.168.1.0/24',
+                infra: { start: '192.168.1.10', end: '192.168.1.20' },
                 nodeSettings: [
                     { name: 'node1', ipCidr: '192.168.1.2/24' },
                     { name: 'node2', ipCidr: '192.168.1.3/24' }
@@ -8063,6 +8419,8 @@ function showTemplates() {
                 infraGateway: '192.168.1.1',
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
+                adDomain: 'contoso.local',
+                dnsServers: ['192.168.1.1'],
                 securityConfiguration: 'recommended'
             }
         },
@@ -8077,6 +8435,12 @@ function showTemplates() {
                 nodes: '4',
                 witnessType: 'Cloud',
                 ports: '4',
+                portConfig: [
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: true },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: true }
+                ],
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
                 intent: 'compute_storage',
@@ -8085,8 +8449,19 @@ function showTemplates() {
                 arc: 'yes',
                 proxy: 'no_proxy',
                 ip: 'static',
+                infraCidr: '10.0.1.0/24',
+                infra: { start: '10.0.1.50', end: '10.0.1.60' },
+                nodeSettings: [
+                    { name: 'hcinode1', ipCidr: '10.0.1.11/24' },
+                    { name: 'hcinode2', ipCidr: '10.0.1.12/24' },
+                    { name: 'hcinode3', ipCidr: '10.0.1.13/24' },
+                    { name: 'hcinode4', ipCidr: '10.0.1.14/24' }
+                ],
+                infraGateway: '10.0.1.1',
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
+                adDomain: 'corp.contoso.com',
+                dnsServers: ['10.0.1.1', '10.0.1.2'],
                 securityConfiguration: 'recommended'
             }
         },
@@ -8099,9 +8474,22 @@ function showTemplates() {
                 localInstanceRegion: 'east_us',
                 scale: 'rack_aware',
                 nodes: '8',
-                rackAwareZones: 2,
+                rackAwareZones: {
+                    zone1Name: 'RackA',
+                    zone2Name: 'RackB',
+                    assignments: { '1': 1, '2': 1, '3': 1, '4': 1, '5': 2, '6': 2, '7': 2, '8': 2 }
+                },
+                rackAwareZonesConfirmed: true,
+                rackAwareTorsPerRoom: 'single',
+                rackAwareTorArchitecture: 'separate',
                 witnessType: 'Cloud',
                 ports: '4',
+                portConfig: [
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: true },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: true }
+                ],
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
                 intent: 'compute_storage',
@@ -8110,8 +8498,23 @@ function showTemplates() {
                 arc: 'yes',
                 proxy: 'no_proxy',
                 ip: 'static',
+                infraCidr: '172.16.0.0/24',
+                infra: { start: '172.16.0.100', end: '172.16.0.120' },
+                nodeSettings: [
+                    { name: 'rack1node1', ipCidr: '172.16.0.11/24' },
+                    { name: 'rack1node2', ipCidr: '172.16.0.12/24' },
+                    { name: 'rack1node3', ipCidr: '172.16.0.13/24' },
+                    { name: 'rack1node4', ipCidr: '172.16.0.14/24' },
+                    { name: 'rack2node1', ipCidr: '172.16.0.21/24' },
+                    { name: 'rack2node2', ipCidr: '172.16.0.22/24' },
+                    { name: 'rack2node3', ipCidr: '172.16.0.23/24' },
+                    { name: 'rack2node4', ipCidr: '172.16.0.24/24' }
+                ],
+                infraGateway: '172.16.0.1',
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
+                adDomain: 'datacenter.local',
+                dnsServers: ['172.16.0.1', '172.16.0.2'],
                 securityConfiguration: 'recommended'
             }
         },
@@ -8126,6 +8529,12 @@ function showTemplates() {
                 nodes: '2',
                 witnessType: 'NoWitness',
                 ports: '4',
+                portConfig: [
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: true },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: true }
+                ],
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
                 intent: 'compute_storage',
@@ -8134,8 +8543,17 @@ function showTemplates() {
                 arc: 'no_arc',
                 proxy: 'no_proxy',
                 ip: 'static',
+                infraCidr: '10.10.10.0/24',
+                infra: { start: '10.10.10.50', end: '10.10.10.60' },
+                nodeSettings: [
+                    { name: 'secnode1', ipCidr: '10.10.10.11/24' },
+                    { name: 'secnode2', ipCidr: '10.10.10.12/24' }
+                ],
+                infraGateway: '10.10.10.1',
                 infraVlan: 'default',
                 activeDirectory: 'local_identity',
+                localDnsZone: 'airgap.local',
+                dnsServers: ['10.10.10.1'],
                 securityConfiguration: 'recommended'
             }
         },
@@ -8150,17 +8568,29 @@ function showTemplates() {
                 nodes: '2',
                 witnessType: 'Cloud',
                 ports: '2',
+                portConfig: [
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true }
+                ],
                 storage: 'switchless',
                 switchlessLinkMode: 'full_mesh',
                 storagePoolConfiguration: 'Express',
-                intent: 'mgmt_compute',
+                intent: 'all_traffic',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
                 ip: 'dhcp',
+                infraCidr: '192.168.100.0/24',
+                infra: { start: '192.168.100.50', end: '192.168.100.60' },
+                nodeSettings: [
+                    { name: 'edge1', ipCidr: '192.168.100.11/24' },
+                    { name: 'edge2', ipCidr: '192.168.100.12/24' }
+                ],
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
+                adDomain: 'edge.contoso.com',
+                dnsServers: ['192.168.100.1'],
                 securityConfiguration: 'recommended'
             }
         }
@@ -8245,6 +8675,14 @@ function loadTemplate(templateIndex) {
     if (config.proxy) selectOption('proxy', config.proxy);
     if (config.ip) selectOption('ip', config.ip);
     
+    // Apply infrastructure settings
+    if (config.infraCidr) {
+        state.infraCidr = config.infraCidr;
+    }
+    if (config.infra) {
+        state.infra = config.infra;
+    }
+    
     // Apply nodeSettings and infraGateway after ip selection (since selectOption may reset them)
     if (config.nodeSettings && Array.isArray(config.nodeSettings)) {
         state.nodeSettings = config.nodeSettings;
@@ -8255,6 +8693,32 @@ function loadTemplate(templateIndex) {
     
     if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
     if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
+    
+    // Apply AD-related settings
+    if (config.adDomain) {
+        state.adDomain = config.adDomain;
+    }
+    if (config.localDnsZone) {
+        state.localDnsZone = config.localDnsZone;
+    }
+    if (config.dnsServers && Array.isArray(config.dnsServers)) {
+        state.dnsServers = config.dnsServers;
+    }
+    
+    // Apply rack-aware settings
+    if (config.rackAwareZones) {
+        state.rackAwareZones = config.rackAwareZones;
+    }
+    if (config.rackAwareZonesConfirmed !== undefined) {
+        state.rackAwareZonesConfirmed = config.rackAwareZonesConfirmed;
+    }
+    if (config.rackAwareTorsPerRoom) {
+        state.rackAwareTorsPerRoom = config.rackAwareTorsPerRoom;
+    }
+    if (config.rackAwareTorArchitecture) {
+        state.rackAwareTorArchitecture = config.rackAwareTorArchitecture;
+    }
+    
     if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
 
     // Final UI update to reflect all state changes
