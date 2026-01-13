@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.2] - 2026-01-13
+
+### Fixed
+
+#### Template Loading Fixes (Issue #59)
+
+- **Fixed Template Loading Order** - Corrected the order of `selectOption` calls when loading templates so that storage is set before ports, preventing ports from being reset
+- **Fixed Missing Sections Navigation** - Updated the `missingSectionToStep` mapping so clicking on missing sections (like "Ports") correctly scrolls to the right step:
+  - Ports now correctly links to step-5 (Network Adapter Ports)
+  - Azure Cloud links to step-cloud
+  - Azure Local Instance Region links to step-local-region  
+  - Scale links to step-2
+  - Nodes links to step-3
+  - Storage Connectivity links to step-4
+  - Traffic Intent links to step-6
+  - Outbound Connectivity links to step-7
+  - Arc Gateway links to step-8
+  - Proxy links to step-9
+
+---
+
 ## [0.9.1] - 2026-01-13
 
 ### Changed
