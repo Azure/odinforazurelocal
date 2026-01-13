@@ -7913,7 +7913,35 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.8.2 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.1 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 UI Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Page Statistics Repositioned:</strong> Moved Page Stats below header description for better visual flow.</li>
+                        <li><strong>Renamed Label:</strong> Changed "Documents Generated" to "Designs Generated" for clarity.</li>
+                        <li><strong>Compact Layout:</strong> Reduced spacing below header for tighter design.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.0</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features (Issues #55, #56)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Missing Sections Display:</strong> Dynamic red-bordered container shows incomplete sections with clickable navigation links.</li>
+                        <li><strong>Complete Example Templates:</strong> All 5 templates now include full configurations (network, DNS, nodes, ports).</li>
+                        <li><strong>ARM Template Import:</strong> Import Azure ARM templates directly from Azure Portal exports with automatic parameter mapping.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.8.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
                 </div>
                 
