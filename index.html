@@ -133,8 +133,14 @@
             </div>
         </nav>
 
+        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px;">
+            <div class="disclaimer-banner" style="font-size: 12px; color: var(--text-primary); padding: 12px; background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); border-radius: 8px;">
+                <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
+            </div>
+        </div>
+
         <!-- Page Statistics -->
-        <div id="page-statistics" style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px;">
+        <div id="page-statistics" style="display: flex; justify-content: center; align-items: center; margin-bottom: 16px;">
             <div style="display: flex; gap: 24px; padding: 10px 20px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; font-size: 13px;">
                 <div style="display: flex; align-items: center; gap: 6px;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
@@ -149,7 +155,7 @@
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14 2 14 8 20 8"/>
                     </svg>
-                    <span style="color: var(--text-secondary);">Documents Generated:</span>
+                    <span style="color: var(--text-secondary);">Designs Generated:</span>
                     <span id="stat-design-docs" style="color: var(--text-primary); font-weight: 600;">—</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -162,19 +168,13 @@
             </div>
         </div>
 
-        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 16px;">
-            <div class="disclaimer-banner" style="font-size: 12px; color: var(--text-primary); padding: 12px; background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); border-radius: 8px;">
-                <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
-            </div>
-        </div>
-
         <header>
             <div class="header-title-wrapper">
                 <h1 class="header-title">Odin for Azure Local</h1>
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.8.2 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.9.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
