@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.8.2';
+const WIZARD_VERSION = '0.9.4';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -883,6 +883,18 @@ function getMgmtComputeNicAssignment(portCount) {
 function getStorageNicIndicesForIntent(intent, portCount) {
     const p = parseInt(portCount, 10) || 0;
     if (p <= 0) return [];
+    
+    // If adapter mapping is confirmed, use it to determine storage NICs
+    if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
+        const out = [];
+        for (let i = 1; i <= p; i++) {
+            const assignment = state.adapterMapping[i] || 'pool';
+            const carriesStorage = (assignment === 'storage' || assignment === 'compute_storage' || assignment === 'all');
+            if (carriesStorage) out.push(i);
+        }
+        return out;
+    }
+    
     if (intent === 'all_traffic') return Array.from({ length: p }, (_, i) => i + 1);
     if (intent === 'mgmt_compute') return getMgmtComputeNicAssignment(p).storage;
     if (intent === 'compute_storage') return Array.from({ length: Math.max(0, p - 2) }, (_, i) => i + 3);
@@ -1572,6 +1584,18 @@ function generateArmParameters() {
 
         const getStorageNicCandidates = () => {
             if (portCount <= 0) return [];
+
+            // If adapter mapping is confirmed, use it to determine storage NICs
+            if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
+                const out = [];
+                for (let i = 1; i <= portCount; i++) {
+                    const assignment = state.adapterMapping[i] || 'pool';
+                    if (assignment === 'storage' || assignment === 'compute_storage' || assignment === 'all') {
+                        out.push(i);
+                    }
+                }
+                return out;
+            }
 
             // Determine NICs used for storage traffic based on the wizard mapping.
             if (state.intent === 'custom') {
@@ -4892,6 +4916,36 @@ function getIntentNicGroups(intent, portCount) {
         groups.push({ key, label, nics });
     };
 
+    // If adapter mapping is confirmed, use it to determine NIC groups for all intent types
+    // This ensures the ARM output reflects the user's custom port assignments
+    if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
+        const trafficNames = {
+            'mgmt': 'Management',
+            'compute': 'Compute',
+            'storage': 'Storage',
+            'mgmt_compute': 'Mgmt + Compute',
+            'compute_storage': 'Compute + Storage',
+            'all': 'All Traffic',
+            'pool': 'Unassigned'
+        };
+
+        const buckets = new Map();
+        for (let i = 1; i <= p; i++) {
+            const assignment = state.adapterMapping[i] || 'pool';
+            if (assignment === 'pool') continue;
+            if (!buckets.has(assignment)) buckets.set(assignment, []);
+            buckets.get(assignment).push(i);
+        }
+
+        if (buckets.size > 0) {
+            for (const [key, nics] of buckets.entries()) {
+                addGroup(key, `${trafficNames[key] || key}`, nics);
+            }
+            return groups;
+        }
+        // Fall through to defaults if no assignments found
+    }
+
     if (intent === 'all_traffic') {
         addGroup('all', 'Group All Traffic', Array.from({ length: p }, (_, i) => i + 1));
         return groups;
@@ -5883,10 +5937,26 @@ function renderDiagram() {
     const p = parseInt(state.ports) || 0;
     const intent = state.intent;
 
-    // Helper to determine traffic
+    // Helper to determine traffic based on adapter mapping or defaults
     const getTraffic = (portIdx) => {
-        // portIdx is 0-based
+        // portIdx is 0-based, nic is 1-based
+        const nic = portIdx + 1;
         if (!intent) return [];
+
+        // If adapter mapping is confirmed, use it for all intent types
+        if (state.adapterMappingConfirmed && state.adapterMapping && state.adapterMapping[nic]) {
+            const mapping = state.adapterMapping[nic];
+            if (mapping === 'mgmt') return ['m'];
+            if (mapping === 'compute') return ['c'];
+            if (mapping === 'storage') return ['s'];
+            if (mapping === 'mgmt_compute') return ['m', 'c'];
+            if (mapping === 'compute_storage') return ['c', 's'];
+            if (mapping === 'all') return ['m', 'c', 's'];
+            if (mapping === 'pool') return []; // unused
+            return [];
+        }
+
+        // Fall back to default logic based on intent type
         if (intent === 'all_traffic') return ['m', 'c', 's'];
         if (intent === 'mgmt_compute') {
             // Special case: with 2 ports, NIC1 is Mgmt+Compute and NIC2 is Storage.
@@ -5894,7 +5964,6 @@ function renderDiagram() {
                 return portIdx === 0 ? ['m', 'c'] : ['s'];
             }
             const assignment = getMgmtComputeNicAssignment(p);
-            const nic = portIdx + 1;
             return assignment.mgmtCompute.includes(nic) ? ['m', 'c'] : ['s'];
         }
         if (intent === 'compute_storage') {
@@ -5902,7 +5971,7 @@ function renderDiagram() {
             return ['c', 's'];
         }
         if (intent === 'custom') {
-            const val = (state.customIntents && state.customIntents[portIdx + 1]) || 'unused';
+            const val = (state.customIntents && state.customIntents[nic]) || 'unused';
             if (val === 'mgmt') return ['m'];
             if (val === 'compute') return ['c'];
             if (val === 'storage') return ['s'];
@@ -7933,7 +8002,19 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.3 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.4 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fix (Issue #67)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Custom Adapter Mapping Fixed:</strong> ARM output and diagrams now correctly reflect user's custom adapter port assignments (e.g., Ports 2 & 4 for Storage instead of defaulting to Ports 3 & 4).</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.3</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
                 </div>
                 

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.4] - 2026-01-14
+
+### Fixed
+
+#### Adapter Mapping Configuration (Issue #67)
+
+- **Fixed Custom Adapter Mapping in ARM Output** - When users customize the adapter mapping (e.g., assigning Ports 2 and 4 to Storage instead of the default Ports 3 and 4), the ARM parameters output now correctly reflects the user's selection:
+  - Storage intent adapters now use the actual port numbers (e.g., `SMB2`, `SMB4`) instead of always defaulting to `SMB3`, `SMB4`
+  - Management + Compute intent adapters now correctly map to user-selected ports (e.g., `NIC1`, `NIC3`)
+- **Fixed Diagram Labels** - The network topology diagram now displays adapter labels matching the confirmed adapter mapping
+- **Consistent Behavior Across All Intent Types** - The fix applies to all intent types (`mgmt_compute`, `compute_storage`, `all_traffic`, `custom`) when adapter mapping is confirmed
+
+---
+
 ## [0.9.3] - 2026-01-13
 
 ### Fixed
