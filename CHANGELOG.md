@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.7] - 2025-01-14
+
+### Added
+
+#### Deploy to Azure UX Enhancement
+
+- **Step-by-Step Instructions** - Added a detailed instruction box in the Deploy to Azure section (Step A3) explaining how to copy and paste parameters to Azure Portal:
+  1. Click "Deploy to Azure" to open Azure Portal with the ARM template
+  2. Use the new "Copy Parameters & Scroll to JSON" button
+  3. In Azure Portal, click "Edit parameters"
+  4. Paste the copied JSON and save
+  5. Replace any remaining REPLACE_WITH_ placeholders
+
+- **Copy Parameters Button** - Added a convenient "Copy Parameters & Scroll to JSON" button that:
+  - Copies the entire parameters JSON to clipboard
+  - Scrolls the page to the JSON section
+  - Highlights the JSON viewer to confirm the copy
+  - Shows visual feedback on successful copy
+
+- **Updated Confirmation Dialog** - The Deploy to Azure confirmation now includes numbered steps for the copy/paste workflow
+
+---
+
 ## [0.9.6] - 2025-01-14
 
 ### Fixed

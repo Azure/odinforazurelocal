@@ -193,8 +193,37 @@
                     </div>
                 </div>
                 
+                <!-- Step-by-step instructions for copying parameters -->
+                <div style="margin-top: 1rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 12px;">
+                    <h4 style="margin: 0 0 1rem 0; color: var(--accent-blue); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4"/>
+                            <path d="M12 8h.01"/>
+                        </svg>
+                        How to Use Your Parameters in Azure Portal
+                    </h4>
+                    <ol style="margin: 0; padding-left: 1.25rem; color: var(--text-secondary); line-height: 1.8;">
+                        <li><strong style="color: var(--text-primary);">Click "Deploy to Azure"</strong> above to open the Azure Portal with the ARM template loaded</li>
+                        <li><strong style="color: var(--text-primary);">Scroll down</strong> to the Parameters File JSON section (Step A5) on this page</li>
+                        <li><strong style="color: var(--text-primary);">Click "Copy JSON"</strong> to copy all your configuration parameters</li>
+                        <li><strong style="color: var(--text-primary);">In Azure Portal</strong>, click <em>"Edit parameters"</em> at the top of the deployment form</li>
+                        <li><strong style="color: var(--text-primary);">Select all</strong> the existing JSON and <strong style="color: var(--text-primary);">paste</strong> your copied parameters</li>
+                        <li><strong style="color: var(--text-primary);">Click "Save"</strong> to apply the parameters, then review and deploy</li>
+                    </ol>
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(59, 130, 246, 0.2);">
+                        <button type="button" class="report-button" onclick="scrollToAndCopyJson()" style="width:100%; padding:0.75rem 1rem; display:flex; align-items:center; justify-content:center; gap:0.5rem; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4);">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                            </svg>
+                            Copy Parameters & Scroll to JSON
+                        </button>
+                    </div>
+                </div>
+                
                 <div class="switchless-diagram__note" style="margin-top: 0.75rem;">
-                    <strong>Note:</strong> You'll be redirected to the Azure Portal where you can review and modify the parameters before deployment. Make sure to replace any remaining <code>REPLACE_WITH_</code> placeholders.
+                    <strong>Note:</strong> The Azure Portal doesn't support pre-filling parameters via URL. You'll need to copy and paste parameters manually using the steps above.
                 </div>
             </div>
             

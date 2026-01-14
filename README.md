@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.9.6
+## Version 0.9.7
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -36,6 +36,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Intelligent Validation**: Real-time input validation with helpful error messages
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
+
+### 🎉 Version 0.9.7 Enhancement
+- **Deploy to Azure UX Improved**: Added step-by-step instructions and "Copy Parameters & Scroll to JSON" button to guide users through copying parameters to Azure Portal
 
 ### 🎉 Version 0.9.6 Bug Fixes
 - **Deploy to Azure Clarification**: Updated messaging to clarify that Azure Portal doesn't support pre-filling parameters via URL; users should copy values from ARM Parameters section (Issue #73)

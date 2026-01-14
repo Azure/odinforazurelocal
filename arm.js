@@ -402,15 +402,92 @@ function deployToAzure() {
     var confirmMsg = 'You will be redirected to the Azure Portal to deploy using:\n\n' +
         'Template: ' + (ref.name || 'Unknown') + '\n' +
         'Cloud: ' + (cloud === 'azure_government' ? 'Azure Government' : 'Azure Commercial') + '\n\n' +
-        'Important:\n' +
-        '• The Azure Portal will load the ARM template\n' +
-        '• Copy parameter values from the ARM Parameters section (Step A5) in Odin\n' +
-        '• Paste values into the Azure Portal deployment form\n' +
-        '• Replace any REPLACE_WITH_ placeholders with actual values\n\n' +
+        'To apply your configuration:\n' +
+        '1. Use "Copy Parameters & Scroll to JSON" button on this page\n' +
+        '2. In Azure Portal, click "Edit parameters"\n' +
+        '3. Paste your copied JSON and click Save\n' +
+        '4. Replace any REPLACE_WITH_ placeholders\n\n' +
         'Continue to Azure Portal?';
     
     if (confirm(confirmMsg)) {
         window.open(deployUrl, '_blank', 'noopener,noreferrer');
+    }
+}
+
+// Helper function to scroll to JSON section and copy parameters
+function scrollToAndCopyJson() {
+    // First, copy the JSON
+    var codeEl = document.getElementById('arm-json-code');
+    var statusEl = document.getElementById('arm-copy-status');
+    
+    function setStatus(msg) {
+        if (statusEl) {
+            statusEl.textContent = msg;
+            setTimeout(function() { statusEl.textContent = ''; }, 3000);
+        }
+    }
+    
+    if (!codeEl) {
+        setStatus('No JSON to copy.');
+        return;
+    }
+    
+    var text = codeEl.textContent || '';
+    if (!text.trim()) {
+        setStatus('No JSON to copy.');
+        return;
+    }
+    
+    // Copy to clipboard
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+            setStatus('✓ Copied to clipboard! Now paste in Azure Portal.');
+            highlightCopyButton();
+        }).catch(function() {
+            setStatus('Copy failed.');
+        });
+    } else {
+        // Fallback
+        var tmp = document.createElement('textarea');
+        tmp.value = text;
+        tmp.setAttribute('readonly', 'readonly');
+        tmp.style.position = 'fixed';
+        tmp.style.left = '-9999px';
+        tmp.style.top = '0';
+        document.body.appendChild(tmp);
+        tmp.focus();
+        tmp.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(tmp);
+        setStatus(ok ? '✓ Copied to clipboard! Now paste in Azure Portal.' : 'Copy failed.');
+        if (ok) highlightCopyButton();
+    }
+    
+    // Scroll to the JSON section
+    var jsonSection = document.getElementById('arm-json');
+    if (jsonSection) {
+        jsonSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Add a brief highlight effect
+        jsonSection.style.transition = 'box-shadow 0.3s ease';
+        jsonSection.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.5)';
+        setTimeout(function() {
+            jsonSection.style.boxShadow = '';
+        }, 2000);
+    }
+}
+
+function highlightCopyButton() {
+    var copyBtn = document.getElementById('arm-copy-btn');
+    if (copyBtn) {
+        copyBtn.style.transition = 'all 0.3s ease';
+        copyBtn.style.background = 'rgba(34, 197, 94, 0.2)';
+        copyBtn.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+        copyBtn.textContent = '✓ Copied!';
+        setTimeout(function() {
+            copyBtn.style.background = '';
+            copyBtn.style.borderColor = '';
+            copyBtn.textContent = 'Copy JSON';
+        }, 3000);
     }
 }
 
