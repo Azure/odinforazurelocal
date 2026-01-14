@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.8] - 2026-01-14
+
+### Fixed
+
+#### Required Badge Styling (Issue #76)
+
+- **Badge-Style Labels** - Changed the "Required" indicators for Cloud Witness and Storage Switched options (in Rack Aware scenarios) to use the same badge styling as "Recommended" badges. The labels now appear as blue pill-shaped badges in the top-right corner of the option cards, matching the UI consistency of other badges.
+
+---
+
 ## [0.9.7] - 2026-01-14
 
 ### Added
