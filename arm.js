@@ -393,132 +393,20 @@ function deployToAzure() {
     
     // Build the Deploy to Azure URL
     // Format: https://portal.azure.com/#create/Microsoft.Template/uri/{encoded-template-url}
+    // Note: The Azure Portal template deployment blade does NOT support pre-filling parameters via URL
+    // Parameters must be entered manually or copied from the generated ARM parameters JSON
     var encodedTemplateUrl = encodeURIComponent(templateUrl);
     var deployUrl = portalBaseUrl + '/#create/Microsoft.Template/uri/' + encodedTemplateUrl;
-    
-    // Add pre-filled parameters to the URL (fixes Issue #65)
-    // Azure Portal supports passing parameters via URL query string after the template URI
-    // Format: ...uri/{template}/~/{"paramName":"value"}
-    if (payload.parametersFile && payload.parametersFile.parameters) {
-        var params = payload.parametersFile.parameters;
-        var prefilledParams = {};
-        
-        // Extract key parameters that should be pre-filled (non-placeholder values)
-        // adouPath - Active Directory OU Path
-        if (params.adouPath && params.adouPath.value && 
-            typeof params.adouPath.value === 'string' && 
-            params.adouPath.value.trim() !== '' &&
-            !params.adouPath.value.startsWith('REPLACE_WITH_')) {
-            prefilledParams.adouPath = params.adouPath.value;
-        }
-        
-        // domainFqdn - Domain FQDN
-        if (params.domainFqdn && params.domainFqdn.value && 
-            typeof params.domainFqdn.value === 'string' && 
-            params.domainFqdn.value.trim() !== '' &&
-            !params.domainFqdn.value.startsWith('REPLACE_WITH_')) {
-            prefilledParams.domainFqdn = params.domainFqdn.value;
-        }
-        
-        // arcNodeResourceIds - Arc Node Resource IDs (only if not placeholders)
-        if (params.arcNodeResourceIds && params.arcNodeResourceIds.value && 
-            Array.isArray(params.arcNodeResourceIds.value) &&
-            params.arcNodeResourceIds.value.length > 0) {
-            // Check if any value is not a placeholder
-            var hasRealValues = params.arcNodeResourceIds.value.some(function(id) {
-                return id && typeof id === 'string' && !id.startsWith('REPLACE_WITH_');
-            });
-            if (hasRealValues) {
-                prefilledParams.arcNodeResourceIds = params.arcNodeResourceIds.value;
-            }
-        }
-        
-        // dnsServers - DNS Server addresses
-        if (params.dnsServers && params.dnsServers.value && 
-            Array.isArray(params.dnsServers.value) &&
-            params.dnsServers.value.length > 0) {
-            var validDnsServers = params.dnsServers.value.filter(function(dns) {
-                return dns && typeof dns === 'string' && dns.trim() !== '' && !dns.startsWith('REPLACE_WITH_');
-            });
-            if (validDnsServers.length > 0) {
-                prefilledParams.dnsServers = validDnsServers;
-            }
-        }
-        
-        // location - Azure region
-        if (params.location && params.location.value && 
-            typeof params.location.value === 'string' && 
-            params.location.value.trim() !== '' &&
-            !params.location.value.startsWith('REPLACE_WITH_')) {
-            prefilledParams.location = params.location.value;
-        }
-        
-        // witnessType - Cluster witness type
-        if (params.witnessType && params.witnessType.value && 
-            typeof params.witnessType.value === 'string') {
-            prefilledParams.witnessType = params.witnessType.value;
-        }
-        
-        // networkingPattern - Networking pattern
-        if (params.networkingPattern && params.networkingPattern.value && 
-            typeof params.networkingPattern.value === 'string') {
-            prefilledParams.networkingPattern = params.networkingPattern.value;
-        }
-        
-        // subnetMask - Subnet mask
-        if (params.subnetMask && params.subnetMask.value && 
-            typeof params.subnetMask.value === 'string' &&
-            params.subnetMask.value.trim() !== '') {
-            prefilledParams.subnetMask = params.subnetMask.value;
-        }
-        
-        // startingIPAddress and endingIPAddress
-        if (params.startingIPAddress && params.startingIPAddress.value && 
-            typeof params.startingIPAddress.value === 'string' &&
-            !params.startingIPAddress.value.startsWith('REPLACE_WITH_')) {
-            prefilledParams.startingIPAddress = params.startingIPAddress.value;
-        }
-        if (params.endingIPAddress && params.endingIPAddress.value && 
-            typeof params.endingIPAddress.value === 'string' &&
-            !params.endingIPAddress.value.startsWith('REPLACE_WITH_')) {
-            prefilledParams.endingIPAddress = params.endingIPAddress.value;
-        }
-        
-        // defaultGateway
-        if (params.defaultGateway && params.defaultGateway.value && 
-            typeof params.defaultGateway.value === 'string' &&
-            params.defaultGateway.value.trim() !== '' &&
-            !params.defaultGateway.value.startsWith('REPLACE_WITH_')) {
-            prefilledParams.defaultGateway = params.defaultGateway.value;
-        }
-        
-        // securityLevel
-        if (params.securityLevel && params.securityLevel.value && 
-            typeof params.securityLevel.value === 'string') {
-            prefilledParams.securityLevel = params.securityLevel.value;
-        }
-        
-        // configurationMode (storage configuration)
-        if (params.configurationMode && params.configurationMode.value && 
-            typeof params.configurationMode.value === 'string') {
-            prefilledParams.configurationMode = params.configurationMode.value;
-        }
-        
-        // If we have any pre-filled parameters, append them to the URL
-        if (Object.keys(prefilledParams).length > 0) {
-            var paramsJson = JSON.stringify(prefilledParams);
-            deployUrl += '/~/' + encodeURIComponent(paramsJson);
-        }
-    }
     
     // Show confirmation dialog with instructions
     var confirmMsg = 'You will be redirected to the Azure Portal to deploy using:\n\n' +
         'Template: ' + (ref.name || 'Unknown') + '\n' +
         'Cloud: ' + (cloud === 'azure_government' ? 'Azure Government' : 'Azure Commercial') + '\n\n' +
         'Important:\n' +
-        '• Some parameters will be pre-filled from your configuration\n' +
-        '• Review all values in the Azure Portal before deploying\n' +
-        '• Replace any remaining REPLACE_WITH_ placeholders\n\n' +
+        '• The Azure Portal will load the ARM template\n' +
+        '• Copy parameter values from the ARM Parameters section (Step A5) in Odin\n' +
+        '• Paste values into the Azure Portal deployment form\n' +
+        '• Replace any REPLACE_WITH_ placeholders with actual values\n\n' +
         'Continue to Azure Portal?';
     
     if (confirm(confirmMsg)) {

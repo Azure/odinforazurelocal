@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.6] - 2025-01-14
+
+### Fixed
+
+#### Deploy to Azure Button (Issue #73)
+
+- **Clarified Deploy to Azure Behavior** - The Azure Portal's template deployment blade does NOT support pre-filling parameters via URL. Updated the Deploy to Azure functionality to:
+  - Remove the non-working `/~/` parameter passing that was added in v0.9.3
+  - Update the confirmation dialog to clearly instruct users to copy parameter values from the ARM Parameters section (Step A5)
+  - Provide clearer instructions about manually entering values in the Azure Portal
+
+#### Template Import Default (Issue #74)
+
+- **Fixed Default Scale on ARM Import** - When importing an ARM template, the wizard now defaults to **Hyperconverged** (medium) instead of Low Capacity, regardless of node count. Users who want Low Capacity must explicitly select it after import.
+
+---
+
 ## [0.9.5] - 2025-01-15
 
 ### Added

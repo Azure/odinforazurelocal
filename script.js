@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.9.5';
+const WIZARD_VERSION = '0.9.6';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -7442,13 +7442,9 @@ function parseArmTemplateToState(armTemplate) {
     if (!result.region) result.region = 'azure_commercial';
     if (!result.localInstanceRegion) result.localInstanceRegion = 'east_us';
     if (!result.scale) {
-        // Determine scale based on node count
-        const nodeCount = parseInt(result.nodes, 10) || 2;
-        if (nodeCount >= 4) {
-            result.scale = 'medium';
-        } else {
-            result.scale = 'low_capacity';
-        }
+        // Always default to Hyperconverged (medium), not Low Capacity (Issue #74)
+        // Users must explicitly select Low Capacity if that's what they want
+        result.scale = 'medium';
     }
     if (!result.outbound) result.outbound = 'public';
     if (!result.arc) result.arc = 'yes';
@@ -8002,7 +7998,20 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.5 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.6 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issues #73, #74)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Deploy to Azure Clarified:</strong> Azure Portal doesn't support pre-filling parameters via URL. Updated instructions to copy values from ARM Parameters section.</li>
+                        <li><strong>Template Import Default:</strong> Importing ARM templates now defaults to Hyperconverged, not Low Capacity.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.5</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 15, 2025</div>
                 </div>
                 
@@ -8036,7 +8045,6 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issues #64, #65)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>DNS Server Display Fixed:</strong> DNS servers now properly display after ARM template import or session resume.</li>
-                        <li><strong>Deploy to Azure Enhanced:</strong> The "Deploy to Azure" button now pre-fills parameters (domainFqdn, adouPath, dnsServers, networking, etc.) in the Azure Portal.</li>
                     </ul>
                 </div>
 
