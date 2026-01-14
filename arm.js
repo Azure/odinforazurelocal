@@ -869,18 +869,26 @@ function updateParameters() {
         params.customLocationName.value = customLocation;
     }
     
-    // Update Arc node resource IDs
+    // Update Arc node resource IDs - replace subscription, resource group placeholders
     if (params.arcNodeResourceIds && Array.isArray(params.arcNodeResourceIds.value)) {
         const nodeCount = params.arcNodeResourceIds.value.length;
         const newArcIds = [];
         for (let i = 1; i <= nodeCount; i++) {
             const inputEl = document.getElementById('input-arc-node-' + i);
             const inputValue = inputEl?.value.trim() || '';
-            const existingValue = params.arcNodeResourceIds.value[i - 1] || '';
-            // Use input value if provided, otherwise keep existing
+            let existingValue = params.arcNodeResourceIds.value[i - 1] || '';
+            
+            // If user provided a full custom value, use it
             if (inputValue) {
                 newArcIds.push(inputValue);
             } else {
+                // Otherwise, replace placeholders in existing value with user inputs
+                if (subId) {
+                    existingValue = existingValue.replace('<SubscriptionId>', subId);
+                }
+                if (rgName) {
+                    existingValue = existingValue.replace('<ResourceGroup>', rgName);
+                }
                 newArcIds.push(existingValue);
             }
         }
@@ -907,13 +915,20 @@ function updateParameters() {
                 params[key].value = witnessStorage;
             }
         }
-        // Handle arrays (e.g., arcNodeResourceIds might have REPLACE_WITH values)
+        // Handle arrays - replace placeholders in resource IDs
         if (Array.isArray(val)) {
             params[key].value = val.map(function(item) {
-                if (typeof item === 'string' && item.indexOf('REPLACE_WITH') >= 0) {
-                    // Try to replace subscription and resource group in resource IDs
-                    if (subId) item = item.replace('<SubscriptionId>', subId);
-                    if (rgName) item = item.replace('<ResourceGroup>', rgName);
+                if (typeof item === 'string') {
+                    // Replace <SubscriptionId> and <ResourceGroup> placeholders
+                    if (subId) item = item.replace(/<SubscriptionId>/g, subId);
+                    if (rgName) item = item.replace(/<ResourceGroup>/g, rgName);
+                    // Also handle REPLACE_WITH_ style placeholders
+                    if (subId && item.indexOf('REPLACE_WITH') >= 0) {
+                        item = item.replace('REPLACE_WITH_SUBSCRIPTION_ID', subId);
+                    }
+                    if (rgName && item.indexOf('REPLACE_WITH') >= 0) {
+                        item = item.replace('REPLACE_WITH_RESOURCE_GROUP', rgName);
+                    }
                 }
                 return item;
             });

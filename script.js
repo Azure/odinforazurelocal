@@ -1491,20 +1491,22 @@ function generateArmParameters() {
         const nodeCount = Number.isFinite(nodeCountRaw) && nodeCountRaw > 0 ? nodeCountRaw : 2;
         const witnessType = state.witnessType || 'NoWitness';
 
-        // Generate arcNodeResourceIds placeholder array based on node count
-        const generateArcNodeResourceIds = (count) => {
-            return Array.from({ length: count }, (_, i) => {
-                const nodeNum = String(i + 1).padStart(2, '0');
-                return `/subscriptions/<SubscriptionId>/resourceGroups/<ResourceGroup>/providers/Microsoft.HybridCompute/machines/<NodeName${nodeNum}>`;
-            });
-        };
-        const arcNodeResourceIds = generateArcNodeResourceIds(nodeCount);
-
+        // Helper to get node name from wizard settings
         const getNodeNameForArm = (index0Based) => {
             const fromWizard = (Array.isArray(state.nodeSettings) && state.nodeSettings[index0Based]) ? state.nodeSettings[index0Based] : null;
             const name = fromWizard && fromWizard.name ? String(fromWizard.name).trim() : '';
             return name || `node${index0Based + 1}`;
         };
+
+        // Generate arcNodeResourceIds - uses actual node names from wizard when available
+        const generateArcNodeResourceIds = (count) => {
+            return Array.from({ length: count }, (_, i) => {
+                const nodeName = getNodeNameForArm(i);
+                // Use placeholders for subscription/resource group but actual node names
+                return `/subscriptions/<SubscriptionId>/resourceGroups/<ResourceGroup>/providers/Microsoft.HybridCompute/machines/${nodeName}`;
+            });
+        };
+        const arcNodeResourceIds = generateArcNodeResourceIds(nodeCount);
 
         const intentToNetworkingPattern = {
             all_traffic: 'hyperConverged',
