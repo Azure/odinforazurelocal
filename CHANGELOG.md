@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.7] - 2025-01-14
+## [0.9.7] - 2025-01-15
 
 ### Added
 
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.6] - 2025-01-14
+## [0.9.6] - 2025-01-15
 
 ### Fixed
 
