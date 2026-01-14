@@ -447,7 +447,7 @@ This project is provided as-is for planning and configuration purposes. See offi
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
 **Version**: 0.1.0  
-**Last Updated**: December 2025  
+**Last Updated**: January 2026  
 **Compatibility**: Azure Local 2506+
 
 ---
