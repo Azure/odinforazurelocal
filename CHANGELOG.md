@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.5] - 2025-01-15
+## [0.9.7] - 2026-01-14
+
+### Added
+
+#### Deploy to Azure UX Enhancement
+
+- **Step-by-Step Instructions** - Added a detailed instruction box in the Deploy to Azure section (Step A3) explaining how to copy and paste parameters to Azure Portal:
+  1. Click "Deploy to Azure" to open Azure Portal with the ARM template
+  2. Use the new "Copy Parameters & Scroll to JSON" button
+  3. In Azure Portal, click "Edit parameters"
+  4. Paste the copied JSON and save
+  5. Replace any remaining REPLACE_WITH_ placeholders
+
+- **Copy Parameters Button** - Added a convenient "Copy Parameters & Scroll to JSON" button that:
+  - Copies the entire parameters JSON to clipboard
+  - Scrolls the page to the JSON section
+  - Highlights the JSON viewer to confirm the copy
+  - Shows visual feedback on successful copy
+
+- **Updated Confirmation Dialog** - The Deploy to Azure confirmation now includes numbered steps for the copy/paste workflow
+
+---
+
+## [0.9.6] - 2026-01-14
+
+### Fixed
+
+#### Deploy to Azure Button (Issue #73)
+
+- **Clarified Deploy to Azure Behavior** - The Azure Portal's template deployment blade does NOT support pre-filling parameters via URL. Updated the Deploy to Azure functionality to:
+  - Remove the non-working `/~/` parameter passing that was added in v0.9.3
+  - Update the confirmation dialog to clearly instruct users to copy parameter values from the ARM Parameters section (Step A5)
+  - Provide clearer instructions about manually entering values in the Azure Portal
+
+#### Template Import Default (Issue #74)
+
+- **Fixed Default Scale on ARM Import** - When importing an ARM template, the wizard now defaults to **Hyperconverged** (medium) instead of Low Capacity, regardless of node count. Users who want Low Capacity must explicitly select it after import.
+
+---
+
+## [0.9.5] - 2026-01-14
 
 ### Added
 
