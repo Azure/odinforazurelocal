@@ -747,6 +747,34 @@ header .header-description {
     font-weight: 600;
 }
 
+/* Info and knowledge links */
+.info-link {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--accent-blue);
+    text-decoration: none;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.info-link:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.step-info-link {
+    margin-left: auto;
+    font-size: 1rem;
+    text-decoration: none;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.step-info-link:hover {
+    opacity: 1;
+}
+
 /* Sub-steps styling */
 .sub-step h4 {
     color: var(--text-secondary);
