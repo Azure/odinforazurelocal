@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.9.8';
+const WIZARD_VERSION = '0.9.9';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -8035,7 +8035,22 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.8 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.9 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ ARM Placeholder Input Enhancement</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Complete Placeholder Form:</strong> Users can now input all ARM template placeholder values directly on the ARM page.</li>
+                        <li><strong>Organized Sections:</strong> Inputs grouped into Azure Context, Cluster Configuration, Azure Resources, and Arc Node Resource IDs.</li>
+                        <li><strong>Dynamic Arc Node Inputs:</strong> Arc node resource ID fields automatically generated based on cluster node count.</li>
+                        <li><strong>Real-time Updates:</strong> Parameters JSON updates instantly as values are entered.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.8</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
                 </div>
                 

@@ -214,6 +214,68 @@
             
         // Show input fields
         if (inputContainer) inputContainer.style.display = 'block';
+        
+        // Initialize Arc node inputs based on node count from payload
+        initializeArcNodeInputs();
+        
+        // Show/hide conditional fields based on payload
+        initializeConditionalFields();
+    }
+    
+    function initializeArcNodeInputs() {
+        var arcContainer = document.getElementById('arc-node-inputs');
+        if (!arcContainer) return;
+        
+        var nodeCount = 2; // Default
+        if (window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
+            var arcNodeIds = window.armPayload.parametersFile.parameters.arcNodeResourceIds;
+            if (arcNodeIds && arcNodeIds.value && Array.isArray(arcNodeIds.value)) {
+                nodeCount = arcNodeIds.value.length;
+            }
+        }
+        
+        var html = '';
+        for (var i = 1; i <= nodeCount; i++) {
+            html += '<div>'
+                + '<label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Node ' + i + ' Arc Resource ID</label>'
+                + '<input type="text" id="input-arc-node-' + i + '" placeholder="/subscriptions/.../Microsoft.HybridCompute/machines/node' + i + '" '
+                + 'style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-family: monospace; font-size: 0.85rem;" '
+                + 'oninput="updateParameters()">'
+                + '</div>';
+        }
+        arcContainer.innerHTML = html;
+    }
+    
+    function initializeConditionalFields() {
+        // Show/hide Cloud Witness Storage field based on witness type
+        var witnessContainer = document.getElementById('witness-storage-container');
+        if (witnessContainer && window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
+            var params = window.armPayload.parametersFile.parameters;
+            // Show if witnessType is Cloud and storage account is a placeholder
+            var witnessType = params.witnessType && params.witnessType.value;
+            var witnessStorage = params.clusterWitnessStorageAccountName && params.clusterWitnessStorageAccountName.value;
+            if (witnessType === 'Cloud' && witnessStorage && witnessStorage.indexOf('REPLACE_WITH') >= 0) {
+                witnessContainer.style.display = 'block';
+            } else if (witnessType === 'Cloud' && witnessStorage === '') {
+                // 2-node clusters need witness
+                witnessContainer.style.display = 'block';
+            } else {
+                witnessContainer.style.display = 'none';
+            }
+        }
+        
+        // Show/hide OU Path field based on identity provider
+        var ouContainer = document.getElementById('ou-path-container');
+        if (ouContainer && window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
+            var params = window.armPayload.parametersFile.parameters;
+            var identityProvider = params.identityProvider && params.identityProvider.value;
+            // Hide OU path for Local_Identity (AD-less) deployments
+            if (identityProvider === 'Local_Identity') {
+                ouContainer.style.display = 'none';
+            } else {
+                ouContainer.style.display = 'block';
+            }
+        }
     }
 
     function attachCopy(copyBtn, statusEl, getText) {
@@ -757,15 +819,75 @@ function showNotification(message, type) {
 function updateParameters() {
     if (!window.armPayload || !window.armPayload.parametersFile) return;
     
-    const subId = document.getElementById('input-subscription-id').value.trim();
-    const rgName = document.getElementById('input-resource-group').value.trim();
-    const deployName = document.getElementById('input-deployment-name').value.trim();
+    // Get all input values
+    const tenantId = document.getElementById('input-tenant-id')?.value.trim() || '';
+    const subId = document.getElementById('input-subscription-id')?.value.trim() || '';
+    const rgName = document.getElementById('input-resource-group')?.value.trim() || '';
+    const deployName = document.getElementById('input-deployment-name')?.value.trim() || '';
+    const clusterName = document.getElementById('input-cluster-name')?.value.trim() || '';
+    const customLocation = document.getElementById('input-custom-location')?.value.trim() || '';
+    const witnessStorage = document.getElementById('input-witness-storage')?.value.trim() || '';
+    const ouPath = document.getElementById('input-ou-path')?.value.trim() || '';
+    const keyVaultName = document.getElementById('input-keyvault-name')?.value.trim() || '';
+    const diagnosticStorage = document.getElementById('input-diagnostic-storage')?.value.trim() || '';
+    const hciRpObjectId = document.getElementById('input-hci-rp-object-id')?.value.trim() || '';
     
     // Create a copy of the parameters to modify
     const paramsFile = JSON.parse(JSON.stringify(window.armPayload.parametersFile));
     const params = paramsFile.parameters || {};
     
-    // Update placeholder values
+    // Update specific parameter values
+    if (tenantId && params.tenantId) {
+        params.tenantId.value = tenantId;
+    }
+    
+    if (clusterName && params.clusterName) {
+        params.clusterName.value = clusterName;
+    }
+    
+    if (keyVaultName && params.keyVaultName) {
+        params.keyVaultName.value = keyVaultName;
+    }
+    
+    if (diagnosticStorage && params.diagnosticStorageAccountName) {
+        params.diagnosticStorageAccountName.value = diagnosticStorage;
+    }
+    
+    if (hciRpObjectId && params.hciResourceProviderObjectID) {
+        params.hciResourceProviderObjectID.value = hciRpObjectId;
+    }
+    
+    if (witnessStorage && params.clusterWitnessStorageAccountName) {
+        params.clusterWitnessStorageAccountName.value = witnessStorage;
+    }
+    
+    if (ouPath && params.adouPath) {
+        params.adouPath.value = ouPath;
+    }
+    
+    if (customLocation && params.customLocationName) {
+        params.customLocationName.value = customLocation;
+    }
+    
+    // Update Arc node resource IDs
+    if (params.arcNodeResourceIds && Array.isArray(params.arcNodeResourceIds.value)) {
+        const nodeCount = params.arcNodeResourceIds.value.length;
+        const newArcIds = [];
+        for (let i = 1; i <= nodeCount; i++) {
+            const inputEl = document.getElementById('input-arc-node-' + i);
+            const inputValue = inputEl?.value.trim() || '';
+            const existingValue = params.arcNodeResourceIds.value[i - 1] || '';
+            // Use input value if provided, otherwise keep existing
+            if (inputValue) {
+                newArcIds.push(inputValue);
+            } else {
+                newArcIds.push(existingValue);
+            }
+        }
+        params.arcNodeResourceIds.value = newArcIds;
+    }
+    
+    // Also update any remaining REPLACE_WITH_ placeholders with generic replacements
     for (const key in params) {
         const val = params[key].value;
         if (typeof val === 'string') {
@@ -775,7 +897,26 @@ function updateParameters() {
                 params[key].value = rgName;
             } else if (val === 'REPLACE_WITH_DEPLOYMENT_NAME' && deployName) {
                 params[key].value = deployName;
+            } else if (val === 'REPLACE_WITH_CLUSTER_NAME' && clusterName) {
+                params[key].value = clusterName;
+            } else if (val === 'REPLACE_WITH_KEYVAULT_NAME' && keyVaultName) {
+                params[key].value = keyVaultName;
+            } else if (val === 'REPLACE_WITH_DIAGNOSTIC_STORAGE_ACCOUNT' && diagnosticStorage) {
+                params[key].value = diagnosticStorage;
+            } else if (val === 'REPLACE_WITH_WITNESS_STORAGE_ACCOUNT' && witnessStorage) {
+                params[key].value = witnessStorage;
             }
+        }
+        // Handle arrays (e.g., arcNodeResourceIds might have REPLACE_WITH values)
+        if (Array.isArray(val)) {
+            params[key].value = val.map(function(item) {
+                if (typeof item === 'string' && item.indexOf('REPLACE_WITH') >= 0) {
+                    // Try to replace subscription and resource group in resource IDs
+                    if (subId) item = item.replace('<SubscriptionId>', subId);
+                    if (rgName) item = item.replace('<ResourceGroup>', rgName);
+                }
+                return item;
+            });
         }
     }
     
@@ -783,109 +924,118 @@ function updateParameters() {
     const jsonCode = document.getElementById('arm-json-code');
     if (jsonCode) {
         const rawJsonText = JSON.stringify(paramsFile, null, 2);
-        // Use the same highlightJson function from the main initialization
-        jsonCode.innerHTML = (function () {
-            // Minimal JSON highlighter (no external deps).
-            // Produces HTML with spans. Assumes `rawJsonText` is already pretty-printed.
-            function escapeHtml(s) {
-                return String(s)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/\"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
-            }
+        jsonCode.innerHTML = highlightJsonInline(rawJsonText);
+    }
+    
+    // Update status
+    const statusEl = document.getElementById('update-params-status');
+    if (statusEl) {
+        statusEl.textContent = 'Parameters updated at ' + new Date().toLocaleTimeString();
+        statusEl.style.color = 'var(--accent-green)';
+    }
+}
 
-            var s = String(rawJsonText || '');
-            var out = '';
-            var i = 0;
+/**
+ * Inline JSON highlighter for updateParameters
+ */
+function highlightJsonInline(rawJsonText) {
+    function escapeHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
-            function isWs(ch) { return ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t'; }
-            function peekNonWs(start) {
-                for (var j = start; j < s.length; j++) {
-                    var c = s[j];
-                    if (!isWs(c)) return c;
-                }
-                return '';
-            }
+    var s = String(rawJsonText || '');
+    var out = '';
+    var i = 0;
 
+    function isWs(ch) { return ch === ' ' || ch === '\n' || ch === '\r' || ch === '\t'; }
+    function peekNonWs(start) {
+        for (var j = start; j < s.length; j++) {
+            var c = s[j];
+            if (!isWs(c)) return c;
+        }
+        return '';
+    }
+
+    while (i < s.length) {
+        var ch = s[i];
+
+        // Whitespace
+        if (isWs(ch)) {
+            out += ch;
+            i++;
+            continue;
+        }
+
+        // Strings
+        if (ch === '"') {
+            var start = i;
+            i++; // consume opening quote
+            var escaped = false;
             while (i < s.length) {
-                var ch = s[i];
-
-                // Whitespace
-                if (isWs(ch)) {
-                    out += ch;
+                var c2 = s[i];
+                if (escaped) {
+                    escaped = false;
                     i++;
                     continue;
                 }
-
-                // Strings
-                if (ch === '"') {
-                    var start = i;
-                    i++; // consume opening quote
-                    var escaped = false;
-                    while (i < s.length) {
-                        var c2 = s[i];
-                        if (escaped) {
-                            escaped = false;
-                            i++;
-                            continue;
-                        }
-                        if (c2 === '\\') {
-                            escaped = true;
-                            i++;
-                            continue;
-                        }
-                        if (c2 === '"') {
-                            i++; // consume closing quote
-                            break;
-                        }
-                        i++;
-                    }
-
-                    var strToken = s.slice(start, i);
-                    var next = peekNonWs(i);
-                    var cls = (next === ':') ? 'json-token--key' : 'json-token--string';
-                    out += '<span class="' + cls + '">' + escapeHtml(strToken) + '</span>';
+                if (c2 === '\\') {
+                    escaped = true;
+                    i++;
                     continue;
                 }
-
-                // Numbers
-                if (ch === '-' || (ch >= '0' && ch <= '9')) {
-                    var numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?/);
-                    if (numMatch && numMatch[0]) {
-                        var numTok = numMatch[0];
-                        out += '<span class="json-token--number">' + escapeHtml(numTok) + '</span>';
-                        i += numTok.length;
-                        continue;
-                    }
+                if (c2 === '"') {
+                    i++; // consume closing quote
+                    break;
                 }
-
-                // Literals
-                if (s.slice(i, i + 4) === 'true') {
-                    out += '<span class="json-token--boolean">true</span>';
-                    i += 4;
-                    continue;
-                }
-                if (s.slice(i, i + 5) === 'false') {
-                    out += '<span class="json-token--boolean">false</span>';
-                    i += 5;
-                    continue;
-                }
-                if (s.slice(i, i + 4) === 'null') {
-                    out += '<span class="json-token--null">null</span>';
-                    i += 4;
-                    continue;
-                }
-
-                // Punctuation / fallback
-                out += '<span class="json-token--punct">' + escapeHtml(ch) + '</span>';
                 i++;
             }
 
-            return out;
-        })();
+            var strToken = s.slice(start, i);
+            var next = peekNonWs(i);
+            var cls = (next === ':') ? 'json-token--key' : 'json-token--string';
+            out += '<span class="' + cls + '">' + escapeHtml(strToken) + '</span>';
+            continue;
+        }
+
+        // Numbers
+        if (ch === '-' || (ch >= '0' && ch <= '9')) {
+            var numMatch = s.slice(i).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?/);
+            if (numMatch && numMatch[0]) {
+                var numTok = numMatch[0];
+                out += '<span class="json-token--number">' + escapeHtml(numTok) + '</span>';
+                i += numTok.length;
+                continue;
+            }
+        }
+
+        // Literals
+        if (s.slice(i, i + 4) === 'true') {
+            out += '<span class="json-token--boolean">true</span>';
+            i += 4;
+            continue;
+        }
+        if (s.slice(i, i + 5) === 'false') {
+            out += '<span class="json-token--boolean">false</span>';
+            i += 5;
+            continue;
+        }
+        if (s.slice(i, i + 4) === 'null') {
+            out += '<span class="json-token--null">null</span>';
+            i += 4;
+            continue;
+        }
+
+        // Punctuation / fallback
+        out += '<span class="json-token--punct">' + escapeHtml(ch) + '</span>';
+        i++;
     }
+
+    return out;
 }
 
 /**
