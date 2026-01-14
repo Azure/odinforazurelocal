@@ -215,35 +215,8 @@
         // Show input fields
         if (inputContainer) inputContainer.style.display = 'block';
         
-        // Initialize Arc node inputs based on node count from payload
-        initializeArcNodeInputs();
-        
         // Show/hide conditional fields based on payload
         initializeConditionalFields();
-    }
-    
-    function initializeArcNodeInputs() {
-        var arcContainer = document.getElementById('arc-node-inputs');
-        if (!arcContainer) return;
-        
-        var nodeCount = 2; // Default
-        if (window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
-            var arcNodeIds = window.armPayload.parametersFile.parameters.arcNodeResourceIds;
-            if (arcNodeIds && arcNodeIds.value && Array.isArray(arcNodeIds.value)) {
-                nodeCount = arcNodeIds.value.length;
-            }
-        }
-        
-        var html = '';
-        for (var i = 1; i <= nodeCount; i++) {
-            html += '<div>'
-                + '<label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Node ' + i + ' Arc Resource ID</label>'
-                + '<input type="text" id="input-arc-node-' + i + '" placeholder="/subscriptions/.../Microsoft.HybridCompute/machines/node' + i + '" '
-                + 'style="width: 100%; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-family: monospace; font-size: 0.85rem;" '
-                + 'oninput="updateParameters()">'
-                + '</div>';
-        }
-        arcContainer.innerHTML = html;
     }
     
     function initializeConditionalFields() {
@@ -867,32 +840,6 @@ function updateParameters() {
     
     if (customLocation && params.customLocationName) {
         params.customLocationName.value = customLocation;
-    }
-    
-    // Update Arc node resource IDs - replace subscription, resource group placeholders
-    if (params.arcNodeResourceIds && Array.isArray(params.arcNodeResourceIds.value)) {
-        const nodeCount = params.arcNodeResourceIds.value.length;
-        const newArcIds = [];
-        for (let i = 1; i <= nodeCount; i++) {
-            const inputEl = document.getElementById('input-arc-node-' + i);
-            const inputValue = inputEl?.value.trim() || '';
-            let existingValue = params.arcNodeResourceIds.value[i - 1] || '';
-            
-            // If user provided a full custom value, use it
-            if (inputValue) {
-                newArcIds.push(inputValue);
-            } else {
-                // Otherwise, replace placeholders in existing value with user inputs
-                if (subId) {
-                    existingValue = existingValue.replace('<SubscriptionId>', subId);
-                }
-                if (rgName) {
-                    existingValue = existingValue.replace('<ResourceGroup>', rgName);
-                }
-                newArcIds.push(existingValue);
-            }
-        }
-        params.arcNodeResourceIds.value = newArcIds;
     }
     
     // Also update any remaining REPLACE_WITH_ placeholders with generic replacements
