@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.9] - 2026-01-14
+
+### Added
+
+#### ARM Placeholder Input Enhancement
+
+- **Complete Placeholder Form** - Users can now input all ARM template placeholder values directly on the ARM parameters page (Section A2). The form allows filling in:
+  - **Azure Context**: Tenant ID, Subscription ID, Resource Group Name, Deployment Name
+  - **Cluster Configuration**: Cluster Name, Custom Location Name, Cloud Witness Storage Account, OU Path
+  - **Azure Resources**: Key Vault Name, Diagnostic Storage Account, HCI Resource Provider Object ID
+  - **Arc Node Resource IDs**: Dynamically generated input fields based on the number of nodes in the cluster
+
+- **Real-time Parameter Updates** - As users enter values in the placeholder form, the parameters JSON displayed below updates instantly, replacing the REPLACE_WITH_* placeholders with actual values.
+
+- **Update Parameters Button** - Added a prominent button to manually trigger parameter updates with visual feedback showing when parameters were last updated.
+
+- **Conditional Field Display** - OU Path field is hidden for AD-less (Local_Identity) deployments; Cloud Witness Storage field only shows when applicable.
+
+---
+
 ## [0.9.8] - 2026-01-14
 
 ### Fixed
