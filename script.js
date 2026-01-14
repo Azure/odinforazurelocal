@@ -3669,6 +3669,13 @@ function updateUI() {
             cards.storage.switchless.classList.add('disabled');
             if (state.storage === 'switchless') state.storage = null;
         }
+        // Add "(Required)" label to Storage Switched card for Rack Aware
+        if (cards.storage && cards.storage.switched) {
+            const switchedH3 = cards.storage.switched.querySelector('h3');
+            if (switchedH3 && !switchedH3.textContent.includes('(Required)')) {
+                switchedH3.textContent = 'Storage Switched (Required)';
+            }
+        }
 
         // Intent
         if (cards.intent) {
@@ -3703,6 +3710,14 @@ function updateUI() {
             // Keep state consistent: once storage is selected, force 4 ports.
             if (state.storage && state.ports !== '4') {
                 state.ports = '4';
+            }
+        }
+    } else {
+        // Reset Storage Switched label when not Rack Aware
+        if (cards.storage && cards.storage.switched) {
+            const switchedH3 = cards.storage.switched.querySelector('h3');
+            if (switchedH3 && switchedH3.textContent.includes('(Required)')) {
+                switchedH3.textContent = 'Storage Switched';
             }
         }
     }
@@ -3751,10 +3766,18 @@ function updateUI() {
     // Cloud Witness Type: Lock based on cluster configuration
     const witnessLocked = isWitnessTypeLocked();
     const witnessInfoBox = document.getElementById('witness-info');
+    const cloudWitnessCard = cards.witnessType && cards.witnessType.Cloud;
     
     if (!state.nodes) {
         // No nodes selected yet - disable both cards
         Object.values(cards.witnessType).forEach(c => c && c.classList.add('disabled'));
+        // Reset Cloud label
+        if (cloudWitnessCard) {
+            const cloudH3 = cloudWitnessCard.querySelector('h3');
+            if (cloudH3 && cloudH3.textContent.includes('(Required)')) {
+                cloudH3.textContent = 'Cloud';
+            }
+        }
     } else if (witnessLocked) {
         // Locked to Cloud - disable NoWitness card
         const noWitnessCard = cards.witnessType && cards.witnessType.NoWitness;
@@ -3771,6 +3794,14 @@ function updateUI() {
             noWitnessCard.title = reason;
         }
         
+        // Add "(Required)" label to Cloud card when witness is locked
+        if (cloudWitnessCard) {
+            const cloudH3 = cloudWitnessCard.querySelector('h3');
+            if (cloudH3 && !cloudH3.textContent.includes('(Required)')) {
+                cloudH3.textContent = 'Cloud (Required)';
+            }
+        }
+        
         // Update info box
         if (witnessInfoBox) {
             witnessInfoBox.innerHTML = `<strong>Cloud witness is required</strong> for ${state.scale === 'rack_aware' ? 'Rack Aware clusters' : '2-node clusters'}.`;
@@ -3783,6 +3814,14 @@ function updateUI() {
                 c.title = '';
             }
         });
+        
+        // Reset Cloud label when not locked
+        if (cloudWitnessCard) {
+            const cloudH3 = cloudWitnessCard.querySelector('h3');
+            if (cloudH3 && cloudH3.textContent.includes('(Required)')) {
+                cloudH3.textContent = 'Cloud';
+            }
+        }
         
         // Update info box
         if (witnessInfoBox) {
