@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.5] - 2025-01-15
+
+### Added
+
+#### Azure Region Ordering (Issue #70)
+
+- **Alphabetized Commercial Regions** - Azure commercial regions are now displayed in alphabetical order for easier navigation:
+  - Australia East, Canada Central, East US, India Central, Japan East, South Central US, Southeast Asia, West Europe
+  - US Gov Virginia remains at the end as a government cloud option
+
+#### Documentation Links (Issue #69)
+
+- **Low Capacity Info Link** - Added "Learn more" link to the Hyperconverged Low Capacity option pointing to system requirements documentation
+- **Rack Aware Info Link** - Added "Learn more" link to the Rack Aware option pointing to rack-aware cluster overview documentation
+
+#### Knowledge Links (Issue #71)
+
+- **Cloud Witness Knowledge Link** - Added info icon (ℹ️) to Cloud Witness step header linking to quorum witness deployment documentation
+- **Network Traffic Intents Knowledge Link** - Added info icon (ℹ️) to Network Traffic Intents step header linking to network considerations documentation
+
+---
+
 ## [0.9.4] - 2026-01-14
 
 ### Fixed

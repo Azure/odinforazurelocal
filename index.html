@@ -145,7 +145,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.9.4 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.9.5 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -344,35 +344,25 @@
                     </div>
 
                     <div class="options-grid compact">
-                        <!-- Azure public cloud supported regions -->
-                        <div class="option-card" data-value="east_us" data-cloud="azure_commercial"
-                            onclick="selectOption('localInstanceRegion', 'east_us')">
-                            <h3>East US</h3>
-                            <p>Azure public</p>
-                        </div>
-                        <div class="option-card" data-value="west_europe" data-cloud="azure_commercial"
-                            onclick="selectOption('localInstanceRegion', 'west_europe')">
-                            <h3>West Europe</h3>
-                            <p>Azure public</p>
-                        </div>
+                        <!-- Azure public cloud supported regions (alphabetical order) -->
                         <div class="option-card" data-value="australia_east" data-cloud="azure_commercial"
                             onclick="selectOption('localInstanceRegion', 'australia_east')">
                             <h3>Australia East</h3>
                             <p>Azure public</p>
                         </div>
-                        <div class="option-card" data-value="southeast_asia" data-cloud="azure_commercial"
-                            onclick="selectOption('localInstanceRegion', 'southeast_asia')">
-                            <h3>Southeast Asia</h3>
+                        <div class="option-card" data-value="canada_central" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'canada_central')">
+                            <h3>Canada Central</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="east_us" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'east_us')">
+                            <h3>East US</h3>
                             <p>Azure public</p>
                         </div>
                         <div class="option-card" data-value="india_central" data-cloud="azure_commercial"
                             onclick="selectOption('localInstanceRegion', 'india_central')">
                             <h3>India Central</h3>
-                            <p>Azure public</p>
-                        </div>
-                        <div class="option-card" data-value="canada_central" data-cloud="azure_commercial"
-                            onclick="selectOption('localInstanceRegion', 'canada_central')">
-                            <h3>Canada Central</h3>
                             <p>Azure public</p>
                         </div>
                         <div class="option-card" data-value="japan_east" data-cloud="azure_commercial"
@@ -383,6 +373,16 @@
                         <div class="option-card" data-value="south_central_us" data-cloud="azure_commercial"
                             onclick="selectOption('localInstanceRegion', 'south_central_us')">
                             <h3>South Central US</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="southeast_asia" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'southeast_asia')">
+                            <h3>Southeast Asia</h3>
+                            <p>Azure public</p>
+                        </div>
+                        <div class="option-card" data-value="west_europe" data-cloud="azure_commercial"
+                            onclick="selectOption('localInstanceRegion', 'west_europe')">
+                            <h3>West Europe</h3>
                             <p>Azure public</p>
                         </div>
 
@@ -415,6 +415,7 @@
                             </div>
                             <h3>Hyperconverged Low Capacity</h3>
                             <p>Edge / Small Scale usage (Max 3 nodes).</p>
+                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more ↗</a>
                         </div>
 
                         <div class="option-card" data-value="medium" onclick="selectOption('scale', 'medium')">
@@ -440,6 +441,7 @@
                             </div>
                             <h3>Hyperconverged Rack Aware</h3>
                             <p>Spread across rooms (2, 4, 6, 8 nodes).</p>
+                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/rack-aware-cluster-overview" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more ↗</a>
                         </div>
                     </div>
                 </section>
@@ -623,6 +625,7 @@
                     <div class="step-header">
                         <span class="step-number">05.5</span>
                         <h2>Cloud Witness Type</h2>
+                        <a href="https://learn.microsoft.com/windows-server/failover-clustering/deploy-quorum-witness" target="_blank" class="step-info-link" title="Learn about Cloud Witness">ℹ️</a>
                     </div>
                     <div id="witness-info" class="info-box visible" style="margin-bottom:1.5rem;">
                         The witness type is automatically determined based on your cluster configuration.
@@ -873,6 +876,7 @@
                     <div class="step-header">
                         <span class="step-number">08</span>
                         <h2>Network Traffic Intents</h2>
+                        <a href="https://learn.microsoft.com/azure/azure-local/plan/cloud-deployment-network-considerations#step-3-determine-network-traffic-intents" target="_blank" class="step-info-link" title="Learn about Network Traffic Intents">ℹ️</a>
                     </div>
                     <div class="options-grid">
                         <div class="option-card" data-value="all_traffic"
