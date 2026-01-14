@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.9.7';
+const WIZARD_VERSION = '0.9.8';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -3669,11 +3669,13 @@ function updateUI() {
             cards.storage.switchless.classList.add('disabled');
             if (state.storage === 'switchless') state.storage = null;
         }
-        // Add "(Required)" label to Storage Switched card for Rack Aware
+        // Add "Required" badge to Storage Switched card for Rack Aware
         if (cards.storage && cards.storage.switched) {
-            const switchedH3 = cards.storage.switched.querySelector('h3');
-            if (switchedH3 && !switchedH3.textContent.includes('(Required)')) {
-                switchedH3.textContent = 'Storage Switched (Required)';
+            if (!cards.storage.switched.querySelector('.badge-required')) {
+                const badge = document.createElement('div');
+                badge.className = 'badge-required';
+                badge.textContent = 'Required';
+                cards.storage.switched.appendChild(badge);
             }
         }
 
@@ -3713,12 +3715,10 @@ function updateUI() {
             }
         }
     } else {
-        // Reset Storage Switched label when not Rack Aware
+        // Remove "Required" badge from Storage Switched when not Rack Aware
         if (cards.storage && cards.storage.switched) {
-            const switchedH3 = cards.storage.switched.querySelector('h3');
-            if (switchedH3 && switchedH3.textContent.includes('(Required)')) {
-                switchedH3.textContent = 'Storage Switched';
-            }
+            const badge = cards.storage.switched.querySelector('.badge-required');
+            if (badge) badge.remove();
         }
     }
 
@@ -3771,12 +3771,10 @@ function updateUI() {
     if (!state.nodes) {
         // No nodes selected yet - disable both cards
         Object.values(cards.witnessType).forEach(c => c && c.classList.add('disabled'));
-        // Reset Cloud label
+        // Remove "Required" badge from Cloud card
         if (cloudWitnessCard) {
-            const cloudH3 = cloudWitnessCard.querySelector('h3');
-            if (cloudH3 && cloudH3.textContent.includes('(Required)')) {
-                cloudH3.textContent = 'Cloud';
-            }
+            const badge = cloudWitnessCard.querySelector('.badge-required');
+            if (badge) badge.remove();
         }
     } else if (witnessLocked) {
         // Locked to Cloud - disable NoWitness card
@@ -3794,11 +3792,13 @@ function updateUI() {
             noWitnessCard.title = reason;
         }
         
-        // Add "(Required)" label to Cloud card when witness is locked
+        // Add "Required" badge to Cloud card when witness is locked
         if (cloudWitnessCard) {
-            const cloudH3 = cloudWitnessCard.querySelector('h3');
-            if (cloudH3 && !cloudH3.textContent.includes('(Required)')) {
-                cloudH3.textContent = 'Cloud (Required)';
+            if (!cloudWitnessCard.querySelector('.badge-required')) {
+                const badge = document.createElement('div');
+                badge.className = 'badge-required';
+                badge.textContent = 'Required';
+                cloudWitnessCard.appendChild(badge);
             }
         }
         
@@ -3815,12 +3815,10 @@ function updateUI() {
             }
         });
         
-        // Reset Cloud label when not locked
+        // Remove "Required" badge from Cloud card when not locked
         if (cloudWitnessCard) {
-            const cloudH3 = cloudWitnessCard.querySelector('h3');
-            if (cloudH3 && cloudH3.textContent.includes('(Required)')) {
-                cloudH3.textContent = 'Cloud';
-            }
+            const badge = cloudWitnessCard.querySelector('.badge-required');
+            if (badge) badge.remove();
         }
         
         // Update info box
@@ -8037,7 +8035,19 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.7 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.8 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Required Badge Styling (Issue #76)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Badge-Style Labels:</strong> "Required" indicators for Cloud Witness and Storage Switched now use the same badge styling as "Recommended" badges.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.7</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
                 </div>
                 
@@ -8046,19 +8056,6 @@ function showChangelog() {
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Step-by-Step Instructions:</strong> Added detailed guide on how to copy parameters to Azure Portal.</li>
                         <li><strong>Copy Parameters Button:</strong> New button copies JSON and scrolls to the parameters section with visual feedback.</li>
-                    </ul>
-                </div>
-
-                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.6</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
-                </div>
-                
-                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issues #73, #74)</h4>
-                    <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Deploy to Azure Clarified:</strong> Azure Portal doesn't support pre-filling parameters via URL. Updated instructions to copy values from ARM Parameters section.</li>
-                        <li><strong>Template Import Default:</strong> Importing ARM templates now defaults to Hyperconverged, not Low Capacity.</li>
                     </ul>
                 </div>
 

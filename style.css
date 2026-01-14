@@ -1717,6 +1717,23 @@ header .header-description {
     pointer-events: none;
 }
 
+/* Required Badge */
+.badge-required {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent-blue);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+}
+
 .rack-az-node.is-selected {
     border-color: rgba(139, 92, 246, 0.85);
     background: rgba(139, 92, 246, 0.12);
