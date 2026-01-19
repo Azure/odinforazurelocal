@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Additional Field Pre-Population** - Extended pre-population to include Tenant ID, Key Vault Name, Diagnostic Storage Account, Witness Storage Account, and Custom Location Name when these values are already present in the payload.
 
+- **Copy JSON Now Copies Updated Parameters** - Fixed an issue where the "Copy JSON" button would copy the original JSON with placeholders instead of the updated JSON after the user fills in the input fields. Now both "Copy JSON" and "Copy Parameters & Scroll to JSON" buttons correctly copy the current (updated) parameters.
+
 ---
 
 ## [0.9.9] - 2026-01-14

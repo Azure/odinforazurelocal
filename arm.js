@@ -454,7 +454,10 @@
         if (codeEl) codeEl.innerHTML = highlightJson(rawJsonText);
 
         if (copyBtn) copyBtn.disabled = false;
-        attachCopy(copyBtn, statusEl, function () { return rawJsonText; });
+        // Use dynamic getter to always copy the current (potentially updated) JSON from the display
+        attachCopy(copyBtn, statusEl, function () { 
+            return codeEl ? codeEl.textContent : rawJsonText; 
+        });
     }
 
     main();
