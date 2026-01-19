@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Copy JSON Now Copies Updated Parameters** - Fixed an issue where the "Copy JSON" button would copy the original JSON with placeholders instead of the updated JSON after the user fills in the input fields. Now both "Copy JSON" and "Copy Parameters & Scroll to JSON" buttons correctly copy the current (updated) parameters.
 
+- **Storage Network VLAN ID Type Fix** - Fixed Azure ARM template validation error where `storageNetworks[].vlanId` was being output as an integer instead of a string. Azure requires this field to be a string type. This caused "Expected type string but found type integer" errors when validating the deployment in Azure Portal.
+
 ---
 
 ## [0.9.9] - 2026-01-14
