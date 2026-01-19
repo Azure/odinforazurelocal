@@ -1677,7 +1677,7 @@ function generateArmParameters() {
             // Use the same example subnet numbering shown in the report:
             // 1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
             if (state.storage === 'switchless' && nodeCount === 3) {
-                const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? storageVlan1 : 'REPLACE_WITH_STORAGE_VLAN_1';
+                const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? String(storageVlan1) : 'REPLACE_WITH_STORAGE_VLAN_1';
 
                 const subnetPairs = {
                     1: [1, 2],
@@ -1753,7 +1753,7 @@ function generateArmParameters() {
             // Use the same example networks shown in the report (based on Microsoft Learn guidance)
             // so the generated parameters file is complete and matches the reference pattern.
             if (state.storage === 'switchless' && nodeCount === 4) {
-                const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? storageVlan1 : 'REPLACE_WITH_STORAGE_VLAN_1';
+                const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? String(storageVlan1) : 'REPLACE_WITH_STORAGE_VLAN_1';
 
                 // Subnet pairs (two subnets per node pair).
                 const subnetPairs = {
@@ -1866,7 +1866,7 @@ function generateArmParameters() {
             const network1 = {
                 name: 'StorageNetwork1',
                 networkAdapterName: nic1 ? `SMB${nic1}` : 'REPLACE_WITH_STORAGE_ADAPTER_1',
-                vlanId: (storageVlan1 !== null && storageVlan1 !== undefined) ? storageVlan1 : 'REPLACE_WITH_STORAGE_VLAN_1'
+                vlanId: (storageVlan1 !== null && storageVlan1 !== undefined) ? String(storageVlan1) : 'REPLACE_WITH_STORAGE_VLAN_1'
             };
             if (includeStorageAdapterIPInfo) {
                 network1.storageAdapterIPInfo = buildStorageAdapterIPInfo(0);
@@ -1877,7 +1877,7 @@ function generateArmParameters() {
                 const network2 = {
                     name: 'StorageNetwork2',
                     networkAdapterName: nic2 ? `SMB${nic2}` : 'REPLACE_WITH_STORAGE_ADAPTER_2',
-                    vlanId: (storageVlan2 !== null && storageVlan2 !== undefined) ? storageVlan2 : 'REPLACE_WITH_STORAGE_VLAN_2'
+                    vlanId: (storageVlan2 !== null && storageVlan2 !== undefined) ? String(storageVlan2) : 'REPLACE_WITH_STORAGE_VLAN_2'
                 };
                 if (includeStorageAdapterIPInfo) {
                     network2.storageAdapterIPInfo = buildStorageAdapterIPInfo(1);
