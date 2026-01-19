@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.10.0';
+const WIZARD_VERSION = '0.10.1';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -7493,6 +7493,194 @@ function parseArmTemplateToState(armTemplate) {
     return result;
 }
 
+/**
+ * Show dialog to ask about settings not present in ARM templates (Issue #90)
+ * This includes Arc Gateway, Proxy, and SDN settings which are not part of the ARM template schema
+ */
+function showArmImportOptionsDialog(armState) {
+    const overlay = document.createElement('div');
+    overlay.id = 'arm-import-options-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(8px);';
+    
+    overlay.innerHTML = `
+        <div style="background:var(--card-bg);border:2px solid var(--accent-blue);border-radius:16px;padding:28px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+            <div style="text-align:center;margin-bottom:24px;">
+                <div style="font-size:48px;margin-bottom:12px;">📥</div>
+                <h2 style="margin:0 0 8px 0;color:var(--accent-blue);font-size:22px;">ARM Template Import Options</h2>
+                <p style="color:var(--text-secondary);font-size:14px;margin:0;">
+                    The following settings are not included in ARM templates.<br>Please specify them for your imported deployment.
+                </p>
+            </div>
+            
+            <!-- Arc Gateway -->
+            <div style="margin-bottom:20px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
+                <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                    Is this deployment using Arc Gateway?
+                </label>
+                <div style="display:flex;gap:12px;">
+                    <label style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;text-align:center;transition:all 0.2s;">
+                        <input type="radio" name="import-arc-gateway" value="yes" style="margin-right:6px;">
+                        <span style="color:var(--text-primary);">Yes, Arc Gateway enabled</span>
+                    </label>
+                    <label style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;text-align:center;transition:all 0.2s;">
+                        <input type="radio" name="import-arc-gateway" value="no" checked style="margin-right:6px;">
+                        <span style="color:var(--text-primary);">No, not using Arc Gateway</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Enterprise Proxy -->
+            <div style="margin-bottom:20px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
+                <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;">
+                        <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                        <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                        <line x1="6" y1="6" x2="6.01" y2="6"/>
+                        <line x1="6" y1="18" x2="6.01" y2="18"/>
+                    </svg>
+                    Is this deployment using Enterprise Proxy?
+                </label>
+                <div style="display:flex;gap:12px;">
+                    <label style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;text-align:center;transition:all 0.2s;">
+                        <input type="radio" name="import-proxy" value="yes" style="margin-right:6px;">
+                        <span style="color:var(--text-primary);">Yes, Proxy enabled</span>
+                    </label>
+                    <label style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;text-align:center;transition:all 0.2s;">
+                        <input type="radio" name="import-proxy" value="no" checked style="margin-right:6px;">
+                        <span style="color:var(--text-primary);">No, direct internet</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- SDN -->
+            <div style="margin-bottom:24px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
+                <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                        <polyline points="2 17 12 22 22 17"/>
+                        <polyline points="2 12 12 17 22 12"/>
+                    </svg>
+                    Is this deployment using SDN (Software Defined Networking)?
+                </label>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                        <input type="radio" name="import-sdn" value="none" checked style="margin-right:8px;">
+                        <span style="color:var(--text-primary);">No SDN</span>
+                    </label>
+                    <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                        <input type="radio" name="import-sdn" value="arc_lnet_nsg" style="margin-right:8px;">
+                        <span style="color:var(--text-primary);">SDN Managed by Arc - Logical Networks & NSGs only</span>
+                    </label>
+                    <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                        <input type="radio" name="import-sdn" value="arc_full" style="margin-right:8px;">
+                        <span style="color:var(--text-primary);">SDN Managed by Arc - Full (VNets, LNets, NSGs, SLBs)</span>
+                    </label>
+                    <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                        <input type="radio" name="import-sdn" value="legacy" style="margin-right:8px;">
+                        <span style="color:var(--text-primary);">SDN Legacy (Windows Admin Center managed)</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Buttons -->
+            <div style="display:flex;gap:12px;">
+                <button id="arm-import-cancel-btn" type="button" style="flex:1;padding:14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);color:var(--text-primary);border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;transition:all 0.2s;">
+                    Cancel
+                </button>
+                <button id="arm-import-apply-btn" type="button" style="flex:2;padding:14px;background:linear-gradient(135deg,var(--accent-blue) 0%,var(--accent-purple) 100%);border:none;color:white;border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;transition:all 0.2s;">
+                    Import Template
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Add event listeners
+    document.getElementById('arm-import-cancel-btn').addEventListener('click', () => {
+        overlay.remove();
+        showToast('Import cancelled', 'info');
+    });
+    
+    document.getElementById('arm-import-apply-btn').addEventListener('click', () => {
+        // Get selected values
+        const arcGateway = document.querySelector('input[name="import-arc-gateway"]:checked')?.value;
+        const proxy = document.querySelector('input[name="import-proxy"]:checked')?.value;
+        const sdn = document.querySelector('input[name="import-sdn"]:checked')?.value;
+        
+        // Apply selections to armState
+        armState.arc = arcGateway === 'yes' ? 'yes' : 'no';
+        armState.proxy = proxy === 'yes' ? 'enterprise_proxy' : 'no_proxy';
+        
+        // Map SDN selection to state properties
+        if (sdn === 'none') {
+            armState.sdnFeatures = [];
+            armState.sdnManagement = null;
+        } else if (sdn === 'arc_lnet_nsg') {
+            armState.sdnFeatures = ['lnet', 'nsg'];
+            armState.sdnManagement = 'arc';
+        } else if (sdn === 'arc_full') {
+            armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
+            armState.sdnManagement = 'arc';
+        } else if (sdn === 'legacy') {
+            armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
+            armState.sdnManagement = 'wac';
+        }
+        
+        overlay.remove();
+        
+        // Now apply the ARM state with user selections
+        applyArmImportState(armState);
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+            showToast('Import cancelled', 'info');
+        }
+    });
+}
+
+/**
+ * Apply ARM import state to the wizard (extracted from original inline code)
+ */
+function applyArmImportState(armState) {
+    showToast('Importing ARM template...', 'info', 2000);
+    
+    setTimeout(() => {
+        try {
+            // Apply ARM state
+            Object.keys(armState).forEach(key => {
+                if (state.hasOwnProperty(key) || key === 'nodeSettings' || key === 'infra') {
+                    state[key] = armState[key];
+                }
+            });
+            
+            // Update UI
+            try {
+                updateUI();
+                // Render DNS servers if imported (fixes Issue #64)
+                if (state.dnsServers && state.dnsServers.length > 0) {
+                    renderDnsServers();
+                }
+            } catch (uiErr) {
+                console.error('UI update error during ARM import:', uiErr);
+            }
+            
+            saveStateToLocalStorage();
+            showToast('ARM template imported! Review and complete any missing fields.', 'success', 5000);
+        } catch (applyErr) {
+            showToast('Error applying ARM template', 'error');
+            console.error('ARM import error:', applyErr);
+        }
+    }, 100);
+}
+
 // Import configuration from JSON
 function importConfiguration() {
     try {
@@ -7511,36 +7699,8 @@ function importConfiguration() {
                     // Check if this is an Azure ARM template
                     const armState = parseArmTemplateToState(imported);
                     if (armState) {
-                        // This is an ARM template - apply the parsed state
-                        showToast('Detected Azure ARM template, importing...', 'info', 2000);
-                        
-                        setTimeout(() => {
-                            try {
-                                // Apply ARM state
-                                Object.keys(armState).forEach(key => {
-                                    if (state.hasOwnProperty(key) || key === 'nodeSettings' || key === 'infra') {
-                                        state[key] = armState[key];
-                                    }
-                                });
-                                
-                                // Update UI
-                                try {
-                                    updateUI();
-                                    // Render DNS servers if imported (fixes Issue #64)
-                                    if (state.dnsServers && state.dnsServers.length > 0) {
-                                        renderDnsServers();
-                                    }
-                                } catch (uiErr) {
-                                    console.error('UI update error during ARM import:', uiErr);
-                                }
-                                
-                                saveStateToLocalStorage();
-                                showToast('ARM template imported! Review and complete any missing fields.', 'success', 5000);
-                            } catch (applyErr) {
-                                showToast('Error applying ARM template', 'error');
-                                console.error('ARM import error:', applyErr);
-                            }
-                        }, 100);
+                        // This is an ARM template - show dialog to ask about settings not in ARM templates (Issue #90)
+                        showArmImportOptionsDialog(armState);
                         return;
                     }
                     
@@ -8037,8 +8197,23 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.10.0 - Latest Release</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">January 19, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.10.1 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 19, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📥 ARM Template Import Options (Issue #90)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Import Options Dialog:</strong> When importing ARM templates, a dialog now prompts for settings not included in ARM templates.</li>
+                        <li><strong>Arc Gateway:</strong> Specify if the deployment uses Arc Gateway for secure connectivity.</li>
+                        <li><strong>Enterprise Proxy:</strong> Specify if the deployment routes through an enterprise proxy.</li>
+                        <li><strong>SDN Configuration:</strong> Choose SDN mode: None, Arc-managed (LNets/NSGs or full), or Legacy (WAC-managed).</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.0</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 19, 2025</div>
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">

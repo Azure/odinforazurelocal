@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.10.0] - 2026-01-19
+## [0.10.1] - 2025-01-19
+
+### Fixed
+
+#### ARM Template Import Options Dialog (Issue #90)
+
+- **ARM Import Options Dialog** - When importing an ARM template, users are now prompted with a dialog to specify settings that are not included in ARM templates:
+  - **Arc Gateway**: Whether the deployment uses Arc Gateway for secure connectivity
+  - **Enterprise Proxy**: Whether the deployment routes traffic through an enterprise proxy
+  - **SDN Configuration**: Whether SDN is enabled, and if so, whether it's Arc-managed (with LNets/NSGs only or full VNets/SLBs) or legacy WAC-managed
+
+This ensures that when users import a previously exported ARM template, these important deployment options are not lost and can be specified before the import completes.
+
+---
+
+## [0.10.0] - 2025-01-19
 
 ### Fixed
 
