@@ -237,17 +237,84 @@
             }
         }
         
-        // Show/hide OU Path field based on identity provider
+        // Show/hide OU Path field based on identity provider and whether value is already provided
         var ouContainer = document.getElementById('ou-path-container');
         if (ouContainer && window.armPayload && window.armPayload.parametersFile && window.armPayload.parametersFile.parameters) {
             var params = window.armPayload.parametersFile.parameters;
             var identityProvider = params.identityProvider && params.identityProvider.value;
+            var adouPath = params.adouPath && params.adouPath.value;
             // Hide OU path for Local_Identity (AD-less) deployments
+            // Also hide if adouPath is already provided from the wizard (not empty and not a placeholder)
             if (identityProvider === 'Local_Identity') {
+                ouContainer.style.display = 'none';
+            } else if (adouPath && adouPath !== '' && adouPath.indexOf('REPLACE_WITH') === -1) {
+                // OU Path is already filled from the wizard, hide the input field (Issue #85)
                 ouContainer.style.display = 'none';
             } else {
                 ouContainer.style.display = 'block';
             }
+        }
+    }
+    
+    /**
+     * Pre-populate input fields from the payload parameters (Issue #85, #86)
+     * This function reads values from the ARM payload and fills in the input fields
+     * so users don't have to re-enter values already provided during the wizard.
+     */
+    function prePopulateInputFields() {
+        if (!window.armPayload || !window.armPayload.parametersFile || !window.armPayload.parametersFile.parameters) {
+            return;
+        }
+        
+        var params = window.armPayload.parametersFile.parameters;
+        
+        // Helper function to check if a value is a valid (non-placeholder) value
+        function isValidValue(val) {
+            return val && typeof val === 'string' && val !== '' && val.indexOf('REPLACE_WITH') === -1;
+        }
+        
+        // Pre-populate Cluster Name (Issue #86)
+        var clusterNameInput = document.getElementById('input-cluster-name');
+        if (clusterNameInput && params.clusterName && isValidValue(params.clusterName.value)) {
+            clusterNameInput.value = params.clusterName.value;
+        }
+        
+        // Pre-populate HCI Resource Provider Object ID (Issue #86)
+        var hciRpInput = document.getElementById('input-hci-rp-object-id');
+        if (hciRpInput && params.hciResourceProviderObjectID && isValidValue(params.hciResourceProviderObjectID.value)) {
+            hciRpInput.value = params.hciResourceProviderObjectID.value;
+        }
+        
+        // Pre-populate OU Path (Issue #85)
+        var ouPathInput = document.getElementById('input-ou-path');
+        if (ouPathInput && params.adouPath && isValidValue(params.adouPath.value)) {
+            ouPathInput.value = params.adouPath.value;
+        }
+        
+        // Pre-populate other fields that may have valid values
+        var tenantIdInput = document.getElementById('input-tenant-id');
+        if (tenantIdInput && params.tenantId && isValidValue(params.tenantId.value)) {
+            tenantIdInput.value = params.tenantId.value;
+        }
+        
+        var keyVaultInput = document.getElementById('input-keyvault-name');
+        if (keyVaultInput && params.keyVaultName && isValidValue(params.keyVaultName.value)) {
+            keyVaultInput.value = params.keyVaultName.value;
+        }
+        
+        var diagnosticStorageInput = document.getElementById('input-diagnostic-storage');
+        if (diagnosticStorageInput && params.diagnosticStorageAccountName && isValidValue(params.diagnosticStorageAccountName.value)) {
+            diagnosticStorageInput.value = params.diagnosticStorageAccountName.value;
+        }
+        
+        var witnessStorageInput = document.getElementById('input-witness-storage');
+        if (witnessStorageInput && params.clusterWitnessStorageAccountName && isValidValue(params.clusterWitnessStorageAccountName.value)) {
+            witnessStorageInput.value = params.clusterWitnessStorageAccountName.value;
+        }
+        
+        var customLocationInput = document.getElementById('input-custom-location');
+        if (customLocationInput && params.customLocationName && isValidValue(params.customLocationName.value)) {
+            customLocationInput.value = params.customLocationName.value;
         }
     }
 
@@ -373,6 +440,9 @@
 
         var readiness = payload.readiness || {};
         setPlaceholders(placeholdersEl, readiness.placeholders);
+        
+        // Pre-populate input fields with values from the payload (Issue #85, #86)
+        prePopulateInputFields();
 
         var rawJsonText = '';
         try {

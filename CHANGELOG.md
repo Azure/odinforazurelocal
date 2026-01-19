@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.0] - 2026-01-19
+
+### Fixed
+
+#### ARM Parameters Pre-Population (Issue #85, #86)
+
+- **OU Path Auto-Population** - The OU Path field on the ARM Parameters page is now automatically pre-populated with the value entered during the wizard. If the OU Path was already provided, the input field is hidden since re-entry is not necessary. This eliminates redundant data entry for users. (Issue #85)
+
+- **Cluster Name and HCI Resource Provider Object ID Loading** - When loading the ARM Parameters page, the Cluster Name and HCI Resource Provider Object ID fields are now properly pre-populated from the parameters payload. Previously, these values were not being loaded into the input fields even when they were present in the generated parameters. (Issue #86)
+
+- **Additional Field Pre-Population** - Extended pre-population to include Tenant ID, Key Vault Name, Diagnostic Storage Account, Witness Storage Account, and Custom Location Name when these values are already present in the payload.
+
+---
+
 ## [0.9.9] - 2026-01-14
 
 ### Added

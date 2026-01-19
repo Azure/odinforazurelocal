@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.9.9';
+const WIZARD_VERSION = '0.10.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -8037,7 +8037,22 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.9.9 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.10.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 19, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Parameters Pre-Population (Issue #85, #86)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>OU Path Auto-Population:</strong> The OU Path field is now pre-filled with the value from the wizard. If already provided, the input field is hidden.</li>
+                        <li><strong>Cluster Name Loading:</strong> The Cluster Name field is now properly loaded when navigating to the ARM Parameters page.</li>
+                        <li><strong>HCI Resource Provider Object ID:</strong> This field is now pre-populated from the parameters payload when present.</li>
+                        <li><strong>Additional Fields:</strong> Extended pre-population to Tenant ID, Key Vault, Storage Accounts, and Custom Location.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.9</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
                 </div>
                 
