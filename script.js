@@ -7612,9 +7612,11 @@ function showArmImportOptionsDialog(armState) {
         const proxy = document.querySelector('input[name="import-proxy"]:checked')?.value;
         const sdn = document.querySelector('input[name="import-sdn"]:checked')?.value;
         
-        // Apply selections to armState
-        armState.arc = arcGateway === 'yes' ? 'yes' : 'no';
-        armState.proxy = proxy === 'yes' ? 'enterprise_proxy' : 'no_proxy';
+        // Apply selections to armState using correct state values
+        // Arc: 'arc_gateway' or 'no_arc'
+        // Proxy: 'proxy' or 'no_proxy'
+        armState.arc = arcGateway === 'yes' ? 'arc_gateway' : 'no_arc';
+        armState.proxy = proxy === 'yes' ? 'proxy' : 'no_proxy';
         
         // Map SDN selection to state properties
         if (sdn === 'none') {
