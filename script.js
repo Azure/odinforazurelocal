@@ -5171,6 +5171,13 @@ function updateCustomStorageSubnetsUI() {
             ? `Storage Network ${i + 1} Subnet`
             : `Storage Subnet ${i + 1}`;
         
+        // For the first input (index 0), use onchange to prevent auto-fill from triggering
+        // on partial input (e.g., when user types "172.16.1.0/2" before completing "/24").
+        // For subsequent inputs, use oninput for immediate feedback.
+        const eventHandler = i === 0 
+            ? `onchange="updateCustomStorageSubnet(${i}, this.value)" oninput="updateCustomStorageSubnetPreview(${i}, this.value)"`
+            : `oninput="updateCustomStorageSubnet(${i}, this.value)"`;
+        
         html += `
             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                 <label style="font-weight: 600; color: var(--text-primary);">${label}</label>
@@ -5180,7 +5187,7 @@ function updateCustomStorageSubnetsUI() {
                        value="${escapeHtml(value)}"
                        placeholder="${placeholder}"
                        style="padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-family: monospace;"
-                       oninput="updateCustomStorageSubnet(${i}, this.value)" />
+                       ${eventHandler} />
             </div>
         `;
     }
@@ -5291,6 +5298,22 @@ function incrementCidrThirdOctet(cidr, increment) {
     return `${octets[0]}.${octets[1]}.${newThirdOctet}.${octets[3]}/${prefix}`;
 }
 
+// Preview function for the first storage subnet input - provides visual feedback without triggering auto-fill
+// This is used with oninput on the first field to show validation state while typing
+function updateCustomStorageSubnetPreview(index, value) {
+    const input = document.querySelector(`.custom-storage-subnet-input[data-subnet-index="${index}"]`);
+    if (!input) return;
+    
+    const trimmed = value.trim();
+    if (trimmed && !isValidCidrFormat(trimmed)) {
+        input.style.borderColor = 'var(--accent-red, #ef4444)';
+        input.title = 'Invalid CIDR format. Use format like 10.0.1.0/24';
+    } else {
+        input.style.borderColor = 'var(--glass-border)';
+        input.title = '';
+    }
+}
+
 // Update a specific custom storage subnet
 function updateCustomStorageSubnet(index, value) {
     if (!Array.isArray(state.customStorageSubnets)) {
@@ -5313,11 +5336,12 @@ function updateCustomStorageSubnet(index, value) {
     
     // Auto-populate remaining subnets when first subnet is entered (Issue #95)
     // Only auto-fill if: index is 0, value is valid CIDR, and subsequent fields are empty
-    if (index === 0 && isValidCidrFormat(trimmed)) {
+    if (index === 0 && trimmed && isValidCidrFormat(trimmed)) {
         const requiredCount = getRequiredStorageSubnetCount();
         for (let i = 1; i < requiredCount; i++) {
-            // Only auto-populate if the field is currently empty
-            if (!state.customStorageSubnets[i] || state.customStorageSubnets[i].trim() === '') {
+            // Only auto-populate if the field is currently empty or has no real value
+            const currentValue = state.customStorageSubnets[i];
+            if (!currentValue || currentValue.trim() === '') {
                 const incrementedCidr = incrementCidrThirdOctet(trimmed, i);
                 if (incrementedCidr) {
                     state.customStorageSubnets[i] = incrementedCidr;
