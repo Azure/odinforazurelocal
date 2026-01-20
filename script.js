@@ -5271,6 +5271,26 @@ function isValidCidrFormat(cidr) {
     return true;
 }
 
+// Increment the 3rd octet of a CIDR and return the new CIDR
+// Returns null if the increment would exceed 255
+function incrementCidrThirdOctet(cidr, increment) {
+    if (!isValidCidrFormat(cidr)) return null;
+    
+    const trimmed = cidr.trim();
+    const parts = trimmed.split('/');
+    const ip = parts[0];
+    const prefix = parts[1];
+    const octets = ip.split('.');
+    
+    const thirdOctet = parseInt(octets[2], 10);
+    const newThirdOctet = thirdOctet + increment;
+    
+    // Check if new octet would exceed valid range
+    if (newThirdOctet > 255 || newThirdOctet < 0) return null;
+    
+    return `${octets[0]}.${octets[1]}.${newThirdOctet}.${octets[3]}/${prefix}`;
+}
+
 // Update a specific custom storage subnet
 function updateCustomStorageSubnet(index, value) {
     if (!Array.isArray(state.customStorageSubnets)) {
@@ -5288,6 +5308,28 @@ function updateCustomStorageSubnet(index, value) {
         } else {
             input.style.borderColor = 'var(--glass-border)';
             input.title = '';
+        }
+    }
+    
+    // Auto-populate remaining subnets when first subnet is entered (Issue #95)
+    // Only auto-fill if: index is 0, value is valid CIDR, and subsequent fields are empty
+    if (index === 0 && isValidCidrFormat(trimmed)) {
+        const requiredCount = getRequiredStorageSubnetCount();
+        for (let i = 1; i < requiredCount; i++) {
+            // Only auto-populate if the field is currently empty
+            if (!state.customStorageSubnets[i] || state.customStorageSubnets[i].trim() === '') {
+                const incrementedCidr = incrementCidrThirdOctet(trimmed, i);
+                if (incrementedCidr) {
+                    state.customStorageSubnets[i] = incrementedCidr;
+                    // Update the input field in the DOM
+                    const subnetInput = document.querySelector(`.custom-storage-subnet-input[data-subnet-index="${i}"]`);
+                    if (subnetInput) {
+                        subnetInput.value = incrementedCidr;
+                        subnetInput.style.borderColor = 'var(--glass-border)';
+                        subnetInput.title = '';
+                    }
+                }
+            }
         }
     }
     

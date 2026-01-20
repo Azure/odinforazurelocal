@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.3] - 2026-01-20
+
+### Added
+
+#### Auto-Populate Storage Subnets (Issue #95)
+
+- **Storage Subnet Auto-Population** - When Storage Auto IP is disabled (for Switched or Switchless scenarios), entering the first storage subnet now automatically populates the remaining subnet fields by incrementing the 3rd octet of the IP address:
+  - Example: Entering `10.0.1.0/24` for Storage Subnet 1 will auto-fill:
+    - Storage Subnet 2: `10.0.2.0/24`
+    - Storage Subnet 3: `10.0.3.0/24`
+    - And so on for all required subnets
+  - Only empty subnet fields are auto-populated (existing values are preserved)
+  - Works for all storage configurations: Switched (2 subnets), Switchless 2-node (2 subnets), 3-node (6 subnets), and 4-node (12 subnets)
+
+---
+
 ## [0.10.2] - 2025-01-20
 
 ### Changed
