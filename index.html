@@ -145,7 +145,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.10.1 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.10.2 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -1607,89 +1607,125 @@
                         <h2>Software Defined Networking</h2>
                     </div>
 
-                    <p style="margin-bottom:1.5rem; color:var(--text-secondary);">Select the SDN features you want to
-                        enable (multiple selections allowed):</p>
+                    <p style="margin-bottom:1.5rem; color:var(--text-secondary);">SDN enables advanced networking capabilities like network virtualization, security groups, and load balancing.</p>
 
-                    <div
-                        style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;">
-                        <label class="sdn-feature-card" data-feature="lnet">
-                            <input type="checkbox" onchange="toggleSdnFeature('lnet', this.checked)"
-                                style="margin-right:0.5rem;">
-                            <div>
-                                <strong>Logical Networks (LNET)</strong>
-                                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Network
-                                    virtualization</p>
+                    <!-- SDN Enabled Selection -->
+                    <div class="options-grid" style="margin-bottom:2rem;">
+                        <div class="option-card" id="sdn-enabled-yes" data-value="yes"
+                            onclick="selectOption('sdnEnabled', 'yes')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-width="1.5"/>
+                                    <polyline points="22 4 12 14.01 9 11.01" stroke-width="1.5"/>
+                                </svg>
                             </div>
-                        </label>
+                            <h3>Enable SDN</h3>
+                            <p>Configure Software Defined Networking features for your cluster.</p>
+                        </div>
 
-                        <label class="sdn-feature-card" data-feature="nsg">
-                            <input type="checkbox" onchange="toggleSdnFeature('nsg', this.checked)"
-                                style="margin-right:0.5rem;">
-                            <div>
-                                <strong>Network Security Groups (NSG)</strong>
-                                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
-                                    filtering</p>
+                        <div class="option-card" id="sdn-enabled-no" data-value="no"
+                            onclick="selectOption('sdnEnabled', 'no')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5"/>
+                                    <line x1="15" y1="9" x2="9" y2="15" stroke-width="1.5"/>
+                                    <line x1="9" y1="9" x2="15" y2="15" stroke-width="1.5"/>
+                                </svg>
                             </div>
-                        </label>
-
-                        <label class="sdn-feature-card" data-feature="vnet">
-                            <input type="checkbox" onchange="toggleSdnFeature('vnet', this.checked)"
-                                style="margin-right:0.5rem;">
-                            <div>
-                                <strong>Virtual Networks (VNET)</strong>
-                                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">
-                                    Isolated networks</p>
-                            </div>
-                        </label>
-
-                        <label class="sdn-feature-card" data-feature="slb">
-                            <input type="checkbox" onchange="toggleSdnFeature('slb', this.checked)"
-                                style="margin-right:0.5rem;">
-                            <div>
-                                <strong>Load Balancers (SLB)</strong>
-                                <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
-                                    distribution</p>
-                            </div>
-                        </label>
+                            <h3>No SDN</h3>
+                            <p>Skip SDN configuration. You can add SDN features later if needed.</p>
+                        </div>
                     </div>
 
-                    <!-- SDN Management Options -->
-                    <div id="sdn-management-section" class="hidden"
-                        style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
-                        <h4 style="color:var(--accent-purple); font-size:1.2rem; margin-bottom:1rem;">SDN Management
-                        </h4>
+                    <!-- SDN Features Section (only shown when SDN is enabled) -->
+                    <div id="sdn-features-section" class="hidden">
+                        <div style="padding-top:1.5rem; border-top:1px solid var(--glass-border);">
+                            <h4 style="color:var(--accent-purple); font-size:1.1rem; margin-bottom:0.75rem;">Select SDN Features</h4>
+                            <p style="margin-bottom:1rem; color:var(--text-secondary); font-size:0.9rem;">Choose the SDN features you want to enable (multiple selections allowed):</p>
 
-                        <div class="options-grid">
-                            <div class="option-card" id="sdn-arc-card" data-value="arc_managed"
-                                onclick="selectOption('sdnManagement', 'arc_managed')">
-                                <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                        <circle cx="12" cy="12" r="9" stroke-width="1.5" />
-                                        <path d="M12 3v18M3 12h18" stroke-width="1.5" />
-                                    </svg>
-                                </div>
-                                <h3>SDN Managed by Arc</h3>
-                                <p>Cloud-managed SDN via Azure Arc.</p>
-                            </div>
+                            <div id="sdn-features-grid"
+                                style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:2rem;">
+                                <label class="sdn-feature-card" data-feature="lnet">
+                                    <input type="checkbox" onchange="toggleSdnFeature('lnet', this.checked)"
+                                        style="margin-right:0.5rem;">
+                                    <div>
+                                        <strong>Logical Networks (LNET)</strong>
+                                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Network
+                                            virtualization</p>
+                                    </div>
+                                </label>
 
-                            <div class="option-card" id="sdn-onprem-card" data-value="onprem_managed"
-                                onclick="selectOption('sdnManagement', 'onprem_managed')">
-                                <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                        <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
-                                        <path d="M3 9h18M9 3v18" stroke-width="1.5" />
-                                    </svg>
-                                </div>
-                                <h3>SDN Managed by On-Premises Tools</h3>
-                                <p>Managed using on-premises SDN infrastructure.</p>
+                                <label class="sdn-feature-card" data-feature="nsg">
+                                    <input type="checkbox" onchange="toggleSdnFeature('nsg', this.checked)"
+                                        style="margin-right:0.5rem;">
+                                    <div>
+                                        <strong>Network Security Groups (NSG)</strong>
+                                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
+                                            filtering</p>
+                                    </div>
+                                </label>
+
+                                <label class="sdn-feature-card" data-feature="vnet">
+                                    <input type="checkbox" onchange="toggleSdnFeature('vnet', this.checked)"
+                                        style="margin-right:0.5rem;">
+                                    <div>
+                                        <strong>Virtual Networks (VNET)</strong>
+                                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">
+                                            Isolated networks</p>
+                                    </div>
+                                </label>
+
+                                <label class="sdn-feature-card" data-feature="slb">
+                                    <input type="checkbox" onchange="toggleSdnFeature('slb', this.checked)"
+                                        style="margin-right:0.5rem;">
+                                    <div>
+                                        <strong>Load Balancers (SLB)</strong>
+                                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
+                                            distribution</p>
+                                    </div>
+                                </label>
                             </div>
                         </div>
 
-                        <div id="sdn-info" class="info-box visible" style="margin-top:1.5rem;">
-                            <strong>SDN Management Selection</strong>
-                            <p id="sdn-info-text">Select SDN features above to see available management options.</p>
+                        <!-- SDN Management Options -->
+                        <div id="sdn-management-section" class="hidden"
+                            style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
+                            <h4 style="color:var(--accent-purple); font-size:1.2rem; margin-bottom:1rem;">SDN Management
+                            </h4>
+
+                            <div class="options-grid">
+                                <div class="option-card" id="sdn-arc-card" data-value="arc_managed"
+                                    onclick="selectOption('sdnManagement', 'arc_managed')">
+                                    <div class="icon">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <circle cx="12" cy="12" r="9" stroke-width="1.5" />
+                                            <path d="M12 3v18M3 12h18" stroke-width="1.5" />
+                                        </svg>
+                                    </div>
+                                    <h3>SDN Managed by Arc</h3>
+                                    <p>Cloud-managed SDN via Azure Arc.</p>
+                                </div>
+
+                                <div class="option-card" id="sdn-onprem-card" data-value="onprem_managed"
+                                    onclick="selectOption('sdnManagement', 'onprem_managed')">
+                                    <div class="icon">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
+                                            <path d="M3 9h18M9 3v18" stroke-width="1.5" />
+                                        </svg>
+                                    </div>
+                                    <h3>SDN Managed by On-Premises Tools</h3>
+                                    <p>Managed using on-premises SDN infrastructure.</p>
+                                </div>
+                            </div>
+
+                            <div id="sdn-info" class="info-box visible" style="margin-top:1.5rem;">
+                                <strong>SDN Management Selection</strong>
+                                <p id="sdn-info-text">Select SDN features above to see available management options.</p>
+                            </div>
                         </div>
                     </div>
+                    <!-- End SDN Features Section -->
 
                     <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
                         <!-- Missing Sections Display -->

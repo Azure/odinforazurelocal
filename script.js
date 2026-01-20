@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.10.1';
+const WIZARD_VERSION = '0.10.2';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -233,6 +233,7 @@ const state = {
     dnsServers: [],
     localDnsZone: null,
     dnsServiceExisting: null,
+    sdnEnabled: null,
     sdnFeatures: [],
     sdnManagement: null,
     intentOverrides: {},
@@ -715,9 +716,16 @@ function getReportReadiness() {
         missing.push('Security Configuration');
     }
 
-    // SDN: optional features; but if selected, management is required.
-    if (state.sdnFeatures && state.sdnFeatures.length > 0 && !state.sdnManagement) {
-        missing.push('SDN Management');
+    // SDN: user must select enabled or disabled; if enabled, features and management required
+    if (!state.sdnEnabled) {
+        missing.push('SDN Enabled/Disabled');
+    } else if (state.sdnEnabled === 'yes') {
+        if (!state.sdnFeatures || state.sdnFeatures.length === 0) {
+            missing.push('SDN Features');
+        }
+        if (!state.sdnManagement) {
+            missing.push('SDN Management');
+        }
     }
 
     // Custom intent: require confirm.
@@ -2658,6 +2666,24 @@ function selectOption(category, value) {
                 // Update all checkboxes to checked
                 const checkboxes = customSecuritySection.querySelectorAll('input[type="checkbox"]');
                 checkboxes.forEach(cb => cb.checked = true);
+            }
+        }
+    } else if (category === 'sdnEnabled') {
+        state.sdnEnabled = value;
+        // If SDN is disabled, clear SDN features and management
+        if (value === 'no') {
+            state.sdnFeatures = [];
+            state.sdnManagement = null;
+            // Uncheck all SDN feature checkboxes
+            document.querySelectorAll('.sdn-feature-card input[type="checkbox"]').forEach(cb => cb.checked = false);
+        }
+        // Show/hide SDN features section
+        const sdnFeaturesSection = document.getElementById('sdn-features-section');
+        if (sdnFeaturesSection) {
+            if (value === 'yes') {
+                sdnFeaturesSection.classList.remove('hidden');
+            } else {
+                sdnFeaturesSection.classList.add('hidden');
             }
         }
     } else if (category === 'sdnManagement') {
@@ -5626,7 +5652,18 @@ function updateStepIndicators() {
             return true;
         }},
         { id: 'step-13-5', validation: () => state.securityConfiguration !== null },
-        { id: 'step-14', validation: () => state.sdnFeatures.length === 0 || state.sdnManagement !== null }
+        { id: 'step-14', validation: () => {
+            // SDN is complete if:
+            // 1. User selected "No SDN" (sdnEnabled === 'no'), OR
+            // 2. User selected "Enable SDN" AND selected features AND selected management type
+            if (state.sdnEnabled === 'no') return true;
+            if (state.sdnEnabled === 'yes') {
+                // Must have features and management selected
+                return state.sdnFeatures.length > 0 && state.sdnManagement !== null;
+            }
+            // sdnEnabled not yet selected
+            return false;
+        }}
     ];
 
     steps.forEach(step => {
@@ -7621,15 +7658,19 @@ function showArmImportOptionsDialog(armState) {
         // Map SDN selection to state properties
         // Valid sdnManagement values: 'arc_managed' or 'onprem_managed'
         if (sdn === 'none') {
+            armState.sdnEnabled = 'no';
             armState.sdnFeatures = [];
             armState.sdnManagement = null;
         } else if (sdn === 'arc_lnet_nsg') {
+            armState.sdnEnabled = 'yes';
             armState.sdnFeatures = ['lnet', 'nsg'];
             armState.sdnManagement = 'arc_managed';
         } else if (sdn === 'arc_full') {
+            armState.sdnEnabled = 'yes';
             armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
             armState.sdnManagement = 'arc_managed';
         } else if (sdn === 'legacy') {
+            armState.sdnEnabled = 'yes';
             armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
             armState.sdnManagement = 'onprem_managed';
         }
@@ -7663,6 +7704,27 @@ function applyArmImportState(armState) {
                     state[key] = armState[key];
                 }
             });
+            
+            // Restore SDN UI elements based on imported state
+            const sdnFeaturesSection = document.getElementById('sdn-features-section');
+            if (sdnFeaturesSection) {
+                if (state.sdnEnabled === 'yes') {
+                    sdnFeaturesSection.classList.remove('hidden');
+                } else {
+                    sdnFeaturesSection.classList.add('hidden');
+                }
+            }
+            
+            // Restore SDN feature checkboxes
+            if (state.sdnFeatures && state.sdnFeatures.length > 0) {
+                state.sdnFeatures.forEach(feature => {
+                    const checkbox = document.querySelector(`.sdn-feature-card[data-feature="${feature}"] input[type="checkbox"]`);
+                    if (checkbox) checkbox.checked = true;
+                });
+            }
+            
+            // Update SDN management options
+            updateSdnManagementOptions();
             
             // Update UI
             try {
@@ -7830,6 +7892,16 @@ function resumeSavedState() {
     const saved = loadStateFromLocalStorage();
     if (saved && saved.data) {
         Object.assign(state, saved.data);
+        
+        // Restore SDN enabled state and features section visibility
+        const sdnFeaturesSection = document.getElementById('sdn-features-section');
+        if (sdnFeaturesSection) {
+            if (state.sdnEnabled === 'yes') {
+                sdnFeaturesSection.classList.remove('hidden');
+            } else {
+                sdnFeaturesSection.classList.add('hidden');
+            }
+        }
         
         // Restore SDN feature checkboxes
         if (state.sdnFeatures && state.sdnFeatures.length > 0) {
@@ -8200,7 +8272,22 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.10.1 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.10.2 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 20, 2025</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚙️ SDN Configuration Redesign (Step 18)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Enable/Disable Selection:</strong> Step 18 now starts with a clear Yes/No choice for enabling SDN.</li>
+                        <li><strong>Conditional Features:</strong> SDN feature cards (LNET, NSG, VNET, SLB) only appear when SDN is enabled.</li>
+                        <li><strong>Clearer Flow:</strong> Since SDN is optional and not reflected in ARM templates, this provides a clearer user experience.</li>
+                        <li><strong>Import Support:</strong> ARM template imports with SDN settings now properly restore the enabled state and features.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 19, 2025</div>
                 </div>
                 
