@@ -10042,7 +10042,8 @@ function exportToPDF() {
 
 const onboardingSteps = [
     {
-        icon: '🎯',
+        icon: '<img src="odin-logo.png" alt="Odin Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        isImage: true,
         title: 'Welcome to Odin for Azure Local',
         description: 'Your intelligent guide for planning Azure Local deployments. This wizard helps you make informed decisions and generates deployment-ready configurations.',
         features: [
@@ -10093,7 +10094,7 @@ function renderOnboardingStep() {
     overlay.className = 'onboarding-overlay';
     overlay.innerHTML = `
         <div class="onboarding-card">
-            <div class="onboarding-icon">${step.icon}</div>
+            <div class="onboarding-icon${step.isImage ? ' onboarding-icon-image' : ''}">${step.icon}</div>
             <h2 class="onboarding-title">${step.title}</h2>
             <p class="onboarding-description">${step.description}</p>
             
