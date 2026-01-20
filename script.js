@@ -7619,18 +7619,19 @@ function showArmImportOptionsDialog(armState) {
         armState.proxy = proxy === 'yes' ? 'proxy' : 'no_proxy';
         
         // Map SDN selection to state properties
+        // Valid sdnManagement values: 'arc_managed' or 'onprem_managed'
         if (sdn === 'none') {
             armState.sdnFeatures = [];
             armState.sdnManagement = null;
         } else if (sdn === 'arc_lnet_nsg') {
             armState.sdnFeatures = ['lnet', 'nsg'];
-            armState.sdnManagement = 'arc';
+            armState.sdnManagement = 'arc_managed';
         } else if (sdn === 'arc_full') {
             armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
-            armState.sdnManagement = 'arc';
+            armState.sdnManagement = 'arc_managed';
         } else if (sdn === 'legacy') {
             armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
-            armState.sdnManagement = 'wac';
+            armState.sdnManagement = 'onprem_managed';
         }
         
         overlay.remove();
