@@ -229,6 +229,13 @@ body {
     margin-bottom: 20px;
 }
 
+.onboarding-icon-image {
+    font-size: inherit;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
 .onboarding-title {
     font-size: 24px;
     font-weight: 600;
