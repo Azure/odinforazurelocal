@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.2] - 2025-01-20
+
+### Changed
+
+#### SDN Configuration Step Redesign (Step 18)
+
+- **SDN Enabled/Disabled Selection** - Step 18 (Software Defined Networking) now starts with a clear Yes/No selection asking whether to enable SDN:
+  - **Enable SDN**: Shows the SDN feature selection cards (LNET, NSG, VNET, SLB) and management options
+  - **No SDN**: Skips SDN configuration and completes the wizard without SDN features
+
+- **Improved SDN Import Flow** - When importing ARM templates with SDN settings selected in the import dialog, the SDN enabled/disabled selection and feature checkboxes are now properly restored in the wizard.
+
+- **Updated Validation Logic** - Step 18 validation now requires:
+  1. User must select "Enable SDN" or "No SDN", AND
+  2. If "Enable SDN" is selected, at least one feature and a management type must be chosen
+
+This change provides a clearer user experience since SDN is optional and is not reflected in ARM templates.
+
+---
+
 ## [0.10.1] - 2025-01-19
 
 ### Fixed

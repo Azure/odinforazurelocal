@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.10.1
+## Version 0.10.2
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -36,6 +36,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Intelligent Validation**: Real-time input validation with helpful error messages
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
+
+### 🎉 Version 0.10.2 Enhancement
+- **SDN Configuration Redesign**: Step 18 now starts with Enable SDN / No SDN selection. SDN features only shown when enabled. Clearer flow since SDN is optional and not in ARM templates.
 
 ### 🎉 Version 0.10.1 Bug Fix
 - **ARM Import Options Dialog**: When importing ARM templates, a dialog now prompts for settings not included in ARM templates: Arc Gateway, Enterprise Proxy, and SDN configuration (Issue #90)
