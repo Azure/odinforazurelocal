@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.4] - 2026-01-22
+
+### Fixed
+
+#### Single-Node Storage Intent Support (Issue #100)
+
+- **Storage Intent for Single-Node Clusters** - Fixed a bug where single-node (1-node) Hyperconverged and Hyperconverged Low Capacity deployments with 4 ports could not select storage intent ports. Single-node clusters now have access to the same intent options as multi-node clusters:
+  - All Traffic, Mgmt + Compute, Compute + Storage, and Custom intents are now available
+  - Storage zones appear in the adapter mapping UI for all intent types
+  - Single-node uses implicit "switched" storage connectivity
+
+- **RDMA Requirements for Single-Node** - Updated RDMA port requirements:
+  - **Hyperconverged (non-low-capacity)**: Requires 2 RDMA-enabled ports for storage intent (same as multi-node)
+  - **Hyperconverged Low Capacity**: RDMA remains optional (no minimum requirement)
+  - Default port configuration now enables RDMA for non-low-capacity single-node deployments
+
+- **Updated Default Port Settings for Single-Node**:
+  - Non-low-capacity: 10GbE with RoCEv2 RDMA enabled by default
+  - Low Capacity: 10GbE with RDMA disabled by default
+
+---
+
 ## [0.10.3] - 2026-01-20
 
 ### Added
