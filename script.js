@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.10.2';
+const WIZARD_VERSION = '0.10.4';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -681,7 +681,7 @@ function getReportReadiness() {
         if (!state.rackAwareTorsPerRoom) missing.push('ToR switches per room');
         if (!state.rackAwareTorArchitecture) missing.push('ToR switch architecture');
     }
-    // Storage connectivity is not required for single-node clusters (no storage intent)
+    // Storage connectivity type selection (switched vs switchless) - single-node always uses switched (implicit)
     if (!state.storage && state.nodes !== '1') missing.push('Storage Connectivity');
     if (!state.ports) missing.push('Ports');
     if (!state.storagePoolConfiguration) missing.push('Storage Pool Configuration');
@@ -3293,21 +3293,22 @@ function updateUI() {
         if (outboundDisconnected) outboundDisconnected.classList.add('hidden');
     }
 
-    // Single-node clusters: Hide storage options but show ToR switch selection (for mgmt/compute)
+    // Single-node clusters: Hide storage switched/switchless options but show ToR switch selection
+    // Single-node uses implicit switched storage, user still configures storage intent in Step 08
     const storageOptionsGrid = document.getElementById('storage-options-grid');
     const storageCompareBtn = document.getElementById('storage-compare-btn');
     const stepTitle = document.getElementById('step-4-title');
     const torDescription = document.getElementById('tor-switch-description');
     
     if (state.nodes === '1') {
-        // Hide storage switched/switchless options (no storage intent for 1-node)
+        // Hide storage switched/switchless options (single-node uses implicit switched storage)
         if (storageOptionsGrid) storageOptionsGrid.classList.add('hidden');
         if (storageCompareBtn) storageCompareBtn.classList.add('hidden');
-        // Change title to reflect it's for network, not storage
+        // Change title to reflect it's for network topology
         if (stepTitle) stepTitle.textContent = 'Network Connectivity';
-        if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for management and compute traffic.';
-        // Clear storage selection but keep the step visible
-        state.storage = null;
+        if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for network traffic.';
+        // Set implicit switched storage for single-node
+        state.storage = 'switched';
     } else {
         // Show storage options for multi-node clusters
         if (storageOptionsGrid) storageOptionsGrid.classList.remove('hidden');
@@ -3667,7 +3668,7 @@ function updateUI() {
 
     // Nodes -> Storage -> Ports
     if (!state.nodes) Object.values(cards.storage).forEach(c => c.classList.add('disabled'));
-    // For 1-node clusters, storage is not required (no storage intent), so enable ports if ToR is selected
+    // For 1-node clusters, storage is implicitly switched, so enable ports if ToR is selected
     if (!state.storage && state.nodes !== '1') {
         Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
     } else if (state.nodes === '1' && !state.torSwitchCount) {
@@ -4102,7 +4103,7 @@ function updateUI() {
     })();
 
     // Conditional UI: Storage Switched + Hyperconverged/Low Capacity -> ToR Switch Count (Single/Dual)
-    // Also show for 1-node clusters (for mgmt/compute traffic, not storage)
+    // Also show for 1-node clusters (using implicit switched storage)
     (function updateTorSwitchCountUi() {
         const torBlock = document.getElementById('tor-switch-count');
         if (!torBlock) return;
@@ -4384,8 +4385,9 @@ function updateUI() {
                 state.storage === 'switchless' &&
                 parseInt(state.nodes, 10) === 3;
 
-            const defaultRdmaEnabled = (isLowCapacity || isSingleNode) ? false : true;
-            const defaultRdmaMode = (isLowCapacity || isSingleNode) ? 'Disabled' : 'RoCEv2';
+            // RDMA disabled only for Low Capacity; single-node non-low-capacity requires RDMA for storage intent
+            const defaultRdmaEnabled = isLowCapacity ? false : true;
+            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
             // Single-node defaults to 10GbE, Low Capacity to 1GbE, otherwise 25GbE
             const defaultPortSpeed = isSingleNode ? '10GbE' : (isLowCapacity ? '1GbE' : '25GbE');
 
@@ -4410,11 +4412,24 @@ function updateUI() {
                 isStandard &&
                 state.storage === 'switchless' &&
                 parseInt(state.nodes, 10) === 3;
-            const defaultRdmaEnabled = (isLowCapacity || isSingleNode) ? false : true;
-            const defaultRdmaMode = (isLowCapacity || isSingleNode) ? 'Disabled' : 'RoCEv2';
+            // RDMA disabled only for Low Capacity; single-node non-low-capacity requires RDMA for storage intent
+            const defaultRdmaEnabled = isLowCapacity ? false : true;
+            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
 
-            // Single-node default: 10GbE, no RDMA.
-            if (isSingleNode) {
+            // Single-node default: 10GbE (RDMA depends on scale - enabled for non-low-capacity).
+            if (isSingleNode && !isLowCapacity) {
+                for (let idx = 0; idx < pCount; idx++) {
+                    const pc = state.portConfig[idx];
+                    if (!pc) continue;
+                    pc.speed = '10GbE';
+                    if (!pc.rdmaManual) {
+                        pc.rdma = true;
+                        pc.rdmaMode = 'RoCEv2';
+                    }
+                }
+            }
+            // Single-node Low Capacity: 10GbE, no RDMA.
+            else if (isSingleNode && isLowCapacity) {
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
                     if (!pc) continue;
@@ -4631,33 +4646,23 @@ function updateUI() {
         }
     }
 
-    // RULE: 1-node clusters only allow Mgmt + Compute (or Custom with 4+ ports)
-    // No storage intent for single-node deployments
-    // NOTE: This rule runs LAST to override any earlier port-based or storage-based rules
+    // RULE: 1-node clusters follow the same intent rules as multi-node clusters.
+    // Storage intent is now supported for single-node deployments.
+    // Custom intent requires 4+ ports for proper adapter separation.
     if (state.nodes === '1') {
         const portCount = parseInt(state.ports, 10);
-        
-        // Single node: always disable All Traffic and Compute+Storage
-        cards.intent['all_traffic'].classList.add('disabled');
-        cards.intent['compute_storage'].classList.add('disabled');
         
         // Allow Custom only with 4+ ports (for separate Mgmt and Compute adapters)
         if (isNaN(portCount) || portCount < 4) {
             cards.intent['custom'].classList.add('disabled');
+            // If custom is selected but ports < 4, reset to mgmt_compute
+            if (state.intent === 'custom') {
+                state.intent = 'mgmt_compute';
+                state.customIntentConfirmed = false;
+            }
         } else {
             // Explicitly enable Custom for single node with 4+ ports (override earlier rules)
             cards.intent['custom'].classList.remove('disabled');
-        }
-        
-        // Default to Mgmt + Compute
-        if (state.intent !== 'mgmt_compute' && state.intent !== 'custom') {
-            state.intent = 'mgmt_compute';
-            state.customIntentConfirmed = false;
-        }
-        // If custom is selected but ports < 4, reset to mgmt_compute
-        if (state.intent === 'custom' && (isNaN(portCount) || portCount < 4)) {
-            state.intent = 'mgmt_compute';
-            state.customIntentConfirmed = false;
         }
     }
 
@@ -4670,19 +4675,6 @@ function updateUI() {
         if (proxyText) proxyText.innerText = 'Azure Firewall Explicit Proxy';
         if (state.proxy !== 'proxy') { state.proxy = 'proxy'; cards.proxy['proxy'].classList.add('selected'); }
     }
-
-    // FINAL OVERRIDE: Ensure single-node 4+ ports can use Custom intent
-    // This is a direct DOM fix to ensure the Custom card is clickable
-    if (state.nodes === '1') {
-        const portCount = parseInt(state.ports, 10);
-        if (!isNaN(portCount) && portCount >= 4) {
-            const customIntentCard = document.querySelector('.option-card[data-value="custom"][onclick*="intent"]');
-            if (customIntentCard) {
-                customIntentCard.classList.remove('disabled');
-            }
-        }
-    }
-
 
     // RULE 5: Intent Explanation & Visualization
     const intentExp = document.getElementById('intent-explanation');
@@ -5668,7 +5660,7 @@ function updateStepIndicators() {
         { id: 'step-3', validation: () => state.nodes !== null },
         { id: 'step-3-5', validation: () => state.witnessType !== null },
         { id: 'step-4', validation: () => {
-            // 1-node clusters: require ToR switch selection (no storage intent)
+            // 1-node clusters: require ToR switch selection (storage is implicit switched)
             if (state.nodes === '1') return state.torSwitchCount !== null;
             // Multi-node clusters: require storage selection
             return state.storage !== null;
@@ -6289,16 +6281,13 @@ function getRequiredRdmaPortCount() {
 
     const n = parseInt(state.nodes, 10);
 
-    // Single-node clusters have no storage intent, so RDMA is not required.
-    if (n === 1) return 0;
-
     // Standard (Hyperconverged) + Switchless topologies require more RDMA ports.
     if (state.scale === 'medium' && state.storage === 'switchless') {
         if (n === 3) return 4;
         if (n === 4) return 6;
     }
 
-    // Default rule: require at least two RDMA-capable ports.
+    // Default rule: require at least two RDMA-capable ports (including single-node).
     return 2;
 }
 
@@ -10216,19 +10205,17 @@ function getIntentZonesForIntent(intent) {
             minAdapters: isLowCapacity ? minLowCap : minStandard,
             requiresRdma: false
         });
-        // Only add storage zone for multi-node clusters (1-node clusters don't have storage intent)
-        if (!isSingleNode) {
-            zones.push({
-                key: 'storage',
-                title: 'Storage',
-                titleClass: 'storage',
-                description: 'Dedicated storage traffic (SMB Direct).',
-                badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
-                badgeClass: 'rdma-required',
-                minAdapters: isLowCapacity ? minLowCap : minStandard,
-                requiresRdma: true
-            });
-        }
+        // Storage zone is available for all node counts (including single-node)
+        zones.push({
+            key: 'storage',
+            title: 'Storage',
+            titleClass: 'storage',
+            description: 'Dedicated storage traffic (SMB Direct).',
+            badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters (RDMA)',
+            badgeClass: isLowCapacity ? 'required' : 'rdma-required',
+            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            requiresRdma: !isLowCapacity
+        });
     } else if (intent === 'compute_storage') {
         zones.push({
             key: 'mgmt',
@@ -10271,19 +10258,17 @@ function getIntentZonesForIntent(intent) {
             minAdapters: 0,
             requiresRdma: false
         });
-        // Storage zones only for multi-node clusters
-        if (!isSingleNode) {
-            zones.push({
-                key: 'storage',
-                title: 'Storage',
-                titleClass: 'storage',
-                description: 'Storage traffic (SMB Direct).',
-                badge: 'RDMA Required',
-                badgeClass: 'rdma-required',
-                minAdapters: 0,
-                requiresRdma: true
-            });
-        }
+        // Storage zone is available for all node counts (including single-node)
+        zones.push({
+            key: 'storage',
+            title: 'Storage',
+            titleClass: 'storage',
+            description: 'Storage traffic (SMB Direct).',
+            badge: isLowCapacity ? 'Optional' : 'RDMA Required',
+            badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
+            minAdapters: 0,
+            requiresRdma: !isLowCapacity
+        });
         zones.push({
             key: 'mgmt_compute',
             title: 'Mgmt + Compute',
@@ -10294,29 +10279,27 @@ function getIntentZonesForIntent(intent) {
             minAdapters: 0,
             requiresRdma: false
         });
-        // Compute + Storage zone only for multi-node clusters
-        if (!isSingleNode) {
-            zones.push({
-                key: 'compute_storage',
-                title: 'Compute + Storage',
-                titleClass: 'storage',
-                description: 'Shared compute and storage.',
-                badge: 'RDMA Required',
-                badgeClass: 'rdma-required',
-                minAdapters: 0,
-                requiresRdma: true
-            });
-        }
-        // For 1-node, "Group All" is just Mgmt + Compute (no RDMA needed)
+        // Compute + Storage zone is available for all node counts (including single-node)
+        zones.push({
+            key: 'compute_storage',
+            title: 'Compute + Storage',
+            titleClass: 'storage',
+            description: 'Shared compute and storage.',
+            badge: isLowCapacity ? 'Optional' : 'RDMA Required',
+            badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
+            minAdapters: 0,
+            requiresRdma: !isLowCapacity
+        });
+        // Group All Traffic zone
         zones.push({
             key: 'all',
             title: 'Group All Traffic',
             titleClass: '',
-            description: isSingleNode ? 'Management and Compute traffic combined.' : 'All traffic types combined.',
-            badge: isSingleNode ? 'Optional' : 'RDMA Required',
-            badgeClass: isSingleNode ? 'optional' : 'rdma-required',
+            description: 'All traffic types combined.',
+            badge: isLowCapacity ? 'Optional' : 'RDMA Required',
+            badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
             minAdapters: 0,
-            requiresRdma: !isSingleNode
+            requiresRdma: !isLowCapacity
         });
     }
 
@@ -10347,30 +10330,23 @@ function getDefaultAdapterMapping(intent, portCount) {
             mapping[i] = 'all';
         }
     } else if (intent === 'mgmt_compute') {
-        // For single-node clusters: all ports go to mgmt_compute (no storage intent)
-        if (isSingleNode) {
+        // All node counts (including single-node): First 2 non-RDMA (or first 2 if all RDMA) go to mgmt_compute, rest to storage
+        if (nonRdmaPorts.length >= 2) {
+            mapping[nonRdmaPorts[0]] = 'mgmt_compute';
+            mapping[nonRdmaPorts[1]] = 'mgmt_compute';
             for (let i = 1; i <= portCount; i++) {
-                mapping[i] = 'mgmt_compute';
+                if (!mapping[i]) mapping[i] = 'storage';
             }
         } else {
-            // Multi-node: First 2 non-RDMA (or first 2 if all RDMA) go to mgmt_compute, rest to storage
-            if (nonRdmaPorts.length >= 2) {
-                mapping[nonRdmaPorts[0]] = 'mgmt_compute';
-                mapping[nonRdmaPorts[1]] = 'mgmt_compute';
-                for (let i = 1; i <= portCount; i++) {
-                    if (!mapping[i]) mapping[i] = 'storage';
-                }
+            // All RDMA or insufficient non-RDMA
+            if (portCount === 2) {
+                mapping[1] = 'mgmt_compute';
+                mapping[2] = 'storage';
             } else {
-                // All RDMA or insufficient non-RDMA
-                if (portCount === 2) {
-                    mapping[1] = 'mgmt_compute';
-                    mapping[2] = 'storage';
-                } else {
-                    mapping[1] = 'mgmt_compute';
-                    mapping[2] = 'mgmt_compute';
-                    for (let i = 3; i <= portCount; i++) {
-                        mapping[i] = 'storage';
-                    }
+                mapping[1] = 'mgmt_compute';
+                mapping[2] = 'mgmt_compute';
+                for (let i = 3; i <= portCount; i++) {
+                    mapping[i] = 'storage';
                 }
             }
         }
