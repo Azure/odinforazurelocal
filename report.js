@@ -4180,24 +4180,44 @@
                 hostNetworkingRows += row('Storage Subnets', validSubnets.join(', '), true);
                 // Calculate and display storage adapter IPs for each node
                 var nodeCount = parseInt(s.nodes, 10) || 0;
-                if (nodeCount > 0 && s.storage === 'switched') {
-                    // For switched storage, show IPs from the first two subnets
+                if (nodeCount > 0) {
                     var storageIpDetails = [];
-                    for (var subnetIdx = 0; subnetIdx < Math.min(validSubnets.length, 2); subnetIdx++) {
-                        var cidr = String(validSubnets[subnetIdx]).trim();
-                        var cidrParts = cidr.split('/');
-                        if (cidrParts.length >= 1) {
-                            var ipParts = cidrParts[0].split('.');
-                            if (ipParts.length === 4) {
-                                var prefix = ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
-                                var adapterName = 'SMB' + (subnetIdx + 1);
-                                var nodeIps = [];
-                                for (var nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
-                                    var nodeName = (Array.isArray(s.nodeSettings) && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name) 
-                                        ? s.nodeSettings[nodeIdx].name : ('Node' + (nodeIdx + 1));
-                                    nodeIps.push(nodeName + ': ' + prefix + '.' + (nodeIdx + 2));
+                    if (s.storage === 'switched') {
+                        // For switched storage, show IPs from the first two subnets (SMB1, SMB2)
+                        // All nodes share the same two subnets
+                        for (var subnetIdx = 0; subnetIdx < Math.min(validSubnets.length, 2); subnetIdx++) {
+                            var cidr = String(validSubnets[subnetIdx]).trim();
+                            var cidrParts = cidr.split('/');
+                            if (cidrParts.length >= 1) {
+                                var ipParts = cidrParts[0].split('.');
+                                if (ipParts.length === 4) {
+                                    var prefix = ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
+                                    var adapterName = 'SMB' + (subnetIdx + 1);
+                                    var nodeIps = [];
+                                    for (var nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
+                                        var nodeName = (Array.isArray(s.nodeSettings) && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name) 
+                                            ? s.nodeSettings[nodeIdx].name : ('Node' + (nodeIdx + 1));
+                                        nodeIps.push(nodeName + ': ' + prefix + '.' + (nodeIdx + 2));
+                                    }
+                                    storageIpDetails.push(adapterName + ' (' + cidr + ') - ' + nodeIps.join(', '));
                                 }
-                                storageIpDetails.push(adapterName + ' (' + cidr + ') - ' + nodeIps.join(', '));
+                            }
+                        }
+                    } else if (s.storage === 'switchless') {
+                        // For switchless storage, each subnet connects a specific node pair
+                        // Subnet assignment depends on node count and link type
+                        for (var subnetIdx = 0; subnetIdx < validSubnets.length; subnetIdx++) {
+                            var cidr = String(validSubnets[subnetIdx]).trim();
+                            var cidrParts = cidr.split('/');
+                            if (cidrParts.length >= 1) {
+                                var ipParts = cidrParts[0].split('.');
+                                if (ipParts.length === 4) {
+                                    var prefix = ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
+                                    var subnetLabel = 'Subnet ' + (subnetIdx + 1);
+                                    // Each switchless subnet has exactly 2 IPs (one per connected node)
+                                    var subnetIps = prefix + '.1, ' + prefix + '.2';
+                                    storageIpDetails.push(subnetLabel + ' (' + cidr + '): ' + subnetIps);
+                                }
                             }
                         }
                     }
