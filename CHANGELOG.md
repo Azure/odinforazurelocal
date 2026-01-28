@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.5] - 2026-01-28
+
+### Fixed
+
+#### Configuration Report Security Details (Issue #7)
+
+- **Security Configuration Details Display** - Fixed a bug where the Configuration Report only showed a summary for customized security configurations instead of displaying all the individual security settings.
+  - WDAC (Windows Defender Application Control) status now displays correctly
+  - Credential Guard enforcement status now displays correctly
+  - Drift Control enforcement status now displays correctly
+  - SMB Signing enforcement status now displays correctly
+  - SMB Cluster Encryption status now displays correctly
+  - BitLocker Boot Volume status now displays correctly
+  - BitLocker Data Volumes status now displays correctly
+
+- **Property Name Alignment** - Corrected mismatched property names between the wizard state object and the report generation logic:
+  - `wdac` → `wdacEnforced`
+  - `credentialGuard` → `credentialGuardEnforced`
+  - `driftControl` → `driftControlEnforced`
+  - `smbSigning` → `smbSigningEnforced`
+  - `smbEncryption` → `smbClusterEncryption`
+  - `bitlocker` → `bitlockerBootVolume` and `bitlockerDataVolumes`
+
+---
+
 ## [0.10.4] - 2026-01-22
 
 ### Fixed
