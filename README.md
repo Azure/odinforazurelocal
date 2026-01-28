@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.10.10
+## Version 0.10.11
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -36,6 +36,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Intelligent Validation**: Real-time input validation with helpful error messages
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
+
+### 🎉 Version 0.10.11 Bug Fix
+- **Switchless Storage IPs by Adapter**: Switchless storage adapter IPs now display grouped by SMB adapter name (SMB1, SMB2, etc.) matching the ARM template structure, showing which node gets which IP.
 
 ### 🎉 Version 0.10.10 Bug Fix
 - **Switchless Storage Adapter IPs**: Configuration Report now displays storage adapter IPs for switchless storage when Auto IP is disabled. Each subnet shows its two assigned IPs per node pair.
