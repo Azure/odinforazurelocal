@@ -4208,13 +4208,13 @@
         if (s.securityConfiguration) securityRows += row('Configuration', s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized');
         if (s.securityConfiguration === 'customized' && s.securitySettings) {
             var secSettings = s.securitySettings;
-            if (secSettings.wdac !== undefined) securityRows += row('WDAC', secSettings.wdac ? 'Enabled' : 'Disabled');
-            if (secSettings.credentialGuard !== undefined) securityRows += row('Credential Guard', secSettings.credentialGuard ? 'Enabled' : 'Disabled');
-            if (secSettings.driftControl !== undefined) securityRows += row('Drift Control', secSettings.driftControl ? 'Enabled' : 'Disabled');
-            if (secSettings.smbSigning !== undefined) securityRows += row('SMB Signing', secSettings.smbSigning ? 'Enabled' : 'Disabled');
-            if (secSettings.smbEncryption !== undefined) securityRows += row('SMB Encryption', secSettings.smbEncryption ? 'Enabled' : 'Disabled');
-            if (secSettings.bitlocker !== undefined) securityRows += row('BitLocker', secSettings.bitlocker ? 'Enabled' : 'Disabled');
-            if (secSettings.sideChannelMitigation !== undefined) securityRows += row('Side Channel Mitigation', secSettings.sideChannelMitigation ? 'Enabled' : 'Disabled');
+            if (secSettings.wdacEnforced !== undefined) securityRows += row('WDAC', secSettings.wdacEnforced ? 'Enabled' : 'Disabled');
+            if (secSettings.credentialGuardEnforced !== undefined) securityRows += row('Credential Guard', secSettings.credentialGuardEnforced ? 'Enabled' : 'Disabled');
+            if (secSettings.driftControlEnforced !== undefined) securityRows += row('Drift Control', secSettings.driftControlEnforced ? 'Enabled' : 'Disabled');
+            if (secSettings.smbSigningEnforced !== undefined) securityRows += row('SMB Signing', secSettings.smbSigningEnforced ? 'Enabled' : 'Disabled');
+            if (secSettings.smbClusterEncryption !== undefined) securityRows += row('SMB Cluster Encryption', secSettings.smbClusterEncryption ? 'Enabled' : 'Disabled');
+            if (secSettings.bitlockerBootVolume !== undefined) securityRows += row('BitLocker Boot Volume', secSettings.bitlockerBootVolume ? 'Enabled' : 'Disabled');
+            if (secSettings.bitlockerDataVolumes !== undefined) securityRows += row('BitLocker Data Volumes', secSettings.bitlockerDataVolumes ? 'Enabled' : 'Disabled');
         }
 
         // Step 17: Software Defined Networking
