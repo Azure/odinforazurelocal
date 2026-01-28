@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.10] - 2026-01-28
+
+### Fixed
+
+#### Switchless Storage Adapter IPs
+
+- **Switchless Storage Support** - Configuration Report now displays storage adapter IPs for switchless storage configurations when Auto IP is disabled. Each subnet shows its two assigned IPs (one per connected node in the pair).
+
+- **Both Storage Types Covered** - Storage adapter IP display now works correctly for both switched (SMB1/SMB2 per node) and switchless (per-subnet pair) configurations.
+
+---
+
 ## [0.10.9] - 2026-01-28
 
 ### Fixed
