@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.10.8
+## Version 0.10.9
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -36,6 +36,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Intelligent Validation**: Real-time input validation with helpful error messages
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
+
+### 🎉 Version 0.10.9 Bug Fix
+- **Auto IP Storage Display Correction**: When Storage Auto IP is enabled, the report now correctly shows only the subnet (10.71.0.0/16) since IPs are assigned automatically by Network ATC. Custom subnets continue to show calculated IPs.
 
 ### 🎉 Version 0.10.8 Bug Fix
 - **Storage Adapter IPs for Auto IP Enabled**: Configuration Report now shows default Network ATC storage adapter IPs (10.71.x.x) when Storage Auto IP is enabled, not just when disabled.

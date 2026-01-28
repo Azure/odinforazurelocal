@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.9] - 2026-01-28
+
+### Fixed
+
+#### Auto IP Storage Display Correction
+
+- **Subnet-Only Display for Auto IP** - When Storage Auto IP is enabled, the Configuration Report now correctly shows only the subnet (10.71.0.0/16) instead of calculated IP addresses. This reflects the reality that Network ATC assigns IPs automatically and the actual addresses are not known until deployment.
+
+- **Custom Subnets Unchanged** - When Storage Auto IP is disabled, the report continues to display calculated storage adapter IP addresses for each node, as these are user-defined values that will be used in the ARM template.
+
+---
+
 ## [0.10.8] - 2026-01-28
 
 ### Fixed
