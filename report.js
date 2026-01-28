@@ -4171,26 +4171,8 @@
         // Display storage subnet information based on Auto IP setting
         if (s.storageAutoIp === 'enabled') {
             // Show default Network ATC subnets when Auto IP is enabled
-            hostNetworkingRows += row('Storage Subnets', 'Default Network ATC (10.71.0.0/16)');
-            // Show default storage adapter IPs for each node when Auto IP is enabled
-            var nodeCount = parseInt(s.nodes, 10) || 0;
-            if (nodeCount > 0) {
-                var autoIpDetails = [];
-                // Network ATC assigns IPs from 10.71.x.0/24 subnets - SMB1 uses .1 subnet, SMB2 uses .2 subnet
-                for (var smbIdx = 1; smbIdx <= 2; smbIdx++) {
-                    var nodeAutoIps = [];
-                    for (var nIdx = 0; nIdx < nodeCount; nIdx++) {
-                        var nodeName = (Array.isArray(s.nodeSettings) && s.nodeSettings[nIdx] && s.nodeSettings[nIdx].name) 
-                            ? s.nodeSettings[nIdx].name : ('Node' + (nIdx + 1));
-                        // Network ATC uses 10.71.{smbIdx}.{nIdx+1} pattern
-                        nodeAutoIps.push(nodeName + ': 10.71.' + smbIdx + '.' + (nIdx + 1));
-                    }
-                    autoIpDetails.push('SMB' + smbIdx + ' (10.71.' + smbIdx + '.0/24) - ' + nodeAutoIps.join(', '));
-                }
-                if (autoIpDetails.length > 0) {
-                    hostNetworkingRows += row('Storage Adapter IPs', autoIpDetails.join('; '), true);
-                }
-            }
+            // Note: We don't show specific IPs because Network ATC assigns them automatically
+            hostNetworkingRows += row('Storage Subnets', 'Default Network ATC (10.71.0.0/16) - IPs assigned automatically');
         } else if (s.storageAutoIp === 'disabled' && Array.isArray(s.customStorageSubnets) && s.customStorageSubnets.length > 0) {
             // Show custom storage subnets when Auto IP is disabled
             var validSubnets = s.customStorageSubnets.filter(function(subnet) { return subnet && String(subnet).trim(); });
