@@ -4182,41 +4182,98 @@
                 var nodeCount = parseInt(s.nodes, 10) || 0;
                 if (nodeCount > 0) {
                     var storageIpDetails = [];
+                    
+                    // Helper function to get subnet prefix from CIDR
+                    var getSubnetPrefix = function(cidr) {
+                        var cidrParts = String(cidr).trim().split('/');
+                        if (cidrParts.length >= 1) {
+                            var ipParts = cidrParts[0].split('.');
+                            if (ipParts.length === 4) {
+                                return ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
+                            }
+                        }
+                        return null;
+                    };
+                    
+                    // Helper to get node name
+                    var getNodeName = function(nodeIdx) {
+                        return (Array.isArray(s.nodeSettings) && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name) 
+                            ? s.nodeSettings[nodeIdx].name : ('node' + (nodeIdx + 1));
+                    };
+                    
                     if (s.storage === 'switched') {
                         // For switched storage, show IPs from the first two subnets (SMB1, SMB2)
                         // All nodes share the same two subnets
                         for (var subnetIdx = 0; subnetIdx < Math.min(validSubnets.length, 2); subnetIdx++) {
-                            var cidr = String(validSubnets[subnetIdx]).trim();
-                            var cidrParts = cidr.split('/');
-                            if (cidrParts.length >= 1) {
-                                var ipParts = cidrParts[0].split('.');
-                                if (ipParts.length === 4) {
-                                    var prefix = ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
-                                    var adapterName = 'SMB' + (subnetIdx + 1);
-                                    var nodeIps = [];
-                                    for (var nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
-                                        var nodeName = (Array.isArray(s.nodeSettings) && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name) 
-                                            ? s.nodeSettings[nodeIdx].name : ('Node' + (nodeIdx + 1));
-                                        nodeIps.push(nodeName + ': ' + prefix + '.' + (nodeIdx + 2));
-                                    }
-                                    storageIpDetails.push(adapterName + ' (' + cidr + ') - ' + nodeIps.join(', '));
+                            var prefix = getSubnetPrefix(validSubnets[subnetIdx]);
+                            if (prefix) {
+                                var adapterName = 'SMB' + (subnetIdx + 1);
+                                var nodeIps = [];
+                                for (var nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
+                                    nodeIps.push(getNodeName(nodeIdx) + ': ' + prefix + '.' + (nodeIdx + 2));
                                 }
+                                storageIpDetails.push(adapterName + ': ' + nodeIps.join(', '));
                             }
                         }
                     } else if (s.storage === 'switchless') {
-                        // For switchless storage, each subnet connects a specific node pair
-                        // Subnet assignment depends on node count and link type
-                        for (var subnetIdx = 0; subnetIdx < validSubnets.length; subnetIdx++) {
-                            var cidr = String(validSubnets[subnetIdx]).trim();
-                            var cidrParts = cidr.split('/');
-                            if (cidrParts.length >= 1) {
-                                var ipParts = cidrParts[0].split('.');
-                                if (ipParts.length === 4) {
-                                    var prefix = ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
-                                    var subnetLabel = 'Subnet ' + (subnetIdx + 1);
-                                    // Each switchless subnet has exactly 2 IPs (one per connected node)
-                                    var subnetIps = prefix + '.1, ' + prefix + '.2';
-                                    storageIpDetails.push(subnetLabel + ' (' + cidr + '): ' + subnetIps);
+                        // For switchless storage, organize by SMB adapter like the ARM template
+                        // Each SMB adapter shows which node gets which IP from which subnet
+                        
+                        if (nodeCount === 2) {
+                            // 2-node switchless: 2 SMB adapters, 2 subnets
+                            // SMB1: both nodes use Subnet1, SMB2: both nodes use Subnet2
+                            for (var smbIdx = 0; smbIdx < 2 && smbIdx < validSubnets.length; smbIdx++) {
+                                var prefix = getSubnetPrefix(validSubnets[smbIdx]);
+                                if (prefix) {
+                                    var nodeIps = [];
+                                    nodeIps.push(getNodeName(0) + ': ' + prefix + '.2');
+                                    nodeIps.push(getNodeName(1) + ': ' + prefix + '.3');
+                                    storageIpDetails.push('SMB' + (smbIdx + 1) + ': ' + nodeIps.join(', '));
+                                }
+                            }
+                        } else if (nodeCount === 3) {
+                            // 3-node switchless dual-link: 4 SMB adapters, 6 subnets
+                            // Subnet pairs: 1-2 (Node1↔Node2), 3-4 (Node1↔Node3), 5-6 (Node2↔Node3)
+                            var subnetPairs3 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [2, 3], 6: [2, 3] };
+                            var nodeToSubnetBySmb3 = { 1: [1, 2, 3, 4], 2: [1, 2, 5, 6], 3: [3, 4, 5, 6] };
+                            
+                            for (var smbIdx = 1; smbIdx <= 4; smbIdx++) {
+                                var nodeIps = [];
+                                for (var nodeNum = 1; nodeNum <= 3; nodeNum++) {
+                                    var subnets = nodeToSubnetBySmb3[nodeNum];
+                                    var subnetNum = subnets[smbIdx - 1];
+                                    var pair = subnetPairs3[subnetNum];
+                                    var hostOctet = (nodeNum === pair[0]) ? 2 : 3;
+                                    var prefix = getSubnetPrefix(validSubnets[subnetNum - 1]);
+                                    if (prefix) {
+                                        nodeIps.push(getNodeName(nodeNum - 1) + ': ' + prefix + '.' + hostOctet);
+                                    }
+                                }
+                                if (nodeIps.length > 0) {
+                                    storageIpDetails.push('SMB' + smbIdx + ': ' + nodeIps.join(', '));
+                                }
+                            }
+                        } else if (nodeCount === 4) {
+                            // 4-node switchless dual-link: 6 SMB adapters, 12 subnets
+                            var subnetPairs4 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [1, 4], 6: [1, 4],
+                                                 7: [2, 3], 8: [2, 3], 9: [2, 4], 10: [2, 4], 11: [3, 4], 12: [3, 4] };
+                            var nodeToSubnetBySmb4 = { 1: [1, 2, 3, 4, 5, 6], 2: [1, 2, 7, 8, 9, 10], 
+                                                       3: [3, 4, 7, 8, 11, 12], 4: [5, 6, 9, 10, 11, 12] };
+                            
+                            for (var smbIdx = 1; smbIdx <= 6; smbIdx++) {
+                                var nodeIps = [];
+                                for (var nodeNum = 1; nodeNum <= 4; nodeNum++) {
+                                    var subnets = nodeToSubnetBySmb4[nodeNum];
+                                    var subnetNum = subnets[smbIdx - 1];
+                                    var pair = subnetPairs4[subnetNum];
+                                    var hostOctet = (nodeNum === pair[0]) ? 2 : 3;
+                                    var prefix = getSubnetPrefix(validSubnets[subnetNum - 1]);
+                                    if (prefix) {
+                                        nodeIps.push(getNodeName(nodeNum - 1) + ': ' + prefix + '.' + hostOctet);
+                                    }
+                                }
+                                if (nodeIps.length > 0) {
+                                    storageIpDetails.push('SMB' + smbIdx + ': ' + nodeIps.join(', '));
                                 }
                             }
                         }

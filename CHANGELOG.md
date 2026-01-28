@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.11] - 2026-01-28
+
+### Fixed
+
+#### Switchless Storage IPs by Adapter
+
+- **ARM Template Alignment** - Switchless storage adapter IPs now display grouped by SMB adapter name (SMB1, SMB2, SMB3, etc.) matching the exact structure used in ARM template generation.
+
+- **Node-to-IP Mapping** - Each adapter shows which node gets which IP address, consistent with the generated ARM parameters file.
+
+- **Full Node Count Support** - Proper subnet-to-adapter mapping for 2-node, 3-node, and 4-node switchless configurations with correct host octet assignment (.2 for lower node, .3 for higher node).
+
+---
+
 ## [0.10.10] - 2026-01-28
 
 ### Fixed
