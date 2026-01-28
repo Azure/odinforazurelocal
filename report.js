@@ -4172,6 +4172,25 @@
         if (s.storageAutoIp === 'enabled') {
             // Show default Network ATC subnets when Auto IP is enabled
             hostNetworkingRows += row('Storage Subnets', 'Default Network ATC (10.71.0.0/16)');
+            // Show default storage adapter IPs for each node when Auto IP is enabled
+            var nodeCount = parseInt(s.nodes, 10) || 0;
+            if (nodeCount > 0) {
+                var autoIpDetails = [];
+                // Network ATC assigns IPs from 10.71.x.0/24 subnets - SMB1 uses .1 subnet, SMB2 uses .2 subnet
+                for (var smbIdx = 1; smbIdx <= 2; smbIdx++) {
+                    var nodeAutoIps = [];
+                    for (var nIdx = 0; nIdx < nodeCount; nIdx++) {
+                        var nodeName = (Array.isArray(s.nodeSettings) && s.nodeSettings[nIdx] && s.nodeSettings[nIdx].name) 
+                            ? s.nodeSettings[nIdx].name : ('Node' + (nIdx + 1));
+                        // Network ATC uses 10.71.{smbIdx}.{nIdx+1} pattern
+                        nodeAutoIps.push(nodeName + ': 10.71.' + smbIdx + '.' + (nIdx + 1));
+                    }
+                    autoIpDetails.push('SMB' + smbIdx + ' (10.71.' + smbIdx + '.0/24) - ' + nodeAutoIps.join(', '));
+                }
+                if (autoIpDetails.length > 0) {
+                    hostNetworkingRows += row('Storage Adapter IPs', autoIpDetails.join('; '), true);
+                }
+            }
         } else if (s.storageAutoIp === 'disabled' && Array.isArray(s.customStorageSubnets) && s.customStorageSubnets.length > 0) {
             // Show custom storage subnets when Auto IP is disabled
             var validSubnets = s.customStorageSubnets.filter(function(subnet) { return subnet && String(subnet).trim(); });
@@ -4231,14 +4250,19 @@
         if (s.infraCidr) infraNetworkRows += row('Infra Network', s.infraCidr, true);
         if (s.infra && s.infra.start && s.infra.end) infraNetworkRows += row('Infra Range', s.infra.start + ' - ' + s.infra.end, true);
         if (s.infraGateway) infraNetworkRows += row('Default Gateway', s.infraGateway, true);
-        // Display node IP addresses for ARM template
+        // Display node IP addresses for ARM template (always shown when nodeSettings is populated)
         if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
             var nodeIpList = s.nodeSettings
-                .filter(function(n) { return n && n.name && n.ipCidr; })
-                .map(function(n) { 
-                    var ip = String(n.ipCidr).split('/')[0];
-                    return n.name + ': ' + ip; 
-                });
+                .map(function(n, idx) { 
+                    if (!n) return null;
+                    var nodeName = n.name ? String(n.name).trim() : ('Node' + (idx + 1));
+                    var ip = n.ipCidr ? String(n.ipCidr).split('/')[0] : null;
+                    if (ip) {
+                        return nodeName + ': ' + ip;
+                    }
+                    return null;
+                })
+                .filter(function(item) { return item !== null; });
             if (nodeIpList.length > 0) {
                 infraNetworkRows += row('Node IPs', nodeIpList.join(', '), true);
             }

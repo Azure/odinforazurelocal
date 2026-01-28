@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.8] - 2026-01-28
+
+### Fixed
+
+#### Storage Adapter IPs for Auto IP Enabled
+
+- **Storage Adapter IPs When Auto IP Enabled** - Configuration Report now displays default Network ATC storage adapter IP addresses when Storage Auto IP is enabled:
+  - SMB1 uses 10.71.1.0/24 subnet with node IPs starting at 10.71.1.1
+  - SMB2 uses 10.71.2.0/24 subnet with node IPs starting at 10.71.2.1
+  - Each node is assigned sequential IPs within each subnet
+
+- **Improved Node IP Display** - Made the node infrastructure IP display more robust with proper fallback to default node names when custom names are not set.
+
+- **Both Auto IP Scenarios Covered** - Storage adapter IPs now display for both Auto IP enabled (default Network ATC) and Auto IP disabled (custom subnets) configurations.
+
+---
+
 ## [0.10.7] - 2026-01-28
 
 ### Fixed
