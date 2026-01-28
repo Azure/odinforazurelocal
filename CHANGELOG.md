@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.6] - 2026-01-28
+
+### Fixed
+
+#### Storage Intent Subnet Display (Issue #9)
+
+- **Storage Subnets in Configuration Report** - The Configuration Report now displays storage intent subnet information in the Host Networking section:
+  - When Storage Auto IP is **enabled**: Shows "Default Network ATC (10.71.0.0/16)" to indicate the automatic subnet assignment
+  - When Storage Auto IP is **disabled**: Displays all user-defined custom storage subnets that were configured in the wizard
+
+- **Complete Storage Configuration Visibility** - Users can now see their complete storage network configuration in the generated report, including:
+  - Switched storage: 2 storage subnets
+  - Switchless 2-node: 2 storage subnets
+  - Switchless 3-node: 6 storage subnets
+  - Switchless 4-node: 12 storage subnets
+
+---
+
 ## [0.10.5] - 2026-01-28
 
 ### Fixed

@@ -4168,6 +4168,17 @@
         if (s.ports) hostNetworkingRows += row('Ports', s.ports, true);
         if (s.intent) hostNetworkingRows += row('Intent', formatIntent(s.intent));
         if (s.storageAutoIp) hostNetworkingRows += row('Storage Auto IP', s.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled');
+        // Display storage subnet information based on Auto IP setting
+        if (s.storageAutoIp === 'enabled') {
+            // Show default Network ATC subnets when Auto IP is enabled
+            hostNetworkingRows += row('Storage Subnets', 'Default Network ATC (10.71.0.0/16)');
+        } else if (s.storageAutoIp === 'disabled' && Array.isArray(s.customStorageSubnets) && s.customStorageSubnets.length > 0) {
+            // Show custom storage subnets when Auto IP is disabled
+            var validSubnets = s.customStorageSubnets.filter(function(subnet) { return subnet && String(subnet).trim(); });
+            if (validSubnets.length > 0) {
+                hostNetworkingRows += row('Storage Subnets', validSubnets.join(', '), true);
+            }
+        }
         if (s.storagePoolConfiguration) {
             var spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' : 
                           s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
