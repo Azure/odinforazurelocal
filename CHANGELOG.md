@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.7] - 2026-01-28
+
+### Fixed
+
+#### IP Address Display in Configuration Report (Issue #11)
+
+- **Node Infrastructure IPs** - The Configuration Report now displays each node's name and assigned IP address in the Infrastructure Network section. This provides visibility into the exact IPs that will be used in the ARM template deployment.
+
+- **Storage Adapter IPs** - When Storage Auto IP is disabled, the report now calculates and displays the storage adapter IP addresses for each node:
+  - Shows IPs per storage subnet (e.g., SMB1 and SMB2 for switched storage)
+  - Displays node name with corresponding IP address
+  - IPs are calculated using the same logic as ARM template generation (subnet prefix + node index + 2)
+
+- **ARM Template Alignment** - The Configuration Report now shows the exact IP addresses that will be populated in the ARM parameters file, helping users validate their network configuration before deployment.
+
+---
+
 ## [0.10.6] - 2026-01-28
 
 ### Fixed

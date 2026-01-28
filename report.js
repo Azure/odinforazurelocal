@@ -4177,6 +4177,33 @@
             var validSubnets = s.customStorageSubnets.filter(function(subnet) { return subnet && String(subnet).trim(); });
             if (validSubnets.length > 0) {
                 hostNetworkingRows += row('Storage Subnets', validSubnets.join(', '), true);
+                // Calculate and display storage adapter IPs for each node
+                var nodeCount = parseInt(s.nodes, 10) || 0;
+                if (nodeCount > 0 && s.storage === 'switched') {
+                    // For switched storage, show IPs from the first two subnets
+                    var storageIpDetails = [];
+                    for (var subnetIdx = 0; subnetIdx < Math.min(validSubnets.length, 2); subnetIdx++) {
+                        var cidr = String(validSubnets[subnetIdx]).trim();
+                        var cidrParts = cidr.split('/');
+                        if (cidrParts.length >= 1) {
+                            var ipParts = cidrParts[0].split('.');
+                            if (ipParts.length === 4) {
+                                var prefix = ipParts[0] + '.' + ipParts[1] + '.' + ipParts[2];
+                                var adapterName = 'SMB' + (subnetIdx + 1);
+                                var nodeIps = [];
+                                for (var nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
+                                    var nodeName = (Array.isArray(s.nodeSettings) && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name) 
+                                        ? s.nodeSettings[nodeIdx].name : ('Node' + (nodeIdx + 1));
+                                    nodeIps.push(nodeName + ': ' + prefix + '.' + (nodeIdx + 2));
+                                }
+                                storageIpDetails.push(adapterName + ' (' + cidr + ') - ' + nodeIps.join(', '));
+                            }
+                        }
+                    }
+                    if (storageIpDetails.length > 0) {
+                        hostNetworkingRows += row('Storage Adapter IPs', storageIpDetails.join('; '), true);
+                    }
+                }
             }
         }
         if (s.storagePoolConfiguration) {
@@ -4204,6 +4231,18 @@
         if (s.infraCidr) infraNetworkRows += row('Infra Network', s.infraCidr, true);
         if (s.infra && s.infra.start && s.infra.end) infraNetworkRows += row('Infra Range', s.infra.start + ' - ' + s.infra.end, true);
         if (s.infraGateway) infraNetworkRows += row('Default Gateway', s.infraGateway, true);
+        // Display node IP addresses for ARM template
+        if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
+            var nodeIpList = s.nodeSettings
+                .filter(function(n) { return n && n.name && n.ipCidr; })
+                .map(function(n) { 
+                    var ip = String(n.ipCidr).split('/')[0];
+                    return n.name + ': ' + ip; 
+                });
+            if (nodeIpList.length > 0) {
+                infraNetworkRows += row('Node IPs', nodeIpList.join(', '), true);
+            }
+        }
 
         // Step 15: Active Directory
         var activeDirectoryRows = '';
