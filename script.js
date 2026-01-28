@@ -8327,7 +8327,35 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.10.2 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.10.4 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 22, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Single-Node Storage Intent Support (Issue #100)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Storage Intent for Single-Node:</strong> Single-node (1-node) clusters can now configure storage intent with all options available.</li>
+                        <li><strong>All Intents Available:</strong> All Traffic, Mgmt + Compute, Compute + Storage, and Custom intents now work for single-node.</li>
+                        <li><strong>RDMA Requirements:</strong> Non-low-capacity requires 2 RDMA ports; Low Capacity keeps RDMA optional.</li>
+                        <li><strong>Updated Defaults:</strong> Non-low-capacity single-node now defaults to 10GbE with RoCEv2 RDMA enabled.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.3</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 20, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📝 Auto-Populate Storage Subnets (Issue #95)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Storage Subnet Auto-Fill:</strong> Entering the first storage subnet automatically populates remaining fields by incrementing the 3rd octet.</li>
+                        <li><strong>Smart Population:</strong> Only empty fields are auto-filled; existing values are preserved.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 20, 2025</div>
                 </div>
                 
