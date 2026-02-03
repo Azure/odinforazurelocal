@@ -3763,6 +3763,20 @@
                 }
             }
             
+            // Add Private Endpoint bypass entries if PE is enabled
+            if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
+                s.privateEndpointsList.forEach(function(peKey) {
+                    var info = PRIVATE_ENDPOINT_INFO[peKey];
+                    if (info && info.proxyBypass) {
+                        info.proxyBypass.forEach(function(bypass) {
+                            if (bypassItems.indexOf(bypass) === -1) {
+                                bypassItems.push(bypass);
+                            }
+                        });
+                    }
+                });
+            }
+            
             proxyBypassHtml = '<div style="margin-top: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">'
                 + '<strong style="color: var(--accent-blue);">Minimum Proxy Bypass String:</strong>'
                 + '<div style="margin-top: 0.5rem; font-family: monospace; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 4px; word-break: break-all;">'
