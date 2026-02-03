@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.10.11';
+const WIZARD_VERSION = '0.10.12';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -252,7 +252,9 @@ const state = {
         smbSigningEnforced: true,
         smbClusterEncryption: true
     },
-    rdmaGuardMessage: null
+    rdmaGuardMessage: null,
+    privateEndpoints: null, // 'pe_enabled' or 'pe_disabled'
+    privateEndpointsList: [] // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
 };
 
 // Auto-save state to localStorage
@@ -474,6 +476,7 @@ function computeWizardProgress() {
     add('Outbound Connectivity', Boolean(state.outbound));
     add('Arc Gateway', Boolean(state.arc));
     add('Proxy', Boolean(state.proxy));
+    add('Private Endpoints', Boolean(state.privateEndpoints));
     add('IP Assignment', Boolean(state.ip));
 
     // Node settings appear after nodes + IP selection.
@@ -556,6 +559,7 @@ const missingSectionToStep = {
     'Azure Arc Gateway': 'step-8',
     'Arc Gateway': 'step-8',
     'Proxy': 'step-9',
+    'Private Endpoints': 'step-9b',
     'IP Assignment': 'step-10',
     'Default Gateway': 'step-10',
     'Node Names/IPs': 'step-10',
@@ -689,6 +693,7 @@ function getReportReadiness() {
     if (!state.outbound) missing.push('Outbound Connectivity');
     if (!state.arc) missing.push('Azure Arc Gateway');
     if (!state.proxy) missing.push('Proxy');
+    if (!state.privateEndpoints) missing.push('Private Endpoints');
     if (!state.ip) missing.push('IP Assignment');
 
     // Static IP deployments require a default gateway.
@@ -2568,10 +2573,24 @@ function selectOption(category, value) {
         if (state.scenario === 'disconnected') {
             state.arc = 'no_arc';
         }
+        
+        // For private path (ExpressRoute), Arc Gateway and Proxy are REQUIRED
+        if (value === 'private') {
+            state.arc = 'arc_gateway';
+            state.proxy = 'proxy';
+        }
+        
+        // Update UI labels for Arc Gateway and Proxy based on outbound selection
+        updateConnectivityLabels(value);
     } else if (category === 'arc') {
-        state.proxy = null; state.ip = null; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
+        state.proxy = null; state.privateEndpoints = null; state.privateEndpointsList = []; state.ip = null; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
         state.nodeSettings = [];
     } else if (category === 'proxy') {
+        state.privateEndpoints = null; state.privateEndpointsList = []; state.ip = null; state.infra = null; state.infraCidr = null; state.infraCidrAuto = true; state.infraGateway = null; state.infraGatewayManual = false; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
+        state.nodeSettings = [];
+        // Reset PE checkboxes UI
+        document.querySelectorAll('input[name="pe-service"]').forEach(cb => cb.checked = false);
+    } else if (category === 'privateEndpoints') {
         state.ip = null; state.infra = null; state.infraCidr = null; state.infraCidrAuto = true; state.infraGateway = null; state.infraGatewayManual = false; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
         state.nodeSettings = [];
     } else if (category === 'ip') {
@@ -2688,6 +2707,30 @@ function selectOption(category, value) {
         }
     } else if (category === 'sdnManagement') {
         state.sdnManagement = value;
+    } else if (category === 'privateEndpoints') {
+        state.privateEndpoints = value;
+        // Reset the list when changing selection
+        state.privateEndpointsList = [];
+        // Show/hide the PE services selection
+        const peSelection = document.getElementById('private-endpoints-selection');
+        const peInfo = document.getElementById('private-endpoints-info');
+        if (peSelection) {
+            if (value === 'pe_enabled') {
+                peSelection.classList.remove('hidden');
+            } else {
+                peSelection.classList.add('hidden');
+                // Uncheck all PE checkboxes
+                document.querySelectorAll('input[name="pe-service"]').forEach(cb => cb.checked = false);
+            }
+        }
+        if (peInfo) {
+            if (value === 'pe_enabled') {
+                peInfo.classList.remove('hidden');
+            } else {
+                peInfo.classList.add('hidden');
+            }
+        }
+        updatePrivateEndpointsSelectionSummary();
     }
 
     updateUI();
@@ -3208,6 +3251,191 @@ function installClickDelegation() {
 
 installClickDelegation();
 
+// Toggle Private Endpoint checkbox and update styling
+function togglePeCheckbox(checkboxId) {
+    const checkbox = document.getElementById(checkboxId);
+    if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        updatePrivateEndpointsList();
+        // Update visual styling
+        const card = checkbox.closest('.pe-service-card');
+        if (card) {
+            if (checkbox.checked) {
+                card.style.borderColor = 'var(--accent-blue)';
+                card.style.background = 'rgba(59, 130, 246, 0.1)';
+            } else {
+                card.style.borderColor = 'var(--glass-border)';
+                card.style.background = 'rgba(255, 255, 255, 0.03)';
+            }
+        }
+    }
+}
+
+// Update Arc Gateway and Proxy labels based on outbound selection
+function updateConnectivityLabels(outboundValue) {
+    const isPrivatePath = outboundValue === 'private';
+    
+    // Update Arc Gateway card labels
+    const arcGatewayCard = document.querySelector('.option-card[data-value="arc_gateway"]');
+    if (arcGatewayCard) {
+        const h3 = arcGatewayCard.querySelector('h3');
+        const p = arcGatewayCard.querySelector('p');
+        const badge = arcGatewayCard.querySelector('.badge-recommended');
+        
+        if (isPrivatePath) {
+            if (h3) h3.textContent = 'Required';
+            if (p) p.textContent = 'Required for Private Path (ExpressRoute).';
+            // Change badge to Required
+            if (badge) {
+                badge.textContent = 'Required';
+                badge.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+            }
+        } else {
+            if (h3) h3.textContent = 'Enabled';
+            if (p) p.textContent = 'Arc Gateway Service.';
+            // Reset badge to Recommended
+            if (badge) {
+                badge.textContent = 'Recommended';
+                badge.style.background = '';
+            }
+        }
+    }
+    
+    // Update Arc Gateway Disabled card
+    const arcDisabledCard = document.querySelector('.option-card[data-value="no_arc"]');
+    if (arcDisabledCard) {
+        if (isPrivatePath) {
+            arcDisabledCard.classList.add('disabled');
+            arcDisabledCard.style.opacity = '0.5';
+            arcDisabledCard.style.pointerEvents = 'none';
+        } else {
+            arcDisabledCard.classList.remove('disabled');
+            arcDisabledCard.style.opacity = '';
+            arcDisabledCard.style.pointerEvents = '';
+        }
+    }
+    
+    // Update Proxy card labels
+    const proxyEnabledCard = document.getElementById('proxy-enabled-card');
+    if (proxyEnabledCard) {
+        const h3 = proxyEnabledCard.querySelector('h3');
+        const p = proxyEnabledCard.querySelector('p');
+        
+        if (isPrivatePath) {
+            if (h3) h3.textContent = 'Required';
+            if (p) p.textContent = 'Azure Firewall Explicit Proxy required for Private Path.';
+            // Add Required badge if not exists
+            let badge = proxyEnabledCard.querySelector('.badge-recommended');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'badge-recommended';
+                proxyEnabledCard.insertBefore(badge, proxyEnabledCard.firstChild);
+            }
+            badge.textContent = 'Required';
+            badge.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+        } else {
+            if (h3) h3.textContent = 'Enabled';
+            if (p) p.textContent = 'Traffic routed through proxy.';
+            // Remove badge if exists
+            const badge = proxyEnabledCard.querySelector('.badge-recommended');
+            if (badge) badge.remove();
+        }
+    }
+    
+    // Update Proxy Disabled card
+    const proxyDisabledCard = document.querySelector('#step-9 .option-card[data-value="no_proxy"]');
+    if (proxyDisabledCard) {
+        if (isPrivatePath) {
+            proxyDisabledCard.classList.add('disabled');
+            proxyDisabledCard.style.opacity = '0.5';
+            proxyDisabledCard.style.pointerEvents = 'none';
+        } else {
+            proxyDisabledCard.classList.remove('disabled');
+            proxyDisabledCard.style.opacity = '';
+            proxyDisabledCard.style.pointerEvents = '';
+        }
+    }
+}
+
+// Private Endpoints helper functions
+function updatePrivateEndpointsList() {
+    const checkboxes = document.querySelectorAll('input[name="pe-service"]:checked');
+    state.privateEndpointsList = Array.from(checkboxes).map(cb => cb.value);
+    updatePrivateEndpointsSelectionSummary();
+    saveStateToLocalStorage();
+    updateProgressUi();
+}
+
+function updatePrivateEndpointsSelectionSummary() {
+    const summary = document.getElementById('pe-selection-summary');
+    const countSpan = document.getElementById('pe-selection-count');
+    if (summary && countSpan) {
+        const count = state.privateEndpointsList ? state.privateEndpointsList.length : 0;
+        countSpan.textContent = count;
+        if (count > 0) {
+            summary.classList.remove('hidden');
+        } else {
+            summary.classList.add('hidden');
+        }
+    }
+}
+
+// Get display info for private endpoint services
+function getPrivateEndpointInfo(serviceKey) {
+    const peInfo = {
+        'keyvault': {
+            name: 'Azure Key Vault',
+            fqdn: 'vault.azure.net',
+            privateLink: 'privatelink.vaultcore.azure.net',
+            notes: 'Required for deployment. Keep public access enabled during initial deployment, then restrict.',
+            icon: '🔐'
+        },
+        'storage': {
+            name: 'Azure Storage (Blob)',
+            fqdn: 'blob.core.windows.net',
+            privateLink: 'privatelink.blob.core.windows.net',
+            notes: 'Required for 2-node deployments as cloud witness. Keep public access during deployment.',
+            icon: '💾'
+        },
+        'acr': {
+            name: 'Azure Container Registry',
+            fqdn: 'azurecr.io',
+            privateLink: 'privatelink.azurecr.io',
+            notes: 'Important: Wildcards (*.azurecr.io) are NOT supported. Use specific ACR FQDNs before deployment.',
+            icon: '📦'
+        },
+        'asr': {
+            name: 'Azure Site Recovery',
+            fqdn: 'siterecovery.windowsazure.com',
+            privateLink: 'privatelink.siterecovery.windowsazure.com',
+            notes: 'Not allowed via Arc Gateway. Add to proxy bypass list for direct traffic to private endpoint.',
+            icon: '🔄'
+        },
+        'backup': {
+            name: 'Recovery Services Vault',
+            fqdn: 'backup.windowsazure.com',
+            privateLink: 'privatelink.backup.windowsazure.com',
+            notes: 'Azure Backup private endpoints for VM backup and recovery.',
+            icon: '🗄️'
+        },
+        'sql': {
+            name: 'SQL Managed Instance',
+            fqdn: 'database.windows.net',
+            privateLink: 'privatelink.database.windows.net',
+            notes: 'Private connectivity for Azure SQL Managed Instance.',
+            icon: '🗃️'
+        },
+        'defender': {
+            name: 'Microsoft Defender for Cloud',
+            fqdn: 'Various security endpoints',
+            privateLink: 'Multiple Private Link endpoints',
+            notes: 'For advanced security monitoring scenarios.',
+            icon: '🛡️'
+        }
+    };
+    return peInfo[serviceKey] || null;
+}
+
 function updateUI() {
     const steps = [
         document.getElementById('step-cloud'),
@@ -3221,6 +3449,7 @@ function updateUI() {
         document.getElementById('step-7'),
         document.getElementById('step-8'),
         document.getElementById('step-9'),
+        document.getElementById('step-9b'),
         document.getElementById('step-10'),
         document.getElementById('step-11'),
         document.getElementById('step-12'),
@@ -3497,6 +3726,10 @@ function updateUI() {
         proxy: {
             'proxy': document.querySelector('[data-value="proxy"]'),
             'no_proxy': document.querySelector('[data-value="no_proxy"]')
+        },
+        privateEndpoints: {
+            'pe_enabled': document.querySelector('[data-value="pe_enabled"]'),
+            'pe_disabled': document.querySelector('[data-value="pe_disabled"]')
         },
         ip: {
             'static': document.querySelector('[data-value="static"]'),
@@ -3879,13 +4112,39 @@ function updateUI() {
         if (!state.arc) Object.values(cards.proxy).forEach(c => c.classList.add('disabled'));
     }
 
+    // Step 9 -> 9b (Private Endpoints)
+    if (!state.proxy) {
+        Object.values(cards.privateEndpoints).forEach(c => c && c.classList.add('disabled'));
+    } else {
+        Object.values(cards.privateEndpoints).forEach(c => c && c.classList.remove('disabled'));
+    }
+
+    // Show/hide Private Endpoints service selection based on state
+    const peSelection = document.getElementById('private-endpoints-selection');
+    const peInfo = document.getElementById('private-endpoints-info');
+    if (peSelection) {
+        if (state.privateEndpoints === 'pe_enabled') {
+            peSelection.classList.remove('hidden');
+        } else {
+            peSelection.classList.add('hidden');
+        }
+    }
+    if (peInfo) {
+        if (state.privateEndpoints === 'pe_enabled') {
+            peInfo.classList.remove('hidden');
+        } else {
+            peInfo.classList.add('hidden');
+        }
+    }
+
     // Azure Gov Constraint
     if (state.region === 'azure_government') {
         cards.arc['arc_gateway'].classList.add('disabled');
         if (state.arc === 'arc_gateway') state.arc = null;
     }
 
-    if (!state.proxy) Object.values(cards.ip).forEach(c => c.classList.add('disabled'));
+    // Step 9b -> Step 10 (IP): Depends on privateEndpoints selection
+    if (!state.privateEndpoints) Object.values(cards.ip).forEach(c => c.classList.add('disabled'));
 
     if (!state.ip) {
         Object.values(cards.infraVlan).forEach(c => {
@@ -8975,18 +9234,18 @@ function showComparison(category) {
             title: 'Outbound Connectivity Comparison',
             options: [
                 {
-                    name: 'Direct Internet',
-                    pros: ['Simple configuration', 'No proxy needed', 'Best performance', 'Easiest troubleshooting'],
-                    cons: ['Requires firewall rules', 'Direct exposure', 'Less control'],
-                    useCases: ['Standard deployments', 'No proxy infrastructure', 'Cloud-native environments'],
-                    recommended: 'When no proxy required'
+                    name: '🌐 Public Path',
+                    pros: ['Simpler initial setup', 'Lower cost (no ExpressRoute/VPN required)', 'Uses existing on-premises proxy/firewall infrastructure', 'Multiple configuration options (4 scenarios)'],
+                    cons: ['Requires public internet egress', 'Traffic routes through public endpoints', 'More firewall rules if not using Arc Gateway'],
+                    useCases: ['Standard deployments with reliable internet', 'Existing on-premises proxy/firewall infrastructure', 'Cost-sensitive environments', 'Public internet egress acceptable per security policy'],
+                    recommended: 'For most deployments with internet connectivity'
                 },
                 {
-                    name: 'Corporate Proxy',
-                    pros: ['Centralized control', 'Traffic inspection', 'Compliance friendly', 'Existing infrastructure'],
-                    cons: ['Proxy configuration needed', 'Bypass lists required', 'Potential latency', 'More complex troubleshooting'],
-                    useCases: ['Enterprise environments', 'Regulated industries', 'Existing proxy infrastructure'],
-                    recommended: 'For corporate deployments'
+                    name: '🔐 Private Path (ExpressRoute)',
+                    pros: ['Zero public internet exposure', 'Traffic stays on private network', 'Azure Firewall provides centralized security', 'Highest security posture', 'Compliance-friendly for regulated industries'],
+                    cons: ['Higher cost (ExpressRoute + Azure Firewall)', 'More complex initial setup', 'Requires Arc Gateway + Azure Firewall Explicit Proxy', 'ExpressRoute or Site-to-Site VPN required'],
+                    useCases: ['Zero public internet exposure required', 'Government, healthcare, financial industries', 'Existing ExpressRoute or Site-to-Site VPN', 'Regulatory/compliance requirements mandate private connectivity'],
+                    recommended: 'For high-security environments requiring no public internet'
                 }
             ]
         },
@@ -8995,17 +9254,17 @@ function showComparison(category) {
             options: [
                 {
                     name: 'Arc Gateway Enabled',
-                    pros: ['Reduced public endpoints', 'Enhanced security', 'Centralized management', 'Simplified firewall rules'],
-                    cons: ['Additional component', 'Slightly more complex', 'Requires Arc Gateway resource'],
-                    useCases: ['Security-focused', 'Limited internet egress', 'Multiple clusters'],
-                    recommended: 'For enhanced security'
+                    pros: ['Reduces firewall rules from hundreds to fewer than 30 endpoints', 'Enhanced security posture', 'Simpler firewall management', 'Required for Private Path (ExpressRoute)'],
+                    cons: ['Additional Arc Gateway resource required', 'Slightly more complex initial setup'],
+                    useCases: ['Security-focused deployments', 'Limited internet egress policies', 'Private Path (ExpressRoute) deployments', 'Simplified firewall rule management'],
+                    recommended: 'Recommended for all deployments'
                 },
                 {
                     name: 'Arc Gateway Disabled',
-                    pros: ['Simpler configuration', 'Direct Azure connection', 'One less component', 'Lower complexity'],
-                    cons: ['More public endpoints', 'More firewall rules needed', 'Less centralized'],
-                    useCases: ['Simple deployments', 'Unrestricted internet', 'Single clusters'],
-                    recommended: 'For standard deployments'
+                    pros: ['Simpler initial configuration', 'One less Azure resource to manage'],
+                    cons: ['Hundreds of firewall rules required', 'More endpoints to manage and troubleshoot', 'Not supported for Private Path (ExpressRoute)'],
+                    useCases: ['Simple deployments with unrestricted internet', 'Testing and development environments'],
+                    recommended: 'For simple deployments only'
                 }
             ]
         }

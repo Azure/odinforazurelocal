@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.12] - 2026-02-03
+
+### Added
+
+#### Outbound Connectivity Documentation Integration
+
+- **Outbound Connectivity Guide** - Integrated comprehensive outbound connectivity documentation into the wizard at `docs/outbound-connectivity/`. Includes detailed architecture comparisons for Public Path vs Private Path (ExpressRoute) scenarios.
+
+- **Private Endpoints Selection Step** - New wizard step allowing users to select which Azure services will use Private Link endpoints (Key Vault, Storage, ACR, ASR, Backup, SQL MI, Defender).
+
+- **Dynamic Connectivity Diagrams** - Configuration Report now displays the appropriate architecture diagram based on outbound path, Arc Gateway, and proxy selections (5 different scenarios supported).
+
+- **Download SVG Buttons** - Added download buttons below connectivity diagrams in the Configuration Report for easy export.
+
+### Changed
+
+#### ExpressRoute Auto-Selection
+
+- **Required Components for Private Path** - When users select "Private Path (ExpressRoute)", Arc Gateway and Proxy are now automatically enabled and marked as "Required" since both are mandatory for private connectivity.
+
+#### Private Endpoints Configuration Report
+
+- **Detailed PE Information** - Configuration Report now shows considerations and documentation links for each selected Private Endpoint service.
+
+- **Proxy Bypass Examples** - Updated to use specific FQDN placeholders (e.g., `<your-keyvault-name>.vault.azure.net`) instead of wildcards for accurate proxy bypass configuration.
+
+- **Conditional Bypass Display** - Proxy bypass information only shown when Arc Gateway OR Proxy is enabled (not shown for "No Proxy, No Arc Gateway" scenario).
+
+#### Updated Comparison Modals
+
+- **Outbound Connectivity Comparison** - Updated to accurately reflect Public Path (4 options) vs Private Path (ExpressRoute) with correct pros, cons, and use cases.
+
+- **Arc Gateway Comparison** - Updated to emphasize that Arc Gateway reduces firewall rules from hundreds to fewer than 30 endpoints.
+
+---
+
 ## [0.10.11] - 2026-01-28
 
 ### Fixed
