@@ -1058,9 +1058,14 @@
                     <div class="step-header">
                         <span class="step-number">10</span>
                         <h2>Arc Gateway</h2>
-                        <button type="button" onclick="event.stopPropagation(); showComparison('arc');" style="margin-left: auto; padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
-                            Compare Options
-                        </button>
+                        <div style="margin-left: auto; display: flex; gap: 8px;">
+                            <a href="docs/outbound-connectivity/index.html" target="_blank" rel="noopener noreferrer" style="padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--success); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                                📘 Connectivity Guide
+                            </a>
+                            <button type="button" onclick="event.stopPropagation(); showComparison('arc');" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
+                                Compare Options
+                            </button>
+                        </div>
                     </div>
                     <div class="options-grid">
                         <div class="option-card" data-value="arc_gateway" onclick="selectOption('arc', 'arc_gateway')">
@@ -1135,10 +1140,137 @@
                     </div>
                 </section>
 
+                <!-- Step 9b: Private Endpoints -->
+                <section class="step" id="step-9b">
+                    <div class="step-header">
+                        <span class="step-number">12</span>
+                        <h2>Private Endpoints</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        <a href="docs/outbound-connectivity/index.html#private-endpoints" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">
+                            📘 Learn about Private Endpoints in Azure Local
+                        </a>
+                    </p>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="pe_enabled" onclick="selectOption('privateEndpoints', 'pe_enabled')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.5" />
+                                    <path d="M9 12l2 2 4-4" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Enabled</h3>
+                            <p>Use Private Link for Azure services.</p>
+                        </div>
+                        <div class="option-card" data-value="pe_disabled" onclick="selectOption('privateEndpoints', 'pe_disabled')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5"></circle>
+                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-width="1.5"></line>
+                                </svg>
+                            </div>
+                            <h3>Disabled</h3>
+                            <p>No Private Endpoints.</p>
+                        </div>
+                    </div>
+
+                    <div id="private-endpoints-selection" class="hidden" style="margin-top: 1.5rem;">
+                        <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Select Azure Services for Private Endpoints</h4>
+                        <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">Choose which Azure services should use Private Link endpoints. These FQDNs will be added to your proxy bypass list.</p>
+                        
+                        <div class="private-endpoints-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+                            <!-- Key Vault -->
+                            <div class="pe-service-card" onclick="togglePeCheckbox('pe-keyvault')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
+                                <input type="checkbox" id="pe-keyvault" name="pe-service" value="keyvault" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <div style="pointer-events: none;">
+                                    <strong style="color: var(--text-primary);">🔐 Azure Key Vault</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>vault.azure.net</code></div>
+                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">⚠️ Keep public access during deployment</div>
+                                </div>
+                            </div>
+
+                            <!-- Storage Blob -->
+                            <div class="pe-service-card" onclick="togglePeCheckbox('pe-storage')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
+                                <input type="checkbox" id="pe-storage" name="pe-service" value="storage" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <div style="pointer-events: none;">
+                                    <strong style="color: var(--text-primary);">💾 Azure Storage (Blob)</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>blob.core.windows.net</code></div>
+                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">⚠️ Required for 2-node cloud witness</div>
+                                </div>
+                            </div>
+
+                            <!-- Azure Container Registry -->
+                            <div class="pe-service-card" onclick="togglePeCheckbox('pe-acr')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
+                                <input type="checkbox" id="pe-acr" name="pe-service" value="acr" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <div style="pointer-events: none;">
+                                    <strong style="color: var(--text-primary);">📦 Azure Container Registry</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>azurecr.io</code></div>
+                                    <div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px;">🚫 No wildcards - use specific ACR FQDNs</div>
+                                </div>
+                            </div>
+
+                            <!-- Azure Site Recovery -->
+                            <div class="pe-service-card" onclick="togglePeCheckbox('pe-asr')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
+                                <input type="checkbox" id="pe-asr" name="pe-service" value="asr" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <div style="pointer-events: none;">
+                                    <strong style="color: var(--text-primary);">🔄 Azure Site Recovery</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>siterecovery.windowsazure.com</code></div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Not allowed via Arc Gateway</div>
+                                </div>
+                            </div>
+
+                            <!-- Recovery Services Vault -->
+                            <div class="pe-service-card" onclick="togglePeCheckbox('pe-backup')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
+                                <input type="checkbox" id="pe-backup" name="pe-service" value="backup" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <div style="pointer-events: none;">
+                                    <strong style="color: var(--text-primary);">🗄️ Recovery Services Vault</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>backup.windowsazure.com</code></div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Azure Backup private endpoints</div>
+                                </div>
+                            </div>
+
+                            <!-- SQL Managed Instance -->
+                            <div class="pe-service-card" onclick="togglePeCheckbox('pe-sql')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
+                                <input type="checkbox" id="pe-sql" name="pe-service" value="sql" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <div style="pointer-events: none;">
+                                    <strong style="color: var(--text-primary);">🗃️ SQL Managed Instance</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>database.windows.net</code></div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Private connectivity for SQL MI</div>
+                                </div>
+                            </div>
+
+                            <!-- Microsoft Defender for Cloud -->
+                            <div class="pe-service-card" onclick="togglePeCheckbox('pe-defender')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
+                                <input type="checkbox" id="pe-defender" name="pe-service" value="defender" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <div style="pointer-events: none;">
+                                    <strong style="color: var(--text-primary);">🛡️ Microsoft Defender for Cloud</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Security monitoring endpoints</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">For advanced security scenarios</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="pe-selection-summary" class="hidden" style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
+                            <strong style="color: var(--success);">Selected Services:</strong>
+                            <span id="pe-selection-count">0</span> service(s) selected
+                        </div>
+                    </div>
+
+                    <div id="private-endpoints-info" class="info-box hidden" style="margin-top: 1.5rem;">
+                        <strong style="color: var(--accent-blue);">ℹ️ Private Endpoints Configuration</strong>
+                        <p style="margin-top: 0.5rem;">Private Endpoints (Private Link) work identically in both Public Path and Private Path architectures:</p>
+                        <ul style="margin: 0.5rem 0 0 1.5rem;">
+                            <li>Add Private Link endpoint FQDNs to the <strong>proxy bypass list</strong></li>
+                            <li>Configure DNS to resolve Private Link FQDNs to private IPs</li>
+                            <li>Traffic flows directly to Private Endpoints without going through proxy or Arc Gateway</li>
+                        </ul>
+                    </div>
+                </section>
+
                 <!-- Step 10: Management Connectivity -->
                 <section class="step" id="step-10">
                     <div class="step-header">
-                        <span class="step-number">12</span>
+                        <span class="step-number">13</span>
                         <h2>Management Connectivity</h2>
                     </div>
 
@@ -1187,7 +1319,7 @@
                 <!-- Step 11: Infrastructure VLAN -->
                 <section class="step" id="step-11">
                     <div class="step-header">
-                        <span class="step-number">13</span>
+                        <span class="step-number">14</span>
                         <h2>Infrastructure VLAN</h2>
                     </div>
                     <div class="options-grid" style="display:block;">
@@ -1231,7 +1363,7 @@
                 <!-- Step 12: Infrastructure Network -->
                 <section class="step" id="step-12">
                     <div class="step-header">
-                        <span class="step-number">14</span>
+                        <span class="step-number">15</span>
                         <h2>Infrastructure Network</h2>
                     </div>
                     <div class="options-grid" style="display:block;">
@@ -1303,7 +1435,7 @@
                 <!-- Step 5.5: Storage Pool Configuration -->
                 <section class="step" id="step-5-5">
                     <div class="step-header">
-                        <span class="step-number">15</span>
+                        <span class="step-number">16</span>
                         <h2>Storage Pool Configuration</h2>
                     </div>
                     <div class="options-grid">
@@ -1345,7 +1477,7 @@
                 <!-- Step 13: Active Directory -->
                 <section class="step" id="step-13">
                     <div class="step-header">
-                        <span class="step-number">16</span>
+                        <span class="step-number">17</span>
                         <h2>Active Directory</h2>
                     </div>
                     <div class="options-grid">
@@ -1479,7 +1611,7 @@
                 <!-- Step 13.5: Security Configuration -->
                 <section class="step" id="step-13-5">
                     <div class="step-header">
-                        <span class="step-number">17</span>
+                        <span class="step-number">18</span>
                         <h2>Security Configuration</h2>
                     </div>
                     
@@ -1603,7 +1735,7 @@
                 <!-- Step 14: Software Defined Networking -->
                 <section class="step" id="step-14">
                     <div class="step-header">
-                        <span class="step-number">18</span>
+                        <span class="step-number">19</span>
                         <h2>Software Defined Networking</h2>
                     </div>
 

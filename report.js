@@ -3,11 +3,168 @@
     window.downloadReportHtml = downloadReportHtml;
     window.downloadReportWord = downloadReportWord;
     window.downloadHostNetworkingDiagramSvg = downloadHostNetworkingDiagramSvg;
+    window.downloadOutboundConnectivityDiagramSvg = downloadOutboundConnectivityDiagramSvg;
     window.togglePrintFriendly = togglePrintFriendly;
 
     var CURRENT_REPORT_STATE = null;
     var ARC_GATEWAY_VM_DIAGRAM_URL = 'https://raw.githubusercontent.com/Azure/AzureLocal-Supportability/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/images/AzureLocalPublicPathFlowsFinal-1Node-Step6-VMFlows.dark.svg';
     var isPrintFriendly = false;
+
+    // Outbound connectivity diagram URLs - use local files from docs folder
+    var OUTBOUND_DIAGRAMS = {
+        // Public Path diagrams
+        'public_no_proxy_no_arc': '/docs/outbound-connectivity/images/public-path-no-proxy-no-arc-gateway.svg',
+        'public_proxy_no_arc': '/docs/outbound-connectivity/images/public-path-proxy-no-arc-gateway.svg',
+        'public_no_proxy_arc': '/docs/outbound-connectivity/images/public-path-no-proxy-with-arc-gateway.svg',
+        'public_proxy_arc': '/docs/outbound-connectivity/images/public-path-with-proxy-and-arc-gateway.svg',
+        // Private Path diagram
+        'private': '/docs/outbound-connectivity/images/private-path-explicit-proxy-and-arc-gateway.svg'
+    };
+
+    // Get the appropriate outbound diagram based on state
+    function getOutboundDiagramKey(s) {
+        if (!s) return null;
+        if (s.outbound === 'private') {
+            return 'private';
+        }
+        // Public path - determine based on arc and proxy settings
+        var hasArc = s.arc === 'arc_gateway';
+        var hasProxy = s.proxy === 'proxy';
+        if (hasArc && hasProxy) return 'public_proxy_arc';
+        if (hasArc && !hasProxy) return 'public_no_proxy_arc';
+        if (!hasArc && hasProxy) return 'public_proxy_no_arc';
+        return 'public_no_proxy_no_arc';
+    }
+
+    // Get diagram title based on configuration
+    function getOutboundDiagramTitle(s) {
+        if (!s) return 'Outbound Connectivity Architecture';
+        if (s.outbound === 'private') {
+            return 'Private Path: Azure Firewall Explicit Proxy + Arc Gateway';
+        }
+        var hasArc = s.arc === 'arc_gateway';
+        var hasProxy = s.proxy === 'proxy';
+        if (hasArc && hasProxy) return 'Public Path: Enterprise Proxy + Arc Gateway (Recommended)';
+        if (hasArc && !hasProxy) return 'Public Path: Arc Gateway (No Proxy)';
+        if (!hasArc && hasProxy) return 'Public Path: Enterprise Proxy (No Arc Gateway)';
+        return 'Public Path: Direct Connection (No Proxy, No Arc Gateway)';
+    }
+
+    // Private Endpoints information with detailed configuration
+    var PRIVATE_ENDPOINT_INFO = {
+        'keyvault': {
+            name: 'Azure Key Vault',
+            fqdn: 'vault.azure.net',
+            privateLink: 'privatelink.vaultcore.azure.net',
+            proxyBypass: ['<your-keyvault-name>.vault.azure.net', '<your-keyvault-name>.privatelink.vaultcore.azure.net'],
+            notes: 'Required for deployment. Keep public access enabled during initial deployment, then restrict.',
+            considerations: [
+                'Key Vault is used to store deployment secrets and certificates',
+                'Public access is required during initial deployment for cloud deployment',
+                'After deployment, you can restrict to private endpoint only',
+                'Ensure DNS resolves privatelink.vaultcore.azure.net to your private endpoint IP',
+                'Replace <your-keyvault-name> with your actual Key Vault name'
+            ],
+            docUrl: 'https://learn.microsoft.com/azure/key-vault/general/private-link-service',
+            icon: '🔐'
+        },
+        'storage': {
+            name: 'Azure Storage (Blob)',
+            fqdn: 'blob.core.windows.net',
+            privateLink: 'privatelink.blob.core.windows.net',
+            proxyBypass: ['<your-storage-account>.blob.core.windows.net', '<your-storage-account>.privatelink.blob.core.windows.net'],
+            notes: 'Required for 2-node deployments as cloud witness. Keep public access during deployment.',
+            considerations: [
+                'Required for 2-node clusters using cloud witness for quorum',
+                'Used for diagnostic logs and update packages',
+                'Replace <your-storage-account> with your actual storage account name',
+                'Add table/queue endpoints if needed: <your-storage-account>.table.core.windows.net',
+                'Public access may be required during initial deployment'
+            ],
+            docUrl: 'https://learn.microsoft.com/azure/storage/common/storage-private-endpoints',
+            icon: '💾'
+        },
+        'acr': {
+            name: 'Azure Container Registry',
+            fqdn: 'azurecr.io',
+            privateLink: 'privatelink.azurecr.io',
+            proxyBypass: ['<your-acr-name>.azurecr.io', '<your-acr-name>.privatelink.azurecr.io'],
+            notes: 'Important: Wildcards (*.azurecr.io) are NOT supported. Use specific ACR FQDNs.',
+            considerations: [
+                'CRITICAL: Wildcard entries (*.azurecr.io) are NOT supported for proxy bypass',
+                'You must specify the exact FQDN of your Azure Container Registry',
+                'Example: myregistry.azurecr.io (replace with your actual ACR name)',
+                'Required for pulling container images for AKS and Arc services',
+                'Data endpoint may also need bypass: <your-acr-name>.<region>.data.azurecr.io'
+            ],
+            docUrl: 'https://learn.microsoft.com/azure/container-registry/container-registry-private-link',
+            icon: '📦'
+        },
+        'asr': {
+            name: 'Azure Site Recovery',
+            fqdn: 'siterecovery.windowsazure.com',
+            privateLink: 'privatelink.siterecovery.windowsazure.com',
+            proxyBypass: ['<your-vault-name>.<region>.siterecovery.windowsazure.com', '<your-vault-name>.privatelink.siterecovery.windowsazure.com'],
+            notes: 'Not allowed via Arc Gateway. Traffic must go directly to private endpoint.',
+            considerations: [
+                'Azure Site Recovery traffic cannot route through Arc Gateway',
+                'Must be added to proxy bypass list for direct connectivity',
+                'Requires separate private endpoints for cache storage account',
+                'Replace <your-vault-name> with your Recovery Services vault name',
+                'Replace <region> with your Azure region (e.g., eastus, westeurope)'
+            ],
+            docUrl: 'https://learn.microsoft.com/azure/site-recovery/azure-to-azure-how-to-enable-replication-private-endpoints',
+            icon: '🔄'
+        },
+        'backup': {
+            name: 'Recovery Services Vault',
+            fqdn: 'backup.windowsazure.com',
+            privateLink: 'privatelink.backup.windowsazure.com',
+            proxyBypass: ['<your-vault-name>.<region>.backup.windowsazure.com', '<your-vault-name>.privatelink.backup.windowsazure.com'],
+            notes: 'Azure Backup private endpoints for VM backup and recovery.',
+            considerations: [
+                'Requires private endpoint for Recovery Services vault',
+                'Backup data stored in Azure Storage also needs private endpoint',
+                'Replace <your-vault-name> with your Recovery Services vault name',
+                'Replace <region> with your Azure region',
+                'Mars agent communication uses these endpoints'
+            ],
+            docUrl: 'https://learn.microsoft.com/azure/backup/private-endpoints',
+            icon: '🗄️'
+        },
+        'sql': {
+            name: 'SQL Managed Instance',
+            fqdn: 'database.windows.net',
+            privateLink: 'privatelink.database.windows.net',
+            proxyBypass: ['<your-sql-server>.database.windows.net', '<your-sql-server>.privatelink.database.windows.net'],
+            notes: 'Private connectivity for Azure SQL Managed Instance.',
+            considerations: [
+                'SQL MI requires specific private endpoint configuration',
+                'Redirect connection policy may require additional ports (11000-11999)',
+                'Consider using Proxy connection policy for simplified networking',
+                'Replace <your-sql-server> with your SQL server or MI name',
+                'DNS resolution must point to private endpoint IP'
+            ],
+            docUrl: 'https://learn.microsoft.com/azure/azure-sql/managed-instance/private-endpoint-overview',
+            icon: '🗃️'
+        },
+        'defender': {
+            name: 'Microsoft Defender for Cloud',
+            fqdn: 'Various security endpoints',
+            privateLink: 'Multiple Private Link endpoints',
+            proxyBypass: ['<your-workspace-id>.ods.opinsights.azure.com', '<your-workspace-id>.oms.opinsights.azure.com'],
+            notes: 'For advanced security monitoring scenarios.',
+            considerations: [
+                'Defender for Cloud uses Azure Monitor private link scope (AMPLS)',
+                'Includes Log Analytics workspace endpoints',
+                'Replace <your-workspace-id> with your Log Analytics workspace ID',
+                'May require multiple private endpoints for full functionality',
+                'Consider Azure Monitor Private Link Scope for consolidated management'
+            ],
+            docUrl: 'https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security',
+            icon: '🛡️'
+        }
+    };
 
     function togglePrintFriendly() {
         isPrintFriendly = !isPrintFriendly;
@@ -655,11 +812,17 @@
 
             // Convert diagrams (SVG) to embedded PNG images for Word.
             var prefetch = Promise.resolve();
-            // If Arc Gateway diagram hasn't loaded yet, fetch into the export clone so it appears in Word.
-            if (CURRENT_REPORT_STATE && CURRENT_REPORT_STATE.arc === 'arc_gateway') {
-                var arcHost = clone.querySelector('#arc-gateway-vm-diagram');
-                if (arcHost && !arcHost.querySelector('svg')) {
-                    prefetch = ensureArcGatewayVmDiagramInContainer(arcHost);
+            // If outbound diagram hasn't loaded yet, fetch into the export clone so it appears in Word.
+            var diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
+            if (diagKey && OUTBOUND_DIAGRAMS[diagKey]) {
+                var diagramHost = clone.querySelector('#outbound-connectivity-diagram');
+                if (diagramHost && !diagramHost.querySelector('svg')) {
+                    var diagramUrl = OUTBOUND_DIAGRAMS[diagKey];
+                    prefetch = fetch(diagramUrl)
+                        .then(function(resp) { return resp.text(); })
+                        .then(function(svg) {
+                            diagramHost.innerHTML = svg;
+                        });
                 }
             }
 
@@ -848,6 +1011,101 @@
             setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
         } catch (e) {
             // ignore
+        }
+    }
+
+    function downloadOutboundConnectivityDiagramSvg(variant) {
+        try {
+            var theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
+            var diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
+            if (!diagKey || !OUTBOUND_DIAGRAMS[diagKey]) return;
+
+            // Determine the correct SVG URL based on theme
+            var basePath = OUTBOUND_DIAGRAMS[diagKey];
+            // The SVGs are dark by default, for light we'd need to apply transformations
+            var svgUrl = basePath;
+
+            fetch(svgUrl)
+                .then(function(resp) { return resp.text(); })
+                .then(function(svgText) {
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(svgText, 'image/svg+xml');
+                    var svg = doc.querySelector('svg');
+                    if (!svg) return;
+
+                    var clone = svg.cloneNode(true);
+                    if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+                    var exportBg = theme === 'light' ? '#ffffff' : '#000000';
+
+                    // For light theme, we need to invert some colors
+                    if (theme === 'light') {
+                        // Add a style to invert dark backgrounds to light
+                        var defs = clone.querySelector('defs');
+                        if (!defs) {
+                            defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                            clone.insertBefore(defs, clone.firstChild);
+                        }
+                        var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                        styleEl.textContent = 'svg { background-color: #ffffff; }';
+                        defs.appendChild(styleEl);
+                    }
+
+                    // Add a background rect
+                    var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('fill', exportBg);
+                    var vb = (clone.getAttribute('viewBox') || '').trim();
+                    if (vb) {
+                        var parts = vb.split(/\s+/).map(function (p) { return parseFloat(p); });
+                        if (parts.length === 4 && parts.every(function (n) { return Number.isFinite(n); })) {
+                            rect.setAttribute('x', String(parts[0]));
+                            rect.setAttribute('y', String(parts[1]));
+                            rect.setAttribute('width', String(parts[2]));
+                            rect.setAttribute('height', String(parts[3]));
+                        } else {
+                            rect.setAttribute('x', '0');
+                            rect.setAttribute('y', '0');
+                            rect.setAttribute('width', '100%');
+                            rect.setAttribute('height', '100%');
+                        }
+                    } else {
+                        rect.setAttribute('x', '0');
+                        rect.setAttribute('y', '0');
+                        rect.setAttribute('width', '100%');
+                        rect.setAttribute('height', '100%');
+                    }
+                    clone.insertBefore(rect, clone.firstChild);
+
+                    var serializer = new XMLSerializer();
+                    var finalSvgText = serializer.serializeToString(clone);
+                    if (finalSvgText.indexOf('<?xml') !== 0) {
+                        finalSvgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + finalSvgText;
+                    }
+
+                    var blob = new Blob([finalSvgText], { type: 'image/svg+xml;charset=utf-8' });
+                    var url = URL.createObjectURL(blob);
+
+                    var ts = new Date();
+                    var pad2 = function (n) { return String(n).padStart(2, '0'); };
+                    var fileName = 'outbound-connectivity-' + theme + '-'
+                        + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
+                        + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
+                        + '.svg';
+
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+
+                    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                })
+                .catch(function(err) {
+                    console.warn('Failed to download outbound diagram:', err);
+                });
+        } catch (e) {
+            console.warn('Error in downloadOutboundConnectivityDiagramSvg:', e);
         }
     }
 
@@ -3514,12 +3772,120 @@
                 + '</div>';
         }
 
-        sections.push(block('Outbound, Arc, Proxy',
+        // Generate outbound connectivity diagram HTML
+        var outboundDiagramHtml = '';
+        var diagramKey = getOutboundDiagramKey(s);
+        if (diagramKey && OUTBOUND_DIAGRAMS[diagramKey]) {
+            var diagramUrl = OUTBOUND_DIAGRAMS[diagramKey];
+            var diagramTitle = getOutboundDiagramTitle(s);
+            outboundDiagramHtml = '<div style="margin-top: 1.5rem;">'
+                + '<h4 style="margin-bottom: 0.75rem; color: var(--text-primary);">' + escapeHtml(diagramTitle) + '</h4>'
+                + '<div class="switchless-diagram" style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 1rem; background: rgba(0,0,0,0.2);">'
+                + '<img src="' + escapeHtml(diagramUrl) + '" alt="' + escapeHtml(diagramTitle) + '" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\';">'
+                + '<div style="display: none; padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available. <a href="docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue);">View Connectivity Guide</a></div>'
+                + '</div>'
+                + '<p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); text-align: center;">'
+                + '<a href="docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
+                + '</p>'
+                + '</div>';
+        }
+
+        // Generate Private Endpoints section HTML
+        var privateEndpointsHtml = '';
+        if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
+            var peItems = '';
+            s.privateEndpointsList.forEach(function(peKey) {
+                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                if (info) {
+                    peItems += '<div style="padding: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; margin-bottom: 0.5rem;">'
+                        + '<div style="display: flex; align-items: flex-start; gap: 0.75rem;">'
+                        + '<span style="font-size: 1.2rem;">' + info.icon + '</span>'
+                        + '<div style="flex: 1;">'
+                        + '<strong style="color: var(--text-primary);">' + escapeHtml(info.name) + '</strong>'
+                        + '<div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;"><code>' + escapeHtml(info.fqdn) + '</code></div>'
+                        + '<div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">Private Link: <code>' + escapeHtml(info.privateLink) + '</code></div>'
+                        + '<div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">' + escapeHtml(info.notes) + '</div>';
+                    
+                    // Add considerations if available
+                    if (info.considerations && info.considerations.length > 0) {
+                        peItems += '<div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.15); border-radius: 4px;">'
+                            + '<strong style="font-size: 0.8rem; color: var(--accent-blue);">Considerations:</strong>'
+                            + '<ul style="margin: 0.25rem 0 0 1rem; padding: 0; font-size: 0.8rem; color: var(--text-secondary);">';
+                        info.considerations.forEach(function(consideration) {
+                            peItems += '<li>' + escapeHtml(consideration) + '</li>';
+                        });
+                        peItems += '</ul></div>';
+                    }
+                    
+                    // Add proxy bypass examples if available (when Arc Gateway is enabled OR proxy is enabled)
+                    var showBypassInfo = s.arc === 'arc_gateway' || s.proxy === 'proxy';
+                    if (showBypassInfo && info.proxyBypass && info.proxyBypass.length > 0) {
+                        peItems += '<div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 4px;">'
+                            + '<strong style="font-size: 0.8rem; color: var(--accent-blue);">Proxy Bypass Examples:</strong>'
+                            + '<div style="font-family: monospace; font-size: 0.8rem; margin-top: 0.25rem; word-break: break-all;">' + escapeHtml(info.proxyBypass.join(', ')) + '</div>'
+                            + '</div>';
+                    }
+                    
+                    // Add documentation link if available
+                    if (info.docUrl) {
+                        peItems += '<div style="margin-top: 0.5rem;">'
+                            + '<a href="' + escapeHtml(info.docUrl) + '" target="_blank" style="font-size: 0.8rem; color: var(--accent-blue); text-decoration: none;">📚 View documentation ↗</a>'
+                            + '</div>';
+                    }
+                    
+                    peItems += '</div>'
+                        + '</div>'
+                        + '</div>';
+                }
+            });
+            
+            // Generate PE bypass additions with actual proxy bypass examples
+            var peBypassItems = [];
+            s.privateEndpointsList.forEach(function(peKey) {
+                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                if (info && info.proxyBypass) {
+                    info.proxyBypass.forEach(function(bypass) {
+                        if (peBypassItems.indexOf(bypass) === -1) {
+                            peBypassItems.push(bypass);
+                        }
+                    });
+                } else if (info && info.privateLink) {
+                    peBypassItems.push('*.' + info.privateLink);
+                }
+            });
+            
+            // Show bypass info when Arc Gateway is enabled OR proxy is enabled
+            var showBypassSection = s.arc === 'arc_gateway' || s.proxy === 'proxy';
+            var peDescription = showBypassSection 
+                ? 'The following Azure services will use Private Link endpoints. Add these FQDNs to your proxy bypass list and configure DNS to resolve them to private IPs.'
+                : 'The following Azure services will use Private Link endpoints. Configure DNS to resolve them to private IPs.';
+            
+            privateEndpointsHtml = '<div style="margin-top: 1.5rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">'
+                + '<h4 style="margin: 0 0 1rem 0; color: var(--success);">🔒 Private Endpoints Configuration</h4>'
+                + '<p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">' + peDescription + '</p>'
+                + peItems
+                + (showBypassSection && peBypassItems.length > 0 ? (
+                    '<div style="margin-top: 1rem; padding: 0.75rem; background: rgba(0,0,0,0.2); border-radius: 6px;">'
+                    + '<strong style="color: var(--accent-blue); font-size: 0.9rem;">Add to Proxy Bypass List:</strong>'
+                    + '<div style="font-family: monospace; font-size: 0.85rem; margin-top: 0.5rem; word-break: break-all;">' + escapeHtml(peBypassItems.join(',')) + '</div>'
+                    + '</div>'
+                ) : '')
+                + '</div>';
+        } else if (s.privateEndpoints === 'pe_disabled') {
+            privateEndpointsHtml = '<div style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 6px;">'
+                + '<strong>Private Endpoints:</strong> <span style="color: var(--text-secondary);">Not configured</span>'
+                + '</div>';
+        }
+
+        sections.push(block('Outbound, Arc, Proxy & Private Endpoints',
             '<strong>Outbound:</strong> ' + escapeHtml(formatOutbound(s.outbound))
             + '<br><strong>Arc Gateway:</strong> ' + escapeHtml(s.arc === 'arc_gateway' ? 'Enabled (Recommended)' : (s.arc === 'no_arc' ? 'Disabled' : '-'))
             + '<br><strong>Proxy:</strong> ' + escapeHtml(s.proxy === 'no_proxy' ? 'Disabled' : (s.proxy ? 'Enabled' : '-'))
+            + '<br><strong>Private Endpoints:</strong> ' + escapeHtml(s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-'))
             + (outboundNotes.length ? list(outboundNotes) : '')
             + proxyBypassHtml
+            + outboundDiagramHtml
+            + privateEndpointsHtml
             + renderValidationInline(validations.byArea.Outbound)
         ));
 
@@ -4293,12 +4659,36 @@
         // Step 09–11: Connectivity
         var connectivityRows = '';
         if (s.outbound) connectivityRows += row('Outbound', formatOutbound(s.outbound));
-        if (s.arc) connectivityRows += row('Arc Gateway', s.arc === 'arc_gateway' ? 'Enabled' : 'Disabled');
-        if (s.proxy) connectivityRows += row('Proxy', s.proxy === 'no_proxy' ? 'Disabled' : 'Enabled');
+        if (s.arc) {
+            var arcText = s.arc === 'arc_gateway' ? (s.outbound === 'private' ? 'Required' : 'Enabled') : 'Disabled';
+            connectivityRows += row('Arc Gateway', arcText);
+        }
+        if (s.proxy) {
+            var proxyText = s.proxy === 'no_proxy' ? 'Disabled' : (s.outbound === 'private' ? 'Required (Azure Firewall Explicit Proxy)' : 'Enabled');
+            connectivityRows += row('Proxy', proxyText);
+        }
+        if (s.privateEndpoints) connectivityRows += row('Private Endpoints', s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled');
+        
+        // Generate connectivity diagram based on outbound/arc/proxy selection
         var connectivityExtra = '';
-        if (s.arc === 'arc_gateway') {
-            // Placeholder; actual SVG is fetched and injected after render.
-            connectivityExtra = '<div id="arc-gateway-vm-diagram" style="margin-top:0.75rem;"></div>';
+        var diagramKey = getOutboundDiagramKey(s);
+        if (diagramKey && OUTBOUND_DIAGRAMS[diagramKey]) {
+            var diagramUrl = OUTBOUND_DIAGRAMS[diagramKey];
+            var diagramTitle = getOutboundDiagramTitle(s);
+            connectivityExtra = '<div id="outbound-connectivity-diagram" style="margin-top:1.5rem;">'
+                + '<h4 style="margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">' + escapeHtml(diagramTitle) + '</h4>'
+                + '<div style="border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; background: rgba(0,0,0,0.15);">'
+                + '<img id="outbound-diagram-img" src="' + escapeHtml(diagramUrl) + '" alt="' + escapeHtml(diagramTitle) + '" style="width: 100%; height: auto; display: block; margin: 0 auto;" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\';">'
+                + '<div style="display: none; padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available</div>'
+                + '</div>'
+                + '<div class="no-print" style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">'
+                + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'light\')">Download SVG (Light)</button>'
+                + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'dark\')">Download SVG (Dark)</button>'
+                + '</div>'
+                + '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
+                + '<a href="/docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
+                + '</p>'
+                + '</div>';
         }
 
         // Step 12–14: Infrastructure Network
@@ -4411,13 +4801,8 @@
             sumEl.innerHTML = renderSummaryCards(s);
         }
 
-        // Inject the official Arc Gateway VM traffic diagram (Scenario 6) if applicable.
-        if (s && s.arc === 'arc_gateway') {
-            var arcHost = document.getElementById('arc-gateway-vm-diagram');
-            if (arcHost) {
-                ensureArcGatewayVmDiagramInContainer(arcHost);
-            }
-        }
+        // Note: The outbound connectivity diagram is loaded via <img> tag in renderSummaryCards,
+        // so no additional fetch is needed here.
 
         if (valEl) {
             var validations = computeValidations(s);
