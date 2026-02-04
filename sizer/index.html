@@ -9,314 +9,14 @@
     <meta name="referrer" content="no-referrer">
     <meta name="description" content="ODIN Sizer - Azure Local Instance Sizing Tool">
     <meta name="keywords" content="Azure Local, Azure Stack HCI, Cluster Sizing, Capacity Planning, Odin">
-    <title>ODIN Sizer - Coming Soon</title>
+    <title>ODIN Sizer - Azure Local Sizing Tool</title>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-dark: #000000;
-            --card-bg: #111111;
-            --card-bg-transparent: rgba(17, 17, 17, 0.95);
-            --text-primary: #ffffff;
-            --text-secondary: #a1a1aa;
-            --accent-blue: #0078d4;
-            --accent-purple: #8b5cf6;
-            --success: #10b981;
-            --glass-border: rgba(255, 255, 255, 0.1);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background-color: var(--bg-dark);
-            color: var(--text-primary);
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            line-height: 1.6;
-            min-height: 100vh;
-            padding-top: 56px;
-        }
-
-        /* Tab Navigation */
-        .odin-tab-nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--glass-border);
-            padding: 0 24px;
-        }
-
-        .odin-tab-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            height: 56px;
-        }
-
-        .odin-tab-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding-right: 24px;
-            border-right: 1px solid var(--glass-border);
-            margin-right: 16px;
-            text-decoration: none;
-        }
-
-        .odin-tab-logo img {
-            width: 32px;
-            height: 32px;
-        }
-
-        .odin-tab-logo span {
-            font-weight: 600;
-            font-size: 16px;
-            color: var(--text-primary);
-        }
-
-        .odin-tab-btn {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            position: relative;
-            text-decoration: none;
-        }
-
-        .odin-tab-btn:hover {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-primary);
-        }
-
-        .odin-tab-btn.active {
-            background: rgba(0, 120, 212, 0.15);
-            color: var(--accent-blue);
-        }
-
-        .odin-tab-btn.active::after {
-            content: '';
-            position: absolute;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 40px;
-            height: 3px;
-            background: var(--accent-blue);
-            border-radius: 3px 3px 0 0;
-        }
-
-        .odin-tab-btn svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .odin-tab-badge {
-            padding: 2px 8px;
-            background: rgba(139, 92, 246, 0.2);
-            color: var(--accent-purple);
-            font-size: 10px;
-            font-weight: 600;
-            border-radius: 10px;
-            text-transform: uppercase;
-        }
-
-        /* Main Content */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem;
-        }
-
-        /* Coming Soon Section */
-        .coming-soon {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 70vh;
-            text-align: center;
-            padding: 48px 24px;
-        }
-
-        .coming-soon-icon {
-            width: 120px;
-            height: 120px;
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(0, 120, 212, 0.15));
-            border: 2px solid rgba(139, 92, 246, 0.3);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 32px;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.8; }
-        }
-
-        .coming-soon-icon svg {
-            width: 60px;
-            height: 60px;
-            color: var(--accent-purple);
-        }
-
-        .coming-soon h1 {
-            font-size: 42px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .coming-soon .subtitle {
-            font-size: 20px;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            max-width: 600px;
-        }
-
-        .coming-soon .description {
-            color: var(--text-secondary);
-            font-size: 16px;
-            max-width: 700px;
-            line-height: 1.8;
-            margin-bottom: 40px;
-        }
-
-        .feature-preview {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 24px;
-            max-width: 900px;
-            margin-top: 20px;
-        }
-
-        .feature-card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 24px;
-            text-align: left;
-            transition: all 0.2s ease;
-        }
-
-        .feature-card:hover {
-            border-color: rgba(139, 92, 246, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .feature-card h3 {
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .feature-card p {
-            font-size: 14px;
-            color: var(--text-secondary);
-            line-height: 1.6;
-        }
-
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 40px;
-            padding: 12px 24px;
-            background: rgba(0, 120, 212, 0.1);
-            border: 1px solid rgba(0, 120, 212, 0.3);
-            border-radius: 8px;
-            color: var(--accent-blue);
-            text-decoration: none;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .back-link:hover {
-            background: rgba(0, 120, 212, 0.2);
-            transform: translateY(-2px);
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .odin-tab-nav {
-                padding: 0 12px;
-            }
-            
-            .odin-tab-container {
-                height: 48px;
-                gap: 4px;
-            }
-            
-            .odin-tab-logo {
-                padding-right: 12px;
-                margin-right: 8px;
-            }
-            
-            .odin-tab-logo span {
-                display: none;
-            }
-            
-            .odin-tab-btn {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-            
-            .odin-tab-btn svg {
-                width: 16px;
-                height: 16px;
-            }
-            
-            .odin-tab-badge {
-                display: none;
-            }
-
-            body {
-                padding-top: 48px;
-            }
-
-            .coming-soon h1 {
-                font-size: 28px;
-            }
-
-            .coming-soon .subtitle {
-                font-size: 16px;
-            }
-
-            .feature-preview {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="sizer.css">
 </head>
 <body>
     <!-- Tab Navigation -->
@@ -348,56 +48,312 @@
                     <path d="M8 17v-3"/>
                 </svg>
                 Sizer
-                <span class="odin-tab-badge">Coming Soon</span>
+                <span class="odin-tab-badge">Preview</span>
             </a>
         </div>
     </nav>
 
     <main class="container">
-        <div class="coming-soon">
-            <div class="coming-soon-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M3 3v18h18"/>
-                    <path d="M18 17V9"/>
-                    <path d="M13 17V5"/>
-                    <path d="M8 17v-3"/>
-                </svg>
+        <!-- Header -->
+        <header class="sizer-header">
+            <div class="header-content">
+                <h1>ODIN Sizer</h1>
+                <p class="subtitle">Azure Local Instance Sizing Tool</p>
             </div>
-            
-            <h1>ODIN Sizer</h1>
-            <p class="subtitle">Azure Local Cluster Sizing Tool</p>
-            
-            <p class="description">
-                The ODIN Sizer is currently under development. This powerful tool will help you calculate 
-                optimal Azure Local cluster configurations based on your workload requirements, ensuring 
-                you get the right balance of compute, storage, and memory for your deployments.
-            </p>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="resetScenario()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                    Reset
+                </button>
+            </div>
+        </header>
 
-            <div class="feature-preview">
-                <div class="feature-card">
-                    <h3>📊 Workload Analysis</h3>
-                    <p>Input your VM requirements, storage needs, and performance targets to get accurate sizing recommendations.</p>
+        <!-- Info Banner -->
+        <div class="info-banner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+            <div>
+                <strong>Preview Release</strong> - This tool helps you estimate Azure Local cluster requirements based on workload scenarios. 
+                Results are estimates and should be validated with your hardware vendor.
+            </div>
+        </div>
+
+        <div class="sizer-layout">
+            <!-- Left Panel: Workload Configuration -->
+            <div class="config-panel">
+                <!-- Cluster Configuration - FIRST -->
+                <div class="panel-section cluster-config">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/>
+                        </svg>
+                        Cluster Configuration
+                    </h2>
+                    <p class="section-desc">Configure your cluster topology and storage settings first.</p>
+                    
+                    <div class="config-row">
+                        <label for="node-count">Number of Nodes</label>
+                        <select id="node-count" onchange="onNodeCountChange()">
+                            <option value="1">1 Node (Single)</option>
+                            <option value="2">2 Nodes</option>
+                            <option value="3" selected>3 Nodes</option>
+                            <option value="4">4 Nodes</option>
+                            <option value="5">5 Nodes</option>
+                            <option value="6">6 Nodes</option>
+                            <option value="7">7 Nodes</option>
+                            <option value="8">8 Nodes</option>
+                            <option value="12">12 Nodes</option>
+                            <option value="16">16 Nodes</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label for="rack-aware">Cluster Type</label>
+                        <select id="rack-aware" onchange="onClusterTypeChange()">
+                            <option value="false" selected>Standard Cluster</option>
+                            <option value="true">Rack-Aware Cluster</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label for="resiliency">Storage Resiliency</label>
+                        <select id="resiliency" onchange="onResiliencyChange()">
+                            <option value="2way">Two-way Mirror (min 2 nodes)</option>
+                            <option value="3way" selected>Three-way Mirror (min 3 nodes)</option>
+                            <option value="parity">Dual Parity (min 4 nodes)</option>
+                        </select>
+                    </div>
+                    <div class="config-info" id="cluster-info">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                        <span id="cluster-info-text">3-way mirror requires minimum 3 fault domains. N+1 capacity reserved for maintenance.</span>
+                    </div>
                 </div>
-                <div class="feature-card">
-                    <h3>⚡ Capacity Planning</h3>
-                    <p>Plan for growth with projections that account for resiliency overhead, maintenance capacity, and future expansion.</p>
+
+                <div class="panel-section">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        </svg>
+                        Workload Scenario
+                    </h2>
+                    <p class="section-desc">Add workloads to calculate your Azure Local cluster requirements.</p>
                 </div>
-                <div class="feature-card">
-                    <h3>🔧 Hardware Recommendations</h3>
-                    <p>Get specific hardware configurations including CPU, memory, and storage tiers based on your workload profile.</p>
+
+                <!-- Workload Type Selector -->
+                <div class="workload-types">
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('vm')">
+                        <div class="workload-icon vm">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <path d="M8 21h8M12 17v4"/>
+                            </svg>
+                        </div>
+                        <span>Azure Local VMs</span>
+                    </button>
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('aks')">
+                        <div class="workload-icon aks">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                                <path d="M2 17l10 5 10-5"/>
+                                <path d="M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <span>AKS Arc Clusters</span>
+                    </button>
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('avd')">
+                        <div class="workload-icon avd">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                                <path d="M6 21h12"/>
+                                <path d="M9 17v4M15 17v4"/>
+                            </svg>
+                        </div>
+                        <span>Azure Virtual Desktop</span>
+                    </button>
+                </div>
+
+                <!-- Workloads List -->
+                <div class="workloads-list" id="workloads-list">
+                    <div class="empty-state" id="empty-state">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <path d="M12 22V12M3.27 6.96L12 12l8.73-5.04"/>
+                        </svg>
+                        <p>No workloads added yet</p>
+                        <span>Click a workload type above to get started</span>
+                    </div>
                 </div>
             </div>
 
-            <a href="../index.html" class="back-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
-                Return to Designer
-            </a>
+            <!-- Right Panel: Results -->
+            <div class="results-panel">
+                <div class="panel-section">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 3v18h18"/>
+                            <path d="M18 17V9"/>
+                            <path d="M13 17V5"/>
+                            <path d="M8 17v-3"/>
+                        </svg>
+                        Requirements Summary
+                    </h2>
+                </div>
+
+                <!-- Total Requirements -->
+                <div class="requirements-grid">
+                    <div class="requirement-card">
+                        <div class="req-icon cpu">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="4" width="16" height="16" rx="2"/>
+                                <rect x="9" y="9" width="6" height="6"/>
+                                <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>
+                            </svg>
+                        </div>
+                        <div class="req-content">
+                            <span class="req-label">Total vCPUs</span>
+                            <span class="req-value" id="total-vcpus">0</span>
+                        </div>
+                    </div>
+                    <div class="requirement-card">
+                        <div class="req-icon memory">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M6 19v-3M10 19v-3M14 19v-3M18 19v-3M6 8V5M10 8V5M14 8V5M18 8V5"/>
+                                <rect x="3" y="8" width="18" height="8" rx="1"/>
+                            </svg>
+                        </div>
+                        <div class="req-content">
+                            <span class="req-label">Total Memory</span>
+                            <span class="req-value" id="total-memory">0 GB</span>
+                        </div>
+                    </div>
+                    <div class="requirement-card">
+                        <div class="req-icon storage">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                            </svg>
+                        </div>
+                        <div class="req-content">
+                            <span class="req-label">Total Storage</span>
+                            <span class="req-value" id="total-storage">0 TB</span>
+                        </div>
+                    </div>
+                    <div class="requirement-card">
+                        <div class="req-icon workloads">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            </svg>
+                        </div>
+                        <div class="req-content">
+                            <span class="req-label">Total Workloads</span>
+                            <span class="req-value" id="total-workloads">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Per-Node Requirements -->
+                <div class="per-node-section">
+                    <h3>Per-Node Requirements (with N+1)</h3>
+                    <div class="per-node-grid">
+                        <div class="per-node-item">
+                            <span class="label">Physical Cores</span>
+                            <span class="value" id="per-node-cores">0</span>
+                        </div>
+                        <div class="per-node-item">
+                            <span class="label">Memory</span>
+                            <span class="value" id="per-node-memory">0 GB</span>
+                        </div>
+                        <div class="per-node-item">
+                            <span class="label">Raw Storage</span>
+                            <span class="value" id="per-node-storage">0 TB</span>
+                        </div>
+                        <div class="per-node-item">
+                            <span class="label">Usable Storage</span>
+                            <span class="value" id="per-node-usable">0 TB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Capacity Breakdown -->
+                <div class="capacity-breakdown">
+                    <h3>Capacity Breakdown</h3>
+                    <div class="breakdown-bars">
+                        <div class="breakdown-item">
+                            <div class="breakdown-header">
+                                <span>Compute (vCPUs)</span>
+                                <span id="compute-percent">0%</span>
+                            </div>
+                            <div class="breakdown-bar">
+                                <div class="breakdown-fill compute" id="compute-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="breakdown-legend">
+                                <span id="compute-used">0</span> / <span id="compute-total">0</span> vCPUs
+                            </div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="breakdown-header">
+                                <span>Memory</span>
+                                <span id="memory-percent">0%</span>
+                            </div>
+                            <div class="breakdown-bar">
+                                <div class="breakdown-fill memory" id="memory-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="breakdown-legend">
+                                <span id="memory-used">0</span> / <span id="memory-total">0</span> GB
+                            </div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="breakdown-header">
+                                <span>Storage</span>
+                                <span id="storage-percent">0%</span>
+                            </div>
+                            <div class="breakdown-bar">
+                                <div class="breakdown-fill storage" id="storage-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="breakdown-legend">
+                                <span id="storage-used">0</span> / <span id="storage-total">0</span> TB
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="notes-section">
+                    <h3>Sizing Notes</h3>
+                    <ul id="sizing-notes">
+                        <li>Add workloads to see sizing recommendations</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </main>
 
+    <!-- Add Workload Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal" id="add-workload-modal">
+        <div class="modal-header">
+            <h3 id="modal-title">Add Workload</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+            <!-- Content populated by JavaScript -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="addWorkload()">Add Workload</button>
+        </div>
+    </div>
+
     <!-- Analytics -->
     <script src="../analytics.js"></script>
+    <script src="sizer.js"></script>
 </body>
 </html>

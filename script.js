@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.11.0';
+const WIZARD_VERSION = '0.12.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -8630,7 +8630,24 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.11.0 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.12.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 4, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📐 ODIN Sizer Tool</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Workload Scenario Sizing:</strong> Calculate Azure Local cluster hardware requirements based on workload scenarios.</li>
+                        <li><strong>Azure Local VMs:</strong> Size VM workloads with vCPUs, memory, storage, and count.</li>
+                        <li><strong>AKS Arc Clusters:</strong> Configure Kubernetes clusters with control plane and worker nodes.</li>
+                        <li><strong>Azure Virtual Desktop:</strong> Size AVD with Light, Medium, and Power user profiles.</li>
+                        <li><strong>N+1 Capacity:</strong> Automatic maintenance capacity reservation for single node failure.</li>
+                        <li><strong>Storage Resiliency:</strong> Support for 2-way mirror, 3-way mirror, and dual parity.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.11.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 4, 2026</div>
                 </div>
                 
