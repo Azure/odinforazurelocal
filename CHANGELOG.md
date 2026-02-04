@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.1] - 2026-02-04
+
+### Added
+
+#### Arc Private Link Endpoint Visibility (Issue #29)
+
+- **Arc Private Link Unsupported Notice** - Added Arc Private Link Endpoint to the Private Endpoints selection list as a disabled, non-selectable option with clear "Not supported for Azure Local" messaging. This helps users understand that Arc Private Link is not a valid option for Azure Local deployments.
+
+- **Visual Distinction** - The unsupported option uses a red background styling to clearly differentiate it from selectable options.
+
+### Fixed
+
+- **Azure Container Registry Warning Style** - Updated the ACR warning note to use consistent warning styling (yellow/orange) matching Key Vault and other warning messages.
+
+---
+
 ## [0.12.0] - 2026-02-04
 
 ### Added
