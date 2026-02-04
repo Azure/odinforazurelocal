@@ -1,0 +1,538 @@
+// ============================================
+// ODIN Sizer - JavaScript
+// ============================================
+
+// Workload scenarios storage
+let workloads = [];
+let workloadIdCounter = 0;
+
+// Default workload configurations
+const WORKLOAD_DEFAULTS = {
+    vm: {
+        name: 'Azure Local VMs',
+        vcpus: 4,
+        memory: 16,
+        storage: 100,
+        count: 10
+    },
+    aks: {
+        name: 'AKS Arc Cluster',
+        controlPlaneNodes: 3,
+        controlPlaneVcpus: 4,
+        controlPlaneMemory: 8,
+        workerNodes: 3,
+        workerVcpus: 8,
+        workerMemory: 16,
+        workerStorage: 200,
+        clusterCount: 1
+    },
+    avd: {
+        name: 'Azure Virtual Desktop',
+        profile: 'medium', // light, medium, power
+        userCount: 50
+    }
+};
+
+// AVD Profile specifications
+const AVD_PROFILES = {
+    light: {
+        name: 'Light',
+        description: 'Task workers (basic apps, web browsing)',
+        vcpusPerUser: 0.5,
+        memoryPerUser: 2,
+        storagePerUser: 20
+    },
+    medium: {
+        name: 'Medium',
+        description: 'Knowledge workers (Office, email, multi-tasking)',
+        vcpusPerUser: 1,
+        memoryPerUser: 4,
+        storagePerUser: 40
+    },
+    power: {
+        name: 'Power',
+        description: 'Power users (development, data analysis)',
+        vcpusPerUser: 2,
+        memoryPerUser: 8,
+        storagePerUser: 80
+    }
+};
+
+// Storage resiliency multipliers
+const RESILIENCY_MULTIPLIERS = {
+    '2way': 2,      // Two-way mirror = 2x raw storage
+    '3way': 3,      // Three-way mirror = 3x raw storage
+    'parity': 1.5   // Dual parity ≈ 1.5x raw storage
+};
+
+// Current modal state
+let currentModalType = null;
+
+// Show add workload modal
+function showAddWorkloadModal(type) {
+    currentModalType = type;
+    const modal = document.getElementById('add-workload-modal');
+    const overlay = document.getElementById('modal-overlay');
+    const title = document.getElementById('modal-title');
+    const body = document.getElementById('modal-body');
+    
+    // Set title
+    switch (type) {
+        case 'vm':
+            title.textContent = 'Add Azure Local VMs';
+            body.innerHTML = getVMModalContent();
+            break;
+        case 'aks':
+            title.textContent = 'Add AKS Arc Cluster';
+            body.innerHTML = getAKSModalContent();
+            break;
+        case 'avd':
+            title.textContent = 'Add Azure Virtual Desktop';
+            body.innerHTML = getAVDModalContent();
+            break;
+    }
+    
+    modal.classList.add('active');
+    overlay.classList.add('active');
+}
+
+// Close modal
+function closeModal() {
+    const modal = document.getElementById('add-workload-modal');
+    const overlay = document.getElementById('modal-overlay');
+    modal.classList.remove('active');
+    overlay.classList.remove('active');
+    currentModalType = null;
+}
+
+// Get VM modal content
+function getVMModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.vm;
+    return `
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production VMs">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>vCPUs per VM</label>
+                <input type="number" id="vm-vcpus" value="${defaults.vcpus}" min="1" max="128">
+            </div>
+            <div class="form-group">
+                <label>Memory per VM (GB)</label>
+                <input type="number" id="vm-memory" value="${defaults.memory}" min="1" max="1024">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Storage per VM (GB)</label>
+                <input type="number" id="vm-storage" value="${defaults.storage}" min="1" max="64000">
+                <span class="hint">Total disk capacity including OS</span>
+            </div>
+            <div class="form-group">
+                <label>Number of VMs</label>
+                <input type="number" id="vm-count" value="${defaults.count}" min="1" max="10000">
+            </div>
+        </div>
+    `;
+}
+
+// Get AKS modal content
+function getAKSModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.aks;
+    return `
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production AKS">
+        </div>
+        <div class="form-group">
+            <label>Number of Clusters</label>
+            <input type="number" id="aks-cluster-count" value="${defaults.clusterCount}" min="1" max="100">
+        </div>
+        <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">Control Plane Nodes (per cluster)</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Node Count</label>
+                <select id="aks-cp-nodes">
+                    <option value="1">1 (Non-HA)</option>
+                    <option value="3" selected>3 (HA)</option>
+                    <option value="5">5 (Large)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>vCPUs per Node</label>
+                <input type="number" id="aks-cp-vcpus" value="${defaults.controlPlaneVcpus}" min="2" max="32">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Memory per Node (GB)</label>
+            <input type="number" id="aks-cp-memory" value="${defaults.controlPlaneMemory}" min="4" max="128">
+        </div>
+        <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">Worker Nodes (per cluster)</h4>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Node Count</label>
+                <input type="number" id="aks-worker-nodes" value="${defaults.workerNodes}" min="1" max="500">
+            </div>
+            <div class="form-group">
+                <label>vCPUs per Node</label>
+                <input type="number" id="aks-worker-vcpus" value="${defaults.workerVcpus}" min="2" max="64">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Memory per Node (GB)</label>
+                <input type="number" id="aks-worker-memory" value="${defaults.workerMemory}" min="4" max="256">
+            </div>
+            <div class="form-group">
+                <label>Storage per Node (GB)</label>
+                <input type="number" id="aks-worker-storage" value="${defaults.workerStorage}" min="50" max="4000">
+            </div>
+        </div>
+    `;
+}
+
+// Get AVD modal content
+function getAVDModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.avd;
+    return `
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Corporate AVD">
+        </div>
+        <div class="form-group">
+            <label>User Profile</label>
+            <select id="avd-profile" onchange="updateAVDDescription()">
+                <option value="light">Light - Task Workers</option>
+                <option value="medium" selected>Medium - Knowledge Workers</option>
+                <option value="power">Power - Power Users</option>
+            </select>
+            <span class="hint" id="avd-profile-desc">${AVD_PROFILES.medium.description}</span>
+        </div>
+        <div class="form-group">
+            <label>Number of Users</label>
+            <input type="number" id="avd-users" value="${defaults.userCount}" min="1" max="10000">
+        </div>
+        <div style="margin-top: 16px; padding: 16px; background: var(--subtle-bg); border-radius: 8px;">
+            <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Profile Specifications</h4>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px;">
+                <div>
+                    <span style="color: var(--text-secondary);">vCPUs/User:</span>
+                    <span id="avd-spec-vcpus">${AVD_PROFILES.medium.vcpusPerUser}</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Memory/User:</span>
+                    <span id="avd-spec-memory">${AVD_PROFILES.medium.memoryPerUser} GB</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Storage/User:</span>
+                    <span id="avd-spec-storage">${AVD_PROFILES.medium.storagePerUser} GB</span>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Update AVD description when profile changes
+function updateAVDDescription() {
+    const profile = document.getElementById('avd-profile').value;
+    const profileData = AVD_PROFILES[profile];
+    document.getElementById('avd-profile-desc').textContent = profileData.description;
+    document.getElementById('avd-spec-vcpus').textContent = profileData.vcpusPerUser;
+    document.getElementById('avd-spec-memory').textContent = profileData.memoryPerUser + ' GB';
+    document.getElementById('avd-spec-storage').textContent = profileData.storagePerUser + ' GB';
+}
+
+// Add workload
+function addWorkload() {
+    if (!currentModalType) return;
+    
+    const name = document.getElementById('workload-name').value;
+    let workload = {
+        id: ++workloadIdCounter,
+        type: currentModalType,
+        name: name
+    };
+    
+    switch (currentModalType) {
+        case 'vm':
+            workload.vcpus = parseInt(document.getElementById('vm-vcpus').value) || 4;
+            workload.memory = parseInt(document.getElementById('vm-memory').value) || 16;
+            workload.storage = parseInt(document.getElementById('vm-storage').value) || 100;
+            workload.count = parseInt(document.getElementById('vm-count').value) || 1;
+            break;
+        case 'aks':
+            workload.clusterCount = parseInt(document.getElementById('aks-cluster-count').value) || 1;
+            workload.controlPlaneNodes = parseInt(document.getElementById('aks-cp-nodes').value) || 3;
+            workload.controlPlaneVcpus = parseInt(document.getElementById('aks-cp-vcpus').value) || 4;
+            workload.controlPlaneMemory = parseInt(document.getElementById('aks-cp-memory').value) || 8;
+            workload.workerNodes = parseInt(document.getElementById('aks-worker-nodes').value) || 3;
+            workload.workerVcpus = parseInt(document.getElementById('aks-worker-vcpus').value) || 8;
+            workload.workerMemory = parseInt(document.getElementById('aks-worker-memory').value) || 16;
+            workload.workerStorage = parseInt(document.getElementById('aks-worker-storage').value) || 200;
+            break;
+        case 'avd':
+            workload.profile = document.getElementById('avd-profile').value;
+            workload.userCount = parseInt(document.getElementById('avd-users').value) || 50;
+            break;
+    }
+    
+    workloads.push(workload);
+    closeModal();
+    renderWorkloads();
+    calculateRequirements();
+}
+
+// Delete workload
+function deleteWorkload(id) {
+    workloads = workloads.filter(w => w.id !== id);
+    renderWorkloads();
+    calculateRequirements();
+}
+
+// Render workloads list
+function renderWorkloads() {
+    const container = document.getElementById('workloads-list');
+    const emptyState = document.getElementById('empty-state');
+    
+    if (workloads.length === 0) {
+        container.innerHTML = '';
+        container.appendChild(emptyState);
+        emptyState.style.display = 'flex';
+        return;
+    }
+    
+    let html = '';
+    workloads.forEach(w => {
+        const iconClass = w.type;
+        const details = getWorkloadDetails(w);
+        html += `
+            <div class="workload-card">
+                <div class="workload-icon ${iconClass}">
+                    ${getWorkloadIcon(w.type)}
+                </div>
+                <div class="workload-card-content">
+                    <div class="workload-card-title">
+                        ${w.name}
+                        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(w.type)}</span>
+                    </div>
+                    <div class="workload-card-details">${details}</div>
+                </div>
+                <div class="workload-card-actions">
+                    <button class="delete" onclick="deleteWorkload(${w.id})" title="Delete">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Get workload icon SVG
+function getWorkloadIcon(type) {
+    switch (type) {
+        case 'vm':
+            return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>';
+        case 'aks':
+            return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>';
+        case 'avd':
+            return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M6 21h12"/><path d="M9 17v4M15 17v4"/></svg>';
+        default:
+            return '';
+    }
+}
+
+// Get workload type name
+function getWorkloadTypeName(type) {
+    switch (type) {
+        case 'vm': return 'VMs';
+        case 'aks': return 'AKS Arc';
+        case 'avd': return 'AVD';
+        default: return '';
+    }
+}
+
+// Get workload details string
+function getWorkloadDetails(w) {
+    switch (w.type) {
+        case 'vm':
+            return `${w.count} VMs × ${w.vcpus} vCPUs, ${w.memory} GB RAM, ${w.storage} GB storage`;
+        case 'aks':
+            const totalNodes = (w.controlPlaneNodes + w.workerNodes) * w.clusterCount;
+            return `${w.clusterCount} cluster(s) × ${totalNodes / w.clusterCount} nodes each`;
+        case 'avd':
+            const profile = AVD_PROFILES[w.profile];
+            return `${w.userCount} ${profile.name} users`;
+        default:
+            return '';
+    }
+}
+
+// Calculate workload requirements
+function calculateWorkloadRequirements(w) {
+    let vcpus = 0, memory = 0, storage = 0;
+    
+    switch (w.type) {
+        case 'vm':
+            vcpus = w.vcpus * w.count;
+            memory = w.memory * w.count;
+            storage = w.storage * w.count;
+            break;
+        case 'aks':
+            // Control plane requirements per cluster
+            const cpVcpus = w.controlPlaneNodes * w.controlPlaneVcpus;
+            const cpMemory = w.controlPlaneNodes * w.controlPlaneMemory;
+            const cpStorage = w.controlPlaneNodes * 100; // ~100GB per CP node
+            
+            // Worker requirements per cluster
+            const workerVcpus = w.workerNodes * w.workerVcpus;
+            const workerMemory = w.workerNodes * w.workerMemory;
+            const workerStorage = w.workerNodes * w.workerStorage;
+            
+            // Total for all clusters
+            vcpus = (cpVcpus + workerVcpus) * w.clusterCount;
+            memory = (cpMemory + workerMemory) * w.clusterCount;
+            storage = (cpStorage + workerStorage) * w.clusterCount;
+            break;
+        case 'avd':
+            const profile = AVD_PROFILES[w.profile];
+            vcpus = Math.ceil(profile.vcpusPerUser * w.userCount);
+            memory = profile.memoryPerUser * w.userCount;
+            storage = profile.storagePerUser * w.userCount;
+            break;
+    }
+    
+    return { vcpus, memory, storage };
+}
+
+// Calculate all requirements
+function calculateRequirements() {
+    // Sum all workload requirements
+    let totalVcpus = 0, totalMemory = 0, totalStorage = 0;
+    
+    workloads.forEach(w => {
+        const reqs = calculateWorkloadRequirements(w);
+        totalVcpus += reqs.vcpus;
+        totalMemory += reqs.memory;
+        totalStorage += reqs.storage;
+    });
+    
+    // Get cluster settings
+    const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
+    const resiliency = document.getElementById('resiliency').value;
+    const resiliencyMultiplier = RESILIENCY_MULTIPLIERS[resiliency];
+    
+    // Calculate per-node requirements (with N+1 capacity)
+    // N+1 means we need to size for nodeCount-1 nodes worth of capacity
+    const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
+    
+    // vCPU to physical core ratio (typically 4:1 to 8:1)
+    const vcpuToCore = 4;
+    
+    const perNodeCores = Math.ceil(totalVcpus / effectiveNodes / vcpuToCore);
+    const perNodeMemory = Math.ceil(totalMemory / effectiveNodes);
+    const perNodeStorageRaw = (totalStorage / 1000) * resiliencyMultiplier / nodeCount; // Convert to TB
+    const perNodeUsable = totalStorage / 1000 / effectiveNodes; // Usable storage per node
+    
+    // Update UI
+    document.getElementById('total-vcpus').textContent = totalVcpus;
+    document.getElementById('total-memory').textContent = totalMemory + ' GB';
+    document.getElementById('total-storage').textContent = (totalStorage / 1000).toFixed(2) + ' TB';
+    document.getElementById('total-workloads').textContent = workloads.length;
+    
+    document.getElementById('per-node-cores').textContent = perNodeCores || 0;
+    document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
+    document.getElementById('per-node-storage').textContent = perNodeStorageRaw.toFixed(2) + ' TB';
+    document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
+    
+    // Update capacity breakdown (assuming recommended capacity)
+    const recommendedVcpusPerNode = 64; // Example: 32 cores with HT
+    const recommendedMemoryPerNode = 512; // GB
+    const recommendedStoragePerNode = 10; // TB raw
+    
+    const totalAvailableVcpus = recommendedVcpusPerNode * effectiveNodes * vcpuToCore;
+    const totalAvailableMemory = recommendedMemoryPerNode * effectiveNodes;
+    const totalAvailableStorage = (recommendedStoragePerNode * nodeCount) / resiliencyMultiplier;
+    
+    const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
+    const memoryPercent = Math.min(100, Math.round((totalMemory / totalAvailableMemory) * 100)) || 0;
+    const storagePercent = Math.min(100, Math.round(((totalStorage / 1000) / totalAvailableStorage) * 100)) || 0;
+    
+    document.getElementById('compute-percent').textContent = computePercent + '%';
+    document.getElementById('compute-fill').style.width = computePercent + '%';
+    document.getElementById('compute-used').textContent = totalVcpus;
+    document.getElementById('compute-total').textContent = totalAvailableVcpus;
+    
+    document.getElementById('memory-percent').textContent = memoryPercent + '%';
+    document.getElementById('memory-fill').style.width = memoryPercent + '%';
+    document.getElementById('memory-used').textContent = totalMemory;
+    document.getElementById('memory-total').textContent = totalAvailableMemory;
+    
+    document.getElementById('storage-percent').textContent = storagePercent + '%';
+    document.getElementById('storage-fill').style.width = storagePercent + '%';
+    document.getElementById('storage-used').textContent = (totalStorage / 1000).toFixed(1);
+    document.getElementById('storage-total').textContent = totalAvailableStorage.toFixed(1);
+    
+    // Update sizing notes
+    updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency);
+}
+
+// Update sizing notes
+function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency) {
+    const notes = [];
+    
+    if (workloads.length === 0) {
+        notes.push('Add workloads to see sizing recommendations');
+    } else {
+        // N+1 note
+        if (nodeCount > 1) {
+            notes.push(`N+1 capacity: Requirements calculated assuming ${nodeCount - 1} nodes available during maintenance`);
+        } else {
+            notes.push('Single node deployment: No maintenance capacity available');
+        }
+        
+        // Resiliency note
+        const resiliencyNames = {
+            '2way': 'Two-way mirror (2x raw storage)',
+            '3way': 'Three-way mirror (3x raw storage)',
+            'parity': 'Dual parity (~1.5x raw storage)'
+        };
+        notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
+        
+        // Memory recommendation
+        if (totalMemory > 0) {
+            const memPerNode = Math.ceil(totalMemory / (nodeCount > 1 ? nodeCount - 1 : 1));
+            if (memPerNode > 768) {
+                notes.push('⚠️ High memory per node: Consider larger servers (>768 GB requires 400GB+ OS drive)');
+            }
+        }
+        
+        // vCPU to core ratio
+        notes.push('vCPU calculations assume 4:1 overcommit ratio');
+        
+        // Minimum requirements
+        notes.push('Minimum per node: 32 GB RAM, 4 cores (Azure Local requirements)');
+    }
+    
+    const notesList = document.getElementById('sizing-notes');
+    notesList.innerHTML = notes.map(n => `<li>${n}</li>`).join('');
+}
+
+// Reset scenario
+function resetScenario() {
+    workloads = [];
+    workloadIdCounter = 0;
+    document.getElementById('node-count').value = '3';
+    document.getElementById('resiliency').value = '3way';
+    renderWorkloads();
+    calculateRequirements();
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    calculateRequirements();
+});

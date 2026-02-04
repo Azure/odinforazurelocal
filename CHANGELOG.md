@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.0] - 2026-02-04
+
+### Added
+
+#### ODIN Sizer Tool (Issue #27)
+
+- **Comprehensive Workload Scenario Sizing** - New dedicated Sizer tool at `/sizer/index.html` for calculating Azure Local cluster hardware requirements based on workload scenarios.
+
+- **Workload Scenario Concept** - Create scenarios with multiple workloads to model your infrastructure needs. Each scenario calculates total and per-node requirements.
+
+- **Azure Local VMs Workload** - Add virtual machine workloads with configurable vCPUs, memory, storage, and VM count. Supports both general-purpose and specialized VM configurations.
+
+- **AKS Arc Clusters Workload** - Size Kubernetes clusters with control plane and worker node specifications. Supports multiple clusters per scenario with HA or non-HA control plane options.
+
+- **Azure Virtual Desktop Workload** - AVD workload sizing with three user profiles:
+  - Light: Task workers (0.5 vCPU, 2 GB RAM, 20 GB storage per user)
+  - Medium: Knowledge workers (1 vCPU, 4 GB RAM, 40 GB storage per user)
+  - Power: Power users (2 vCPU, 8 GB RAM, 80 GB storage per user)
+
+- **N+1 Capacity Reservation** - Automatic calculation of maintenance capacity, ensuring workloads can survive a single node failure.
+
+- **Storage Resiliency Options** - Support for three storage resiliency configurations:
+  - Two-way mirror (2x raw storage requirement)
+  - Three-way mirror (3x raw storage requirement)
+  - Dual parity (~1.5x raw storage requirement)
+
+- **Per-Node Requirements** - Clear breakdown of physical core, memory, and storage requirements per cluster node.
+
+- **Capacity Utilization Visualization** - Visual progress bars showing compute, memory, and storage utilization percentages.
+
+- **Sizing Notes & Recommendations** - Dynamic guidance based on workload configuration including high memory warnings and vCPU overcommit ratios.
+
+- **Firebase Analytics Integration** - Sizer page includes analytics tracking for page views, consistent with other ODIN pages.
+
+---
+
 ## [0.11.0] - 2026-02-04
 
 ### Added
