@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.3] - 2026-02-04
+
+### Added
+
+#### Single ToR Switch Tooltip (Issue #31)
+
+- **Single ToR Disabled Info Box** - Added a visible info-box message explaining why Single ToR Switch is unavailable for Hyperconverged clusters with 4 or more nodes. The message explains that Dual ToR switches are required for larger cluster deployments to provide necessary redundancy and bandwidth.
+
+---
+
 ## [0.12.2] - 2026-02-04
 
 ### Fixed

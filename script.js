@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.12.2';
+const WIZARD_VERSION = '0.12.3';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -4428,6 +4428,7 @@ function updateUI() {
 
         const singleOption = document.getElementById('tor-single-option');
         const dualOption = document.getElementById('tor-dual-option');
+        const singleDisabledInfo = document.getElementById('tor-single-disabled-info');
 
         if (shouldShow) {
             torBlock.classList.remove('hidden');
@@ -4442,6 +4443,17 @@ function updateUI() {
                 } else {
                     singleOption.classList.remove('disabled');
                     singleOption.title = '';
+                }
+            }
+
+            // Show/hide the info box explaining why Single ToR is disabled
+            if (singleDisabledInfo) {
+                if (singleDisabled) {
+                    singleDisabledInfo.classList.remove('hidden');
+                    singleDisabledInfo.classList.add('visible');
+                } else {
+                    singleDisabledInfo.classList.add('hidden');
+                    singleDisabledInfo.classList.remove('visible');
                 }
             }
 
@@ -4462,6 +4474,11 @@ function updateUI() {
         } else {
             torBlock.classList.add('hidden');
             state.torSwitchCount = null;
+            // Also hide the info box when ToR section is hidden
+            if (singleDisabledInfo) {
+                singleDisabledInfo.classList.add('hidden');
+                singleDisabledInfo.classList.remove('visible');
+            }
         }
     })();
 
