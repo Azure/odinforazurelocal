@@ -20,6 +20,105 @@
     --subtle-bg-hover: rgba(255, 255, 255, 0.06);
 }
 
+/* ===========================================
+   Top Tab Navigation (consistent with main site)
+   =========================================== */
+.odin-tab-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 0 24px;
+}
+
+.odin-tab-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 56px;
+}
+
+.odin-tab-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-right: 24px;
+    border-right: 1px solid var(--glass-border);
+    margin-right: 16px;
+    text-decoration: none;
+}
+
+.odin-tab-logo img {
+    width: 32px;
+    height: 32px;
+}
+
+.odin-tab-logo span {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.odin-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    position: relative;
+    text-decoration: none;
+}
+
+.odin-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+}
+
+.odin-tab-btn.active {
+    background: rgba(0, 120, 212, 0.15);
+    color: var(--accent-blue);
+}
+
+.odin-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 3px;
+    background: var(--accent-blue);
+    border-radius: 3px 3px 0 0;
+}
+
+.odin-tab-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.odin-tab-badge {
+    padding: 2px 8px;
+    background: rgba(139, 92, 246, 0.2);
+    color: var(--accent-purple);
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
 /* Reset and Base Styles */
 * {
     margin: 0;
@@ -38,6 +137,7 @@ body {
     line-height: 1.6;
     min-height: 100vh;
     display: flex;
+    padding-top: 56px;
 }
 
 /* Background Gradient Effect */
@@ -60,10 +160,10 @@ body::before {
     width: 300px;
     background: var(--card-bg-transparent);
     backdrop-filter: blur(20px);
-    height: 100vh;
+    height: calc(100vh - 56px);
     position: fixed;
     left: 0;
-    top: 0;
+    top: 56px;
     overflow-y: auto;
     padding: 0;
     z-index: 100;
@@ -1122,10 +1222,48 @@ p {
 }
 
 @media (max-width: 768px) {
+    .odin-tab-nav {
+        padding: 0 12px;
+    }
+    
+    .odin-tab-container {
+        height: 48px;
+        gap: 4px;
+    }
+    
+    .odin-tab-logo {
+        padding-right: 12px;
+        margin-right: 8px;
+    }
+    
+    .odin-tab-logo span {
+        display: none;
+    }
+    
+    .odin-tab-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    .odin-tab-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .odin-tab-badge {
+        display: none;
+    }
+    
+    body {
+        flex-direction: column;
+        padding-top: 48px;
+    }
+    
     .sidebar {
         width: 100%;
         height: auto;
         position: relative;
+        top: 0;
         border-right: none;
         border-bottom: 1px solid var(--glass-border);
     }
@@ -1134,10 +1272,6 @@ p {
         margin-left: 0;
         max-width: 100%;
         padding: 20px;
-    }
-    
-    body {
-        flex-direction: column;
     }
     
     .section {

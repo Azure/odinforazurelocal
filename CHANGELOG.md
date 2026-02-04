@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.11.0] - 2026-02-04
+
+### Added
+
+#### Tab Navigation System (Issue #24)
+
+- **Top Navigation Bar** - New fixed navigation bar at the top of the page with ODIN branding and tab buttons for Designer, Knowledge, and Sizer sections.
+
+- **ODIN Designer Tab** - The existing wizard functionality is now accessible via the Designer tab, which is the default active view.
+
+- **ODIN Knowledge Tab** - Quick access to the documentation section, linking to the Outbound Connectivity Guide and future knowledge base articles.
+
+- **ODIN Sizer Tab** - Placeholder for the upcoming cluster sizing tool with "Coming Soon" badge. Will help calculate Azure Local cluster sizing based on workload requirements.
+
+- **Consistent Navigation Across Pages** - Both the main index.html and docs pages now share the same navigation pattern, making ODIN feel like a cohesive single-site application.
+
+- **Session Persistence** - Active tab state is saved to session storage, so users return to their last viewed tab when navigating back.
+
+### Changed
+
+#### Documentation Page Updates
+
+- **Docs Navigation Consistency** - The `/docs/outbound-connectivity/` page now includes the same top navigation bar as the main site.
+
+- **Sidebar Repositioned** - Documentation sidebar now starts below the fixed top nav for proper layout.
+
+- **Mobile Responsive** - Tab navigation adapts gracefully to smaller screens with condensed styling.
+
+---
+
 ## [0.10.12] - 2026-02-03
 
 ### Added
