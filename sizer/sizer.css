@@ -479,6 +479,12 @@ body {
     border-color: var(--accent-blue);
 }
 
+.config-row select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #0d0d0d;
+}
+
 .config-row select option {
     background: #1a1a1a;
     color: var(--text-primary);
