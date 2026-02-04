@@ -333,7 +333,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.12.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.12.1 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -1367,6 +1367,16 @@
                         <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">Choose which Azure services should use Private Link endpoints. These FQDNs will be added to your proxy bypass list.</p>
                         
                         <div class="private-endpoints-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+                            <!-- Arc Private Link (Not Supported) -->
+                            <div class="pe-service-card disabled" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; cursor: not-allowed;">
+                                <input type="checkbox" disabled style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <div style="pointer-events: none;">
+                                    <strong style="color: var(--text-primary);">🔗 Arc Private Link Endpoint</strong>
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>his.arc.azure.com</code></div>
+                                    <div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px;">🚫 Not supported for Azure Local</div>
+                                </div>
+                            </div>
+
                             <!-- Key Vault -->
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-keyvault')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
                                 <input type="checkbox" id="pe-keyvault" name="pe-service" value="keyvault" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
@@ -1393,7 +1403,7 @@
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">📦 Azure Container Registry</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>azurecr.io</code></div>
-                                    <div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px;">🚫 No wildcards - use specific ACR FQDNs</div>
+                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">⚠️ No wildcards - use specific ACR FQDNs</div>
                                 </div>
                             </div>
 

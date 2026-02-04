@@ -79,6 +79,7 @@ let currentModalType = null;
 
 // Handle node count change
 function onNodeCountChange() {
+    updateRackAwareOptions();
     updateResiliencyOptions();
     updateClusterInfo();
     calculateRequirements();
@@ -86,6 +87,8 @@ function onNodeCountChange() {
 
 // Handle cluster type (rack-aware) change
 function onClusterTypeChange() {
+    updateNodeOptionsForRackAware();
+    updateResiliencyOptions();
     updateClusterInfo();
     calculateRequirements();
 }
@@ -96,7 +99,68 @@ function onResiliencyChange() {
     calculateRequirements();
 }
 
-// Update node count dropdown based on resiliency requirements
+// Update rack-aware option availability based on node count
+function updateRackAwareOptions() {
+    const nodeCount = parseInt(document.getElementById('node-count').value) || 1;
+    const rackAwareSelect = document.getElementById('rack-aware');
+    const currentValue = rackAwareSelect.value;
+    
+    // Rack-aware requires 2-8 nodes
+    if (nodeCount < 2 || nodeCount > 8) {
+        // Force standard cluster if outside rack-aware range
+        rackAwareSelect.value = 'false';
+        rackAwareSelect.disabled = true;
+        rackAwareSelect.title = nodeCount < 2 
+            ? 'Rack-aware requires minimum 2 nodes' 
+            : 'Rack-aware supports maximum 8 nodes';
+    } else {
+        rackAwareSelect.disabled = false;
+        rackAwareSelect.title = '';
+    }
+}
+
+// Update node count options when rack-aware is selected
+function updateNodeOptionsForRackAware() {
+    const rackAware = document.getElementById('rack-aware').value === 'true';
+    const nodeSelect = document.getElementById('node-count');
+    const currentValue = parseInt(nodeSelect.value) || 3;
+    
+    if (rackAware) {
+        // Rack-aware: 2-8 nodes only
+        const nodeOptions = [2, 3, 4, 5, 6, 7, 8];
+        nodeSelect.innerHTML = nodeOptions.map(n => {
+            let label = `${n} Nodes`;
+            if (n === 2) label += ' (Minimum for Rack-Aware)';
+            if (n === 8) label += ' (Maximum for Rack-Aware)';
+            return `<option value="${n}">${label}</option>`;
+        }).join('');
+        
+        // Adjust current value to valid range
+        if (currentValue < 2) {
+            nodeSelect.value = 2;
+        } else if (currentValue > 8) {
+            nodeSelect.value = 8;
+        } else {
+            nodeSelect.value = currentValue;
+        }
+    } else {
+        // Standard cluster: 1-16 nodes
+        const nodeOptions = [1, 2, 3, 4, 5, 6, 7, 8, 12, 16];
+        nodeSelect.innerHTML = nodeOptions.map(n => {
+            let label = n === 1 ? '1 Node (Single)' : `${n} Nodes`;
+            return `<option value="${n}">${label}</option>`;
+        }).join('');
+        
+        // Preserve current value if valid
+        if (nodeOptions.includes(currentValue)) {
+            nodeSelect.value = currentValue;
+        } else {
+            nodeSelect.value = 3;
+        }
+    }
+}
+
+// Update node count dropdown based on resiliency requirements (legacy - kept for compatibility)
 function updateNodeOptions() {
     const resiliency = document.getElementById('resiliency').value;
     const rackAware = document.getElementById('rack-aware').value === 'true';
@@ -197,14 +261,10 @@ function updateClusterInfo() {
             message = 'Single node with two-way mirror: Drive fault tolerance only. Requires minimum 2 capacity drives.';
         }
         message += ' No maintenance window capacity.';
+    } else if (rackAware) {
+        message = `Rack-aware cluster (2-8 nodes): Each rack is a fault domain. ${config.name} requires minimum ${config.minNodes} racks. N+1 capacity reserved.`;
     } else {
-        message = `${config.name} requires minimum ${config.minNodes} fault domains`;
-        if (rackAware) {
-            message += ` (racks)`;
-        } else {
-            message += ` (nodes)`;
-        }
-        message += `. N+1 capacity reserved for maintenance.`;
+        message = `${config.name} requires minimum ${config.minNodes} fault domains (nodes). N+1 capacity reserved for maintenance.`;
     }
     
     infoText.textContent = message;
@@ -685,6 +745,7 @@ function resetScenario() {
     workloadIdCounter = 0;
     document.getElementById('node-count').value = '3';
     document.getElementById('rack-aware').value = 'false';
+    document.getElementById('rack-aware').disabled = false;
     updateResiliencyOptions();
     document.getElementById('resiliency').value = '3way';
     updateClusterInfo();
@@ -694,6 +755,7 @@ function resetScenario() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    updateRackAwareOptions();
     updateResiliencyOptions();
     updateClusterInfo();
     calculateRequirements();
