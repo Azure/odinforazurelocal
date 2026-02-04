@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.2] - 2026-02-04
+
+### Fixed
+
+#### AD-Less Option Initial State (Issue #30)
+
+- **AD-Less Disabled on Fresh Start** - Fixed an issue where the Azure KeyVault for Identity (AD-Less) option was incorrectly enabled when starting a fresh wizard. The AD-Less option now correctly remains greyed out until the Infrastructure IP configuration step is completed.
+
+---
+
 ## [0.12.1] - 2026-02-04
 
 ### Added

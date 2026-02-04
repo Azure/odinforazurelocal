@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.12.0';
+const WIZARD_VERSION = '0.12.2';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -4244,10 +4244,17 @@ function updateUI() {
             state.activeDirectory = null;
         }
     } else {
+        // Only enable local_identity if infra is properly set
         if (adCards.local_identity) {
-            adCards.local_identity.classList.remove('disabled');
-            adCards.local_identity.style.opacity = '';
-            adCards.local_identity.style.pointerEvents = '';
+            if (state.infra && state.infra.start && state.infra.end) {
+                adCards.local_identity.classList.remove('disabled');
+                adCards.local_identity.style.opacity = '';
+                adCards.local_identity.style.pointerEvents = '';
+            } else {
+                adCards.local_identity.classList.add('disabled');
+                adCards.local_identity.style.opacity = '0.5';
+                adCards.local_identity.style.pointerEvents = 'none';
+            }
         }
     }
     
