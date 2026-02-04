@@ -333,7 +333,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.12.2 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.12.3 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -924,6 +924,10 @@
                                 <h3>Dual ToR Switches</h3>
                                 <p>Two ToR switches (recommended for redundancy).</p>
                             </div>
+                        </div>
+                        <div id="tor-single-disabled-info" class="info-box hidden" style="margin-top: 0.75rem;">
+                            <strong>ℹ️ Single ToR Switch Unavailable</strong>
+                            Single ToR Switch is not supported for Hyperconverged clusters with 4 or more nodes. Dual ToR switches are required to provide the necessary redundancy and bandwidth for larger cluster deployments.
                         </div>
                     </div>
 
