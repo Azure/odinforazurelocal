@@ -333,7 +333,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.12.4 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.12.5 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -1204,7 +1204,9 @@
                             <h3>Public Internet</h3>
                             <p>Direct connectivity to cloud endpoints.</p>
                         </div>
+                        <!-- PRIVATE-PATH-PREVIEW: Remove this comment and the coming-soon-badge span when Private Path is GA -->
                         <div class="option-card" data-value="private" onclick="selectOption('outbound', 'private')">
+                            <span class="coming-soon-badge private-path-preview">Coming Soon</span>
                             <div class="icon">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 12L20 12" stroke-width="1.5" />
@@ -1215,6 +1217,7 @@
                             </div>
                             <h3>ExpressRoute / VPN</h3>
                             <p>Private connectivity.</p>
+                            <p class="preview-note private-path-preview">⚠️ Feature not available yet</p>
                         </div>
                     </div>
 

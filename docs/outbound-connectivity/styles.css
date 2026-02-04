@@ -20,6 +20,30 @@
     --subtle-bg-hover: rgba(255, 255, 255, 0.06);
 }
 
+/* PRIVATE-PATH-PREVIEW: Remove this section when Private Path is GA */
+.preview-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.1) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    color: #fbbf24;
+    line-height: 1.5;
+}
+
+.preview-banner .preview-icon {
+    font-size: 1.4rem;
+}
+
+.preview-banner strong {
+    color: #f59e0b;
+}
+/* END PRIVATE-PATH-PREVIEW */
+
 /* ===========================================
    Top Tab Navigation (consistent with main site)
    =========================================== */

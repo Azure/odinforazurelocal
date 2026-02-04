@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.5] - 2026-02-04
+
+### Added
+
+#### Private Path Feature Preview Disclaimer
+
+- **Coming Soon Badge** - Added "Coming Soon" disclaimer badge to the Private Path (ExpressRoute/VPN) option in the wizard's Outbound Connectivity step, indicating the feature is not yet available.
+- **Preview Banner** - Added a preview banner to the Private Path section in the Outbound Connectivity Guide documentation, clarifying that Private Path is an upcoming feature provided for planning purposes.
+- **Easy Removal** - All preview disclaimers are marked with `PRIVATE-PATH-PREVIEW` comments and `.private-path-preview` CSS class for easy removal when the feature becomes generally available.
+
+---
+
 ## [0.12.4] - 2026-02-04
 
 ### Fixed
