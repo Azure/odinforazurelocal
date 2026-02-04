@@ -1,7 +1,51 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.10.12';
+const WIZARD_VERSION = '0.11.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
+
+// ============================================================================
+// TAB NAVIGATION MODULE
+// ============================================================================
+// Handles switching between different ODIN tabs (Designer, Knowledge, Sizer)
+// ============================================================================
+
+/**
+ * Switch between ODIN tabs
+ * @param {string} tabId - The tab identifier ('designer', 'knowledge', 'sizer')
+ */
+function switchOdinTab(tabId) {
+    // Update tab buttons
+    const tabButtons = document.querySelectorAll('.odin-tab-btn');
+    tabButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabId) {
+            btn.classList.add('active');
+        }
+    });
+
+    // Update tab content
+    const tabContents = document.querySelectorAll('.odin-tab-content');
+    tabContents.forEach(content => {
+        content.classList.remove('active');
+    });
+
+    const targetContent = document.getElementById(`tab-${tabId}`);
+    if (targetContent) {
+        targetContent.classList.add('active');
+    }
+
+    // Save current tab to session storage for persistence during page session
+    sessionStorage.setItem('odinActiveTab', tabId);
+}
+
+// Restore active tab on page load (if navigating back)
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTab = sessionStorage.getItem('odinActiveTab');
+    if (savedTab && savedTab !== 'knowledge') {
+        // Knowledge tab navigates away, so don't try to switch to it
+        switchOdinTab(savedTab);
+    }
+});
 
 // ============================================================================
 // FIREBASE ANALYTICS MODULE
@@ -8586,7 +8630,37 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.10.11 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.11.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 4, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧭 Tab Navigation System</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Top Navigation Bar:</strong> New fixed navigation with ODIN branding and tabs for Designer, Knowledge, and Sizer sections.</li>
+                        <li><strong>ODIN Designer:</strong> The existing wizard is now accessible via the Designer tab (default view).</li>
+                        <li><strong>ODIN Knowledge:</strong> Quick access to documentation including the Outbound Connectivity Guide.</li>
+                        <li><strong>ODIN Sizer:</strong> Placeholder for upcoming cluster sizing tool (Coming Soon).</li>
+                        <li><strong>Consistent Navigation:</strong> Main site and docs pages share the same navigation pattern.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.12</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 3, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📡 Outbound Connectivity Guide</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Architecture Documentation:</strong> Comprehensive guide for Public Path vs Private Path (ExpressRoute) scenarios.</li>
+                        <li><strong>Private Endpoints Selection:</strong> New wizard step for selecting Azure services that use Private Link.</li>
+                        <li><strong>Dynamic Connectivity Diagrams:</strong> Report displays appropriate architecture diagram based on your selections.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.11</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 28, 2026</div>
                 </div>
                 

@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.10.12
+## Version 0.11.0
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,7 +37,15 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.10.12 New Features
+### 🎉 Version 0.11.0 New Features
+- **Tab Navigation System**: New top navigation bar with tabs for Designer, Knowledge, and Sizer sections
+- **ODIN Designer**: The existing wizard is now accessible via the Designer tab (default view)
+- **ODIN Knowledge**: Quick access to documentation including the Outbound Connectivity Guide
+- **ODIN Sizer**: Placeholder for upcoming cluster sizing tool (Coming Soon)
+- **Consistent Navigation**: Both main site and docs pages share the same navigation pattern
+- **Session Persistence**: Active tab state persists during browser session
+
+### 🎉 Version 0.10.12 Previous Features
 - **Outbound Connectivity Guide**: Integrated comprehensive documentation with architecture diagrams for Public Path vs Private Path (ExpressRoute) scenarios
 - **Private Endpoints Selection**: New wizard step for selecting Azure services that use Private Link (Key Vault, Storage, ACR, ASR, Backup, SQL MI, Defender)
 - **Dynamic Connectivity Diagrams**: Configuration Report displays the appropriate architecture diagram based on your outbound, Arc Gateway, and proxy selections

@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
+<body class="has-tab-nav">
     <style>
         .reset-button {
             width: 100%;
@@ -76,9 +76,198 @@
             height: 18px;
             margin-top: 2px;
         }
+
+        /* Tab Navigation System */
+        .odin-tab-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0 24px;
+        }
+
+        .odin-tab-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 56px;
+        }
+
+        .odin-tab-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-right: 24px;
+            border-right: 1px solid var(--glass-border);
+            margin-right: 16px;
+        }
+
+        .odin-tab-logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .odin-tab-logo span {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .odin-tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            position: relative;
+            text-decoration: none;
+        }
+
+        .odin-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .odin-tab-btn.active {
+            background: rgba(0, 120, 212, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .odin-tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 3px;
+            background: var(--accent-blue);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .odin-tab-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .odin-tab-badge {
+            padding: 2px 8px;
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--accent-purple);
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 10px;
+            text-transform: uppercase;
+        }
+
+        /* Add top padding to body to account for fixed nav */
+        body.has-tab-nav {
+            padding-top: 56px;
+        }
+
+        /* Tab content sections */
+        .odin-tab-content {
+            display: none;
+        }
+
+        .odin-tab-content.active {
+            display: block;
+        }
+
+        /* Coming Soon placeholder */
+        .odin-coming-soon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .odin-coming-soon-icon {
+            width: 80px;
+            height: 80px;
+            background: rgba(139, 92, 246, 0.1);
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .odin-coming-soon-icon svg {
+            width: 40px;
+            height: 40px;
+            color: var(--accent-purple);
+        }
+
+        .odin-coming-soon h2 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+
+        .odin-coming-soon p {
+            color: var(--text-secondary);
+            font-size: 16px;
+            max-width: 500px;
+            line-height: 1.6;
+        }
     </style>
     <div class="background-globes"></div>
 
+    <!-- Tab Navigation -->
+    <nav class="odin-tab-nav">
+        <div class="odin-tab-container">
+            <div class="odin-tab-logo">
+                <img src="odin-logo.png" alt="Odin">
+                <span>ODIN</span>
+            </div>
+            <button class="odin-tab-btn active" data-tab="designer" onclick="switchOdinTab('designer')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M3 9h18M9 21V9"/>
+                </svg>
+                Designer
+            </button>
+            <a href="docs/outbound-connectivity/index.html" class="odin-tab-btn" data-tab="knowledge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                Knowledge
+            </a>
+            <button class="odin-tab-btn" data-tab="sizer" onclick="switchOdinTab('sizer')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18 17V9"/>
+                    <path d="M13 17V5"/>
+                    <path d="M8 17v-3"/>
+                </svg>
+                Sizer
+                <span class="odin-tab-badge">Coming Soon</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Designer Tab Content -->
+    <div id="tab-designer" class="odin-tab-content active">
     <main class="container">
         <!-- Breadcrumb Navigation -->
         <nav id="breadcrumb-nav" class="breadcrumb-nav hidden" aria-label="Wizard steps navigation">
@@ -145,7 +334,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.10.12 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.11.0 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -1956,6 +2145,27 @@
         </div> <!-- End layout-flex -->
 
     </main>
+    </div> <!-- End Designer Tab Content -->
+
+    <!-- Sizer Tab Content -->
+    <div id="tab-sizer" class="odin-tab-content">
+        <main class="container">
+            <div class="odin-coming-soon">
+                <div class="odin-coming-soon-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18"/>
+                        <path d="M18 17V9"/>
+                        <path d="M13 17V5"/>
+                        <path d="M8 17v-3"/>
+                    </svg>
+                </div>
+                <h2>ODIN Sizer</h2>
+                <p>The ODIN Sizer tool is currently under development. This feature will help you calculate and optimize your Azure Local cluster sizing based on workload requirements.</p>
+                <p style="margin-top: 16px; color: var(--accent-purple); font-weight: 500;">Stay tuned for updates!</p>
+            </div>
+        </main>
+    </div> <!-- End Sizer Tab Content -->
+
     <script src="script.js"></script>
 </body>
 
