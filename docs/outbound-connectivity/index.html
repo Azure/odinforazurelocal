@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Azure Local Outbound Connectivity - Architecture Guide</title>
+    <!-- Firebase SDK for Analytics -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
@@ -29,7 +32,7 @@
                 </svg>
                 Knowledge
             </a>
-            <a href="../../index.html" class="odin-tab-btn" data-tab="sizer" onclick="sessionStorage.setItem('odinActiveTab', 'sizer');">
+            <a href="../../sizer/index.html" class="odin-tab-btn" data-tab="sizer">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 3v18h18"/>
                     <path d="M18 17V9"/>
@@ -1475,5 +1478,7 @@ Invoke-AzStackHciArcInitialization `
     </main>
 
     <script src="script.js"></script>
+    <!-- Analytics -->
+    <script src="../../analytics.js"></script>
 </body>
 </html>

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="no-referrer">
+    <meta name="description" content="ODIN Sizer - Azure Local Instance Sizing Tool">
+    <meta name="keywords" content="Azure Local, Azure Stack HCI, Cluster Sizing, Capacity Planning, Odin">
+    <title>ODIN Sizer - Coming Soon</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #000000;
+            --card-bg: #111111;
+            --card-bg-transparent: rgba(17, 17, 17, 0.95);
+            --text-primary: #ffffff;
+            --text-secondary: #a1a1aa;
+            --accent-blue: #0078d4;
+            --accent-purple: #8b5cf6;
+            --success: #10b981;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding-top: 56px;
+        }
+
+        /* Tab Navigation */
+        .odin-tab-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0 24px;
+        }
+
+        .odin-tab-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 56px;
+        }
+
+        .odin-tab-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-right: 24px;
+            border-right: 1px solid var(--glass-border);
+            margin-right: 16px;
+            text-decoration: none;
+        }
+
+        .odin-tab-logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .odin-tab-logo span {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .odin-tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            position: relative;
+            text-decoration: none;
+        }
+
+        .odin-tab-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .odin-tab-btn.active {
+            background: rgba(0, 120, 212, 0.15);
+            color: var(--accent-blue);
+        }
+
+        .odin-tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 3px;
+            background: var(--accent-blue);
+            border-radius: 3px 3px 0 0;
+        }
+
+        .odin-tab-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .odin-tab-badge {
+            padding: 2px 8px;
+            background: rgba(139, 92, 246, 0.2);
+            color: var(--accent-purple);
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 10px;
+            text-transform: uppercase;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Coming Soon Section */
+        .coming-soon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 70vh;
+            text-align: center;
+            padding: 48px 24px;
+        }
+
+        .coming-soon-icon {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(0, 120, 212, 0.15));
+            border: 2px solid rgba(139, 92, 246, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 32px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .coming-soon-icon svg {
+            width: 60px;
+            height: 60px;
+            color: var(--accent-purple);
+        }
+
+        .coming-soon h1 {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .coming-soon .subtitle {
+            font-size: 20px;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            max-width: 600px;
+        }
+
+        .coming-soon .description {
+            color: var(--text-secondary);
+            font-size: 16px;
+            max-width: 700px;
+            line-height: 1.8;
+            margin-bottom: 40px;
+        }
+
+        .feature-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+            max-width: 900px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: left;
+            transition: all 0.2s ease;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(139, 92, 246, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .feature-card h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 40px;
+            padding: 12px 24px;
+            background: rgba(0, 120, 212, 0.1);
+            border: 1px solid rgba(0, 120, 212, 0.3);
+            border-radius: 8px;
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(0, 120, 212, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .odin-tab-nav {
+                padding: 0 12px;
+            }
+            
+            .odin-tab-container {
+                height: 48px;
+                gap: 4px;
+            }
+            
+            .odin-tab-logo {
+                padding-right: 12px;
+                margin-right: 8px;
+            }
+            
+            .odin-tab-logo span {
+                display: none;
+            }
+            
+            .odin-tab-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            
+            .odin-tab-btn svg {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .odin-tab-badge {
+                display: none;
+            }
+
+            body {
+                padding-top: 48px;
+            }
+
+            .coming-soon h1 {
+                font-size: 28px;
+            }
+
+            .coming-soon .subtitle {
+                font-size: 16px;
+            }
+
+            .feature-preview {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Tab Navigation -->
+    <nav class="odin-tab-nav">
+        <div class="odin-tab-container">
+            <a href="../index.html" class="odin-tab-logo">
+                <img src="../odin-logo.png" alt="Odin">
+                <span>ODIN</span>
+            </a>
+            <a href="../index.html" class="odin-tab-btn" data-tab="designer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M3 9h18M9 21V9"/>
+                </svg>
+                Designer
+            </a>
+            <a href="../docs/outbound-connectivity/index.html" class="odin-tab-btn" data-tab="knowledge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                Knowledge
+            </a>
+            <a href="#" class="odin-tab-btn active" data-tab="sizer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18 17V9"/>
+                    <path d="M13 17V5"/>
+                    <path d="M8 17v-3"/>
+                </svg>
+                Sizer
+                <span class="odin-tab-badge">Coming Soon</span>
+            </a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="coming-soon">
+            <div class="coming-soon-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M3 3v18h18"/>
+                    <path d="M18 17V9"/>
+                    <path d="M13 17V5"/>
+                    <path d="M8 17v-3"/>
+                </svg>
+            </div>
+            
+            <h1>ODIN Sizer</h1>
+            <p class="subtitle">Azure Local Cluster Sizing Tool</p>
+            
+            <p class="description">
+                The ODIN Sizer is currently under development. This powerful tool will help you calculate 
+                optimal Azure Local cluster configurations based on your workload requirements, ensuring 
+                you get the right balance of compute, storage, and memory for your deployments.
+            </p>
+
+            <div class="feature-preview">
+                <div class="feature-card">
+                    <h3>📊 Workload Analysis</h3>
+                    <p>Input your VM requirements, storage needs, and performance targets to get accurate sizing recommendations.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>⚡ Capacity Planning</h3>
+                    <p>Plan for growth with projections that account for resiliency overhead, maintenance capacity, and future expansion.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🔧 Hardware Recommendations</h3>
+                    <p>Get specific hardware configurations including CPU, memory, and storage tiers based on your workload profile.</p>
+                </div>
+            </div>
+
+            <a href="../index.html" class="back-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Return to Designer
+            </a>
+        </div>
+    </main>
+
+    <!-- Analytics -->
+    <script src="../analytics.js"></script>
+</body>
+</html>
