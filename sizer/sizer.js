@@ -58,8 +58,17 @@ const AVD_PROFILES = {
     }
 };
 
-// Storage resiliency multipliers
+// Storage resiliency multipliers and minimum nodes
+const RESILIENCY_CONFIG = {
+    'simple': { multiplier: 1, minNodes: 1, name: 'Simple (No Fault Tolerance)', singleNodeOnly: true },
+    '2way': { multiplier: 2, minNodes: 1, name: 'Two-way Mirror' },
+    '3way': { multiplier: 3, minNodes: 3, name: 'Three-way Mirror' },
+    'parity': { multiplier: 1.5, minNodes: 4, name: 'Dual Parity' }
+};
+
+// Storage resiliency multipliers (for backward compatibility)
 const RESILIENCY_MULTIPLIERS = {
+    'simple': 1,    // Simple = no redundancy (1x raw storage)
     '2way': 2,      // Two-way mirror = 2x raw storage
     '3way': 3,      // Three-way mirror = 3x raw storage
     'parity': 1.5   // Dual parity ≈ 1.5x raw storage
@@ -67,6 +76,139 @@ const RESILIENCY_MULTIPLIERS = {
 
 // Current modal state
 let currentModalType = null;
+
+// Handle node count change
+function onNodeCountChange() {
+    updateResiliencyOptions();
+    updateClusterInfo();
+    calculateRequirements();
+}
+
+// Handle cluster type (rack-aware) change
+function onClusterTypeChange() {
+    updateClusterInfo();
+    calculateRequirements();
+}
+
+// Handle resiliency change
+function onResiliencyChange() {
+    updateClusterInfo();
+    calculateRequirements();
+}
+
+// Update node count dropdown based on resiliency requirements
+function updateNodeOptions() {
+    const resiliency = document.getElementById('resiliency').value;
+    const rackAware = document.getElementById('rack-aware').value === 'true';
+    const nodeSelect = document.getElementById('node-count');
+    const config = RESILIENCY_CONFIG[resiliency];
+    
+    // Minimum nodes based on resiliency (fault domains)
+    const minNodes = config.minNodes;
+    
+    // Get current selection
+    const currentValue = parseInt(nodeSelect.value) || minNodes;
+    
+    // Rebuild options starting from minimum
+    const nodeOptions = [];
+    for (let i = minNodes; i <= 16; i++) {
+        if (i <= 8 || i === 12 || i === 16) {
+            nodeOptions.push(i);
+        }
+    }
+    
+    nodeSelect.innerHTML = nodeOptions.map(n => {
+        let label = n === 1 ? '1 Node (Single)' : `${n} Nodes`;
+        if (n === minNodes && minNodes > 1) {
+            label += ` (Minimum for ${config.name})`;
+        }
+        return `<option value="${n}">${label}</option>`;
+    }).join('');
+    
+    // Set to previous value if valid, otherwise minimum
+    if (currentValue >= minNodes) {
+        nodeSelect.value = currentValue;
+    } else {
+        nodeSelect.value = minNodes;
+    }
+    
+    // Also update resiliency options based on node count
+    updateResiliencyOptions();
+}
+
+// Update resiliency options based on node count
+function updateResiliencyOptions() {
+    const nodeCount = parseInt(document.getElementById('node-count').value) || 1;
+    const resiliencySelect = document.getElementById('resiliency');
+    const currentResiliency = resiliencySelect.value;
+    
+    // Build resiliency options based on node count
+    let options = '';
+    
+    if (nodeCount === 1) {
+        // Single node: only simple and 2-way mirror available
+        options = `
+            <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
+            <option value="2way">Two-way Mirror (2+ drives, single fault tolerance)</option>
+        `;
+    } else if (nodeCount === 2) {
+        // 2 nodes: simple, 2-way mirror
+        options = `
+            <option value="2way">Two-way Mirror (min 2 nodes)</option>
+        `;
+    } else if (nodeCount === 3) {
+        // 3 nodes: 2-way or 3-way mirror
+        options = `
+            <option value="2way">Two-way Mirror (min 2 nodes)</option>
+            <option value="3way">Three-way Mirror (min 3 nodes)</option>
+        `;
+    } else {
+        // 4+ nodes: all options available
+        options = `
+            <option value="2way">Two-way Mirror (min 2 nodes)</option>
+            <option value="3way">Three-way Mirror (min 3 nodes)</option>
+            <option value="parity">Dual Parity (min 4 nodes)</option>
+        `;
+    }
+    
+    resiliencySelect.innerHTML = options;
+    
+    // Try to preserve current selection if valid
+    const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
+    if (validOptions.includes(currentResiliency)) {
+        resiliencySelect.value = currentResiliency;
+    }
+}
+
+// Update cluster info text
+function updateClusterInfo() {
+    const resiliency = document.getElementById('resiliency').value;
+    const rackAware = document.getElementById('rack-aware').value === 'true';
+    const nodeCount = parseInt(document.getElementById('node-count').value) || 1;
+    const config = RESILIENCY_CONFIG[resiliency];
+    const infoText = document.getElementById('cluster-info-text');
+    
+    let message = '';
+    
+    if (nodeCount === 1) {
+        if (resiliency === 'simple') {
+            message = 'Single node with simple resiliency: No fault tolerance. Requires minimum 2 capacity drives.';
+        } else {
+            message = 'Single node with two-way mirror: Drive fault tolerance only. Requires minimum 2 capacity drives.';
+        }
+        message += ' No maintenance window capacity.';
+    } else {
+        message = `${config.name} requires minimum ${config.minNodes} fault domains`;
+        if (rackAware) {
+            message += ` (racks)`;
+        } else {
+            message += ` (nodes)`;
+        }
+        message += `. N+1 capacity reserved for maintenance.`;
+    }
+    
+    infoText.textContent = message;
+}
 
 // Show add workload modal
 function showAddWorkloadModal(type) {
@@ -484,19 +626,34 @@ function calculateRequirements() {
 // Update sizing notes
 function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency) {
     const notes = [];
+    const rackAware = document.getElementById('rack-aware').value === 'true';
+    const config = RESILIENCY_CONFIG[resiliency];
     
     if (workloads.length === 0) {
         notes.push('Add workloads to see sizing recommendations');
     } else {
-        // N+1 note
-        if (nodeCount > 1) {
-            notes.push(`N+1 capacity: Requirements calculated assuming ${nodeCount - 1} nodes available during maintenance`);
+        // Single node specific notes
+        if (nodeCount === 1) {
+            notes.push('⚠️ Single node deployment: No node fault tolerance or maintenance capacity');
+            if (resiliency === 'simple') {
+                notes.push('Simple resiliency: No drive fault tolerance. Single drive failure causes data loss.');
+            } else {
+                notes.push('Two-way mirror: Provides drive fault tolerance. Requires minimum 2 capacity drives.');
+            }
+            notes.push('Single node requires minimum 2 capacity drives (NVMe or SSD) of the same type');
         } else {
-            notes.push('Single node deployment: No maintenance capacity available');
+            // Rack-aware note
+            if (rackAware) {
+                notes.push(`Rack-aware cluster: Each rack acts as a fault domain. Minimum ${config.minNodes} racks required.`);
+            }
+            
+            // N+1 note
+            notes.push(`N+1 capacity: Requirements calculated assuming ${nodeCount - 1} nodes available during maintenance`);
         }
         
         // Resiliency note
         const resiliencyNames = {
+            'simple': 'Simple (no redundancy, 1x raw storage)',
             '2way': 'Two-way mirror (2x raw storage)',
             '3way': 'Three-way mirror (3x raw storage)',
             'parity': 'Dual parity (~1.5x raw storage)'
@@ -527,12 +684,17 @@ function resetScenario() {
     workloads = [];
     workloadIdCounter = 0;
     document.getElementById('node-count').value = '3';
+    document.getElementById('rack-aware').value = 'false';
+    updateResiliencyOptions();
     document.getElementById('resiliency').value = '3way';
+    updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    updateResiliencyOptions();
+    updateClusterInfo();
     calculateRequirements();
 });
