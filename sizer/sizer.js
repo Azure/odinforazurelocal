@@ -262,9 +262,9 @@ function updateClusterInfo() {
         }
         message += ' No maintenance window capacity.';
     } else if (rackAware) {
-        message = `Rack-aware cluster (2-8 nodes): Each rack is a fault domain. ${config.name} requires minimum ${config.minNodes} racks. N+1 capacity reserved.`;
+        message = `Tip: Rack-aware cluster (2-8 nodes): Each rack is a fault domain. ${config.name} requires minimum ${config.minNodes} racks. For multi-node clusters, N+1 capacity must be reserved when applying updates (ability to drain a node).`;
     } else {
-        message = `${config.name} requires minimum ${config.minNodes} fault domains (nodes). N+1 capacity reserved for maintenance.`;
+        message = `Tip: ${config.name} requires minimum ${config.minNodes} fault domains (nodes). For multi-node clusters, N+1 capacity must be reserved when applying updates (ability to drain a node).`;
     }
     
     infoText.textContent = message;
