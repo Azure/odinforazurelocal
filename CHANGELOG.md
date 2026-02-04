@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.4] - 2026-02-04
+
+### Fixed
+
+#### Step Progress Visibility While Scrolling (Issue #32)
+
+- **Sticky Breadcrumb Navigation** - Fixed the step progress breadcrumb (Type, Cloud, Region, Scale, etc.) getting hidden under the top navigation bar when scrolling. The breadcrumb now sticks to position just below the fixed navigation bar, remaining visible at all times while scrolling through the wizard.
+
+---
+
 ## [0.12.3] - 2026-02-04
 
 ### Added

@@ -30,10 +30,10 @@ body {
 /* Breadcrumb Navigation */
 .breadcrumb-nav {
     position: sticky;
-    top: 0;
+    top: 56px; /* Account for fixed nav bar height */
     z-index: 100;
-    background: var(--card-bg-transparent);
-    backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
+    backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
     padding: 12px 0;
     margin: -2rem -1.5rem 2rem -1.5rem;
