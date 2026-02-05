@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.9] - 2026-02-05
+
+### Fixed
+
+#### Rack Aware Diagram Port Labels
+
+- **Adapter Mapping Support in Rack Aware Diagrams** - The `renderRackAwareTorArchitectureDiagram` function now respects the confirmed adapter mapping to determine which ports belong to Mgmt+Compute vs Storage intents.
+
+- **Correct Port Names in Intent Groups** - Mgmt+Compute and Storage intent groups now display the correct custom port names based on the user's adapter mapping configuration, instead of assuming ports 1-2 for Mgmt+Compute and ports 3+ for Storage.
+
+---
+
 ## [0.13.8] - 2026-02-05
 
 ### Fixed
