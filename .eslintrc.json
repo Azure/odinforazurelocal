@@ -61,7 +61,8 @@
     "updateDnsServiceExisting": "readonly",
     "updateDnsServiceExistingNote": "readonly",
     "validateAllDnsServers": "readonly",
-    "updateLocalDnsZone": "readonly"
+    "updateLocalDnsZone": "readonly",
+    "isRfc1918Ip": "readonly"
   },
   "rules": {
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
