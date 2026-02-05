@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Knowledge tab navigates away, so don't try to switch to it
         switchOdinTab(savedTab);
     }
-    
+
     // Make all option-cards keyboard accessible
     document.querySelectorAll('.option-card').forEach(card => {
         if (!card.hasAttribute('tabindex')) {
@@ -154,7 +154,7 @@ function loadStateFromLocalStorage() {
     try {
         const saved = localStorage.getItem(WIZARD_STATE_KEY);
         if (!saved) return null;
-        
+
         const parsed = JSON.parse(saved);
         if (parsed.version && parsed.data) {
             return parsed;
@@ -272,7 +272,7 @@ function updateProgressUi() {
 
     const bar = root.querySelector('[role="progressbar"]');
     if (bar) bar.setAttribute('aria-valuenow', String(p.percent));
-    
+
     // Update missing sections display
     updateMissingSectionsDisplay();
 }
@@ -332,18 +332,18 @@ function updateMissingSectionsDisplay() {
     const container = document.getElementById('missing-sections-container');
     const list = document.getElementById('missing-sections-list');
     if (!container || !list) return;
-    
+
     const readiness = getReportReadiness();
-    
+
     if (readiness.ready) {
         container.style.display = 'none';
         return;
     }
-    
+
     // Show container and populate list
     container.style.display = 'block';
     list.innerHTML = '';
-    
+
     readiness.missing.forEach((item, index) => {
         const stepId = findStepForMissingItem(item);
         const link = document.createElement('a');
@@ -656,7 +656,7 @@ function getMgmtComputeNicAssignment(portCount) {
 function getStorageNicIndicesForIntent(intent, portCount) {
     const p = parseInt(portCount, 10) || 0;
     if (p <= 0) return [];
-    
+
     // If adapter mapping is confirmed, use it to determine storage NICs
     if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
         const out = [];
@@ -667,7 +667,7 @@ function getStorageNicIndicesForIntent(intent, portCount) {
         }
         return out;
     }
-    
+
     if (intent === 'all_traffic') return Array.from({ length: p }, (_, i) => i + 1);
     if (intent === 'mgmt_compute') return getMgmtComputeNicAssignment(p).storage;
     if (intent === 'compute_storage') return Array.from({ length: Math.max(0, p - 2) }, (_, i) => i + 3);
@@ -1009,7 +1009,7 @@ function getNodeSettingsReadiness() {
             missing.push(`Node ${i + 1} Name`);
         } else {
             const key = name.toUpperCase();
-            if (names.has(key)) missing.push(`Node names must be unique`);
+            if (names.has(key)) missing.push('Node names must be unique');
             names.add(key);
         }
 
@@ -1588,10 +1588,10 @@ function generateArmParameters() {
 
             const nic1 = storageNicsForNetworks[0];
             const nic2 = storageNicsForNetworks[1];
-            
+
             // For switched storage with Auto IP disabled, include storageAdapterIPInfo with custom or default subnets
             const includeStorageAdapterIPInfo = state.storage === 'switched' && state.storageAutoIp === 'disabled';
-            
+
             const buildStorageAdapterIPInfo = (subnetIndex) => {
                 if (!includeStorageAdapterIPInfo) return undefined;
                 const subnetInfo = getSubnetInfo(subnetIndex, subnetIndex + 1);
@@ -1605,7 +1605,7 @@ function generateArmParameters() {
                 }
                 return adapterInfo;
             };
-            
+
             const network1 = {
                 name: 'StorageNetwork1',
                 networkAdapterName: nic1 ? armAdapterNameForSmb(1, nic1 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_1',
@@ -1615,7 +1615,7 @@ function generateArmParameters() {
                 network1.storageAdapterIPInfo = buildStorageAdapterIPInfo(0);
             }
             list.push(network1);
-            
+
             if (storageNetworkCount >= 2) {
                 const network2 = {
                     name: 'StorageNetwork2',
@@ -2112,7 +2112,7 @@ function selectOption(category, value) {
         showM365LocalInfo();
         return;
     }
-    
+
     // Hide M365 Local message when switching to another scenario option
     if (category === 'scenario' && value !== 'm365local') {
         const m365Msg = document.getElementById('m365local-message');
@@ -2121,7 +2121,7 @@ function selectOption(category, value) {
             m365Msg.classList.remove('visible');
         }
     }
-    
+
     // Hide Multi-Rack message when switching to another scenario option
     if (category === 'scenario' && value !== 'multirack') {
         const multiRackMsg = document.getElementById('multirack-message');
@@ -2130,7 +2130,7 @@ function selectOption(category, value) {
             multiRackMsg.classList.remove('visible');
         }
     }
-    
+
     if (category === 'nodes') {
         const chip = document.querySelector(`.node-chip[onclick*="'${value}'"]`);
         if (chip && chip.classList.contains('disabled')) return;
@@ -2149,16 +2149,16 @@ function selectOption(category, value) {
         const catCandidates = Array.from(document.querySelectorAll(`.option-card[onclick*="selectOption('${category}'"]`));
         const v = (value == null ? '' : String(value));
         const card = catCandidates.find(c => String(c.getAttribute('data-value') || '') === v) || null;
-        
+
         // Special override: Allow Custom intent for single-node clusters with 4+ ports
         const isSingleNodeCustomOverride = (
-            category === 'intent' && 
-            value === 'custom' && 
-            state.nodes === '1' && 
-            state.ports && 
+            category === 'intent' &&
+            value === 'custom' &&
+            state.nodes === '1' &&
+            state.ports &&
             parseInt(state.ports, 10) >= 4
         );
-        
+
         if (card && card.classList && card.classList.contains('disabled') && !isSingleNodeCustomOverride) {
             return;
         }
@@ -2321,18 +2321,18 @@ function selectOption(category, value) {
     } else if (category === 'outbound') {
         state.arc = null; state.proxy = null; state.ip = null; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
         state.nodeSettings = [];
-        
+
         // For disconnected scenarios, Arc Gateway must be disabled (no_arc)
         if (state.scenario === 'disconnected') {
             state.arc = 'no_arc';
         }
-        
+
         // For private path (ExpressRoute), Arc Gateway and Proxy are REQUIRED
         if (value === 'private') {
             state.arc = 'arc_gateway';
             state.proxy = 'proxy';
         }
-        
+
         // Update UI labels for Arc Gateway and Proxy based on outbound selection
         updateConnectivityLabels(value);
     } else if (category === 'arc') {
@@ -2561,12 +2561,12 @@ function toggleRackAwareZonesConfirmed() {
         if (!ready) return;
 
         const next = !state.rackAwareZonesConfirmed;
-        
+
         // If confirming (not un-confirming), validate even split
         if (next) {
             const n = state.nodes ? parseInt(state.nodes, 10) : NaN;
             if (isNaN(n) || n <= 0) return;
-            
+
             // Count nodes in each zone
             let zone1Count = 0;
             let zone2Count = 0;
@@ -2575,7 +2575,7 @@ function toggleRackAwareZonesConfirmed() {
                 if (zone === 1) zone1Count++;
                 else if (zone === 2) zone2Count++;
             }
-            
+
             // Validate 50/50 split
             const expectedPerZone = n / 2;
             if (zone1Count !== expectedPerZone || zone2Count !== expectedPerZone) {
@@ -2583,7 +2583,7 @@ function toggleRackAwareZonesConfirmed() {
                 return;
             }
         }
-        
+
         state.rackAwareZonesConfirmed = next;
         state.rackAwareZoneSwapSelection = null;
 
@@ -2962,14 +2962,14 @@ function togglePeCheckbox(checkboxId) {
 // Update Arc Gateway and Proxy labels based on outbound selection
 function updateConnectivityLabels(outboundValue) {
     const isPrivatePath = outboundValue === 'private';
-    
+
     // Update Arc Gateway card labels
     const arcGatewayCard = document.querySelector('.option-card[data-value="arc_gateway"]');
     if (arcGatewayCard) {
         const h3 = arcGatewayCard.querySelector('h3');
         const p = arcGatewayCard.querySelector('p');
         const badge = arcGatewayCard.querySelector('.badge-recommended');
-        
+
         if (isPrivatePath) {
             if (h3) h3.textContent = 'Required';
             if (p) p.textContent = 'Required for Private Path (ExpressRoute).';
@@ -2988,7 +2988,7 @@ function updateConnectivityLabels(outboundValue) {
             }
         }
     }
-    
+
     // Update Arc Gateway Disabled card
     const arcDisabledCard = document.querySelector('.option-card[data-value="no_arc"]');
     if (arcDisabledCard) {
@@ -3002,13 +3002,13 @@ function updateConnectivityLabels(outboundValue) {
             arcDisabledCard.style.pointerEvents = '';
         }
     }
-    
+
     // Update Proxy card labels
     const proxyEnabledCard = document.getElementById('proxy-enabled-card');
     if (proxyEnabledCard) {
         const h3 = proxyEnabledCard.querySelector('h3');
         const p = proxyEnabledCard.querySelector('p');
-        
+
         if (isPrivatePath) {
             if (h3) h3.textContent = 'Required';
             if (p) p.textContent = 'Azure Firewall Explicit Proxy required for Private Path.';
@@ -3029,7 +3029,7 @@ function updateConnectivityLabels(outboundValue) {
             if (badge) badge.remove();
         }
     }
-    
+
     // Update Proxy Disabled card
     const proxyDisabledCard = document.querySelector('#step-9 .option-card[data-value="no_proxy"]');
     if (proxyDisabledCard) {
@@ -3129,7 +3129,7 @@ function updateUI() {
     if (window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
         return;
     }
-    
+
     const steps = [
         document.getElementById('step-cloud'),
         document.getElementById('step-local-region'),
@@ -3154,92 +3154,98 @@ function updateUI() {
 
     try {
     // 1. SCENARIO LOGIC & VISIBILITY
-    const scenarioExp = document.getElementById('scenario-explanation');
-    const multiRackMsg = document.getElementById('multirack-message');
+        const scenarioExp = document.getElementById('scenario-explanation');
+        const multiRackMsg = document.getElementById('multirack-message');
 
-    // Reset Visibility first
-    steps.forEach(s => s && s.classList.remove('hidden'));
-    if (multiRackMsg) {
-        multiRackMsg.classList.add('hidden');
-        multiRackMsg.classList.remove('visible');
-    }
-    if (scenarioExp) scenarioExp.classList.remove('visible');
-
-    if (state.scenario === 'multirack') {
-        // Multi-Rack Logic: Hide everything, show message
-        steps.forEach(s => s && s.classList.add('hidden'));
+        // Reset Visibility first
+        steps.forEach(s => s && s.classList.remove('hidden'));
         if (multiRackMsg) {
-            multiRackMsg.classList.remove('hidden');
-            multiRackMsg.classList.add('visible');
+            multiRackMsg.classList.add('hidden');
+            multiRackMsg.classList.remove('visible');
         }
+        if (scenarioExp) scenarioExp.classList.remove('visible');
 
-        // Keep Scenario option visually selected even though we stop the flow early.
-        // (The normal card selection pass runs later in updateUI.)
-        document.querySelectorAll('.option-card').forEach(card => {
-            const clickFn = card.getAttribute('onclick') || '';
-            if (!clickFn.includes("selectOption('scenario'")) return;
-            const value = card.getAttribute('data-value');
-            if (state.scenario === value) card.classList.add('selected');
-            else card.classList.remove('selected');
-        });
+        if (state.scenario === 'multirack') {
+        // Multi-Rack Logic: Hide everything, show message
+            steps.forEach(s => s && s.classList.add('hidden'));
+            if (multiRackMsg) {
+                multiRackMsg.classList.remove('hidden');
+                multiRackMsg.classList.add('visible');
+            }
 
-        // Summary hidden?
-        const summaryPanel = document.getElementById('summary-panel');
-        if (summaryPanel) summaryPanel.classList.add('hidden');
-        return; // STOP FLOW
-    } else if (state.scenario === 'disconnected') {
-        if (scenarioExp) scenarioExp.innerHTML = `<strong style="color: #ef4444;">Disconnected Mode</strong>
+            // Keep Scenario option visually selected even though we stop the flow early.
+            // (The normal card selection pass runs later in updateUI.)
+            document.querySelectorAll('.option-card').forEach(card => {
+                const clickFn = card.getAttribute('onclick') || '';
+                if (!clickFn.includes("selectOption('scenario'")) return;
+                const value = card.getAttribute('data-value');
+                if (state.scenario === value) card.classList.add('selected');
+                else card.classList.remove('selected');
+            });
+
+            // Summary hidden?
+            const summaryPanel = document.getElementById('summary-panel');
+            if (summaryPanel) summaryPanel.classList.add('hidden');
+            return; // STOP FLOW
+        } else if (state.scenario === 'disconnected') {
+            if (scenarioExp) {
+                scenarioExp.innerHTML = `<strong style="color: #ef4444;">Disconnected Mode</strong>
         No Internet connection required. Updates must be applied manually. Arc Gateway and Remote Management features are unavailable. Only supports "Standard" scale deployment (3-16 nodes).`;
-        if (scenarioExp) scenarioExp.classList.add('visible');
-    } else if (state.scenario === 'm365local') {
-        if (scenarioExp) scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">M365 Local Deployment</strong>
+            }
+            if (scenarioExp) scenarioExp.classList.add('visible');
+        } else if (state.scenario === 'm365local') {
+            if (scenarioExp) {
+                scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">M365 Local Deployment</strong>
         Optimized for Microsoft 365 workloads. Requires a minimum of 9 physical nodes for high availability and performance. Supports Standard scale configuration only.
         <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">📘 More information on M365 Local</a>`;
-        if (scenarioExp) scenarioExp.classList.add('visible');
-    } else if (state.scenario === 'hyperconverged') {
-        if (scenarioExp) scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">Hyperconverged Infrastructure</strong>
+            }
+            if (scenarioExp) scenarioExp.classList.add('visible');
+        } else if (state.scenario === 'hyperconverged') {
+            if (scenarioExp) {
+                scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">Hyperconverged Infrastructure</strong>
         Consolidated compute and storage in a single rack. Supports Low Capacity and Standard Scale configurations.`;
-        if (scenarioExp) scenarioExp.classList.add('visible');
-    }
+            }
+            if (scenarioExp) scenarioExp.classList.add('visible');
+        }
 
-    // Outbound visibility logic (Step 7) moved later or handled here?
-    const outboundConnected = document.getElementById('outbound-connected');
-    const outboundDisconnected = document.getElementById('outbound-disconnected');
+        // Outbound visibility logic (Step 7) moved later or handled here?
+        const outboundConnected = document.getElementById('outbound-connected');
+        const outboundDisconnected = document.getElementById('outbound-disconnected');
 
-    // Disconnected scenario forces Step 7 options
-    if (state.scenario === 'disconnected') {
-        if (outboundConnected) outboundConnected.classList.add('hidden');
-        if (outboundDisconnected) outboundDisconnected.classList.remove('hidden');
-    } else {
-        if (outboundConnected) outboundConnected.classList.remove('hidden');
-        if (outboundDisconnected) outboundDisconnected.classList.add('hidden');
-    }
+        // Disconnected scenario forces Step 7 options
+        if (state.scenario === 'disconnected') {
+            if (outboundConnected) outboundConnected.classList.add('hidden');
+            if (outboundDisconnected) outboundDisconnected.classList.remove('hidden');
+        } else {
+            if (outboundConnected) outboundConnected.classList.remove('hidden');
+            if (outboundDisconnected) outboundDisconnected.classList.add('hidden');
+        }
 
-    // Single-node clusters: Hide storage switched/switchless options but show ToR switch selection
-    // Single-node uses implicit switched storage, user still configures storage intent in Step 08
-    const storageOptionsGrid = document.getElementById('storage-options-grid');
-    const storageCompareBtn = document.getElementById('storage-compare-btn');
-    const stepTitle = document.getElementById('step-4-title');
-    const torDescription = document.getElementById('tor-switch-description');
-    
-    if (state.nodes === '1') {
+        // Single-node clusters: Hide storage switched/switchless options but show ToR switch selection
+        // Single-node uses implicit switched storage, user still configures storage intent in Step 08
+        const storageOptionsGrid = document.getElementById('storage-options-grid');
+        const storageCompareBtn = document.getElementById('storage-compare-btn');
+        const stepTitle = document.getElementById('step-4-title');
+        const torDescription = document.getElementById('tor-switch-description');
+
+        if (state.nodes === '1') {
         // Hide storage switched/switchless options (single-node uses implicit switched storage)
-        if (storageOptionsGrid) storageOptionsGrid.classList.add('hidden');
-        if (storageCompareBtn) storageCompareBtn.classList.add('hidden');
-        // Change title to reflect it's for network topology
-        if (stepTitle) stepTitle.textContent = 'Network Connectivity';
-        if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for network traffic.';
-        // Set implicit switched storage for single-node
-        state.storage = 'switched';
-    } else {
+            if (storageOptionsGrid) storageOptionsGrid.classList.add('hidden');
+            if (storageCompareBtn) storageCompareBtn.classList.add('hidden');
+            // Change title to reflect it's for network topology
+            if (stepTitle) stepTitle.textContent = 'Network Connectivity';
+            if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for network traffic.';
+            // Set implicit switched storage for single-node
+            state.storage = 'switched';
+        } else {
         // Show storage options for multi-node clusters
-        if (storageOptionsGrid) storageOptionsGrid.classList.remove('hidden');
-        if (storageCompareBtn) storageCompareBtn.classList.remove('hidden');
-        if (stepTitle) stepTitle.textContent = 'Storage Connectivity';
-        if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for storage connectivity.';
-    }
+            if (storageOptionsGrid) storageOptionsGrid.classList.remove('hidden');
+            if (storageCompareBtn) storageCompareBtn.classList.remove('hidden');
+            if (stepTitle) stepTitle.textContent = 'Storage Connectivity';
+            if (torDescription) torDescription.textContent = 'Select the number of Top-of-Rack switches for storage connectivity.';
+        }
 
-    // ... remainder of updateUI unchanged ...
+        // ... remainder of updateUI unchanged ...
 
     } catch (err) {
         reportUiError(err, 'updateUI');
@@ -3313,7 +3319,7 @@ function updateUI() {
         const category = categoryMatch[1];
         if (category === 'nodes') return;
 
-        let isSelected = state[category] === value;
+        const isSelected = state[category] === value;
         if (isSelected) card.classList.add('selected');
         else card.classList.remove('selected');
     });
@@ -3337,8 +3343,8 @@ function updateUI() {
                 if (!['2', '4', '6', '8'].includes(valueStr)) isDisabled = true;
             }
             if (state.scenario === 'disconnected') {
-                // Disconnected forces Standard (Medium) scale usually? 
-                // If user somehow is in Disconnected + Low Capacity (should be blocked), 
+                // Disconnected forces Standard (Medium) scale usually?
+                // If user somehow is in Disconnected + Low Capacity (should be blocked),
                 // we still apply Disconnected Node Rules: Min 3.
                 if (state.scale === 'medium') {
                     if (valueStr === '1' || valueStr === '2') isDisabled = true;
@@ -3612,7 +3618,7 @@ function updateUI() {
     } else if (state.nodes === '1' && !state.torSwitchCount) {
         Object.values(cards.ports).forEach(c => c.classList.add('disabled'));
     }
-    
+
     // Step 5 -> Step 5.5 (Storage Pool Configuration)
     const storagePoolCards = {
         'Express': document.querySelector('#step-5-5 [data-value="Express"]'),
@@ -3624,7 +3630,7 @@ function updateUI() {
     } else {
         Object.values(storagePoolCards).forEach(c => c && c.classList.remove('disabled'));
     }
-    
+
     if (!state.ports) Object.values(cards.intent).forEach(c => c.classList.add('disabled'));
 
     // Rack Aware constraints:
@@ -3729,12 +3735,12 @@ function updateUI() {
             state.customStorageSubnets = [];
         }
     }
-    
+
     // Cloud Witness Type: Lock based on cluster configuration
     const witnessLocked = isWitnessTypeLocked();
     const witnessInfoBox = document.getElementById('witness-info');
     const cloudWitnessCard = cards.witnessType && cards.witnessType.Cloud;
-    
+
     if (!state.nodes) {
         // No nodes selected yet - disable both cards
         Object.values(cards.witnessType).forEach(c => c && c.classList.add('disabled'));
@@ -3749,7 +3755,7 @@ function updateUI() {
         if (noWitnessCard) {
             noWitnessCard.classList.add('disabled');
             noWitnessCard.classList.remove('selected');
-            
+
             let reason = '';
             if (state.scale === 'rack_aware') {
                 reason = 'Rack Aware clusters require Cloud witness';
@@ -3758,7 +3764,7 @@ function updateUI() {
             }
             noWitnessCard.title = reason;
         }
-        
+
         // Add "Required" badge to Cloud card when witness is locked
         if (cloudWitnessCard) {
             if (!cloudWitnessCard.querySelector('.badge-required')) {
@@ -3768,7 +3774,7 @@ function updateUI() {
                 cloudWitnessCard.appendChild(badge);
             }
         }
-        
+
         // Update info box
         if (witnessInfoBox) {
             witnessInfoBox.innerHTML = `<strong>Cloud witness is required</strong> for ${state.scale === 'rack_aware' ? 'Rack Aware clusters' : '2-node clusters'}.`;
@@ -3781,19 +3787,19 @@ function updateUI() {
                 c.title = '';
             }
         });
-        
+
         // Remove "Required" badge from Cloud card when not locked
         if (cloudWitnessCard) {
             const badge = cloudWitnessCard.querySelector('.badge-required');
             if (badge) badge.remove();
         }
-        
+
         // Update info box
         if (witnessInfoBox) {
             witnessInfoBox.innerHTML = 'The witness type is automatically determined based on your cluster configuration.';
         }
     }
-    
+
     if (!state.intent) {
         document.querySelectorAll('#outbound-connected .option-card').forEach(c => c.classList.add('disabled'));
         document.querySelectorAll('#outbound-disconnected .option-card').forEach(c => c.classList.add('disabled'));
@@ -3891,7 +3897,7 @@ function updateUI() {
         // Enable Azure AD card when infra is properly set
         if (adCards.azure_ad) adCards.azure_ad.classList.remove('disabled');
     }
-    
+
     // Disconnected scenario: Only Active Directory is allowed (disable Local Identity)
     // Rack Aware: Only Active Directory is allowed (disable Local Identity)
     if (state.scenario === 'disconnected' || state.scale === 'rack_aware') {
@@ -3918,7 +3924,7 @@ function updateUI() {
             }
         }
     }
-    
+
     // ADFS Server section visibility
     const adfsSection = document.getElementById('adfs-server-section');
     if (adfsSection) {
@@ -3928,7 +3934,7 @@ function updateUI() {
             adfsSection.classList.add('hidden');
         }
     }
-    
+
     // AD Domain section - restore visibility and input values for Resume/Import
     const adDomainSection = document.getElementById('ad-domain-section');
     const adDomainInput = document.getElementById('ad-domain');
@@ -3947,7 +3953,7 @@ function updateUI() {
             adfsServerInput.value = state.adfsServerName;
         }
     }
-    
+
     // DNS Configuration section - restore visibility for Resume/Import
     const dnsConfigSection = document.getElementById('dns-config-section');
     const dnsConfigTitle = document.getElementById('dns-config-title');
@@ -4015,7 +4021,7 @@ function updateUI() {
             infraInputStart.parentElement.style.opacity = '1';
             infraInputEnd.parentElement.style.opacity = '1';
         }
-        
+
         // Restore input values from state (for Resume/Import functionality)
         // Always restore from state to ensure values are populated
         if (infraInputCidr && state.infraCidr) {
@@ -4043,15 +4049,15 @@ function updateUI() {
     if (state.nodes) {
         contextDiv.classList.add('visible');
         countDisplay.innerText = state.nodes;
-        let nodeVal = state.nodes === '16+' ? 17 : parseInt(state.nodes);
+        const nodeVal = state.nodes === '16+' ? 17 : parseInt(state.nodes);
         if (nodeVal >= 5) {
             cards.storage['switchless'].classList.add('disabled');
             if (state.storage === 'switchless') state.storage = null;
-            implicationDisplay.innerText = "Requires Switched Storage.";
-            implicationDisplay.style.color = "var(--accent-purple)";
+            implicationDisplay.innerText = 'Requires Switched Storage.';
+            implicationDisplay.style.color = 'var(--accent-purple)';
         } else {
-            implicationDisplay.innerText = "Supports Switchless & Switched.";
-            implicationDisplay.style.color = "var(--success)";
+            implicationDisplay.innerText = 'Supports Switchless & Switched.';
+            implicationDisplay.style.color = 'var(--success)';
         }
     } else {
         contextDiv.classList.remove('visible');
@@ -4084,7 +4090,7 @@ function updateUI() {
         const isStorageSwitched = state.storage === 'switched';
         const isHyperconvergedOrLowCap = state.scale === 'medium' || state.scale === 'low_capacity';
         const isSingleNode = n === 1;
-        
+
         // Show ToR selection for: 1-node clusters OR (storage switched + hyperconverged/low cap)
         const shouldShow = (isSingleNode && isHyperconvergedOrLowCap) || (isStorageSwitched && isHyperconvergedOrLowCap && !isNaN(n) && n >= 1);
 
@@ -4360,9 +4366,9 @@ function updateUI() {
         let pCount = parseInt(state.ports);
         if (state.ports === '6') pCount = 6;
 
-        // Render if not already rendered or if count changed? 
+        // Render if not already rendered or if count changed?
         // For simplicity, re-render if count mismatch or empty
-        // We need to persist config though. 
+        // We need to persist config though.
         // Initial setup of state.portConfig if null
         if (!state.portConfig || state.portConfig.length !== pCount) {
             const isLowCapacity = state.scale === 'low_capacity';
@@ -4562,7 +4568,7 @@ function updateUI() {
     // RULE 2: Ports -> Storage & Intents
     // 1 Port LOGIC
     if (state.ports === '1') {
-        // 1 Node has no east-west, so switchless is moot, but typically single node is 'switched' (north-south) or just direct. 
+        // 1 Node has no east-west, so switchless is moot, but typically single node is 'switched' (north-south) or just direct.
         // Let's disable switchless to avoid confusion, or does it matter?
         // Actually, let's lock Storage to Switched for simplicity?
         cards.storage['switchless'].classList.add('disabled');
@@ -4681,7 +4687,7 @@ function updateUI() {
     // Custom intent requires 4+ ports for proper adapter separation.
     if (state.nodes === '1') {
         const portCount = parseInt(state.ports, 10);
-        
+
         // Allow Custom only with 4+ ports (for separate Mgmt and Compute adapters)
         if (isNaN(portCount) || portCount < 4) {
             cards.intent['custom'].classList.add('disabled');
@@ -4715,24 +4721,24 @@ function updateUI() {
 
     if (state.intent) {
         intentExp.classList.add('visible');
-        let text = "";
-        let portCount = parseInt(state.ports);
-        let isSwitchless = state.storage === 'switchless';
+        let text = '';
+        const portCount = parseInt(state.ports);
+        const isSwitchless = state.storage === 'switchless';
 
         if (state.intent === 'all_traffic') {
-            text = `<strong>Fully Converged Network</strong><br>All traffic types (Management, Compute, Storage) are permanently grouped onto a single SET team.`;
+            text = '<strong>Fully Converged Network</strong><br>All traffic types (Management, Compute, Storage) are permanently grouped onto a single SET team.';
         } else if (state.intent === 'mgmt_compute') {
             const isStandard = state.scale === 'medium';
             const assignment = getMgmtComputeNicAssignment(portCount);
             if (isStandard && portCount > 2 && !assignment.allRdma) {
-                text = `<strong>Converged Mgmt & Compute + Dedicated Storage</strong><br>Mgmt/Compute use the first two non-RDMA ports. Storage uses the remaining ports.`;
+                text = '<strong>Converged Mgmt & Compute + Dedicated Storage</strong><br>Mgmt/Compute use the first two non-RDMA ports. Storage uses the remaining ports.';
             } else {
                 text = `<strong>Converged Mgmt & Compute + Dedicated Storage</strong><br>Mgmt/Compute share Pair 1. Storage uses Pair 2${portCount > 4 ? '+' : ''}.`;
             }
         } else if (state.intent === 'compute_storage') {
             text = `<strong>Converged Compute & Storage + Dedicated Mgmt</strong><br>Mgmt on Pair 1. Compute/Storage share Pair 2${portCount > 4 ? '+' : ''}.`;
         } else if (state.intent === 'custom') {
-            text = `<strong>Custom Configuration</strong><br>Use the drag & drop interface below to assign adapters to traffic intents.`;
+            text = '<strong>Custom Configuration</strong><br>Use the drag & drop interface below to assign adapters to traffic intents.';
         }
         intentExp.innerHTML = text;
 
@@ -5165,12 +5171,12 @@ function getRequiredStorageSubnetCount() {
         if (nodeCount === 4) return 12;
         return 0;
     }
-    
+
     if (state.storage === 'switched') {
         // Switched always needs 2 storage subnets
         return 2;
     }
-    
+
     return 0;
 }
 
@@ -5180,50 +5186,50 @@ function updateCustomStorageSubnetsUI() {
     if (!container) return;
 
     const requiredCount = getRequiredStorageSubnetCount();
-    
+
     // Initialize customStorageSubnets array if needed
     if (!Array.isArray(state.customStorageSubnets)) {
         state.customStorageSubnets = [];
     }
-    
+
     // Preserve existing values while ensuring the array is the right size
     while (state.customStorageSubnets.length < requiredCount) {
         state.customStorageSubnets.push('');
     }
     state.customStorageSubnets = state.customStorageSubnets.slice(0, requiredCount);
-    
+
     // Generate default example subnets
     const defaultSubnets = [];
     for (let i = 0; i < requiredCount; i++) {
         defaultSubnets.push(`10.0.${i + 1}.0/24`);
     }
-    
+
     container.innerHTML = '';
-    
+
     if (requiredCount === 0) {
         container.innerHTML = '<p style="color: var(--text-secondary);">Storage subnet configuration is not available for the current settings.</p>';
         return;
     }
-    
+
     let html = '';
     for (let i = 0; i < requiredCount; i++) {
         const value = state.customStorageSubnets[i] || '';
         const placeholder = defaultSubnets[i];
-        const label = state.storage === 'switched' 
+        const label = state.storage === 'switched'
             ? `Storage Network ${i + 1} Subnet`
             : `Storage Subnet ${i + 1}`;
-        
+
         // For the first input (index 0), use onchange to prevent auto-fill from triggering
         // on partial input (e.g., when user types "172.16.1.0/2" before completing "/24").
         // For subsequent inputs, use oninput for immediate feedback.
-        const eventHandler = i === 0 
+        const eventHandler = i === 0
             ? `onchange="updateCustomStorageSubnet(${i}, this.value)" oninput="updateCustomStorageSubnetPreview(${i}, this.value)"`
             : `oninput="updateCustomStorageSubnet(${i}, this.value)"`;
-        
+
         html += `
             <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                 <label style="font-weight: 600; color: var(--text-primary);">${label}</label>
-                <input type="text" 
+                <input type="text"
                        class="custom-storage-subnet-input"
                        data-subnet-index="${i}"
                        value="${escapeHtml(value)}"
@@ -5233,9 +5239,9 @@ function updateCustomStorageSubnetsUI() {
             </div>
         `;
     }
-    
+
     container.innerHTML = html;
-    
+
     // Update confirm button state
     updateCustomStorageSubnetsConfirmButton();
 }
@@ -5252,15 +5258,15 @@ function updateCustomStorageSubnetsConfirmButton() {
     const confirmStatus = document.getElementById('custom-storage-subnets-confirm-status');
     const confirmed = state.customStorageSubnetsConfirmed;
     const requiredCount = getRequiredStorageSubnetCount();
-    
+
     // Check if all required subnets have values and are valid CIDR format
-    const subnetsToCheck = Array.isArray(state.customStorageSubnets) 
-        ? state.customStorageSubnets.slice(0, requiredCount) 
+    const subnetsToCheck = Array.isArray(state.customStorageSubnets)
+        ? state.customStorageSubnets.slice(0, requiredCount)
         : [];
     const allFilled = subnetsToCheck.length >= requiredCount &&
                       subnetsToCheck.every(s => s && s.trim().length > 0);
     const allValid = allFilled && subnetsToCheck.every(s => isValidCidrFormat(s));
-    
+
     if (confirmBtn) {
         if (confirmBtn.dataset && confirmBtn.dataset.bound !== '1') {
             confirmBtn.dataset.bound = '1';
@@ -5269,11 +5275,11 @@ function updateCustomStorageSubnetsConfirmButton() {
         // Only allow confirmation when all subnets are filled AND valid
         confirmBtn.disabled = !allValid && !confirmed;
         confirmBtn.classList.toggle('is-confirmed', confirmed);
-        confirmBtn.innerHTML = confirmed 
-            ? CONFIRM_BTN_PENCIL + 'Edit Storage Subnets' 
+        confirmBtn.innerHTML = confirmed
+            ? CONFIRM_BTN_PENCIL + 'Edit Storage Subnets'
             : CONFIRM_BTN_CHECKMARK + 'Confirm Storage Subnets';
     }
-    
+
     if (confirmStatus) {
         if (confirmed) {
             confirmStatus.textContent = '✓ Confirmed';
@@ -5286,7 +5292,7 @@ function updateCustomStorageSubnetsConfirmButton() {
             confirmStatus.style.color = 'var(--text-secondary)';
         }
     }
-    
+
     // Disable/enable inputs based on confirmation state
     const inputs = document.querySelectorAll('.custom-storage-subnet-input');
     inputs.forEach(input => {
@@ -5302,7 +5308,7 @@ function updateCustomStorageSubnetsConfirmButton() {
 function updateCustomStorageSubnetPreview(index, value) {
     const input = document.querySelector(`.custom-storage-subnet-input[data-subnet-index="${index}"]`);
     if (!input) return;
-    
+
     const trimmed = value.trim();
     if (trimmed && !isValidCidrFormat(trimmed)) {
         input.style.borderColor = 'var(--accent-red, #ef4444)';
@@ -5320,7 +5326,7 @@ function updateCustomStorageSubnet(index, value) {
     }
     const trimmed = value.trim();
     state.customStorageSubnets[index] = trimmed;
-    
+
     // Provide visual feedback for invalid CIDR format
     const input = document.querySelector(`.custom-storage-subnet-input[data-subnet-index="${index}"]`);
     if (input) {
@@ -5332,7 +5338,7 @@ function updateCustomStorageSubnet(index, value) {
             input.title = '';
         }
     }
-    
+
     // Auto-populate remaining subnets when first subnet is entered (Issue #95)
     // Only auto-fill if: index is 0, value is valid CIDR, and subsequent fields are empty
     if (index === 0 && trimmed && isValidCidrFormat(trimmed)) {
@@ -5355,7 +5361,7 @@ function updateCustomStorageSubnet(index, value) {
             }
         }
     }
-    
+
     // Reset confirmation when values change
     state.customStorageSubnetsConfirmed = false;
     updateCustomStorageSubnetsConfirmButton();
@@ -5437,8 +5443,8 @@ function renderIntentOverrides(container) {
             : `NICs: ${Math.min(...g.nics)}-${Math.max(...g.nics)}`;
 
         // Determine if this group handles storage traffic (for DCB/QoS options)
-        const isStorageGroup = (g.key === 'storage' || g.key === 'custom_storage' || 
-                                g.key === 'all' || g.key === 'compute_storage' || 
+        const isStorageGroup = (g.key === 'storage' || g.key === 'custom_storage' ||
+                                g.key === 'all' || g.key === 'compute_storage' ||
                                 g.key === 'custom_compute_storage' || g.key === 'custom_all');
 
         // DCB QoS Policy overrides for storage intents
@@ -5610,22 +5616,22 @@ function updateCustomNic(index, value) {
 function getNicMapping(intent, portCount, isSwitchless) {
     if (!intent || !portCount) return null;
 
-    let mapping = [];
+    const mapping = [];
 
     if (intent === 'all_traffic') {
         mapping.push(`NICs 1-${portCount}: Management + Compute + Storage (Converged)`);
     } else if (intent === 'mgmt_compute') {
         if (portCount === 2) {
-            mapping.push(`NIC 1: Management + Compute`);
-            mapping.push(`NIC 2: Storage`);
+            mapping.push('NIC 1: Management + Compute');
+            mapping.push('NIC 2: Storage');
         } else {
-            mapping.push(`NICs 1-2: Management + Compute`);
+            mapping.push('NICs 1-2: Management + Compute');
             if (portCount > 2) {
                 mapping.push(`NICs 3-${portCount}: Storage`);
             }
         }
     } else if (intent === 'compute_storage') {
-        mapping.push(`NICs 1-2: Management`);
+        mapping.push('NICs 1-2: Management');
         if (portCount > 2) {
             mapping.push(`NICs 3-${portCount}: Compute + Storage`);
         }
@@ -5647,7 +5653,7 @@ function getCustomNicMapping(customIntents, portCount) {
         'unused': 'Unused'
     };
 
-    let mapping = [];
+    const mapping = [];
     for (let i = 1; i <= portCount; i++) {
         const assignment = customIntents[i] || 'unused';
         if (assignment !== 'unused') {
@@ -5671,7 +5677,7 @@ function updateStepIndicators() {
             if (state.nodes === '1') return state.torSwitchCount !== null;
             // Multi-node clusters: require storage selection
             return state.storage !== null;
-        }},
+        } },
         { id: 'step-5', validation: () => state.ports !== null },
         { id: 'step-6', validation: () => {
             // Intent must be selected
@@ -5679,7 +5685,7 @@ function updateStepIndicators() {
             // For custom intent, adapter mapping must be confirmed
             if (state.intent === 'custom' && !state.customIntentConfirmed) return false;
             return true;
-        }},
+        } },
         { id: 'step-7', validation: () => state.outbound !== null },
         { id: 'step-8', validation: () => state.arc !== null },
         { id: 'step-9', validation: () => state.proxy !== null },
@@ -5693,7 +5699,7 @@ function updateStepIndicators() {
             }
             // DHCP is complete immediately
             return true;
-        }},
+        } },
         { id: 'step-11', validation: () => state.infraVlan !== null },
         { id: 'step-12', validation: () => {
             // Infrastructure CIDR must be set
@@ -5703,7 +5709,7 @@ function updateStepIndicators() {
             // Default Gateway is required for static IP
             if (state.ip === 'static' && !state.infraGateway) return false;
             return true;
-        }},
+        } },
         { id: 'step-5-5', validation: () => state.storagePoolConfiguration !== null },
         { id: 'step-13', validation: () => {
             // Identity option must be selected
@@ -5715,7 +5721,7 @@ function updateStepIndicators() {
             // For Local Identity (AD-Less): local DNS zone required
             if (state.activeDirectory === 'local_identity' && !state.localDnsZone) return false;
             return true;
-        }},
+        } },
         { id: 'step-13-5', validation: () => state.securityConfiguration !== null },
         { id: 'step-14', validation: () => {
             // SDN is complete if:
@@ -5728,7 +5734,7 @@ function updateStepIndicators() {
             }
             // sdnEnabled not yet selected
             return false;
-        }}
+        } }
     ];
 
     steps.forEach(step => {
@@ -5744,7 +5750,7 @@ function updateStepIndicators() {
 
         // Check validation
         const isValid = step.validation();
-        
+
         if (isValid) {
             // Add checkmark indicator
             const indicator = document.createElement('span');
@@ -6133,7 +6139,7 @@ function renderDiagram() {
                 const traffic = getTraffic(j);
 
                 if (!intent) {
-                    portsHtml += `<div style="width:6px; height:14px; background:rgba(255,255,255,0.1); border-radius:2px;"></div>`;
+                    portsHtml += '<div style="width:6px; height:14px; background:rgba(255,255,255,0.1); border-radius:2px;"></div>';
                 } else {
                     const hasM = traffic.includes('m');
                     const hasC = traffic.includes('c');
@@ -6141,7 +6147,7 @@ function renderDiagram() {
                     const isEmpty = traffic.length === 0;
 
                     if (isEmpty) {
-                        portsHtml += `<div style="width:6px; height:14px; background:rgba(255,255,255,0.05); border-radius:2px; border:1px dashed rgba(255,255,255,0.2);" title="Unused"></div>`;
+                        portsHtml += '<div style="width:6px; height:14px; background:rgba(255,255,255,0.05); border-radius:2px; border:1px dashed rgba(255,255,255,0.2);" title="Unused"></div>';
                     } else {
                         portsHtml += `<div style="display:flex; flex-direction:column; gap:1px;">
                             <div style="width:6px; height:4px; border-radius:1px; background:${hasM ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'};" title="Management"></div>
@@ -6252,9 +6258,9 @@ function renderPortConfiguration(count) {
         card.innerHTML = `
             <div class="port-name-row" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                 <div class="port-name-display" style="display:flex; align-items:center; gap:6px;">
-                    <input type="text" 
-                        class="port-name-input" 
-                        value="${escapeHtml(displayName)}" 
+                    <input type="text"
+                        class="port-name-input"
+                        value="${escapeHtml(displayName)}"
                         placeholder="Port ${i + 1}"
                         maxlength="30"
                         ${isConfirmed ? 'readonly' : ''}
@@ -6278,8 +6284,8 @@ function renderPortConfiguration(count) {
             </div>
             <div class="config-row">
                 <label class="rdma-check-container">
-                    <input type="checkbox" class="rdma-checkbox" 
-                        ${config.rdma ? 'checked' : ''} 
+                    <input type="checkbox" class="rdma-checkbox"
+                        ${config.rdma ? 'checked' : ''}
                         ${isConfirmed ? 'disabled' : ''}
                         onchange="updatePortConfig(${i}, 'rdma', this.checked)">
                     <span class="rdma-label">RDMA Capable</span>
@@ -6560,7 +6566,7 @@ function updateInfraNetwork() {
         if (hasRange) {
             if (!ipv4Regex.test(start) || !ipv4Regex.test(end)) {
                 if (err) {
-                    err.innerText = "Invalid IPv4 address format.";
+                    err.innerText = 'Invalid IPv4 address format.';
                     err.classList.remove('hidden');
                 }
                 state.infra = null;
@@ -6593,7 +6599,7 @@ function updateInfraNetwork() {
     if (startL === null || endL === null) {
         if (!ipv4Regex.test(start) || !ipv4Regex.test(end)) {
             if (err) {
-                err.innerText = "Invalid IPv4 address format.";
+                err.innerText = 'Invalid IPv4 address format.';
                 err.classList.remove('hidden');
             }
             state.infra = null;
@@ -6605,7 +6611,7 @@ function updateInfraNetwork() {
 
     if (endL < startL) {
         if (err) {
-            err.innerText = "Ending IP must be greater than or equal to Starting IP.";
+            err.innerText = 'Ending IP must be greater than or equal to Starting IP.';
             err.classList.remove('hidden');
         }
         state.infra = null;
@@ -6656,7 +6662,7 @@ function updateInfraNetwork() {
     }
 
     // Check Overlaps
-    for (let r of reservedRanges) {
+    for (const r of reservedRanges) {
         if (startL <= r.max && endL >= r.min) {
             if (err) {
                 err.innerText = `Range overlaps with reserved subnet ${r.name}.`;
@@ -6955,7 +6961,7 @@ function resetAll() {
 
     const sdnSection = document.getElementById('sdn-management-section');
     if (sdnSection) sdnSection.classList.add('hidden');
-    
+
     const sdnFeaturesSection = document.getElementById('sdn-features-section');
     if (sdnFeaturesSection) sdnFeaturesSection.classList.add('hidden');
 
@@ -7003,13 +7009,13 @@ function updateAdDomain() {
 
     const value = input.value.trim();
     state.adDomain = value || null;
-    
+
     // Revalidate OU path when domain changes
     const ouPathInput = document.getElementById('ad-ou-path');
     if (ouPathInput && ouPathInput.value.trim() !== '') {
         updateAdOuPath();
     }
-    
+
     updateSummary();
 }
 
@@ -7017,37 +7023,37 @@ function validateAdOuPath(ouPath, domainName) {
     if (!ouPath || ouPath.trim() === '') {
         return { valid: true, error: '' }; // Empty is valid (optional field)
     }
-    
+
     const trimmedPath = ouPath.trim();
-    
+
     // Must start with "OU="
     if (!trimmedPath.toUpperCase().startsWith('OU=')) {
-        return { 
-            valid: false, 
-            error: 'OU path must start with "OU=" (e.g., OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com)' 
+        return {
+            valid: false,
+            error: 'OU path must start with "OU=" (e.g., OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com)'
         };
     }
-    
+
     // Basic OU path validation: must contain OU= and DC= components
     const ouPathPattern = /^(OU=[^,]+,)+(CN=[^,]+,)*(OU=[^,]+,)*DC=[^,]+(,DC=[^,]+)*$/i;
-    
+
     if (!ouPathPattern.test(trimmedPath)) {
-        return { 
-            valid: false, 
-            error: 'Invalid OU path format. Must follow pattern: OU=...,DC=...,DC=... (e.g., OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com)' 
+        return {
+            valid: false,
+            error: 'Invalid OU path format. Must follow pattern: OU=...,DC=...,DC=... (e.g., OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com)'
         };
     }
-    
+
     // Validate that OU path matches the domain name
     if (domainName && domainName.trim() !== '') {
         // Convert domain name to DC components (e.g., "contoso.com" -> "DC=contoso,DC=com")
         const domainParts = domainName.trim().split('.');
         const expectedDcSuffix = domainParts.map(part => `DC=${part}`).join(',');
-        
+
         // Extract DC components from OU path (everything after the last OU= or CN=)
         const ouPathUpper = ouPath.trim().toUpperCase();
         const dcMatch = ouPathUpper.match(/DC=[^,]+(,DC=[^,]+)*$/i);
-        
+
         if (dcMatch) {
             const actualDcSuffix = dcMatch[0];
             if (actualDcSuffix.toUpperCase() !== expectedDcSuffix.toUpperCase()) {
@@ -7058,7 +7064,7 @@ function validateAdOuPath(ouPath, domainName) {
             }
         }
     }
-    
+
     return { valid: true, error: '' };
 }
 
@@ -7070,7 +7076,7 @@ function updateAdOuPath() {
     const value = input.value.trim();
     const domainName = state.adDomain || '';
     const validation = validateAdOuPath(value, domainName);
-    
+
     if (validation.valid) {
         state.adOuPath = value || null;
         if (errorDiv) {
@@ -7084,7 +7090,7 @@ function updateAdOuPath() {
             errorDiv.textContent = validation.error;
         }
     }
-    
+
     updateSummary();
 }
 
@@ -7110,18 +7116,18 @@ function isWitnessTypeLocked() {
     if (state.scale === 'rack_aware') {
         return true;
     }
-    
+
     // 2-node clusters (Standard/Medium or Low Capacity) must use Cloud witness
     if (state.nodes === '2' && (state.scale === 'medium' || state.scale === 'low_capacity')) {
         return true;
     }
-    
+
     return false;
 }
 
 function updateWitnessType() {
     const locked = isWitnessTypeLocked();
-    
+
     if (locked) {
         // For locked scenarios, always set to Cloud
         state.witnessType = 'Cloud';
@@ -7131,7 +7137,7 @@ function updateWitnessType() {
     } else {
         state.witnessType = null;
     }
-    
+
     updateUI();
 }
 
@@ -7146,7 +7152,7 @@ function toggleSdnFeature(feature, checked) {
 
     updateSdnManagementOptions();
     updateSummary();
-    
+
     // Auto-save state after any update
     saveStateToLocalStorage();
 }
@@ -7226,19 +7232,19 @@ function updateSdnManagementOptions() {
 function exportConfiguration() {
     try {
         const defaultFilename = `azure-local-config-${new Date().toISOString().split('T')[0]}.json`;
-        
+
         // Show prompt for filename
         const filename = prompt('Enter filename for the exported configuration:', defaultFilename);
-        
+
         // User cancelled
         if (filename === null) return;
-        
+
         // Use default if empty, then sanitize for safe filename
         const rawFilename = filename.trim() || defaultFilename;
         const sanitizedFilename = sanitizeInput(rawFilename, 'filename');
         // Ensure .json extension
         const safeFilename = sanitizedFilename.endsWith('.json') ? sanitizedFilename : sanitizedFilename + '.json';
-        
+
         // Inform user if filename was changed during sanitization
         const intendedFilename = rawFilename.endsWith('.json') ? rawFilename : rawFilename + '.json';
         if (safeFilename !== intendedFilename) {
@@ -7253,7 +7259,7 @@ function exportConfiguration() {
                 return;
             }
         }
-        
+
         const config = {
             version: WIZARD_VERSION,
             exportedAt: new Date().toISOString(),
@@ -7279,18 +7285,18 @@ function exportConfiguration() {
 // Parse an Azure ARM template and convert it to Odin wizard state
 function parseArmTemplateToState(armTemplate) {
     const result = {};
-    
+
     // Check if this is an ARM template
-    const isArmTemplate = armTemplate.$schema && 
+    const isArmTemplate = armTemplate.$schema &&
         (armTemplate.$schema.includes('deploymentTemplate') || armTemplate.$schema.includes('deploymentParameters'));
-    
+
     if (!isArmTemplate) {
         return null;
     }
-    
+
     // Get parameters - could be in 'parameters' directly or in nested structure
     let params = armTemplate.parameters || {};
-    
+
     // If this is a parameters file, extract values
     const isParametersFile = armTemplate.$schema && armTemplate.$schema.includes('deploymentParameters');
     if (isParametersFile) {
@@ -7314,12 +7320,12 @@ function parseArmTemplateToState(armTemplate) {
         });
         params = extractedParams;
     }
-    
+
     // Map ARM parameters to Odin state
-    
+
     // Scenario - detect from template structure
     result.scenario = 'hyperconverged'; // Default
-    
+
     // Node count from arcNodeResourceIds or physicalNodesSettings
     if (params.arcNodeResourceIds && Array.isArray(params.arcNodeResourceIds)) {
         const nodeCount = params.arcNodeResourceIds.length;
@@ -7328,7 +7334,7 @@ function parseArmTemplateToState(armTemplate) {
         const nodeCount = params.physicalNodesSettings.length;
         result.nodes = String(nodeCount);
     }
-    
+
     // Node settings from physicalNodesSettings
     if (params.physicalNodesSettings && Array.isArray(params.physicalNodesSettings)) {
         result.nodeSettings = params.physicalNodesSettings.map(node => ({
@@ -7336,23 +7342,23 @@ function parseArmTemplateToState(armTemplate) {
             ipCidr: node.ipv4Address ? `${node.ipv4Address}/24` : ''
         }));
     }
-    
+
     // Witness type
     if (params.witnessType) {
         result.witnessType = params.witnessType;
     }
-    
+
     // Domain FQDN
     if (params.domainFqdn) {
         result.adDomain = params.domainFqdn;
         result.activeDirectory = 'azure_ad';
     }
-    
+
     // DNS servers
     if (params.dnsServers && Array.isArray(params.dnsServers)) {
         result.dnsServers = params.dnsServers.filter(d => d && d.trim());
     }
-    
+
     // Network settings
     if (params.subnetMask) {
         // Convert subnet mask to CIDR
@@ -7373,7 +7379,7 @@ function parseArmTemplateToState(armTemplate) {
             }
         }
     }
-    
+
     // IP pool
     if (params.startingIPAddress && params.endingIPAddress) {
         result.infra = {
@@ -7381,22 +7387,22 @@ function parseArmTemplateToState(armTemplate) {
             end: params.endingIPAddress
         };
     }
-    
+
     // Default gateway
     if (params.defaultGateway) {
         result.infraGateway = params.defaultGateway;
     }
-    
+
     // DHCP or static
     if (params.useDhcp !== undefined) {
         result.ip = params.useDhcp ? 'dhcp' : 'static';
     }
-    
+
     // Storage configuration
     if (params.configurationMode) {
         result.storagePoolConfiguration = params.configurationMode;
     }
-    
+
     // Networking type - switchless or switched
     if (params.networkingType) {
         if (params.networkingType.toLowerCase().includes('switchless')) {
@@ -7405,16 +7411,16 @@ function parseArmTemplateToState(armTemplate) {
             result.storage = 'switched';
         }
     }
-    
+
     if (params.storageConnectivitySwitchless !== undefined) {
         result.storage = params.storageConnectivitySwitchless ? 'switchless' : 'switched';
     }
-    
+
     // Storage auto IP
     if (params.enableStorageAutoIp !== undefined) {
         result.storageAutoIp = params.enableStorageAutoIp ? 'enabled' : 'disabled';
     }
-    
+
     // Networking pattern to intent
     if (params.networkingPattern) {
         const patternToIntent = {
@@ -7425,19 +7431,19 @@ function parseArmTemplateToState(armTemplate) {
         };
         result.intent = patternToIntent[params.networkingPattern] || 'compute_storage';
     }
-    
+
     // Port count and custom adapter names from intentList
     if (params.intentList && Array.isArray(params.intentList)) {
         const nicAdapters = [];  // Non-storage adapters (NIC1, NIC2, or custom names)
         const smbAdapters = [];  // Storage adapters (SMB1, SMB2, or custom names)
-        
+
         params.intentList.forEach(intent => {
             if (intent.adapter && Array.isArray(intent.adapter)) {
-                const isStorageIntent = intent.trafficType && 
-                    Array.isArray(intent.trafficType) && 
-                    intent.trafficType.length === 1 && 
+                const isStorageIntent = intent.trafficType &&
+                    Array.isArray(intent.trafficType) &&
+                    intent.trafficType.length === 1 &&
                     intent.trafficType[0] === 'Storage';
-                
+
                 intent.adapter.forEach(a => {
                     if (isStorageIntent) {
                         // Storage-only intent uses SMB adapters
@@ -7453,16 +7459,16 @@ function parseArmTemplateToState(armTemplate) {
                 });
             }
         });
-        
+
         // Determine port count from NIC adapters (primary port count indicator)
         const portCount = nicAdapters.length || smbAdapters.length;
         result.ports = String(portCount);
-        
+
         // Build portConfig with adapter names from imported template
         // Always preserve adapter names from the template - they are meaningful identifiers
         if (nicAdapters.length > 0 || smbAdapters.length > 0) {
             result.portConfig = [];
-            
+
             // Map NIC adapters to ports - always preserve adapter names from template
             nicAdapters.forEach((name, idx) => {
                 result.portConfig.push({
@@ -7473,7 +7479,7 @@ function parseArmTemplateToState(armTemplate) {
                     customName: name  // Always use the adapter name from the template
                 });
             });
-            
+
             // Add SMB adapter names to storage ports (ports after NIC adapters)
             // For typical config: ports 1-2 are NIC, ports 3+ are SMB
             if (smbAdapters.length > 0 && nicAdapters.length > 0) {
@@ -7488,7 +7494,7 @@ function parseArmTemplateToState(armTemplate) {
                 });
                 // Update port count to include storage ports
                 result.ports = String(nicAdapters.length + smbAdapters.length);
-                
+
                 // Build adapter mapping from intent list
                 // NIC adapters (1-based indices) go to 'mgmt_compute' zone, SMB adapters go to 'storage'
                 // Note: zone key must be 'mgmt_compute' (not 'mgmt') to match the intent zones for mgmt_compute intent
@@ -7500,7 +7506,7 @@ function parseArmTemplateToState(armTemplate) {
                     result.adapterMapping[nicAdapters.length + i] = 'storage';
                 }
             }
-            
+
             // If no NIC adapters but we have SMB adapters, create ports from SMB count
             if (nicAdapters.length === 0 && smbAdapters.length > 0) {
                 for (let i = 0; i < smbAdapters.length; i++) {
@@ -7516,12 +7522,12 @@ function parseArmTemplateToState(armTemplate) {
             }
         }
     }
-    
+
     // Security settings
     if (params.securityLevel) {
         result.securityConfiguration = params.securityLevel.toLowerCase() === 'recommended' ? 'recommended' : 'customized';
     }
-    
+
     result.securitySettings = {
         driftControlEnforced: params.driftControlEnforced !== undefined ? params.driftControlEnforced : true,
         credentialGuardEnforced: params.credentialGuardEnforced !== undefined ? params.credentialGuardEnforced : true,
@@ -7531,12 +7537,12 @@ function parseArmTemplateToState(armTemplate) {
         bitlockerDataVolumes: params.bitlockerDataVolumes !== undefined ? params.bitlockerDataVolumes : true,
         wdacEnforced: params.wdacEnforced !== undefined ? params.wdacEnforced : true
     };
-    
+
     // OU Path
     if (params.adouPath) {
         result.adOuPath = params.adouPath;
     }
-    
+
     // Set defaults for fields not in ARM template
     if (!result.region) result.region = 'azure_commercial';
     if (!result.localInstanceRegion) result.localInstanceRegion = 'east_us';
@@ -7549,7 +7555,7 @@ function parseArmTemplateToState(armTemplate) {
     if (!result.arc) result.arc = 'yes';
     if (!result.proxy) result.proxy = 'no_proxy';
     if (!result.infraVlan) result.infraVlan = 'default';
-    
+
     return result;
 }
 
@@ -7561,7 +7567,7 @@ function showArmImportOptionsDialog(armState) {
     const overlay = document.createElement('div');
     overlay.id = 'arm-import-options-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(8px);';
-    
+
     overlay.innerHTML = `
         <div style="background:var(--card-bg);border:2px solid var(--accent-blue);border-radius:16px;padding:28px;max-width:650px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
             <div style="text-align:center;margin-bottom:24px;">
@@ -7571,7 +7577,7 @@ function showArmImportOptionsDialog(armState) {
                     The following settings are not included in ARM templates.<br>Please specify them for your imported deployment.
                 </p>
             </div>
-            
+
             <!-- Arc Gateway -->
             <div style="margin-bottom:20px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
                 <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
@@ -7592,7 +7598,7 @@ function showArmImportOptionsDialog(armState) {
                     </label>
                 </div>
             </div>
-            
+
             <!-- Enterprise Proxy -->
             <div style="margin-bottom:20px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
                 <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
@@ -7615,7 +7621,7 @@ function showArmImportOptionsDialog(armState) {
                     </label>
                 </div>
             </div>
-            
+
             <!-- Private Endpoints -->
             <div style="margin-bottom:20px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
                 <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
@@ -7670,7 +7676,7 @@ function showArmImportOptionsDialog(armState) {
                     </div>
                 </div>
             </div>
-            
+
             <!-- SDN -->
             <div style="margin-bottom:24px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
                 <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
@@ -7700,7 +7706,7 @@ function showArmImportOptionsDialog(armState) {
                     </label>
                 </div>
             </div>
-            
+
             <!-- Buttons -->
             <div style="display:flex;gap:12px;">
                 <button id="arm-import-cancel-btn" type="button" style="flex:1;padding:14px;background:rgba(255,255,255,0.05);border:1px solid var(--glass-border);color:var(--text-primary);border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;transition:all 0.2s;">
@@ -7712,9 +7718,9 @@ function showArmImportOptionsDialog(armState) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(overlay);
-    
+
     // Add event listener for Private Endpoints toggle
     const peRadios = overlay.querySelectorAll('input[name="import-private-endpoints"]');
     const peServicesDiv = document.getElementById('import-pe-services');
@@ -7724,26 +7730,26 @@ function showArmImportOptionsDialog(armState) {
             peServicesDiv.style.display = isYes ? 'block' : 'none';
         });
     });
-    
+
     // Add event listeners
     document.getElementById('arm-import-cancel-btn').addEventListener('click', () => {
         overlay.remove();
         showToast('Import cancelled', 'info');
     });
-    
+
     document.getElementById('arm-import-apply-btn').addEventListener('click', () => {
         // Get selected values
         const arcGateway = document.querySelector('input[name="import-arc-gateway"]:checked')?.value;
         const proxy = document.querySelector('input[name="import-proxy"]:checked')?.value;
         const privateEndpoints = document.querySelector('input[name="import-private-endpoints"]:checked')?.value;
         const sdn = document.querySelector('input[name="import-sdn"]:checked')?.value;
-        
+
         // Apply selections to armState using correct state values
         // Arc: 'arc_gateway' or 'no_arc'
         // Proxy: 'proxy' or 'no_proxy'
         armState.arc = arcGateway === 'yes' ? 'arc_gateway' : 'no_arc';
         armState.proxy = proxy === 'yes' ? 'proxy' : 'no_proxy';
-        
+
         // Private Endpoints: 'pe_enabled' or 'pe_disabled'
         if (privateEndpoints === 'yes') {
             armState.privateEndpoints = 'pe_enabled';
@@ -7757,7 +7763,7 @@ function showArmImportOptionsDialog(armState) {
             armState.privateEndpoints = 'pe_disabled';
             armState.privateEndpointsList = [];
         }
-        
+
         // Map SDN selection to state properties
         // Valid sdnManagement values: 'arc_managed' or 'onprem_managed'
         if (sdn === 'none') {
@@ -7777,13 +7783,13 @@ function showArmImportOptionsDialog(armState) {
             armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
             armState.sdnManagement = 'onprem_managed';
         }
-        
+
         overlay.remove();
-        
+
         // Now apply the ARM state with user selections
         applyArmImportState(armState);
     });
-    
+
     // Close on overlay click
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
@@ -7798,7 +7804,7 @@ function showArmImportOptionsDialog(armState) {
  */
 function applyArmImportState(armState) {
     showToast('Importing ARM template...', 'info', 2000);
-    
+
     setTimeout(() => {
         try {
             // Apply ARM state
@@ -7807,13 +7813,13 @@ function applyArmImportState(armState) {
                     state[key] = armState[key];
                 }
             });
-            
+
             // Auto-confirm port configuration since this is from an existing deployment
             // The ARM template has complete port/adapter information
             if (state.ports && parseInt(state.ports, 10) > 0) {
                 state.portConfigConfirmed = true;
             }
-            
+
             // Auto-confirm adapter mapping for mgmt_compute intent
             // Build adapter mapping from intent list if not already present
             if (state.intent === 'mgmt_compute' && state.ports) {
@@ -7830,15 +7836,15 @@ function applyArmImportState(armState) {
                     state.adapterMappingConfirmed = true;
                 }
             }
-            
+
             // Auto-confirm overrides since ARM template has complete configuration
             state.overridesConfirmed = true;
-            
+
             // Auto-confirm custom storage subnets if present
             if (state.customStorageSubnets && state.customStorageSubnets.length > 0) {
                 state.customStorageSubnetsConfirmed = true;
             }
-            
+
             // Restore SDN UI elements based on imported state
             const sdnFeaturesSection = document.getElementById('sdn-features-section');
             if (sdnFeaturesSection) {
@@ -7848,7 +7854,7 @@ function applyArmImportState(armState) {
                     sdnFeaturesSection.classList.add('hidden');
                 }
             }
-            
+
             // Restore SDN feature checkboxes
             if (state.sdnFeatures && state.sdnFeatures.length > 0) {
                 state.sdnFeatures.forEach(feature => {
@@ -7856,10 +7862,10 @@ function applyArmImportState(armState) {
                     if (checkbox) checkbox.checked = true;
                 });
             }
-            
+
             // Update SDN management options
             updateSdnManagementOptions();
-            
+
             // Update UI
             try {
                 updateUI();
@@ -7870,7 +7876,7 @@ function applyArmImportState(armState) {
             } catch (uiErr) {
                 console.error('UI update error during ARM import:', uiErr);
             }
-            
+
             saveStateToLocalStorage();
             showToast('ARM template imported! Review and complete any missing fields.', 'success', 5000);
         } catch (applyErr) {
@@ -7889,12 +7895,12 @@ function importConfiguration() {
         input.onchange = (e) => {
             const file = e.target.files[0];
             if (!file) return;
-            
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 try {
                     const imported = JSON.parse(event.target.result);
-                    
+
                     // Check if this is an Azure ARM template
                     const armState = parseArmTemplateToState(imported);
                     if (armState) {
@@ -7902,20 +7908,20 @@ function importConfiguration() {
                         showArmImportOptionsDialog(armState);
                         return;
                     }
-                    
+
                     // Check if this is an Odin configuration export
                     if (!imported.state) {
                         showToast('Invalid configuration file. Expected Odin export or Azure ARM template.', 'error');
                         return;
                     }
-                    
+
                     // Show loading indicator
                     showToast('Importing configuration...', 'info', 2000);
-                    
+
                     // Track changes if there was previous state
                     const hadPreviousState = Object.keys(state).some(k => state[k] != null);
                     const changes = [];
-                    
+
                     if (hadPreviousState) {
                         Object.keys(imported.state).forEach(key => {
                             if (JSON.stringify(state[key]) !== JSON.stringify(imported.state[key])) {
@@ -7923,7 +7929,7 @@ function importConfiguration() {
                             }
                         });
                     }
-                    
+
                     // Use setTimeout to prevent blocking and allow UI to update
                     setTimeout(() => {
                         try {
@@ -7934,14 +7940,14 @@ function importConfiguration() {
                                     state[key] = imported.state[key];
                                 }
                             });
-                            
+
                             // Also copy any additional properties from import
                             Object.keys(imported.state).forEach(key => {
                                 if (!safeKeys.includes(key)) {
                                     state[key] = imported.state[key];
                                 }
                             });
-                            
+
                             // Update UI with error handling
                             try {
                                 updateUI();
@@ -7952,9 +7958,9 @@ function importConfiguration() {
                             } catch (uiErr) {
                                 console.error('UI update error during import:', uiErr);
                             }
-                            
+
                             saveStateToLocalStorage();
-                            
+
                             if (changes.length > 0) {
                                 showToast(`Configuration imported! Changed: ${changes.length} fields`, 'success', 5000);
                             } else {
@@ -7965,7 +7971,7 @@ function importConfiguration() {
                             console.error('Apply import error:', applyErr);
                         }
                     }, 100);
-                    
+
                 } catch (err) {
                     showToast('Failed to parse configuration file', 'error');
                     console.error('Import error:', err);
@@ -7989,10 +7995,10 @@ function checkForSavedState() {
     if (window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
         return;
     }
-    
+
     const saved = loadStateFromLocalStorage();
     if (!saved || !saved.data) return;
-    
+
     const timestamp = saved.timestamp ? new Date(saved.timestamp).toLocaleString() : 'Unknown time';
     const banner = document.createElement('div');
     banner.id = 'resume-banner';
@@ -8014,7 +8020,7 @@ function checkForSavedState() {
         gap: 16px;
         animation: slideDown 0.3s ease;
     `;
-    
+
     banner.innerHTML = `
         <div style="flex: 1;">
             <div style="font-weight: 700; margin-bottom: 4px;">Previous Session Found</div>
@@ -8023,7 +8029,7 @@ function checkForSavedState() {
         <button onclick="resumeSavedState()" style="padding: 8px 16px; background: white; color: #2563eb; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Resume</button>
         <button onclick="startFresh()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Start Fresh</button>
     `;
-    
+
     document.body.appendChild(banner);
 }
 
@@ -8031,7 +8037,7 @@ function resumeSavedState() {
     const saved = loadStateFromLocalStorage();
     if (saved && saved.data) {
         Object.assign(state, saved.data);
-        
+
         // Restore SDN enabled card selection
         if (state.sdnEnabled) {
             const sdnEnabledCard = document.getElementById(state.sdnEnabled === 'yes' ? 'sdn-enabled-yes' : 'sdn-enabled-no');
@@ -8044,7 +8050,7 @@ function resumeSavedState() {
                 sdnEnabledCard.classList.add('selected');
             }
         }
-        
+
         // Restore SDN enabled state and features section visibility
         const sdnFeaturesSection = document.getElementById('sdn-features-section');
         if (sdnFeaturesSection) {
@@ -8054,7 +8060,7 @@ function resumeSavedState() {
                 sdnFeaturesSection.classList.add('hidden');
             }
         }
-        
+
         // Restore SDN feature checkboxes
         if (state.sdnFeatures && state.sdnFeatures.length > 0) {
             state.sdnFeatures.forEach(feature => {
@@ -8062,10 +8068,10 @@ function resumeSavedState() {
                 if (checkbox) checkbox.checked = true;
             });
         }
-        
+
         // Update SDN management options visibility (must be BEFORE restoring selection)
         updateSdnManagementOptions();
-        
+
         // Restore SDN management selection AFTER updateSdnManagementOptions
         // This ensures the management section is visible and cards are properly enabled
         if (state.sdnManagement) {
@@ -8080,14 +8086,14 @@ function resumeSavedState() {
                 card.classList.add('selected');
             }
         }
-        
+
         updateUI();
-        
+
         // Render DNS servers if present (fixes Issue #64)
         if (state.dnsServers && state.dnsServers.length > 0) {
             renderDnsServers();
         }
-        
+
         // Re-run infrastructure network validation after UI is restored
         // This ensures gateway and IP pool validations run with restored values
         if (state.infraCidr || state.infra || state.infraGateway) {
@@ -8095,12 +8101,12 @@ function resumeSavedState() {
                 updateInfraNetwork();
             }, 100);
         }
-        
+
         // Re-run DNS validation after restore
         if (state.dnsServers && state.dnsServers.length > 0) {
             validateAllDnsServers();
         }
-        
+
         showToast('Session resumed successfully!', 'success');
     }
     dismissResumeBanner(false); // Don't scroll to top when resuming
@@ -8122,7 +8128,7 @@ function dismissResumeBanner(scrollToTop) {
 function startFresh() {
     // Clear localStorage
     clearSavedState();
-    
+
     // Reset the global state object to initial values
     Object.keys(state).forEach(key => {
         if (key === 'theme' || key === 'fontSize') return; // Keep theme/font preferences
@@ -8147,13 +8153,13 @@ function startFresh() {
             state[key] = null;
         }
     });
-    
+
     // Dismiss the banner and scroll to top
     dismissResumeBanner(true);
-    
+
     // Update UI to reflect clean state
     updateUI();
-    
+
     // Clear all input fields AFTER updateUI to ensure they stay cleared
     const infraCidrInput = document.getElementById('infra-cidr');
     const infraStartInput = document.getElementById('infra-ip-start');
@@ -8164,7 +8170,7 @@ function startFresh() {
     const adfsServerInput = document.getElementById('adfs-server-name');
     const infraVlanIdInput = document.getElementById('infra-vlan-id');
     const localDnsZoneInput = document.getElementById('local-dns-zone-input');
-    
+
     if (infraCidrInput) infraCidrInput.value = '';
     if (infraStartInput) infraStartInput.value = '';
     if (infraEndInput) infraEndInput.value = '';
@@ -8174,23 +8180,23 @@ function startFresh() {
     if (adfsServerInput) adfsServerInput.value = '';
     if (infraVlanIdInput) infraVlanIdInput.value = '';
     if (localDnsZoneInput) localDnsZoneInput.value = '';
-    
+
     // Hide sections that should only show after selections are made
     const adDomainSection = document.getElementById('ad-domain-section');
     const dnsConfigSection = document.getElementById('dns-config-section');
     const localDnsZone = document.getElementById('local-dns-zone');
     const adfsSection = document.getElementById('adfs-server-section');
-    
+
     if (adDomainSection) adDomainSection.classList.add('hidden');
     if (dnsConfigSection) dnsConfigSection.classList.add('hidden');
     if (localDnsZone) localDnsZone.classList.add('hidden');
     if (adfsSection) adfsSection.classList.add('hidden');
-    
+
     // Remove selected state from all option cards
     document.querySelectorAll('.option-card.selected').forEach(card => {
         card.classList.remove('selected');
     });
-    
+
     showToast('Started fresh - all previous data cleared', 'info');
 }
 
@@ -8217,7 +8223,7 @@ function showCidrCalculator() {
         justify-content: center;
         animation: fadeIn 0.2s ease;
     `;
-    
+
     const calculator = document.createElement('div');
     calculator.style.cssText = `
         background: var(--card-bg);
@@ -8229,34 +8235,34 @@ function showCidrCalculator() {
         max-height: 80vh;
         overflow-y: auto;
     `;
-    
+
     calculator.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h3 style="margin: 0; color: var(--accent-blue);">CIDR Calculator</h3>
             <button onclick="document.getElementById('cidr-calculator-overlay').remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
         </div>
-        
+
         <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 8px; color: var(--text-primary); font-weight: 600;">IP Address / CIDR</label>
             <input type="text" id="cidr-input" placeholder="e.g., 192.168.1.0/24" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-primary); font-family: 'Courier New', monospace;">
         </div>
-        
+
         <div id="cidr-results" style="padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6;"></div>
     `;
-    
+
     overlay.appendChild(calculator);
     document.body.appendChild(overlay);
-    
+
     const input = document.getElementById('cidr-input');
     const results = document.getElementById('cidr-results');
-    
+
     input.addEventListener('input', () => {
         const value = input.value.trim();
         if (!isValidIpv4Cidr(value)) {
             results.innerHTML = '<div style="color: var(--text-secondary);">Enter a valid CIDR notation</div>';
             return;
         }
-        
+
         const [ip, prefixStr] = value.split('/');
         const prefix = parseInt(prefixStr, 10);
         const ipLong = ipToLong(ip);
@@ -8266,7 +8272,7 @@ function showCidrCalculator() {
         const firstHost = (network + 1) >>> 0;
         const lastHost = (broadcast - 1) >>> 0;
         const hostCount = broadcast - network - 1;
-        
+
         results.innerHTML = `
             <div style="margin-bottom: 8px;"><strong style="color: var(--accent-blue);">Network:</strong> ${longToIp(network)}</div>
             <div style="margin-bottom: 8px;"><strong style="color: var(--accent-blue);">Netmask:</strong> ${longToIp(mask)}</div>
@@ -8276,7 +8282,7 @@ function showCidrCalculator() {
             <div><strong style="color: var(--accent-blue);">Usable Hosts:</strong> ${hostCount.toLocaleString()}</div>
         `;
     });
-    
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
@@ -8310,10 +8316,10 @@ function showHelp(topic) {
             content: 'SDN separates the network control plane from the data plane, enabling centralized network management through software. Azure Local SDN provides features like virtual networks, load balancing, and network security groups.'
         }
     };
-    
+
     const info = helpContent[topic];
     if (!info) return;
-    
+
     const overlay = document.createElement('div');
     overlay.style.cssText = `
         position: fixed;
@@ -8328,7 +8334,7 @@ function showHelp(topic) {
         justify-content: center;
         animation: fadeIn 0.2s ease;
     `;
-    
+
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 500px; width: 90%;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -8338,11 +8344,11 @@ function showHelp(topic) {
             <p style="color: var(--text-primary); line-height: 1.6; margin: 0;">${escapeHtml(info.content)}</p>
         </div>
     `;
-    
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
-    
+
     document.body.appendChild(overlay);
 }
 
@@ -8365,20 +8371,20 @@ function showChangelog() {
         padding: 10px;
         box-sizing: border-box;
     `;
-    
+
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="margin: 0; color: var(--accent-blue); font-size: 18px;">What's New</h3>
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 28px; cursor: pointer; padding: 0 8px; line-height: 1;">&times;</button>
             </div>
-            
+
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.51 - Latest Release</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🚀 Automated Build Pipeline</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8399,7 +8405,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.50</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛠️ Codebase Optimization & Modularization</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8415,7 +8421,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Template Import Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8429,7 +8435,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.13.30</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📥 ARM Import & Theme Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8446,7 +8452,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.13.19</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🌙 Theme Toggle & Sizer Preview</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8462,7 +8468,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.11.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 4, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧭 Tab Navigation System</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8478,7 +8484,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.12</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 3, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📡 Outbound Connectivity Guide</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8492,7 +8498,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.11</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 28, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Switchless Storage IPs by Adapter</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8506,7 +8512,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.10</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 28, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Switchless Storage Adapter IPs</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8519,7 +8525,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.9</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 28, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Auto IP Storage Display Correction</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8532,7 +8538,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.8</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 28, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Storage Adapter IPs for Auto IP Enabled</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8546,7 +8552,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.7</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 28, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 IP Address Display in Report (Issue #11)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8560,7 +8566,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.6</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 28, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Storage Intent Subnet Display (Issue #9)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8574,7 +8580,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.5</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 28, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Configuration Report Security Details (Issue #7)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8588,7 +8594,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.4</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 22, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Single-Node Storage Intent Support (Issue #100)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8603,7 +8609,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.3</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 20, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📝 Auto-Populate Storage Subnets (Issue #95)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8616,7 +8622,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 20, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚙️ SDN Configuration Redesign (Step 18)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8631,7 +8637,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 19, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📥 ARM Template Import Options (Issue #90)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8646,7 +8652,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 19, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Parameters Pre-Population (Issue #85, #86)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8661,7 +8667,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.9</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ ARM Placeholder Input Enhancement</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8676,7 +8682,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.8</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Required Badge Styling (Issue #76)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8688,7 +8694,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.7</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Deploy to Azure UX Enhancement</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8701,7 +8707,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.5</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Enhancements (Issues #69, #70, #71)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8715,7 +8721,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.4</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 14, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fix (Issue #67)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8727,7 +8733,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.3</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issues #64, #65)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8739,7 +8745,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issue #59)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8752,7 +8758,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 UI Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8766,7 +8772,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.9.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">January 13, 2026</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features (Issues #55, #56)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8780,7 +8786,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.8.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8798,7 +8804,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.8.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issue #48)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8811,7 +8817,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.8.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features (Issue #47)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8825,7 +8831,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.7.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 19, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Features</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8841,7 +8847,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.6.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 iOS Mobile Layout Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8855,7 +8861,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.6.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📱 Mobile Browser Support</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8870,7 +8876,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.6.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8889,7 +8895,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.5.3</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8903,7 +8909,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.5.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 18, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 Logo and Header Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8919,7 +8925,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.5.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Professional UX Enhancements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8936,7 +8942,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.3</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">June 26, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8950,7 +8956,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📋 Example Configuration Templates</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8965,7 +8971,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📋 Updates & Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8979,7 +8985,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 16, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🚀 ARM Parameters - Deployment Automation</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -8994,7 +9000,7 @@ function showChangelog() {
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.3.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">December 16, 2025</div>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 User Experience Enhancements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -9020,7 +9026,7 @@ function showChangelog() {
                         <li><strong>Rack Aware Restriction:</strong> Local Identity option is now properly disabled for Rack Aware deployments.</li>
                     </ul>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-blue); margin: 0 0 12px 0;">📋 Configuration Templates Included</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -9049,7 +9055,7 @@ function showChangelog() {
                         <li><strong>CIDR Calculator:</strong> Built-in subnet calculator to help with IP address planning.</li>
                     </ul>
                 </div>
-                
+
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ User Experience</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -9059,7 +9065,7 @@ function showChangelog() {
                         <li><strong>Improved Accessibility:</strong> Enhanced keyboard navigation and screen reader support.</li>
                     </ul>
                 </div>
-                
+
                 <div>
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Technical Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -9070,18 +9076,18 @@ function showChangelog() {
                     </ul>
                 </div>
             </div>
-            
+
             <div style="margin-top: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; text-align: center;">
                 <div style="font-size: 14px; color: var(--accent-blue); margin-bottom: 8px;">Need Help?</div>
                 <a href="https://github.com/Azure/AzureLocal-Supportability" target="_blank" style="color: var(--accent-blue); text-decoration: none; font-weight: 600;">View Documentation →</a>
             </div>
         </div>
     `;
-    
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
-    
+
     document.body.appendChild(overlay);
 }
 
@@ -9172,10 +9178,10 @@ function showComparison(category) {
             ]
         }
     };
-    
+
     const comparison = comparisons[category];
     if (!comparison) return;
-    
+
     const overlay = document.createElement('div');
     overlay.style.cssText = `
         position: fixed;
@@ -9192,58 +9198,58 @@ function showComparison(category) {
         overflow-y: auto;
         padding: 20px;
     `;
-    
+
     let optionsHtml = '';
     comparison.options.forEach(option => {
         optionsHtml += `
             <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
                 <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">${escapeHtml(option.name)}</h4>
-                
+
                 <div style="margin-bottom: 12px;">
                     <strong style="color: #10b981;">✓ Pros:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.pros.map(pro => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(pro)}</li>`).join('')}
                     </ul>
                 </div>
-                
+
                 <div style="margin-bottom: 12px;">
                     <strong style="color: #ef4444;">✗ Cons:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.cons.map(con => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(con)}</li>`).join('')}
                     </ul>
                 </div>
-                
+
                 <div style="margin-bottom: 12px;">
                     <strong style="color: var(--accent-blue);">📌 Use Cases:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.useCases.map(uc => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(uc)}</li>`).join('')}
                     </ul>
                 </div>
-                
+
                 <div style="padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; color: var(--accent-blue); font-size: 13px;">
                     <strong>💡 Recommended:</strong> ${escapeHtml(option.recommended)}
                 </div>
             </div>
         `;
     });
-    
+
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; position: sticky; top: 0; background: var(--card-bg); padding-bottom: 12px; border-bottom: 1px solid var(--glass-border);">
                 <h3 style="margin: 0; color: var(--accent-blue);">${escapeHtml(comparison.title)}</h3>
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: var(--text-primary); font-size: 20px; cursor: pointer; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.2)'; this.style.borderColor='#ef4444'; this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.1)'; this.style.borderColor='var(--glass-border)'; this.style.color='var(--text-primary)';">&times;</button>
             </div>
-            
+
             <div style="color: var(--text-primary); line-height: 1.6;">
                 ${optionsHtml}
             </div>
         </div>
     `;
-    
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
-    
+
     document.body.appendChild(overlay);
 }
 
@@ -9481,11 +9487,11 @@ function showTemplates() {
                 <h3 style="margin: 0; color: var(--accent-blue);">📋 Example Configuration Templates</h3>
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
             </div>
-            
+
             <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px;">
                 Select a pre-configured example template to quickly set up common deployment scenarios. These templates include all required settings.
             </p>
-            
+
             <div style="display: flex; flex-direction: column; gap: 12px;">
                 ${templatesHtml}
             </div>
@@ -9504,7 +9510,7 @@ function showTemplates() {
 
 function loadTemplate(templateIndex) {
     if (!window.configTemplates || !window.configTemplates[templateIndex]) return;
-    
+
     const template = window.configTemplates[templateIndex];
     const config = template.config;
 
@@ -9522,19 +9528,19 @@ function loadTemplate(templateIndex) {
     if (config.scale) selectOption('scale', config.scale);
     if (config.nodes) selectOption('nodes', config.nodes);
     if (config.witnessType) selectOption('witnessType', config.witnessType);
-    
+
     // Storage must be set BEFORE ports, because selectOption('storage') resets ports
     if (config.storage) selectOption('storage', config.storage);
     if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
-    
+
     // Now set ports (after storage, so it won't be reset)
     if (config.ports) selectOption('ports', config.ports);
-    
+
     // Apply portConfig after ports selection (since selectOption may reset it)
     if (config.portConfig && Array.isArray(config.portConfig)) {
         state.portConfig = config.portConfig;
     }
-    
+
     if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
     if (config.intent) selectOption('intent', config.intent);
     if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
@@ -9542,7 +9548,7 @@ function loadTemplate(templateIndex) {
     if (config.arc) selectOption('arc', config.arc);
     if (config.proxy) selectOption('proxy', config.proxy);
     if (config.ip) selectOption('ip', config.ip);
-    
+
     // Apply infrastructure settings
     if (config.infraCidr) {
         state.infraCidr = config.infraCidr;
@@ -9550,7 +9556,7 @@ function loadTemplate(templateIndex) {
     if (config.infra) {
         state.infra = config.infra;
     }
-    
+
     // Apply nodeSettings and infraGateway after ip selection (since selectOption may reset them)
     if (config.nodeSettings && Array.isArray(config.nodeSettings)) {
         state.nodeSettings = config.nodeSettings;
@@ -9558,10 +9564,10 @@ function loadTemplate(templateIndex) {
     if (config.infraGateway) {
         state.infraGateway = config.infraGateway;
     }
-    
+
     if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
     if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
-    
+
     // Apply AD-related settings
     if (config.adDomain) {
         state.adDomain = config.adDomain;
@@ -9572,7 +9578,7 @@ function loadTemplate(templateIndex) {
     if (config.dnsServers && Array.isArray(config.dnsServers)) {
         state.dnsServers = config.dnsServers;
     }
-    
+
     // Apply rack-aware settings
     if (config.rackAwareZones) {
         state.rackAwareZones = config.rackAwareZones;
@@ -9586,7 +9592,7 @@ function loadTemplate(templateIndex) {
     if (config.rackAwareTorArchitecture) {
         state.rackAwareTorArchitecture = config.rackAwareTorArchitecture;
     }
-    
+
     if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
 
     // Final UI update to reflect all state changes
@@ -9601,7 +9607,7 @@ function loadTemplate(templateIndex) {
 
     // Show success message
     showNotification('✅ Template loaded successfully!', 'success');
-    
+
     // Save state
     saveStateToLocalStorage();
 }
@@ -9612,19 +9618,19 @@ function showM365LocalInfo() {
     const m365Msg = document.getElementById('m365local-message');
     const steps = Array.from(document.querySelectorAll('.step')).filter(s => s.id !== 'step-1');
     const summaryPanel = document.getElementById('summary-panel');
-    
+
     // Hide all steps except step-1
     steps.forEach(s => s && s.classList.add('hidden'));
-    
+
     // Show M365 Local message
     if (m365Msg) {
         m365Msg.classList.remove('hidden');
         m365Msg.classList.add('visible');
     }
-    
+
     // Hide summary panel
     if (summaryPanel) summaryPanel.classList.add('hidden');
-    
+
     // Keep M365 Local option visually selected
     document.querySelectorAll('.option-card').forEach(card => {
         const clickFn = card.getAttribute('onclick') || '';
@@ -9639,26 +9645,26 @@ function showM365LocalInfo() {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Firebase Analytics
     initializeAnalytics();
-    
+
     // Track page view
     trackPageView();
-    
+
     // Sync theme from shared localStorage key (for cross-page consistency)
     const sharedTheme = localStorage.getItem('odin-theme');
     if (sharedTheme && (sharedTheme === 'light' || sharedTheme === 'dark')) {
         state.theme = sharedTheme;
     }
-    
+
     // Apply saved theme and font size
     applyTheme();
     applyFontSize();
-    
+
     // Initialize UI state (ensure AD cards are disabled until infra is set)
     updateUI();
-    
+
     // Check for saved state
     setTimeout(checkForSavedState, 500);
-    
+
     // Add CSS animations
     const style = document.createElement('style');
     style.textContent = `
@@ -9682,7 +9688,7 @@ document.addEventListener('DOMContentLoaded', function() {
             from { transform: translate(-50%, 0); opacity: 1; }
             to { transform: translate(-50%, -100%); opacity: 0; }
         }
-        
+
         .help-icon {
             display: inline-block;
             width: 16px;
@@ -9698,35 +9704,35 @@ document.addEventListener('DOMContentLoaded', function() {
             margin-left: 6px;
             transition: all 0.2s ease;
         }
-        
+
         .help-icon:hover {
             background: var(--accent-purple);
             transform: scale(1.1);
         }
-        
+
         .comparison-table {
             width: 100%;
             border-collapse: collapse;
             margin: 16px 0;
         }
-        
+
         .comparison-table th,
         .comparison-table td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid var(--glass-border);
         }
-        
+
         .comparison-table th {
             background: rgba(59, 130, 246, 0.1);
             color: var(--accent-blue);
             font-weight: 600;
         }
-        
+
         .comparison-table td {
             color: var(--text-primary);
         }
-        
+
         .validation-feedback {
             font-size: 12px;
             margin-top: 4px;
@@ -9778,7 +9784,7 @@ function updateBreadcrumbs() {
     breadcrumbItems.forEach(item => {
         const stepId = item.dataset.step;
         const stepEl = document.getElementById(stepId);
-        
+
         // Check if step is complete
         let isComplete = false;
         switch (stepId) {
@@ -9919,10 +9925,10 @@ function showShortcutsHelp() {
             </div>
         </div>
     `;
-    
+
     // Event delegation for close button
     overlay.querySelector('[data-action="close-modal"]').addEventListener('click', () => overlay.remove());
-    
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
     });
@@ -9935,7 +9941,7 @@ function showShortcutsHelp() {
 
 function exportToPDF() {
     const readiness = getReportReadiness();
-    
+
     // Generate a printable HTML document
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -10048,10 +10054,10 @@ function exportToPDF() {
             </thead>
             <tbody>
                 ${state.nodeSettings.map((node, i) => {
-                    const escName = (node.name || 'Not set').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    const escIp = (node.ipCidr || 'Not set').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    return `<tr><td>${i + 1}</td><td>${escName}</td><td>${escIp}</td></tr>`;
-                }).join('')}
+        const escName = (node.name || 'Not set').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const escIp = (node.ipCidr || 'Not set').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return `<tr><td>${i + 1}</td><td>${escName}</td><td>${escIp}</td></tr>`;
+    }).join('')}
             </tbody>
         </table>
     </div>
@@ -10076,7 +10082,7 @@ function exportToPDF() {
 
     printWindow.document.write(html);
     printWindow.document.close();
-    
+
     // Wait for content to load then trigger print
     printWindow.onload = () => {
         setTimeout(() => {
@@ -10137,10 +10143,10 @@ function showOnboarding() {
 
 function renderOnboardingStep() {
     const step = onboardingSteps[currentOnboardingStep];
-    
+
     // Remove existing overlay if any
     document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
-    
+
     const overlay = document.createElement('div');
     overlay.className = 'onboarding-overlay';
     overlay.innerHTML = `
@@ -10148,7 +10154,7 @@ function renderOnboardingStep() {
             <div class="onboarding-icon${step.isImage ? ' onboarding-icon-image' : ''}">${step.icon}</div>
             <h2 class="onboarding-title">${step.title}</h2>
             <p class="onboarding-description">${step.description}</p>
-            
+
             <div class="onboarding-features">
                 ${step.features.map(f => `
                     <div class="onboarding-feature">
@@ -10160,11 +10166,11 @@ function renderOnboardingStep() {
                     </div>
                 `).join('')}
             </div>
-            
+
             <div class="onboarding-progress">
                 ${onboardingSteps.map((_, i) => `<div class="onboarding-dot ${i === currentOnboardingStep ? 'active' : ''}"></div>`).join('')}
             </div>
-            
+
             <div class="onboarding-buttons">
                 <button class="onboarding-btn onboarding-btn-secondary" data-action="skip">Skip</button>
                 <button class="onboarding-btn onboarding-btn-primary" data-action="next">
@@ -10173,7 +10179,7 @@ function renderOnboardingStep() {
             </div>
         </div>
     `;
-    
+
     // Use event delegation instead of inline onclick handlers
     overlay.querySelector('[data-action="skip"]').addEventListener('click', skipOnboarding);
     overlay.querySelector('[data-action="next"]').addEventListener('click', () => {
@@ -10183,7 +10189,7 @@ function renderOnboardingStep() {
             nextOnboardingStep();
         }
     });
-    
+
     document.body.appendChild(overlay);
 }
 

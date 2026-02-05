@@ -1,9 +1,9 @@
 /**
  * Odin for Azure Local - Validation Module
- * 
+ *
  * Real-time input validation functions for the wizard.
  * These functions validate user input and provide visual feedback.
- * 
+ *
  * Dependencies: js/utils.js (for isValidNetbiosName, isValidIpv4Cidr)
  */
 
@@ -21,7 +21,7 @@
 function validateFieldRealtime(field, value, type) {
     let isValid = false;
     let message = '';
-    
+
     switch (type) {
         case 'netbios':
             isValid = isValidNetbiosName(value);
@@ -46,7 +46,7 @@ function validateFieldRealtime(field, value, type) {
             message = isValid ? '' : 'Must be between 1 and 4094';
             break;
     }
-    
+
     // Show inline feedback
     const feedback = field.nextElementSibling;
     if (feedback && feedback.classList.contains('validation-feedback')) {
@@ -54,7 +54,7 @@ function validateFieldRealtime(field, value, type) {
         feedback.style.color = isValid ? '#10b981' : '#ef4444';
         feedback.style.display = message ? 'block' : 'none';
     }
-    
+
     return isValid;
 }
 
@@ -69,19 +69,19 @@ function validateFieldRealtime(field, value, type) {
  */
 function addValidationFeedback(inputElement, type) {
     if (!inputElement) return;
-    
+
     const existing = inputElement.nextElementSibling;
     if (existing && existing.classList.contains('validation-feedback')) return;
-    
+
     const feedback = document.createElement('div');
     feedback.className = 'validation-feedback';
     feedback.style.cssText = 'font-size: 12px; margin-top: 4px; min-height: 16px;';
     inputElement.parentNode.insertBefore(feedback, inputElement.nextSibling);
-    
+
     inputElement.addEventListener('input', () => {
         validateFieldRealtime(inputElement, inputElement.value.trim(), type);
     });
-    
+
     inputElement.addEventListener('blur', () => {
         validateFieldRealtime(inputElement, inputElement.value.trim(), type);
     });
