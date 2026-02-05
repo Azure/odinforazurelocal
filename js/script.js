@@ -4979,11 +4979,14 @@ function getIntentNicGroups(intent, portCount) {
             'mgmt': 'Management',
             'compute': 'Compute',
             'storage': 'Storage',
-            'mgmt_compute': 'Mgmt + Compute',
+            'mgmt_compute': 'Management + Compute',
             'compute_storage': 'Compute + Storage',
             'all': 'All Traffic',
             'pool': 'Unassigned'
         };
+
+        // Define consistent display order for override cards
+        const displayOrder = ['mgmt_compute', 'mgmt', 'compute', 'compute_storage', 'storage', 'all'];
 
         const buckets = new Map();
         for (let i = 1; i <= p; i++) {
@@ -4994,7 +4997,14 @@ function getIntentNicGroups(intent, portCount) {
         }
 
         if (buckets.size > 0) {
-            for (const [key, nics] of buckets.entries()) {
+            // Sort by predefined display order so cards don't move around
+            const sortedKeys = Array.from(buckets.keys()).sort((a, b) => {
+                const aIdx = displayOrder.indexOf(a);
+                const bIdx = displayOrder.indexOf(b);
+                return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+            });
+            for (const key of sortedKeys) {
+                const nics = buckets.get(key);
                 addGroup(key, `${trafficNames[key] || key}`, nics);
             }
             return groups;
@@ -5009,11 +5019,11 @@ function getIntentNicGroups(intent, portCount) {
 
     if (intent === 'mgmt_compute') {
         if (p === 2) {
-            addGroup('mgmt_compute', 'Mgmt + Compute', [1]);
+            addGroup('mgmt_compute', 'Management + Compute', [1]);
             addGroup('storage', 'Storage', [2]);
         } else {
             const assignment = getMgmtComputeNicAssignment(p);
-            addGroup('mgmt_compute', 'Mgmt + Compute', assignment.mgmtCompute);
+            addGroup('mgmt_compute', 'Management + Compute', assignment.mgmtCompute);
             addGroup('storage', 'Storage', assignment.storage);
         }
         return groups;
@@ -5031,11 +5041,14 @@ function getIntentNicGroups(intent, portCount) {
             'mgmt': 'Management',
             'compute': 'Compute',
             'storage': 'Storage',
-            'mgmt_compute': 'Mgmt + Compute',
+            'mgmt_compute': 'Management + Compute',
             'compute_storage': 'Compute + Storage',
             'all': 'All Traffic',
             'unused': 'Unused'
         };
+
+        // Define consistent display order for override cards
+        const displayOrder = ['mgmt_compute', 'mgmt', 'compute', 'compute_storage', 'storage', 'all'];
 
         const buckets = new Map();
         for (let i = 1; i <= p; i++) {
@@ -5050,7 +5063,14 @@ function getIntentNicGroups(intent, portCount) {
             return groups;
         }
 
-        for (const [key, nics] of buckets.entries()) {
+        // Sort by predefined display order so cards don't move around
+        const sortedKeys = Array.from(buckets.keys()).sort((a, b) => {
+            const aIdx = displayOrder.indexOf(a);
+            const bIdx = displayOrder.indexOf(b);
+            return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+        });
+        for (const key of sortedKeys) {
+            const nics = buckets.get(key);
             addGroup(`custom_${key}`, `${trafficNames[key] || key}`, nics);
         }
         return groups;
@@ -6205,13 +6225,12 @@ function renderPortConfiguration(count) {
                         value="${escapeHtml(displayName)}" 
                         placeholder="Port ${i + 1}"
                         maxlength="30"
-                        readonly
+                        ${isConfirmed ? 'readonly' : ''}
                         data-port-index="${i}"
-                        style="background:transparent; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s; cursor:default; pointer-events:none;"
-                        onblur="disablePortNameEdit(this); updatePortConfig(${i}, 'customName', this.value);"
+                        style="background:${isConfirmed ? 'transparent' : 'rgba(255,255,255,0.05)'}; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s; cursor:${isConfirmed ? 'default' : 'text'};"
+                        onchange="updatePortConfig(${i}, 'customName', this.value);"
                         onkeydown="if(event.key==='Enter'){this.blur();}"
-                        title="Click pencil icon to rename this port">
-                    <span class="port-edit-icon" style="color:var(--text-secondary); font-size:14px; opacity:${isConfirmed ? '0.3' : '0.6'}; cursor:${isConfirmed ? 'not-allowed' : 'pointer'};" title="${isConfirmed ? 'Edit configuration to rename' : 'Click to edit port name'}" onclick="${isConfirmed ? '' : 'enablePortNameEdit(this.previousElementSibling)'}">✏️</span>
+                        title="${isConfirmed ? 'Edit configuration to rename' : 'Enter custom port name'}">
                     ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
                 </div>
                 ${hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : ''}
@@ -6250,29 +6269,6 @@ function renderPortConfiguration(count) {
             confirmedMsg.classList.add('hidden');
         }
     }
-}
-
-// Enable editing of port name input when pencil icon is clicked
-function enablePortNameEdit(inputEl) {
-    if (state.portConfigConfirmed) return;
-    inputEl.removeAttribute('readonly');
-    inputEl.style.cursor = 'text';
-    inputEl.style.pointerEvents = 'auto';
-    inputEl.style.borderColor = 'var(--accent-blue)';
-    inputEl.style.background = 'rgba(255,255,255,0.05)';
-    inputEl.focus();
-    inputEl.select();
-}
-
-// Disable editing after blur
-function disablePortNameEdit(inputEl) {
-    inputEl.setAttribute('readonly', 'readonly');
-    inputEl.style.cursor = 'default';
-    inputEl.style.pointerEvents = 'none';
-    const idx = parseInt(inputEl.dataset.portIndex, 10);
-    const hasCustom = inputEl.value.trim() && inputEl.value.trim() !== `Port ${idx + 1}`;
-    inputEl.style.borderColor = hasCustom ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)';
-    inputEl.style.background = 'transparent';
 }
 
 // Confirm port configuration
@@ -10265,7 +10261,7 @@ function getIntentZonesForIntent(intent) {
         });
         zones.push({
             key: 'mgmt_compute',
-            title: 'Mgmt + Compute',
+            title: 'Management + Compute',
             titleClass: 'mgmt',
             description: 'Shared management and compute.',
             badge: 'Optional',

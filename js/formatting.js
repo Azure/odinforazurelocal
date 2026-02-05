@@ -100,7 +100,7 @@ function formatOutbound(val) {
  */
 function formatIntent(val) {
     if (val === 'all_traffic') return 'Group All Traffic';
-    if (val === 'mgmt_compute') return 'Mgmt + Compute';
+    if (val === 'mgmt_compute') return 'Management + Compute';
     if (val === 'compute_storage') return 'Compute + Storage';
     return capitalize(val);
 }
