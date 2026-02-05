@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.4';
+const WIZARD_VERSION = '0.13.5';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -244,6 +244,8 @@ const state = {
     theme: 'dark',
     fontSize: 'medium',
     ports: null,
+    portConfig: null,
+    portConfigConfirmed: false,
     storage: null,
     torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged/Low Capacity
     switchlessLinkMode: null,
@@ -2653,7 +2655,7 @@ function selectOption(category, value) {
         state.customIntentConfirmed = false;
         state.storageAutoIp = null;
         state.customStorageSubnets = []; state.customStorageSubnetsConfirmed = false;
-        try { state.portConfig = null; } catch (e) { /* ignore */ }
+        try { state.portConfig = null; state.portConfigConfirmed = false; } catch (e) { /* ignore */ }
     } else if (category === 'rackAwareTorsPerRoom') {
         state.rackAwareTorsPerRoom = value;
         state.rackAwareTorArchitecture = null;
@@ -4789,6 +4791,9 @@ function updateUI() {
             // Preserve existing port configs (including custom names) when count changes
             const existingConfig = Array.isArray(state.portConfig) ? state.portConfig : [];
 
+            // Reset confirmation when port count changes
+            state.portConfigConfirmed = false;
+
             state.portConfig = Array(pCount).fill().map((_, idx) => {
                 // Special default: 3-node switchless standard uses non-RDMA teamed ports for Mgmt+Compute.
                 // Keep Port 1-2 non-RDMA by default; enable RDMA on the remaining ports.
@@ -4924,10 +4929,35 @@ function updateUI() {
         } catch (e) {
             // ignore
         }
+
+        // HARD BLOCK (Step 07): If port configuration is not confirmed, do not allow
+        // the user to proceed to Step 08 (Intent) or beyond.
+        if (state.portConfigConfirmed !== true) {
+            // Clear downstream state so progress gates don't advance.
+            state.intent = null;
+            state.customIntentConfirmed = false;
+            state.storageAutoIp = null;
+            state.outbound = null;
+            state.arc = null;
+            state.proxy = null;
+            state.ip = null;
+            state.infraVlan = null;
+            state.infraVlanId = null;
+
+            // Disable intent cards.
+            if (cards && cards.intent) {
+                Object.values(cards.intent).forEach(c => {
+                    if (!c) return;
+                    c.classList.add('disabled');
+                    c.classList.remove('selected');
+                });
+            }
+        }
     } else {
         portsExp.classList.remove('visible');
         portConfigSec.classList.remove('visible');
         state.portConfig = null;
+        state.portConfigConfirmed = false;
 
         if (rdmaWarn) {
             rdmaWarn.classList.add('hidden');
@@ -6703,13 +6733,15 @@ function renderPortConfiguration(count) {
     const container = document.getElementById('port-config-grid');
     container.innerHTML = '';
 
+    const isConfirmed = state.portConfigConfirmed === true;
+
     for (let i = 0; i < count; i++) {
         const config = state.portConfig[i];
         const displayName = getPortDisplayName(i + 1);
         const hasCustomName = config.customName && config.customName.trim();
 
         const card = document.createElement('div');
-        card.className = `port-config-card ${config.rdma ? 'rdma-active' : ''}`;
+        card.className = `port-config-card ${config.rdma ? 'rdma-active' : ''} ${isConfirmed ? 'confirmed' : ''}`;
         card.innerHTML = `
             <div class="port-name-row" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                 <div class="port-name-display" style="display:flex; align-items:center; gap:6px;">
@@ -6718,19 +6750,20 @@ function renderPortConfiguration(count) {
                         value="${escapeHtml(displayName)}" 
                         placeholder="Port ${i + 1}"
                         maxlength="30"
-                        style="background:transparent; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s; cursor:text;"
-                        onfocus="this.style.borderColor='var(--accent-blue)'; this.style.background='rgba(255,255,255,0.05)';"
-                        onblur="this.style.borderColor=this.value.trim() && this.value.trim() !== 'Port ${i + 1}' ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'; this.style.background='transparent'; updatePortConfig(${i}, 'customName', this.value);"
+                        readonly
+                        data-port-index="${i}"
+                        style="background:transparent; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s; cursor:default; pointer-events:none;"
+                        onblur="disablePortNameEdit(this); updatePortConfig(${i}, 'customName', this.value);"
                         onkeydown="if(event.key==='Enter'){this.blur();}"
-                        title="Click to rename this port">
-                    <span class="port-edit-icon" style="color:var(--text-secondary); font-size:14px; opacity:0.6; cursor:pointer;" title="Click to edit port name" onclick="this.previousElementSibling.focus();">✏️</span>
+                        title="Click pencil icon to rename this port">
+                    <span class="port-edit-icon" style="color:var(--text-secondary); font-size:14px; opacity:${isConfirmed ? '0.3' : '0.6'}; cursor:${isConfirmed ? 'not-allowed' : 'pointer'};" title="${isConfirmed ? 'Edit configuration to rename' : 'Click to edit port name'}" onclick="${isConfirmed ? '' : 'enablePortNameEdit(this.previousElementSibling)'}">✏️</span>
                     ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
                 </div>
                 ${hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : ''}
             </div>
             <div class="config-row">
                 <span class="config-label">Speed</span>
-                <select class="speed-select" onchange="updatePortConfig(${i}, 'speed', this.value)">
+                <select class="speed-select" onchange="updatePortConfig(${i}, 'speed', this.value)" ${isConfirmed ? 'disabled' : ''}>
                     <option value="1GbE" ${config.speed === '1GbE' ? 'selected' : ''}>1 GbE</option>
                     <option value="10GbE" ${config.speed === '10GbE' ? 'selected' : ''}>10 GbE</option>
                     <option value="25GbE" ${config.speed === '25GbE' ? 'selected' : ''}>25 GbE</option>
@@ -6741,6 +6774,7 @@ function renderPortConfiguration(count) {
                 <label class="rdma-check-container">
                     <input type="checkbox" class="rdma-checkbox" 
                         ${config.rdma ? 'checked' : ''} 
+                        ${isConfirmed ? 'disabled' : ''}
                         onchange="updatePortConfig(${i}, 'rdma', this.checked)">
                     <span class="rdma-label">RDMA Capable</span>
                 </label>
@@ -6748,6 +6782,55 @@ function renderPortConfiguration(count) {
         `;
         container.appendChild(card);
     }
+
+    // Show/hide confirm button and confirmed message
+    const confirmContainer = document.getElementById('port-config-confirm-container');
+    const confirmedMsg = document.getElementById('port-config-confirmed-msg');
+    if (confirmContainer && confirmedMsg) {
+        if (isConfirmed) {
+            confirmContainer.classList.add('hidden');
+            confirmedMsg.classList.remove('hidden');
+        } else {
+            confirmContainer.classList.remove('hidden');
+            confirmedMsg.classList.add('hidden');
+        }
+    }
+}
+
+// Enable editing of port name input when pencil icon is clicked
+function enablePortNameEdit(inputEl) {
+    if (state.portConfigConfirmed) return;
+    inputEl.removeAttribute('readonly');
+    inputEl.style.cursor = 'text';
+    inputEl.style.pointerEvents = 'auto';
+    inputEl.style.borderColor = 'var(--accent-blue)';
+    inputEl.style.background = 'rgba(255,255,255,0.05)';
+    inputEl.focus();
+    inputEl.select();
+}
+
+// Disable editing after blur
+function disablePortNameEdit(inputEl) {
+    inputEl.setAttribute('readonly', 'readonly');
+    inputEl.style.cursor = 'default';
+    inputEl.style.pointerEvents = 'none';
+    const idx = parseInt(inputEl.dataset.portIndex, 10);
+    const hasCustom = inputEl.value.trim() && inputEl.value.trim() !== `Port ${idx + 1}`;
+    inputEl.style.borderColor = hasCustom ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)';
+    inputEl.style.background = 'transparent';
+}
+
+// Confirm port configuration
+function confirmPortConfiguration() {
+    state.portConfigConfirmed = true;
+    updateUI();
+    showToast('Port configuration confirmed', 'success');
+}
+
+// Edit port configuration (reset confirmed state)
+function editPortConfiguration() {
+    state.portConfigConfirmed = false;
+    updateUI();
 }
 
 function updatePortConfig(index, key, value) {
