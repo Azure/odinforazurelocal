@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.12.6] - 2026-02-05
+
+### Fixed
+
+#### Missing Section Navigation and Scroll Offset Issues
+
+- **Fixed Incorrect Step ID Mappings** - Corrected the `missingSectionToStep` navigation mapping where clicking on incomplete sections in the progress bar was navigating to wrong wizard steps:
+  - Identity/Active Directory sections now correctly navigate to step-13 (was incorrectly pointing to step-11)
+  - Security Configuration now navigates to step-13-5 (was incorrectly pointing to step-12)
+  - SDN sections now navigate to step-14 (was incorrectly pointing to step-13)
+  - Infrastructure VLAN now navigates to step-11 (was incorrectly pointing to step-10)
+  - Infrastructure CIDR/IP Pool now navigate to step-12 (was incorrectly pointing to step-10)
+  - Storage Pool Configuration now navigates to step-5-5 (was incorrectly pointing to step-6)
+  - Default Gateway now navigates to step-12 (was incorrectly pointing to step-10)
+  - Added missing mappings for SDN Enabled/Disabled and SDN Features
+
+- **Fixed Section Hidden Behind Sticky Headers** - Added `scroll-margin-top: 140px` to `.step` elements to prevent wizard sections from being hidden behind the fixed navigation bar (56px) and sticky breadcrumb/progress bar (~80px) when navigating via the incomplete sections list.
+
+---
+
 ## [0.12.5] - 2026-02-04
 
 ### Added
