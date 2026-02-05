@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.4] - 2026-02-05
+
+### Fixed
+
+#### Custom Port Names in ARM storageNetworkList
+
+- **ARM Template Storage Network Names** - The `networkAdapterName` property in `storageNetworkList` now uses customer-provided custom port names instead of hardcoded "SMB1", "SMB2", etc.
+
+- **Applies to All Switchless Configurations** - 2-node, 3-node, and 4-node switchless storage configurations now correctly use custom SMB adapter names.
+
+- **Switched Storage Networks** - Regular (switched) storage network1/network2 sections also use custom port names.
+
+#### Report Host Networking Section
+
+- **Storage Adapter IPs Use Custom Names** - The Host Networking "Storage Adapter IPs" section in reports now displays custom port names instead of hardcoded SMB labels.
+
+#### Diagram Font Sizes for Long Custom Names
+
+- **Smaller Font in Adapter Tiles** - Reduced font size from 12px to 9px in NIC and SMB adapter tiles within switchless diagrams to accommodate longer custom port names.
+
+---
+
 ## [0.13.3] - 2026-02-05
 
 ### Added
