@@ -13,12 +13,12 @@
     // Outbound connectivity diagram URLs - use local files from docs folder
     var OUTBOUND_DIAGRAMS = {
         // Public Path diagrams
-        'public_no_proxy_no_arc': './docs/outbound-connectivity/images/public-path-no-proxy-no-arc-gateway.svg',
-        'public_proxy_no_arc': './docs/outbound-connectivity/images/public-path-proxy-no-arc-gateway.svg',
-        'public_no_proxy_arc': './docs/outbound-connectivity/images/public-path-no-proxy-with-arc-gateway.svg',
-        'public_proxy_arc': './docs/outbound-connectivity/images/public-path-with-proxy-and-arc-gateway.svg',
+        'public_no_proxy_no_arc': '../docs/outbound-connectivity/images/public-path-no-proxy-no-arc-gateway.svg',
+        'public_proxy_no_arc': '../docs/outbound-connectivity/images/public-path-proxy-no-arc-gateway.svg',
+        'public_no_proxy_arc': '../docs/outbound-connectivity/images/public-path-no-proxy-with-arc-gateway.svg',
+        'public_proxy_arc': '../docs/outbound-connectivity/images/public-path-with-proxy-and-arc-gateway.svg',
         // Private Path diagram
-        'private': './docs/outbound-connectivity/images/private-path-explicit-proxy-and-arc-gateway.svg'
+        'private': '../docs/outbound-connectivity/images/private-path-explicit-proxy-and-arc-gateway.svg'
     };
 
     // Get the appropriate outbound diagram based on state
@@ -304,7 +304,7 @@
         if (inlineCss) {
             headParts.push('<style>' + inlineCss + '</style>');
         } else {
-            headParts.push('<link rel="stylesheet" href="style.css">');
+            headParts.push('<link rel="stylesheet" href="../css/style.css">');
         }
 
         // Clone main report content (avoid including script tags).
@@ -1224,8 +1224,8 @@
     function formatIntent(val) {
         if (!val) return '-';
         if (val === 'all_traffic') return 'Fully Converged Network';
-        if (val === 'mgmt_compute') return 'Mgmt + Compute (Storage Separate)';
-        if (val === 'compute_storage') return 'Compute + Storage (Mgmt Separate)';
+        if (val === 'mgmt_compute') return 'Management + Compute (Storage Separate)';
+        if (val === 'compute_storage') return 'Compute + Storage (Management Separate)';
         if (val === 'custom') return 'Custom';
         return val;
     }
@@ -1293,8 +1293,8 @@
             }
 
             function intentLabelForSet(intent) {
-                if (intent === 'all_traffic') return 'Mgmt + Compute + Storage intent';
-                if (intent === 'mgmt_compute') return 'Mgmt + Compute intent';
+                if (intent === 'all_traffic') return 'Management + Compute + Storage intent';
+                if (intent === 'mgmt_compute') return 'Management + Compute intent';
                 if (intent === 'compute_storage') return 'Compute + Storage intent';
                 if (intent === 'custom') return 'Custom intent(s)';
                 return 'Network intent';
@@ -1318,7 +1318,7 @@
                     mgmt: 'Management',
                     compute: 'Compute',
                     storage: 'Storage',
-                    mgmt_compute: 'Mgmt + Compute',
+                    mgmt_compute: 'Management + Compute',
                     compute_storage: 'Compute + Storage',
                     all: 'All Traffic',
                     unused: 'Unused'
@@ -1362,11 +1362,11 @@
                 if (!adapterMapping || p <= 0) return [];
 
                 var trafficNames = {
-                    mgmt: 'Mgmt + Compute',
+                    mgmt: 'Management + Compute',
                     storage: 'Storage',
                     compute_storage: 'Compute + Storage',
                     all: 'All Traffic',
-                    pool: 'Mgmt + Compute'
+                    pool: 'Management + Compute'
                 };
 
                 var buckets = {};
@@ -1491,7 +1491,7 @@
                         var mgmtBoxW = (mgmtPorts.length * adapterW) + ((mgmtPorts.length - 1) * adapterGap) + 12;
                         var mgmtBoxX = startX - 6;
                         out += '<rect x="' + mgmtBoxX + '" y="' + setY + '" width="' + mgmtBoxW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
-                        out += '<text x="' + (mgmtBoxX + mgmtBoxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Mgmt + Compute</text>';
+                        out += '<text x="' + (mgmtBoxX + mgmtBoxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Management + Compute</text>';
                     }
                     
                     // Draw Storage box (second group)
@@ -1553,7 +1553,7 @@
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
                     
                     // Label for Mgmt + Compute group
-                    var mgmtLabel = (state.intent === 'all_traffic') ? 'Mgmt + Compute + Storage' : 'Mgmt + Compute';
+                    var mgmtLabel = (state.intent === 'all_traffic') ? 'Management + Compute + Storage' : 'Management + Compute';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(mgmtLabel) + '</text>';
                     
                     // Storage box (NICs 3+) if applicable - add gap between boxes
@@ -1879,8 +1879,8 @@
             }
 
             function intentLabelForSet(intent) {
-                if (intent === 'all_traffic') return 'Mgmt + Compute + Storage intent';
-                if (intent === 'mgmt_compute') return 'Mgmt + Compute intent';
+                if (intent === 'all_traffic') return 'Management + Compute + Storage intent';
+                if (intent === 'mgmt_compute') return 'Management + Compute intent';
                 if (intent === 'compute_storage') return 'Compute + Storage intent';
                 if (intent === 'custom') return 'Custom intent(s)';
                 return 'Network intent';
@@ -2142,7 +2142,7 @@
 
                 var setLabelText = intentShortLabel(state.intent);
                 // When Storage uses RDMA, keep the SET label focused on Mgmt/Compute.
-                if (showStorageGroup) setLabelText = 'Mgmt + Compute';
+                if (showStorageGroup) setLabelText = 'Management + Compute';
 
                 var out = '';
                 out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';

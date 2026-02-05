@@ -15,7 +15,7 @@ function escapeHtml(s) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/\"/g, '&quot;')
+        .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 }
 
@@ -28,7 +28,7 @@ function escapeHtml(s) {
 function sanitizeInput(input, type = 'text') {
     if (!input) return '';
     const str = String(input).trim();
-    
+
     switch (type) {
         case 'html':
             return escapeHtml(str);
@@ -37,7 +37,7 @@ function sanitizeInput(input, type = 'text') {
         case 'url':
             return encodeURIComponent(str);
         case 'filename':
-            return str.replace(/[^a-z0-9_\-\.]/gi, '_');
+            return str.replace(/[^a-z0-9_.-]/gi, '_');
         default:
             return escapeHtml(str);
     }
@@ -108,24 +108,24 @@ function isValidCidrFormat(cidr) {
     const trimmed = cidr.trim();
     const parts = trimmed.split('/');
     if (parts.length !== 2) return false;
-    
+
     const ip = parts[0];
     const prefixStr = parts[1];
     const prefix = parseInt(prefixStr, 10);
-    
+
     // Validate prefix is a number between 0 and 32
     if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
-    
+
     // Validate IP has 4 octets, each 0-255
     const octets = ip.split('.');
     if (octets.length !== 4) return false;
-    
+
     for (const octet of octets) {
         if (octet === '' || Number.isNaN(Number(octet))) return false;
         const num = parseInt(octet, 10);
         if (num < 0 || num > 255) return false;
     }
-    
+
     return true;
 }
 
@@ -228,20 +228,51 @@ function longToIp(long) {
  */
 function incrementCidrThirdOctet(cidr, increment) {
     if (!isValidCidrFormat(cidr)) return null;
-    
+
     const trimmed = cidr.trim();
     const parts = trimmed.split('/');
     const ip = parts[0];
     const prefix = parts[1];
     const octets = ip.split('.');
-    
+
     const thirdOctet = parseInt(octets[2], 10);
     const newThirdOctet = thirdOctet + increment;
-    
+
     // Check if new octet would exceed valid range
     if (newThirdOctet > 255 || newThirdOctet < 0) return null;
-    
+
     return `${octets[0]}.${octets[1]}.${newThirdOctet}.${octets[3]}/${prefix}`;
+}
+
+/**
+ * Check if an IP address is RFC 1918 private address
+ * RFC 1918 ranges:
+ * - 10.0.0.0/8     (10.0.0.0 - 10.255.255.255)
+ * - 172.16.0.0/12  (172.16.0.0 - 172.31.255.255)
+ * - 192.168.0.0/16 (192.168.0.0 - 192.168.255.255)
+ * @param {string} ip - IPv4 address to check
+ * @returns {boolean} True if the IP is a private RFC 1918 address
+ */
+function isRfc1918Ip(ip) {
+    if (!ip) return false;
+    const trimmed = String(ip).trim();
+    const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    if (!ipv4Regex.test(trimmed)) return false;
+
+    const octets = trimmed.split('.').map(Number);
+    const first = octets[0];
+    const second = octets[1];
+
+    // 10.0.0.0/8 - Class A private
+    if (first === 10) return true;
+
+    // 172.16.0.0/12 - Class B private (172.16.x.x - 172.31.x.x)
+    if (first === 172 && second >= 16 && second <= 31) return true;
+
+    // 192.168.0.0/16 - Class C private
+    if (first === 192 && second === 168) return true;
+
+    return false;
 }
 
 // ============================================================================

@@ -363,7 +363,7 @@ def create_presentation():
     
     # Get logo path
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    logo_path = os.path.join(script_dir, "odin-logo.png")
+    logo_path = os.path.join(script_dir, "images", "odin-logo.png")
     
     # =========== SLIDE 1: Title ===========
     slide1 = prs.slides.add_slide(blank_layout)

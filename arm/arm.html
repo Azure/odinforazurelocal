@@ -8,10 +8,8 @@
     <meta http-equiv="X-XSS-Protection" content="1; mode=block">
     <meta name="referrer" content="no-referrer">
     <title>Odin for Azure Local — ARM Parameters</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
+    <link rel="stylesheet" href="../css/style.css">
     <style>
         /* Mobile responsive styles for ARM page */
         @media (max-width: 768px) {
@@ -111,15 +109,85 @@
                 font-size: 0.7rem !important;
             }
         }
+
+        /* Page header bar with logo */
+        .page-header-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+        }
+
+        .page-header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            padding-right: 24px;
+            border-right: 1px solid var(--glass-border);
+            margin-right: 16px;
+        }
+
+        .page-header-logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .page-header-logo span {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .page-header-logo:hover span {
+            color: var(--accent-blue);
+        }
+
+        .page-header-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        body {
+            padding-top: 56px;
+        }
     </style>
 </head>
 
 <body>
     <div class="background-globes"></div>
 
+    <div class="page-header-bar">
+        <div class="page-header-container">
+            <a href="../" class="page-header-logo">
+                <img src="../images/odin-logo.png" alt="ODIN Logo">
+                <span>ODIN</span>
+            </a>
+            <span class="page-header-title">ARM Parameters</span>
+        </div>
+    </div>
+
     <main class="container">
         <header>
-            <h1>Odin for Azure Local — ARM Parameters JSON</h1>
+            <h1>ARM Parameters JSON</h1>
             <p>View and copy the generated Azure Quickstart-style ARM parameters file.</p>
         </header>
 
@@ -458,6 +526,40 @@
     </main>
 
     <script src="arm.js"></script>
+    <script>
+        // Apply saved theme on load
+        (function() {
+            var theme = localStorage.getItem('odin-theme') || 'dark';
+            var root = document.documentElement;
+            if (theme === 'light') {
+                root.style.setProperty('--bg-dark', '#f5f5f5');
+                root.style.setProperty('--card-bg', '#ffffff');
+                root.style.setProperty('--card-bg-transparent', 'rgba(255, 255, 255, 0.95)');
+                root.style.setProperty('--text-primary', '#000000');
+                root.style.setProperty('--text-secondary', '#6b7280');
+                root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
+                root.style.setProperty('--subtle-bg', 'rgba(0, 0, 0, 0.03)');
+                root.style.setProperty('--subtle-bg-hover', 'rgba(0, 0, 0, 0.06)');
+                root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 245, 245, 0.95) 100%)');
+                root.style.setProperty('--nav-hover-bg', 'rgba(0, 0, 0, 0.05)');
+                root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.12)');
+                document.body.style.background = '#f5f5f5';
+            } else {
+                root.style.setProperty('--bg-dark', '#000000');
+                root.style.setProperty('--card-bg', '#111111');
+                root.style.setProperty('--card-bg-transparent', 'rgba(17, 17, 17, 0.95)');
+                root.style.setProperty('--text-primary', '#ffffff');
+                root.style.setProperty('--text-secondary', '#a1a1aa');
+                root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
+                root.style.setProperty('--subtle-bg', 'rgba(255, 255, 255, 0.03)');
+                root.style.setProperty('--subtle-bg-hover', 'rgba(255, 255, 255, 0.06)');
+                root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%)');
+                root.style.setProperty('--nav-hover-bg', 'rgba(255, 255, 255, 0.05)');
+                root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.15)');
+                document.body.style.background = '#000000';
+            }
+        })();
+    </script>
 </body>
 
 </html>

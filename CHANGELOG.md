@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.51] - 2026-02-05
+
+### Added
+
+#### Automated Build Pipeline
+
+- **GitHub Actions CI/CD**: Automated build validation pipeline runs on every push and pull request
+- **RFC 1918 DNS Validation**: DNS servers must be private IP addresses when using Active Directory (prevents use of public DNS like 8.8.8.8)
+- **Keyboard Navigation**: Option cards are now keyboard accessible with Tab navigation and Enter/Space selection
+
+### Fixed
+
+- **Light Mode Input Fields**: Fixed all input fields (node name/IP, DNS, infrastructure CIDR, VLAN, AD domain, OU path) showing white text on light theme
+- **Missing Sections Links**: "Complete These Sections" links for node items now correctly navigate to Management Connectivity step
+- **SDN Management Resume**: Fixed SDN Management selection not being restored when resuming a saved session
+- **Infrastructure Network Resume**: Fixed Infrastructure Network validation errors when resuming a saved session
+- **ESLint Integration**: JavaScript code quality checks with comprehensive linting rules
+- **HTML Validation**: Automated HTML5 validation to catch markup errors
+- **136 Unit Tests**: Automated test suite runs in headless browser environment
+- **Cross-Browser Testing**: Tests execute in Chromium via Playwright for consistent results
+- **Code Quality Gates**: Pull requests must pass all checks before merge
+
+---
+
+## [0.14.50] - 2026-02-05
+
+### Changed
+
+#### Codebase Optimization & Modularization
+
+- **Project Structure Reorganized**: Cleaner folder organization for better maintainability:
+  - `arm/` - ARM parameter generator (arm.html, arm.js)
+  - `report/` - Configuration report generator (report.html, report.js)
+  - `css/` - Stylesheets (style.css)
+  - `images/` - Logo and visual assets
+  - `js/` - All JavaScript modules including new Phase 2A modules
+  - `tests/` - Unit tests and development server
+  - `scripts/` - Utility scripts
+  - `docs/archive/` - Historical documentation
+- **Phase 2A Modularization Complete**: Extracted additional functions into dedicated modules:
+  - `js/formatting.js` - Display formatting functions (getPortDisplayName, formatScenario, formatRegion, etc.)
+  - `js/validation.js` - Real-time field validation (validateFieldRealtime, addValidationFeedback)
+  - `js/dns.js` - DNS server management (addDnsServer, removeDnsServer, renderDnsServers, etc.)
+- **Comprehensive Unit Test Suite**: Expanded from 34 to 136 unit tests covering utils, formatting, validation, DNS, and theme modules
+- **Preview Button Removed**: Removed redundant "Preview Cluster Configuration" button and Alt+P shortcut - the Configuration Summary panel provides real-time feedback
+- **Documentation Updated**: QUICK_START.md refreshed with current project structure and features
+
+---
+
 ## [0.14.2] - 2026-02-05
 
 ### Fixed

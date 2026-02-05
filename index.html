@@ -14,13 +14,8 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-</head>
-
-<body class="has-tab-nav">
+    <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
+    <link rel="stylesheet" href="css/style.css">
     <style>
         .reset-button {
             width: 100%;
@@ -247,16 +242,19 @@
             line-height: 1.6;
         }
     </style>
+</head>
+
+<body class="has-tab-nav">
     <div class="background-globes"></div>
 
     <!-- Tab Navigation -->
-    <nav class="odin-tab-nav">
+    <nav class="odin-tab-nav" aria-label="Main navigation">
         <div class="odin-tab-container">
             <div class="odin-tab-logo">
-                <img src="odin-logo.png" alt="Odin">
+                <img src="images/odin-logo.png" alt="Odin">
                 <span>ODIN</span>
             </div>
-            <button class="odin-tab-btn active" data-tab="designer" onclick="switchOdinTab('designer')">
+            <button type="button" class="odin-tab-btn active" data-tab="designer" onclick="switchOdinTab('designer')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2"/>
                     <path d="M3 9h18M9 21V9"/>
@@ -280,7 +278,7 @@
                 Sizer
                 <span class="odin-tab-badge">Preview</span>
             </a>
-            <button onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" title="Toggle light/dark theme">🌙</button>
+            <button type="button" onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" title="Toggle light/dark theme">🌙</button>
         </div>
     </nav>
 
@@ -350,14 +348,14 @@
             <div class="header-title-wrapper">
                 <h1 class="header-title">Odin for Azure Local</h1>
                 <div class="header-logo-wrapper">
-                    <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
+                    <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.14.2 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.14.51 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
             <p class="header-description">Odin, the Norse god embodying strategic thinking and architecture, is your guide for Azure Local deployments. This <strong>O</strong>ptimal <strong>D</strong>eployment and <strong>I</strong>nfrastructure <strong>N</strong>avigator provides a decision tree interface to select an Azure Local deployment type, and instance design using validated architecture and network configuration.</p>
-            
+
             <!-- Page Statistics -->
             <div id="page-statistics" style="display: flex; justify-content: center; align-items: center; margin-top: 16px;">
                 <div style="display: flex; gap: 24px; padding: 10px 20px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; font-size: 13px;">
@@ -1118,7 +1116,7 @@
                                 </svg>
                             </div>
                             <h3>Group All Traffic</h3>
-                            <p>Mgmt + Compute + Storage.</p>
+                            <p>Management + Compute + Storage.</p>
                         </div>
                         <div class="option-card" data-value="mgmt_compute"
                             onclick="selectOption('intent', 'mgmt_compute')">
@@ -1128,7 +1126,7 @@
                                     <rect x="13" y="3" width="8" height="18" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                 </svg>
                             </div>
-                            <h3>Mgmt + Compute</h3>
+                            <h3>Management + Compute</h3>
                             <p>Storage separate.</p>
                         </div>
                         <div class="option-card" data-value="compute_storage"
@@ -1140,7 +1138,7 @@
                                 </svg>
                             </div>
                             <h3>Compute + Storage</h3>
-                            <p>Mgmt separate.</p>
+                            <p>Management separate.</p>
                         </div>
                         <div class="option-card" data-value="custom" onclick="selectOption('intent', 'custom')">
                             <div class="icon">
@@ -1598,7 +1596,7 @@
                         </div>
                         <div id="infra-vlan-custom" class="hidden" style="margin-bottom:1rem;">
                             <label for="infra-vlan-id" style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Custom VLAN ID (1-4096)</label>
-                            <input type="number" id="infra-vlan-id" min="1" max="4096" placeholder="e.g. 181" style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;" onchange="updateInfraVlanId()">
+                            <input type="number" id="infra-vlan-id" min="1" max="4096" placeholder="e.g. 181" style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;" onchange="updateInfraVlanId()">
                             <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">Enter the VLAN ID configured on all management adapters before Azure Arc registration.</p>
                         </div>
                     </div>
@@ -1625,7 +1623,7 @@
                             </div>
                             <input type="text" id="infra-cidr" placeholder="e.g. 192.168.1.0/24"
                                 title="Enter a valid IPv4 CIDR (e.g. 192.168.1.0/24)"
-                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                 oninput="markInfraCidrManual(this.value)"
                                 onchange="updateInfraNetwork()">
                             <h5 style="margin-top:0.75rem; color:var(--text-primary); font-size:1rem;">Infrastructure Network IP Pool</h5>
@@ -1639,7 +1637,7 @@
                                 <input type="text" id="infra-ip-start" placeholder="e.g. 192.168.1.10"
                                     pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                     title="Enter a valid IPv4 address (e.g. 192.168.1.10)"
-                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                     onchange="updateInfraNetwork()">
                             </div>
                             <div style="flex:1; min-width:200px;">
@@ -1647,7 +1645,7 @@
                                 <input type="text" id="infra-ip-end" placeholder="e.g. 192.168.1.15"
                                     pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                     title="Enter a valid IPv4 address (e.g. 192.168.1.15)"
-                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                     onchange="updateInfraNetwork()">
                             </div>
                         </div>
@@ -1657,7 +1655,7 @@
                             <input type="text" id="infra-default-gateway" placeholder="e.g. 192.168.1.1"
                                 pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                 title="Enter a valid IPv4 address (e.g. 192.168.1.1)"
-                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                 oninput="markInfraGatewayManual(this.value)"
                                 onchange="updateInfraNetwork()">
                             <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">Must be in the Infrastructure Network CIDR and outside the reserved Infrastructure IP Pool.</p>
@@ -1755,7 +1753,7 @@
                         <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Active Directory Domain
                             Name</label>
                         <input type="text" id="ad-domain" placeholder="e.g. contoso.com"
-                            style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                            style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                             onchange="updateAdDomain()">
                         
                         <div style="margin-top:1.5rem;">
@@ -1764,7 +1762,7 @@
                                 <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Organization Unit Path, example: 'OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com'. It is recommended that this OU is created using the AD Preparation tool">ℹ️</span>
                             </label>
                             <input type="text" id="ad-ou-path" placeholder="e.g. OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com"
-                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                 onchange="updateAdOuPath()">
                             <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
                                 It is recommended that this OU is created using the <a href="https://learn.microsoft.com/azure/azure-local/deploy/deployment-prep-active-directory#active-directory-preparation-module" target="_blank" style="color:var(--accent-blue);">AD Preparation tool</a>
@@ -1780,7 +1778,7 @@
                                 <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Federation Services server name for disconnected deployments">ℹ️</span>
                             </label>
                             <input type="text" id="adfs-server-name" placeholder="e.g. adfs.contoso.com"
-                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                 onchange="updateAdfsServerName()">
                             <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
                                 Required for disconnected deployments with Active Directory Federation Services
@@ -1804,7 +1802,7 @@
                                     Zone name <span style="color:#ef4444;">*</span>
                                 </label>
                                 <input type="text" id="local-dns-zone-input" placeholder=""
-                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                     onchange="updateLocalDnsZone()">
                             </div>
 
@@ -2121,13 +2119,6 @@
                             </div>
                         </div>
 
-                        <button id="preview-config-btn" type="button" class="report-button preview-button" onclick="showConfigurationPreview()" style="margin-bottom: 0.75rem; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));">
-                            👁️ Preview Cluster Configuration
-                        </button>
-                        <p style="margin-top:0.5rem; margin-bottom:1rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
-                            Review all your selections before generating outputs.
-                        </p>
-
                         <button id="generate-report-btn" type="button" class="report-button" onclick="generateReport()" disabled style="padding: 0.75rem 1.25rem; font-size: 0.9rem;">
                             📋 Generate Cluster Design Document
                         </button>
@@ -2203,7 +2194,10 @@
     <script src="js/notifications.js"></script>
     <script src="js/analytics.js"></script>
     <script src="js/theme.js"></script>
-    <script src="script.js"></script>
+    <script src="js/formatting.js"></script>
+    <script src="js/validation.js"></script>
+    <script src="js/dns.js"></script>
+    <script src="js/script.js"></script>
 </body>
 
 </html>

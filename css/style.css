@@ -844,6 +844,12 @@ header .header-description {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
+.option-card:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
 .option-card.selected {
     background: rgba(0, 120, 212, 0.1);
     border-color: var(--accent-blue);

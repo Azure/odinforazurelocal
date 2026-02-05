@@ -1,0 +1,106 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "script"
+  },
+  "globals": {
+    "state": "writable",
+    "firebase": "readonly",
+    "saveStateToLocalStorage": "readonly",
+    "updateSummary": "readonly",
+    "ipToLong": "readonly",
+    "longToIp": "readonly",
+    "escapeHtml": "readonly",
+    "sanitizeInput": "readonly",
+    "formatNumber": "readonly",
+    "capitalize": "readonly",
+    "isValidIpv4": "readonly",
+    "isValidIpv4Cidr": "readonly",
+    "isValidCidrFormat": "readonly",
+    "isValidDomain": "readonly",
+    "isValidNetbiosName": "readonly",
+    "isValidVlan": "readonly",
+    "calculateCidrDetails": "readonly",
+    "extractIpFromCidr": "readonly",
+    "extractPrefixFromCidr": "readonly",
+    "incrementCidrThirdOctet": "readonly",
+    "ipv4ToInt": "readonly",
+    "intToIpv4": "readonly",
+    "prefixToMask": "readonly",
+    "validateFieldRealtime": "readonly",
+    "addValidationFeedback": "readonly",
+    "showToast": "readonly",
+    "reportUiError": "readonly",
+    "showNotification": "readonly",
+    "copyToClipboard": "readonly",
+    "initializeAnalytics": "readonly",
+    "trackPageView": "readonly",
+    "trackFormCompletion": "readonly",
+    "applyTheme": "readonly",
+    "toggleTheme": "readonly",
+    "increaseFontSize": "readonly",
+    "decreaseFontSize": "readonly",
+    "applyFontSize": "readonly",
+    "getPortDisplayName": "readonly",
+    "getProxyLabel": "readonly",
+    "formatScenario": "readonly",
+    "formatScale": "readonly",
+    "formatOutbound": "readonly",
+    "formatIntent": "readonly",
+    "formatRegion": "readonly",
+    "formatLocalInstanceRegion": "readonly",
+    "addDnsServer": "readonly",
+    "removeDnsServer": "readonly",
+    "updateDnsServer": "readonly",
+    "renderDnsServers": "readonly",
+    "updateDnsServiceExisting": "readonly",
+    "updateDnsServiceExistingNote": "readonly",
+    "validateAllDnsServers": "readonly",
+    "updateLocalDnsZone": "readonly",
+    "isRfc1918Ip": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-undef": "error",
+    "no-console": "off",
+    "semi": ["warn", "always"],
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "eqeqeq": ["warn", "smart"],
+    "no-var": "warn",
+    "prefer-const": "warn",
+    "no-multiple-empty-lines": ["warn", { "max": 2 }],
+    "no-trailing-spaces": "warn",
+    "indent": ["warn", 4, { "SwitchCase": 1 }],
+    "brace-style": ["warn", "1tbs", { "allowSingleLine": true }],
+    "curly": ["warn", "multi-line"],
+    "comma-dangle": ["warn", "never"],
+    "object-curly-spacing": ["warn", "always"],
+    "array-bracket-spacing": ["warn", "never"],
+    "space-before-function-paren": ["warn", {
+      "anonymous": "never",
+      "named": "never",
+      "asyncArrow": "always"
+    }],
+    "no-useless-escape": "warn",
+    "no-prototype-builtins": "warn",
+    "no-case-declarations": "warn"
+  },
+  "ignorePatterns": [
+    "docs/archive/**",
+    "*.min.js"
+  ],
+  "overrides": [
+    {
+      "files": ["js/utils.js", "js/notifications.js", "js/analytics.js", "js/theme.js", "js/formatting.js", "js/validation.js", "js/dns.js", "js/script.js"],
+      "rules": {
+        "no-redeclare": "off",
+        "no-unused-vars": "off"
+      }
+    }
+  ]
+}

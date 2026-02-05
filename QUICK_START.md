@@ -1,15 +1,26 @@
-# Quick Start Guide - Azure Local Wizard v0.1.0
+# Quick Start Guide - Azure Local Wizard
 
-## 🚀 New in Version 0.1.0
+## 🚀 Getting Started
+
+The Azure Local Wizard helps you configure Azure Local deployments through an interactive step-by-step process.
+
+### Launch the Wizard
+1. Open `index.html` in your browser, or
+2. Run `.\tests\serve.ps1` and visit `http://localhost:5500`
+
+### Before You Start
+- **📋 View Prerequisites** - Blue button shows hardware/network/Azure requirements
+
+---
+
+## 📖 Key Features
 
 ### Header Actions (Top Right)
 - **📁 Import Config** - Load a previously saved configuration
 - **💾 Export Config** - Save your current configuration as JSON
 - **🔢 CIDR Calculator** - Calculate subnet details
 - **💰 Cost Estimate** - Get rough monthly cost estimates
-
-### Before You Start
-- **📋 View Prerequisites** - Blue button shows hardware/network/Azure requirements
+- **📦 Sizer Tool** - Size your Azure Local deployment
 
 ### During Configuration
 - **Compare Options** buttons - Available on Storage, Outbound, and Arc Gateway steps
@@ -18,36 +29,8 @@
 
 ### After Configuration
 - **Resume Session** - Return anytime and pick up where you left off
-- **What's New** - Click link in header to see all new features
-
----
-
-## 📖 Quick Tips
-
-### Saving Your Work
-Your progress is **automatically saved** after every change. No manual save needed!
-
-### Sharing Configurations
-1. Click **Export Config**
-2. Share the JSON file with your team
-3. They click **Import Config** to load it
-
-### Getting Help
-- Look for **?** icons (coming soon in full release)
-- Click **Compare Options** on key decisions
-- Click **View Prerequisites** before starting
-- Check **What's New** for feature overview
-
-### Using the Calculator
-1. Click **CIDR Calculator**
-2. Enter IP/CIDR (e.g., 192.168.1.0/24)
-3. See network, broadcast, usable hosts
-
-### Estimating Costs
-1. Configure your nodes and Arc Gateway
-2. Click **Cost Estimate**
-3. View monthly breakdown
-4. **Note**: Estimates are rough, use Azure Pricing Calculator for accuracy
+- **Generate Report** - Detailed configuration document
+- **Generate ARM Parameters** - For deployment automation
 
 ---
 
@@ -64,15 +47,15 @@ Your progress is **automatically saved** after every change. No manual save need
 
 ---
 
-## 🔑 Keyboard Shortcuts
-
-- **Tab** - Navigate between fields
-- **Enter** - Select focused option
-- **Escape** - Close modals (when open)
-
----
-
 ## 💡 Pro Tips
+
+### Saving Your Work
+Your progress is **automatically saved** after every change. No manual save needed!
+
+### Sharing Configurations
+1. Click **Export Config**
+2. Share the JSON file with your team
+3. They click **Import Config** to load it
 
 ### Avoid IP Conflicts
 Use the CIDR Calculator to verify subnets don't overlap.
@@ -83,14 +66,13 @@ Size your infrastructure IP pool with extra capacity.
 ### Document Everything
 Export your config regularly - it includes all your decisions.
 
-### Compare Before Deciding
-Use "Compare Options" buttons to understand trade-offs.
+---
 
-### Test Imports
-After exporting, test importing on a fresh session to verify.
+## 🔑 Keyboard Shortcuts
 
-### Save Milestones
-Export config at major decision points (before and after changes).
+- **Tab** - Navigate between fields
+- **Enter** - Select focused option
+- **Escape** - Close modals (when open)
 
 ---
 
@@ -118,27 +100,34 @@ Export config at major decision points (before and after changes).
 
 ---
 
-## 📚 Documentation
+## 📚 Project Structure
 
-- **README.md** - Full documentation
-- **IMPLEMENTATION_SUMMARY.md** - What's new in v0.1.0
-- **EXPORT_FORMATS.md** - Export format details
-- **FRAMEWORK_MIGRATION.md** - Future migration path
-- **tests.html** - Unit test suite
+```
+odinforazurelocal/
+├── index.html          # Main wizard
+├── arm/                # ARM parameter generator
+├── report/             # Report generator
+├── sizer/              # Deployment sizer tool
+├── js/                 # JavaScript modules
+├── css/                # Stylesheets
+├── images/             # Logo and assets
+├── tests/              # Unit tests and dev server
+└── docs/               # Additional documentation
+```
 
 ---
 
 ## ⚡ Quick Actions
 
-| Action | Location | Shortcut |
-|--------|----------|----------|
-| Export Config | Header | Top-right button |
-| Import Config | Header | Top-right button |
-| CIDR Calculator | Header | Blue button |
-| Cost Estimate | Header | Green button |
-| Prerequisites | Above wizard | Blue button |
-| Compare Options | Step headers | Blue button |
-| What's New | Header | Link below title |
+| Action | Location | Description |
+|--------|----------|-------------|
+| Export Config | Header | Save configuration as JSON |
+| Import Config | Header | Load saved configuration |
+| CIDR Calculator | Header | IP/subnet calculator |
+| Cost Estimate | Header | Rough monthly estimates |
+| Prerequisites | Above wizard | Requirements checklist |
+| Compare Options | Step headers | Compare configuration choices |
+| Sizer | Header | Size your deployment |
 
 ---
 
@@ -175,7 +164,7 @@ Export config at major decision points (before and after changes).
 
 - **GitHub Issues** - Report bugs or request features
 - **Documentation** - Check README.md
-- **Unit Tests** - Open tests.html to verify functionality
+- **Unit Tests** - Open tests/tests.html to verify functionality
 - **Azure Docs** - [learn.microsoft.com/azure-stack/hci/](https://learn.microsoft.com/azure-stack/hci/)
 
 ---
@@ -191,8 +180,8 @@ After completing the wizard:
 
 ---
 
-**Version**: 0.1.0  
-**Last Updated**: December 15, 2025  
+**Version**: 0.14.50  
+**Last Updated**: February 5, 2026  
 **Compatibility**: Azure Local 2506+
 
 Happy Configuring! 🎉

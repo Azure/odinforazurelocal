@@ -3,7 +3,7 @@
 // ============================================================================
 // Usage tracking for page views and form completions.
 // To enable analytics, replace the placeholder values with your Firebase config.
-// 
+//
 // Firebase Realtime Database Rules (recommended):
 // {
 //   "rules": {
@@ -33,13 +33,13 @@
 const FIREBASE_CONFIG = {
     // Replace with your Firebase project configuration
     // Get these values from: Firebase Console > Project Settings > General > Your apps > Config
-    apiKey: "AIzaSyDBMPWx1F7G6T-KMEkkfhLNbl145mU9m-Q",
-    authDomain: "odin-analytics-7881f.firebaseapp.com",
-    databaseURL: "https://odin-analytics-7881f-default-rtdb.firebaseio.com",
-    projectId: "odin-analytics-7881f",
-    storageBucket: "odin-analytics-7881f.firebasestorage.app",
-    messagingSenderId: "35317804205",
-    appId: "1:35317804205:web:8e9622c2c21ccd690b2a24"
+    apiKey: 'AIzaSyDBMPWx1F7G6T-KMEkkfhLNbl145mU9m-Q',
+    authDomain: 'odin-analytics-7881f.firebaseapp.com',
+    databaseURL: 'https://odin-analytics-7881f-default-rtdb.firebaseio.com',
+    projectId: 'odin-analytics-7881f',
+    storageBucket: 'odin-analytics-7881f.firebasestorage.app',
+    messagingSenderId: '35317804205',
+    appId: '1:35317804205:web:8e9622c2c21ccd690b2a24'
 };
 
 // Analytics state
@@ -154,27 +154,27 @@ function fetchAndDisplayStats() {
         analyticsRef.once('value')
             .then((snapshot) => {
                 const data = snapshot.val() || {};
-                
+
                 // Update page views
                 const pageViewsEl = document.getElementById('stat-page-views');
                 if (pageViewsEl) {
                     pageViewsEl.textContent = formatNumber(data.pageViews || 0);
                 }
-                
+
                 // Update design documents
                 const designDocsEl = document.getElementById('stat-design-docs');
                 if (designDocsEl) {
                     const formCompletions = data.formCompletions || {};
                     designDocsEl.textContent = formatNumber(formCompletions.designDocument || 0);
                 }
-                
+
                 // Update ARM deployments
                 const armDeploymentsEl = document.getElementById('stat-arm-deployments');
                 if (armDeploymentsEl) {
                     const formCompletions = data.formCompletions || {};
                     armDeploymentsEl.textContent = formatNumber(formCompletions.armDeployment || 0);
                 }
-                
+
                 console.log('Analytics: Stats displayed');
             })
             .catch((error) => {
