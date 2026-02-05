@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Light Mode Input Fields**: Fixed all input fields (node name/IP, DNS, infrastructure CIDR, VLAN, AD domain, OU path) showing white text on light theme
 - **Missing Sections Links**: "Complete These Sections" links for node items now correctly navigate to Management Connectivity step
+- **SDN Management Resume**: Fixed SDN Management selection not being restored when resuming a saved session
+- **Infrastructure Network Resume**: Fixed Infrastructure Network validation errors when resuming a saved session
 - **ESLint Integration**: JavaScript code quality checks with comprehensive linting rules
 - **HTML Validation**: Automated HTML5 validation to catch markup errors
 - **136 Unit Tests**: Automated test suite runs in headless browser environment

@@ -43,6 +43,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **RFC 1918 DNS Validation**: DNS servers must be private IPs when using Active Directory (prevents public DNS like 8.8.8.8)
 - **Light Mode Input Fix**: Fixed all input fields showing white text on light theme backgrounds
 - **Keyboard Navigation**: Option cards now support Tab navigation and Enter/Space selection
+- **SDN Management Resume Fix**: Fixed SDN Management selection not being restored when resuming a saved session
+- **Infrastructure Network Resume Fix**: Fixed Infrastructure Network validation errors when resuming a saved session
 - **Codebase Modularization**: Project restructured with dedicated modules for formatting, validation, DNS, theme, and notifications
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.

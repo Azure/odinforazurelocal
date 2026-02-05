@@ -314,6 +314,7 @@ const missingSectionToStep = {
     'Active Directory Domain Name': 'step-13',
     'AD Domain': 'step-13',
     'DNS Servers': 'step-13',
+    'DNS Servers must be private IPs (RFC 1918) for Active Directory': 'step-13',
     'Local DNS Zone': 'step-13',
     'Local DNS Zone Name': 'step-13',
     'Security Configuration': 'step-13-5',
@@ -460,7 +461,18 @@ function getReportReadiness() {
     } else {
         if (state.activeDirectory === 'azure_ad' && !state.adDomain) missing.push('Active Directory Domain Name');
         // DNS required for both identity options in this wizard.
-        if (!state.dnsServers || state.dnsServers.length <= 0) missing.push('DNS Servers');
+        if (!state.dnsServers || state.dnsServers.length <= 0) {
+            missing.push('DNS Servers');
+        } else if (state.activeDirectory === 'azure_ad') {
+            // RFC 1918 validation - AD mode requires private DNS servers
+            const validDnsServers = state.dnsServers.filter(s => s && s.trim());
+            for (const server of validDnsServers) {
+                if (!isRfc1918Ip(server)) {
+                    missing.push('DNS Servers must be private IPs (RFC 1918) for Active Directory');
+                    break;
+                }
+            }
+        }
         if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
     }
 
@@ -4005,18 +4017,19 @@ function updateUI() {
         }
         
         // Restore input values from state (for Resume/Import functionality)
-        if (infraInputCidr && state.infraCidr && !infraInputCidr.value) {
+        // Always restore from state to ensure values are populated
+        if (infraInputCidr && state.infraCidr) {
             infraInputCidr.value = state.infraCidr;
         }
         if (state.infra) {
-            if (state.infra.start && !infraInputStart.value) {
+            if (state.infra.start && infraInputStart) {
                 infraInputStart.value = state.infra.start;
             }
-            if (state.infra.end && !infraInputEnd.value) {
+            if (state.infra.end && infraInputEnd) {
                 infraInputEnd.value = state.infra.end;
             }
         }
-        if (infraInputGateway && state.infraGateway && !infraInputGateway.value) {
+        if (infraInputGateway && state.infraGateway) {
             infraInputGateway.value = state.infraGateway;
         }
     }
@@ -6046,6 +6059,7 @@ function updateSummary() {
 
     renderDiagram();
     updateStepIndicators();
+    updateMissingSectionsDisplay();
 }
 
 function renderDiagram() {
@@ -8018,6 +8032,19 @@ function resumeSavedState() {
     if (saved && saved.data) {
         Object.assign(state, saved.data);
         
+        // Restore SDN enabled card selection
+        if (state.sdnEnabled) {
+            const sdnEnabledCard = document.getElementById(state.sdnEnabled === 'yes' ? 'sdn-enabled-yes' : 'sdn-enabled-no');
+            if (sdnEnabledCard) {
+                // Remove selected from both cards first
+                const yesCard = document.getElementById('sdn-enabled-yes');
+                const noCard = document.getElementById('sdn-enabled-no');
+                if (yesCard) yesCard.classList.remove('selected');
+                if (noCard) noCard.classList.remove('selected');
+                sdnEnabledCard.classList.add('selected');
+            }
+        }
+        
         // Restore SDN enabled state and features section visibility
         const sdnFeaturesSection = document.getElementById('sdn-features-section');
         if (sdnFeaturesSection) {
@@ -8036,20 +8063,42 @@ function resumeSavedState() {
             });
         }
         
-        // Restore SDN management selection
-        if (state.sdnManagement) {
-            const card = document.getElementById(state.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
-            if (card) card.classList.add('selected');
-        }
-        
-        // Update SDN management options visibility
+        // Update SDN management options visibility (must be BEFORE restoring selection)
         updateSdnManagementOptions();
+        
+        // Restore SDN management selection AFTER updateSdnManagementOptions
+        // This ensures the management section is visible and cards are properly enabled
+        if (state.sdnManagement) {
+            const arcCard = document.getElementById('sdn-arc-card');
+            const onpremCard = document.getElementById('sdn-onprem-card');
+            // Clear any existing selection
+            if (arcCard) arcCard.classList.remove('selected');
+            if (onpremCard) onpremCard.classList.remove('selected');
+            // Apply the saved selection
+            const card = document.getElementById(state.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
+            if (card && !card.classList.contains('disabled')) {
+                card.classList.add('selected');
+            }
+        }
         
         updateUI();
         
         // Render DNS servers if present (fixes Issue #64)
         if (state.dnsServers && state.dnsServers.length > 0) {
             renderDnsServers();
+        }
+        
+        // Re-run infrastructure network validation after UI is restored
+        // This ensures gateway and IP pool validations run with restored values
+        if (state.infraCidr || state.infra || state.infraGateway) {
+            setTimeout(() => {
+                updateInfraNetwork();
+            }, 100);
+        }
+        
+        // Re-run DNS validation after restore
+        if (state.dnsServers && state.dnsServers.length > 0) {
+            validateAllDnsServers();
         }
         
         showToast('Session resumed successfully!', 'success');
@@ -8341,6 +8390,8 @@ function showChangelog() {
                         <li><strong>RFC 1918 DNS Validation:</strong> DNS servers must be private IPs when using Active Directory.</li>
                         <li><strong>Light Mode Input Fix:</strong> All input fields now display correctly in light theme.</li>
                         <li><strong>Keyboard Navigation:</strong> Option cards support Tab and Enter/Space selection.</li>
+                        <li><strong>SDN Management Resume Fix:</strong> SDN Management selection now restores when resuming a session.</li>
+                        <li><strong>Infrastructure Network Resume Fix:</strong> Infrastructure Network validation now works correctly when resuming a session.</li>
                     </ul>
                 </div>
 
