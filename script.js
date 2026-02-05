@@ -7174,14 +7174,25 @@ function applyInfraVlanVisibility() {
 }
 
 function resetAll() {
+    // Reset all state properties to initial values
     state.scenario = null;
     state.region = null;
     state.localInstanceRegion = null;
     state.scale = null;
     state.nodes = null;
+    state.witnessType = null;
     state.ports = null;
     state.storage = null;
+    state.torSwitchCount = null;
+    state.switchlessLinkMode = null;
+    state.storagePoolConfiguration = null;
+    state.rackAwareZones = null;
+    state.rackAwareZonesConfirmed = false;
+    state.rackAwareZoneSwapSelection = null;
+    state.rackAwareTorsPerRoom = null;
+    state.rackAwareTorArchitecture = null;
     state.intent = null;
+    state.customIntentConfirmed = false;
     state.outbound = null;
     state.arc = null;
     state.proxy = null;
@@ -7191,9 +7202,12 @@ function resetAll() {
     state.infraCidrAuto = true;
     state.infraGateway = null;
     state.infraGatewayManual = false;
+    state.nodeSettings = [];
     state.infraVlan = null;
     state.infraVlanId = null;
     state.storageAutoIp = null;
+    state.customStorageSubnets = [];
+    state.customStorageSubnetsConfirmed = false;
     state.activeDirectory = null;
     state.adDomain = null;
     state.adOuPath = null;
@@ -7201,10 +7215,31 @@ function resetAll() {
     state.dnsServers = [];
     state.localDnsZone = null;
     state.dnsServiceExisting = null;
+    state.sdnEnabled = null;
     state.sdnFeatures = [];
     state.sdnManagement = null;
+    state.intentOverrides = {};
     state.customIntents = {};
+    state.adapterMapping = {};
+    state.adapterMappingConfirmed = false;
+    state.adapterMappingSelection = null;
+    state.overridesConfirmed = false;
+    state.securityConfiguration = null;
+    state.securitySettings = {
+        driftControlEnforced: true,
+        bitlockerBootVolume: true,
+        bitlockerDataVolumes: true,
+        wdacEnforced: true,
+        credentialGuardEnforced: true,
+        smbSigningEnforced: true,
+        smbClusterEncryption: true
+    };
+    state.rdmaGuardMessage = null;
+    state.privateEndpoints = null;
+    state.privateEndpointsList = [];
+    state.portConfig = [];
 
+    // Clear input fields
     const cidrInput = document.getElementById('infra-cidr');
     const startInput = document.getElementById('infra-ip-start');
     const endInput = document.getElementById('infra-ip-end');
@@ -7246,8 +7281,14 @@ function resetAll() {
 
     const sdnSection = document.getElementById('sdn-management-section');
     if (sdnSection) sdnSection.classList.add('hidden');
+    
+    const sdnFeaturesSection = document.getElementById('sdn-features-section');
+    if (sdnFeaturesSection) sdnFeaturesSection.classList.add('hidden');
 
     document.querySelectorAll('.sdn-feature-card input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+    // Reset PE checkboxes
+    document.querySelectorAll('#pe-options-grid input[type="checkbox"]').forEach(cb => cb.checked = false);
 
     renderDnsServers();
 
@@ -7260,7 +7301,21 @@ function resetAll() {
         }
     });
 
+    // Remove selected state from all option cards
+    document.querySelectorAll('.option-card.selected').forEach(card => {
+        card.classList.remove('selected');
+    });
+
+    // Clear localStorage
+    clearSavedState();
+
+    // Update UI to reflect clean state
     updateUI();
+
+    // Scroll to top of page (to step 1)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    showToast('Started fresh - all previous data cleared', 'info');
 }
 
 function addDnsServer() {

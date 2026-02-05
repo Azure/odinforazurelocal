@@ -27,6 +27,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Fixed Duplicate "Nodes" Entry** - Fixed an issue where "Nodes" appeared twice in the incomplete sections list when the node count wasn't selected. The duplicate check was removed from `getReportReadiness()` since it's already handled by `getNodeSettingsReadiness()`.
 
+- **Fixed "Start Over" Reset Issues** - Comprehensively fixed the `resetAll()` function to properly reset the entire wizard:
+  - Added missing state property resets (witnessType, privateEndpoints, portConfig, nodeSettings, securityConfiguration, securitySettings, sdnEnabled, rackAware properties, torSwitchCount, storagePoolConfiguration, adapterMapping, etc.)
+  - Added scroll to top of page after reset so wizard starts at Step 1
+  - Added removal of `.selected` class from all option cards
+  - Added clearing of localStorage saved state
+  - Added reset of Private Endpoints and SDN Features checkboxes
+  - Added toast notification to confirm reset
+
 ---
 
 ## [0.12.5] - 2026-02-04
