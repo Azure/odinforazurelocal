@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.17';
+const WIZARD_VERSION = '0.13.18';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -8194,6 +8194,16 @@ function parseArmTemplateToState(armTemplate) {
                 });
                 // Update port count to include storage ports
                 result.ports = String(nicAdapters.length + smbAdapters.length);
+                
+                // Build adapter mapping from intent list
+                // NIC adapters (1-based indices) go to 'mgmt', SMB adapters go to 'storage'
+                result.adapterMapping = {};
+                for (let i = 1; i <= nicAdapters.length; i++) {
+                    result.adapterMapping[i] = 'mgmt';
+                }
+                for (let i = 1; i <= smbAdapters.length; i++) {
+                    result.adapterMapping[nicAdapters.length + i] = 'storage';
+                }
             }
             
             // If no NIC adapters but we have SMB adapters, create ports from SMB count

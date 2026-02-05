@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.18] - 2026-02-05
+
+### Fixed
+
+#### ARM Template Import Adapter Mapping
+
+- Fixed ARM template import to properly parse adapter mapping from intentList
+- When importing templates with mgmt_compute intent, both NIC and SMB adapters are now correctly mapped
+- NIC adapters (from Compute_Management intent) are mapped to Management + Compute zone
+- SMB adapters (from Storage intent) are mapped to Storage zone
+- Port count now correctly includes both NIC and SMB adapter counts
+
+---
+
 ## [0.13.17] - 2026-02-05
 
 ### Fixed
