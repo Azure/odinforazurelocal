@@ -1625,7 +1625,7 @@
                             </div>
                             <input type="text" id="infra-cidr" placeholder="e.g. 192.168.1.0/24"
                                 title="Enter a valid IPv4 CIDR (e.g. 192.168.1.0/24)"
-                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                 oninput="markInfraCidrManual(this.value)"
                                 onchange="updateInfraNetwork()">
                             <h5 style="margin-top:0.75rem; color:var(--text-primary); font-size:1rem;">Infrastructure Network IP Pool</h5>
@@ -1639,7 +1639,7 @@
                                 <input type="text" id="infra-ip-start" placeholder="e.g. 192.168.1.10"
                                     pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                     title="Enter a valid IPv4 address (e.g. 192.168.1.10)"
-                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                     onchange="updateInfraNetwork()">
                             </div>
                             <div style="flex:1; min-width:200px;">
@@ -1647,7 +1647,7 @@
                                 <input type="text" id="infra-ip-end" placeholder="e.g. 192.168.1.15"
                                     pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                     title="Enter a valid IPv4 address (e.g. 192.168.1.15)"
-                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                     onchange="updateInfraNetwork()">
                             </div>
                         </div>
@@ -1657,7 +1657,7 @@
                             <input type="text" id="infra-default-gateway" placeholder="e.g. 192.168.1.1"
                                 pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                 title="Enter a valid IPv4 address (e.g. 192.168.1.1)"
-                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                 oninput="markInfraGatewayManual(this.value)"
                                 onchange="updateInfraNetwork()">
                             <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">Must be in the Infrastructure Network CIDR and outside the reserved Infrastructure IP Pool.</p>
