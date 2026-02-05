@@ -720,7 +720,7 @@ function getReportReadiness() {
     if (!state.region) missing.push('Azure Cloud');
     if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
     if (!state.scale) missing.push('Scale');
-    if (!state.nodes) missing.push('Nodes');
+    // Note: 'Nodes' check is handled by getNodeSettingsReadiness() to avoid duplication
     if (!state.witnessType) missing.push('Cloud Witness Type');
 
     if (state.scale === 'rack_aware') {
