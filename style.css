@@ -618,6 +618,7 @@ header .header-description {
 .wizard-progress__title {
     font-weight: 700;
     letter-spacing: -0.01em;
+    color: var(--text-primary);
 }
 
 .wizard-progress__text {

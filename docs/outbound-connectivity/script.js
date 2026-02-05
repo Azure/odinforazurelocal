@@ -375,6 +375,10 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
         root.style.setProperty('--subtle-bg', 'rgba(0, 0, 0, 0.03)');
         root.style.setProperty('--subtle-bg-hover', 'rgba(0, 0, 0, 0.06)');
+        // Navigation bar theme variables for light mode
+        root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 245, 245, 0.95) 100%)');
+        root.style.setProperty('--nav-hover-bg', 'rgba(0, 0, 0, 0.05)');
+        root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.12)');
         root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)');
         root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.4)');
         if (themeButton) themeButton.textContent = '☀️';
@@ -389,6 +393,10 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
         root.style.setProperty('--subtle-bg', 'rgba(255, 255, 255, 0.03)');
         root.style.setProperty('--subtle-bg-hover', 'rgba(255, 255, 255, 0.06)');
+        // Navigation bar theme variables for dark mode
+        root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%)');
+        root.style.setProperty('--nav-hover-bg', 'rgba(255, 255, 255, 0.05)');
+        root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.15)');
         root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)');
         root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.3)');
         if (themeButton) themeButton.textContent = '🌙';

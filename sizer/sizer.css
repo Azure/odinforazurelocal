@@ -42,7 +42,7 @@ body {
     left: 0;
     right: 0;
     z-index: 1000;
-    background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
+    background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
     padding: 0 24px;
@@ -96,12 +96,12 @@ body {
 }
 
 .odin-tab-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--nav-hover-bg, rgba(255, 255, 255, 0.05));
     color: var(--text-primary);
 }
 
 .odin-tab-btn.active {
-    background: rgba(0, 120, 212, 0.15);
+    background: var(--nav-active-bg, rgba(0, 120, 212, 0.15));
     color: var(--accent-blue);
 }
 
@@ -482,7 +482,7 @@ body {
 
 .config-row select {
     padding: 8px 12px;
-    background: #1a1a1a;
+    background: var(--select-bg, #1a1a1a);
     border: 1px solid var(--glass-border);
     border-radius: 8px;
     color: var(--text-primary);
@@ -499,11 +499,11 @@ body {
 .config-row select:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background: #0d0d0d;
+    background: var(--select-disabled-bg, #0d0d0d);
 }
 
 .config-row select option {
-    background: #1a1a1a;
+    background: var(--select-bg, #1a1a1a);
     color: var(--text-primary);
     padding: 8px;
 }
@@ -830,7 +830,7 @@ body {
 .form-group select {
     width: 100%;
     padding: 12px 16px;
-    background: #1a1a1a;
+    background: var(--select-bg, #1a1a1a);
     border: 1px solid var(--glass-border);
     border-radius: 8px;
     color: var(--text-primary);
@@ -844,7 +844,7 @@ body {
 }
 
 .form-group select option {
-    background: #1a1a1a;
+    background: var(--select-bg, #1a1a1a);
     color: var(--text-primary);
     padding: 8px;
 }

@@ -75,56 +75,7 @@
         <div class="sizer-layout">
             <!-- Left Panel: Workload Configuration -->
             <div class="config-panel">
-                <!-- Cluster Configuration - FIRST -->
-                <div class="panel-section cluster-config">
-                    <h2>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"/>
-                            <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/>
-                        </svg>
-                        Cluster Configuration
-                    </h2>
-                    <p class="section-desc">Configure your cluster topology and storage settings first.</p>
-                    
-                    <div class="config-row">
-                        <label for="node-count">Number of Nodes</label>
-                        <select id="node-count" onchange="onNodeCountChange()">
-                            <option value="1">1 Node (Single)</option>
-                            <option value="2">2 Nodes</option>
-                            <option value="3" selected>3 Nodes</option>
-                            <option value="4">4 Nodes</option>
-                            <option value="5">5 Nodes</option>
-                            <option value="6">6 Nodes</option>
-                            <option value="7">7 Nodes</option>
-                            <option value="8">8 Nodes</option>
-                            <option value="12">12 Nodes</option>
-                            <option value="16">16 Nodes</option>
-                        </select>
-                    </div>
-                    <div class="config-row">
-                        <label for="rack-aware">Cluster Type</label>
-                        <select id="rack-aware" onchange="onClusterTypeChange()">
-                            <option value="false" selected>Standard Cluster</option>
-                            <option value="true">Rack-Aware Cluster</option>
-                        </select>
-                    </div>
-                    <div class="config-row">
-                        <label for="resiliency">Storage Resiliency</label>
-                        <select id="resiliency" onchange="onResiliencyChange()">
-                            <option value="2way">Two-way Mirror (min 2 nodes)</option>
-                            <option value="3way" selected>Three-way Mirror (min 3 nodes)</option>
-                            <option value="parity">Dual Parity (min 4 nodes)</option>
-                        </select>
-                    </div>
-                    <div class="config-info" id="cluster-info">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <path d="M12 16v-4M12 8h.01"/>
-                        </svg>
-                        <span id="cluster-info-text">Tip: Three-way Mirror requires minimum 3 fault domains (nodes). For multi-node clusters, N+1 capacity must be reserved when applying updates (ability to drain a node).</span>
-                    </div>
-                </div>
-
+                <!-- Workload Scenario - FIRST -->
                 <div class="panel-section">
                     <h2>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -177,6 +128,56 @@
                         </svg>
                         <p>No workloads added yet</p>
                         <span>Click a workload type above to get started</span>
+                    </div>
+                </div>
+
+                <!-- Cluster Configuration - SECOND -->
+                <div class="panel-section cluster-config">
+                    <h2>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/>
+                        </svg>
+                        Cluster Configuration
+                    </h2>
+                    <p class="section-desc">Configure your cluster topology and storage settings.</p>
+                    
+                    <div class="config-row">
+                        <label for="node-count">Number of Nodes</label>
+                        <select id="node-count" onchange="onNodeCountChange()">
+                            <option value="1">1 Node (Single)</option>
+                            <option value="2">2 Nodes</option>
+                            <option value="3" selected>3 Nodes</option>
+                            <option value="4">4 Nodes</option>
+                            <option value="5">5 Nodes</option>
+                            <option value="6">6 Nodes</option>
+                            <option value="7">7 Nodes</option>
+                            <option value="8">8 Nodes</option>
+                            <option value="12">12 Nodes</option>
+                            <option value="16">16 Nodes</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label for="rack-aware">Cluster Type</label>
+                        <select id="rack-aware" onchange="onClusterTypeChange()">
+                            <option value="false" selected>Standard Cluster</option>
+                            <option value="true">Rack-Aware Cluster</option>
+                        </select>
+                    </div>
+                    <div class="config-row">
+                        <label for="resiliency">Storage Resiliency</label>
+                        <select id="resiliency" onchange="onResiliencyChange()">
+                            <option value="2way">Two-way Mirror (min 2 nodes)</option>
+                            <option value="3way" selected>Three-way Mirror (min 3 nodes)</option>
+                            <option value="parity">Dual Parity (min 4 nodes)</option>
+                        </select>
+                    </div>
+                    <div class="config-info" id="cluster-info">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                        <span id="cluster-info-text">Tip: Three-way Mirror requires minimum 3 fault domains (nodes). For multi-node clusters, N+1 capacity must be reserved when applying updates (ability to drain a node).</span>
                     </div>
                 </div>
             </div>

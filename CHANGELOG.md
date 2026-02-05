@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.30] - 2026-02-05
+
+### Added
+
+#### ARM Import Private Endpoints Option
+
+- **Private Endpoints Question**: When importing ARM templates, the import dialog now asks if the deployment uses Private Endpoints (Private Link)
+- **Service Selection**: If Yes, an expandable section displays checkboxes for selecting which Azure services have Private Endpoints configured:
+  - Key Vault, Storage Account, Container Registry, Site Recovery, Azure Backup, SQL Managed Instance, Microsoft Defender
+- **State Population**: Selected services are properly imported into the Designer wizard's Private Endpoints configuration
+
+#### Sizer UX Improvements
+
+- **Rack-Aware Node Validation**: Rack-Aware clusters now only allow 2, 4, 6, or 8 nodes (even numbers for balanced rack distribution)
+- **Sizer Section Reorder**: Workload Scenario section now appears first, followed by Cluster Configuration for better workflow
+
+### Fixed
+
+#### Theme Support
+
+- **Disclaimer Banner Theme**: The disclaimer banner now properly responds to light/dark theme changes using CSS variables
+- **Navigation Bar Theme**: Navigation bar background and button hover states now properly update in light/dark modes across all pages
+- **Sizer Dropdown Theme**: Dropdown boxes in Sizer page now visible in light mode using CSS variables
+- **Progress Bar Theme**: The wizard progress bar title and font size buttons now properly respond to light/dark theme changes
+- **Disconnected Region Info Moved**: Azure region informational message for disconnected deployments moved from Step 02 to Step 03 (Azure region selection)
+
+---
+
 ## [0.13.19] - 2026-02-05
 
 ### Added

@@ -126,8 +126,8 @@ function updateNodeOptionsForRackAware() {
     const currentValue = parseInt(nodeSelect.value) || 3;
     
     if (rackAware) {
-        // Rack-aware: 2-8 nodes only
-        const nodeOptions = [2, 3, 4, 5, 6, 7, 8];
+        // Rack-aware: only 2, 4, 6, 8 nodes (even numbers for balanced rack distribution)
+        const nodeOptions = [2, 4, 6, 8];
         nodeSelect.innerHTML = nodeOptions.map(n => {
             let label = `${n} Nodes`;
             if (n === 2) label += ' (Minimum for Rack-Aware)';
@@ -135,13 +135,15 @@ function updateNodeOptionsForRackAware() {
             return `<option value="${n}">${label}</option>`;
         }).join('');
         
-        // Adjust current value to valid range
-        if (currentValue < 2) {
+        // Adjust current value to nearest valid even number
+        if (currentValue <= 2) {
             nodeSelect.value = 2;
-        } else if (currentValue > 8) {
-            nodeSelect.value = 8;
+        } else if (currentValue <= 4) {
+            nodeSelect.value = 4;
+        } else if (currentValue <= 6) {
+            nodeSelect.value = 6;
         } else {
-            nodeSelect.value = currentValue;
+            nodeSelect.value = 8;
         }
     } else {
         // Standard cluster: 1-16 nodes
@@ -785,6 +787,13 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
         root.style.setProperty('--subtle-bg', 'rgba(0, 0, 0, 0.03)');
         root.style.setProperty('--subtle-bg-hover', 'rgba(0, 0, 0, 0.06)');
+        // Navigation bar theme variables for light mode
+        root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 245, 245, 0.95) 100%)');
+        root.style.setProperty('--nav-hover-bg', 'rgba(0, 0, 0, 0.05)');
+        root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.12)');
+        // Select/dropdown theme variables for light mode
+        root.style.setProperty('--select-bg', '#ffffff');
+        root.style.setProperty('--select-disabled-bg', '#e5e5e5');
         root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)');
         root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.4)');
         if (themeButton) themeButton.textContent = '☀️';
@@ -799,6 +808,13 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
         root.style.setProperty('--subtle-bg', 'rgba(255, 255, 255, 0.03)');
         root.style.setProperty('--subtle-bg-hover', 'rgba(255, 255, 255, 0.06)');
+        // Navigation bar theme variables for dark mode
+        root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%)');
+        root.style.setProperty('--nav-hover-bg', 'rgba(255, 255, 255, 0.05)');
+        root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.15)');
+        // Select/dropdown theme variables for dark mode
+        root.style.setProperty('--select-bg', '#1a1a1a');
+        root.style.setProperty('--select-disabled-bg', '#0d0d0d');
         root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)');
         root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.3)');
         if (themeButton) themeButton.textContent = '🌙';
