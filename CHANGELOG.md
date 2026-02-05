@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.0] - 2026-02-05
+
+### Added
+
+#### Custom Network Adapter Port Naming
+
+- **Editable Port Names** - Users can now customize network adapter port names in the Port Configuration section (Step 07) to match their existing Windows naming conventions. Simply click on any port name to rename it (e.g., "Slot3-Port1", "NIC-MGMT-01", etc.).
+
+- **Propagated Throughout Wizard** - Custom port names automatically appear in:
+  - Adapter Mapping Configuration (Step 08) - adapter chips display custom names
+  - ARM Template generation - uses custom names for network adapter names
+  - All generated reports and diagrams
+
+- **Preserved When Changing Port Count** - If you change the number of ports, existing custom names are preserved for ports that still exist.
+
+- **Visual Indicator** - Ports with custom names display a blue border and "custom" badge for easy identification.
+
+- **ARM Compatibility** - Custom names are automatically sanitized for ARM template compatibility (special characters converted to underscores).
+
+---
+
 ## [0.12.6] - 2026-02-05
 
 ### Fixed
