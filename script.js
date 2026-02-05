@@ -2884,6 +2884,8 @@ function toggleTheme() {
     state.theme = state.theme === 'dark' ? 'light' : 'dark';
     applyTheme();
     saveStateToLocalStorage();
+    // Also save to shared theme key for cross-page consistency
+    localStorage.setItem('odin-theme', state.theme);
 }
 
 function applyTheme() {
@@ -2900,6 +2902,9 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
         root.style.setProperty('--subtle-bg', 'rgba(0, 0, 0, 0.03)');
         root.style.setProperty('--subtle-bg-hover', 'rgba(0, 0, 0, 0.06)');
+        // Banner theme variables for light mode
+        root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)');
+        root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.4)');
         if (themeButton) themeButton.textContent = '☀️';
         if (logo) logo.src = 'odin-logo-white-background.png';
         document.body.style.background = '#f5f5f5';
@@ -2912,6 +2917,9 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
         root.style.setProperty('--subtle-bg', 'rgba(255, 255, 255, 0.03)');
         root.style.setProperty('--subtle-bg-hover', 'rgba(255, 255, 255, 0.06)');
+        // Banner theme variables for dark mode
+        root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)');
+        root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.3)');
         if (themeButton) themeButton.textContent = '🌙';
         if (logo) logo.src = 'odin-logo.png';
         document.body.style.background = '#000000';
@@ -9049,14 +9057,14 @@ function showChangelog() {
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Custom Port Names & UX Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🌙 Theme Toggle & Sizer Preview</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Disconnected Region Info:</strong> When selecting Disconnected deployment, an informational message now explains that Azure region is required for downloading the control plane appliance image, updates, and licensing.</li>
-                        <li><strong>Custom Network Adapter Names:</strong> Rename physical ports (e.g., "Slot3-Port1", "NIC-MGMT-01") in Port Configuration - names propagate to ARM templates, reports, and diagrams.</li>
-                        <li><strong>ARM Import Enhancements:</strong> Importing ARM templates now preserves custom adapter names and auto-confirms port/adapter configurations.</li>
-                        <li><strong>Port Configuration UX:</strong> Read-only port names by default with pencil icon to edit; confirmation button required before proceeding.</li>
-                        <li><strong>Diagram Fixes:</strong> Corrected intent grouping, uplink connections, and port labels for both switched and switchless topologies.</li>
-                        <li><strong>Unified Button Styling:</strong> All confirmation buttons now use consistent purple gradient styling with icons.</li>
+                        <li><strong>Sizer Preview Badge:</strong> "Preview" badge now appears on the Sizer tab button in the navigation bar.</li>
+                        <li><strong>Theme Toggle in Nav:</strong> Light/Dark mode toggle added to the navigation bar for easy access on all pages.</li>
+                        <li><strong>Cross-Page Theme Sync:</strong> Theme preference now syncs across Designer, Knowledge, and Sizer pages.</li>
+                        <li><strong>Disconnected Region Info:</strong> Informational message explains Azure region requirement for disconnected deployments.</li>
+                        <li><strong>Custom Network Adapter Names:</strong> Rename physical ports in Port Configuration - names propagate everywhere.</li>
+                        <li><strong>ARM Import Enhancements:</strong> Importing ARM templates preserves custom adapter names and auto-confirms configurations.</li>
                     </ul>
                 </div>
 
@@ -10284,6 +10292,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Track page view
     trackPageView();
+    
+    // Sync theme from shared localStorage key (for cross-page consistency)
+    const sharedTheme = localStorage.getItem('odin-theme');
+    if (sharedTheme && (sharedTheme === 'light' || sharedTheme === 'dark')) {
+        state.theme = sharedTheme;
+    }
     
     // Apply saved theme and font size
     applyTheme();

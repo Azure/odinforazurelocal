@@ -173,48 +173,26 @@
             text-transform: uppercase;
         }
 
-        /* Global Sizer Preview Banner */
-        .sizer-preview-banner {
-            position: fixed;
-            top: 56px;
-            left: 0;
-            right: 0;
-            z-index: 999;
-            background: linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
-            border-bottom: 1px solid rgba(139, 92, 246, 0.3);
-            padding: 8px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            font-size: 13px;
-            color: var(--text-secondary);
+        /* Theme toggle in nav */
+        .nav-theme-toggle {
+            padding: 6px 12px;
+            background: var(--subtle-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: auto;
+            transition: all 0.2s;
         }
 
-        .sizer-preview-banner svg {
-            width: 16px;
-            height: 16px;
-            color: var(--accent-purple);
-            flex-shrink: 0;
+        .nav-theme-toggle:hover {
+            background: var(--subtle-bg-hover);
         }
 
-        .sizer-preview-banner strong {
-            color: var(--accent-purple);
-        }
-
-        .sizer-preview-banner a {
-            color: var(--accent-blue);
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .sizer-preview-banner a:hover {
-            text-decoration: underline;
-        }
-
-        /* Adjust body padding when preview banner is present */
+        /* Adjust body padding for fixed nav */
         body.has-tab-nav {
-            padding-top: 90px; /* 56px nav + 34px banner */
+            padding-top: 56px;
         }
 
         /* Tab content sections */
@@ -300,18 +278,11 @@
                     <path d="M8 17v-3"/>
                 </svg>
                 Sizer
+                <span class="odin-tab-badge">Preview</span>
             </a>
+            <button onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" title="Toggle light/dark theme">🌙</button>
         </div>
     </nav>
-
-    <!-- Global Sizer Preview Banner -->
-    <div class="sizer-preview-banner">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 16v-4M12 8h.01"/>
-        </svg>
-        <span><strong>ODIN Sizer Preview</strong> - Try our new <a href="sizer/index.html">cluster sizing tool</a> to estimate Azure Local hardware requirements based on your workloads.</span>
-    </div>
 
     <!-- Designer Tab Content -->
     <div id="tab-designer" class="odin-tab-content active">
@@ -570,10 +541,6 @@
                         <strong style="color:var(--accent-purple)">Unsupported Region</strong>
                         <p>Azure Local is not supported in Azure China region.</p>
                     </div>
-                    <div id="disconnected-region-info" class="info-box hidden" style="margin-top:1rem;">
-                        <strong style="color:var(--accent-blue)">ℹ️ Azure Region for Disconnected</strong>
-                        <p>Required to download the control plane appliance image, updates and licensing.</p>
-                    </div>
                 </section>
 
                 <!-- Step 3: Azure Local Instance Region -->
@@ -632,6 +599,10 @@
                             <h3>US Gov Virginia</h3>
                             <p>Azure Government</p>
                         </div>
+                    </div>
+                    <div id="disconnected-region-info" class="info-box hidden" style="margin-top:1rem;">
+                        <strong style="color:var(--accent-blue)">ℹ️ Azure Region for Disconnected</strong>
+                        <p>Required to download the control plane appliance image, updates and licensing.</p>
                     </div>
                 </section>
 
@@ -2192,10 +2163,6 @@
                                 <span style="margin-right: 4px;">Font:</span>
                                 <button onclick="decreaseFontSize()" title="Decrease font size" style="padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A−</button>
                                 <button onclick="increaseFontSize()" title="Increase font size" style="padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A+</button>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <span style="margin-right: 4px;">Theme:</span>
-                                <button onclick="toggleTheme()" id="theme-toggle" title="Toggle light/dark theme" style="padding: 4px 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px;">🌙</button>
                             </div>
                         </div>
                     </div>

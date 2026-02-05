@@ -143,43 +143,21 @@
     text-transform: uppercase;
 }
 
-/* Global Sizer Preview Banner */
-.sizer-preview-banner {
-    position: fixed;
-    top: 56px;
-    left: 0;
-    right: 0;
-    z-index: 999;
-    background: linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
-    border-bottom: 1px solid rgba(139, 92, 246, 0.3);
-    padding: 8px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-size: 13px;
-    color: var(--text-secondary);
+/* Theme toggle in nav */
+.nav-theme-toggle {
+    padding: 6px 12px;
+    background: var(--subtle-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: auto;
+    transition: all 0.2s;
 }
 
-.sizer-preview-banner svg {
-    width: 16px;
-    height: 16px;
-    color: var(--accent-purple);
-    flex-shrink: 0;
-}
-
-.sizer-preview-banner strong {
-    color: var(--accent-purple);
-}
-
-.sizer-preview-banner a {
-    color: var(--accent-blue);
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.sizer-preview-banner a:hover {
-    text-decoration: underline;
+.nav-theme-toggle:hover {
+    background: var(--subtle-bg-hover);
 }
 
 /* Reset and Base Styles */
@@ -200,7 +178,7 @@ body {
     line-height: 1.6;
     min-height: 100vh;
     display: flex;
-    padding-top: 90px; /* 56px nav + 34px banner */
+    padding-top: 56px;
 }
 
 /* Background Gradient Effect */
@@ -223,10 +201,10 @@ body::before {
     width: 300px;
     background: var(--card-bg-transparent);
     backdrop-filter: blur(20px);
-    height: calc(100vh - 90px); /* Adjusted for banner */
+    height: calc(100vh - 56px);
     position: fixed;
     left: 0;
-    top: 90px; /* 56px nav + 34px banner */
+    top: 56px;
     overflow-y: auto;
     padding: 0;
     z-index: 100;

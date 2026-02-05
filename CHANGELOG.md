@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Sizer Preview Badge on Navigation
+
+- Added "Preview" badge on the Sizer tab button in the navigation bar across all pages
+- Badge uses purple styling consistent with the ODIN design language
+
+#### Theme Toggle in Navigation Bar
+
+- Added theme toggle button to the navigation bar on all pages (Designer, Knowledge, Sizer)
+- Theme toggle appears on the far right of the navigation bar
+- Theme preference syncs across all pages using shared localStorage
+- Light/Dark mode properly updates all UI elements
+
 #### Disconnected Deployment Region Info
 
 - Added informational message in Step 02 (Azure Cloud) when Disconnected deployment type is selected
