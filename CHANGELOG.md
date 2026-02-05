@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.7] - 2026-02-05
+
+### Fixed
+
+#### Diagram Port Labels and Text Overlap
+
+- **Physical Port Names in Diagrams** - All diagram rendering functions now consistently use `getNicLabel()` for physical port names. Previously, storage ports incorrectly used `getSmbLabel()` which returns virtual SMB adapter names instead of physical port names.
+
+- **Staggered Text Positioning** - Port name labels within adapter shapes are now staggered vertically (odd ports higher, even ports lower) to prevent overlapping text when using long custom port names.
+
+- **Consistent Fix Across Rendering Paths** - Applied fixes to `renderAdaptersHorizontal()` (both adapter mapping and default paths) and `renderCustomAdaptersHorizontal()` functions.
+
+---
+
 ## [0.13.6] - 2026-02-05
 
 ### Fixed
