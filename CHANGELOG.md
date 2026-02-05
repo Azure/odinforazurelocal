@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.10] - 2026-02-05
+
+### Fixed
+
+#### Rack Aware Diagram Port Name Overlap
+
+- **Staggered Text Positioning** - Port name labels in Rack Aware TOR diagrams are now staggered vertically within the adapter tiles (first port higher at y+14, second port lower at y+22) to prevent overlapping text when using long custom port names.
+
+- **Applied to Both Intent Groups** - The staggered text fix applies to both Mgmt+Compute and Storage (RDMA) intent groups.
+
+---
+
 ## [0.13.9] - 2026-02-05
 
 ### Fixed
