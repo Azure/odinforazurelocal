@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.12.6';
+const WIZARD_VERSION = '0.13.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -579,6 +579,21 @@ function updateProgressUi() {
     
     // Update missing sections display
     updateMissingSectionsDisplay();
+}
+
+/**
+ * Get the display name for a port (1-based index).
+ * Returns the custom name if set, otherwise the default "Port N" format.
+ * @param {number} portIdx1Based - 1-based port index
+ * @returns {string} - Display name for the port
+ */
+function getPortDisplayName(portIdx1Based) {
+    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+    const pc = cfg[portIdx1Based - 1];
+    if (pc && pc.customName && pc.customName.trim()) {
+        return pc.customName.trim();
+    }
+    return `Port ${portIdx1Based}`;
 }
 
 // Mapping of missing item labels to step IDs for navigation
@@ -1588,7 +1603,14 @@ function generateArmParameters() {
         const portCount = parseInt(state.ports, 10) || 0;
 
         const armAdapterNameForNic = (nicIdx1Based) => {
-            // Match Azure quickstart template naming convention (NIC1, NIC2, ...)
+            // Use custom port name if provided, otherwise match Azure quickstart template naming convention (NIC1, NIC2, ...)
+            const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+            const pc = cfg[nicIdx1Based - 1];
+            if (pc && pc.customName && pc.customName.trim()) {
+                // Sanitize custom name for ARM compatibility: keep alphanumeric, underscore, hyphen
+                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                return sanitized || `NIC${nicIdx1Based}`;
+            }
             return `NIC${nicIdx1Based}`;
         };
 
@@ -4720,7 +4742,14 @@ function updateUI() {
             // Single-node defaults to 10GbE, Low Capacity to 1GbE, otherwise 25GbE
             const defaultPortSpeed = isSingleNode ? '10GbE' : (isLowCapacity ? '1GbE' : '25GbE');
 
+            // Preserve existing port configs (including custom names) when count changes
+            const existingConfig = Array.isArray(state.portConfig) ? state.portConfig : [];
+
             state.portConfig = Array(pCount).fill().map((_, idx) => {
+                // Preserve existing config if available (including customName)
+                if (existingConfig[idx]) {
+                    return existingConfig[idx];
+                }
                 // Special default: 3-node switchless standard uses non-RDMA teamed ports for Mgmt+Compute.
                 // Keep Port 1-2 non-RDMA by default; enable RDMA on the remaining ports.
                 const rdmaEnabled = (isSwitchless3NodeStandard && idx < 2) ? false : defaultRdmaEnabled;
@@ -4728,7 +4757,8 @@ function updateUI() {
                     speed: defaultPortSpeed,
                     rdma: rdmaEnabled,
                     rdmaMode: rdmaEnabled ? defaultRdmaMode : 'Disabled',
-                    rdmaManual: false
+                    rdmaManual: false,
+                    customName: null
                 };
             });
         } else {
@@ -6626,13 +6656,28 @@ function renderPortConfiguration(count) {
 
     for (let i = 0; i < count; i++) {
         const config = state.portConfig[i];
+        const displayName = getPortDisplayName(i + 1);
+        const hasCustomName = config.customName && config.customName.trim();
 
         const card = document.createElement('div');
         card.className = `port-config-card ${config.rdma ? 'rdma-active' : ''}`;
         card.innerHTML = `
-            <h5>Port ${i + 1} 
-                ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
-            </h5>
+            <div class="port-name-row" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <div class="port-name-display" style="display:flex; align-items:center; gap:6px;">
+                    <input type="text" 
+                        class="port-name-input" 
+                        value="${escapeHtml(displayName)}" 
+                        placeholder="Port ${i + 1}"
+                        maxlength="30"
+                        style="background:transparent; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'transparent'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s;"
+                        onfocus="this.style.borderColor='var(--accent-blue)'; this.style.background='rgba(255,255,255,0.05)';"
+                        onblur="this.style.borderColor=this.value.trim() && this.value.trim() !== 'Port ${i + 1}' ? 'var(--accent-blue)' : 'transparent'; this.style.background='transparent'; updatePortConfig(${i}, 'customName', this.value);"
+                        onkeydown="if(event.key==='Enter'){this.blur();}"
+                        title="Click to rename this port">
+                    ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
+                </div>
+                ${hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : ''}
+            </div>
             <div class="config-row">
                 <span class="config-label">Speed</span>
                 <select class="speed-select" onchange="updatePortConfig(${i}, 'speed', this.value)">
@@ -6657,6 +6702,19 @@ function renderPortConfiguration(count) {
 
 function updatePortConfig(index, key, value) {
     if (state.portConfig && state.portConfig[index]) {
+        // Handle custom name update
+        if (key === 'customName') {
+            const trimmed = String(value || '').trim();
+            // If user clears the field or sets it to default "Port N", remove custom name
+            if (!trimmed || trimmed === `Port ${index + 1}`) {
+                state.portConfig[index].customName = null;
+            } else {
+                state.portConfig[index].customName = trimmed;
+            }
+            updateUI();
+            return;
+        }
+
         // Guardrail: enforce minimum RDMA-enabled ports (unless Low Capacity).
         // If the user attempts to disable RDMA and it would drop below the minimum, block the change.
         try {
@@ -11067,6 +11125,7 @@ function buildAdapterPill(portId, locked) {
     const pc = cfg[portId - 1];
     const isRdma = pc && pc.rdma === true;
     const rdmaMode = (pc && pc.rdmaMode) || 'Disabled';
+    const displayName = getPortDisplayName(portId);
 
     const pill = document.createElement('div');
     pill.className = 'adapter-pill';
@@ -11090,7 +11149,7 @@ function buildAdapterPill(portId, locked) {
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
             <polyline points="13 2 13 9 20 9"></polyline>
         </svg>
-        <span class="adapter-pill__id">Port ${portId}</span>
+        <span class="adapter-pill__id">${escapeHtml(displayName)}</span>
         <span class="adapter-pill-rdma">${isRdma ? rdmaMode : 'No RDMA'}</span>
     `;
 
