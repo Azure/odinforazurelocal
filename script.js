@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.1';
+const WIZARD_VERSION = '0.14.2';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -7671,49 +7671,32 @@ function parseArmTemplateToState(armTemplate) {
         const portCount = nicAdapters.length || smbAdapters.length;
         result.ports = String(portCount);
         
-        // Build portConfig with custom names from imported template
-        // Check if adapters have custom names (not default NIC1/NIC2/SMB1/SMB2 pattern)
-        const hasCustomNicNames = nicAdapters.some((name, idx) => {
-            const defaultName = `NIC${idx + 1}`;
-            return name !== defaultName;
-        });
-        const hasCustomSmbNames = smbAdapters.some((name, idx) => {
-            const defaultName = `SMB${idx + 1}`;
-            return name !== defaultName;
-        });
-        
-        if (hasCustomNicNames || hasCustomSmbNames || nicAdapters.length > 0 || smbAdapters.length > 0) {
+        // Build portConfig with adapter names from imported template
+        // Always preserve adapter names from the template - they are meaningful identifiers
+        if (nicAdapters.length > 0 || smbAdapters.length > 0) {
             result.portConfig = [];
             
-            // Map NIC adapters to ports - include full portConfig structure
+            // Map NIC adapters to ports - always preserve adapter names from template
             nicAdapters.forEach((name, idx) => {
-                const defaultNicName = `NIC${idx + 1}`;
-                const customName = (name !== defaultNicName) ? name : null;
                 result.portConfig.push({
                     speed: '25GbE',  // Default speed, will be adjusted by updateUI based on scale
                     rdma: true,      // Default RDMA enabled
                     rdmaMode: 'RoCEv2',
                     rdmaManual: false,
-                    customName: customName
+                    customName: name  // Always use the adapter name from the template
                 });
             });
             
-            // Add SMB adapter custom names to storage ports (ports after NIC adapters)
+            // Add SMB adapter names to storage ports (ports after NIC adapters)
             // For typical config: ports 1-2 are NIC, ports 3+ are SMB
             if (smbAdapters.length > 0 && nicAdapters.length > 0) {
                 smbAdapters.forEach((name, idx) => {
-                    const defaultSmbName = `SMB${idx + 1}`;
-                    // Also check for SMB{portNum} pattern (e.g., SMB3, SMB4 for switched storage)
-                    const portNum = nicAdapters.length + idx + 1;
-                    const altDefaultName = `SMB${portNum}`;
-                    const isDefault = (name === defaultSmbName || name === altDefaultName);
-                    const customName = !isDefault ? name : null;
                     result.portConfig.push({
                         speed: '25GbE',
                         rdma: true,
                         rdmaMode: 'RoCEv2',
                         rdmaManual: false,
-                        customName: customName
+                        customName: name  // Always use the adapter name from the template
                     });
                 });
                 // Update port count to include storage ports
@@ -7735,14 +7718,12 @@ function parseArmTemplateToState(armTemplate) {
             if (nicAdapters.length === 0 && smbAdapters.length > 0) {
                 for (let i = 0; i < smbAdapters.length; i++) {
                     const name = smbAdapters[i];
-                    const defaultSmbName = `SMB${i + 1}`;
-                    const customName = (name !== defaultSmbName) ? name : null;
                     result.portConfig.push({
                         speed: '25GbE',
                         rdma: true,
                         rdmaMode: 'RoCEv2',
                         rdmaManual: false,
-                        customName: customName
+                        customName: name  // Always use the adapter name from the template
                     });
                 }
             }
@@ -8625,7 +8606,20 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.1 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.2 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Template Import Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Adapter Names Preserved:</strong> Importing ARM templates now preserves adapter names (NIC1, NIC2, SMB1, SMB2, etc.) from the template instead of displaying generic "Port 1", "Port 2" labels.</li>
+                        <li><strong>Single-Node Diagram:</strong> Fixed issue where host networking diagram was not displaying in the configuration report for single-node deployments.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.1</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
                 
@@ -8633,19 +8627,6 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Template Import Fix</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Management + Compute Adapters:</strong> Fixed issue where NIC adapters for Management + Compute intent were not loading into the wizard UI when importing ARM templates from existing deployments.</li>
-                    </ul>
-                </div>
-
-                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.0</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
-                </div>
-                
-                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Diagram Improvements</h4>
-                    <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Centered NIC Labels:</strong> Network adapter names in cluster diagrams are now centered when 9 characters or less. Longer names (10+ characters) use staggered positioning for readability.</li>
-                        <li><strong>All Diagram Types Updated:</strong> Improved label positioning applies to Storage Switched, Switchless (2/3/4-node), and Rack-Aware cluster diagrams.</li>
                     </ul>
                 </div>
 

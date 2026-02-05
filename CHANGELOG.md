@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.2] - 2026-02-05
+
+### Fixed
+
+#### ARM Template Import - Adapter Names and Diagram
+
+- **Adapter Names Preserved**: Importing ARM templates now preserves adapter names (NIC1, NIC2, SMB1, SMB2, etc.) from the template instead of displaying generic "Port 1", "Port 2" labels
+- **Single-Node Diagram**: Fixed issue where host networking diagram was not displaying in the configuration report for single-node deployments (diagram extraction was missing 'Network Connectivity (Diagram)' title)
+
+---
+
 ## [0.14.1] - 2026-02-05
 
 ### Fixed

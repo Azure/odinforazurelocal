@@ -5047,8 +5047,9 @@
                 // Pull either diagram (only one should apply for a given storage selection).
                 var swl = extractDiagramBodyByTitle('Switchless Storage Connectivity (Diagram)');
                 var swd = extractDiagramBodyByTitle('Switched Connectivity (Diagram)');
+                var snc = extractDiagramBodyByTitle('Network Connectivity (Diagram)');  // Single-node clusters
                 var rac = extractDiagramBodyByTitle('Rack Aware TOR Architecture (Diagram)');
-                movedDiagramInnerHtml = (swl || rac || swd || '');
+                movedDiagramInnerHtml = (swl || rac || swd || snc || '');
 
                 ratEl.innerHTML = wrap ? wrap.innerHTML : rationaleHtml;
             } catch (e) {
