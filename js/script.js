@@ -339,11 +339,11 @@ function updateMissingSectionsDisplay() {
         container.style.display = 'none';
         return;
     }
-    
+
     // Show container and populate list
     container.style.display = 'block';
     list.innerHTML = '';
-    
+
     readiness.missing.forEach((item, index) => {
         const stepId = findStepForMissingItem(item);
         const link = document.createElement('a');
@@ -656,7 +656,7 @@ function getMgmtComputeNicAssignment(portCount) {
 function getStorageNicIndicesForIntent(intent, portCount) {
     const p = parseInt(portCount, 10) || 0;
     if (p <= 0) return [];
-    
+
     // If adapter mapping is confirmed, use it to determine storage NICs
     if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
         const out = [];
@@ -667,7 +667,7 @@ function getStorageNicIndicesForIntent(intent, portCount) {
         }
         return out;
     }
-    
+
     if (intent === 'all_traffic') return Array.from({ length: p }, (_, i) => i + 1);
     if (intent === 'mgmt_compute') return getMgmtComputeNicAssignment(p).storage;
     if (intent === 'compute_storage') return Array.from({ length: Math.max(0, p - 2) }, (_, i) => i + 3);
@@ -1009,7 +1009,7 @@ function getNodeSettingsReadiness() {
             missing.push(`Node ${i + 1} Name`);
         } else {
             const key = name.toUpperCase();
-            if (names.has(key)) missing.push(`Node names must be unique`);
+            if (names.has(key)) missing.push('Node names must be unique');
             names.add(key);
         }
 
@@ -1270,7 +1270,7 @@ function generateArmParameters() {
             const portIdx = storagePortOffset + smbIdx1Based - 1; // 0-based index in portConfig
             const pc = cfg[portIdx];
             if (pc && pc.customName && pc.customName.trim()) {
-                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
                 return sanitized || `SMB${smbIdx1Based}`;
             }
             return `SMB${smbIdx1Based}`;
@@ -1280,7 +1280,7 @@ function generateArmParameters() {
             const s = String(raw || '').trim();
             if (!s) return 'Intent';
             // Keep ARM-friendly names: letters/numbers/underscore/hyphen.
-            const cleaned = s.replace(/\s+/g, '_').replace(/[^A-Za-z0-9_\-]/g, '');
+            const cleaned = s.replace(/\s+/g, '_').replace(/[^A-Za-z0-9_-]/g, '');
             return cleaned || 'Intent';
         };
 
@@ -1588,10 +1588,10 @@ function generateArmParameters() {
 
             const nic1 = storageNicsForNetworks[0];
             const nic2 = storageNicsForNetworks[1];
-            
+
             // For switched storage with Auto IP disabled, include storageAdapterIPInfo with custom or default subnets
             const includeStorageAdapterIPInfo = state.storage === 'switched' && state.storageAutoIp === 'disabled';
-            
+
             const buildStorageAdapterIPInfo = (subnetIndex) => {
                 if (!includeStorageAdapterIPInfo) return undefined;
                 const subnetInfo = getSubnetInfo(subnetIndex, subnetIndex + 1);
