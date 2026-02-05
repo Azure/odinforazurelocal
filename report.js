@@ -1537,7 +1537,8 @@
                             nicIdx: nicIdx,
                             x: x + adapterW / 2,
                             y: y,
-                            isStorage: isStorage
+                            isStorage: isStorage,
+                            posInGroup: posInGroup  // Position within intent group (0=first, 1=second, etc.)
                         });
                     }
                     return out;
@@ -1581,8 +1582,10 @@
                     var stroke = isStorage ? 'rgba(139,92,246,0.65)' : 'rgba(0,120,212,0.55)';
                     // Always use getNicLabel for physical port names
                     var label = getNicLabel(nicIdx);
-                    // Stagger text vertically - odd ports higher, even ports lower
-                    var textY = (i % 2 === 0) ? (y + 16) : (y + 28);
+                    // Calculate position within intent group (for uplink routing)
+                    var posInGroup = isStorage ? (i - 2) : i;
+                    // Stagger text vertically based on position in group
+                    var textY = (posInGroup % 2 === 0) ? (y + 16) : (y + 28);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -1593,7 +1596,8 @@
                         nicIdx: nicIdx,
                         x: x + adapterW / 2,
                         y: y,
-                        isStorage: isStorage
+                        isStorage: isStorage,
+                        posInGroup: posInGroup  // Position within intent group (0=first, 1=second, etc.)
                     });
                 }
 
@@ -1676,6 +1680,18 @@
                     out += '<text x="' + (boxStartX + boxW / 2) + '" y="' + (boxY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(box.label) + '</text>';
                 }
 
+                // Build a map of NIC to position within its intent group
+                var nicPosInGroup = {};
+                var groupCounters = {};
+                for (var i = 0; i < ports; i++) {
+                    var nicIdx = i + 1;
+                    var grpForCount = portIntent[nicIdx];
+                    var grpKeyForCount = grpForCount ? grpForCount.key : 'unused';
+                    if (!groupCounters[grpKeyForCount]) groupCounters[grpKeyForCount] = 0;
+                    nicPosInGroup[nicIdx] = groupCounters[grpKeyForCount];
+                    groupCounters[grpKeyForCount]++;
+                }
+
                 // Draw all adapters horizontally
                 for (var i = 0; i < ports; i++) {
                     var x = startX + (i * (adapterW + adapterGap));
@@ -1700,8 +1716,10 @@
 
                     // Always use getNicLabel for physical port names
                     var label = getNicLabel(nicIdx);
-                    // Stagger text vertically - odd ports higher, even ports lower
-                    var textY = (i % 2 === 0) ? (y + 16) : (y + 28);
+                    // Get position within intent group
+                    var posInGroup = nicPosInGroup[nicIdx] || 0;
+                    // Stagger text vertically based on position in group
+                    var textY = (posInGroup % 2 === 0) ? (y + 16) : (y + 28);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -1712,7 +1730,8 @@
                         nicIdx: nicIdx,
                         x: x + adapterW / 2,
                         y: y,
-                        isStorage: isStorage
+                        isStorage: isStorage,
+                        posInGroup: posInGroup  // Position within intent group (0=first, 1=second, etc.)
                     });
                 }
 
@@ -1729,12 +1748,15 @@
                     var adapterTopY = ap.y;
 
                     // Determine which ToR switch to connect to
-                    // For dual ToR: alternate or use odd/even NIC assignment
+                    // For dual ToR: use position within intent group (first port → ToR 1, second port → ToR 2)
                     // For single ToR: all connect to the single switch
                     var targetTorX;
                     if (torCount === 2) {
-                        // Odd NICs to ToR 1, even NICs to ToR 2 (common redundancy pattern)
-                        targetTorX = (ap.nicIdx % 2 === 1) ? (tor1X + torSwitchW / 2) : (tor2X + torSwitchW / 2);
+                        // Use posInGroup if available (adapter mapping), otherwise fall back to NIC index
+                        var posInGroup = (ap.posInGroup !== undefined) ? ap.posInGroup : (ap.nicIdx - 1);
+                        // First port of each intent (posInGroup 0, 2, 4...) → ToR 1
+                        // Second port of each intent (posInGroup 1, 3, 5...) → ToR 2
+                        targetTorX = (posInGroup % 2 === 0) ? (tor1X + torSwitchW / 2) : (tor2X + torSwitchW / 2);
                     } else {
                         targetTorX = tor1X + torSwitchW / 2;
                     }
