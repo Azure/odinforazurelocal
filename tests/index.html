@@ -850,6 +850,139 @@
         ]);
 
         // ========================================================================
+        // HTML PAGE VALIDATION TESTS
+        // ========================================================================
+        sectionHeader('📄 HTML Page Validation');
+
+        // Note: These tests require HTTP server (e.g., serve.ps1) to work.
+        // They will be skipped when running via file:// protocol (e.g., in CI pipeline).
+        // The CI pipeline uses html-validate for HTML syntax checking instead.
+
+        // Helper function to fetch and validate HTML pages
+        async function validateHtmlPage(pagePath, pageName, requiredElements) {
+            try {
+                const response = await fetch(pagePath);
+                if (!response.ok) {
+                    return { success: false, error: `Failed to fetch ${pageName}: ${response.status}` };
+                }
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Check for parse errors (malformed HTML)
+                const parseError = doc.querySelector('parsererror');
+                if (parseError) {
+                    return { success: false, error: 'HTML parse error detected' };
+                }
+                
+                // Check for unclosed style tags (common error)
+                const styleTagCount = (html.match(/<style/gi) || []).length;
+                const styleCloseCount = (html.match(/<\/style>/gi) || []).length;
+                if (styleTagCount !== styleCloseCount) {
+                    return { success: false, error: `Mismatched style tags: ${styleTagCount} open, ${styleCloseCount} close` };
+                }
+                
+                // Check required elements
+                const missing = [];
+                for (const selector of requiredElements) {
+                    if (!doc.querySelector(selector)) {
+                        missing.push(selector);
+                    }
+                }
+                
+                if (missing.length > 0) {
+                    return { success: false, error: `Missing elements: ${missing.join(', ')}` };
+                }
+                
+                return { success: true, doc: doc };
+            } catch (err) {
+                return { success: false, error: err.message };
+            }
+        }
+
+        // Run async HTML validation tests (only when served via HTTP)
+        (async function runHtmlValidationTests() {
+            // Skip if running via file:// protocol (fetch won't work due to CORS)
+            if (window.location.protocol === 'file:') {
+                const skipContainer = document.createElement('div');
+                skipContainer.className = 'test-suite';
+                skipContainer.innerHTML = `
+                    <h2>HTML Page Validation <span class="module-badge">Skipped</span></h2>
+                    <div class="test-case" style="background: rgba(251, 191, 36, 0.1); border-left: 4px solid #fbbf24;">
+                        <span>⚠️ HTML validation tests require HTTP server. Run <code>serve.ps1</code> and open <code>http://localhost:8080/tests/</code> to run these tests locally.</span>
+                        <span class="test-status" style="color: #fbbf24;">SKIPPED</span>
+                    </div>
+                `;
+                document.getElementById('test-results').appendChild(skipContainer);
+                console.log('HTML validation tests skipped (file:// protocol)');
+                return;
+            }
+
+            const armResults = [];
+            const reportResults = [];
+            
+            // Test ARM page
+            const armValidation = await validateHtmlPage('../arm/arm.html', 'ARM Page', [
+                'head', 'body', 'title', '.page-header-bar', '.page-header-logo', '.page-header-logo img', 'main.container'
+            ]);
+            
+            armResults.push(assert(armValidation.success, 'ARM page loads without errors', true, armValidation.success ? true : armValidation.error));
+            
+            if (armValidation.success) {
+                // Check logo image path
+                const logoImg = armValidation.doc.querySelector('.page-header-logo img');
+                const logoSrc = logoImg ? logoImg.getAttribute('src') : null;
+                armResults.push(assert(logoSrc === '../images/odin-logo.png', 'ARM logo path correct', '../images/odin-logo.png', logoSrc));
+                
+                // Check stylesheet link
+                const styleLink = armValidation.doc.querySelector('link[rel="stylesheet"]');
+                const styleSrc = styleLink ? styleLink.getAttribute('href') : null;
+                armResults.push(assert(styleSrc === '../css/style.css', 'ARM stylesheet path correct', '../css/style.css', styleSrc));
+                
+                // Check header bar link
+                const headerLink = armValidation.doc.querySelector('.page-header-logo');
+                const headerHref = headerLink ? headerLink.getAttribute('href') : null;
+                armResults.push(assert(headerHref === '../', 'ARM header link correct', '../', headerHref));
+            }
+            
+            testSuite('ARM Page Validation', 'arm/arm.html', armResults);
+            
+            // Test Report page
+            const reportValidation = await validateHtmlPage('../report/report.html', 'Report Page', [
+                'head', 'body', 'title', '.page-header-bar', '.page-header-logo', '.page-header-logo img', 'main.container'
+            ]);
+            
+            reportResults.push(assert(reportValidation.success, 'Report page loads without errors', true, reportValidation.success ? true : reportValidation.error));
+            
+            if (reportValidation.success) {
+                // Check logo image path
+                const logoImg = reportValidation.doc.querySelector('.page-header-logo img');
+                const logoSrc = logoImg ? logoImg.getAttribute('src') : null;
+                reportResults.push(assert(logoSrc === '../images/odin-logo.png', 'Report logo path correct', '../images/odin-logo.png', logoSrc));
+                
+                // Check stylesheet link
+                const styleLink = reportValidation.doc.querySelector('link[rel="stylesheet"]');
+                const styleSrc = styleLink ? styleLink.getAttribute('href') : null;
+                reportResults.push(assert(styleSrc === '../css/style.css', 'Report stylesheet path correct', '../css/style.css', styleSrc));
+                
+                // Check header bar link
+                const headerLink = reportValidation.doc.querySelector('.page-header-logo');
+                const headerHref = headerLink ? headerLink.getAttribute('href') : null;
+                reportResults.push(assert(headerHref === '../', 'Report header link correct', '../', headerHref));
+                
+                // Check report has no-print class on header bar
+                const headerBar = reportValidation.doc.querySelector('.page-header-bar');
+                const hasNoPrint = headerBar ? headerBar.classList.contains('no-print') : false;
+                reportResults.push(assert(hasNoPrint, 'Report header bar has no-print class', true, hasNoPrint));
+            }
+            
+            testSuite('Report Page Validation', 'report/report.html', reportResults);
+            
+            // Update summary after async tests complete
+            updateTestSummary();
+        })();
+
+        // ========================================================================
         // FINAL SUMMARY
         // ========================================================================
         updateTestSummary();

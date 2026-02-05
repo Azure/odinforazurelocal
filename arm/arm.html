@@ -111,15 +111,85 @@
                 font-size: 0.7rem !important;
             }
         }
+
+        /* Page header bar with logo */
+        .page-header-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+        }
+
+        .page-header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            padding-right: 24px;
+            border-right: 1px solid var(--glass-border);
+            margin-right: 16px;
+        }
+
+        .page-header-logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .page-header-logo span {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .page-header-logo:hover span {
+            color: var(--accent-blue);
+        }
+
+        .page-header-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        body {
+            padding-top: 56px;
+        }
     </style>
 </head>
 
 <body>
     <div class="background-globes"></div>
 
+    <div class="page-header-bar">
+        <div class="page-header-container">
+            <a href="../" class="page-header-logo">
+                <img src="../images/odin-logo.png" alt="ODIN Logo">
+                <span>ODIN</span>
+            </a>
+            <span class="page-header-title">ARM Parameters</span>
+        </div>
+    </div>
+
     <main class="container">
         <header>
-            <h1>Odin for Azure Local — ARM Parameters JSON</h1>
+            <h1>ARM Parameters JSON</h1>
             <p>View and copy the generated Azure Quickstart-style ARM parameters file.</p>
         </header>
 

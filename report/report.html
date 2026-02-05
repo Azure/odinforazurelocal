@@ -84,6 +84,20 @@
             .reset-button {
                 margin-bottom: 70px !important;
             }
+
+            /* Header bar responsive */
+            .page-header-actions {
+                gap: 4px;
+            }
+
+            .header-action-btn {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
+
+            .page-header-title {
+                display: none;
+            }
         }
 
         @media (max-width: 480px) {
@@ -99,8 +113,120 @@
                 font-size: 1rem !important;
             }
 
+            /* Stack header buttons on very small screens */
+            .page-header-bar {
+                height: auto;
+                padding: 8px 12px;
+            }
+
+            .page-header-container {
+                flex-wrap: wrap;
+            }
+
+            .page-header-actions {
+                width: 100%;
+                justify-content: center;
+                margin-top: 8px;
+                margin-left: 0;
+            }
+
             .info-box {
                 font-size: 0.85rem !important;
+            }
+        }
+
+        /* Page header bar with logo */
+        .page-header-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 0 24px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+        }
+
+        .page-header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            padding-right: 24px;
+            border-right: 1px solid var(--glass-border);
+            margin-right: 16px;
+        }
+
+        .page-header-logo img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .page-header-logo span {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .page-header-logo:hover span {
+            color: var(--accent-blue);
+        }
+
+        .page-header-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .page-header-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .header-action-btn {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .header-action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border-color: var(--accent-blue);
+        }
+
+        body {
+            padding-top: 56px;
+        }
+
+        /* Hide header bar when printing */
+        @media print {
+            .page-header-bar {
+                display: none !important;
+            }
+            body {
+                padding-top: 0 !important;
             }
         }
     </style>
@@ -109,21 +235,30 @@
 <body>
     <div class="background-globes"></div>
 
-    <main class="container">
-        <div class="report-actions report-actions--floating no-print">
-            <button type="button" id="print-friendly-btn" class="report-action-button" onclick="togglePrintFriendly()">
-                Print Friendly
-            </button>
-            <button type="button" class="report-action-button" onclick="downloadReportWord()">
-                Download Word
-            </button>
-            <button type="button" class="report-action-button" onclick="window.print()">
-                Print / Save as PDF
-            </button>
+    <div class="page-header-bar no-print">
+        <div class="page-header-container">
+            <a href="../" class="page-header-logo">
+                <img src="../images/odin-logo.png" alt="ODIN Logo">
+                <span>ODIN</span>
+            </a>
+            <span class="page-header-title">Configuration Report</span>
+            <div class="page-header-actions">
+                <button type="button" id="print-friendly-btn" class="header-action-btn" onclick="togglePrintFriendly()">
+                    🖨️ Print Friendly
+                </button>
+                <button type="button" class="header-action-btn" onclick="downloadReportWord()">
+                    📄 Download Word
+                </button>
+                <button type="button" class="header-action-btn" onclick="window.print()">
+                    💾 Save as PDF
+                </button>
+            </div>
         </div>
+    </div>
 
+    <main class="container">
         <header>
-            <h1>Odin for Azure Local — Configuration Report</h1>
+            <h1>Configuration Report</h1>
             <p>Explains what was selected and why, based on the wizard decision rules.</p>
         </header>
 

@@ -8324,7 +8324,8 @@ function showChangelog() {
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Project Reorganized:</strong> Cleaner folder structure with dedicated directories for ARM, Report, CSS, Images, JS modules, Tests, and Scripts.</li>
                         <li><strong>Phase 2A Modularization:</strong> Extracted formatting, validation, and DNS functions into dedicated JavaScript modules for better maintainability.</li>
-                        <li><strong>121 Unit Tests:</strong> Comprehensive test coverage expanded from 34 to 121 tests covering all utility modules.</li>
+                        <li><strong>136 Unit Tests:</strong> Comprehensive test coverage expanded from 34 to 136 tests covering all utility modules.</li>
+                        <li><strong>Preview Button Removed:</strong> Removed redundant "Preview Cluster Configuration" button - use the Configuration Summary panel instead.</li>
                         <li><strong>Documentation Refreshed:</strong> Updated Quick Start guide and archived outdated planning documents.</li>
                     </ul>
                 </div>
@@ -9753,12 +9754,6 @@ function initKeyboardShortcuts() {
             modals.forEach(m => m.remove());
         }
 
-        // Alt+P for preview
-        if (e.altKey && e.key === 'p') {
-            e.preventDefault();
-            showConfigurationPreview();
-        }
-
         // Alt+R for generate report
         if (e.altKey && e.key === 'r') {
             e.preventDefault();
@@ -9816,10 +9811,6 @@ function showShortcutsHelp() {
             <div class="preview-body">
                 <div style="display: grid; gap: 12px;">
                     <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
-                        <span>Preview Cluster Configuration</span>
-                        <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">P</kbd></span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--glass-border);">
                         <span>Generate Report</span>
                         <span><kbd class="kbd">Alt</kbd> + <kbd class="kbd">R</kbd></span>
                     </div>
@@ -9850,203 +9841,6 @@ function showShortcutsHelp() {
     
     // Event delegation for close button
     overlay.querySelector('[data-action="close-modal"]').addEventListener('click', () => overlay.remove());
-    
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
-    });
-    document.body.appendChild(overlay);
-}
-
-// ============================================
-// CONFIGURATION PREVIEW MODAL
-// ============================================
-
-function showConfigurationPreview() {
-    const readiness = getReportReadiness();
-    
-    const formatValue = (val, fallback = 'Not configured') => {
-        if (val === null || val === undefined || val === '') return `<span class="preview-item-value missing">${fallback}</span>`;
-        return `<span class="preview-item-value">${escapeHtml(String(val))}</span>`;
-    };
-
-    const getDisplayName = (key, value) => {
-        const displayNames = {
-            scenario: { hyperconverged: 'Hyperconverged', disconnected: 'Disconnected', m365local: 'M365 Local', multirack: 'Multi-Rack' },
-            region: { azure_commercial: 'Azure Commercial', azure_government: 'Azure Government', azure_china: 'Azure China' },
-            scale: { low_capacity: 'Hyperconverged Low Capacity', medium: 'Hyperconverged', rack_aware: 'Hyperconverged Rack Aware' },
-            storage: { switched: 'Switched Storage', switchless: 'Switchless Storage' },
-            witnessType: { cloud: 'Cloud Witness', fileshare: 'File Share Witness', none: 'No Witness' },
-            ip: { static: 'Static IP', dhcp: 'DHCP' },
-            outbound: { direct: 'Direct Internet', proxy: 'Corporate Proxy' },
-            arc: { enabled: 'Arc Gateway Enabled', disabled: 'Arc Gateway Disabled' },
-            proxy: { none: 'No Proxy', configured: 'Proxy Configured' },
-            activeDirectory: { azure_ad: 'Active Directory', local_identity: 'Local Identity (AD-Less)' },
-            securityConfiguration: { recommended: 'Recommended Security', customized: 'Customized Security' },
-            infraVlan: { default: 'Default (untagged)', custom: 'Custom VLAN' }
-        };
-        if (displayNames[key] && displayNames[key][value]) return displayNames[key][value];
-        return value;
-    };
-
-    const overlay = document.createElement('div');
-    overlay.className = 'preview-modal';
-    overlay.innerHTML = `
-        <div class="preview-content">
-            <div class="preview-header">
-                <h2>📋 Configuration Preview</h2>
-                <button class="preview-close" onclick="this.closest('.preview-modal').remove()">&times;</button>
-            </div>
-            <div class="preview-body">
-                <!-- Deployment Section -->
-                <div class="preview-section">
-                    <div class="preview-section-title">🏢 Deployment Configuration</div>
-                    <div class="preview-grid">
-                        <div class="preview-item">
-                            <div class="preview-item-label">Deployment Type</div>
-                            ${formatValue(getDisplayName('scenario', state.scenario))}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Azure Cloud</div>
-                            ${formatValue(getDisplayName('region', state.region))}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Azure Region</div>
-                            ${formatValue(state.localInstanceRegion?.replace(/_/g, ' '))}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Scale</div>
-                            ${formatValue(getDisplayName('scale', state.scale))}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cluster Section -->
-                <div class="preview-section">
-                    <div class="preview-section-title">🖥️ Cluster Configuration</div>
-                    <div class="preview-grid">
-                        <div class="preview-item">
-                            <div class="preview-item-label">Node Count</div>
-                            ${formatValue(state.nodes)}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Witness Type</div>
-                            ${formatValue(getDisplayName('witnessType', state.witnessType))}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Ports per Node</div>
-                            ${formatValue(state.ports)}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Storage Connectivity</div>
-                            ${formatValue(getDisplayName('storage', state.storage))}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Network Section -->
-                <div class="preview-section">
-                    <div class="preview-section-title">🌐 Network Configuration</div>
-                    <div class="preview-grid">
-                        <div class="preview-item">
-                            <div class="preview-item-label">IP Assignment</div>
-                            ${formatValue(getDisplayName('ip', state.ip))}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Infrastructure CIDR</div>
-                            ${formatValue(state.infraCidr)}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Default Gateway</div>
-                            ${formatValue(state.infraGateway)}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Infrastructure VLAN</div>
-                            ${formatValue(state.infraVlan === 'custom' ? state.infraVlanId : getDisplayName('infraVlan', state.infraVlan))}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Outbound Connectivity</div>
-                            ${formatValue(getDisplayName('outbound', state.outbound))}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Arc Gateway</div>
-                            ${formatValue(getDisplayName('arc', state.arc))}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Identity Section -->
-                <div class="preview-section">
-                    <div class="preview-section-title">🔐 Identity & Security</div>
-                    <div class="preview-grid">
-                        <div class="preview-item">
-                            <div class="preview-item-label">Identity Provider</div>
-                            ${formatValue(getDisplayName('activeDirectory', state.activeDirectory))}
-                        </div>
-                        ${state.activeDirectory === 'azure_ad' ? `
-                        <div class="preview-item">
-                            <div class="preview-item-label">AD Domain</div>
-                            ${formatValue(state.adDomain)}
-                        </div>
-                        ` : ''}
-                        <div class="preview-item">
-                            <div class="preview-item-label">DNS Servers</div>
-                            ${formatValue(state.dnsServers?.join(', '))}
-                        </div>
-                        <div class="preview-item">
-                            <div class="preview-item-label">Security Configuration</div>
-                            ${formatValue(getDisplayName('securityConfiguration', state.securityConfiguration))}
-                        </div>
-                    </div>
-                </div>
-
-                ${state.nodeSettings && state.nodeSettings.length > 0 ? `
-                <!-- Node Settings Section -->
-                <div class="preview-section">
-                    <div class="preview-section-title">📝 Node Settings</div>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-                            <thead>
-                                <tr style="background: rgba(59, 130, 246, 0.1);">
-                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--glass-border);">Node</th>
-                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--glass-border);">Name</th>
-                                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--glass-border);">IP Address</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${state.nodeSettings.map((node, i) => `
-                                <tr>
-                                    <td style="padding: 8px; border-bottom: 1px solid var(--glass-border);">${i + 1}</td>
-                                    <td style="padding: 8px; border-bottom: 1px solid var(--glass-border);">${escapeHtml(node.name || 'Not set')}</td>
-                                    <td style="padding: 8px; border-bottom: 1px solid var(--glass-border);">${escapeHtml(node.ipCidr || 'Not set')}</td>
-                                </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                ` : ''}
-
-                ${!readiness.ready ? `
-                <!-- Missing Items -->
-                <div class="preview-section" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; padding: 16px; margin-top: 16px;">
-                    <div class="preview-section-title" style="color: #ef4444;">⚠️ Missing Configuration (${readiness.missing.length} items)</div>
-                    <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 13px;">
-                        ${readiness.missing.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
-                    </ul>
-                </div>
-                ` : ''}
-            </div>
-            <div class="preview-footer">
-                <div class="preview-status ${readiness.ready ? 'ready' : 'incomplete'}">
-                    ${readiness.ready ? '✓ Configuration Complete' : `⚠ ${readiness.missing.length} item(s) need attention`}
-                </div>
-                <div style="display: flex; gap: 12px;">
-                    <button onclick="this.closest('.preview-modal').remove()" style="padding: 10px 20px; background: transparent; border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer;">Close</button>
-                    ${readiness.ready ? `<button onclick="this.closest('.preview-modal').remove(); generateReport();" style="padding: 10px 20px; background: var(--accent-blue); border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: 600;">Generate Report</button>` : ''}
-                </div>
-            </div>
-        </div>
-    `;
     
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();

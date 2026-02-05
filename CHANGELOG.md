@@ -26,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `js/formatting.js` - Display formatting functions (getPortDisplayName, formatScenario, formatRegion, etc.)
   - `js/validation.js` - Real-time field validation (validateFieldRealtime, addValidationFeedback)
   - `js/dns.js` - DNS server management (addDnsServer, removeDnsServer, renderDnsServers, etc.)
-- **Comprehensive Unit Test Suite**: Expanded from 34 to 121 unit tests covering utils, formatting, validation, and theme modules
+- **Comprehensive Unit Test Suite**: Expanded from 34 to 136 unit tests covering utils, formatting, validation, DNS, and theme modules
+- **Preview Button Removed**: Removed redundant "Preview Cluster Configuration" button and Alt+P shortcut - the Configuration Summary panel provides real-time feedback
 - **Documentation Updated**: QUICK_START.md refreshed with current project structure and features
 
 ---
