@@ -4746,20 +4746,25 @@ function updateUI() {
             const existingConfig = Array.isArray(state.portConfig) ? state.portConfig : [];
 
             state.portConfig = Array(pCount).fill().map((_, idx) => {
-                // Preserve existing config if available (including customName)
-                if (existingConfig[idx]) {
-                    return existingConfig[idx];
-                }
                 // Special default: 3-node switchless standard uses non-RDMA teamed ports for Mgmt+Compute.
                 // Keep Port 1-2 non-RDMA by default; enable RDMA on the remaining ports.
                 const rdmaEnabled = (isSwitchless3NodeStandard && idx < 2) ? false : defaultRdmaEnabled;
-                return {
+                const defaults = {
                     speed: defaultPortSpeed,
                     rdma: rdmaEnabled,
                     rdmaMode: rdmaEnabled ? defaultRdmaMode : 'Disabled',
                     rdmaManual: false,
                     customName: null
                 };
+
+                // Merge existing config with defaults (preserves customName and other user settings)
+                if (existingConfig[idx]) {
+                    return {
+                        ...defaults,
+                        ...existingConfig[idx]
+                    };
+                }
+                return defaults;
             });
         } else {
             // If the user changes earlier choices (scale/nodes/storage) after portConfig was created,
@@ -8027,12 +8032,15 @@ function parseArmTemplateToState(armTemplate) {
         if (hasCustomNicNames || hasCustomSmbNames || nicAdapters.length > 0 || smbAdapters.length > 0) {
             result.portConfig = [];
             
-            // Map NIC adapters to ports
+            // Map NIC adapters to ports - include full portConfig structure
             nicAdapters.forEach((name, idx) => {
                 const defaultNicName = `NIC${idx + 1}`;
-                const customName = (name !== defaultNicName) ? name : '';
+                const customName = (name !== defaultNicName) ? name : null;
                 result.portConfig.push({
-                    portNumber: idx + 1,
+                    speed: '25GbE',  // Default speed, will be adjusted by updateUI based on scale
+                    rdma: true,      // Default RDMA enabled
+                    rdmaMode: 'RoCEv2',
+                    rdmaManual: false,
                     customName: customName
                 });
             });
@@ -8042,9 +8050,12 @@ function parseArmTemplateToState(armTemplate) {
                 for (let i = 0; i < smbAdapters.length; i++) {
                     const name = smbAdapters[i];
                     const defaultSmbName = `SMB${i + 1}`;
-                    const customName = (name !== defaultSmbName) ? name : '';
+                    const customName = (name !== defaultSmbName) ? name : null;
                     result.portConfig.push({
-                        portNumber: i + 1,
+                        speed: '25GbE',
+                        rdma: true,
+                        rdmaMode: 'RoCEv2',
+                        rdmaManual: false,
                         customName: customName
                     });
                 }
