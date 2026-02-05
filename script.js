@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.19';
+const WIZARD_VERSION = '0.14.0';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -48,190 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================================================================
-// FIREBASE ANALYTICS MODULE
-// ============================================================================
-// Usage tracking for page views and form completions.
-// To enable analytics, replace the placeholder values with your Firebase config.
-// 
-// Firebase Realtime Database Rules (recommended):
-// {
-//   "rules": {
-//     "analytics": {
-//       "pageViews": {
-//         ".read": false,
-//         ".write": true,
-//         ".validate": "newData.isNumber() && newData.val() >= data.val()"
-//       },
-//       "formCompletions": {
-//         "designDocument": {
-//           ".read": false,
-//           ".write": true,
-//           ".validate": "newData.isNumber() && newData.val() >= data.val()"
-//         },
-//         "armDeployment": {
-//           ".read": false,
-//           ".write": true,
-//           ".validate": "newData.isNumber() && newData.val() >= data.val()"
-//         }
-//       }
-//     }
-//   }
-// }
-// ============================================================================
-
-const FIREBASE_CONFIG = {
-    // Replace with your Firebase project configuration
-    // Get these values from: Firebase Console > Project Settings > General > Your apps > Config
-    apiKey: "AIzaSyDBMPWx1F7G6T-KMEkkfhLNbl145mU9m-Q",
-    authDomain: "odin-analytics-7881f.firebaseapp.com",
-    databaseURL: "https://odin-analytics-7881f-default-rtdb.firebaseio.com",
-    projectId: "odin-analytics-7881f",
-    storageBucket: "odin-analytics-7881f.firebasestorage.app",
-    messagingSenderId: "35317804205",
-    appId: "1:35317804205:web:8e9622c2c21ccd690b2a24"
-};
-
-// Analytics state
-const analytics = {
-    initialized: false,
-    database: null,
-    enabled: false
-};
-
-// Initialize Firebase Analytics
-function initializeAnalytics() {
-    try {
-        // Check if Firebase config is properly set up (not using placeholder values)
-        if (FIREBASE_CONFIG.apiKey.startsWith('REPLACE_WITH_')) {
-            console.log('Analytics: Firebase not configured. To enable analytics, update FIREBASE_CONFIG in script.js');
-            return false;
-        }
-
-        // Check if Firebase SDK is loaded
-        if (typeof firebase === 'undefined') {
-            console.warn('Analytics: Firebase SDK not loaded');
-            return false;
-        }
-
-        // Initialize Firebase
-        if (!firebase.apps.length) {
-            firebase.initializeApp(FIREBASE_CONFIG);
-        }
-
-        analytics.database = firebase.database();
-        analytics.initialized = true;
-        analytics.enabled = true;
-        console.log('Analytics: Firebase initialized successfully');
-        return true;
-    } catch (error) {
-        console.warn('Analytics: Failed to initialize Firebase:', error.message);
-        return false;
-    }
-}
-
-// Track a page view
-function trackPageView() {
-    if (!analytics.enabled || !analytics.database) {
-        return;
-    }
-
-    try {
-        const pageViewRef = analytics.database.ref('analytics/pageViews');
-        // Use set with increment - doesn't require read permissions
-        pageViewRef.set(firebase.database.ServerValue.increment(1))
-            .then(() => {
-                console.log('Analytics: Page view tracked');
-                // Fetch and display updated stats
-                fetchAndDisplayStats();
-            })
-            .catch((error) => {
-                console.warn('Analytics: Failed to track page view:', error.message);
-            });
-    } catch (error) {
-        console.warn('Analytics: Error tracking page view:', error.message);
-    }
-}
-
-// Track form completion events
-// eventType: 'designDocument' or 'armDeployment'
-function trackFormCompletion(eventType) {
-    if (!analytics.enabled || !analytics.database) {
-        return;
-    }
-
-    const validEvents = ['designDocument', 'armDeployment'];
-    if (!validEvents.includes(eventType)) {
-        console.warn('Analytics: Invalid event type:', eventType);
-        return;
-    }
-
-    try {
-        const eventRef = analytics.database.ref(`analytics/formCompletions/${eventType}`);
-        // Use set with increment - doesn't require read permissions
-        eventRef.set(firebase.database.ServerValue.increment(1))
-            .then(() => {
-                console.log(`Analytics: Form completion tracked - ${eventType}`);
-                // Refresh displayed stats after tracking
-                fetchAndDisplayStats();
-            })
-            .catch((error) => {
-                console.warn(`Analytics: Failed to track ${eventType}:`, error.message);
-            });
-    } catch (error) {
-        console.warn(`Analytics: Error tracking ${eventType}:`, error.message);
-    }
-}
-
-// Fetch and display page statistics
-function fetchAndDisplayStats() {
-    if (!analytics.enabled || !analytics.database) {
-        return;
-    }
-
-    try {
-        // Fetch all stats
-        const analyticsRef = analytics.database.ref('analytics');
-        analyticsRef.once('value')
-            .then((snapshot) => {
-                const data = snapshot.val() || {};
-                
-                // Update page views
-                const pageViewsEl = document.getElementById('stat-page-views');
-                if (pageViewsEl) {
-                    pageViewsEl.textContent = formatNumber(data.pageViews || 0);
-                }
-                
-                // Update design documents
-                const designDocsEl = document.getElementById('stat-design-docs');
-                if (designDocsEl) {
-                    const formCompletions = data.formCompletions || {};
-                    designDocsEl.textContent = formatNumber(formCompletions.designDocument || 0);
-                }
-                
-                // Update ARM deployments
-                const armDeploymentsEl = document.getElementById('stat-arm-deployments');
-                if (armDeploymentsEl) {
-                    const formCompletions = data.formCompletions || {};
-                    armDeploymentsEl.textContent = formatNumber(formCompletions.armDeployment || 0);
-                }
-                
-                console.log('Analytics: Stats displayed');
-            })
-            .catch((error) => {
-                console.warn('Analytics: Failed to fetch stats:', error.message);
-            });
-    } catch (error) {
-        console.warn('Analytics: Error fetching stats:', error.message);
-    }
-}
-
-// Format number with commas for display
-function formatNumber(num) {
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-
-// ============================================================================
-// END FIREBASE ANALYTICS MODULE
+// NOTE: Firebase Analytics Module has been moved to js/analytics.js
 // ============================================================================
 
 const state = {
@@ -345,157 +162,20 @@ function clearSavedState() {
     }
 }
 
-function escapeHtml(s) {
-    return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-// Enhanced sanitization for various contexts
-function sanitizeInput(input, type = 'text') {
-    if (!input) return '';
-    const str = String(input).trim();
-    
-    switch (type) {
-        case 'html':
-            return escapeHtml(str);
-        case 'json':
-            return JSON.stringify(str).slice(1, -1);
-        case 'url':
-            return encodeURIComponent(str);
-        case 'filename':
-            return str.replace(/[^a-z0-9_\-\.]/gi, '_');
-        default:
-            return escapeHtml(str);
-    }
-}
-
-// Copy to clipboard utility
-function copyToClipboard(text, successMessage = 'Copied to clipboard!') {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-            showToast(successMessage, 'success');
-        }).catch(err => {
-            fallbackCopyToClipboard(text, successMessage);
-        });
-    } else {
-        fallbackCopyToClipboard(text, successMessage);
-    }
-}
-
-function fallbackCopyToClipboard(text, successMessage) {
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.left = '-9999px';
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-        document.execCommand('copy');
-        showToast(successMessage, 'success');
-    } catch (err) {
-        showToast('Failed to copy to clipboard', 'error');
-    }
-    document.body.removeChild(textArea);
-}
-
-// Toast notification system
-function showToast(message, type = 'info', duration = 3000) {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        z-index: 10000;
-        font-size: 14px;
-        font-weight: 500;
-        animation: slideIn 0.3s ease;
-    `;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
-}
-
-function reportUiError(err, context) {
-    try {
-        const message = (err && (err.stack || err.message)) ? (err.stack || err.message) : String(err);
-        const text = `UI error${context ? ` (${context})` : ''}: ${message}`;
-        // eslint-disable-next-line no-console
-        console.error(text);
-
-        let banner = document.getElementById('__ui-error-banner');
-        if (!banner) {
-            banner = document.createElement('div');
-            banner.id = '__ui-error-banner';
-            banner.style.position = 'fixed';
-            banner.style.left = '16px';
-            banner.style.right = '16px';
-            banner.style.bottom = '16px';
-            banner.style.zIndex = '9999';
-            banner.style.padding = '12px 14px';
-            banner.style.borderRadius = '10px';
-            banner.style.background = 'var(--card-bg)';
-            banner.style.border = '1px solid var(--accent-purple)';
-            banner.style.color = 'var(--text-primary)';
-            banner.style.fontSize = '12px';
-            banner.style.whiteSpace = 'pre-wrap';
-            banner.style.maxHeight = '35vh';
-            banner.style.overflow = 'auto';
-
-            const close = document.createElement('button');
-            close.type = 'button';
-            close.textContent = 'Dismiss';
-            close.style.marginLeft = '12px';
-            close.style.background = 'transparent';
-            close.style.border = '1px solid var(--glass-border)';
-            close.style.color = 'var(--text-primary)';
-            close.style.borderRadius = '8px';
-            close.style.padding = '4px 8px';
-            close.style.cursor = 'pointer';
-            close.addEventListener('click', () => banner.remove());
-
-            const header = document.createElement('div');
-            header.style.display = 'flex';
-            header.style.alignItems = 'center';
-            header.style.justifyContent = 'space-between';
-            header.style.gap = '12px';
-
-            const title = document.createElement('div');
-            title.textContent = 'JavaScript runtime error (wizard UI)';
-            title.style.fontWeight = '700';
-            title.style.color = 'var(--accent-purple)';
-
-            header.appendChild(title);
-            header.appendChild(close);
-
-            const body = document.createElement('div');
-            body.id = '__ui-error-banner-body';
-            body.style.marginTop = '8px';
-
-            banner.appendChild(header);
-            banner.appendChild(body);
-            document.body.appendChild(banner);
-        }
-
-        const body = document.getElementById('__ui-error-banner-body');
-        if (body) body.textContent = text;
-    } catch (e) {
-        // Last resort: swallow to avoid cascading failures.
-    }
-}
+// ============================================================================
+// NOTE: The following functions have been moved to modular files:
+// - escapeHtml, sanitizeInput, formatNumber, capitalize → js/utils.js
+// - isValidNetbiosName, isValidIpv4Cidr, isValidCidrFormat → js/utils.js
+// - extractIpFromCidr, extractPrefixFromCidr → js/utils.js
+// - ipv4ToInt, intToIpv4, prefixToMask, ipToLong, longToIp → js/utils.js
+// - incrementCidrThirdOctet → js/utils.js
+// - showToast, reportUiError, showNotification → js/notifications.js
+// - copyToClipboard, fallbackCopyToClipboard → js/notifications.js
+// - FIREBASE_CONFIG, analytics, initializeAnalytics → js/analytics.js
+// - trackPageView, trackFormCompletion, fetchAndDisplayStats → js/analytics.js
+// - increaseFontSize, decreaseFontSize, applyFontSize → js/theme.js
+// - toggleTheme, applyTheme → js/theme.js
+// ============================================================================
 
 function computeWizardProgress() {
     // Progress is based on concrete, user-facing completion checkpoints.
@@ -986,70 +666,12 @@ function getStorageNicIndicesForIntent(intent, portCount) {
     return [];
 }
 
-function isValidNetbiosName(name) {
-    // NetBIOS computer name: max 15 chars; generally A-Z, 0-9, and hyphen.
-    // Keep it strict: start/end alphanumeric, allow hyphens in the middle.
-    if (!name) return false;
-    const trimmed = String(name).trim();
-    if (trimmed.length < 1 || trimmed.length > 15) return false;
-    if (trimmed.length === 1) return /^[A-Za-z0-9]$/.test(trimmed);
-    return /^[A-Za-z0-9][A-Za-z0-9-]{0,13}[A-Za-z0-9]$/.test(trimmed);
-}
-
-function isValidIpv4Cidr(value) {
-    if (!value) return false;
-    const trimmed = String(value).trim();
-    const parts = trimmed.split('/');
-    if (parts.length !== 2) return false;
-    const ip = parts[0];
-    const prefix = parseInt(parts[1], 10);
-    const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    if (!ipv4Regex.test(ip)) return false;
-    if (!Number.isFinite(prefix) || prefix < 0 || prefix > 32) return false;
-    return true;
-}
-
-function extractIpFromCidr(value) {
-    if (!value) return '';
-    const trimmed = String(value).trim();
-    const parts = trimmed.split('/');
-    return parts[0] ? parts[0].trim() : '';
-}
-
-function extractPrefixFromCidr(value) {
-    if (!value) return null;
-    const trimmed = String(value).trim();
-    const parts = trimmed.split('/');
-    if (parts.length !== 2) return null;
-    const prefix = parseInt(parts[1], 10);
-    return Number.isFinite(prefix) ? prefix : null;
-}
-
-function ipv4ToInt(ip) {
-    if (!ip) return null;
-    const parts = String(ip).trim().split('.').map(p => parseInt(p, 10));
-    if (parts.length !== 4) return null;
-    if (parts.some(n => !Number.isFinite(n) || n < 0 || n > 255)) return null;
-    // Use unsigned shifts to keep within 32-bit.
-    return (((parts[0] << 24) >>> 0) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
-}
-
-function intToIpv4(n) {
-    if (!Number.isFinite(n)) return '';
-    const x = (n >>> 0);
-    return [
-        (x >>> 24) & 0xFF,
-        (x >>> 16) & 0xFF,
-        (x >>> 8) & 0xFF,
-        x & 0xFF
-    ].join('.');
-}
-
-function prefixToMask(prefix) {
-    const p = parseInt(prefix, 10);
-    if (!Number.isFinite(p) || p < 0 || p > 32) return null;
-    return p === 0 ? 0 : ((0xFFFFFFFF << (32 - p)) >>> 0);
-}
+// ============================================================================
+// NOTE: IP/CIDR utility functions have been moved to js/utils.js
+// - isValidNetbiosName, isValidIpv4Cidr, isValidCidrFormat
+// - extractIpFromCidr, extractPrefixFromCidr
+// - ipv4ToInt, intToIpv4, prefixToMask
+// ============================================================================
 
 // Maximum SAM Account name length for computer accounts in Active Directory is 15 characters.
 const MAX_NODE_NAME_LENGTH = 15;
@@ -2850,95 +2472,11 @@ function selectOption(category, value) {
     updateUI();
 }
 
-function increaseFontSize() {
-    const sizes = ['small', 'medium', 'large', 'x-large'];
-    const currentIndex = sizes.indexOf(state.fontSize || 'medium');
-    if (currentIndex < sizes.length - 1) {
-        state.fontSize = sizes[currentIndex + 1];
-        applyFontSize();
-        saveStateToLocalStorage();
-    }
-}
-
-function decreaseFontSize() {
-    const sizes = ['small', 'medium', 'large', 'x-large'];
-    const currentIndex = sizes.indexOf(state.fontSize || 'medium');
-    if (currentIndex > 0) {
-        state.fontSize = sizes[currentIndex - 1];
-        applyFontSize();
-        saveStateToLocalStorage();
-    }
-}
-
-function applyFontSize() {
-    const sizes = {
-        'small': '14px',
-        'medium': '16px',
-        'large': '18px',
-        'x-large': '20px'
-    };
-    document.documentElement.style.fontSize = sizes[state.fontSize || 'medium'];
-}
-
-function toggleTheme() {
-    state.theme = state.theme === 'dark' ? 'light' : 'dark';
-    applyTheme();
-    saveStateToLocalStorage();
-    // Also save to shared theme key for cross-page consistency
-    localStorage.setItem('odin-theme', state.theme);
-}
-
-function applyTheme() {
-    const root = document.documentElement;
-    const themeButton = document.getElementById('theme-toggle');
-    const logo = document.getElementById('odin-logo');
-    
-    if (state.theme === 'light') {
-        root.style.setProperty('--bg-dark', '#f5f5f5');
-        root.style.setProperty('--card-bg', '#ffffff');
-        root.style.setProperty('--card-bg-transparent', 'rgba(255, 255, 255, 0.95)');
-        root.style.setProperty('--text-primary', '#000000');
-        root.style.setProperty('--text-secondary', '#6b7280');
-        root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
-        root.style.setProperty('--subtle-bg', 'rgba(0, 0, 0, 0.03)');
-        root.style.setProperty('--subtle-bg-hover', 'rgba(0, 0, 0, 0.06)');
-        // Navigation bar theme variables for light mode
-        root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 245, 245, 0.95) 100%)');
-        root.style.setProperty('--nav-hover-bg', 'rgba(0, 0, 0, 0.05)');
-        root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.12)');
-        // Banner theme variables for light mode
-        root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)');
-        root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.4)');
-        // Disclaimer banner for light mode
-        root.style.setProperty('--disclaimer-bg', 'rgba(255, 193, 7, 0.25)');
-        root.style.setProperty('--disclaimer-border', 'rgba(255, 193, 7, 0.5)');
-        if (themeButton) themeButton.textContent = '☀️';
-        if (logo) logo.src = 'odin-logo-white-background.png';
-        document.body.style.background = '#f5f5f5';
-    } else {
-        root.style.setProperty('--bg-dark', '#000000');
-        root.style.setProperty('--card-bg', '#111111');
-        root.style.setProperty('--card-bg-transparent', 'rgba(17, 17, 17, 0.95)');
-        root.style.setProperty('--text-primary', '#ffffff');
-        root.style.setProperty('--text-secondary', '#a1a1aa');
-        root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
-        root.style.setProperty('--subtle-bg', 'rgba(255, 255, 255, 0.03)');
-        root.style.setProperty('--subtle-bg-hover', 'rgba(255, 255, 255, 0.06)');
-        // Navigation bar theme variables for dark mode
-        root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%)');
-        root.style.setProperty('--nav-hover-bg', 'rgba(255, 255, 255, 0.05)');
-        root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.15)');
-        // Banner theme variables for dark mode
-        root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)');
-        root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.3)');
-        // Disclaimer banner for dark mode
-        root.style.setProperty('--disclaimer-bg', 'rgba(255, 193, 7, 0.15)');
-        root.style.setProperty('--disclaimer-border', 'rgba(255, 193, 7, 0.4)');
-        if (themeButton) themeButton.textContent = '🌙';
-        if (logo) logo.src = 'odin-logo.png';
-        document.body.style.background = '#000000';
-    }
-}
+// ============================================================================
+// NOTE: Theme functions have been moved to js/theme.js
+// - increaseFontSize, decreaseFontSize, applyFontSize
+// - toggleTheme, applyTheme
+// ============================================================================
 
 function updateRackAwareZoneName(zoneIndex, value) {
     try {
@@ -5717,52 +5255,7 @@ function updateCustomStorageSubnetsConfirmButton() {
     });
 }
 
-// Validate CIDR format (e.g., 10.0.1.0/24)
-function isValidCidrFormat(cidr) {
-    if (!cidr || typeof cidr !== 'string') return false;
-    const trimmed = cidr.trim();
-    const parts = trimmed.split('/');
-    if (parts.length !== 2) return false;
-    
-    const ip = parts[0];
-    const prefixStr = parts[1];
-    const prefix = parseInt(prefixStr, 10);
-    
-    // Validate prefix is a number between 0 and 32
-    if (Number.isNaN(prefix) || prefix < 0 || prefix > 32) return false;
-    
-    // Validate IP has 4 octets, each 0-255
-    const octets = ip.split('.');
-    if (octets.length !== 4) return false;
-    
-    for (const octet of octets) {
-        if (octet === '' || Number.isNaN(Number(octet))) return false;
-        const num = parseInt(octet, 10);
-        if (num < 0 || num > 255) return false;
-    }
-    
-    return true;
-}
-
-// Increment the 3rd octet of a CIDR and return the new CIDR
-// Returns null if the increment would exceed 255
-function incrementCidrThirdOctet(cidr, increment) {
-    if (!isValidCidrFormat(cidr)) return null;
-    
-    const trimmed = cidr.trim();
-    const parts = trimmed.split('/');
-    const ip = parts[0];
-    const prefix = parts[1];
-    const octets = ip.split('.');
-    
-    const thirdOctet = parseInt(octets[2], 10);
-    const newThirdOctet = thirdOctet + increment;
-    
-    // Check if new octet would exceed valid range
-    if (newThirdOctet > 255 || newThirdOctet < 0) return null;
-    
-    return `${octets[0]}.${octets[1]}.${newThirdOctet}.${octets[3]}/${prefix}`;
-}
+// NOTE: isValidCidrFormat and incrementCidrThirdOctet have been moved to js/utils.js
 
 // Preview function for the first storage subnet input - provides visual feedback without triggering auto-fill
 // This is used with oninput on the first field to show validation state while typing
@@ -6744,10 +6237,7 @@ function formatLocalInstanceRegion(r) {
     return map[r] || capitalize(r);
 }
 
-function capitalize(s) {
-    if (!s) return '';
-    return s.charAt(0).toUpperCase() + s.slice(1);
-}
+// NOTE: capitalize() moved to js/utils.js
 
 function getRequiredRdmaPortCount() {
     // Low Capacity is exempt from minimum RDMA port requirements in this wizard.
@@ -8956,20 +8446,7 @@ function addValidationFeedback(inputElement, type) {
     });
 }
 
-// IP conversion utilities for CIDR calculator
-function ipToLong(ip) {
-    const parts = ip.split('.').map(Number);
-    return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
-}
-
-function longToIp(long) {
-    return [
-        (long >>> 24) & 0xFF,
-        (long >>> 16) & 0xFF,
-        (long >>> 8) & 0xFF,
-        long & 0xFF
-    ].join('.');
-}
+// NOTE: IP conversion utilities (ipToLong, longToIp) have been moved to js/utils.js
 
 // CIDR Calculator Helper
 function showCidrCalculator() {
@@ -9146,7 +8623,20 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.13.30 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.0 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Diagram Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Centered NIC Labels:</strong> Network adapter names in cluster diagrams are now centered when 9 characters or less. Longer names (10+ characters) use staggered positioning for readability.</li>
+                        <li><strong>All Diagram Types Updated:</strong> Improved label positioning applies to Storage Switched, Switchless (2/3/4-node), and Rack-Aware cluster diagrams.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.13.30</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
                 
@@ -10326,30 +9816,7 @@ function loadTemplate(templateIndex) {
     saveStateToLocalStorage();
 }
 
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 16px 24px;
-        background: ${type === 'success' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(59, 130, 246, 0.9)'};
-        color: white;
-        border-radius: 8px;
-        font-weight: 600;
-        z-index: 10001;
-        animation: slideIn 0.3s ease-out;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-in';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
-}
+// NOTE: showNotification has been moved to js/notifications.js
 
 function showM365LocalInfo() {
     const m365Msg = document.getElementById('m365local-message');
