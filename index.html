@@ -333,7 +333,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.13.12 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.13.13 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -1138,13 +1138,13 @@
 
                     <!-- Drag & Drop Adapter Mapping -->
                     <div id="nic-visualizer" class="nic-visualizer">
-                        <div id="adapter-mapping-container" class="adapter-mapping hidden"><div class="adapter-mapping-header"><h4>Adapter Mapping Configuration</h4><p style="color:var(--text-secondary);font-size:0.9rem;">Drag and drop network adapters to assign them to traffic intents.</p></div><div class="adapter-pool"><div class="adapter-pool-header"><span class="adapter-pool-title">Available Network Adapters</span><span class="adapter-pool-hint">Drag adapters to intents below</span></div><div id="adapter-pool-drop" class="adapter-drop-zone pool-zone"></div></div><div id="intent-zones-grid" class="intent-zones-grid"></div><div class="info-box visible" style="margin-top:0.9rem;"><strong>Tip</strong> Click an adapter, then click a drop zone to move it.</div><div style="margin-top:0.9rem;display:flex;gap:0.75rem;flex-wrap:wrap;"><button id="adapter-mapping-confirm-btn" type="button" class="report-action-button" onclick="confirmAdapterMapping()">Confirm Mapping</button><button id="adapter-mapping-reset-btn" type="button" class="report-action-button" onclick="resetAdapterMapping()" style="background:rgba(239,68,68,0.2);">Reset</button><div id="adapter-mapping-status" style="color:var(--text-secondary);"></div></div><div id="adapter-mapping-validation" class="info-box warning hidden" style="margin-top:0.9rem;"></div></div>
+                        <div id="adapter-mapping-container" class="adapter-mapping hidden"><div class="adapter-mapping-header"><h4>Adapter Mapping Configuration</h4><p style="color:var(--text-secondary);font-size:0.9rem;">Drag and drop network adapters to assign them to traffic intents.</p></div><div class="adapter-pool"><div class="adapter-pool-header"><span class="adapter-pool-title">Available Network Adapters</span><span class="adapter-pool-hint">Drag adapters to intents below</span></div><div id="adapter-pool-drop" class="adapter-drop-zone pool-zone"></div></div><div id="intent-zones-grid" class="intent-zones-grid"></div><div class="info-box visible" style="margin-top:0.9rem;"><strong>Tip</strong> Click an adapter, then click a drop zone to move it.</div><div style="margin-top:0.9rem;display:flex;gap:0.75rem;flex-wrap:wrap;"><button id="adapter-mapping-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmAdapterMapping()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping</button><button id="adapter-mapping-reset-btn" type="button" class="report-action-button" onclick="resetAdapterMapping()" style="background:rgba(239,68,68,0.2);">Reset</button><div id="adapter-mapping-status" style="color:var(--text-secondary);"></div></div><div id="adapter-mapping-validation" class="info-box warning hidden" style="margin-top:0.9rem;"></div></div>
 
                         <div id="intent-overrides" class="intent-overrides hidden">
                             <h4>Overrides</h4>
                             <div id="intent-overrides-container" class="intent-overrides-grid"></div>
                             <div style="margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                                <button id="overrides-confirm-btn" type="button" class="report-action-button" onclick="confirmOverrides()">Confirm Overrides</button>
+                                <button id="overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmOverrides()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
                                 <span id="overrides-status" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
                             </div>
                         </div>
@@ -1181,7 +1181,8 @@
                             </div>
                             <div id="custom-storage-subnet-inputs" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
                             <div style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;">
-                                <button type="button" id="custom-storage-subnets-confirm-btn" class="report-button" style="padding: 0.6rem 1.2rem;">
+                                <button type="button" id="custom-storage-subnets-confirm-btn" class="confirm-port-config-btn">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                     Confirm Storage Subnets
                                 </button>
                                 <span id="custom-storage-subnets-confirm-status" style="font-size: 0.85rem; color: var(--text-secondary);">Not confirmed yet.</span>

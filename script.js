@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.12';
+const WIZARD_VERSION = '0.13.13';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -5657,7 +5657,9 @@ function updateCustomStorageSubnetsConfirmButton() {
         // Only allow confirmation when all subnets are filled AND valid
         confirmBtn.disabled = !allValid && !confirmed;
         confirmBtn.classList.toggle('is-confirmed', confirmed);
-        confirmBtn.textContent = confirmed ? 'Edit Storage Subnets' : 'Confirm Storage Subnets';
+        confirmBtn.innerHTML = confirmed 
+            ? CONFIRM_BTN_PENCIL + 'Edit Storage Subnets' 
+            : CONFIRM_BTN_CHECKMARK + 'Confirm Storage Subnets';
     }
     
     if (confirmStatus) {
@@ -11488,6 +11490,9 @@ function setAdapterDropHandlers(dropZone, targetZone, locked) {
     });
 }
 
+const CONFIRM_BTN_CHECKMARK = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+const CONFIRM_BTN_PENCIL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+
 function updateAdapterMappingButtons(intent, portCount, confirmed) {
     const confirmBtn = document.getElementById('adapter-mapping-confirm-btn');
     const resetBtn = document.getElementById('adapter-mapping-reset-btn');
@@ -11495,10 +11500,10 @@ function updateAdapterMappingButtons(intent, portCount, confirmed) {
 
     if (confirmBtn) {
         if (confirmed) {
-            confirmBtn.textContent = 'Edit Adapter Mapping';
+            confirmBtn.innerHTML = CONFIRM_BTN_PENCIL + 'Edit Adapter Mapping';
             confirmBtn.classList.add('is-confirmed');
         } else {
-            confirmBtn.textContent = 'Confirm Adapter Mapping';
+            confirmBtn.innerHTML = CONFIRM_BTN_CHECKMARK + 'Confirm Adapter Mapping';
             confirmBtn.classList.remove('is-confirmed');
         }
 
@@ -11637,10 +11642,10 @@ function updateOverridesUI() {
 
     if (confirmBtn) {
         if (state.overridesConfirmed) {
-            confirmBtn.textContent = 'Edit Overrides';
+            confirmBtn.innerHTML = CONFIRM_BTN_PENCIL + 'Edit Overrides';
             confirmBtn.classList.add('is-confirmed');
         } else {
-            confirmBtn.textContent = 'Confirm Overrides';
+            confirmBtn.innerHTML = CONFIRM_BTN_CHECKMARK + 'Confirm Overrides';
             confirmBtn.classList.remove('is-confirmed');
         }
     }
