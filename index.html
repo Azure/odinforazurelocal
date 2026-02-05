@@ -18,9 +18,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
-</head>
-
-<body class="has-tab-nav">
     <style>
         .reset-button {
             width: 100%;
@@ -247,16 +244,19 @@
             line-height: 1.6;
         }
     </style>
+</head>
+
+<body class="has-tab-nav">
     <div class="background-globes"></div>
 
     <!-- Tab Navigation -->
-    <nav class="odin-tab-nav">
+    <nav class="odin-tab-nav" aria-label="Main navigation">
         <div class="odin-tab-container">
             <div class="odin-tab-logo">
                 <img src="images/odin-logo.png" alt="Odin">
                 <span>ODIN</span>
             </div>
-            <button class="odin-tab-btn active" data-tab="designer" onclick="switchOdinTab('designer')">
+            <button type="button" class="odin-tab-btn active" data-tab="designer" onclick="switchOdinTab('designer')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2"/>
                     <path d="M3 9h18M9 21V9"/>
@@ -280,7 +280,7 @@
                 Sizer
                 <span class="odin-tab-badge">Preview</span>
             </a>
-            <button onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" title="Toggle light/dark theme">🌙</button>
+            <button type="button" onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" title="Toggle light/dark theme">🌙</button>
         </div>
     </nav>
 

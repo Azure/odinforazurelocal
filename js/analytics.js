@@ -3,7 +3,7 @@
 // ============================================================================
 // Usage tracking for page views and form completions.
 // To enable analytics, replace the placeholder values with your Firebase config.
-// 
+//
 // Firebase Realtime Database Rules (recommended):
 // {
 //   "rules": {
@@ -33,13 +33,13 @@
 const FIREBASE_CONFIG = {
     // Replace with your Firebase project configuration
     // Get these values from: Firebase Console > Project Settings > General > Your apps > Config
-    apiKey: "AIzaSyDBMPWx1F7G6T-KMEkkfhLNbl145mU9m-Q",
-    authDomain: "odin-analytics-7881f.firebaseapp.com",
-    databaseURL: "https://odin-analytics-7881f-default-rtdb.firebaseio.com",
-    projectId: "odin-analytics-7881f",
-    storageBucket: "odin-analytics-7881f.firebasestorage.app",
-    messagingSenderId: "35317804205",
-    appId: "1:35317804205:web:8e9622c2c21ccd690b2a24"
+    apiKey: 'AIzaSyDBMPWx1F7G6T-KMEkkfhLNbl145mU9m-Q',
+    authDomain: 'odin-analytics-7881f.firebaseapp.com',
+    databaseURL: 'https://odin-analytics-7881f-default-rtdb.firebaseio.com',
+    projectId: 'odin-analytics-7881f',
+    storageBucket: 'odin-analytics-7881f.firebasestorage.app',
+    messagingSenderId: '35317804205',
+    appId: '1:35317804205:web:8e9622c2c21ccd690b2a24'
 };
 
 // Analytics state
