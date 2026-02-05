@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.2';
+const WIZARD_VERSION = '0.14.50';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -263,20 +263,7 @@ function updateProgressUi() {
     updateMissingSectionsDisplay();
 }
 
-/**
- * Get the display name for a port (1-based index).
- * Returns the custom name if set, otherwise the default "Port N" format.
- * @param {number} portIdx1Based - 1-based port index
- * @returns {string} - Display name for the port
- */
-function getPortDisplayName(portIdx1Based) {
-    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
-    const pc = cfg[portIdx1Based - 1];
-    if (pc && pc.customName && pc.customName.trim()) {
-        return pc.customName.trim();
-    }
-    return `Port ${portIdx1Based}`;
-}
+// NOTE: getPortDisplayName() moved to js/formatting.js
 
 // Mapping of missing item labels to step IDs for navigation
 const missingSectionToStep = {
@@ -2039,7 +2026,7 @@ function generateArmParameters() {
         // Track form completion for ARM deployment files
         trackFormCompletion('armDeployment');
 
-        window.open('arm.html' + hash, '_blank');
+        window.open('arm/arm.html' + hash, '_blank');
     } catch (err) {
         reportUiError(err, 'generateArmParameters');
     }
@@ -2077,7 +2064,7 @@ function generateReport() {
         // Track form completion for design document
         trackFormCompletion('designDocument');
 
-        window.open('report.html' + hash, '_blank');
+        window.open('report/report.html' + hash, '_blank');
     } catch (err) {
         reportUiError(err, 'generateReport');
     }
@@ -3111,6 +3098,11 @@ function getPrivateEndpointInfo(serviceKey) {
 }
 
 function updateUI() {
+    // Skip UI updates on test page (no wizard DOM elements)
+    if (window.location.pathname.includes('tests.html')) {
+        return;
+    }
+    
     const steps = [
         document.getElementById('step-cloud'),
         document.getElementById('step-local-region'),
@@ -6168,74 +6160,14 @@ function renderDiagram() {
     container.innerHTML = html;
 }
 
-function getProxyLabel() {
-    if (!state.proxy) return '-';
-    if (state.proxy === 'no_proxy') return 'Disabled';
-    if (state.outbound === 'private') return 'Azure Firewall Explicit Proxy';
-    return 'Enabled';
-}
-
-function formatScenario(val) {
-    if (val === 'disconnected') return 'Disconnected (Air Gapped)';
-    if (val === 'm365local') return 'M365 Local';
-    return val;
-}
-
-function formatScale(val) {
-    if (val === 'low_capacity') return 'Low Capacity';
-    if (val === 'medium') return 'Hyperconverged (1-16 Nodes)';
-    if (val === 'rack_aware') return 'Rack Aware (Multi-Room)';
-    if (val === 'rack_scale') return 'Rack Scale';
-    return capitalize(val);
-}
-
-function formatOutbound(val) {
-    if (val === 'public') return 'Public Internet';
-    if (val === 'private') return 'ExpressRoute / VPN';
-    if (val === 'air_gapped') return 'Air Gapped';
-    if (val === 'limited') return 'Limited Connectivity';
-    return capitalize(val);
-}
-
-function formatIntent(val) {
-    if (val === 'all_traffic') return 'Group All Traffic';
-    if (val === 'mgmt_compute') return 'Mgmt + Compute';
-    if (val === 'compute_storage') return 'Compute + Storage';
-    return capitalize(val);
-}
-
-function formatScenario(s) {
-    if (!s) return '';
-    if (s === 'hyperconverged') return 'Hyperconverged';
-    if (s === 'multirack') return 'Multi-Rack';
-    if (s === 'disconnected') return 'Disconnected';
-    if (s === 'm365local') return 'M365 Local';
-    return capitalize(s);
-}
-
-function formatRegion(r) {
-    if (!r) return '';
-    if (r === 'azure_commercial') return 'Azure Commercial';
-    if (r === 'azure_government') return 'Azure Government';
-    if (r === 'azure_china') return 'Azure China';
-    return capitalize(r);
-}
-
-function formatLocalInstanceRegion(r) {
-    if (!r) return '';
-    const map = {
-        'east_us': 'East US',
-        'west_europe': 'West Europe',
-        'australia_east': 'Australia East',
-        'southeast_asia': 'Southeast Asia',
-        'india_central': 'India Central',
-        'canada_central': 'Canada Central',
-        'japan_east': 'Japan East',
-        'south_central_us': 'South Central US',
-        'us_gov_virginia': 'US Gov Virginia'
-    };
-    return map[r] || capitalize(r);
-}
+// NOTE: Formatting functions moved to js/formatting.js:
+// - getProxyLabel()
+// - formatScenario()
+// - formatScale()
+// - formatOutbound()
+// - formatIntent()
+// - formatRegion()
+// - formatLocalInstanceRegion()
 
 // NOTE: capitalize() moved to js/utils.js
 
@@ -7035,180 +6967,10 @@ function resetAll() {
     showToast('Started fresh - all previous data cleared', 'info');
 }
 
-function addDnsServer() {
-    state.dnsServers.push('');
-    renderDnsServers();
-}
-
-function removeDnsServer(index) {
-    state.dnsServers.splice(index, 1);
-    renderDnsServers();
-    validateAllDnsServers();
-}
-
-function updateDnsServer(index, value) {
-    state.dnsServers[index] = value.trim();
-    validateAllDnsServers();
-}
-
-function renderDnsServers() {
-    const container = document.getElementById('dns-servers-container');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    state.dnsServers.forEach((server, index) => {
-        const div = document.createElement('div');
-        div.style.cssText = 'display:flex; gap:0.5rem; align-items:center; margin-bottom:0.75rem;';
-
-        const isLocalIdentity = state.activeDirectory === 'local_identity';
-        const labelText = isLocalIdentity
-            ? ('DNS server' + (index === 0 ? ' <span style="color:#ef4444;">*</span>' : ''))
-            : (`DNS Server ${index + 1}`);
-
-        div.innerHTML = `
-            <div style="flex:1;">
-                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">${labelText}</label>
-                <input type="text" 
-                    value="${server}" 
-                    placeholder="e.g. 192.168.1.1"
-                    pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-                    title="Enter a valid IPv4 address"
-                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
-                    onchange="updateDnsServer(${index}, this.value)">
-            </div>
-            ${state.dnsServers.length > 1 ? `
-                <button onclick="removeDnsServer(${index})" 
-                    style="padding:0.75rem; background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.5); color:#ef4444; border-radius:4px; cursor:pointer; margin-top:1.5rem;">
-                    ✕
-                </button>
-            ` : ''}
-        `;
-
-        container.appendChild(div);
-    });
-}
-
-function updateDnsServiceExistingNote() {
-    try {
-        const note = document.getElementById('dns-service-existing-note');
-        if (!note) return;
-
-        // Only relevant for Local Identity.
-        if (state.activeDirectory !== 'local_identity') {
-            note.textContent = '';
-            return;
-        }
-
-        if (state.dnsServiceExisting === false) {
-            note.textContent = 'If No is selected, a Local DNS Server will be installed on the nodes and configured to use the DNS server as a forwarder to resolve external names.';
-            return;
-        }
-
-        // Default to the "Yes" explanation.
-        note.textContent = 'If Yes is selected, an external DNS server is already configured and there is no need to deploy a Local DNS server on Azure Local nodes.';
-    } catch (e) {
-        // ignore
-    }
-}
-
-function updateDnsServiceExisting(value) {
-    // This selection is currently informational for the wizard UX.
-    // Keep state for reporting/future logic without changing required-field rules.
-    state.dnsServiceExisting = (String(value) === 'yes');
-    updateDnsServiceExistingNote();
-    updateSummary();
-}
-
-function validateAllDnsServers() {
-    const err = document.getElementById('dns-error');
-    const succ = document.getElementById('dns-success');
-
-    if (err) err.classList.add('hidden');
-    if (succ) succ.classList.add('hidden');
-
-    // Filter out empty servers
-    const validServers = state.dnsServers.filter(s => s && s.trim());
-
-    if (validServers.length === 0) {
-        updateSummary();
-        return;
-    }
-
-    const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-
-    // Validate format
-    for (let server of validServers) {
-        if (!ipv4Regex.test(server)) {
-            if (err) {
-                err.innerText = `Invalid DNS server format: ${server}`;
-                err.classList.remove('hidden');
-            }
-            return;
-        }
-    }
-
-    // Helper: IP to Long
-    const ipToLong = (ip) => {
-        return ip.split('.').reduce((acc, octet) => {
-            return (acc << 8) + parseInt(octet, 10);
-        }, 0) >>> 0;
-    };
-
-    // Check AKS reserved subnets overlap
-    const ranges = [
-        { name: '10.96.0.0/12', min: 174063616, max: 175112191 },
-        { name: '10.244.0.0/16', min: 183762944, max: 183828479 }
-    ];
-
-    for (let server of validServers) {
-        const serverL = ipToLong(server);
-
-        for (let r of ranges) {
-            if (serverL >= r.min && serverL <= r.max) {
-                if (err) {
-                    err.innerText = `DNS server ${server} overlaps with reserved AKS subnet ${r.name}.`;
-                    err.classList.remove('hidden');
-                }
-                return;
-            }
-        }
-    }
-
-    // Check Infrastructure Network overlap (Step 12)
-    if (state.infra && state.infra.start && state.infra.end) {
-        const infraStartL = ipToLong(state.infra.start);
-        const infraEndL = ipToLong(state.infra.end);
-
-        for (let server of validServers) {
-            const serverL = ipToLong(server);
-
-            if (serverL >= infraStartL && serverL <= infraEndL) {
-                if (err) {
-                    err.innerText = `DNS server ${server} cannot be within the Infrastructure Network range (${state.infra.start} - ${state.infra.end}).`;
-                    err.classList.remove('hidden');
-                }
-                return;
-            }
-        }
-    }
-
-    // Valid
-    if (succ) {
-        succ.innerText = `✓ ${validServers.length} DNS server(s) configured`;
-        succ.classList.remove('hidden');
-    }
-
-    updateSummary();
-}
-
-function updateLocalDnsZone() {
-    const input = document.getElementById('local-dns-zone-input');
-    if (input) {
-        state.localDnsZone = input.value.trim() || null;
-        updateSummary();
-    }
-}
+// NOTE: DNS management functions moved to js/dns.js
+// - addDnsServer, removeDnsServer, updateDnsServer, renderDnsServers
+// - updateDnsServiceExistingNote, updateDnsServiceExisting
+// - validateAllDnsServers, updateLocalDnsZone
 
 function updateAdDomain() {
     const input = document.getElementById('ad-domain');
@@ -8198,6 +7960,11 @@ function importConfiguration() {
 
 // Show resume prompt on page load if saved state exists
 function checkForSavedState() {
+    // Skip on test page
+    if (window.location.pathname.includes('tests.html')) {
+        return;
+    }
+    
     const saved = loadStateFromLocalStorage();
     if (!saved || !saved.data) return;
     
@@ -8367,67 +8134,9 @@ function startFresh() {
     showToast('Started fresh - all previous data cleared', 'info');
 }
 
-// Enhanced validation with real-time feedback
-function validateFieldRealtime(field, value, type) {
-    let isValid = false;
-    let message = '';
-    
-    switch (type) {
-        case 'netbios':
-            isValid = isValidNetbiosName(value);
-            message = isValid ? '' : 'Must be 1-15 chars, alphanumeric and hyphens only';
-            break;
-        case 'ipv4cidr':
-            isValid = isValidIpv4Cidr(value);
-            message = isValid ? '' : 'Must be valid IPv4 CIDR (e.g., 192.168.1.0/24)';
-            break;
-        case 'ipv4':
-            const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-            isValid = ipv4Regex.test(value);
-            message = isValid ? '' : 'Must be valid IPv4 address';
-            break;
-        case 'domain':
-            isValid = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i.test(value);
-            message = isValid ? '' : 'Must be valid domain name';
-            break;
-        case 'vlan':
-            const vlanNum = parseInt(value, 10);
-            isValid = Number.isFinite(vlanNum) && vlanNum >= 1 && vlanNum <= 4094;
-            message = isValid ? '' : 'Must be between 1 and 4094';
-            break;
-    }
-    
-    // Show inline feedback
-    const feedback = field.nextElementSibling;
-    if (feedback && feedback.classList.contains('validation-feedback')) {
-        feedback.textContent = message;
-        feedback.style.color = isValid ? '#10b981' : '#ef4444';
-        feedback.style.display = message ? 'block' : 'none';
-    }
-    
-    return isValid;
-}
-
-// Add inline validation feedback elements
-function addValidationFeedback(inputElement, type) {
-    if (!inputElement) return;
-    
-    const existing = inputElement.nextElementSibling;
-    if (existing && existing.classList.contains('validation-feedback')) return;
-    
-    const feedback = document.createElement('div');
-    feedback.className = 'validation-feedback';
-    feedback.style.cssText = 'font-size: 12px; margin-top: 4px; min-height: 16px;';
-    inputElement.parentNode.insertBefore(feedback, inputElement.nextSibling);
-    
-    inputElement.addEventListener('input', () => {
-        validateFieldRealtime(inputElement, inputElement.value.trim(), type);
-    });
-    
-    inputElement.addEventListener('blur', () => {
-        validateFieldRealtime(inputElement, inputElement.value.trim(), type);
-    });
-}
+// NOTE: Validation functions moved to js/validation.js:
+// - validateFieldRealtime()
+// - addValidationFeedback()
 
 // NOTE: IP conversion utilities (ipToLong, longToIp) have been moved to js/utils.js
 
@@ -8606,27 +8315,31 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.2 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.50 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛠️ Codebase Optimization & Modularization</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Project Reorganized:</strong> Cleaner folder structure with dedicated directories for ARM, Report, CSS, Images, JS modules, Tests, and Scripts.</li>
+                        <li><strong>Phase 2A Modularization:</strong> Extracted formatting, validation, and DNS functions into dedicated JavaScript modules for better maintainability.</li>
+                        <li><strong>121 Unit Tests:</strong> Comprehensive test coverage expanded from 34 to 121 tests covering all utility modules.</li>
+                        <li><strong>Documentation Refreshed:</strong> Updated Quick Start guide and archived outdated planning documents.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.2</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Template Import Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Adapter Names Preserved:</strong> Importing ARM templates now preserves adapter names (NIC1, NIC2, SMB1, SMB2, etc.) from the template instead of displaying generic "Port 1", "Port 2" labels.</li>
-                        <li><strong>Single-Node Diagram:</strong> Fixed issue where host networking diagram was not displaying in the configuration report for single-node deployments.</li>
-                    </ul>
-                </div>
-
-                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.1</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
-                </div>
-                
-                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Template Import Fix</h4>
-                    <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Management + Compute Adapters:</strong> Fixed issue where NIC adapters for Management + Compute intent were not loading into the wizard UI when importing ARM templates from existing deployments.</li>
+                        <li><strong>Adapter Names Preserved:</strong> Importing ARM templates now preserves adapter names (NIC1, NIC2, SMB1, SMB2, etc.) from the template.</li>
+                        <li><strong>Single-Node Diagram:</strong> Fixed host networking diagram display for single-node deployments.</li>
+                        <li><strong>Management + Compute Adapters:</strong> Fixed NIC adapter loading for Management + Compute intent during ARM import.</li>
                     </ul>
                 </div>
 
@@ -10505,7 +10218,7 @@ function exportToPDF() {
 
 const onboardingSteps = [
     {
-        icon: '<img src="odin-logo.png" alt="Odin Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        icon: '<img src="images/odin-logo.png" alt="Odin Logo" style="width: 100px; height: 100px; object-fit: contain;">',
         isImage: true,
         title: 'Welcome to Odin for Azure Local',
         description: 'Your intelligent guide for planning Azure Local deployments. This wizard helps you make informed decisions and generates deployment-ready configurations.',

@@ -1,0 +1,83 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "script"
+  },
+  "globals": {
+    "state": "readonly",
+    "updateSummary": "readonly",
+    "ipToLong": "readonly",
+    "longToIp": "readonly",
+    "escapeHtml": "readonly",
+    "sanitizeInput": "readonly",
+    "formatNumber": "readonly",
+    "capitalize": "readonly",
+    "isValidIpv4": "readonly",
+    "isValidIpv4Cidr": "readonly",
+    "isValidDomain": "readonly",
+    "isValidNetbiosName": "readonly",
+    "isValidVlan": "readonly",
+    "calculateCidrDetails": "readonly",
+    "validateFieldRealtime": "readonly",
+    "addValidationFeedback": "readonly",
+    "showToast": "readonly",
+    "reportUiError": "readonly",
+    "showNotification": "readonly",
+    "copyToClipboard": "readonly",
+    "initializeAnalytics": "readonly",
+    "trackPageView": "readonly",
+    "trackFormCompletion": "readonly",
+    "applyTheme": "readonly",
+    "toggleTheme": "readonly",
+    "increaseFontSize": "readonly",
+    "decreaseFontSize": "readonly",
+    "applyFontSize": "readonly",
+    "getPortDisplayName": "readonly",
+    "getProxyLabel": "readonly",
+    "formatScenario": "readonly",
+    "formatScale": "readonly",
+    "formatOutbound": "readonly",
+    "formatIntent": "readonly",
+    "formatRegion": "readonly",
+    "formatLocalInstanceRegion": "readonly",
+    "addDnsServer": "readonly",
+    "removeDnsServer": "readonly",
+    "updateDnsServer": "readonly",
+    "renderDnsServers": "readonly",
+    "updateDnsServiceExisting": "readonly",
+    "validateAllDnsServers": "readonly",
+    "updateLocalDnsZone": "readonly"
+  },
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-undef": "error",
+    "no-console": "off",
+    "semi": ["warn", "always"],
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "eqeqeq": ["warn", "smart"],
+    "no-var": "warn",
+    "prefer-const": "warn",
+    "no-multiple-empty-lines": ["warn", { "max": 2 }],
+    "no-trailing-spaces": "warn",
+    "indent": ["warn", 4, { "SwitchCase": 1 }],
+    "brace-style": ["warn", "1tbs", { "allowSingleLine": true }],
+    "curly": ["warn", "multi-line"],
+    "comma-dangle": ["warn", "never"],
+    "object-curly-spacing": ["warn", "always"],
+    "array-bracket-spacing": ["warn", "never"],
+    "space-before-function-paren": ["warn", {
+      "anonymous": "never",
+      "named": "never",
+      "asyncArrow": "always"
+    }]
+  },
+  "ignorePatterns": [
+    "docs/archive/**",
+    "*.min.js"
+  ]
+}

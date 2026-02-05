@@ -1,6 +1,6 @@
 param(
   [int]$Port = 5500,
-  [string]$Root = (Get-Location).Path
+  [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
 $listener = [System.Net.HttpListener]::new()
@@ -43,6 +43,14 @@ try {
       $res.OutputStream.Write($bytes, 0, $bytes.Length)
       $res.Close()
       continue
+    }
+
+    # If path is a directory, try to serve index.html from it
+    if (Test-Path -LiteralPath $full -PathType Container) {
+      $indexPath = Join-Path $full 'index.html'
+      if (Test-Path -LiteralPath $indexPath -PathType Leaf) {
+        $full = $indexPath
+      }
     }
 
     if (-not (Test-Path -LiteralPath $full -PathType Leaf)) {

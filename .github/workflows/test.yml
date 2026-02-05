@@ -1,0 +1,127 @@
+# GitHub Actions workflow for Odin for Azure Local
+# Runs linting and unit tests on push and pull requests
+
+name: Test & Lint
+
+on:
+  push:
+    branches: [main, Release]
+  pull_request:
+    branches: [main, Release]
+
+jobs:
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install ESLint
+        run: npm install eslint@8
+      
+      - name: Run ESLint on JS modules
+        run: npx eslint js/*.js --format stylish
+        continue-on-error: true  # Warn but don't fail build initially
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Puppeteer
+        run: npm install puppeteer
+      
+      - name: Run Unit Tests
+        run: |
+          node << 'EOF'
+          const puppeteer = require('puppeteer');
+          const path = require('path');
+          const fs = require('fs');
+
+          (async () => {
+            const browser = await puppeteer.launch({
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+            
+            const page = await browser.newPage();
+            
+            // Capture console output
+            const logs = [];
+            page.on('console', msg => {
+              logs.push(msg.text());
+              console.log('Browser:', msg.text());
+            });
+            
+            // Load the test file
+            const testPath = path.join(__dirname, 'tests', 'tests.html');
+            await page.goto(`file://${testPath}`, { waitUntil: 'networkidle0' });
+            
+            // Wait for tests to complete
+            await page.waitForFunction(() => {
+              const passEl = document.getElementById('pass-count');
+              const failEl = document.getElementById('fail-count');
+              return passEl && failEl && (parseInt(passEl.textContent) > 0 || parseInt(failEl.textContent) > 0);
+            }, { timeout: 30000 });
+            
+            // Get test results
+            const results = await page.evaluate(() => {
+              return {
+                passed: parseInt(document.getElementById('pass-count').textContent),
+                failed: parseInt(document.getElementById('fail-count').textContent),
+                total: parseInt(document.getElementById('total-count').textContent)
+              };
+            });
+            
+            console.log(`\n========================================`);
+            console.log(`Test Results: ${results.passed}/${results.total} passed`);
+            console.log(`========================================\n`);
+            
+            await browser.close();
+            
+            // Exit with error code if tests failed
+            if (results.failed > 0) {
+              console.error(`❌ ${results.failed} test(s) failed`);
+              process.exit(1);
+            }
+            
+            console.log(`✅ All ${results.passed} tests passed!`);
+            process.exit(0);
+          })();
+          EOF
+
+  html-validate:
+    name: HTML Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install html-validate
+        run: npm install html-validate
+      
+      - name: Validate HTML files
+        run: |
+          npx html-validate index.html arm/arm.html report/report.html sizer/index.html --formatter stylish || true
+        continue-on-error: true  # Warn but don't fail build initially

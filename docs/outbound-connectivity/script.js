@@ -1,5 +1,10 @@
 // Smooth scroll and active navigation highlighting
 document.addEventListener('DOMContentLoaded', function() {
+    // Track page view for analytics
+    if (typeof trackPageView === 'function') {
+        trackPageView();
+    }
+
     const navLinks = document.querySelectorAll('.nav-links a');
     const sections = document.querySelectorAll('.section');
 

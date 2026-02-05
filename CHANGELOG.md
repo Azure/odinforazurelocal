@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.50] - 2026-02-05
+
+### Changed
+
+#### Codebase Optimization & Modularization
+
+- **Project Structure Reorganized**: Cleaner folder organization for better maintainability:
+  - `arm/` - ARM parameter generator (arm.html, arm.js)
+  - `report/` - Configuration report generator (report.html, report.js)
+  - `css/` - Stylesheets (style.css)
+  - `images/` - Logo and visual assets
+  - `js/` - All JavaScript modules including new Phase 2A modules
+  - `tests/` - Unit tests and development server
+  - `scripts/` - Utility scripts
+  - `docs/archive/` - Historical documentation
+- **Phase 2A Modularization Complete**: Extracted additional functions into dedicated modules:
+  - `js/formatting.js` - Display formatting functions (getPortDisplayName, formatScenario, formatRegion, etc.)
+  - `js/validation.js` - Real-time field validation (validateFieldRealtime, addValidationFeedback)
+  - `js/dns.js` - DNS server management (addDnsServer, removeDnsServer, renderDnsServers, etc.)
+- **Comprehensive Unit Test Suite**: Expanded from 34 to 121 unit tests covering utils, formatting, validation, and theme modules
+- **Documentation Updated**: QUICK_START.md refreshed with current project structure and features
+
+---
+
 ## [0.14.2] - 2026-02-05
 
 ### Fixed

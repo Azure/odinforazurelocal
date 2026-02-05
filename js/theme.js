@@ -86,7 +86,7 @@ function applyTheme() {
         root.style.setProperty('--disclaimer-bg', 'rgba(255, 193, 7, 0.25)');
         root.style.setProperty('--disclaimer-border', 'rgba(255, 193, 7, 0.5)');
         if (themeButton) themeButton.textContent = '☀️';
-        if (logo) logo.src = 'odin-logo-white-background.png';
+        if (logo) logo.src = 'images/odin-logo-white-background.png';
         document.body.style.background = '#f5f5f5';
     } else {
         root.style.setProperty('--bg-dark', '#000000');
@@ -108,7 +108,7 @@ function applyTheme() {
         root.style.setProperty('--disclaimer-bg', 'rgba(255, 193, 7, 0.15)');
         root.style.setProperty('--disclaimer-border', 'rgba(255, 193, 7, 0.4)');
         if (themeButton) themeButton.textContent = '🌙';
-        if (logo) logo.src = 'odin-logo.png';
+        if (logo) logo.src = 'images/odin-logo.png';
         document.body.style.background = '#000000';
     }
 }

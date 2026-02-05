@@ -304,7 +304,7 @@
         if (inlineCss) {
             headParts.push('<style>' + inlineCss + '</style>');
         } else {
-            headParts.push('<link rel="stylesheet" href="style.css">');
+            headParts.push('<link rel="stylesheet" href="../css/style.css">');
         }
 
         // Clone main report content (avoid including script tags).

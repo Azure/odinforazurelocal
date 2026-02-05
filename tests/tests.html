@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unit Tests - Azure Local Wizard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #0a0e27;
+            color: #e0e7ff;
+        }
+        h1 { color: #60a5fa; }
+        .test-suite {
+            background: #1a1f3a;
+            border: 1px solid #2d3653;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-suite h2 {
+            color: #60a5fa;
+            margin-top: 0;
+            font-size: 1.1rem;
+        }
+        .test-case {
+            padding: 8px 12px;
+            margin: 6px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+        .test-case.pass {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+        }
+        .test-case.fail {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid #ef4444;
+        }
+        .test-status {
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        .test-status.pass { color: #10b981; }
+        .test-status.fail { color: #ef4444; }
+        .summary {
+            background: linear-gradient(135deg, #1a1f3a, #2d3653);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            text-align: center;
+            border: 1px solid #3d4663;
+        }
+        .summary-stat {
+            display: inline-block;
+            margin: 0 24px;
+            font-size: 16px;
+        }
+        .summary-stat .number {
+            font-size: 36px;
+            font-weight: bold;
+            display: block;
+        }
+        .summary-stat.pass .number { color: #10b981; }
+        .summary-stat.fail .number { color: #ef4444; }
+        .module-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+            background: rgba(96, 165, 250, 0.2);
+            color: #60a5fa;
+        }
+        .section-header {
+            background: #2d3653;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 24px 0 16px 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #a5b4fc;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Unit Tests - Azure Local Wizard</h1>
+    <p>Comprehensive test suite for ODIN modular JavaScript functions</p>
+    
+    <div id="summary" class="summary">
+        <div class="summary-stat pass">
+            <span class="number" id="pass-count">0</span>
+            <span>Passed</span>
+        </div>
+        <div class="summary-stat fail">
+            <span class="number" id="fail-count">0</span>
+            <span>Failed</span>
+        </div>
+        <div class="summary-stat">
+            <span class="number" id="total-count">0</span>
+            <span>Total</span>
+        </div>
+    </div>
+    
+    <div id="test-results"></div>
+    
+    <!-- Modular JavaScript files (load before main script.js) -->
+    <script src="../js/utils.js"></script>
+    <script src="../js/notifications.js"></script>
+    <script src="../js/analytics.js"></script>
+    <script src="../js/theme.js"></script>
+    <script src="../js/formatting.js"></script>
+    <script src="../js/validation.js"></script>
+    <script src="../js/dns.js"></script>
+    <script src="../js/script.js"></script>
+    <script>
+        // ========================================================================
+        // TEST FRAMEWORK
+        // ========================================================================
+        let passCount = 0;
+        let failCount = 0;
+        let totalCount = 0;
+        
+        function assert(condition, testName, expected, actual) {
+            totalCount++;
+            const testCase = document.createElement('div');
+            testCase.className = 'test-case';
+            
+            if (condition) {
+                passCount++;
+                testCase.classList.add('pass');
+                testCase.innerHTML = `
+                    <span>${testName}</span>
+                    <span class="test-status pass">✓ PASS</span>
+                `;
+            } else {
+                failCount++;
+                testCase.classList.add('fail');
+                testCase.innerHTML = `
+                    <span>${testName}<br><small style="color:#f87171;">Expected: ${expected}, Got: ${actual}</small></span>
+                    <span class="test-status fail">✗ FAIL</span>
+                `;
+            }
+            
+            return testCase;
+        }
+        
+        function testSuite(name, moduleName, tests) {
+            const suite = document.createElement('div');
+            suite.className = 'test-suite';
+            suite.innerHTML = `<h2>${name} <span class="module-badge">${moduleName}</span></h2>`;
+            
+            tests.forEach(test => {
+                if (test) suite.appendChild(test);
+            });
+            
+            document.getElementById('test-results').appendChild(suite);
+        }
+        
+        function sectionHeader(title) {
+            const header = document.createElement('div');
+            header.className = 'section-header';
+            header.textContent = title;
+            document.getElementById('test-results').appendChild(header);
+        }
+        
+        function updateTestSummary() {
+            document.getElementById('pass-count').textContent = passCount;
+            document.getElementById('fail-count').textContent = failCount;
+            document.getElementById('total-count').textContent = totalCount;
+        }
+
+        // ========================================================================
+        // JS/UTILS.JS TESTS
+        // ========================================================================
+        sectionHeader('📦 js/utils.js - Core Utilities');
+        
+        // Test: isValidNetbiosName
+        testSuite('isValidNetbiosName()', 'utils.js', [
+            assert(isValidNetbiosName('SERVER01') === true, 'Valid: SERVER01', true, isValidNetbiosName('SERVER01')),
+            assert(isValidNetbiosName('Node-1') === true, 'Valid: Node-1 (with hyphen)', true, isValidNetbiosName('Node-1')),
+            assert(isValidNetbiosName('A') === true, 'Valid: Single character', true, isValidNetbiosName('A')),
+            assert(isValidNetbiosName('AAAAAAAAAAAAAAA') === true, 'Valid: 15 characters (max)', true, isValidNetbiosName('AAAAAAAAAAAAAAA')),
+            assert(isValidNetbiosName('A-B') === true, 'Valid: 3 chars with hyphen', true, isValidNetbiosName('A-B')),
+            assert(isValidNetbiosName('-SERVER') === false, 'Invalid: Starts with hyphen', false, isValidNetbiosName('-SERVER')),
+            assert(isValidNetbiosName('SERVER-') === false, 'Invalid: Ends with hyphen', false, isValidNetbiosName('SERVER-')),
+            assert(isValidNetbiosName('AAAAAAAAAAAAAAAA') === false, 'Invalid: 16 characters (too long)', false, isValidNetbiosName('AAAAAAAAAAAAAAAA')),
+            assert(isValidNetbiosName('') === false, 'Invalid: Empty string', false, isValidNetbiosName('')),
+            assert(isValidNetbiosName('Server 01') === false, 'Invalid: Contains space', false, isValidNetbiosName('Server 01')),
+            assert(isValidNetbiosName('Server_01') === false, 'Invalid: Contains underscore', false, isValidNetbiosName('Server_01')),
+            assert(isValidNetbiosName(null) === false, 'Invalid: null', false, isValidNetbiosName(null)),
+            assert(isValidNetbiosName(undefined) === false, 'Invalid: undefined', false, isValidNetbiosName(undefined))
+        ]);
+        
+        // Test: isValidIpv4Cidr
+        testSuite('isValidIpv4Cidr()', 'utils.js', [
+            assert(isValidIpv4Cidr('192.168.1.0/24') === true, 'Valid: 192.168.1.0/24', true, isValidIpv4Cidr('192.168.1.0/24')),
+            assert(isValidIpv4Cidr('10.0.0.0/8') === true, 'Valid: 10.0.0.0/8', true, isValidIpv4Cidr('10.0.0.0/8')),
+            assert(isValidIpv4Cidr('172.16.0.0/16') === true, 'Valid: 172.16.0.0/16', true, isValidIpv4Cidr('172.16.0.0/16')),
+            assert(isValidIpv4Cidr('0.0.0.0/0') === true, 'Valid: 0.0.0.0/0 (any)', true, isValidIpv4Cidr('0.0.0.0/0')),
+            assert(isValidIpv4Cidr('255.255.255.255/32') === true, 'Valid: 255.255.255.255/32 (host)', true, isValidIpv4Cidr('255.255.255.255/32')),
+            assert(isValidIpv4Cidr('192.168.1.0') === false, 'Invalid: Missing CIDR prefix', false, isValidIpv4Cidr('192.168.1.0')),
+            assert(isValidIpv4Cidr('192.168.1.0/33') === false, 'Invalid: /33 (out of range)', false, isValidIpv4Cidr('192.168.1.0/33')),
+            assert(isValidIpv4Cidr('192.168.1.0/-1') === false, 'Invalid: /-1 (negative)', false, isValidIpv4Cidr('192.168.1.0/-1')),
+            assert(isValidIpv4Cidr('256.168.1.0/24') === false, 'Invalid: 256 in octet', false, isValidIpv4Cidr('256.168.1.0/24')),
+            assert(isValidIpv4Cidr('192.168/24') === false, 'Invalid: Missing octets', false, isValidIpv4Cidr('192.168/24')),
+            assert(isValidIpv4Cidr('') === false, 'Invalid: Empty string', false, isValidIpv4Cidr('')),
+            assert(isValidIpv4Cidr(null) === false, 'Invalid: null', false, isValidIpv4Cidr(null))
+        ]);
+        
+        // Test: isValidCidrFormat
+        testSuite('isValidCidrFormat()', 'utils.js', [
+            assert(isValidCidrFormat('10.0.1.0/24') === true, 'Valid: 10.0.1.0/24', true, isValidCidrFormat('10.0.1.0/24')),
+            assert(isValidCidrFormat('192.168.0.0/16') === true, 'Valid: 192.168.0.0/16', true, isValidCidrFormat('192.168.0.0/16')),
+            assert(isValidCidrFormat('10.0.1.0') === false, 'Invalid: No prefix', false, isValidCidrFormat('10.0.1.0')),
+            assert(isValidCidrFormat('10.0.1/24') === false, 'Invalid: 3 octets only', false, isValidCidrFormat('10.0.1/24')),
+            assert(isValidCidrFormat('') === false, 'Invalid: Empty', false, isValidCidrFormat('')),
+            assert(isValidCidrFormat(null) === false, 'Invalid: null', false, isValidCidrFormat(null))
+        ]);
+        
+        // Test: escapeHtml
+        testSuite('escapeHtml()', 'utils.js', [
+            (function() {
+                const input = '\x3Cscript\x3Ealert("xss")\x3C/script\x3E';
+                const expected = '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;';
+                const result = escapeHtml(input);
+                return assert(result === expected, 'Escapes script tags', expected, result);
+            })(),
+            assert(escapeHtml('Hello & Goodbye') === 'Hello &amp; Goodbye', 
+                'Escapes ampersand', 'Hello &amp; Goodbye', escapeHtml('Hello & Goodbye')),
+            (function() {
+                const input = "'single' \"double\"";
+                const expected = '&#39;single&#39; &quot;double&quot;';
+                const result = escapeHtml(input);
+                return assert(result === expected, 'Escapes quotes', expected, result);
+            })(),
+            assert(escapeHtml('Normal text') === 'Normal text', 
+                'No escaping needed', 'Normal text', escapeHtml('Normal text')),
+            assert(escapeHtml('') === '', 'Empty string returns empty', '', escapeHtml(''))
+        ]);
+        
+        // Test: sanitizeInput
+        testSuite('sanitizeInput()', 'utils.js', [
+            (function() {
+                const input = '\x3Cb\x3EBold\x3C/b\x3E';
+                const expected = '&lt;b&gt;Bold&lt;/b&gt;';
+                const result = sanitizeInput(input, 'html');
+                return assert(result === expected, 'HTML sanitization', expected, result);
+            })(),
+            assert(sanitizeInput('file name.txt', 'filename') === 'file_name.txt', 
+                'Filename sanitization', 'file_name.txt', sanitizeInput('file name.txt', 'filename')),
+            assert(sanitizeInput('hello world', 'url').includes('hello'), 
+                'URL encoding preserves text', true, sanitizeInput('hello world', 'url').includes('hello')),
+            assert(sanitizeInput('hello world', 'url') === 'hello%20world', 
+                'URL encodes spaces', 'hello%20world', sanitizeInput('hello world', 'url')),
+            assert(sanitizeInput('  trimmed  ', 'text').trim() === 'trimmed', 
+                'Trims whitespace', 'trimmed', sanitizeInput('  trimmed  ', 'text').trim()),
+            assert(sanitizeInput('', 'html') === '', 'Empty returns empty', '', sanitizeInput('', 'html')),
+            assert(sanitizeInput(null, 'html') === '', 'Null returns empty', '', sanitizeInput(null, 'html'))
+        ]);
+        
+        // Test: formatNumber
+        testSuite('formatNumber()', 'utils.js', [
+            assert(formatNumber(1000) === '1,000', 'Formats 1000', '1,000', formatNumber(1000)),
+            assert(formatNumber(1000000) === '1,000,000', 'Formats 1000000', '1,000,000', formatNumber(1000000)),
+            assert(formatNumber(999) === '999', 'No comma for 999', '999', formatNumber(999)),
+            assert(formatNumber(0) === '0', 'Zero returns 0', '0', formatNumber(0)),
+            assert(formatNumber(12345678) === '12,345,678', 'Large number', '12,345,678', formatNumber(12345678))
+        ]);
+        
+        // Test: capitalize
+        testSuite('capitalize()', 'utils.js', [
+            assert(capitalize('hello') === 'Hello', 'Capitalizes hello', 'Hello', capitalize('hello')),
+            assert(capitalize('HELLO') === 'HELLO', 'Preserves uppercase', 'HELLO', capitalize('HELLO')),
+            assert(capitalize('a') === 'A', 'Single char', 'A', capitalize('a')),
+            assert(capitalize('') === '', 'Empty string', '', capitalize('')),
+            assert(capitalize(null) === '', 'Null returns empty', '', capitalize(null))
+        ]);
+        
+        // Test: IP Conversion Functions
+        testSuite('ipToLong() / longToIp()', 'utils.js', [
+            assert(longToIp(ipToLong('192.168.1.1')) === '192.168.1.1', 
+                'Round-trip: 192.168.1.1', '192.168.1.1', longToIp(ipToLong('192.168.1.1'))),
+            assert(longToIp(ipToLong('10.0.0.1')) === '10.0.0.1', 
+                'Round-trip: 10.0.0.1', '10.0.0.1', longToIp(ipToLong('10.0.0.1'))),
+            assert(longToIp(ipToLong('255.255.255.255')) === '255.255.255.255', 
+                'Round-trip: 255.255.255.255', '255.255.255.255', longToIp(ipToLong('255.255.255.255'))),
+            assert(longToIp(ipToLong('0.0.0.0')) === '0.0.0.0', 
+                'Round-trip: 0.0.0.0', '0.0.0.0', longToIp(ipToLong('0.0.0.0'))),
+            assert(ipToLong('192.168.1.1') === 3232235777, 
+                'ipToLong: 192.168.1.1', 3232235777, ipToLong('192.168.1.1')),
+            assert(ipToLong('10.0.0.1') === 167772161, 
+                'ipToLong: 10.0.0.1', 167772161, ipToLong('10.0.0.1')),
+            assert(longToIp(3232235777) === '192.168.1.1', 
+                'longToIp: 3232235777', '192.168.1.1', longToIp(3232235777)),
+            assert(longToIp(0) === '0.0.0.0', 
+                'longToIp: 0', '0.0.0.0', longToIp(0))
+        ]);
+        
+        // Test: ipv4ToInt / intToIpv4
+        testSuite('ipv4ToInt() / intToIpv4()', 'utils.js', [
+            assert(intToIpv4(ipv4ToInt('192.168.1.1')) === '192.168.1.1', 
+                'Round-trip: 192.168.1.1', '192.168.1.1', intToIpv4(ipv4ToInt('192.168.1.1'))),
+            assert(ipv4ToInt('0.0.0.0') === 0, 'ipv4ToInt: 0.0.0.0', 0, ipv4ToInt('0.0.0.0')),
+            assert(ipv4ToInt('255.255.255.255') === 4294967295, 
+                'ipv4ToInt: 255.255.255.255', 4294967295, ipv4ToInt('255.255.255.255')),
+            assert(ipv4ToInt('invalid') === null, 'Invalid IP returns null', null, ipv4ToInt('invalid')),
+            assert(ipv4ToInt('') === null, 'Empty returns null', null, ipv4ToInt(''))
+        ]);
+        
+        // Test: extractIpFromCidr
+        testSuite('extractIpFromCidr()', 'utils.js', [
+            assert(extractIpFromCidr('192.168.1.0/24') === '192.168.1.0', 
+                'Extract from 192.168.1.0/24', '192.168.1.0', extractIpFromCidr('192.168.1.0/24')),
+            assert(extractIpFromCidr('10.0.0.0/8') === '10.0.0.0', 
+                'Extract from 10.0.0.0/8', '10.0.0.0', extractIpFromCidr('10.0.0.0/8')),
+            assert(extractIpFromCidr('') === '', 'Empty returns empty', '', extractIpFromCidr('')),
+            assert(extractIpFromCidr(null) === '', 'Null returns empty', '', extractIpFromCidr(null))
+        ]);
+        
+        // Test: extractPrefixFromCidr
+        testSuite('extractPrefixFromCidr()', 'utils.js', [
+            assert(extractPrefixFromCidr('192.168.1.0/24') === 24, 
+                'Extract /24', 24, extractPrefixFromCidr('192.168.1.0/24')),
+            assert(extractPrefixFromCidr('10.0.0.0/8') === 8, 
+                'Extract /8', 8, extractPrefixFromCidr('10.0.0.0/8')),
+            assert(extractPrefixFromCidr('0.0.0.0/0') === 0, 
+                'Extract /0', 0, extractPrefixFromCidr('0.0.0.0/0')),
+            assert(extractPrefixFromCidr('192.168.1.0') === null, 
+                'No prefix returns null', null, extractPrefixFromCidr('192.168.1.0')),
+            assert(extractPrefixFromCidr('') === null, 'Empty returns null', null, extractPrefixFromCidr(''))
+        ]);
+        
+        // Test: prefixToMask
+        testSuite('prefixToMask()', 'utils.js', [
+            assert(prefixToMask(24) === 4294967040, '/24 mask', 4294967040, prefixToMask(24)),
+            assert(prefixToMask(32) === 4294967295, '/32 mask (all ones)', 4294967295, prefixToMask(32)),
+            assert(prefixToMask(0) === 0, '/0 mask (all zeros)', 0, prefixToMask(0)),
+            assert(prefixToMask(16) === 4294901760, '/16 mask', 4294901760, prefixToMask(16)),
+            assert(prefixToMask(33) === null, '/33 invalid', null, prefixToMask(33)),
+            assert(prefixToMask(-1) === null, '/-1 invalid', null, prefixToMask(-1))
+        ]);
+        
+        // Test: incrementCidrThirdOctet
+        testSuite('incrementCidrThirdOctet()', 'utils.js', [
+            assert(incrementCidrThirdOctet('10.0.1.0/24', 1) === '10.0.2.0/24', 
+                'Increment 10.0.1.0/24 by 1', '10.0.2.0/24', incrementCidrThirdOctet('10.0.1.0/24', 1)),
+            assert(incrementCidrThirdOctet('10.0.1.0/24', 10) === '10.0.11.0/24', 
+                'Increment by 10', '10.0.11.0/24', incrementCidrThirdOctet('10.0.1.0/24', 10)),
+            assert(incrementCidrThirdOctet('10.0.254.0/24', 1) === '10.0.255.0/24', 
+                'Increment to 255', '10.0.255.0/24', incrementCidrThirdOctet('10.0.254.0/24', 1)),
+            assert(incrementCidrThirdOctet('10.0.255.0/24', 1) === null, 
+                'Overflow returns null', null, incrementCidrThirdOctet('10.0.255.0/24', 1)),
+            assert(incrementCidrThirdOctet('invalid', 1) === null, 
+                'Invalid CIDR returns null', null, incrementCidrThirdOctet('invalid', 1))
+        ]);
+
+        // ========================================================================
+        // JS/FORMATTING.JS TESTS
+        // ========================================================================
+        sectionHeader('🎨 js/formatting.js - Display Formatting');
+        
+        // Test: formatScenario
+        testSuite('formatScenario()', 'formatting.js', [
+            assert(formatScenario('hyperconverged') === 'Hyperconverged', 
+                'Hyperconverged', 'Hyperconverged', formatScenario('hyperconverged')),
+            assert(formatScenario('multirack') === 'Multi-Rack', 
+                'Multi-Rack', 'Multi-Rack', formatScenario('multirack')),
+            assert(formatScenario('disconnected') === 'Disconnected (Air Gapped)', 
+                'Disconnected', 'Disconnected (Air Gapped)', formatScenario('disconnected')),
+            assert(formatScenario('m365local') === 'M365 Local', 
+                'M365 Local', 'M365 Local', formatScenario('m365local')),
+            assert(formatScenario('') === '', 'Empty returns empty', '', formatScenario('')),
+            assert(formatScenario('custom') === 'Custom', 'Unknown capitalizes', 'Custom', formatScenario('custom'))
+        ]);
+        
+        // Test: formatScale
+        testSuite('formatScale()', 'formatting.js', [
+            assert(formatScale('low_capacity') === 'Low Capacity', 
+                'Low Capacity', 'Low Capacity', formatScale('low_capacity')),
+            assert(formatScale('medium') === 'Hyperconverged (1-16 Nodes)', 
+                'Medium', 'Hyperconverged (1-16 Nodes)', formatScale('medium')),
+            assert(formatScale('rack_aware') === 'Rack Aware (Multi-Room)', 
+                'Rack Aware', 'Rack Aware (Multi-Room)', formatScale('rack_aware')),
+            assert(formatScale('rack_scale') === 'Rack Scale', 
+                'Rack Scale', 'Rack Scale', formatScale('rack_scale'))
+        ]);
+        
+        // Test: formatOutbound
+        testSuite('formatOutbound()', 'formatting.js', [
+            assert(formatOutbound('public') === 'Public Internet', 
+                'Public', 'Public Internet', formatOutbound('public')),
+            assert(formatOutbound('private') === 'ExpressRoute / VPN', 
+                'Private', 'ExpressRoute / VPN', formatOutbound('private')),
+            assert(formatOutbound('air_gapped') === 'Air Gapped', 
+                'Air Gapped', 'Air Gapped', formatOutbound('air_gapped')),
+            assert(formatOutbound('limited') === 'Limited Connectivity', 
+                'Limited', 'Limited Connectivity', formatOutbound('limited'))
+        ]);
+
+        // Test: getProxyLabel
+        testSuite('getProxyLabel()', 'formatting.js', [
+            (function() {
+                const origProxy = state.proxy;
+                state.proxy = null;
+                const result = getProxyLabel();
+                state.proxy = origProxy;
+                return assert(result === '-', 'No proxy returns dash', '-', result);
+            })(),
+            (function() {
+                const origProxy = state.proxy;
+                state.proxy = 'no_proxy';
+                const result = getProxyLabel();
+                state.proxy = origProxy;
+                return assert(result === 'Disabled', 'no_proxy returns Disabled', 'Disabled', result);
+            })()
+        ]);
+
+        // ========================================================================
+        // JS/VALIDATION.JS TESTS
+        // ========================================================================
+        sectionHeader('✅ js/validation.js - Input Validation');
+        
+        // Test: validateFieldRealtime (we need to create mock elements)
+        testSuite('validateFieldRealtime() - Logic Only', 'validation.js', [
+            (function() {
+                // Create mock input and feedback element
+                const mockInput = document.createElement('input');
+                const mockFeedback = document.createElement('div');
+                mockFeedback.className = 'validation-feedback';
+                mockInput.parentNode || document.body.appendChild(mockInput);
+                mockInput.parentNode.insertBefore(mockFeedback, mockInput.nextSibling);
+                
+                const result = validateFieldRealtime(mockInput, 'SERVER01', 'netbios');
+                mockInput.remove();
+                mockFeedback.remove();
+                return assert(result === true, 'Valid NetBIOS name', true, result);
+            })(),
+            (function() {
+                const mockInput = document.createElement('input');
+                const mockFeedback = document.createElement('div');
+                mockFeedback.className = 'validation-feedback';
+                document.body.appendChild(mockInput);
+                mockInput.parentNode.insertBefore(mockFeedback, mockInput.nextSibling);
+                
+                const result = validateFieldRealtime(mockInput, '-INVALID', 'netbios');
+                mockInput.remove();
+                mockFeedback.remove();
+                return assert(result === false, 'Invalid NetBIOS name', false, result);
+            })(),
+            (function() {
+                const mockInput = document.createElement('input');
+                const mockFeedback = document.createElement('div');
+                mockFeedback.className = 'validation-feedback';
+                document.body.appendChild(mockInput);
+                mockInput.parentNode.insertBefore(mockFeedback, mockInput.nextSibling);
+                
+                const result = validateFieldRealtime(mockInput, '192.168.1.0/24', 'ipv4cidr');
+                mockInput.remove();
+                mockFeedback.remove();
+                return assert(result === true, 'Valid IPv4 CIDR', true, result);
+            })(),
+            (function() {
+                const mockInput = document.createElement('input');
+                const mockFeedback = document.createElement('div');
+                mockFeedback.className = 'validation-feedback';
+                document.body.appendChild(mockInput);
+                mockInput.parentNode.insertBefore(mockFeedback, mockInput.nextSibling);
+                
+                const result = validateFieldRealtime(mockInput, '192.168.1.1', 'ipv4');
+                mockInput.remove();
+                mockFeedback.remove();
+                return assert(result === true, 'Valid IPv4 address', true, result);
+            })(),
+            (function() {
+                const mockInput = document.createElement('input');
+                const mockFeedback = document.createElement('div');
+                mockFeedback.className = 'validation-feedback';
+                document.body.appendChild(mockInput);
+                mockInput.parentNode.insertBefore(mockFeedback, mockInput.nextSibling);
+                
+                const result = validateFieldRealtime(mockInput, 'contoso.com', 'domain');
+                mockInput.remove();
+                mockFeedback.remove();
+                return assert(result === true, 'Valid domain', true, result);
+            })(),
+            (function() {
+                const mockInput = document.createElement('input');
+                const mockFeedback = document.createElement('div');
+                mockFeedback.className = 'validation-feedback';
+                document.body.appendChild(mockInput);
+                mockInput.parentNode.insertBefore(mockFeedback, mockInput.nextSibling);
+                
+                const result = validateFieldRealtime(mockInput, '100', 'vlan');
+                mockInput.remove();
+                mockFeedback.remove();
+                return assert(result === true, 'Valid VLAN (100)', true, result);
+            })(),
+            (function() {
+                const mockInput = document.createElement('input');
+                const mockFeedback = document.createElement('div');
+                mockFeedback.className = 'validation-feedback';
+                document.body.appendChild(mockInput);
+                mockInput.parentNode.insertBefore(mockFeedback, mockInput.nextSibling);
+                
+                const result = validateFieldRealtime(mockInput, '5000', 'vlan');
+                mockInput.remove();
+                mockFeedback.remove();
+                return assert(result === false, 'Invalid VLAN (5000 > 4094)', false, result);
+            })()
+        ]);
+
+        // ========================================================================
+        // JS/DNS.JS TESTS
+        // ========================================================================
+        sectionHeader('🌐 js/dns.js - DNS Server Management');
+        
+        // Test: DNS Server Array Management
+        testSuite('DNS Server Array Management', 'dns.js', [
+            (function() {
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['192.168.1.1'];
+                addDnsServer();
+                const result = state.dnsServers.length === 2;
+                state.dnsServers = origServers;
+                return assert(result, 'addDnsServer() adds empty entry', 2, state.dnsServers.length);
+            })(),
+            (function() {
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['192.168.1.1', '192.168.1.2', '192.168.1.3'];
+                removeDnsServer(1);
+                const result = state.dnsServers.length === 2 && state.dnsServers[1] === '192.168.1.3';
+                state.dnsServers = origServers;
+                return assert(result, 'removeDnsServer(1) removes middle entry', true, result);
+            })(),
+            (function() {
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['192.168.1.1'];
+                updateDnsServer(0, '  10.0.0.1  ');
+                const result = state.dnsServers[0] === '10.0.0.1';
+                state.dnsServers = origServers;
+                return assert(result, 'updateDnsServer() trims whitespace', '10.0.0.1', state.dnsServers[0]);
+            })()
+        ]);
+
+        // Test: DNS Validation - Format
+        testSuite('DNS Validation - IP Format', 'dns.js', [
+            (function() {
+                // Test valid IPs don't trigger error
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['192.168.1.1', '10.0.0.1'];
+                
+                // Create mock error/success elements
+                const errDiv = document.createElement('div');
+                errDiv.id = 'dns-error';
+                errDiv.classList.add('hidden');
+                const succDiv = document.createElement('div');
+                succDiv.id = 'dns-success';
+                succDiv.classList.add('hidden');
+                document.body.appendChild(errDiv);
+                document.body.appendChild(succDiv);
+                
+                validateAllDnsServers();
+                const result = errDiv.classList.contains('hidden');
+                
+                errDiv.remove();
+                succDiv.remove();
+                state.dnsServers = origServers;
+                return assert(result, 'Valid IPs pass validation', true, result);
+            })(),
+            (function() {
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['invalid-ip'];
+                
+                const errDiv = document.createElement('div');
+                errDiv.id = 'dns-error';
+                errDiv.classList.add('hidden');
+                const succDiv = document.createElement('div');
+                succDiv.id = 'dns-success';
+                succDiv.classList.add('hidden');
+                document.body.appendChild(errDiv);
+                document.body.appendChild(succDiv);
+                
+                validateAllDnsServers();
+                const result = !errDiv.classList.contains('hidden');
+                
+                errDiv.remove();
+                succDiv.remove();
+                state.dnsServers = origServers;
+                return assert(result, 'Invalid IP shows error', true, result);
+            })(),
+            (function() {
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['256.1.1.1']; // Invalid octet
+                
+                const errDiv = document.createElement('div');
+                errDiv.id = 'dns-error';
+                errDiv.classList.add('hidden');
+                const succDiv = document.createElement('div');
+                succDiv.id = 'dns-success';
+                succDiv.classList.add('hidden');
+                document.body.appendChild(errDiv);
+                document.body.appendChild(succDiv);
+                
+                validateAllDnsServers();
+                const result = !errDiv.classList.contains('hidden');
+                
+                errDiv.remove();
+                succDiv.remove();
+                state.dnsServers = origServers;
+                return assert(result, 'IP with invalid octet (256) fails', true, result);
+            })()
+        ]);
+
+        // Test: DNS Validation - AKS Reserved Subnets
+        testSuite('DNS Validation - AKS Reserved Subnets', 'dns.js', [
+            (function() {
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['10.96.0.1']; // Within 10.96.0.0/12
+                
+                const errDiv = document.createElement('div');
+                errDiv.id = 'dns-error';
+                errDiv.classList.add('hidden');
+                const succDiv = document.createElement('div');
+                succDiv.id = 'dns-success';
+                succDiv.classList.add('hidden');
+                document.body.appendChild(errDiv);
+                document.body.appendChild(succDiv);
+                
+                validateAllDnsServers();
+                const result = errDiv.innerText.includes('AKS subnet');
+                
+                errDiv.remove();
+                succDiv.remove();
+                state.dnsServers = origServers;
+                return assert(result, 'DNS in 10.96.0.0/12 shows AKS error', true, result);
+            })(),
+            (function() {
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['10.244.1.1']; // Within 10.244.0.0/16
+                
+                const errDiv = document.createElement('div');
+                errDiv.id = 'dns-error';
+                errDiv.classList.add('hidden');
+                const succDiv = document.createElement('div');
+                succDiv.id = 'dns-success';
+                succDiv.classList.add('hidden');
+                document.body.appendChild(errDiv);
+                document.body.appendChild(succDiv);
+                
+                validateAllDnsServers();
+                const result = errDiv.innerText.includes('AKS subnet');
+                
+                errDiv.remove();
+                succDiv.remove();
+                state.dnsServers = origServers;
+                return assert(result, 'DNS in 10.244.0.0/16 shows AKS error', true, result);
+            })(),
+            (function() {
+                const origServers = [...state.dnsServers];
+                state.dnsServers = ['10.95.255.255']; // Just outside 10.96.0.0/12
+                
+                const errDiv = document.createElement('div');
+                errDiv.id = 'dns-error';
+                errDiv.classList.add('hidden');
+                const succDiv = document.createElement('div');
+                succDiv.id = 'dns-success';
+                succDiv.classList.add('hidden');
+                document.body.appendChild(errDiv);
+                document.body.appendChild(succDiv);
+                
+                validateAllDnsServers();
+                const result = errDiv.classList.contains('hidden');
+                
+                errDiv.remove();
+                succDiv.remove();
+                state.dnsServers = origServers;
+                return assert(result, 'DNS outside AKS range passes', true, result);
+            })()
+        ]);
+
+        // Test: DNS Validation - Infrastructure Network Overlap
+        testSuite('DNS Validation - Infrastructure Network', 'dns.js', [
+            (function() {
+                const origServers = [...state.dnsServers];
+                const origInfra = state.infra ? { ...state.infra } : null;
+                
+                state.dnsServers = ['192.168.1.100'];
+                state.infra = { start: '192.168.1.1', end: '192.168.1.200' };
+                
+                const errDiv = document.createElement('div');
+                errDiv.id = 'dns-error';
+                errDiv.classList.add('hidden');
+                const succDiv = document.createElement('div');
+                succDiv.id = 'dns-success';
+                succDiv.classList.add('hidden');
+                document.body.appendChild(errDiv);
+                document.body.appendChild(succDiv);
+                
+                validateAllDnsServers();
+                const result = errDiv.innerText.includes('Infrastructure Network');
+                
+                errDiv.remove();
+                succDiv.remove();
+                state.dnsServers = origServers;
+                state.infra = origInfra;
+                return assert(result, 'DNS in infra range shows error', true, result);
+            })(),
+            (function() {
+                const origServers = [...state.dnsServers];
+                const origInfra = state.infra ? { ...state.infra } : null;
+                
+                state.dnsServers = ['192.168.2.1'];
+                state.infra = { start: '192.168.1.1', end: '192.168.1.200' };
+                
+                const errDiv = document.createElement('div');
+                errDiv.id = 'dns-error';
+                errDiv.classList.add('hidden');
+                const succDiv = document.createElement('div');
+                succDiv.id = 'dns-success';
+                succDiv.classList.add('hidden');
+                document.body.appendChild(errDiv);
+                document.body.appendChild(succDiv);
+                
+                validateAllDnsServers();
+                const result = errDiv.classList.contains('hidden');
+                
+                errDiv.remove();
+                succDiv.remove();
+                state.dnsServers = origServers;
+                state.infra = origInfra;
+                return assert(result, 'DNS outside infra range passes', true, result);
+            })()
+        ]);
+
+        // Test: DNS Service Existing State
+        testSuite('DNS Service Existing State', 'dns.js', [
+            (function() {
+                const origValue = state.dnsServiceExisting;
+                updateDnsServiceExisting('yes');
+                const result = state.dnsServiceExisting === true;
+                state.dnsServiceExisting = origValue;
+                return assert(result, 'updateDnsServiceExisting("yes") sets true', true, result);
+            })(),
+            (function() {
+                const origValue = state.dnsServiceExisting;
+                updateDnsServiceExisting('no');
+                const result = state.dnsServiceExisting === false;
+                state.dnsServiceExisting = origValue;
+                return assert(result, 'updateDnsServiceExisting("no") sets false', false, result);
+            })()
+        ]);
+
+        // Test: Local DNS Zone
+        testSuite('Local DNS Zone', 'dns.js', [
+            (function() {
+                // Create mock input element
+                const mockInput = document.createElement('input');
+                mockInput.id = 'local-dns-zone-input';
+                mockInput.value = '  azurelocal.local  ';
+                document.body.appendChild(mockInput);
+                
+                const origValue = state.localDnsZone;
+                updateLocalDnsZone();
+                const result = state.localDnsZone === 'azurelocal.local';
+                
+                mockInput.remove();
+                state.localDnsZone = origValue;
+                return assert(result, 'updateLocalDnsZone() trims value', 'azurelocal.local', state.localDnsZone);
+            })(),
+            (function() {
+                const mockInput = document.createElement('input');
+                mockInput.id = 'local-dns-zone-input';
+                mockInput.value = '';
+                document.body.appendChild(mockInput);
+                
+                const origValue = state.localDnsZone;
+                updateLocalDnsZone();
+                const result = state.localDnsZone === null;
+                
+                mockInput.remove();
+                state.localDnsZone = origValue;
+                return assert(result, 'Empty input sets null', null, state.localDnsZone);
+            })()
+        ]);
+
+        // ========================================================================
+        // JS/THEME.JS TESTS
+        // ========================================================================
+        sectionHeader('🎨 js/theme.js - Theme Functions');
+        
+        testSuite('Theme Functions', 'theme.js', [
+            (function() {
+                const origFontSize = state.fontSize;
+                state.fontSize = 'medium';
+                increaseFontSize();
+                const result = state.fontSize === 'large';
+                state.fontSize = origFontSize;
+                return assert(result, 'increaseFontSize() medium → large', 'large', state.fontSize);
+            })(),
+            (function() {
+                const origFontSize = state.fontSize;
+                state.fontSize = 'medium';
+                decreaseFontSize();
+                const result = state.fontSize === 'small';
+                state.fontSize = origFontSize;
+                return assert(result, 'decreaseFontSize() medium → small', 'small', state.fontSize);
+            })(),
+            (function() {
+                const origFontSize = state.fontSize;
+                state.fontSize = 'small'; // minimum
+                decreaseFontSize();
+                const result = state.fontSize === 'small'; // should not go below small
+                state.fontSize = origFontSize;
+                return assert(result, 'Font size minimum is small', 'small', state.fontSize);
+            })(),
+            (function() {
+                const origFontSize = state.fontSize;
+                state.fontSize = 'x-large'; // maximum
+                increaseFontSize();
+                const result = state.fontSize === 'x-large'; // should not exceed x-large
+                state.fontSize = origFontSize;
+                return assert(result, 'Font size maximum is x-large', 'x-large', state.fontSize);
+            })()
+        ]);
+
+        // ========================================================================
+        // EDGE CASES & BOUNDARY TESTS
+        // ========================================================================
+        sectionHeader('🔬 Edge Cases & Boundary Tests');
+        
+        testSuite('Null/Undefined Handling', 'utils.js', [
+            assert(escapeHtml(null) === 'null', 'escapeHtml(null)', 'null', escapeHtml(null)),
+            assert(escapeHtml(undefined) === 'undefined', 'escapeHtml(undefined)', 'undefined', escapeHtml(undefined)),
+            assert(formatNumber(0) === '0', 'formatNumber(0)', '0', formatNumber(0)),
+            assert(isValidNetbiosName(0) === false, 'isValidNetbiosName(0)', false, isValidNetbiosName(0))
+        ]);
+        
+        testSuite('IP Address Edge Cases', 'utils.js', [
+            assert(ipToLong('0.0.0.1') === 1, 'Min non-zero IP', 1, ipToLong('0.0.0.1')),
+            assert(ipToLong('255.255.255.254') === 4294967294, 'Max-1 IP', 4294967294, ipToLong('255.255.255.254')),
+            assert(isValidIpv4Cidr('192.168.1.0/0') === true, '/0 is valid', true, isValidIpv4Cidr('192.168.1.0/0')),
+            assert(isValidIpv4Cidr('192.168.1.0/32') === true, '/32 is valid', true, isValidIpv4Cidr('192.168.1.0/32'))
+        ]);
+
+        // ========================================================================
+        // FINAL SUMMARY
+        // ========================================================================
+        updateTestSummary();
+        
+        setTimeout(() => {
+            if (failCount === 0) {
+                document.body.style.borderTop = '5px solid #10b981';
+                console.log(`✓ All ${totalCount} tests passed!`);
+            } else {
+                document.body.style.borderTop = '5px solid #ef4444';
+                console.log(`✗ ${failCount} of ${totalCount} test(s) failed`);
+            }
+        }, 100);
+    </script>
+</body>
+</html>
