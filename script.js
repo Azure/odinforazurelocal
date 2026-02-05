@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.3';
+const WIZARD_VERSION = '0.13.4';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -1614,6 +1614,27 @@ function generateArmParameters() {
             return `NIC${nicIdx1Based}`;
         };
 
+        /**
+         * Get custom storage adapter name for storageNetworkList.
+         * For switchless: uses ports after mgmt/compute (ports 3, 4, 5, 6, ...)
+         * For switched: uses the specified storage port number
+         * @param {number} smbIdx1Based - 1-based SMB adapter index (1, 2, 3, ...)
+         * @param {number} storagePortOffset - For switchless, the offset from port 3 (default 2 for ports 3+)
+         * @returns {string} The adapter name for ARM template
+         */
+        const armAdapterNameForSmb = (smbIdx1Based, storagePortOffset = 2) => {
+            const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+            // For switchless storage, SMB adapters map to ports after mgmt/compute (ports 3, 4, ...)
+            // For switched storage, the smbIdx directly corresponds to a port number
+            const portIdx = storagePortOffset + smbIdx1Based - 1; // 0-based index in portConfig
+            const pc = cfg[portIdx];
+            if (pc && pc.customName && pc.customName.trim()) {
+                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                return sanitized || `SMB${smbIdx1Based}`;
+            }
+            return `SMB${smbIdx1Based}`;
+        };
+
         const sanitizeIntentName = (raw) => {
             const s = String(raw || '').trim();
             if (!s) return 'Intent';
@@ -1821,7 +1842,7 @@ function generateArmParameters() {
 
                     list.push({
                         name: `StorageNetwork${smbIdx}`,
-                        networkAdapterName: `SMB${smbIdx}`,
+                        networkAdapterName: armAdapterNameForSmb(smbIdx, 2),
                         vlanId: vlanId,
                         storageAdapterIPInfo: storageAdapterIPInfo
                     });
@@ -1912,7 +1933,7 @@ function generateArmParameters() {
 
                     list.push({
                         name: `StorageNetwork${smbIdx}`,
-                        networkAdapterName: `SMB${smbIdx}`,
+                        networkAdapterName: armAdapterNameForSmb(smbIdx, 2),
                         vlanId: vlanId,
                         storageAdapterIPInfo: storageAdapterIPInfo
                     });
@@ -1946,7 +1967,7 @@ function generateArmParameters() {
             
             const network1 = {
                 name: 'StorageNetwork1',
-                networkAdapterName: nic1 ? `SMB${nic1}` : 'REPLACE_WITH_STORAGE_ADAPTER_1',
+                networkAdapterName: nic1 ? armAdapterNameForSmb(1, nic1 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_1',
                 vlanId: (storageVlan1 !== null && storageVlan1 !== undefined) ? String(storageVlan1) : 'REPLACE_WITH_STORAGE_VLAN_1'
             };
             if (includeStorageAdapterIPInfo) {
@@ -1957,7 +1978,7 @@ function generateArmParameters() {
             if (storageNetworkCount >= 2) {
                 const network2 = {
                     name: 'StorageNetwork2',
-                    networkAdapterName: nic2 ? `SMB${nic2}` : 'REPLACE_WITH_STORAGE_ADAPTER_2',
+                    networkAdapterName: nic2 ? armAdapterNameForSmb(2, nic2 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_2',
                     vlanId: (storageVlan2 !== null && storageVlan2 !== undefined) ? String(storageVlan2) : 'REPLACE_WITH_STORAGE_VLAN_2'
                 };
                 if (includeStorageAdapterIPInfo) {

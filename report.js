@@ -2616,7 +2616,7 @@
                     function nicTile(x, y, label) {
                         var t = '';
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
                     }
 
@@ -2698,7 +2698,7 @@
                         var tr2 = storageTileRect2(i2, p2);
                         var lbl2 = getPortCustomName(state, p2 + 1, 'smb');
                         svg2 += '<rect x="' + tr2.x + '" y="' + tr2.y + '" width="' + tr2.w + '" height="' + tr2.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                        svg2 += '<text x="' + (tr2.x + tr2.w / 2) + '" y="' + (tr2.y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl2) + '</text>';
+                        svg2 += '<text x="' + (tr2.x + tr2.w / 2) + '" y="' + (tr2.y + 24) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl2) + '</text>';
                     }
                 }
 
@@ -2800,7 +2800,7 @@
                         function nicTile(x, y, label) {
                             var t = '';
                             t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                            t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                            t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                             return t;
                         }
 
@@ -2881,7 +2881,7 @@
                             var trS = storageTileRectS(iS, pS);
                             var labelS = getPortCustomName(state, pS + 1, 'smb');
                             svgS += '<rect x="' + trS.x + '" y="' + trS.y + '" width="' + trS.w + '" height="' + trS.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                            svgS += '<text x="' + (trS.x + trS.w / 2) + '" y="' + (trS.y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelS) + '</text>';
+                            svgS += '<text x="' + (trS.x + trS.w / 2) + '" y="' + (trS.y + 24) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelS) + '</text>';
                         }
                     }
 
@@ -3007,7 +3007,7 @@
                     function nicTile(x, y, label) {
                         var t = '';
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
                     }
                     out += nicTile(nic1X, nicY, getNicLabel(1));
@@ -3096,7 +3096,7 @@
                         var tr = storageTileRect(i3, p3);
                         var label = getPortCustomName(state, p3 + 1, 'smb');
                         svg3 += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + tr.w + '" height="' + tr.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                        svg3 += '<text x="' + (tr.x + tr.w / 2) + '" y="' + (tr.y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                        svg3 += '<text x="' + (tr.x + tr.w / 2) + '" y="' + (tr.y + 24) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                     }
                 }
 
@@ -3205,7 +3205,7 @@
                     function nicTile(x, y, label) {
                         var t = '';
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
                     }
 
@@ -3362,7 +3362,7 @@
                         var tr4 = storageTileRect4(i4, p4);
                         var lbl4 = getPortCustomName(state, p4 + 1, 'smb');
                         svg4 += '<rect x="' + tr4.x + '" y="' + tr4.y + '" width="' + tr4.w + '" height="' + tr4.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                        svg4 += '<text x="' + (tr4.x + tr4.w / 2) + '" y="' + (tr4.y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl4) + '</text>';
+                        svg4 += '<text x="' + (tr4.x + tr4.w / 2) + '" y="' + (tr4.y + 24) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl4) + '</text>';
                     }
                 }
 
@@ -4576,7 +4576,8 @@
                                     var nodeIps = [];
                                     nodeIps.push(getNodeName(0) + ': ' + prefix + '.2');
                                     nodeIps.push(getNodeName(1) + ': ' + prefix + '.3');
-                                    storageIpDetails.push('SMB' + (smbIdx + 1) + ': ' + nodeIps.join(', '));
+                                    var smbName = getPortCustomName(s, smbIdx + 1, 'smb');
+                                    storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
                                 }
                             }
                         } else if (nodeCount === 3) {
@@ -4598,7 +4599,8 @@
                                     }
                                 }
                                 if (nodeIps.length > 0) {
-                                    storageIpDetails.push('SMB' + smbIdx + ': ' + nodeIps.join(', '));
+                                    var smbName = getPortCustomName(s, smbIdx, 'smb');
+                                    storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
                                 }
                             }
                         } else if (nodeCount === 4) {
@@ -4621,7 +4623,8 @@
                                     }
                                 }
                                 if (nodeIps.length > 0) {
-                                    storageIpDetails.push('SMB' + smbIdx + ': ' + nodeIps.join(', '));
+                                    var smbName = getPortCustomName(s, smbIdx, 'smb');
+                                    storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
                                 }
                             }
                         }
