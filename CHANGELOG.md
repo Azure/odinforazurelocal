@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.15] - 2026-02-05
+
+### Improved
+
+#### ARM Template Import Auto-Confirmation
+
+- When importing ARM templates from existing deployments, wizard now auto-confirms:
+  - Port configuration (portConfigConfirmed)
+  - Adapter mapping for mgmt_compute intent (adapterMappingConfirmed)
+  - Intent overrides (overridesConfirmed)
+  - Custom storage subnets if present (customStorageSubnetsConfirmed)
+- Removes unnecessary manual confirmations when importing a template from a working deployment
+- Auto-builds adapter mapping for mgmt_compute intent based on port count (first 2 for mgmt, remaining for storage)
+
+---
+
 ## [0.13.14] - 2026-02-05
 
 ### Fixed
