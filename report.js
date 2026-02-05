@@ -2104,15 +2104,17 @@
                 // Place intent text below the ports so cabling above stays readable.
                 out += '<text x="' + (setX + setW / 2) + '" y="' + setLabelY + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(setLabelText) + '</text>';
 
-                function nicTile(x, y, labelText) {
+                function nicTile(x, y, labelText, idx) {
                     var t = '';
+                    // Stagger text vertically - first port higher, second port lower
+                    var textY = (idx % 2 === 0) ? (y + 14) : (y + 22);
                     t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                    t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 19) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelText) + '</text>';
+                    t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelText) + '</text>';
                     return t;
                 }
 
-                out += nicTile(nic1X, nicY, getNicLabel(mgmtComputePorts[0] || 1));
-                out += nicTile(nic2X, nicY, getNicLabel(mgmtComputePorts[1] || 2));
+                out += nicTile(nic1X, nicY, getNicLabel(mgmtComputePorts[0] || 1), 0);
+                out += nicTile(nic2X, nicY, getNicLabel(mgmtComputePorts[1] || 2), 1);
 
                 return {
                     html: out,
@@ -2170,8 +2172,10 @@
                     // Use the actual storage port index from storagePorts array
                     var portIdx = storagePorts[iS] || (iS + 3);
                     var lbl = getNicLabel(portIdx);
+                    // Stagger text vertically - first port higher, second port lower
+                    var textY = (iS % 2 === 0) ? (yS + 14) : (yS + 22);
                     out += '<rect x="' + xS + '" y="' + yS + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                    out += '<text x="' + (xS + tileW / 2) + '" y="' + (yS + 19) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
+                    out += '<text x="' + (xS + tileW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
                     // Port anchors on the outside/top edge of each SMB tile (horizontally centered).
                     portsOut.push({ idx: portIdx, x: xS + Math.floor(tileW / 2), y: yS - 1 });
                 }
