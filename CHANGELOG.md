@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.12] - 2026-02-05
+
+### Fixed
+
+#### Switchless Storage Port Names
+
+- **Correct Physical Port Names for Storage** - Switchless storage diagrams now correctly display custom port names for physical storage ports (ports 3+). Previously, the code incorrectly assumed SMB adapters were virtual and showed "SMB1", "SMB2", etc.
+
+- **Storage Adapter IPs Section** - The "Storage Adapter IPs" section in reports now uses the correct storage port indices (ports 3+) instead of starting from port 1 (which is a Mgmt+Compute port).
+
+- **Port Index Calculation** - Storage port index is now calculated as `smbIndex + 2` to correctly map to physical ports 3, 4, 5, etc. for 2-node, 3-node, and 4-node switchless configurations.
+
+---
+
 ## [0.13.11] - 2026-02-05
 
 ### Fixed
