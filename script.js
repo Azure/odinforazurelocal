@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.0';
+const WIZARD_VERSION = '0.13.3';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -1978,16 +1978,39 @@ function generateArmParameters() {
             ensureIntentOverrideDefaults();
 
             const getStorageAdapterNamesForIntent = (groupNics) => {
-                // Storage intent adapters in the ARM template are SMBx.
-                // - Switchless: SMB1..SMB{2*(n-1)} regardless of physical NIC numbering in the wizard.
-                // - Switched: use SMB{NIC#} to match wizard labeling.
+                // Storage intent adapters in the ARM template.
+                // - Switchless: SMB1..SMB{2*(n-1)} are virtual adapters, not directly mapped to physical ports.
+                //   For switchless, check if ports have custom names and use them sequentially.
+                // - Switched: use custom port names if available, otherwise SMB{NIC#}.
                 if (state.storage === 'switchless') {
                     const n = nodeCount;
                     const smbCount = (Number.isFinite(n) && n > 1) ? (2 * (n - 1)) : 2;
-                    return Array.from({ length: smbCount }, (_, i) => `SMB${i + 1}`);
+                    // For switchless, SMB adapters are virtual. Use custom names from storage ports if available.
+                    // Storage ports are typically the ports after the management/compute ports.
+                    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+                    return Array.from({ length: smbCount }, (_, i) => {
+                        // Try to get custom name from corresponding port (offset by mgmt/compute ports)
+                        // For typical 4-port config: ports 1-2 are mgmt/compute, ports 3-4+ are storage
+                        const portIdx = 2 + i; // 0-based index for storage ports (after first 2)
+                        const pc = cfg[portIdx];
+                        if (pc && pc.customName && pc.customName.trim()) {
+                            const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                            return sanitized || `SMB${i + 1}`;
+                        }
+                        return `SMB${i + 1}`;
+                    });
                 }
 
-                return (Array.isArray(groupNics) ? groupNics : []).map(n => `SMB${n}`);
+                // Switched: use custom port names from portConfig based on the NIC number
+                return (Array.isArray(groupNics) ? groupNics : []).map(nicNum => {
+                    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+                    const pc = cfg[nicNum - 1]; // nicNum is 1-based, array is 0-based
+                    if (pc && pc.customName && pc.customName.trim()) {
+                        const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                        return sanitized || `SMB${nicNum}`;
+                    }
+                    return `SMB${nicNum}`;
+                });
             };
 
             const buildAdapterPropertyOverrides = (groupKey) => {
@@ -4746,20 +4769,25 @@ function updateUI() {
             const existingConfig = Array.isArray(state.portConfig) ? state.portConfig : [];
 
             state.portConfig = Array(pCount).fill().map((_, idx) => {
-                // Preserve existing config if available (including customName)
-                if (existingConfig[idx]) {
-                    return existingConfig[idx];
-                }
                 // Special default: 3-node switchless standard uses non-RDMA teamed ports for Mgmt+Compute.
                 // Keep Port 1-2 non-RDMA by default; enable RDMA on the remaining ports.
                 const rdmaEnabled = (isSwitchless3NodeStandard && idx < 2) ? false : defaultRdmaEnabled;
-                return {
+                const defaults = {
                     speed: defaultPortSpeed,
                     rdma: rdmaEnabled,
                     rdmaMode: rdmaEnabled ? defaultRdmaMode : 'Disabled',
                     rdmaManual: false,
                     customName: null
                 };
+
+                // Merge existing config with defaults (preserves customName and other user settings)
+                if (existingConfig[idx]) {
+                    return {
+                        ...defaults,
+                        ...existingConfig[idx]
+                    };
+                }
+                return defaults;
             });
         } else {
             // If the user changes earlier choices (scale/nodes/storage) after portConfig was created,
@@ -6669,11 +6697,12 @@ function renderPortConfiguration(count) {
                         value="${escapeHtml(displayName)}" 
                         placeholder="Port ${i + 1}"
                         maxlength="30"
-                        style="background:transparent; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'transparent'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s;"
+                        style="background:transparent; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s; cursor:text;"
                         onfocus="this.style.borderColor='var(--accent-blue)'; this.style.background='rgba(255,255,255,0.05)';"
-                        onblur="this.style.borderColor=this.value.trim() && this.value.trim() !== 'Port ${i + 1}' ? 'var(--accent-blue)' : 'transparent'; this.style.background='transparent'; updatePortConfig(${i}, 'customName', this.value);"
+                        onblur="this.style.borderColor=this.value.trim() && this.value.trim() !== 'Port ${i + 1}' ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'; this.style.background='transparent'; updatePortConfig(${i}, 'customName', this.value);"
                         onkeydown="if(event.key==='Enter'){this.blur();}"
                         title="Click to rename this port">
+                    <span class="port-edit-icon" style="color:var(--text-secondary); font-size:14px; opacity:0.6; cursor:pointer;" title="Click to edit port name" onclick="this.previousElementSibling.focus();">✏️</span>
                     ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
                 </div>
                 ${hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : ''}
@@ -7980,15 +8009,103 @@ function parseArmTemplateToState(armTemplate) {
         result.intent = patternToIntent[params.networkingPattern] || 'compute_storage';
     }
     
-    // Port count from intentList
+    // Port count and custom adapter names from intentList
     if (params.intentList && Array.isArray(params.intentList)) {
-        const allAdapters = new Set();
+        const nicAdapters = [];  // Non-storage adapters (NIC1, NIC2, or custom names)
+        const smbAdapters = [];  // Storage adapters (SMB1, SMB2, or custom names)
+        
         params.intentList.forEach(intent => {
             if (intent.adapter && Array.isArray(intent.adapter)) {
-                intent.adapter.forEach(a => allAdapters.add(a));
+                const isStorageIntent = intent.trafficType && 
+                    Array.isArray(intent.trafficType) && 
+                    intent.trafficType.length === 1 && 
+                    intent.trafficType[0] === 'Storage';
+                
+                intent.adapter.forEach(a => {
+                    if (isStorageIntent) {
+                        // Storage-only intent uses SMB adapters
+                        if (!smbAdapters.includes(a)) {
+                            smbAdapters.push(a);
+                        }
+                    } else {
+                        // Non-storage intents use NIC adapters
+                        if (!nicAdapters.includes(a)) {
+                            nicAdapters.push(a);
+                        }
+                    }
+                });
             }
         });
-        result.ports = String(allAdapters.size);
+        
+        // Determine port count from NIC adapters (primary port count indicator)
+        const portCount = nicAdapters.length || smbAdapters.length;
+        result.ports = String(portCount);
+        
+        // Build portConfig with custom names from imported template
+        // Check if adapters have custom names (not default NIC1/NIC2/SMB1/SMB2 pattern)
+        const hasCustomNicNames = nicAdapters.some((name, idx) => {
+            const defaultName = `NIC${idx + 1}`;
+            return name !== defaultName;
+        });
+        const hasCustomSmbNames = smbAdapters.some((name, idx) => {
+            const defaultName = `SMB${idx + 1}`;
+            return name !== defaultName;
+        });
+        
+        if (hasCustomNicNames || hasCustomSmbNames || nicAdapters.length > 0 || smbAdapters.length > 0) {
+            result.portConfig = [];
+            
+            // Map NIC adapters to ports - include full portConfig structure
+            nicAdapters.forEach((name, idx) => {
+                const defaultNicName = `NIC${idx + 1}`;
+                const customName = (name !== defaultNicName) ? name : null;
+                result.portConfig.push({
+                    speed: '25GbE',  // Default speed, will be adjusted by updateUI based on scale
+                    rdma: true,      // Default RDMA enabled
+                    rdmaMode: 'RoCEv2',
+                    rdmaManual: false,
+                    customName: customName
+                });
+            });
+            
+            // Add SMB adapter custom names to storage ports (ports after NIC adapters)
+            // For typical config: ports 1-2 are NIC, ports 3+ are SMB
+            if (smbAdapters.length > 0 && nicAdapters.length > 0) {
+                smbAdapters.forEach((name, idx) => {
+                    const defaultSmbName = `SMB${idx + 1}`;
+                    // Also check for SMB{portNum} pattern (e.g., SMB3, SMB4 for switched storage)
+                    const portNum = nicAdapters.length + idx + 1;
+                    const altDefaultName = `SMB${portNum}`;
+                    const isDefault = (name === defaultSmbName || name === altDefaultName);
+                    const customName = !isDefault ? name : null;
+                    result.portConfig.push({
+                        speed: '25GbE',
+                        rdma: true,
+                        rdmaMode: 'RoCEv2',
+                        rdmaManual: false,
+                        customName: customName
+                    });
+                });
+                // Update port count to include storage ports
+                result.ports = String(nicAdapters.length + smbAdapters.length);
+            }
+            
+            // If no NIC adapters but we have SMB adapters, create ports from SMB count
+            if (nicAdapters.length === 0 && smbAdapters.length > 0) {
+                for (let i = 0; i < smbAdapters.length; i++) {
+                    const name = smbAdapters[i];
+                    const defaultSmbName = `SMB${i + 1}`;
+                    const customName = (name !== defaultSmbName) ? name : null;
+                    result.portConfig.push({
+                        speed: '25GbE',
+                        rdma: true,
+                        rdmaMode: 'RoCEv2',
+                        rdmaManual: false,
+                        customName: customName
+                    });
+                }
+            }
+        }
     }
     
     // Security settings

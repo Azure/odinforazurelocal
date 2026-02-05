@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.3] - 2026-02-05
+
+### Added
+
+#### Custom Port Names for Storage (SMB) Adapters
+
+- **SMB Adapters Use Custom Names** - Storage adapters in ARM templates now use custom port names instead of hardcoded "SMB1", "SMB2", etc. This applies to both switched and switchless storage configurations.
+
+- **Full Round-Trip Support** - Custom port names are now fully preserved when exporting and importing ARM templates for all adapter types (NIC and SMB).
+
+- **Switched Storage** - Uses custom names from storage port configuration (ports 3, 4, etc.)
+
+- **Switchless Storage** - Uses custom names from ports after management/compute ports for virtual SMB adapters.
+
+### Fixed
+
+- **ARM Import Port Configuration** - Fixed issue where imported portConfig was missing required properties (speed, rdma, rdmaMode). Now properly merges imported custom names with default port settings.
+
+---
+
+## [0.13.2] - 2026-02-05
+
+### Fixed
+
+#### Custom Port Names Now Appear in Report Diagrams
+
+- **Report Diagrams Use Custom Names** - Fixed issue where the host networking diagrams in the report were still showing default "NIC 1", "NIC 2", "SMB1", etc. names instead of user-defined custom port names. All diagram types (Storage Switched, Switchless 2/3/4-node) now correctly display custom port names.
+
+- **Improved Port Naming UX** - Added a visible pencil icon (✏️) next to port names in Step 07 (Port Configuration) to make it clear that port names are editable. The input field now shows a subtle border even when not focused, improving discoverability.
+
+---
+
+## [0.13.1] - 2026-02-05
+
+### Improved
+
+#### ARM Import Honors Custom Adapter Names
+
+- **Custom Adapter Names Preserved on Import** - When importing an ARM template that uses custom network adapter names (e.g., "Slot3-Port1", "NIC-MGMT-01"), the wizard now extracts and preserves these names in the Port Configuration section.
+
+- **Automatic Detection** - The import logic distinguishes between NIC adapters (used for Management/Compute) and SMB adapters (used for Storage), mapping each to the appropriate port configuration.
+
+- **Diagram Generation** - Imported custom names will appear in all generated diagrams and reports, ensuring consistency with the customer's existing naming conventions.
+
+---
+
 ## [0.13.0] - 2026-02-05
 
 ### Added
