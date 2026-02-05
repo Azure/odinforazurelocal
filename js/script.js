@@ -3099,7 +3099,7 @@ function getPrivateEndpointInfo(serviceKey) {
 
 function updateUI() {
     // Skip UI updates on test page (no wizard DOM elements)
-    if (window.location.pathname.includes('tests.html')) {
+    if (window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
         return;
     }
     
@@ -7961,7 +7961,7 @@ function importConfiguration() {
 // Show resume prompt on page load if saved state exists
 function checkForSavedState() {
     // Skip on test page
-    if (window.location.pathname.includes('tests.html')) {
+    if (window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
         return;
     }
     
