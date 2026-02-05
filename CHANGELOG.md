@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.16] - 2026-02-05
+
+### Fixed
+
+#### Diagram Intent Grouping for Non-Contiguous Adapter Mapping
+
+- Fixed switched storage diagram to properly group ports by intent visually
+- When adapter mapping has non-contiguous NICs (e.g., Mgmt+Compute using NICs 1,3 and Storage using NICs 2,4), the diagram now:
+  - Groups all Mgmt+Compute ports together on the left with a labeled dotted blue box
+  - Groups all Storage ports together on the right with a labeled dotted purple box
+  - Displays ports in logical groups rather than physical port order
+- Both intent groups now have properly labeled boxes (previously only Storage had a label)
+
+---
+
 ## [0.13.15] - 2026-02-05
 
 ### Improved
