@@ -53,7 +53,7 @@
     left: 0;
     right: 0;
     z-index: 1000;
-    background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
+    background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
     padding: 0 24px;
@@ -107,12 +107,12 @@
 }
 
 .odin-tab-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--nav-hover-bg, rgba(255, 255, 255, 0.05));
     color: var(--text-primary);
 }
 
 .odin-tab-btn.active {
-    background: rgba(0, 120, 212, 0.15);
+    background: var(--nav-active-bg, rgba(0, 120, 212, 0.15));
     color: var(--accent-blue);
 }
 

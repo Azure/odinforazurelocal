@@ -84,7 +84,7 @@
             left: 0;
             right: 0;
             z-index: 1000;
-            background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
+            background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
             backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--glass-border);
             padding: 0 24px;
@@ -137,12 +137,12 @@
         }
 
         .odin-tab-btn:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--nav-hover-bg, rgba(255, 255, 255, 0.05));
             color: var(--text-primary);
         }
 
         .odin-tab-btn.active {
-            background: rgba(0, 120, 212, 0.15);
+            background: var(--nav-active-bg, rgba(0, 120, 212, 0.15));
             color: var(--accent-blue);
         }
 
@@ -341,7 +341,7 @@
         </nav>
 
         <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px;">
-            <div class="disclaimer-banner" style="font-size: 12px; color: var(--text-primary); padding: 12px; background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); border-radius: 8px;">
+            <div class="disclaimer-banner" style="font-size: 12px; color: var(--text-primary); padding: 12px; background: var(--disclaimer-bg, rgba(255, 193, 7, 0.15)); border: 1px solid var(--disclaimer-border, rgba(255, 193, 7, 0.4)); border-radius: 8px;">
                 <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
             </div>
         </div>
@@ -352,7 +352,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.13.19 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.13.30 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -2161,8 +2161,8 @@
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <div style="display: flex; align-items: center; gap: 4px;">
                                 <span style="margin-right: 4px;">Font:</span>
-                                <button onclick="decreaseFontSize()" title="Decrease font size" style="padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A−</button>
-                                <button onclick="increaseFontSize()" title="Increase font size" style="padding: 4px 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A+</button>
+                                <button onclick="decreaseFontSize()" title="Decrease font size" style="padding: 4px 8px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A−</button>
+                                <button onclick="increaseFontSize()" title="Increase font size" style="padding: 4px 8px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A+</button>
                             </div>
                         </div>
                     </div>
@@ -2175,10 +2175,10 @@
                     </button>
 
                     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <button onclick="importConfiguration()" style="flex: 1; padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
+                        <button onclick="importConfiguration()" style="flex: 1; padding: 10px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
                             📁 Import
                         </button>
-                        <button onclick="exportConfiguration()" style="flex: 1; padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
+                        <button onclick="exportConfiguration()" style="flex: 1; padding: 10px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
                             💾 Export
                         </button>
                     </div>

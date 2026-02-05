@@ -2902,9 +2902,16 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(0, 0, 0, 0.1)');
         root.style.setProperty('--subtle-bg', 'rgba(0, 0, 0, 0.03)');
         root.style.setProperty('--subtle-bg-hover', 'rgba(0, 0, 0, 0.06)');
+        // Navigation bar theme variables for light mode
+        root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(245, 245, 245, 0.95) 100%)');
+        root.style.setProperty('--nav-hover-bg', 'rgba(0, 0, 0, 0.05)');
+        root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.12)');
         // Banner theme variables for light mode
         root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)');
         root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.4)');
+        // Disclaimer banner for light mode
+        root.style.setProperty('--disclaimer-bg', 'rgba(255, 193, 7, 0.25)');
+        root.style.setProperty('--disclaimer-border', 'rgba(255, 193, 7, 0.5)');
         if (themeButton) themeButton.textContent = '☀️';
         if (logo) logo.src = 'odin-logo-white-background.png';
         document.body.style.background = '#f5f5f5';
@@ -2917,9 +2924,16 @@ function applyTheme() {
         root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
         root.style.setProperty('--subtle-bg', 'rgba(255, 255, 255, 0.03)');
         root.style.setProperty('--subtle-bg-hover', 'rgba(255, 255, 255, 0.06)');
+        // Navigation bar theme variables for dark mode
+        root.style.setProperty('--nav-bg', 'linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%)');
+        root.style.setProperty('--nav-hover-bg', 'rgba(255, 255, 255, 0.05)');
+        root.style.setProperty('--nav-active-bg', 'rgba(0, 120, 212, 0.15)');
         // Banner theme variables for dark mode
         root.style.setProperty('--banner-bg', 'linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%)');
         root.style.setProperty('--banner-border', 'rgba(139, 92, 246, 0.3)');
+        // Disclaimer banner for dark mode
+        root.style.setProperty('--disclaimer-bg', 'rgba(255, 193, 7, 0.15)');
+        root.style.setProperty('--disclaimer-border', 'rgba(255, 193, 7, 0.4)');
         if (themeButton) themeButton.textContent = '🌙';
         if (logo) logo.src = 'odin-logo.png';
         document.body.style.background = '#000000';
@@ -8282,7 +8296,7 @@ function parseArmTemplateToState(armTemplate) {
 
 /**
  * Show dialog to ask about settings not present in ARM templates (Issue #90)
- * This includes Arc Gateway, Proxy, and SDN settings which are not part of the ARM template schema
+ * This includes Arc Gateway, Proxy, SDN, and Private Endpoints settings which are not part of the ARM template schema
  */
 function showArmImportOptionsDialog(armState) {
     const overlay = document.createElement('div');
@@ -8290,7 +8304,7 @@ function showArmImportOptionsDialog(armState) {
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(8px);';
     
     overlay.innerHTML = `
-        <div style="background:var(--card-bg);border:2px solid var(--accent-blue);border-radius:16px;padding:28px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+        <div style="background:var(--card-bg);border:2px solid var(--accent-blue);border-radius:16px;padding:28px;max-width:650px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
             <div style="text-align:center;margin-bottom:24px;">
                 <div style="font-size:48px;margin-bottom:12px;">📥</div>
                 <h2 style="margin:0 0 8px 0;color:var(--accent-blue);font-size:22px;">ARM Template Import Options</h2>
@@ -8343,6 +8357,61 @@ function showArmImportOptionsDialog(armState) {
                 </div>
             </div>
             
+            <!-- Private Endpoints -->
+            <div style="margin-bottom:20px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
+                <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    Is this deployment using Private Endpoints (Private Link)?
+                </label>
+                <div style="display:flex;gap:12px;margin-bottom:12px;">
+                    <label style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;text-align:center;transition:all 0.2s;">
+                        <input type="radio" name="import-private-endpoints" value="yes" style="margin-right:6px;">
+                        <span style="color:var(--text-primary);">Yes, Private Endpoints enabled</span>
+                    </label>
+                    <label style="flex:1;padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;text-align:center;transition:all 0.2s;">
+                        <input type="radio" name="import-private-endpoints" value="no" checked style="margin-right:6px;">
+                        <span style="color:var(--text-primary);">No, public endpoints</span>
+                    </label>
+                </div>
+                <!-- Private Endpoints Services List (hidden by default) -->
+                <div id="import-pe-services" style="display:none;margin-top:12px;padding:12px;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2);border-radius:6px;">
+                    <p style="color:var(--text-secondary);font-size:13px;margin:0 0 12px 0;">Select the Azure services configured with Private Endpoints:</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                        <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                            <input type="checkbox" name="import-pe-service" value="keyvault" style="margin-right:10px;">
+                            <span style="color:var(--text-primary);font-size:13px;">🔐 Key Vault</span>
+                        </label>
+                        <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                            <input type="checkbox" name="import-pe-service" value="storage" style="margin-right:10px;">
+                            <span style="color:var(--text-primary);font-size:13px;">📦 Storage Account</span>
+                        </label>
+                        <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                            <input type="checkbox" name="import-pe-service" value="acr" style="margin-right:10px;">
+                            <span style="color:var(--text-primary);font-size:13px;">🐳 Container Registry</span>
+                        </label>
+                        <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                            <input type="checkbox" name="import-pe-service" value="asr" style="margin-right:10px;">
+                            <span style="color:var(--text-primary);font-size:13px;">🔄 Site Recovery</span>
+                        </label>
+                        <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                            <input type="checkbox" name="import-pe-service" value="backup" style="margin-right:10px;">
+                            <span style="color:var(--text-primary);font-size:13px;">💾 Azure Backup</span>
+                        </label>
+                        <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                            <input type="checkbox" name="import-pe-service" value="sql" style="margin-right:10px;">
+                            <span style="color:var(--text-primary);font-size:13px;">🗄️ SQL Managed Instance</span>
+                        </label>
+                        <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
+                            <input type="checkbox" name="import-pe-service" value="defender" style="margin-right:10px;">
+                            <span style="color:var(--text-primary);font-size:13px;">🛡️ Microsoft Defender</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
             <!-- SDN -->
             <div style="margin-bottom:24px;padding:16px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:8px;">
                 <label style="display:block;margin-bottom:10px;font-weight:600;color:var(--text-primary);">
@@ -8387,6 +8456,16 @@ function showArmImportOptionsDialog(armState) {
     
     document.body.appendChild(overlay);
     
+    // Add event listener for Private Endpoints toggle
+    const peRadios = overlay.querySelectorAll('input[name="import-private-endpoints"]');
+    const peServicesDiv = document.getElementById('import-pe-services');
+    peRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const isYes = document.querySelector('input[name="import-private-endpoints"]:checked')?.value === 'yes';
+            peServicesDiv.style.display = isYes ? 'block' : 'none';
+        });
+    });
+    
     // Add event listeners
     document.getElementById('arm-import-cancel-btn').addEventListener('click', () => {
         overlay.remove();
@@ -8397,6 +8476,7 @@ function showArmImportOptionsDialog(armState) {
         // Get selected values
         const arcGateway = document.querySelector('input[name="import-arc-gateway"]:checked')?.value;
         const proxy = document.querySelector('input[name="import-proxy"]:checked')?.value;
+        const privateEndpoints = document.querySelector('input[name="import-private-endpoints"]:checked')?.value;
         const sdn = document.querySelector('input[name="import-sdn"]:checked')?.value;
         
         // Apply selections to armState using correct state values
@@ -8404,6 +8484,20 @@ function showArmImportOptionsDialog(armState) {
         // Proxy: 'proxy' or 'no_proxy'
         armState.arc = arcGateway === 'yes' ? 'arc_gateway' : 'no_arc';
         armState.proxy = proxy === 'yes' ? 'proxy' : 'no_proxy';
+        
+        // Private Endpoints: 'pe_enabled' or 'pe_disabled'
+        if (privateEndpoints === 'yes') {
+            armState.privateEndpoints = 'pe_enabled';
+            // Get selected services
+            const selectedServices = [];
+            document.querySelectorAll('input[name="import-pe-service"]:checked').forEach(cb => {
+                selectedServices.push(cb.value);
+            });
+            armState.privateEndpointsList = selectedServices;
+        } else {
+            armState.privateEndpoints = 'pe_disabled';
+            armState.privateEndpointsList = [];
+        }
         
         // Map SDN selection to state properties
         // Valid sdnManagement values: 'arc_managed' or 'onprem_managed'
@@ -9052,7 +9146,24 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.13.19 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.13.30 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📥 ARM Import & Theme Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Private Endpoints Import:</strong> ARM import dialog now asks about Private Endpoints usage - select Yes to specify which Azure services have Private Link configured.</li>
+                        <li><strong>Rack-Aware Node Validation:</strong> Rack-Aware clusters now only allow 2, 4, 6, or 8 nodes (even numbers for balanced rack distribution).</li>
+                        <li><strong>Sizer Section Reorder:</strong> Workload Scenario section now appears first, followed by Cluster Configuration.</li>
+                        <li><strong>Progress Bar Theme:</strong> The designer wizard progress bar now properly responds to light/dark theme changes.</li>
+                        <li><strong>Navigation Theme Support:</strong> Navigation bar and dropdowns now properly respond to light/dark theme changes.</li>
+                        <li><strong>Disclaimer Banner Theme:</strong> The disclaimer banner now properly responds to light/dark theme changes.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.13.19</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
                 
@@ -9062,26 +9173,8 @@ function showChangelog() {
                         <li><strong>Sizer Preview Badge:</strong> "Preview" badge now appears on the Sizer tab button in the navigation bar.</li>
                         <li><strong>Theme Toggle in Nav:</strong> Light/Dark mode toggle added to the navigation bar for easy access on all pages.</li>
                         <li><strong>Cross-Page Theme Sync:</strong> Theme preference now syncs across Designer, Knowledge, and Sizer pages.</li>
-                        <li><strong>Disconnected Region Info:</strong> Informational message explains Azure region requirement for disconnected deployments.</li>
                         <li><strong>Custom Network Adapter Names:</strong> Rename physical ports in Port Configuration - names propagate everywhere.</li>
                         <li><strong>ARM Import Enhancements:</strong> Importing ARM templates preserves custom adapter names and auto-confirms configurations.</li>
-                    </ul>
-                </div>
-
-                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.12.0</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">February 4, 2026</div>
-                </div>
-                
-                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📐 ODIN Sizer Tool</h4>
-                    <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Workload Scenario Sizing:</strong> Calculate Azure Local cluster hardware requirements based on workload scenarios.</li>
-                        <li><strong>Azure Local VMs:</strong> Size VM workloads with vCPUs, memory, storage, and count.</li>
-                        <li><strong>AKS Arc Clusters:</strong> Configure Kubernetes clusters with control plane and worker nodes.</li>
-                        <li><strong>Azure Virtual Desktop:</strong> Size AVD with Light, Medium, and Power user profiles.</li>
-                        <li><strong>N+1 Capacity:</strong> Automatic maintenance capacity reservation for single node failure.</li>
-                        <li><strong>Storage Resiliency:</strong> Support for 2-way mirror, 3-way mirror, and dual parity.</li>
                     </ul>
                 </div>
 
