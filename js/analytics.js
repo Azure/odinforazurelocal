@@ -154,27 +154,27 @@ function fetchAndDisplayStats() {
         analyticsRef.once('value')
             .then((snapshot) => {
                 const data = snapshot.val() || {};
-                
+
                 // Update page views
                 const pageViewsEl = document.getElementById('stat-page-views');
                 if (pageViewsEl) {
                     pageViewsEl.textContent = formatNumber(data.pageViews || 0);
                 }
-                
+
                 // Update design documents
                 const designDocsEl = document.getElementById('stat-design-docs');
                 if (designDocsEl) {
                     const formCompletions = data.formCompletions || {};
                     designDocsEl.textContent = formatNumber(formCompletions.designDocument || 0);
                 }
-                
+
                 // Update ARM deployments
                 const armDeploymentsEl = document.getElementById('stat-arm-deployments');
                 if (armDeploymentsEl) {
                     const formCompletions = data.formCompletions || {};
                     armDeploymentsEl.textContent = formatNumber(formCompletions.armDeployment || 0);
                 }
-                
+
                 console.log('Analytics: Stats displayed');
             })
             .catch((error) => {

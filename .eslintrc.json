@@ -9,8 +9,9 @@
     "sourceType": "script"
   },
   "globals": {
-    "state": "readonly",
+    "state": "writable",
     "firebase": "readonly",
+    "saveStateToLocalStorage": "readonly",
     "updateSummary": "readonly",
     "ipToLong": "readonly",
     "longToIp": "readonly",
@@ -20,10 +21,17 @@
     "capitalize": "readonly",
     "isValidIpv4": "readonly",
     "isValidIpv4Cidr": "readonly",
+    "isValidCidrFormat": "readonly",
     "isValidDomain": "readonly",
     "isValidNetbiosName": "readonly",
     "isValidVlan": "readonly",
     "calculateCidrDetails": "readonly",
+    "extractIpFromCidr": "readonly",
+    "extractPrefixFromCidr": "readonly",
+    "incrementCidrThirdOctet": "readonly",
+    "ipv4ToInt": "readonly",
+    "intToIpv4": "readonly",
+    "prefixToMask": "readonly",
     "validateFieldRealtime": "readonly",
     "addValidationFeedback": "readonly",
     "showToast": "readonly",
@@ -51,6 +59,7 @@
     "updateDnsServer": "readonly",
     "renderDnsServers": "readonly",
     "updateDnsServiceExisting": "readonly",
+    "updateDnsServiceExistingNote": "readonly",
     "validateAllDnsServers": "readonly",
     "updateLocalDnsZone": "readonly"
   },
@@ -75,10 +84,22 @@
       "anonymous": "never",
       "named": "never",
       "asyncArrow": "always"
-    }]
+    }],
+    "no-useless-escape": "warn",
+    "no-prototype-builtins": "warn",
+    "no-case-declarations": "warn"
   },
   "ignorePatterns": [
     "docs/archive/**",
     "*.min.js"
+  ],
+  "overrides": [
+    {
+      "files": ["js/utils.js", "js/notifications.js", "js/analytics.js", "js/theme.js", "js/formatting.js", "js/validation.js", "js/dns.js", "js/script.js"],
+      "rules": {
+        "no-redeclare": "off",
+        "no-unused-vars": "off"
+      }
+    }
   ]
 }

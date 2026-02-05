@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.51] - 2026-02-05
+
+### Added
+
+#### Automated Build Pipeline
+
+- **GitHub Actions CI/CD**: Automated build validation pipeline runs on every push and pull request
+- **ESLint Integration**: JavaScript code quality checks with comprehensive linting rules
+- **HTML Validation**: Automated HTML5 validation to catch markup errors
+- **136 Unit Tests**: Automated test suite runs in headless browser environment
+- **Cross-Browser Testing**: Tests execute in Chromium via Playwright for consistent results
+- **Code Quality Gates**: Pull requests must pass all checks before merge
+
+---
+
 ## [0.14.50] - 2026-02-05
 
 ### Changed

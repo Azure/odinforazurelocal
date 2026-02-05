@@ -1,10 +1,10 @@
 /**
  * Odin for Azure Local - DNS Management Module
- * 
+ *
  * Functions for managing DNS server configuration in the wizard.
  * These functions manage the DNS server list and validate DNS settings.
- * 
- * Dependencies: 
+ *
+ * Dependencies:
  * - Global state object (from script.js)
  * - updateSummary() function (from script.js)
  * - js/utils.js (for ipToLong)
@@ -154,7 +154,7 @@ function validateAllDnsServers() {
     const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
 
     // Validate format
-    for (let server of validServers) {
+    for (const server of validServers) {
         if (!ipv4Regex.test(server)) {
             if (err) {
                 err.innerText = `Invalid DNS server format: ${server}`;
@@ -170,10 +170,10 @@ function validateAllDnsServers() {
         { name: '10.244.0.0/16', min: 183762944, max: 183828479 }
     ];
 
-    for (let server of validServers) {
+    for (const server of validServers) {
         const serverL = ipToLong(server);
 
-        for (let r of ranges) {
+        for (const r of ranges) {
             if (serverL >= r.min && serverL <= r.max) {
                 if (err) {
                     err.innerText = `DNS server ${server} overlaps with reserved AKS subnet ${r.name}.`;
@@ -189,7 +189,7 @@ function validateAllDnsServers() {
         const infraStartL = ipToLong(state.infra.start);
         const infraEndL = ipToLong(state.infra.end);
 
-        for (let server of validServers) {
+        for (const server of validServers) {
             const serverL = ipToLong(server);
 
             if (serverL >= infraStartL && serverL <= infraEndL) {
