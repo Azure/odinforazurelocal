@@ -2043,8 +2043,34 @@
             var ports = parseInt(state.ports, 10);
             if (isNaN(ports) || ports < 0) ports = 0;
 
-            var showStorageGroup = (state.intent !== 'all_traffic');
-            var storagePortCount = showStorageGroup ? Math.max(0, ports - 2) : 0;
+            // Determine which ports belong to which intent based on adapter mapping
+            var hasAdapterMapping = state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0;
+            var mgmtComputePorts = [];
+            var storagePorts = [];
+
+            if (hasAdapterMapping) {
+                for (var pi = 1; pi <= ports; pi++) {
+                    var assignment = state.adapterMapping[pi] || 'pool';
+                    if (assignment === 'storage') {
+                        storagePorts.push(pi);
+                    } else {
+                        // mgmt, pool, etc. go to Mgmt+Compute
+                        mgmtComputePorts.push(pi);
+                    }
+                }
+            } else {
+                // Default assumption: ports 1-2 for Mgmt+Compute, ports 3+ for Storage
+                for (var dpi = 1; dpi <= ports; dpi++) {
+                    if (dpi <= 2) {
+                        mgmtComputePorts.push(dpi);
+                    } else {
+                        storagePorts.push(dpi);
+                    }
+                }
+            }
+
+            var showStorageGroup = (state.intent !== 'all_traffic') && storagePorts.length > 0;
+            var storagePortCount = showStorageGroup ? storagePorts.length : 0;
 
             function renderSetGroup(nodeLeft, nodeTop, placeOnLeft) {
                 // Intent blocks are side-by-side (same vertical level) to match Learn diagrams.
@@ -2085,8 +2111,8 @@
                     return t;
                 }
 
-                out += nicTile(nic1X, nicY, getNicLabel(1));
-                out += nicTile(nic2X, nicY, getNicLabel(2));
+                out += nicTile(nic1X, nicY, getNicLabel(mgmtComputePorts[0] || 1));
+                out += nicTile(nic2X, nicY, getNicLabel(mgmtComputePorts[1] || 2));
 
                 return {
                     html: out,
@@ -2141,11 +2167,13 @@
                     var cS = iS % cols2;
                     var xS = startX + (cS * (tileW + gapX2));
                     var yS = startY + (rS * (tileH + gapY2));
-                    var lbl = getPortCustomName(state, iS + 1, 'smb');
+                    // Use the actual storage port index from storagePorts array
+                    var portIdx = storagePorts[iS] || (iS + 3);
+                    var lbl = getNicLabel(portIdx);
                     out += '<rect x="' + xS + '" y="' + yS + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                     out += '<text x="' + (xS + tileW / 2) + '" y="' + (yS + 19) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
                     // Port anchors on the outside/top edge of each SMB tile (horizontally centered).
-                    portsOut.push({ idx: (iS + 1), x: xS + Math.floor(tileW / 2), y: yS - 1 });
+                    portsOut.push({ idx: portIdx, x: xS + Math.floor(tileW / 2), y: yS - 1 });
                 }
 
                 // Place the intent label below the SMB tiles so cabling stays clear.
