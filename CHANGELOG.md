@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.5] - 2026-02-05
+
+### Changed
+
+#### Port Configuration UX Improvements
+
+- **Read-Only Port Names by Default** - Port name inputs are now read-only by default. Users must click the pencil icon to enable editing, preventing accidental changes.
+
+- **Confirm Port Configuration Button** - Added a "Confirm Port Configuration" button that must be clicked before proceeding to Step 08 (Network Traffic Intents). This ensures users intentionally finalize their port settings.
+
+- **Edit Button for Confirmed Configuration** - After confirmation, a "✓ Port configuration confirmed" message appears with an "Edit" button to re-enable modifications if needed.
+
+- **Disabled State When Confirmed** - All port configuration controls (name, speed, RDMA) are disabled after confirmation to prevent unintended changes.
+
+- **Automatic Confirmation Reset** - Confirmation is automatically reset when port count changes or when earlier configuration choices affect port settings.
+
+---
+
 ## [0.13.4] - 2026-02-05
 
 ### Fixed

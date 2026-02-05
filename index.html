@@ -333,7 +333,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.13.4 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.13.5 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
                     </div>
                 </div>
             </div>
@@ -1058,6 +1058,21 @@
                         <div id="rdma-validation-warning" class="info-box warning hidden" style="margin-top: 0.75rem;"></div>
                         <div id="port-config-grid" class="port-config-grid">
                             <!-- Dynamic Content -->
+                        </div>
+                        <div id="port-config-confirm-container" class="hidden" style="margin-top: 1.5rem; text-align: center;">
+                            <button id="port-config-confirm-btn" class="confirm-port-config-btn" onclick="confirmPortConfiguration()">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Confirm Port Configuration
+                            </button>
+                            <p id="port-config-confirm-hint" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                                Click to confirm your port configuration before proceeding.
+                            </p>
+                        </div>
+                        <div id="port-config-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">
+                            <span style="color: var(--accent-green); font-weight: 600;">✓ Port configuration confirmed</span>
+                            <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editPortConfiguration()">Edit</button>
                         </div>
                     </div>
                 </section>
