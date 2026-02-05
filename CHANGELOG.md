@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.8] - 2026-02-05
+
+### Fixed
+
+#### ARM StorageNetwork2 Custom Port Name
+
+- **StorageNetwork2 networkAdapterName** - Fixed switched storage ARM template generation where `StorageNetwork2` was incorrectly using hardcoded "SMB2" instead of the custom port name. The port index calculation in `armAdapterNameForSmb()` was off by one for the second storage network.
+
+---
+
 ## [0.13.7] - 2026-02-05
 
 ### Fixed

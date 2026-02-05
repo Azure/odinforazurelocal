@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.7';
+const WIZARD_VERSION = '0.13.8';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -1980,7 +1980,7 @@ function generateArmParameters() {
             if (storageNetworkCount >= 2) {
                 const network2 = {
                     name: 'StorageNetwork2',
-                    networkAdapterName: nic2 ? armAdapterNameForSmb(2, nic2 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_2',
+                    networkAdapterName: nic2 ? armAdapterNameForSmb(1, nic2 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_2',
                     vlanId: (storageVlan2 !== null && storageVlan2 !== undefined) ? String(storageVlan2) : 'REPLACE_WITH_STORAGE_VLAN_2'
                 };
                 if (includeStorageAdapterIPInfo) {
