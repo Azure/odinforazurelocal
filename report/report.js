@@ -13,12 +13,12 @@
     // Outbound connectivity diagram URLs - use local files from docs folder
     var OUTBOUND_DIAGRAMS = {
         // Public Path diagrams
-        'public_no_proxy_no_arc': './docs/outbound-connectivity/images/public-path-no-proxy-no-arc-gateway.svg',
-        'public_proxy_no_arc': './docs/outbound-connectivity/images/public-path-proxy-no-arc-gateway.svg',
-        'public_no_proxy_arc': './docs/outbound-connectivity/images/public-path-no-proxy-with-arc-gateway.svg',
-        'public_proxy_arc': './docs/outbound-connectivity/images/public-path-with-proxy-and-arc-gateway.svg',
+        'public_no_proxy_no_arc': '../docs/outbound-connectivity/images/public-path-no-proxy-no-arc-gateway.svg',
+        'public_proxy_no_arc': '../docs/outbound-connectivity/images/public-path-proxy-no-arc-gateway.svg',
+        'public_no_proxy_arc': '../docs/outbound-connectivity/images/public-path-no-proxy-with-arc-gateway.svg',
+        'public_proxy_arc': '../docs/outbound-connectivity/images/public-path-with-proxy-and-arc-gateway.svg',
         // Private Path diagram
-        'private': './docs/outbound-connectivity/images/private-path-explicit-proxy-and-arc-gateway.svg'
+        'private': '../docs/outbound-connectivity/images/private-path-explicit-proxy-and-arc-gateway.svg'
     };
 
     // Get the appropriate outbound diagram based on state
