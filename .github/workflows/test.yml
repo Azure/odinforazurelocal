@@ -68,7 +68,7 @@ jobs:
             });
             
             // Load the test file - use process.cwd() for GitHub Actions
-            const testPath = path.resolve(process.cwd(), 'tests', 'tests.html');
+            const testPath = path.resolve(process.cwd(), 'tests', 'index.html');
             console.log('Loading tests from:', testPath);
             await page.goto(`file://${testPath}`, { waitUntil: 'networkidle0' });
             
