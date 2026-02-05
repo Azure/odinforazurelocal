@@ -1469,56 +1469,55 @@
                         }
                     }
 
-                    // Draw intent group boxes based on adapter mapping
-                    // Handle non-contiguous NICs by drawing separate boxes for contiguous runs
-                    for (var bi = 0; bi < adapterMappingGroups.length; bi++) {
-                        var box = adapterMappingGroups[bi];
-                        var sortedNics = box.nics.slice().sort(function(a, b) { return a - b; });
-                        
-                        // Find contiguous runs of NICs
-                        var runs = [];
-                        var runStart = sortedNics[0];
-                        var runEnd = sortedNics[0];
-                        for (var ri = 1; ri < sortedNics.length; ri++) {
-                            if (sortedNics[ri] === runEnd + 1) {
-                                runEnd = sortedNics[ri];
-                            } else {
-                                runs.push({ start: runStart, end: runEnd });
-                                runStart = sortedNics[ri];
-                                runEnd = sortedNics[ri];
-                            }
-                        }
-                        runs.push({ start: runStart, end: runEnd });
-                        
-                        // Color based on intent type
-                        var boxFill, boxStroke;
-                        if (box.isStorageLike) {
-                            boxFill = 'rgba(139,92,246,0.07)';
-                            boxStroke = 'rgba(139,92,246,0.45)';
+                    // Build ordered list of ports grouped by intent (Mgmt+Compute first, then Storage)
+                    var orderedPorts = [];
+                    var mgmtPorts = [];
+                    var storagePorts = [];
+                    for (var pi = 1; pi <= ports; pi++) {
+                        var grp = portToIntent[pi];
+                        if (grp && grp.isStorageLike) {
+                            storagePorts.push(pi);
                         } else {
-                            boxFill = 'rgba(0,120,212,0.07)';
-                            boxStroke = 'rgba(0,120,212,0.45)';
-                        }
-                        
-                        // Draw a box for each contiguous run
-                        for (var runIdx = 0; runIdx < runs.length; runIdx++) {
-                            var run = runs[runIdx];
-                            var boxStartX = startX + ((run.start - 1) * (adapterW + adapterGap)) - 6;
-                            var boxW = ((run.end - run.start + 1) * adapterW) + ((run.end - run.start) * adapterGap) + 12;
-                            
-                            out += '<rect x="' + boxStartX + '" y="' + setY + '" width="' + boxW + '" height="' + setH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
-                            // Only show label on first run to avoid duplicates
-                            if (runIdx === 0) {
-                                out += '<text x="' + (boxStartX + boxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(box.label) + '</text>';
-                            }
+                            mgmtPorts.push(pi);
                         }
                     }
+                    orderedPorts = mgmtPorts.concat(storagePorts);
 
-                    // Draw all adapters horizontally using adapter mapping
-                    for (var i = 0; i < ports; i++) {
-                        var x = startX + (i * (adapterW + adapterGap));
+                    // Calculate intent group box positions based on grouped layout
+                    var intentGap = 8; // Gap between intent boxes
+                    
+                    // Draw Mgmt + Compute box (first group)
+                    if (mgmtPorts.length > 0) {
+                        var mgmtBoxW = (mgmtPorts.length * adapterW) + ((mgmtPorts.length - 1) * adapterGap) + 12;
+                        var mgmtBoxX = startX - 6;
+                        out += '<rect x="' + mgmtBoxX + '" y="' + setY + '" width="' + mgmtBoxW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
+                        out += '<text x="' + (mgmtBoxX + mgmtBoxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Mgmt + Compute</text>';
+                    }
+                    
+                    // Draw Storage box (second group)
+                    if (storagePorts.length > 0) {
+                        var storageStartX = startX + (mgmtPorts.length * (adapterW + adapterGap)) + intentGap;
+                        var storageBoxW = (storagePorts.length * adapterW) + ((storagePorts.length - 1) * adapterGap) + 12;
+                        var storageBoxX = storageStartX - 6;
+                        out += '<rect x="' + storageBoxX + '" y="' + setY + '" width="' + storageBoxW + '" height="' + setH + '" rx="10" fill="rgba(139,92,246,0.07)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="5 3" />';
+                        out += '<text x="' + (storageBoxX + storageBoxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Storage</text>';
+                    }
+
+                    // Draw adapters in grouped order (Mgmt+Compute ports first, then Storage ports)
+                    for (var oi = 0; oi < orderedPorts.length; oi++) {
+                        var nicIdx = orderedPorts[oi];
+                        var isMgmt = mgmtPorts.indexOf(nicIdx) >= 0;
+                        
+                        // Calculate X position based on grouped layout
+                        var x;
+                        if (isMgmt) {
+                            var mgmtIdx = mgmtPorts.indexOf(nicIdx);
+                            x = startX + (mgmtIdx * (adapterW + adapterGap));
+                        } else {
+                            var storageIdx = storagePorts.indexOf(nicIdx);
+                            x = startX + (mgmtPorts.length * (adapterW + adapterGap)) + intentGap + (storageIdx * (adapterW + adapterGap));
+                        }
                         var y = adaptersY;
-                        var nicIdx = i + 1;
 
                         var grp = portToIntent[nicIdx];
                         var isStorage = grp && grp.isStorageLike;
@@ -1526,8 +1525,9 @@
                         var stroke = isStorage ? 'rgba(139,92,246,0.65)' : 'rgba(0,120,212,0.55)';
                         // Always use getNicLabel for physical port names (from portConfig)
                         var label = getNicLabel(nicIdx);
-                        // Stagger text vertically - odd ports higher, even ports lower
-                        var textY = (i % 2 === 0) ? (y + 16) : (y + 28);
+                        // Stagger text vertically based on position within intent group
+                        var posInGroup = isMgmt ? mgmtPorts.indexOf(nicIdx) : storagePorts.indexOf(nicIdx);
+                        var textY = (posInGroup % 2 === 0) ? (y + 16) : (y + 28);
 
                         out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                         out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
