@@ -1502,10 +1502,13 @@
                         var isStorage = grp && grp.isStorageLike;
                         var fill = isStorage ? 'rgba(139,92,246,0.25)' : 'rgba(0,120,212,0.20)';
                         var stroke = isStorage ? 'rgba(139,92,246,0.65)' : 'rgba(0,120,212,0.55)';
-                        var label = isStorage ? getSmbLabel(nicIdx) : getNicLabel(nicIdx);
+                        // Always use getNicLabel for physical port names (from portConfig)
+                        var label = getNicLabel(nicIdx);
+                        // Stagger text vertically - odd ports higher, even ports lower
+                        var textY = (i % 2 === 0) ? (y + 16) : (y + 28);
 
                         out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
-                        out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
+                        out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
 
                         adapterPositions.push({
                             nodeIdx: nodeIdx,
@@ -1554,10 +1557,13 @@
                     var isStorage = !isCustom && showStorageGroup && i >= 2;
                     var fill = isStorage ? 'rgba(139,92,246,0.25)' : 'rgba(0,120,212,0.20)';
                     var stroke = isStorage ? 'rgba(139,92,246,0.65)' : 'rgba(0,120,212,0.55)';
-                    var label = isStorage ? getSmbLabel(nicIdx) : getNicLabel(nicIdx);
+                    // Always use getNicLabel for physical port names
+                    var label = getNicLabel(nicIdx);
+                    // Stagger text vertically - odd ports higher, even ports lower
+                    var textY = (i % 2 === 0) ? (y + 16) : (y + 28);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
-                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
+                    out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
 
                     // Store adapter center position for uplink drawing
                     adapterPositions.push({
@@ -1670,10 +1676,13 @@
                         stroke = 'rgba(0,120,212,0.55)';
                     }
 
-                    var label = isStorage ? getSmbLabel(nicIdx) : getNicLabel(nicIdx);
+                    // Always use getNicLabel for physical port names
+                    var label = getNicLabel(nicIdx);
+                    // Stagger text vertically - odd ports higher, even ports lower
+                    var textY = (i % 2 === 0) ? (y + 16) : (y + 28);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
-                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
+                    out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
 
                     // Store adapter center position for uplink drawing
                     adapterPositions.push({
