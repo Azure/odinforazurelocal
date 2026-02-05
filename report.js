@@ -2756,15 +2756,17 @@
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
-                    function nicTile(x, y, label) {
+                    function nicTile(x, y, label, idx) {
                         var t = '';
+                        // Stagger text vertically - first port higher, second port lower
+                        var textY = (idx % 2 === 0) ? (y + 16) : (y + 26);
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                        t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
                     }
 
-                    out += nicTile(nic1X, nicY, getNicLabel2(1));
-                    out += nicTile(nic2X, nicY, getNicLabel2(2));
+                    out += nicTile(nic1X, nicY, getNicLabel2(1), 0);
+                    out += nicTile(nic2X, nicY, getNicLabel2(2), 1);
                     return out;
                 }
 
@@ -2839,9 +2841,12 @@
 
                     for (var p2 = 0; p2 < 2; p2++) {
                         var tr2 = storageTileRect2(i2, p2);
-                        var lbl2 = getPortCustomName(state, p2 + 1, 'smb');
+                        // For switchless, SMB adapters are virtual - use default SMB{n} naming
+                        var lbl2 = 'SMB' + (p2 + 1);
+                        // Stagger text vertically
+                        var textY2 = (p2 % 2 === 0) ? (tr2.y + 18) : (tr2.y + 28);
                         svg2 += '<rect x="' + tr2.x + '" y="' + tr2.y + '" width="' + tr2.w + '" height="' + tr2.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                        svg2 += '<text x="' + (tr2.x + tr2.w / 2) + '" y="' + (tr2.y + 24) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl2) + '</text>';
+                        svg2 += '<text x="' + (tr2.x + tr2.w / 2) + '" y="' + textY2 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl2) + '</text>';
                     }
                 }
 
@@ -2940,15 +2945,17 @@
                         out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                         out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
-                        function nicTile(x, y, label) {
+                        function nicTile(x, y, label, idx) {
                             var t = '';
+                            // Stagger text vertically - first port higher, second port lower
+                            var textY = (idx % 2 === 0) ? (y + 16) : (y + 26);
                             t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                            t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                            t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                             return t;
                         }
 
-                        out += nicTile(nic1X, nicY, getNicLabelS(1));
-                        out += nicTile(nic2X, nicY, getNicLabelS(2));
+                        out += nicTile(nic1X, nicY, getNicLabelS(1), 0);
+                        out += nicTile(nic2X, nicY, getNicLabelS(2), 1);
                         return out;
                     }
 
@@ -3022,9 +3029,12 @@
 
                         for (var pS = 0; pS < 2; pS++) {
                             var trS = storageTileRectS(iS, pS);
-                            var labelS = getPortCustomName(state, pS + 1, 'smb');
+                            // For switchless, SMB adapters are virtual - use default SMB{n} naming
+                            var labelS = 'SMB' + (pS + 1);
+                            // Stagger text vertically
+                            var textYS = (pS % 2 === 0) ? (trS.y + 18) : (trS.y + 28);
                             svgS += '<rect x="' + trS.x + '" y="' + trS.y + '" width="' + trS.w + '" height="' + trS.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                            svgS += '<text x="' + (trS.x + trS.w / 2) + '" y="' + (trS.y + 24) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelS) + '</text>';
+                            svgS += '<text x="' + (trS.x + trS.w / 2) + '" y="' + textYS + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelS) + '</text>';
                         }
                     }
 
@@ -3147,14 +3157,16 @@
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
                     // NIC tiles
-                    function nicTile(x, y, label) {
+                    function nicTile(x, y, label, idx) {
                         var t = '';
+                        // Stagger text vertically - first port higher, second port lower
+                        var textY = (idx % 2 === 0) ? (y + 16) : (y + 26);
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                        t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
                     }
-                    out += nicTile(nic1X, nicY, getNicLabel(1));
-                    out += nicTile(nic2X, nicY, getNicLabel(2));
+                    out += nicTile(nic1X, nicY, getNicLabel(1), 0);
+                    out += nicTile(nic2X, nicY, getNicLabel(2), 1);
                     return out;
                 }
 
@@ -3237,9 +3249,12 @@
 
                     for (var p3 = 0; p3 < 4; p3++) {
                         var tr = storageTileRect(i3, p3);
-                        var label = getPortCustomName(state, p3 + 1, 'smb');
+                        // For switchless, SMB adapters are virtual - use default SMB{n} naming
+                        var label = 'SMB' + (p3 + 1);
+                        // Stagger text vertically
+                        var textY3 = (p3 % 2 === 0) ? (tr.y + 18) : (tr.y + 28);
                         svg3 += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + tr.w + '" height="' + tr.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                        svg3 += '<text x="' + (tr.x + tr.w / 2) + '" y="' + (tr.y + 24) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                        svg3 += '<text x="' + (tr.x + tr.w / 2) + '" y="' + textY3 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                     }
                 }
 
@@ -3345,15 +3360,17 @@
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
-                    function nicTile(x, y, label) {
+                    function nicTile(x, y, label, idx) {
                         var t = '';
+                        // Stagger text vertically - first port higher, second port lower
+                        var textY = (idx % 2 === 0) ? (y + 16) : (y + 26);
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                        t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
+                        t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
                     }
 
-                    out += nicTile(nic1X, nicY, getNicLabel4(1));
-                    out += nicTile(nic2X, nicY, getNicLabel4(2));
+                    out += nicTile(nic1X, nicY, getNicLabel4(1), 0);
+                    out += nicTile(nic2X, nicY, getNicLabel4(2), 1);
                     return out;
                 }
 
@@ -3503,9 +3520,12 @@
 
                     for (var p4 = 0; p4 < 6; p4++) {
                         var tr4 = storageTileRect4(i4, p4);
-                        var lbl4 = getPortCustomName(state, p4 + 1, 'smb');
+                        // For switchless, SMB adapters are virtual - use default SMB{n} naming
+                        var lbl4 = 'SMB' + (p4 + 1);
+                        // Stagger text vertically
+                        var textY4 = (p4 % 2 === 0) ? (tr4.y + 18) : (tr4.y + 28);
                         svg4 += '<rect x="' + tr4.x + '" y="' + tr4.y + '" width="' + tr4.w + '" height="' + tr4.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                        svg4 += '<text x="' + (tr4.x + tr4.w / 2) + '" y="' + (tr4.y + 24) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl4) + '</text>';
+                        svg4 += '<text x="' + (tr4.x + tr4.w / 2) + '" y="' + textY4 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl4) + '</text>';
                     }
                 }
 

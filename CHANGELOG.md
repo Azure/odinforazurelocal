@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.11] - 2026-02-05
+
+### Fixed
+
+#### Switchless Diagram Port Labels and Staggering
+
+- **Correct SMB Adapter Names** - Switchless storage diagrams (2-node, 3-node, 4-node) now correctly display "SMB1", "SMB2", etc. for virtual SMB adapters instead of incorrectly showing physical port names from portConfig.
+
+- **Staggered Text Positioning** - Added staggered vertical text positioning to both SET (vSwitch) NIC tiles and Storage intent (RDMA) SMB tiles in all switchless diagrams to prevent text overlap.
+
+- **Consistent Across All Switchless Scenarios** - Applied fixes to 2-node switchless, 3-node single-link switchless, 3-node dual-link switchless, and 4-node switchless diagrams.
+
+---
+
 ## [0.13.10] - 2026-02-05
 
 ### Fixed
