@@ -37,6 +37,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
+### 🎉 Version 0.14.51 Bug Fix
+- **Node Name Input Light Mode**: Fixed node name and IP input fields showing white text on light theme backgrounds
+
 ### 🎉 Version 0.11.0 New Features
 - **Tab Navigation System**: New top navigation bar with tabs for Designer, Knowledge, and Sizer sections
 - **ODIN Designer**: The existing wizard is now accessible via the Designer tab (default view)

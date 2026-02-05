@@ -922,14 +922,14 @@ function renderNodeSettings() {
                 <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${i + 1} Name</label>
                 <input type="text" value="${escapeHtml(node.name)}" maxlength="15" placeholder="e.g. node${i + 1}"
                     title="SAM Account name (max 15 chars). Enter Node 1 name with a number suffix (e.g. server01) to auto-fill other nodes."
-                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                     onchange="updateNodeName(${i}, this.value)">
             </div>
             <div style="flex:1; min-width:220px;">
                 <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${i + 1} IP (CIDR)</label>
                 <input type="text" value="${escapeHtml(node.ipCidr)}" placeholder="e.g. 192.168.1.${10 + i}/24"
                     title="IPv4 CIDR (e.g. 192.168.1.10/24). Must be unique across nodes."
-                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                     onchange="updateNodeIpCidr(${i}, this.value)">
             </div>
         `;
@@ -8320,6 +8320,7 @@ function showChangelog() {
                         <li><strong>HTML Validation:</strong> Automated HTML5 validation to catch markup errors early.</li>
                         <li><strong>136 Unit Tests:</strong> Automated test suite runs in headless Chromium browser.</li>
                         <li><strong>Code Quality Gates:</strong> Pull requests must pass all checks before merge.</li>
+                        <li><strong>Node Input Light Mode Fix:</strong> Node name and IP inputs now display correctly in light theme.</li>
                     </ul>
                 </div>
 
