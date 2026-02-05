@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.14';
+const WIZARD_VERSION = '0.13.15';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -8424,6 +8424,36 @@ function applyArmImportState(armState) {
                     state[key] = armState[key];
                 }
             });
+            
+            // Auto-confirm port configuration since this is from an existing deployment
+            // The ARM template has complete port/adapter information
+            if (state.ports && parseInt(state.ports, 10) > 0) {
+                state.portConfigConfirmed = true;
+            }
+            
+            // Auto-confirm adapter mapping for mgmt_compute intent
+            // Build adapter mapping from intent list if not already present
+            if (state.intent === 'mgmt_compute' && state.ports) {
+                const portCount = parseInt(state.ports, 10) || 0;
+                if (portCount >= 2) {
+                    // Default mapping: first 2 ports for mgmt, remaining for storage
+                    if (!state.adapterMapping || Object.keys(state.adapterMapping).length === 0) {
+                        state.adapterMapping = {};
+                        for (let i = 1; i <= portCount; i++) {
+                            state.adapterMapping[i] = (i <= 2) ? 'mgmt' : 'storage';
+                        }
+                    }
+                    state.adapterMappingConfirmed = true;
+                }
+            }
+            
+            // Auto-confirm overrides since ARM template has complete configuration
+            state.overridesConfirmed = true;
+            
+            // Auto-confirm custom storage subnets if present
+            if (state.customStorageSubnets && state.customStorageSubnets.length > 0) {
+                state.customStorageSubnetsConfirmed = true;
+            }
             
             // Restore SDN UI elements based on imported state
             const sdnFeaturesSection = document.getElementById('sdn-features-section');
