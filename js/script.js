@@ -1249,7 +1249,7 @@ function generateArmParameters() {
             const pc = cfg[nicIdx1Based - 1];
             if (pc && pc.customName && pc.customName.trim()) {
                 // Sanitize custom name for ARM compatibility: keep alphanumeric, underscore, hyphen
-                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
                 return sanitized || `NIC${nicIdx1Based}`;
             }
             return `NIC${nicIdx1Based}`;
@@ -1605,7 +1605,7 @@ function generateArmParameters() {
                 }
                 return adapterInfo;
             };
-            
+
             const network1 = {
                 name: 'StorageNetwork1',
                 networkAdapterName: nic1 ? armAdapterNameForSmb(1, nic1 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_1',
@@ -1615,7 +1615,7 @@ function generateArmParameters() {
                 network1.storageAdapterIPInfo = buildStorageAdapterIPInfo(0);
             }
             list.push(network1);
-            
+
             if (storageNetworkCount >= 2) {
                 const network2 = {
                     name: 'StorageNetwork2',
@@ -1656,7 +1656,7 @@ function generateArmParameters() {
                         const portIdx = 2 + i; // 0-based index for storage ports (after first 2)
                         const pc = cfg[portIdx];
                         if (pc && pc.customName && pc.customName.trim()) {
-                            const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                            const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
                             return sanitized || `SMB${i + 1}`;
                         }
                         return `SMB${i + 1}`;
@@ -1668,7 +1668,7 @@ function generateArmParameters() {
                     const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
                     const pc = cfg[nicNum - 1]; // nicNum is 1-based, array is 0-based
                     if (pc && pc.customName && pc.customName.trim()) {
-                        const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                        const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
                         return sanitized || `SMB${nicNum}`;
                     }
                     return `SMB${nicNum}`;
@@ -2112,7 +2112,7 @@ function selectOption(category, value) {
         showM365LocalInfo();
         return;
     }
-    
+
     // Hide M365 Local message when switching to another scenario option
     if (category === 'scenario' && value !== 'm365local') {
         const m365Msg = document.getElementById('m365local-message');
@@ -2121,7 +2121,7 @@ function selectOption(category, value) {
             m365Msg.classList.remove('visible');
         }
     }
-    
+
     // Hide Multi-Rack message when switching to another scenario option
     if (category === 'scenario' && value !== 'multirack') {
         const multiRackMsg = document.getElementById('multirack-message');
@@ -2130,7 +2130,7 @@ function selectOption(category, value) {
             multiRackMsg.classList.remove('visible');
         }
     }
-    
+
     if (category === 'nodes') {
         const chip = document.querySelector(`.node-chip[onclick*="'${value}'"]`);
         if (chip && chip.classList.contains('disabled')) return;
@@ -2149,7 +2149,7 @@ function selectOption(category, value) {
         const catCandidates = Array.from(document.querySelectorAll(`.option-card[onclick*="selectOption('${category}'"]`));
         const v = (value == null ? '' : String(value));
         const card = catCandidates.find(c => String(c.getAttribute('data-value') || '') === v) || null;
-        
+
         // Special override: Allow Custom intent for single-node clusters with 4+ ports
         const isSingleNodeCustomOverride = (
             category === 'intent' && 
@@ -2158,7 +2158,7 @@ function selectOption(category, value) {
             state.ports && 
             parseInt(state.ports, 10) >= 4
         );
-        
+
         if (card && card.classList && card.classList.contains('disabled') && !isSingleNodeCustomOverride) {
             return;
         }
