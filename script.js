@@ -4009,6 +4009,18 @@ function updateUI() {
         }
     }
 
+    // Disconnected scenario info message for Azure Cloud step
+    const disconnectedRegionInfo = document.getElementById('disconnected-region-info');
+    if (disconnectedRegionInfo) {
+        if (state.scenario === 'disconnected') {
+            disconnectedRegionInfo.classList.remove('hidden');
+            disconnectedRegionInfo.classList.add('visible');
+        } else {
+            disconnectedRegionInfo.classList.add('hidden');
+            disconnectedRegionInfo.classList.remove('visible');
+        }
+    }
+
     // Scale -> Nodes handled in loop above
     // NOTE: Do not apply scale-only port limits here.
     // Port requirements depend on node count + storage topology (e.g., 3-node switchless requires >=6 ports).
@@ -7485,7 +7497,7 @@ function resetAll() {
 
     renderDnsServers();
 
-    const ids = ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success', 'china-warning', 'proxy-warning', 'dhcp-warning', 'ip-subnet-warning', 'multirack-message'];
+    const ids = ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success', 'china-warning', 'disconnected-region-info', 'proxy-warning', 'dhcp-warning', 'ip-subnet-warning', 'multirack-message'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -9032,7 +9044,24 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.12.0 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.13.19 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Custom Port Names & UX Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Disconnected Region Info:</strong> When selecting Disconnected deployment, an informational message now explains that Azure region is required for downloading the control plane appliance image, updates, and licensing.</li>
+                        <li><strong>Custom Network Adapter Names:</strong> Rename physical ports (e.g., "Slot3-Port1", "NIC-MGMT-01") in Port Configuration - names propagate to ARM templates, reports, and diagrams.</li>
+                        <li><strong>ARM Import Enhancements:</strong> Importing ARM templates now preserves custom adapter names and auto-confirms port/adapter configurations.</li>
+                        <li><strong>Port Configuration UX:</strong> Read-only port names by default with pencil icon to edit; confirmation button required before proceeding.</li>
+                        <li><strong>Diagram Fixes:</strong> Corrected intent grouping, uplink connections, and port labels for both switched and switchless topologies.</li>
+                        <li><strong>Unified Button Styling:</strong> All confirmation buttons now use consistent purple gradient styling with icons.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.12.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 4, 2026</div>
                 </div>
                 

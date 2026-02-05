@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.19] - 2026-02-05
+
+### Added
+
+#### Disconnected Deployment Region Info
+
+- Added informational message in Step 02 (Azure Cloud) when Disconnected deployment type is selected
+- Message clarifies that Azure region is required for disconnected deployments to download the control plane appliance image, updates, and licensing
+- Uses blue informational styling consistent with other info boxes in the wizard
+
+---
+
 ## [0.13.18] - 2026-02-05
 
 ### Fixed
