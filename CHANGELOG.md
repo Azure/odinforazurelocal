@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.1] - 2026-02-05
+
+### Improved
+
+#### ARM Import Honors Custom Adapter Names
+
+- **Custom Adapter Names Preserved on Import** - When importing an ARM template that uses custom network adapter names (e.g., "Slot3-Port1", "NIC-MGMT-01"), the wizard now extracts and preserves these names in the Port Configuration section.
+
+- **Automatic Detection** - The import logic distinguishes between NIC adapters (used for Management/Compute) and SMB adapters (used for Storage), mapping each to the appropriate port configuration.
+
+- **Diagram Generation** - Imported custom names will appear in all generated diagrams and reports, ensuring consistency with the customer's existing naming conventions.
+
+---
+
 ## [0.13.0] - 2026-02-05
 
 ### Added

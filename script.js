@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.0';
+const WIZARD_VERSION = '0.13.1';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -7980,15 +7980,75 @@ function parseArmTemplateToState(armTemplate) {
         result.intent = patternToIntent[params.networkingPattern] || 'compute_storage';
     }
     
-    // Port count from intentList
+    // Port count and custom adapter names from intentList
     if (params.intentList && Array.isArray(params.intentList)) {
-        const allAdapters = new Set();
+        const nicAdapters = [];  // Non-storage adapters (NIC1, NIC2, or custom names)
+        const smbAdapters = [];  // Storage adapters (SMB1, SMB2, or custom names)
+        
         params.intentList.forEach(intent => {
             if (intent.adapter && Array.isArray(intent.adapter)) {
-                intent.adapter.forEach(a => allAdapters.add(a));
+                const isStorageIntent = intent.trafficType && 
+                    Array.isArray(intent.trafficType) && 
+                    intent.trafficType.length === 1 && 
+                    intent.trafficType[0] === 'Storage';
+                
+                intent.adapter.forEach(a => {
+                    if (isStorageIntent) {
+                        // Storage-only intent uses SMB adapters
+                        if (!smbAdapters.includes(a)) {
+                            smbAdapters.push(a);
+                        }
+                    } else {
+                        // Non-storage intents use NIC adapters
+                        if (!nicAdapters.includes(a)) {
+                            nicAdapters.push(a);
+                        }
+                    }
+                });
             }
         });
-        result.ports = String(allAdapters.size);
+        
+        // Determine port count from NIC adapters (primary port count indicator)
+        const portCount = nicAdapters.length || smbAdapters.length;
+        result.ports = String(portCount);
+        
+        // Build portConfig with custom names from imported template
+        // Check if adapters have custom names (not default NIC1/NIC2/SMB1/SMB2 pattern)
+        const hasCustomNicNames = nicAdapters.some((name, idx) => {
+            const defaultName = `NIC${idx + 1}`;
+            return name !== defaultName;
+        });
+        const hasCustomSmbNames = smbAdapters.some((name, idx) => {
+            const defaultName = `SMB${idx + 1}`;
+            return name !== defaultName;
+        });
+        
+        if (hasCustomNicNames || hasCustomSmbNames || nicAdapters.length > 0 || smbAdapters.length > 0) {
+            result.portConfig = [];
+            
+            // Map NIC adapters to ports
+            nicAdapters.forEach((name, idx) => {
+                const defaultNicName = `NIC${idx + 1}`;
+                const customName = (name !== defaultNicName) ? name : '';
+                result.portConfig.push({
+                    portNumber: idx + 1,
+                    customName: customName
+                });
+            });
+            
+            // If no NIC adapters but we have SMB adapters, create ports from SMB count
+            if (nicAdapters.length === 0 && smbAdapters.length > 0) {
+                for (let i = 0; i < smbAdapters.length; i++) {
+                    const name = smbAdapters[i];
+                    const defaultSmbName = `SMB${i + 1}`;
+                    const customName = (name !== defaultSmbName) ? name : '';
+                    result.portConfig.push({
+                        portNumber: i + 1,
+                        customName: customName
+                    });
+                }
+            }
+        }
     }
     
     // Security settings
