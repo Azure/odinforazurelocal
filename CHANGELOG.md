@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.17] - 2026-02-05
+
+### Fixed
+
+#### Diagram Uplink Connections Based on Intent Group Position
+
+- Fixed ToR switch uplink connections to use position within intent group instead of physical NIC index
+- First port of each intent group now correctly connects to ToR Switch 1
+- Second port of each intent group now correctly connects to ToR Switch 2
+- Applied fix to all switched diagram scenarios:
+  - Standard adapter mapping (mgmt_compute intent)
+  - Default port layout (NICs 1-2 Mgmt+Compute, NICs 3+ Storage)
+  - Custom intent configurations
+
+---
+
 ## [0.13.16] - 2026-02-05
 
 ### Fixed
