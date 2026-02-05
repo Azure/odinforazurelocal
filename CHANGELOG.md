@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Navigation Bar Theme**: Navigation bar background and button hover states now properly update in light/dark modes across all pages
 - **Sizer Dropdown Theme**: Dropdown boxes in Sizer page now visible in light mode using CSS variables
 - **Progress Bar Theme**: The wizard progress bar title and font size buttons now properly respond to light/dark theme changes
+- **Breadcrumb Navigation Theme**: The step progress breadcrumb bar (Type, Cloud, Region, etc.) now properly responds to light/dark theme changes
 - **Summary Panel Theme**: Configuration summary panel buttons (Import/Export) and section backgrounds now properly respond to light/dark theme changes
 - **Disconnected Region Info Moved**: Azure region informational message for disconnected deployments moved from Step 02 to Step 03 (Azure region selection)
 

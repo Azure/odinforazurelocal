@@ -32,7 +32,7 @@ body {
     position: sticky;
     top: 56px; /* Account for fixed nav bar height */
     z-index: 100;
-    background: linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%);
+    background: var(--nav-bg);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
     padding: 12px 0;
@@ -56,7 +56,7 @@ body {
     align-items: center;
     gap: 6px;
     padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--subtle-bg);
     border: 1px solid var(--glass-border);
     border-radius: 20px;
     color: var(--text-secondary);
@@ -68,7 +68,7 @@ body {
 }
 
 .breadcrumb-item:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--subtle-bg-hover);
     border-color: var(--accent-blue);
     color: var(--text-primary);
 }
@@ -95,7 +95,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--subtle-bg-hover);
     border-radius: 50%;
     font-weight: 600;
     font-size: 11px;
