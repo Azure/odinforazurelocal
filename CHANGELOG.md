@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.2] - 2026-02-05
+
+### Fixed
+
+#### Custom Port Names Now Appear in Report Diagrams
+
+- **Report Diagrams Use Custom Names** - Fixed issue where the host networking diagrams in the report were still showing default "NIC 1", "NIC 2", "SMB1", etc. names instead of user-defined custom port names. All diagram types (Storage Switched, Switchless 2/3/4-node) now correctly display custom port names.
+
+- **Improved Port Naming UX** - Added a visible pencil icon (✏️) next to port names in Step 07 (Port Configuration) to make it clear that port names are editable. The input field now shows a subtle border even when not focused, improving discoverability.
+
+---
+
 ## [0.13.1] - 2026-02-05
 
 ### Improved

@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.13.1';
+const WIZARD_VERSION = '0.13.2';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -6669,11 +6669,12 @@ function renderPortConfiguration(count) {
                         value="${escapeHtml(displayName)}" 
                         placeholder="Port ${i + 1}"
                         maxlength="30"
-                        style="background:transparent; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'transparent'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s;"
+                        style="background:transparent; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s; cursor:text;"
                         onfocus="this.style.borderColor='var(--accent-blue)'; this.style.background='rgba(255,255,255,0.05)';"
-                        onblur="this.style.borderColor=this.value.trim() && this.value.trim() !== 'Port ${i + 1}' ? 'var(--accent-blue)' : 'transparent'; this.style.background='transparent'; updatePortConfig(${i}, 'customName', this.value);"
+                        onblur="this.style.borderColor=this.value.trim() && this.value.trim() !== 'Port ${i + 1}' ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'; this.style.background='transparent'; updatePortConfig(${i}, 'customName', this.value);"
                         onkeydown="if(event.key==='Enter'){this.blur();}"
                         title="Click to rename this port">
+                    <span class="port-edit-icon" style="color:var(--text-secondary); font-size:14px; opacity:0.6; cursor:pointer;" title="Click to edit port name" onclick="this.previousElementSibling.focus();">✏️</span>
                     ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
                 </div>
                 ${hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : ''}

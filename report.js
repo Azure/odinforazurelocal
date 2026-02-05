@@ -191,6 +191,44 @@
             .replace(/'/g, '&#39;');
     }
 
+    /**
+     * Get custom port display name from state.portConfig (v0.13.0+)
+     * Returns custom name if set, otherwise falls back to default naming.
+     * @param {object} state - The wizard state object
+     * @param {number} idx1Based - 1-based port index (1, 2, 3, ...)
+     * @param {string} type - 'nic' for NIC1/NIC2 style, 'smb' for SMB1/SMB2 style
+     * @returns {string} The display name
+     */
+    function getPortCustomName(state, idx1Based, type) {
+        type = type || 'nic';
+        try {
+            // Check portConfig for custom names (v0.13.0+ feature)
+            if (state && Array.isArray(state.portConfig) && state.portConfig[idx1Based - 1]) {
+                var customName = state.portConfig[idx1Based - 1].customName;
+                if (customName && String(customName).trim()) {
+                    return String(customName).trim();
+                }
+            }
+            // Legacy: check nicNames array
+            if (state && Array.isArray(state.nicNames) && state.nicNames[idx1Based - 1]) {
+                var n0 = String(state.nicNames[idx1Based - 1]).trim();
+                if (n0) return n0;
+            }
+            // Legacy: check nicNames object
+            if (state && state.nicNames && typeof state.nicNames === 'object' && state.nicNames[idx1Based]) {
+                var n1 = String(state.nicNames[idx1Based]).trim();
+                if (n1) return n1;
+            }
+        } catch (e) {
+            // ignore
+        }
+        // Default naming based on type
+        if (type === 'smb') {
+            return 'SMB' + idx1Based;
+        }
+        return 'NIC ' + idx1Based;
+    }
+
     // Convert CIDR notation to wildcard format for proxy bypass
     // e.g., 192.168.20.0/24 -> 192.168.20.*
     // e.g., 172.16.0.0/16 -> 172.16.*.*
@@ -1247,19 +1285,11 @@
             }
 
             function getNicLabel(idx1Based) {
-                try {
-                    if (state && Array.isArray(state.nicNames) && state.nicNames[idx1Based - 1]) {
-                        var n0 = String(state.nicNames[idx1Based - 1]).trim();
-                        if (n0) return n0;
-                    }
-                    if (state && state.nicNames && typeof state.nicNames === 'object' && state.nicNames[idx1Based]) {
-                        var n1 = String(state.nicNames[idx1Based]).trim();
-                        if (n1) return n1;
-                    }
-                } catch (e) {
-                    // ignore
-                }
-                return 'NIC ' + idx1Based;
+                return getPortCustomName(state, idx1Based, 'nic');
+            }
+
+            function getSmbLabel(idx1Based) {
+                return getPortCustomName(state, idx1Based, 'smb');
             }
 
             function intentLabelForSet(intent) {
@@ -1422,7 +1452,7 @@
                     var isStorage = !isCustom && showStorageGroup && i >= 2;
                     var fill = isStorage ? 'rgba(139,92,246,0.25)' : 'rgba(0,120,212,0.20)';
                     var stroke = isStorage ? 'rgba(139,92,246,0.65)' : 'rgba(0,120,212,0.55)';
-                    var label = isStorage ? ('SMB' + nicIdx) : getNicLabel(nicIdx);
+                    var label = isStorage ? getSmbLabel(nicIdx) : getNicLabel(nicIdx);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="11" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -1538,7 +1568,7 @@
                         stroke = 'rgba(0,120,212,0.55)';
                     }
 
-                    var label = isStorage ? ('SMB' + nicIdx) : getNicLabel(nicIdx);
+                    var label = isStorage ? getSmbLabel(nicIdx) : getNicLabel(nicIdx);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="11" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -1689,19 +1719,7 @@
             }
 
             function getNicLabel(idx1Based) {
-                try {
-                    if (state && Array.isArray(state.nicNames) && state.nicNames[idx1Based - 1]) {
-                        var n0 = String(state.nicNames[idx1Based - 1]).trim();
-                        if (n0) return n0;
-                    }
-                    if (state && state.nicNames && typeof state.nicNames === 'object' && state.nicNames[idx1Based]) {
-                        var n1 = String(state.nicNames[idx1Based]).trim();
-                        if (n1) return n1;
-                    }
-                } catch (e) {
-                    // ignore
-                }
-                return 'NIC ' + idx1Based;
+                return getPortCustomName(state, idx1Based, 'nic');
             }
 
             function intentLabelForSet(intent) {
@@ -2012,7 +2030,7 @@
                     var cS = iS % cols2;
                     var xS = startX + (cS * (tileW + gapX2));
                     var yS = startY + (rS * (tileH + gapY2));
-                    var lbl = 'SMB' + (iS + 1);
+                    var lbl = getPortCustomName(state, iS + 1, 'smb');
                     out += '<rect x="' + xS + '" y="' + yS + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                     out += '<text x="' + (xS + tileW / 2) + '" y="' + (yS + 19) + '" text-anchor="middle" font-size="10" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
                     // Port anchors on the outside/top edge of each SMB tile (horizontally centered).
@@ -2574,19 +2592,7 @@
                 var nodeX2 = [70, 390];
 
                 function getNicLabel2(idx1Based) {
-                    try {
-                        if (state && Array.isArray(state.nicNames) && state.nicNames[idx1Based - 1]) {
-                            var n0 = String(state.nicNames[idx1Based - 1]).trim();
-                            if (n0) return n0;
-                        }
-                        if (state && state.nicNames && typeof state.nicNames === 'object' && state.nicNames[idx1Based]) {
-                            var n1 = String(state.nicNames[idx1Based]).trim();
-                            if (n1) return n1;
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-                    return 'NIC ' + idx1Based;
+                    return getPortCustomName(state, idx1Based, 'nic');
                 }
 
                 function renderSetTeam2(nodeLeft, nodeTop) {
@@ -2690,7 +2696,7 @@
 
                     for (var p2 = 0; p2 < 2; p2++) {
                         var tr2 = storageTileRect2(i2, p2);
-                        var lbl2 = 'SMB' + (p2 + 1);
+                        var lbl2 = getPortCustomName(state, p2 + 1, 'smb');
                         svg2 += '<rect x="' + tr2.x + '" y="' + tr2.y + '" width="' + tr2.w + '" height="' + tr2.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg2 += '<text x="' + (tr2.x + tr2.w / 2) + '" y="' + (tr2.y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl2) + '</text>';
                     }
@@ -2770,19 +2776,7 @@
                     var storageTileGapS = 18;
 
                     function getNicLabelS(idx1Based) {
-                        try {
-                            if (state && Array.isArray(state.nicNames) && state.nicNames[idx1Based - 1]) {
-                                var n0 = String(state.nicNames[idx1Based - 1]).trim();
-                                if (n0) return n0;
-                            }
-                            if (state && state.nicNames && typeof state.nicNames === 'object' && state.nicNames[idx1Based]) {
-                                var n1 = String(state.nicNames[idx1Based]).trim();
-                                if (n1) return n1;
-                            }
-                        } catch (e) {
-                            // ignore
-                        }
-                        return 'NIC ' + idx1Based;
+                        return getPortCustomName(state, idx1Based, 'nic');
                     }
 
                     function renderSetTeamS(nodeLeft, nodeTop) {
@@ -2885,7 +2879,7 @@
 
                         for (var pS = 0; pS < 2; pS++) {
                             var trS = storageTileRectS(iS, pS);
-                            var labelS = 'SMB' + (pS + 1);
+                            var labelS = getPortCustomName(state, pS + 1, 'smb');
                             svgS += '<rect x="' + trS.x + '" y="' + trS.y + '" width="' + trS.w + '" height="' + trS.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                             svgS += '<text x="' + (trS.x + trS.w / 2) + '" y="' + (trS.y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelS) + '</text>';
                         }
@@ -2964,21 +2958,7 @@
                 var storageTileGap = 12;
 
                 function getNicLabel(idx1Based) {
-                    // Prefer user-provided names if the wizard ever supplies them.
-                    // Today the wizard labels adapters by number (NIC 1, NIC 2, ...).
-                    try {
-                        if (state && Array.isArray(state.nicNames) && state.nicNames[idx1Based - 1]) {
-                            var n0 = String(state.nicNames[idx1Based - 1]).trim();
-                            if (n0) return n0;
-                        }
-                        if (state && state.nicNames && typeof state.nicNames === 'object' && state.nicNames[idx1Based]) {
-                            var n1 = String(state.nicNames[idx1Based]).trim();
-                            if (n1) return n1;
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-                    return 'NIC ' + idx1Based;
+                    return getPortCustomName(state, idx1Based, 'nic');
                 }
 
                 function storageGroupRect(nodeIdx) {
@@ -3114,7 +3094,7 @@
 
                     for (var p3 = 0; p3 < 4; p3++) {
                         var tr = storageTileRect(i3, p3);
-                        var label = 'SMB' + (p3 + 1);
+                        var label = getPortCustomName(state, p3 + 1, 'smb');
                         svg3 += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + tr.w + '" height="' + tr.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg3 += '<text x="' + (tr.x + tr.w / 2) + '" y="' + (tr.y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                     }
@@ -3201,19 +3181,7 @@
 
                 // Shared helper: prefer wizard adapter names if available; else use NIC 1/NIC 2.
                 function getNicLabel4(idx1Based) {
-                    try {
-                        if (state && Array.isArray(state.nicNames) && state.nicNames[idx1Based - 1]) {
-                            var n0 = String(state.nicNames[idx1Based - 1]).trim();
-                            if (n0) return n0;
-                        }
-                        if (state && state.nicNames && typeof state.nicNames === 'object' && state.nicNames[idx1Based]) {
-                            var n1 = String(state.nicNames[idx1Based]).trim();
-                            if (n1) return n1;
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
-                    return 'NIC ' + idx1Based;
+                    return getPortCustomName(state, idx1Based, 'nic');
                 }
 
                 function renderSetTeam4(nodeLeft, nodeTop) {
@@ -3392,7 +3360,7 @@
 
                     for (var p4 = 0; p4 < 6; p4++) {
                         var tr4 = storageTileRect4(i4, p4);
-                        var lbl4 = 'SMB' + (p4 + 1);
+                        var lbl4 = getPortCustomName(state, p4 + 1, 'smb');
                         svg4 += '<rect x="' + tr4.x + '" y="' + tr4.y + '" width="' + tr4.w + '" height="' + tr4.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg4 += '<text x="' + (tr4.x + tr4.w / 2) + '" y="' + (tr4.y + 24) + '" text-anchor="middle" font-size="12" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl4) + '</text>';
                     }
