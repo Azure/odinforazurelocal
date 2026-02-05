@@ -139,8 +139,8 @@ body {
     left: 0;
     right: 0;
     z-index: 999;
-    background: linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
-    border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+    background: var(--banner-bg, linear-gradient(90deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%));
+    border-bottom: 1px solid var(--banner-border, rgba(139, 92, 246, 0.3));
     padding: 8px 24px;
     display: flex;
     align-items: center;
@@ -169,6 +169,30 @@ body {
 
 .sizer-preview-banner a:hover {
     text-decoration: underline;
+}
+
+.sizer-preview-banner .banner-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    justify-content: center;
+}
+
+.sizer-preview-banner .theme-toggle-btn {
+    padding: 4px 10px;
+    background: var(--subtle-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: auto;
+    transition: all 0.2s;
+}
+
+.sizer-preview-banner .theme-toggle-btn:hover {
+    background: var(--subtle-bg-hover);
 }
 
 /* Container */

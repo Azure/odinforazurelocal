@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Global Sizer Preview Banner
+
+- Added a global preview banner below the navigation on all pages (Designer, Knowledge, Sizer)
+- Banner promotes the new ODIN Sizer tool and indicates it's in Preview
+- Consistent styling across all pages with purple-to-blue gradient
+
+#### Theme Toggle in Banner
+
+- Moved theme toggle button from summary panel to the global preview banner
+- Theme toggle now appears on the far right of the banner on all pages
+- Theme preference syncs across all pages using shared localStorage
+- Banner styling now properly updates when switching between light and dark modes
+
 #### Disconnected Deployment Region Info
 
 - Added informational message in Step 02 (Azure Cloud) when Disconnected deployment type is selected
