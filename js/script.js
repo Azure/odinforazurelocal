@@ -361,6 +361,10 @@ function findStepForMissingItem(item) {
     if (missingSectionToStep[item]) {
         return missingSectionToStep[item];
     }
+    // Pattern match for Node X Name and Node X IP (CIDR)
+    if (/^Node \d+ Name$/i.test(item) || /^Node \d+ IP/i.test(item) || item === 'Node names must be unique' || item === 'Node IPs must be unique') {
+        return 'step-10';
+    }
     // Partial match for RDMA messages and others
     for (const key in missingSectionToStep) {
         if (item.includes(key) || key.includes(item)) {

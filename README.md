@@ -21,6 +21,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
+- [Appendix A - Version History](#appendix-a---version-history)
 
 ---
 
@@ -37,108 +38,12 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.51 Bug Fix
-- **Node Name Input Light Mode**: Fixed node name and IP input fields showing white text on light theme backgrounds
+### 🎉 Version 0.14.51 - Latest Release
+- **Automated Build Pipeline**: GitHub Actions CI/CD with ESLint, HTML validation, and 136 unit tests
+- **Light Mode Input Fix**: Fixed node name, IP, and DNS input fields showing white text on light theme backgrounds
+- **Codebase Modularization**: Project restructured with dedicated modules for formatting, validation, DNS, theme, and notifications
 
-### 🎉 Version 0.11.0 New Features
-- **Tab Navigation System**: New top navigation bar with tabs for Designer, Knowledge, and Sizer sections
-- **ODIN Designer**: The existing wizard is now accessible via the Designer tab (default view)
-- **ODIN Knowledge**: Quick access to documentation including the Outbound Connectivity Guide
-- **ODIN Sizer**: Placeholder for upcoming cluster sizing tool (Coming Soon)
-- **Consistent Navigation**: Both main site and docs pages share the same navigation pattern
-- **Session Persistence**: Active tab state persists during browser session
-
-### 🎉 Version 0.10.12 Previous Features
-- **Outbound Connectivity Guide**: Integrated comprehensive documentation with architecture diagrams for Public Path vs Private Path (ExpressRoute) scenarios
-- **Private Endpoints Selection**: New wizard step for selecting Azure services that use Private Link (Key Vault, Storage, ACR, ASR, Backup, SQL MI, Defender)
-- **Dynamic Connectivity Diagrams**: Configuration Report displays the appropriate architecture diagram based on your outbound, Arc Gateway, and proxy selections
-- **ExpressRoute Auto-Selection**: Arc Gateway and Proxy automatically enabled when Private Path selected
-- **Updated Comparison Modals**: Accurate Public Path vs Private Path comparison information
-
-### 🎉 Version 0.10.11 Bug Fix
-- **Switchless Storage IPs by Adapter**: Switchless storage adapter IPs now display grouped by SMB adapter name (SMB1, SMB2, etc.) matching the ARM template structure, showing which node gets which IP.
-
-### 🎉 Version 0.10.10 Bug Fix
-- **Switchless Storage Adapter IPs**: Configuration Report now displays storage adapter IPs for switchless storage when Auto IP is disabled. Each subnet shows its two assigned IPs per node pair.
-
-### 🎉 Version 0.10.9 Bug Fix
-- **Auto IP Storage Display Correction**: When Storage Auto IP is enabled, the report now correctly shows only the subnet (10.71.0.0/16) since IPs are assigned automatically by Network ATC. Custom subnets continue to show calculated IPs.
-
-### 🎉 Version 0.10.8 Bug Fix
-- **Storage Adapter IPs for Auto IP Enabled**: Configuration Report now shows default Network ATC storage adapter IPs (10.71.x.x) when Storage Auto IP is enabled, not just when disabled.
-
-### 🎉 Version 0.10.7 Bug Fix
-- **IP Address Display in Report**: Configuration Report now shows node infrastructure IPs and storage adapter IPs per node when Storage Auto IP is disabled, matching ARM template values (Issue #11).
-
-### 🎉 Version 0.10.6 Bug Fix
-- **Storage Intent Subnet Display**: Configuration Report now shows storage subnet information. Displays default Network ATC subnet when Auto IP is enabled, or custom subnets when Auto IP is disabled (Issue #9).
-
-### 🎉 Version 0.10.5 Bug Fix
-- **Configuration Report Security Details**: Fixed a bug where the Configuration Report only showed a summary for customized security settings. Now displays all individual security configuration details (Issue #7).
-
-### 🎉 Version 0.10.4 Enhancement
-- **Single-Node Storage Intent Support**: Single-node clusters now support all storage intent options. Non-low-capacity single-node requires 2 RDMA ports; Low Capacity keeps RDMA optional.
-
-### 🎉 Version 0.10.1 Bug Fix
-- **ARM Import Options Dialog**: When importing ARM templates, a dialog now prompts for settings not included in ARM templates: Arc Gateway, Enterprise Proxy, and SDN configuration (Issue #90)
-
-### 🎉 Version 0.10.0 Bug Fixes
-- **OU Path Auto-Population**: The OU Path field on ARM Parameters page is pre-filled with the value from the wizard; input field hidden when already provided (Issue #85)
-- **Cluster Name & HCI Resource Provider Loading**: These fields are now properly pre-populated from the parameters payload (Issue #86)
-
-### 🎉 Version 0.9.7 Enhancement
-- **Deploy to Azure UX Improved**: Added step-by-step instructions and "Copy Parameters & Scroll to JSON" button to guide users through copying parameters to Azure Portal
-
-### 🎉 Version 0.9.6 Bug Fixes
-- **Deploy to Azure Clarification**: Updated messaging to clarify that Azure Portal doesn't support pre-filling parameters via URL; users should copy values from ARM Parameters section (Issue #73)
-- **Template Import Default Fixed**: Importing ARM templates now defaults to Hyperconverged, not Low Capacity (Issue #74)
-
-### 🎉 Version 0.9.5 Enhancements
-- **Alphabetized Azure Regions**: Commercial regions now displayed in alphabetical order (Issue #70)
-- **Low Capacity & Rack Aware Info Links**: Added documentation links to cluster configuration options (Issue #69)
-- **Cloud Witness & Network Intents Knowledge Links**: Added step-level info links to learn about configuration options (Issue #71)
-
-### 🎉 Version 0.9.4 Bug Fix
-- **Custom Adapter Mapping Fixed**: ARM output and diagrams now correctly reflect user's custom adapter port assignments (Issue #67)
-
-### 🎉 Version 0.9.3 Bug Fixes
-- **DNS Server Display Fixed**: DNS servers now properly display after ARM template import or session resume
-
-### 🎉 Version 0.9.0 Enhancements
-- **Missing Sections Display**: Dynamic display showing incomplete sections with clickable navigation links
-- **Complete Example Templates**: All 5 templates now include full configurations (network, DNS, nodes, ports)
-- **ARM Template Import**: Import Azure ARM templates directly from Azure Portal exports
-- **ARM Parameter Mapping**: Automatically maps ARM parameters to wizard fields
-
-### 🎉 Version 0.8.x Enhancements
-- **Firebase Analytics**: Optional usage tracking with Firebase Realtime Database
-- **Page Statistics**: Live counters showing page views and form completions
-- **Disconnected Mode**: Hide Deploy to Azure button when disconnected mode is selected
-- **ToR Switch Selection**: Single or Dual ToR switch options for Storage Switched scenarios
-- **Deploy to Azure Button**: One-click deployment to Azure Portal with auto-selected templates
-- **Node Name Auto-Population**: Smart sequential naming for cluster nodes
-
-### 🎉 Version 0.2.1 Enhancements
-- **AD OU Path Configuration**: Specify Active Directory Organization Unit path with validation
-
-### 🎉 Version 0.2.0 Enhancements
-- **Auto-Scroll Toggle**: Control automatic navigation between wizard steps
-- **Cloud Witness Type**: Automatic witness configuration based on cluster size and topology
-- **Storage Pool Configuration**: Choose deployment mode at Step 15
-- **Enhanced Port Configuration**: Direct scroll to port settings, default 25GbE speed
-- **Updated Step Flow**: Reorganized steps for better logical progression
-
-### 🎉 Version 0.1.0 Enhancements
-- **Auto-Save & Resume**: Automatic progress saving using browser localStorage
-- **Export/Import Configuration**: Share configurations as JSON files
-- **Cost Estimator**: Rough monthly cost estimates based on configuration
-- **CIDR Calculator**: Built-in subnet calculator for IP planning
-- **Real-time Validation**: Instant feedback on all input fields
-- **Contextual Help**: In-line help tooltips for complex concepts
-- **Toast Notifications**: Clear feedback for user actions
-- **Change Tracking**: Detect changes when importing configurations
-- **Version Control**: All exports include version information
-- **Enhanced Security**: Improved input sanitization throughout
+> **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
 ---
 
@@ -495,10 +400,105 @@ This project is provided as-is for planning and configuration purposes. See offi
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.1.0  
-**Last Updated**: January 2026  
+**Version**: 0.14.51  
+**Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
 ---
 
 For questions, feedback, or support, please visit the [GitHub repository](https://github.com/Azure/AzureLocal-Supportability) or consult the official Azure Local documentation.
+
+---
+
+## Appendix A - Version History
+
+For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
+
+### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.51 - Automated Build Pipeline & Bug Fixes
+- **GitHub Actions CI/CD**: Automated build validation pipeline with ESLint, HTML validation, and 136 unit tests
+- **Light Mode Input Fix**: Fixed node name, IP, and DNS input fields showing white text on light theme backgrounds
+
+#### 0.14.50 - Codebase Modularization
+- **Project Restructured**: Cleaner folder organization (arm/, report/, css/, js/, tests/, scripts/)
+- **Phase 2A Modularization**: Extracted formatting, validation, and DNS functions into dedicated modules
+- **136 Unit Tests**: Comprehensive test coverage expanded from 34 to 136 tests
+
+#### 0.14.2 - ARM Template Import Fixes
+- **Adapter Names Preserved**: Importing ARM templates preserves adapter names from the template
+- **Single-Node Diagram**: Fixed diagram not displaying for single-node deployments
+
+#### 0.14.1 - ARM Import Adapter Fix
+- **Management + Compute Adapters**: Fixed adapters not loading when importing ARM templates
+
+#### 0.14.0 - Code Modularization Phase 1
+- **Modular JavaScript**: Extracted utilities into separate files (utils.js, theme.js, notifications.js, analytics.js)
+- **Diagram NIC Labels**: Improved label positioning for all cluster diagram types
+
+### 🎉 Version 0.13.x Series (February 2026)
+
+#### 0.13.30 - ARM Import & Theme Improvements
+- **Private Endpoints Import**: ARM import dialog now asks about Private Endpoints configuration
+- **Theme Fixes**: Fixed disclaimer banner, nav bar, sizer dropdowns, progress bar, breadcrumbs, and summary panel theme support
+
+#### 0.13.19 - Navigation Enhancements
+- **Sizer Preview Badge**: Added "Preview" badge on Sizer tab
+- **Theme Toggle**: Added theme toggle button to navigation bar on all pages
+
+### 🎉 Version 0.11.x Series
+- **Tab Navigation System**: New top navigation bar with Designer, Knowledge, and Sizer sections
+- **Session Persistence**: Active tab state persists during browser session
+
+### 🎉 Version 0.10.x Series
+
+#### 0.10.12 - Outbound Connectivity Guide
+- **Private Path Documentation**: Architecture diagrams for Public Path vs Private Path (ExpressRoute)
+- **Private Endpoints Selection**: Wizard step for selecting Azure services with Private Link
+
+#### 0.10.11 - 0.10.6 - Configuration Report Improvements
+- **Storage IP Display**: Various fixes for storage adapter IPs, switchless configurations, and subnet display
+
+#### 0.10.5 - Security Details Fix
+- **Configuration Report**: Fixed security settings display in reports
+
+#### 0.10.4 - Single-Node Support
+- **Storage Intent**: Single-node clusters now support all storage intent options
+
+#### 0.10.0-0.10.1 - ARM Import Improvements
+- **OU Path Auto-Population**: Pre-filled from wizard values
+- **Import Options Dialog**: Prompts for Arc Gateway, Proxy, and SDN settings
+
+### 🎉 Version 0.9.x Series
+
+#### 0.9.7 - Deploy to Azure UX
+- **Step-by-Step Instructions**: Improved guidance for Azure Portal deployment
+
+#### 0.9.5-0.9.6 - Enhancements & Fixes
+- **Alphabetized Regions**: Commercial regions in alphabetical order
+- **Knowledge Links**: Added documentation links throughout wizard
+
+#### 0.9.3-0.9.4 - Bug Fixes
+- **Custom Adapter Mapping**: Fixed ARM output and diagrams
+- **DNS Server Display**: Fixed after ARM import or session resume
+
+#### 0.9.0 - ARM Template Import
+- **Import/Export**: Import ARM templates directly from Azure Portal exports
+- **Complete Templates**: All 5 example templates include full configurations
+
+### 🎉 Version 0.8.x Series
+- **Firebase Analytics**: Optional usage tracking
+- **Deploy to Azure Button**: One-click deployment to Azure Portal
+- **ToR Switch Selection**: Single or Dual ToR options
+
+### 🎉 Version 0.2.x Series
+- **AD OU Path**: Organization Unit path configuration
+- **Auto-Scroll Toggle**: Control automatic navigation
+- **Cloud Witness**: Automatic configuration based on cluster topology
+
+### 🎉 Version 0.1.0 - Initial Release
+- **Auto-Save & Resume**: Browser localStorage persistence
+- **Export/Import**: Share configurations as JSON files
+- **Cost Estimator**: Rough monthly cost estimates
+- **CIDR Calculator**: Built-in subnet calculator
+- **Real-time Validation**: Instant input feedback
