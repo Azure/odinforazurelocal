@@ -2841,8 +2841,8 @@
 
                     for (var p2 = 0; p2 < 2; p2++) {
                         var tr2 = storageTileRect2(i2, p2);
-                        // For switchless, SMB adapters are virtual - use default SMB{n} naming
-                        var lbl2 = 'SMB' + (p2 + 1);
+                        // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
+                        var lbl2 = getNicLabel2(p2 + 3);
                         // Stagger text vertically
                         var textY2 = (p2 % 2 === 0) ? (tr2.y + 18) : (tr2.y + 28);
                         svg2 += '<rect x="' + tr2.x + '" y="' + tr2.y + '" width="' + tr2.w + '" height="' + tr2.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
@@ -3029,8 +3029,8 @@
 
                         for (var pS = 0; pS < 2; pS++) {
                             var trS = storageTileRectS(iS, pS);
-                            // For switchless, SMB adapters are virtual - use default SMB{n} naming
-                            var labelS = 'SMB' + (pS + 1);
+                            // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
+                            var labelS = getNicLabelS(pS + 3);
                             // Stagger text vertically
                             var textYS = (pS % 2 === 0) ? (trS.y + 18) : (trS.y + 28);
                             svgS += '<rect x="' + trS.x + '" y="' + trS.y + '" width="' + trS.w + '" height="' + trS.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
@@ -3249,8 +3249,8 @@
 
                     for (var p3 = 0; p3 < 4; p3++) {
                         var tr = storageTileRect(i3, p3);
-                        // For switchless, SMB adapters are virtual - use default SMB{n} naming
-                        var label = 'SMB' + (p3 + 1);
+                        // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
+                        var label = getNicLabel(p3 + 3);
                         // Stagger text vertically
                         var textY3 = (p3 % 2 === 0) ? (tr.y + 18) : (tr.y + 28);
                         svg3 += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + tr.w + '" height="' + tr.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
@@ -3520,8 +3520,8 @@
 
                     for (var p4 = 0; p4 < 6; p4++) {
                         var tr4 = storageTileRect4(i4, p4);
-                        // For switchless, SMB adapters are virtual - use default SMB{n} naming
-                        var lbl4 = 'SMB' + (p4 + 1);
+                        // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
+                        var lbl4 = getNicLabel4(p4 + 3);
                         // Stagger text vertically
                         var textY4 = (p4 % 2 === 0) ? (tr4.y + 18) : (tr4.y + 28);
                         svg4 += '<rect x="' + tr4.x + '" y="' + tr4.y + '" width="' + tr4.w + '" height="' + tr4.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
@@ -4739,7 +4739,8 @@
                                     var nodeIps = [];
                                     nodeIps.push(getNodeName(0) + ': ' + prefix + '.2');
                                     nodeIps.push(getNodeName(1) + ': ' + prefix + '.3');
-                                    var smbName = getPortCustomName(s, smbIdx + 1, 'smb');
+                                    // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
+                                    var smbName = getPortCustomName(s, smbIdx + 3, 'nic');
                                     storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
                                 }
                             }
@@ -4762,7 +4763,8 @@
                                     }
                                 }
                                 if (nodeIps.length > 0) {
-                                    var smbName = getPortCustomName(s, smbIdx, 'smb');
+                                    // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
+                                    var smbName = getPortCustomName(s, smbIdx + 2, 'nic');
                                     storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
                                 }
                             }
@@ -4786,7 +4788,8 @@
                                     }
                                 }
                                 if (nodeIps.length > 0) {
-                                    var smbName = getPortCustomName(s, smbIdx, 'smb');
+                                    // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
+                                    var smbName = getPortCustomName(s, smbIdx + 2, 'nic');
                                     storageIpDetails.push(smbName + ': ' + nodeIps.join(', '));
                                 }
                             }
