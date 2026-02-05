@@ -1728,6 +1728,21 @@ header .header-description {
     transform: translateY(0);
 }
 
+.confirm-port-config-btn.is-confirmed {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.9), rgba(16, 185, 129, 0.7));
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.confirm-port-config-btn.is-confirmed:hover {
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.confirm-port-config-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
 /* Intent Overrides (Layer 7) */
 .intent-overrides {
     margin-top: 1.25rem;

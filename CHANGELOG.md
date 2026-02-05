@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.13] - 2026-02-05
+
+### Changed
+
+#### Unified Confirmation Button Styling
+
+- Updated all confirmation buttons to use the same purple gradient style as "Confirm Port Configuration"
+- Applied consistent styling to: "Confirm Adapter Mapping", "Confirm Overrides", "Confirm Storage Subnets"
+- Added checkmark icon to all confirmation buttons
+- Added pencil icon when in "Edit" mode (after confirmation)
+- Added green gradient styling for confirmed state
+- Improved disabled state styling
+
+---
+
 ## [0.13.12] - 2026-02-05
 
 ### Fixed
