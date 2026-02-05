@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.0] - 2026-02-05
+
+### Added
+
+#### Code Modularization (Phase 1)
+
+- **Modular JavaScript Structure**: Extracted utility functions into separate files for better maintainability:
+  - `js/utils.js` - Pure utility functions (escapeHtml, sanitizeInput, formatNumber, capitalize, CIDR/IP validation and manipulation)
+  - `js/theme.js` - Theme switching and font size management (increaseFontSize, decreaseFontSize, applyFontSize, toggleTheme, applyTheme)
+  - `js/notifications.js` - Toast notifications, error reporting, clipboard operations (showToast, reportUiError, showNotification, copyToClipboard)
+  - `js/analytics.js` - Firebase analytics integration (FIREBASE_CONFIG, analytics state, initializeAnalytics, trackPageView, trackFormCompletion, fetchAndDisplayStats)
+- **Load Order**: New modular files load before script.js to ensure global availability of functions
+
+### Changed
+
+#### Diagram NIC Label Positioning
+
+- **Centered NIC Labels**: Network adapter names in cluster diagrams are now vertically centered when 9 characters or less
+- **Staggered Long Labels**: Adapter names with 10+ characters use staggered vertical positioning for better readability
+- **All Diagram Types Updated**: Improved label positioning applies to:
+  - Storage Switched cluster diagrams
+  - Rack-Aware cluster diagrams
+  - 2-node Switchless diagrams
+  - 3-node Switchless diagrams (single-link and dual-link)
+  - 4-node Switchless diagrams
+
+---
+
 ## [0.13.30] - 2026-02-05
 
 ### Added
