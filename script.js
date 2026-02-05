@@ -1978,16 +1978,39 @@ function generateArmParameters() {
             ensureIntentOverrideDefaults();
 
             const getStorageAdapterNamesForIntent = (groupNics) => {
-                // Storage intent adapters in the ARM template are SMBx.
-                // - Switchless: SMB1..SMB{2*(n-1)} regardless of physical NIC numbering in the wizard.
-                // - Switched: use SMB{NIC#} to match wizard labeling.
+                // Storage intent adapters in the ARM template.
+                // - Switchless: SMB1..SMB{2*(n-1)} are virtual adapters, not directly mapped to physical ports.
+                //   For switchless, check if ports have custom names and use them sequentially.
+                // - Switched: use custom port names if available, otherwise SMB{NIC#}.
                 if (state.storage === 'switchless') {
                     const n = nodeCount;
                     const smbCount = (Number.isFinite(n) && n > 1) ? (2 * (n - 1)) : 2;
-                    return Array.from({ length: smbCount }, (_, i) => `SMB${i + 1}`);
+                    // For switchless, SMB adapters are virtual. Use custom names from storage ports if available.
+                    // Storage ports are typically the ports after the management/compute ports.
+                    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+                    return Array.from({ length: smbCount }, (_, i) => {
+                        // Try to get custom name from corresponding port (offset by mgmt/compute ports)
+                        // For typical 4-port config: ports 1-2 are mgmt/compute, ports 3-4+ are storage
+                        const portIdx = 2 + i; // 0-based index for storage ports (after first 2)
+                        const pc = cfg[portIdx];
+                        if (pc && pc.customName && pc.customName.trim()) {
+                            const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                            return sanitized || `SMB${i + 1}`;
+                        }
+                        return `SMB${i + 1}`;
+                    });
                 }
 
-                return (Array.isArray(groupNics) ? groupNics : []).map(n => `SMB${n}`);
+                // Switched: use custom port names from portConfig based on the NIC number
+                return (Array.isArray(groupNics) ? groupNics : []).map(nicNum => {
+                    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+                    const pc = cfg[nicNum - 1]; // nicNum is 1-based, array is 0-based
+                    if (pc && pc.customName && pc.customName.trim()) {
+                        const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_\-]/g, '_');
+                        return sanitized || `SMB${nicNum}`;
+                    }
+                    return `SMB${nicNum}`;
+                });
             };
 
             const buildAdapterPropertyOverrides = (groupKey) => {
@@ -8044,6 +8067,28 @@ function parseArmTemplateToState(armTemplate) {
                     customName: customName
                 });
             });
+            
+            // Add SMB adapter custom names to storage ports (ports after NIC adapters)
+            // For typical config: ports 1-2 are NIC, ports 3+ are SMB
+            if (smbAdapters.length > 0 && nicAdapters.length > 0) {
+                smbAdapters.forEach((name, idx) => {
+                    const defaultSmbName = `SMB${idx + 1}`;
+                    // Also check for SMB{portNum} pattern (e.g., SMB3, SMB4 for switched storage)
+                    const portNum = nicAdapters.length + idx + 1;
+                    const altDefaultName = `SMB${portNum}`;
+                    const isDefault = (name === defaultSmbName || name === altDefaultName);
+                    const customName = !isDefault ? name : null;
+                    result.portConfig.push({
+                        speed: '25GbE',
+                        rdma: true,
+                        rdmaMode: 'RoCEv2',
+                        rdmaManual: false,
+                        customName: customName
+                    });
+                });
+                // Update port count to include storage ports
+                result.ports = String(nicAdapters.length + smbAdapters.length);
+            }
             
             // If no NIC adapters but we have SMB adapters, create ports from SMB count
             if (nicAdapters.length === 0 && smbAdapters.length > 0) {
