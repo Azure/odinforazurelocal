@@ -11,18 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-#### Global Sizer Preview Banner
+#### Sizer Preview Badge on Navigation
 
-- Added a global preview banner below the navigation on all pages (Designer, Knowledge, Sizer)
-- Banner promotes the new ODIN Sizer tool and indicates it's in Preview
-- Consistent styling across all pages with purple-to-blue gradient
+- Added "Preview" badge on the Sizer tab button in the navigation bar across all pages
+- Badge uses purple styling consistent with the ODIN design language
 
-#### Theme Toggle in Banner
+#### Theme Toggle in Navigation Bar
 
-- Moved theme toggle button from summary panel to the global preview banner
-- Theme toggle now appears on the far right of the banner on all pages
+- Added theme toggle button to the navigation bar on all pages (Designer, Knowledge, Sizer)
+- Theme toggle appears on the far right of the navigation bar
 - Theme preference syncs across all pages using shared localStorage
-- Banner styling now properly updates when switching between light and dark modes
+- Light/Dark mode properly updates all UI elements
 
 #### Disconnected Deployment Region Info
 

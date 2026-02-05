@@ -9057,10 +9057,10 @@ function showChangelog() {
                 </div>
                 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🌙 Global Theme Toggle & Sizer Preview Banner</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🌙 Theme Toggle & Sizer Preview</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Sizer Preview Banner:</strong> New global banner on all pages promoting the ODIN Sizer tool (Preview).</li>
-                        <li><strong>Theme Toggle in Banner:</strong> Light/Dark mode toggle moved to the banner for easy access on all pages.</li>
+                        <li><strong>Sizer Preview Badge:</strong> "Preview" badge now appears on the Sizer tab button in the navigation bar.</li>
+                        <li><strong>Theme Toggle in Nav:</strong> Light/Dark mode toggle added to the navigation bar for easy access on all pages.</li>
                         <li><strong>Cross-Page Theme Sync:</strong> Theme preference now syncs across Designer, Knowledge, and Sizer pages.</li>
                         <li><strong>Disconnected Region Info:</strong> Informational message explains Azure region requirement for disconnected deployments.</li>
                         <li><strong>Custom Network Adapter Names:</strong> Rename physical ports in Port Configuration - names propagate everywhere.</li>
