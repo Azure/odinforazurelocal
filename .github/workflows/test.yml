@@ -51,7 +51,6 @@ jobs:
           node << 'EOF'
           const puppeteer = require('puppeteer');
           const path = require('path');
-          const fs = require('fs');
 
           (async () => {
             const browser = await puppeteer.launch({
@@ -68,8 +67,9 @@ jobs:
               console.log('Browser:', msg.text());
             });
             
-            // Load the test file
-            const testPath = path.join(__dirname, 'tests', 'tests.html');
+            // Load the test file - use process.cwd() for GitHub Actions
+            const testPath = path.resolve(process.cwd(), 'tests', 'tests.html');
+            console.log('Loading tests from:', testPath);
             await page.goto(`file://${testPath}`, { waitUntil: 'networkidle0' });
             
             // Wait for tests to complete
