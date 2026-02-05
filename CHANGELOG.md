@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.1] - 2026-02-05
+
+### Fixed
+
+#### ARM Template Import - Management + Compute Adapters
+
+- **Adapter Mapping Zone Key**: Fixed issue where Management + Compute adapters were not loading into the wizard UI when importing ARM templates from existing deployments
+- **Root Cause**: The adapter mapping was using zone key `'mgmt'` instead of `'mgmt_compute'`, causing adapters to not match any valid zone for the `mgmt_compute` intent
+- **Affected Functions**: `parseArmTemplateToState` and `applyArmImportState` now correctly use `'mgmt_compute'` zone key
+
+---
+
 ## [0.14.0] - 2026-02-05
 
 ### Added

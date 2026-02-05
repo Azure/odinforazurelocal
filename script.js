@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.0';
+const WIZARD_VERSION = '0.14.1';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -7720,10 +7720,11 @@ function parseArmTemplateToState(armTemplate) {
                 result.ports = String(nicAdapters.length + smbAdapters.length);
                 
                 // Build adapter mapping from intent list
-                // NIC adapters (1-based indices) go to 'mgmt', SMB adapters go to 'storage'
+                // NIC adapters (1-based indices) go to 'mgmt_compute' zone, SMB adapters go to 'storage'
+                // Note: zone key must be 'mgmt_compute' (not 'mgmt') to match the intent zones for mgmt_compute intent
                 result.adapterMapping = {};
                 for (let i = 1; i <= nicAdapters.length; i++) {
-                    result.adapterMapping[i] = 'mgmt';
+                    result.adapterMapping[i] = 'mgmt_compute';
                 }
                 for (let i = 1; i <= smbAdapters.length; i++) {
                     result.adapterMapping[nicAdapters.length + i] = 'storage';
@@ -8050,11 +8051,12 @@ function applyArmImportState(armState) {
             if (state.intent === 'mgmt_compute' && state.ports) {
                 const portCount = parseInt(state.ports, 10) || 0;
                 if (portCount >= 2) {
-                    // Default mapping: first 2 ports for mgmt, remaining for storage
+                    // Default mapping: first 2 ports for mgmt_compute zone, remaining for storage zone
+                    // Note: zone key must be 'mgmt_compute' (not 'mgmt') to match intent zones
                     if (!state.adapterMapping || Object.keys(state.adapterMapping).length === 0) {
                         state.adapterMapping = {};
                         for (let i = 1; i <= portCount; i++) {
-                            state.adapterMapping[i] = (i <= 2) ? 'mgmt' : 'storage';
+                            state.adapterMapping[i] = (i <= 2) ? 'mgmt_compute' : 'storage';
                         }
                     }
                     state.adapterMappingConfirmed = true;
@@ -8623,7 +8625,19 @@ function showChangelog() {
             
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.0 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.1 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
+                </div>
+                
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Template Import Fix</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Management + Compute Adapters:</strong> Fixed issue where NIC adapters for Management + Compute intent were not loading into the wizard UI when importing ARM templates from existing deployments.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.0</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
                 
