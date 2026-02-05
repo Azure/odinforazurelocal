@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.6] - 2026-02-05
+
+### Fixed
+
+#### Report Diagrams Honor Adapter Mapping
+
+- **Correct Intent Assignments in Diagrams** - Switched network diagrams now correctly display adapter-to-intent assignments based on the confirmed adapter mapping. Previously, diagrams assumed NICs 1-2 were always Management+Compute and NICs 3+ were Storage, ignoring user-defined mappings.
+
+- **Adapter Mapping Groups** - Added `getAdapterMappingGroups()` helper to build intent groups from `state.adapterMapping` when adapter mapping is confirmed.
+
+- **Smaller Font Size for Adapter Labels** - Reduced font size from 10-11px to 9px for adapter labels in switched network diagrams to accommodate longer custom port names.
+
+---
+
 ## [0.13.5] - 2026-02-05
 
 ### Changed

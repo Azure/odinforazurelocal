@@ -1306,6 +1306,9 @@
             }
 
             var isCustom = state.intent === 'custom';
+            
+            // Check if adapter mapping is confirmed (used for mgmt_compute intent)
+            var hasAdapterMapping = state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0;
 
             function getCustomIntentGroups(customIntents, portCount) {
                 var p = parseInt(portCount, 10) || 0;
@@ -1353,8 +1356,47 @@
                 return groups;
             }
 
+            // Get intent groups from adapter mapping (for mgmt_compute intent with confirmed mapping)
+            function getAdapterMappingGroups(adapterMapping, portCount) {
+                var p = parseInt(portCount, 10) || 0;
+                if (!adapterMapping || p <= 0) return [];
+
+                var trafficNames = {
+                    mgmt: 'Mgmt + Compute',
+                    storage: 'Storage',
+                    compute_storage: 'Compute + Storage',
+                    all: 'All Traffic',
+                    pool: 'Mgmt + Compute'
+                };
+
+                var buckets = {};
+                for (var i = 1; i <= p; i++) {
+                    var assignment = adapterMapping[i] || 'pool';
+                    // Normalize 'mgmt' and 'pool' to 'mgmt' for grouping
+                    if (assignment === 'pool') assignment = 'mgmt';
+                    if (!buckets[assignment]) buckets[assignment] = [];
+                    buckets[assignment].push(i);
+                }
+
+                var order = ['mgmt', 'storage', 'compute_storage', 'all'];
+                var groups = [];
+                for (var oi = 0; oi < order.length; oi++) {
+                    var key = order[oi];
+                    if (!buckets[key] || buckets[key].length === 0) continue;
+                    var nics = buckets[key];
+                    var label = (trafficNames[key] || key);
+                    var isStorageLike = (key === 'storage' || key === 'compute_storage' || key === 'all');
+                    groups.push({ key: key, label: label, nics: nics, isStorageLike: isStorageLike });
+                }
+
+                return groups;
+            }
+
             var showStorageGroup = !isCustom && state.intent !== 'all_traffic';
             var storagePortCount = (!isCustom && showStorageGroup) ? Math.max(0, ports - 2) : 0;
+            
+            // Get adapter mapping groups if applicable
+            var adapterMappingGroups = hasAdapterMapping ? getAdapterMappingGroups(state.adapterMapping, ports) : [];
             var customGroups = isCustom ? getCustomIntentGroups(state.customIntents, ports) : [];
 
             // Layout constants
@@ -1413,14 +1455,74 @@
                 var out = '';
                 var adaptersY = nodeTop + nodeH - adapterH - 20;
                 var startX = nodeLeft + (nodeW - totalAdapterW) / 2;
+                var setH = adapterH + 24;
+                var setY = adaptersY - 12;
 
-                // Draw adapter container boxes for each intent group
+                // If adapter mapping is confirmed, use it to determine intent groups
+                if (hasAdapterMapping && adapterMappingGroups.length > 0) {
+                    // Build a map of port to intent for adapter mapping
+                    var portToIntent = {};
+                    for (var gi = 0; gi < adapterMappingGroups.length; gi++) {
+                        var grp = adapterMappingGroups[gi];
+                        for (var ni = 0; ni < grp.nics.length; ni++) {
+                            portToIntent[grp.nics[ni]] = grp;
+                        }
+                    }
+
+                    // Draw intent group boxes based on adapter mapping
+                    for (var bi = 0; bi < adapterMappingGroups.length; bi++) {
+                        var box = adapterMappingGroups[bi];
+                        // Find first and last NIC positions for this group
+                        var minNic = Math.min.apply(null, box.nics);
+                        var maxNic = Math.max.apply(null, box.nics);
+                        var boxStartX = startX + ((minNic - 1) * (adapterW + adapterGap)) - 6;
+                        var boxW = ((maxNic - minNic + 1) * adapterW) + ((maxNic - minNic) * adapterGap) + 12;
+                        
+                        // Color based on intent type
+                        var boxFill, boxStroke;
+                        if (box.isStorageLike) {
+                            boxFill = 'rgba(139,92,246,0.07)';
+                            boxStroke = 'rgba(139,92,246,0.45)';
+                        } else {
+                            boxFill = 'rgba(0,120,212,0.07)';
+                            boxStroke = 'rgba(0,120,212,0.45)';
+                        }
+                        
+                        out += '<rect x="' + boxStartX + '" y="' + setY + '" width="' + boxW + '" height="' + setH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
+                        out += '<text x="' + (boxStartX + boxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(box.label) + '</text>';
+                    }
+
+                    // Draw all adapters horizontally using adapter mapping
+                    for (var i = 0; i < ports; i++) {
+                        var x = startX + (i * (adapterW + adapterGap));
+                        var y = adaptersY;
+                        var nicIdx = i + 1;
+
+                        var grp = portToIntent[nicIdx];
+                        var isStorage = grp && grp.isStorageLike;
+                        var fill = isStorage ? 'rgba(139,92,246,0.25)' : 'rgba(0,120,212,0.20)';
+                        var stroke = isStorage ? 'rgba(139,92,246,0.65)' : 'rgba(0,120,212,0.55)';
+                        var label = isStorage ? getSmbLabel(nicIdx) : getNicLabel(nicIdx);
+
+                        out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
+                        out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
+
+                        adapterPositions.push({
+                            nodeIdx: nodeIdx,
+                            nicIdx: nicIdx,
+                            x: x + adapterW / 2,
+                            y: y,
+                            isStorage: isStorage
+                        });
+                    }
+                    return out;
+                }
+
+                // Default behavior (no adapter mapping) - NICs 1-2 are Mgmt+Compute, NICs 3+ are Storage
                 if (!isCustom && ports >= 2) {
                     // Management + Compute box (first 2 NICs)
                     var setW = (2 * adapterW) + adapterGap + 12;
-                    var setH = adapterH + 24;
                     var setX = startX - 6;
-                    var setY = adaptersY - 12;
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
                     
                     // Label for Mgmt + Compute group
@@ -1455,7 +1557,7 @@
                     var label = isStorage ? getSmbLabel(nicIdx) : getNicLabel(nicIdx);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
-                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="11" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
+                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
 
                     // Store adapter center position for uplink drawing
                     adapterPositions.push({
@@ -1571,7 +1673,7 @@
                     var label = isStorage ? getSmbLabel(nicIdx) : getNicLabel(nicIdx);
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
-                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="11" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
+                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 23) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
 
                     // Store adapter center position for uplink drawing
                     adapterPositions.push({
@@ -1970,7 +2072,7 @@
                 function nicTile(x, y, labelText) {
                     var t = '';
                     t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
-                    t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 19) + '" text-anchor="middle" font-size="10" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelText) + '</text>';
+                    t += '<text x="' + (x + nicW / 2) + '" y="' + (y + 19) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelText) + '</text>';
                     return t;
                 }
 
@@ -2032,7 +2134,7 @@
                     var yS = startY + (rS * (tileH + gapY2));
                     var lbl = getPortCustomName(state, iS + 1, 'smb');
                     out += '<rect x="' + xS + '" y="' + yS + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
-                    out += '<text x="' + (xS + tileW / 2) + '" y="' + (yS + 19) + '" text-anchor="middle" font-size="10" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
+                    out += '<text x="' + (xS + tileW / 2) + '" y="' + (yS + 19) + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
                     // Port anchors on the outside/top edge of each SMB tile (horizontally centered).
                     portsOut.push({ idx: (iS + 1), x: xS + Math.floor(tileW / 2), y: yS - 1 });
                 }
