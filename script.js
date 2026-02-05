@@ -7720,10 +7720,11 @@ function parseArmTemplateToState(armTemplate) {
                 result.ports = String(nicAdapters.length + smbAdapters.length);
                 
                 // Build adapter mapping from intent list
-                // NIC adapters (1-based indices) go to 'mgmt', SMB adapters go to 'storage'
+                // NIC adapters (1-based indices) go to 'mgmt_compute' zone, SMB adapters go to 'storage'
+                // Note: zone key must be 'mgmt_compute' (not 'mgmt') to match the intent zones for mgmt_compute intent
                 result.adapterMapping = {};
                 for (let i = 1; i <= nicAdapters.length; i++) {
-                    result.adapterMapping[i] = 'mgmt';
+                    result.adapterMapping[i] = 'mgmt_compute';
                 }
                 for (let i = 1; i <= smbAdapters.length; i++) {
                     result.adapterMapping[nicAdapters.length + i] = 'storage';
@@ -8050,11 +8051,12 @@ function applyArmImportState(armState) {
             if (state.intent === 'mgmt_compute' && state.ports) {
                 const portCount = parseInt(state.ports, 10) || 0;
                 if (portCount >= 2) {
-                    // Default mapping: first 2 ports for mgmt, remaining for storage
+                    // Default mapping: first 2 ports for mgmt_compute zone, remaining for storage zone
+                    // Note: zone key must be 'mgmt_compute' (not 'mgmt') to match intent zones
                     if (!state.adapterMapping || Object.keys(state.adapterMapping).length === 0) {
                         state.adapterMapping = {};
                         for (let i = 1; i <= portCount; i++) {
-                            state.adapterMapping[i] = (i <= 2) ? 'mgmt' : 'storage';
+                            state.adapterMapping[i] = (i <= 2) ? 'mgmt_compute' : 'storage';
                         }
                     }
                     state.adapterMappingConfirmed = true;
