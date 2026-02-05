@@ -1470,13 +1470,25 @@
                     }
 
                     // Draw intent group boxes based on adapter mapping
+                    // Handle non-contiguous NICs by drawing separate boxes for contiguous runs
                     for (var bi = 0; bi < adapterMappingGroups.length; bi++) {
                         var box = adapterMappingGroups[bi];
-                        // Find first and last NIC positions for this group
-                        var minNic = Math.min.apply(null, box.nics);
-                        var maxNic = Math.max.apply(null, box.nics);
-                        var boxStartX = startX + ((minNic - 1) * (adapterW + adapterGap)) - 6;
-                        var boxW = ((maxNic - minNic + 1) * adapterW) + ((maxNic - minNic) * adapterGap) + 12;
+                        var sortedNics = box.nics.slice().sort(function(a, b) { return a - b; });
+                        
+                        // Find contiguous runs of NICs
+                        var runs = [];
+                        var runStart = sortedNics[0];
+                        var runEnd = sortedNics[0];
+                        for (var ri = 1; ri < sortedNics.length; ri++) {
+                            if (sortedNics[ri] === runEnd + 1) {
+                                runEnd = sortedNics[ri];
+                            } else {
+                                runs.push({ start: runStart, end: runEnd });
+                                runStart = sortedNics[ri];
+                                runEnd = sortedNics[ri];
+                            }
+                        }
+                        runs.push({ start: runStart, end: runEnd });
                         
                         // Color based on intent type
                         var boxFill, boxStroke;
@@ -1488,8 +1500,18 @@
                             boxStroke = 'rgba(0,120,212,0.45)';
                         }
                         
-                        out += '<rect x="' + boxStartX + '" y="' + setY + '" width="' + boxW + '" height="' + setH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
-                        out += '<text x="' + (boxStartX + boxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(box.label) + '</text>';
+                        // Draw a box for each contiguous run
+                        for (var runIdx = 0; runIdx < runs.length; runIdx++) {
+                            var run = runs[runIdx];
+                            var boxStartX = startX + ((run.start - 1) * (adapterW + adapterGap)) - 6;
+                            var boxW = ((run.end - run.start + 1) * adapterW) + ((run.end - run.start) * adapterGap) + 12;
+                            
+                            out += '<rect x="' + boxStartX + '" y="' + setY + '" width="' + boxW + '" height="' + setH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
+                            // Only show label on first run to avoid duplicates
+                            if (runIdx === 0) {
+                                out += '<text x="' + (boxStartX + boxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(box.label) + '</text>';
+                            }
+                        }
                     }
 
                     // Draw all adapters horizontally using adapter mapping

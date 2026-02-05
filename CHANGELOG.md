@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.14] - 2026-02-05
+
+### Fixed
+
+#### Diagram Intent Box Rendering for Non-Contiguous Adapter Mapping
+
+- Fixed switched storage diagram to correctly render intent group boxes when adapter mapping has non-contiguous NICs
+- Previously, if Mgmt+Compute used NICs 1 and 3 while Storage used NICs 2 and 4 (interleaved), the intent boxes would incorrectly span from NIC 1-3 and 2-4, overlapping each other
+- Now correctly renders separate boxes for each contiguous run of NICs within an intent group
+- Properly handles any custom adapter mapping configuration with non-adjacent port assignments
+
+---
+
 ## [0.13.13] - 2026-02-05
 
 ### Changed
