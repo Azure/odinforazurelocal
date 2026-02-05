@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.13.3] - 2026-02-05
+
+### Added
+
+#### Custom Port Names for Storage (SMB) Adapters
+
+- **SMB Adapters Use Custom Names** - Storage adapters in ARM templates now use custom port names instead of hardcoded "SMB1", "SMB2", etc. This applies to both switched and switchless storage configurations.
+
+- **Full Round-Trip Support** - Custom port names are now fully preserved when exporting and importing ARM templates for all adapter types (NIC and SMB).
+
+- **Switched Storage** - Uses custom names from storage port configuration (ports 3, 4, etc.)
+
+- **Switchless Storage** - Uses custom names from ports after management/compute ports for virtual SMB adapters.
+
+### Fixed
+
+- **ARM Import Port Configuration** - Fixed issue where imported portConfig was missing required properties (speed, rdma, rdmaMode). Now properly merges imported custom names with default port settings.
+
+---
+
 ## [0.13.2] - 2026-02-05
 
 ### Fixed
