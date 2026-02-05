@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Fixed Section Hidden Behind Sticky Headers** - Added `scroll-margin-top: 140px` to `.step` elements to prevent wizard sections from being hidden behind the fixed navigation bar (56px) and sticky breadcrumb/progress bar (~80px) when navigating via the incomplete sections list.
 
+- **Fixed Duplicate "Nodes" Entry** - Fixed an issue where "Nodes" appeared twice in the incomplete sections list when the node count wasn't selected. The duplicate check was removed from `getReportReadiness()` since it's already handled by `getNodeSettingsReadiness()`.
+
 ---
 
 ## [0.12.5] - 2026-02-04
