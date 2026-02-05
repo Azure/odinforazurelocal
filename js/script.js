@@ -45,6 +45,20 @@ document.addEventListener('DOMContentLoaded', function() {
         // Knowledge tab navigates away, so don't try to switch to it
         switchOdinTab(savedTab);
     }
+    
+    // Make all option-cards keyboard accessible
+    document.querySelectorAll('.option-card').forEach(card => {
+        if (!card.hasAttribute('tabindex')) {
+            card.setAttribute('tabindex', '0');
+        }
+        // Allow Enter/Space to select the card
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                card.click();
+            }
+        });
+    });
 });
 
 // ============================================================================
@@ -8324,7 +8338,9 @@ function showChangelog() {
                         <li><strong>HTML Validation:</strong> Automated HTML5 validation to catch markup errors early.</li>
                         <li><strong>136 Unit Tests:</strong> Automated test suite runs in headless Chromium browser.</li>
                         <li><strong>Code Quality Gates:</strong> Pull requests must pass all checks before merge.</li>
-                        <li><strong>Node Input Light Mode Fix:</strong> Node name and IP inputs now display correctly in light theme.</li>
+                        <li><strong>RFC 1918 DNS Validation:</strong> DNS servers must be private IPs when using Active Directory.</li>
+                        <li><strong>Light Mode Input Fix:</strong> All input fields now display correctly in light theme.</li>
+                        <li><strong>Keyboard Navigation:</strong> Option cards support Tab and Enter/Space selection.</li>
                     </ul>
                 </div>
 

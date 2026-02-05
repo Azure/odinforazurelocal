@@ -14,10 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Automated Build Pipeline
 
 - **GitHub Actions CI/CD**: Automated build validation pipeline runs on every push and pull request
+- **RFC 1918 DNS Validation**: DNS servers must be private IP addresses when using Active Directory (prevents use of public DNS like 8.8.8.8)
+- **Keyboard Navigation**: Option cards are now keyboard accessible with Tab navigation and Enter/Space selection
 
 ### Fixed
 
-- **Node Name Input Light Mode**: Fixed node name and IP input fields showing white text on light theme backgrounds (text now uses theme-aware colors)
+- **Light Mode Input Fields**: Fixed all input fields (node name/IP, DNS, infrastructure CIDR, VLAN, AD domain, OU path) showing white text on light theme
+- **Missing Sections Links**: "Complete These Sections" links for node items now correctly navigate to Management Connectivity step
 - **ESLint Integration**: JavaScript code quality checks with comprehensive linting rules
 - **HTML Validation**: Automated HTML5 validation to catch markup errors
 - **136 Unit Tests**: Automated test suite runs in headless browser environment

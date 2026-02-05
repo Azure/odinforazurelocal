@@ -164,6 +164,20 @@ function validateAllDnsServers() {
         }
     }
 
+    // RFC 1918 validation for Active Directory mode
+    // AD-connected clusters must use private DNS servers (not public internet DNS)
+    if (state.activeDirectory === 'azure_ad') {
+        for (const server of validServers) {
+            if (!isRfc1918Ip(server)) {
+                if (err) {
+                    err.innerText = `DNS server ${server} must be a private IP address (RFC 1918) when using Active Directory. Public DNS servers like 8.8.8.8 or 1.1.1.1 cannot resolve internal AD domain names.`;
+                    err.classList.remove('hidden');
+                }
+                return;
+            }
+        }
+    }
+
     // Check AKS reserved subnets overlap
     const ranges = [
         { name: '10.96.0.0/12', min: 174063616, max: 175112191 },

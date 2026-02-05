@@ -1598,7 +1598,7 @@
                         </div>
                         <div id="infra-vlan-custom" class="hidden" style="margin-bottom:1rem;">
                             <label for="infra-vlan-id" style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Custom VLAN ID (1-4096)</label>
-                            <input type="number" id="infra-vlan-id" min="1" max="4096" placeholder="e.g. 181" style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;" onchange="updateInfraVlanId()">
+                            <input type="number" id="infra-vlan-id" min="1" max="4096" placeholder="e.g. 181" style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;" onchange="updateInfraVlanId()">
                             <p style="margin-top:0.5rem; color:var(--text-secondary); font-size:0.9rem;">Enter the VLAN ID configured on all management adapters before Azure Arc registration.</p>
                         </div>
                     </div>
@@ -1755,7 +1755,7 @@
                         <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Active Directory Domain
                             Name</label>
                         <input type="text" id="ad-domain" placeholder="e.g. contoso.com"
-                            style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                            style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                             onchange="updateAdDomain()">
                         
                         <div style="margin-top:1.5rem;">
@@ -1764,7 +1764,7 @@
                                 <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Organization Unit Path, example: 'OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com'. It is recommended that this OU is created using the AD Preparation tool">ℹ️</span>
                             </label>
                             <input type="text" id="ad-ou-path" placeholder="e.g. OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com"
-                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                 onchange="updateAdOuPath()">
                             <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
                                 It is recommended that this OU is created using the <a href="https://learn.microsoft.com/azure/azure-local/deploy/deployment-prep-active-directory#active-directory-preparation-module" target="_blank" style="color:var(--accent-blue);">AD Preparation tool</a>
@@ -1780,7 +1780,7 @@
                                 <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Federation Services server name for disconnected deployments">ℹ️</span>
                             </label>
                             <input type="text" id="adfs-server-name" placeholder="e.g. adfs.contoso.com"
-                                style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                 onchange="updateAdfsServerName()">
                             <div style="margin-top:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
                                 Required for disconnected deployments with Active Directory Federation Services
@@ -1804,7 +1804,7 @@
                                     Zone name <span style="color:#ef4444;">*</span>
                                 </label>
                                 <input type="text" id="local-dns-zone-input" placeholder=""
-                                    style="width:100%; padding:0.75rem; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:white; border-radius:4px;"
+                                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                                     onchange="updateLocalDnsZone()">
                             </div>
 
