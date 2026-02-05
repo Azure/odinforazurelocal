@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Knowledge tab navigates away, so don't try to switch to it
         switchOdinTab(savedTab);
     }
-    
+
     // Make all option-cards keyboard accessible
     document.querySelectorAll('.option-card').forEach(card => {
         if (!card.hasAttribute('tabindex')) {
@@ -154,7 +154,7 @@ function loadStateFromLocalStorage() {
     try {
         const saved = localStorage.getItem(WIZARD_STATE_KEY);
         if (!saved) return null;
-        
+
         const parsed = JSON.parse(saved);
         if (parsed.version && parsed.data) {
             return parsed;
@@ -272,7 +272,7 @@ function updateProgressUi() {
 
     const bar = root.querySelector('[role="progressbar"]');
     if (bar) bar.setAttribute('aria-valuenow', String(p.percent));
-    
+
     // Update missing sections display
     updateMissingSectionsDisplay();
 }
@@ -332,9 +332,9 @@ function updateMissingSectionsDisplay() {
     const container = document.getElementById('missing-sections-container');
     const list = document.getElementById('missing-sections-list');
     if (!container || !list) return;
-    
+
     const readiness = getReportReadiness();
-    
+
     if (readiness.ready) {
         container.style.display = 'none';
         return;

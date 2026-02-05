@@ -1,9 +1,9 @@
 /**
  * Odin for Azure Local - Formatting Module
- * 
+ *
  * Pure formatting functions for displaying values in the UI.
  * These functions have no side effects and depend only on their input parameters.
- * 
+ *
  * Dependencies: js/utils.js (for capitalize function)
  */
 

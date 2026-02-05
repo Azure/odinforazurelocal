@@ -30,7 +30,7 @@ function showToast(message, type = 'info', duration = 3000) {
         animation: slideIn 0.3s ease;
     `;
     document.body.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => toast.remove(), 300);
@@ -132,9 +132,9 @@ function showNotification(message, type = 'info') {
         animation: slideIn 0.3s ease-out;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease-in';
         setTimeout(() => notification.remove(), 300);
