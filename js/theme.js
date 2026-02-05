@@ -65,7 +65,7 @@ function applyTheme() {
     const root = document.documentElement;
     const themeButton = document.getElementById('theme-toggle');
     const logo = document.getElementById('odin-logo');
-    
+
     if (state.theme === 'light') {
         root.style.setProperty('--bg-dark', '#f5f5f5');
         root.style.setProperty('--card-bg', '#ffffff');
