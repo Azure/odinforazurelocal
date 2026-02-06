@@ -930,166 +930,278 @@
             if (!CURRENT_REPORT_STATE) return;
             var s = CURRENT_REPORT_STATE;
 
-            var md = [];
-            md.push('# Azure Local Configuration Report');
-            md.push('');
+            // Collect diagram PNG data URLs first (async), then build markdown
+            var diagramPromises = [];
 
-            // Metadata section
-            md.push('## Report Metadata');
-            md.push('');
-            md.push('| Field | Value |');
-            md.push('|-------|-------|');
-            md.push('| Generated | ' + (new Date().toLocaleString()) + ' |');
-            md.push('| Scenario | ' + (formatScenario(s.scenario) || '-') + ' |');
-            md.push('');
-
-            // Scenario & Scale
-            md.push('## Scenario & Scale');
-            md.push('');
-            md.push('| Setting | Value |');
-            md.push('|---------|-------|');
-            if (s.scenario) md.push('| Scenario | ' + formatScenario(s.scenario) + ' |');
-            if (s.region) md.push('| Azure Cloud | ' + formatCloud(s.region) + ' |');
-            if (s.localInstanceRegion) md.push('| Azure Local Instance Region | ' + formatLocalInstanceRegion(s.localInstanceRegion) + ' |');
-            if (s.scale) md.push('| Scale | ' + formatScale(s.scale) + ' |');
-            if (s.nodes) md.push('| Nodes | ' + s.nodes + ' |');
-            if (s.witnessType) md.push('| Cloud Witness | ' + (s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness') + ' |');
-            md.push('');
-
-            // Host Networking
-            md.push('## Host Networking');
-            md.push('');
-            md.push('| Setting | Value |');
-            md.push('|---------|-------|');
-            if (s.storage) md.push('| Storage | ' + (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) + ' |');
-            if (s.ports) md.push('| Ports | ' + s.ports + ' |');
-            if (s.intent) md.push('| Intent | ' + formatIntent(s.intent) + ' |');
-            if (s.storageAutoIp) md.push('| Storage Auto IP | ' + (s.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
-            if (s.torSwitchCount) md.push('| ToR Switch Count | ' + (s.torSwitchCount === '1' ? 'Single' : 'Dual') + ' |');
-            md.push('');
-
-            // Port Configuration
-            if (Array.isArray(s.portConfig) && s.portConfig.length > 0) {
-                md.push('### Port Configuration');
-                md.push('');
-                md.push('| Port | Speed | RDMA |');
-                md.push('|------|-------|------|');
-                s.portConfig.forEach(function(pc, idx) {
-                    var name = (pc && pc.customName) ? pc.customName : ('Port ' + (idx + 1));
-                    var speed = (pc && pc.speed) ? pc.speed : '-';
-                    var rdma = (pc && pc.rdma) ? 'Yes' : 'No';
-                    md.push('| ' + name + ' | ' + speed + ' | ' + rdma + ' |');
-                });
-                md.push('');
+            // Host Networking diagram (SVG rendered in page)
+            var hostSec = document.querySelector('#report-summary [data-summary-section="host-networking"]');
+            var hostSvg = hostSec ? hostSec.querySelector('svg.switchless-diagram__svg') : null;
+            if (hostSvg) {
+                diagramPromises.push(
+                    svgElementToPngDataUrl(hostSvg, { theme: 'dark', background: '#000000', scale: 2 })
+                        .then(function (url) { return { key: 'host', url: url }; })
+                );
+            } else {
+                diagramPromises.push(Promise.resolve({ key: 'host', url: null }));
             }
 
-            // Connectivity
-            md.push('## Connectivity');
-            md.push('');
-            md.push('| Setting | Value |');
-            md.push('|---------|-------|');
-            if (s.outbound) md.push('| Outbound | ' + formatOutbound(s.outbound) + ' |');
-            if (s.arc) md.push('| Arc Gateway | ' + (s.arc === 'arc_gateway' ? 'Enabled' : 'Disabled') + ' |');
-            if (s.proxy) md.push('| Proxy | ' + (s.proxy === 'proxy' ? 'Enabled' : 'Disabled') + ' |');
-            md.push('');
+            // Outbound connectivity diagram (loaded as <img>)
+            var outboundImg = document.querySelector('#outbound-diagram-img');
+            if (outboundImg && outboundImg.naturalWidth > 0) {
+                diagramPromises.push(new Promise(function (resolve) {
+                    try {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = outboundImg.naturalWidth;
+                        canvas.height = outboundImg.naturalHeight;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(outboundImg, 0, 0);
+                        resolve({ key: 'outbound', url: canvas.toDataURL('image/png') });
+                    } catch (e) {
+                        // Cross-origin or tainted canvas - try fetching SVG as data URL
+                        var diagKey = getOutboundDiagramKey(s);
+                        if (diagKey && OUTBOUND_DIAGRAMS[diagKey]) {
+                            fetch(OUTBOUND_DIAGRAMS[diagKey])
+                                .then(function (r) { return r.text(); })
+                                .then(function (svgText) {
+                                    var svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgText)));
+                                    resolve({ key: 'outbound', url: svgDataUrl });
+                                })
+                                .catch(function () { resolve({ key: 'outbound', url: null }); });
+                        } else {
+                            resolve({ key: 'outbound', url: null });
+                        }
+                    }
+                }));
+            } else {
+                // Try fetching the SVG file directly
+                var diagKey = getOutboundDiagramKey(s);
+                if (diagKey && OUTBOUND_DIAGRAMS[diagKey]) {
+                    diagramPromises.push(
+                        fetch(OUTBOUND_DIAGRAMS[diagKey])
+                            .then(function (r) { return r.text(); })
+                            .then(function (svgText) {
+                                var svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgText)));
+                                return { key: 'outbound', url: svgDataUrl };
+                            })
+                            .catch(function () { return { key: 'outbound', url: null }; })
+                    );
+                } else {
+                    diagramPromises.push(Promise.resolve({ key: 'outbound', url: null }));
+                }
+            }
 
-            // Infrastructure Network
-            md.push('## Infrastructure Network');
-            md.push('');
-            md.push('| Setting | Value |');
-            md.push('|---------|-------|');
-            if (s.ipAssignment) md.push('| IP Assignment | ' + (s.ipAssignment === 'static' ? 'Static' : 'DHCP') + ' |');
-            if (s.infraCidr) md.push('| Infrastructure CIDR | `' + s.infraCidr + '` |');
-            if (s.infraIpStart) md.push('| IP Pool Start | `' + s.infraIpStart + '` |');
-            if (s.infraIpEnd) md.push('| IP Pool End | `' + s.infraIpEnd + '` |');
-            if (s.infraDefaultGateway) md.push('| Default Gateway | `' + s.infraDefaultGateway + '` |');
-            if (s.infraVlan) md.push('| VLAN | ' + s.infraVlan + ' |');
-            md.push('');
+            Promise.all(diagramPromises).then(function (diagramResults) {
+                var diagrams = {};
+                diagramResults.forEach(function (d) { diagrams[d.key] = d.url; });
 
-            // Node Settings
-            if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
-                md.push('### Node Configuration');
+                var md = [];
+                md.push('# Azure Local Configuration Report');
                 md.push('');
-                md.push('| Node | Name | IP Address |');
-                md.push('|------|------|------------|');
-                s.nodeSettings.forEach(function(node, idx) {
-                    var name = (node && node.name) ? node.name : ('node' + (idx + 1));
-                    var ip = (node && node.ip) ? node.ip : '-';
-                    md.push('| ' + (idx + 1) + ' | ' + name + ' | `' + ip + '` |');
-                });
+
+                // Metadata section
+                md.push('## Report Metadata');
                 md.push('');
-            }
+                md.push('| Field | Value |');
+                md.push('|-------|-------|');
+                md.push('| Generated | ' + (new Date().toLocaleString()) + ' |');
+                md.push('| Scenario | ' + (formatScenario(s.scenario) || '-') + ' |');
+                md.push('');
 
-            // Active Directory / Identity
-            md.push('## Identity');
-            md.push('');
-            md.push('| Setting | Value |');
-            md.push('|---------|-------|');
-            if (s.identity) md.push('| Identity Type | ' + (s.identity === 'active_directory' ? 'Active Directory' : 'Local Identity') + ' |');
-            if (s.identity === 'active_directory') {
-                if (s.domain) md.push('| AD Domain | ' + s.domain + ' |');
-                if (s.ouPath) md.push('| OU Path | `' + s.ouPath + '` |');
-            }
-            if (Array.isArray(s.dnsServers) && s.dnsServers.length > 0) {
-                var dnsStr = s.dnsServers.filter(function(d) { return d && d.trim(); }).join(', ');
-                if (dnsStr) md.push('| DNS Servers | `' + dnsStr + '` |');
-            }
-            md.push('');
-
-            // Security
-            if (s.securityMode) {
-                md.push('## Security Configuration');
+                // Scenario & Scale
+                md.push('## Scenario & Scale');
                 md.push('');
                 md.push('| Setting | Value |');
                 md.push('|---------|-------|');
-                md.push('| Security Mode | ' + (s.securityMode === 'recommended' ? 'Recommended' : 'Customized') + ' |');
-                if (s.securityDriftProtection) md.push('| Drift Protection | ' + (s.securityDriftProtection === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
-                if (s.securityCredentialGuard) md.push('| Credential Guard | ' + (s.securityCredentialGuard === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
-                if (s.securityBitlocker) md.push('| BitLocker | ' + (s.securityBitlocker === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
-                if (s.securitySmbSigning) md.push('| SMB Signing | ' + (s.securitySmbSigning === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
-                if (s.securitySmbEncryption) md.push('| SMB Encryption | ' + (s.securitySmbEncryption === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
+                if (s.scenario) md.push('| Scenario | ' + formatScenario(s.scenario) + ' |');
+                if (s.region) md.push('| Azure Cloud | ' + formatCloud(s.region) + ' |');
+                if (s.localInstanceRegion) md.push('| Azure Local Instance Region | ' + formatLocalInstanceRegion(s.localInstanceRegion) + ' |');
+                if (s.scale) md.push('| Scale | ' + formatScale(s.scale) + ' |');
+                if (s.nodes) md.push('| Nodes | ' + s.nodes + ' |');
+                if (s.witnessType) md.push('| Cloud Witness | ' + (s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness') + ' |');
                 md.push('');
-            }
 
-            // SDN
-            if (s.sdn) {
-                md.push('## Software Defined Networking');
+                // Host Networking
+                md.push('## Host Networking');
                 md.push('');
                 md.push('| Setting | Value |');
                 md.push('|---------|-------|');
-                md.push('| SDN | ' + (s.sdn === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
-                if (s.sdn === 'enabled') {
-                    if (s.sdnFeatures) md.push('| SDN Features | ' + s.sdnFeatures + ' |');
-                    if (s.sdnManagement) md.push('| SDN Management | ' + (s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed') + ' |');
+                if (s.storage) md.push('| Storage | ' + (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) + ' |');
+                if (s.ports) md.push('| Ports | ' + s.ports + ' |');
+                if (s.intent) md.push('| Intent | ' + formatIntent(s.intent) + ' |');
+                if (s.storageAutoIp) md.push('| Storage Auto IP | ' + (s.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
+                // Storage Subnets
+                if (s.storageAutoIp === 'enabled') {
+                    md.push('| Storage Subnets | Default Network ATC (10.71.0.0/16) - IPs assigned automatically |');
+                } else if (s.storageAutoIp === 'disabled' && Array.isArray(s.customStorageSubnets) && s.customStorageSubnets.length > 0) {
+                    var validSubnets = s.customStorageSubnets.filter(function(sub) { return sub && String(sub).trim(); });
+                    if (validSubnets.length > 0) {
+                        md.push('| Storage Subnets | `' + validSubnets.join(', ') + '` |');
+                    }
+                }
+                if (s.storagePoolConfiguration) {
+                    var spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' :
+                                  s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
+                    md.push('| Storage Pool Configuration | ' + spConfig + ' |');
+                }
+                if (s.torSwitchCount) md.push('| ToR Switch Count | ' + (s.torSwitchCount === '1' ? 'Single' : 'Dual') + ' |');
+                md.push('');
+
+                // Port Configuration
+                if (Array.isArray(s.portConfig) && s.portConfig.length > 0) {
+                    md.push('### Port Configuration');
+                    md.push('');
+                    md.push('| Port | Speed | RDMA |');
+                    md.push('|------|-------|------|');
+                    s.portConfig.forEach(function(pc, idx) {
+                        var name = (pc && pc.customName) ? pc.customName : ('Port ' + (idx + 1));
+                        var speed = (pc && pc.speed) ? pc.speed : '-';
+                        var rdma = (pc && pc.rdma) ? 'Yes' : 'No';
+                        md.push('| ' + name + ' | ' + speed + ' | ' + rdma + ' |');
+                    });
+                    md.push('');
+                }
+
+                // Host Networking Diagram
+                if (diagrams.host) {
+                    md.push('### Host Networking Diagram');
+                    md.push('');
+                    md.push('![Host Networking Diagram](' + diagrams.host + ')');
+                    md.push('');
+                }
+
+                // Connectivity
+                md.push('## Connectivity');
+                md.push('');
+                md.push('| Setting | Value |');
+                md.push('|---------|-------|');
+                if (s.outbound) md.push('| Outbound | ' + formatOutbound(s.outbound) + ' |');
+                if (s.arc) {
+                    var arcText = s.arc === 'arc_gateway' ? (s.outbound === 'private' ? 'Required' : 'Enabled') : 'Disabled';
+                    md.push('| Arc Gateway | ' + arcText + ' |');
+                }
+                if (s.proxy) {
+                    var proxyText = s.proxy === 'no_proxy' ? 'Disabled' : (s.outbound === 'private' ? 'Required (Azure Firewall Explicit Proxy)' : 'Enabled');
+                    md.push('| Proxy | ' + proxyText + ' |');
+                }
+                if (s.privateEndpoints) {
+                    md.push('| Private Endpoints | ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled') + ' |');
                 }
                 md.push('');
-            }
 
-            // Footer
-            md.push('---');
-            md.push('');
-            md.push('*Generated by ODIN for Azure Local - ' + new Date().toISOString() + '*');
+                // Outbound Connectivity Diagram
+                if (diagrams.outbound) {
+                    var diagramTitle = getOutboundDiagramTitle(s);
+                    md.push('### ' + diagramTitle);
+                    md.push('');
+                    md.push('![' + diagramTitle + '](' + diagrams.outbound + ')');
+                    md.push('');
+                }
 
-            // Download
-            var content = md.join('\n');
-            var blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
-            var url = URL.createObjectURL(blob);
+                // Infrastructure Network
+                md.push('## Infrastructure Network');
+                md.push('');
+                md.push('| Setting | Value |');
+                md.push('|---------|-------|');
+                if (s.ip) md.push('| IP Assignment | ' + (s.ip.charAt(0).toUpperCase() + s.ip.slice(1)) + ' |');
+                if (s.infraVlan) md.push('| VLAN | ' + (s.infraVlan === 'custom' ? 'Custom VLAN' : 'Default VLAN') + ' |');
+                if (s.infraVlan === 'custom' && s.infraVlanId) md.push('| VLAN ID | ' + s.infraVlanId + ' |');
+                if (s.infraCidr) md.push('| Infrastructure CIDR | `' + s.infraCidr + '` |');
+                if (s.infra && s.infra.start && s.infra.end) md.push('| IP Pool Range | `' + s.infra.start + ' - ' + s.infra.end + '` |');
+                if (s.infraGateway) md.push('| Default Gateway | `' + s.infraGateway + '` |');
+                md.push('');
 
-            var ts = new Date();
-            var pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
-            var fileName = 'AzureLocal-Config-'
-                + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
-                + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
-                + '.md';
+                // Node Settings
+                if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
+                    md.push('### Node Configuration');
+                    md.push('');
+                    md.push('| Node | Name | IP Address |');
+                    md.push('|------|------|------------|');
+                    s.nodeSettings.forEach(function(node, idx) {
+                        var name = (node && node.name) ? node.name : ('node' + (idx + 1));
+                        var ip = '-';
+                        if (node && node.ipCidr) {
+                            ip = String(node.ipCidr).split('/')[0];
+                        } else if (node && node.ip) {
+                            ip = node.ip;
+                        }
+                        md.push('| ' + (idx + 1) + ' | ' + name + ' | `' + ip + '` |');
+                    });
+                    md.push('');
+                }
 
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+                // Active Directory / Identity
+                md.push('## Identity');
+                md.push('');
+                md.push('| Setting | Value |');
+                md.push('|---------|-------|');
+                if (s.activeDirectory) md.push('| Identity Type | ' + (s.activeDirectory === 'azure_ad' ? 'Active Directory' : 'Local Identity') + ' |');
+                if (s.adDomain) md.push('| AD Domain | `' + s.adDomain + '` |');
+                if (s.adOuPath) md.push('| OU Path | `' + s.adOuPath + '` |');
+                if (s.adfsServerName) md.push('| ADFS Server Name | `' + s.adfsServerName + '` |');
+                if (Array.isArray(s.dnsServers) && s.dnsServers.length > 0) {
+                    var dnsStr = s.dnsServers.filter(function(d) { return d && d.trim(); }).join(', ');
+                    if (dnsStr) md.push('| DNS Servers | `' + dnsStr + '` |');
+                }
+                if (s.localDnsZone) md.push('| Local DNS Zone | `' + s.localDnsZone + '` |');
+                md.push('');
 
-            setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                // Security Configuration
+                if (s.securityConfiguration) {
+                    md.push('## Security Configuration');
+                    md.push('');
+                    md.push('| Setting | Value |');
+                    md.push('|---------|-------|');
+                    md.push('| Configuration | ' + (s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized') + ' |');
+                    if (s.securityConfiguration === 'customized' && s.securitySettings) {
+                        var sec = s.securitySettings;
+                        if (sec.wdacEnforced !== undefined) md.push('| WDAC | ' + (sec.wdacEnforced ? 'Enabled' : 'Disabled') + ' |');
+                        if (sec.credentialGuardEnforced !== undefined) md.push('| Credential Guard | ' + (sec.credentialGuardEnforced ? 'Enabled' : 'Disabled') + ' |');
+                        if (sec.driftControlEnforced !== undefined) md.push('| Drift Control | ' + (sec.driftControlEnforced ? 'Enabled' : 'Disabled') + ' |');
+                        if (sec.smbSigningEnforced !== undefined) md.push('| SMB Signing | ' + (sec.smbSigningEnforced ? 'Enabled' : 'Disabled') + ' |');
+                        if (sec.smbClusterEncryption !== undefined) md.push('| SMB Cluster Encryption | ' + (sec.smbClusterEncryption ? 'Enabled' : 'Disabled') + ' |');
+                        if (sec.bitlockerBootVolume !== undefined) md.push('| BitLocker Boot Volume | ' + (sec.bitlockerBootVolume ? 'Enabled' : 'Disabled') + ' |');
+                        if (sec.bitlockerDataVolumes !== undefined) md.push('| BitLocker Data Volumes | ' + (sec.bitlockerDataVolumes ? 'Enabled' : 'Disabled') + ' |');
+                    }
+                    md.push('');
+                }
+
+                // Software Defined Networking
+                if ((s.sdnFeatures && s.sdnFeatures.length > 0) || s.sdnManagement) {
+                    md.push('## Software Defined Networking');
+                    md.push('');
+                    md.push('| Setting | Value |');
+                    md.push('|---------|-------|');
+                    if (s.sdnFeatures && s.sdnFeatures.length > 0) md.push('| SDN Features | ' + s.sdnFeatures.join(', ') + ' |');
+                    if (s.sdnManagement) md.push('| SDN Management | ' + (s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed') + ' |');
+                    md.push('');
+                }
+
+                // Footer
+                md.push('---');
+                md.push('');
+                md.push('*Generated by ODIN for Azure Local - ' + new Date().toISOString() + '*');
+
+                // Download
+                var content = md.join('\n');
+                var blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+                var url = URL.createObjectURL(blob);
+
+                var ts = new Date();
+                var pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
+                var fileName = 'AzureLocal-Config-'
+                    + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
+                    + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
+                    + '.md';
+
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+            });
         } catch (e) {
             console.error('Markdown export error:', e);
         }
