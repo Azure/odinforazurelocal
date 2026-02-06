@@ -513,6 +513,16 @@ function getReportReadiness() {
         // ignore
     }
 
+    // Step 07: Validate no duplicate adapter names
+    try {
+        const duplicates = getDuplicateAdapterNameIndices();
+        if (duplicates.size > 0) {
+            missing.push('Duplicate adapter names: Each port must have a unique name (Step 07)');
+        }
+    } catch (e) {
+        // ignore
+    }
+
     // Step 08: Ensure RDMA-enabled ports map to Storage traffic NICs.
     try {
         const cfg = Array.isArray(state.portConfig) ? state.portConfig : null;
@@ -6240,16 +6250,55 @@ function getRequiredRdmaPortCount() {
     return 2;
 }
 
+/**
+ * Get indices of ports that have duplicate adapter names.
+ * Compares all port display names (custom or default) and returns indices of duplicates.
+ * @returns {Set<number>} Set of 0-based port indices that have duplicate names
+ */
+function getDuplicateAdapterNameIndices() {
+    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+    const portCount = cfg.length;
+    const nameToIndices = new Map();
+    
+    // Build map of name -> indices
+    for (let i = 0; i < portCount; i++) {
+        const name = getPortDisplayName(i + 1).toLowerCase();
+        if (!nameToIndices.has(name)) {
+            nameToIndices.set(name, []);
+        }
+        nameToIndices.get(name).push(i);
+    }
+    
+    // Collect indices of duplicates
+    const duplicateIndices = new Set();
+    for (const indices of nameToIndices.values()) {
+        if (indices.length > 1) {
+            indices.forEach(idx => duplicateIndices.add(idx));
+        }
+    }
+    
+    return duplicateIndices;
+}
+
 function renderPortConfiguration(count) {
     const container = document.getElementById('port-config-grid');
     container.innerHTML = '';
 
     const isConfirmed = state.portConfigConfirmed === true;
+    const duplicateIndices = getDuplicateAdapterNameIndices();
 
     for (let i = 0; i < count; i++) {
         const config = state.portConfig[i];
         const displayName = getPortDisplayName(i + 1);
         const hasCustomName = config.customName && config.customName.trim();
+        const isDuplicate = duplicateIndices.has(i);
+        
+        // Determine border color: red for duplicate, blue for custom, default otherwise
+        const borderColor = isDuplicate ? '#ef4444' : (hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)');
+        // Determine label: 'duplicate' warning or 'custom' indicator
+        const labelHtml = isDuplicate 
+            ? '<span style="font-size:10px; color:#ef4444; font-weight:600;">⚠ duplicate</span>'
+            : (hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : '');
 
         const card = document.createElement('div');
         card.className = `port-config-card ${config.rdma ? 'rdma-active' : ''} ${isConfirmed ? 'confirmed' : ''}`;
@@ -6263,13 +6312,13 @@ function renderPortConfiguration(count) {
                         maxlength="30"
                         ${isConfirmed ? 'readonly' : ''}
                         data-port-index="${i}"
-                        style="background:${isConfirmed ? 'transparent' : 'rgba(255,255,255,0.05)'}; border:1px solid ${hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)'}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s; cursor:${isConfirmed ? 'default' : 'text'};"
+                        style="background:${isConfirmed ? 'transparent' : 'rgba(255,255,255,0.05)'}; border:1px solid ${borderColor}; color:var(--text-primary); font-size:1rem; font-weight:600; padding:4px 8px; border-radius:4px; width:140px; transition:all 0.2s; cursor:${isConfirmed ? 'default' : 'text'};"
                         onchange="updatePortConfig(${i}, 'customName', this.value);"
                         onkeydown="if(event.key==='Enter'){this.blur();}"
-                        title="${isConfirmed ? 'Edit configuration to rename' : 'Enter custom port name'}">
+                        title="${isDuplicate ? 'Duplicate adapter name - each port must have a unique name' : (isConfirmed ? 'Edit configuration to rename' : 'Enter custom port name')}">
                     ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
                 </div>
-                ${hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : ''}
+                ${labelHtml}
             </div>
             <div class="config-row">
                 <span class="config-label">Speed</span>
@@ -6332,6 +6381,12 @@ function updatePortConfig(index, key, value) {
                 state.portConfig[index].customName = trimmed;
             }
             updateUI();
+            
+            // Check for duplicates after UI update and show warning toast
+            const duplicates = getDuplicateAdapterNameIndices();
+            if (duplicates.size > 0) {
+                showToast('Duplicate adapter names detected. Each port must have a unique name.', 'warning');
+            }
             return;
         }
 

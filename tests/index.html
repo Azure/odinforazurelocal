@@ -1002,6 +1002,101 @@
         })();
 
         // ========================================================================
+        // JS/SCRIPT.JS TESTS - PORT CONFIGURATION VALIDATION
+        // ========================================================================
+        sectionHeader('🔌 js/script.js - Port Configuration Validation');
+
+        // Test: getDuplicateAdapterNameIndices
+        testSuite('getDuplicateAdapterNameIndices()', 'script.js', [
+            (function() {
+                // Save original state
+                const origPortConfig = state.portConfig;
+                
+                // Test: No duplicates with default names
+                state.portConfig = [
+                    { customName: null, speed: '25GbE', rdma: true },
+                    { customName: null, speed: '25GbE', rdma: true }
+                ];
+                const noDupes = getDuplicateAdapterNameIndices();
+                state.portConfig = origPortConfig;
+                return assert(noDupes.size === 0, 'No duplicates with default names (Port 1, Port 2)', 0, noDupes.size);
+            })(),
+            (function() {
+                const origPortConfig = state.portConfig;
+                
+                // Test: Duplicate custom names
+                state.portConfig = [
+                    { customName: 'Ethernet1', speed: '25GbE', rdma: true },
+                    { customName: 'Ethernet1', speed: '25GbE', rdma: true }
+                ];
+                const dupes = getDuplicateAdapterNameIndices();
+                state.portConfig = origPortConfig;
+                return assert(dupes.size === 2, 'Detects duplicate custom names', 2, dupes.size);
+            })(),
+            (function() {
+                const origPortConfig = state.portConfig;
+                
+                // Test: Case-insensitive duplicate detection
+                state.portConfig = [
+                    { customName: 'Ethernet1', speed: '25GbE', rdma: true },
+                    { customName: 'ETHERNET1', speed: '25GbE', rdma: true }
+                ];
+                const dupes = getDuplicateAdapterNameIndices();
+                state.portConfig = origPortConfig;
+                return assert(dupes.size === 2, 'Case-insensitive duplicate detection', 2, dupes.size);
+            })(),
+            (function() {
+                const origPortConfig = state.portConfig;
+                
+                // Test: Mixed unique names
+                state.portConfig = [
+                    { customName: 'Mgmt1', speed: '25GbE', rdma: false },
+                    { customName: 'Storage1', speed: '25GbE', rdma: true },
+                    { customName: 'Storage2', speed: '25GbE', rdma: true },
+                    { customName: 'Compute1', speed: '25GbE', rdma: false }
+                ];
+                const dupes = getDuplicateAdapterNameIndices();
+                state.portConfig = origPortConfig;
+                return assert(dupes.size === 0, 'No duplicates with unique custom names', 0, dupes.size);
+            })(),
+            (function() {
+                const origPortConfig = state.portConfig;
+                
+                // Test: Three-way duplicate
+                state.portConfig = [
+                    { customName: 'NIC1', speed: '25GbE', rdma: true },
+                    { customName: 'NIC1', speed: '25GbE', rdma: true },
+                    { customName: 'NIC1', speed: '25GbE', rdma: true },
+                    { customName: 'NIC2', speed: '25GbE', rdma: true }
+                ];
+                const dupes = getDuplicateAdapterNameIndices();
+                state.portConfig = origPortConfig;
+                return assert(dupes.size === 3, 'Detects three-way duplicate', 3, dupes.size);
+            })(),
+            (function() {
+                const origPortConfig = state.portConfig;
+                
+                // Test: Returns correct indices
+                state.portConfig = [
+                    { customName: 'UniqueA', speed: '25GbE', rdma: true },
+                    { customName: 'Duplicate', speed: '25GbE', rdma: true },
+                    { customName: 'UniqueB', speed: '25GbE', rdma: true },
+                    { customName: 'Duplicate', speed: '25GbE', rdma: true }
+                ];
+                const dupes = getDuplicateAdapterNameIndices();
+                const hasIdx1 = dupes.has(1);
+                const hasIdx3 = dupes.has(3);
+                const notHasIdx0 = !dupes.has(0);
+                const notHasIdx2 = !dupes.has(2);
+                state.portConfig = origPortConfig;
+                return assert(hasIdx1 && hasIdx3 && notHasIdx0 && notHasIdx2, 
+                    'Returns correct duplicate indices (1, 3)', 
+                    'indices 1,3', 
+                    Array.from(dupes).sort().join(','));
+            })()
+        ]);
+
+        // ========================================================================
         // JS/SCRIPT.JS TESTS - IMPORT/EXPORT CONFIGURATION
         // ========================================================================
         sectionHeader('📥 js/script.js - Import/Export Configuration');
