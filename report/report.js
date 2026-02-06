@@ -929,17 +929,31 @@
     function svgTextToPngDataUrl(svgText) {
         return new Promise(function (resolve) {
             try {
-                var svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+                // Strip XML prolog and DOCTYPE — these cause img.onerror when
+                // an SVG is loaded from a Blob URL in most browsers.
+                var cleaned = svgText
+                    .replace(/<\?xml[^?]*\?>/gi, '')
+                    .replace(/<!DOCTYPE[^>]*>/gi, '')
+                    .trim();
+                var svgBlob = new Blob([cleaned], { type: 'image/svg+xml;charset=utf-8' });
                 var svgUrl = URL.createObjectURL(svgBlob);
                 var img = new Image();
                 img.onload = function () {
                     try {
+                        var w = img.naturalWidth || img.width;
+                        var h = img.naturalHeight || img.height;
+                        if (!w || !h) {
+                            console.warn('SVG to PNG: image has 0 dimensions', w, h);
+                            URL.revokeObjectURL(svgUrl);
+                            resolve(null);
+                            return;
+                        }
                         var canvas = document.createElement('canvas');
-                        canvas.width = img.naturalWidth * 2;
-                        canvas.height = img.naturalHeight * 2;
+                        canvas.width = w * 2;
+                        canvas.height = h * 2;
                         var ctx = canvas.getContext('2d');
                         ctx.scale(2, 2);
-                        ctx.drawImage(img, 0, 0);
+                        ctx.drawImage(img, 0, 0, w, h);
                         var pngUrl = canvas.toDataURL('image/png');
                         URL.revokeObjectURL(svgUrl);
                         resolve(pngUrl);
@@ -950,7 +964,7 @@
                     }
                 };
                 img.onerror = function () {
-                    console.warn('SVG to PNG image load error');
+                    console.warn('SVG to PNG image load error for Blob URL');
                     URL.revokeObjectURL(svgUrl);
                     resolve(null);
                 };
@@ -1463,18 +1477,35 @@
             var outboundDiagKey = getOutboundDiagramKey(s);
             if (outboundDiagKey && OUTBOUND_DIAGRAMS[outboundDiagKey]) {
                 diagramPromises.push(new Promise(function (resolve) {
-                    // Use XMLHttpRequest instead of fetch — fetch() does not work on file:// protocol.
-                    // Once we have the SVG text, svgTextToPngDataUrl loads it via a Blob URL
-                    // (which is same-origin, so canvas is NOT tainted even on file://).
+                    // Strategy 1: Try the already-rendered <img> in the DOM (works on HTTP same-origin)
+                    var outboundImg = document.querySelector('#outbound-diagram-img');
+                    if (outboundImg && outboundImg.complete && outboundImg.naturalWidth > 0) {
+                        try {
+                            var canvas = document.createElement('canvas');
+                            canvas.width = outboundImg.naturalWidth * 2;
+                            canvas.height = outboundImg.naturalHeight * 2;
+                            var ctx = canvas.getContext('2d');
+                            ctx.scale(2, 2);
+                            ctx.drawImage(outboundImg, 0, 0);
+                            var pngUrl = canvas.toDataURL('image/png');
+                            resolve({ key: 'outbound', url: pngUrl });
+                            return;
+                        } catch (domErr) {
+                            console.warn('Outbound diagram DOM canvas failed:', domErr.message);
+                            // Fall through to Strategy 2
+                        }
+                    }
+                    // Strategy 2: Fetch SVG via XHR, strip XML prolog, load via Blob URL
+                    // XHR works on both http:// and file:// protocols
                     try {
                         var xhr = new XMLHttpRequest();
                         xhr.open('GET', OUTBOUND_DIAGRAMS[outboundDiagKey], true);
                         xhr.onload = function () {
-                            if (xhr.status === 200 || xhr.status === 0) { // status 0 is normal for file://
+                            if (xhr.status === 200 || xhr.status === 0) {
                                 var svgText = xhr.responseText;
                                 if (svgText && svgText.indexOf('<svg') !== -1) {
                                     svgTextToPngDataUrl(svgText)
-                                        .then(function (pngUrl) { resolve({ key: 'outbound', url: pngUrl }); })
+                                        .then(function (url) { resolve({ key: 'outbound', url: url }); })
                                         .catch(function () { resolve({ key: 'outbound', url: null }); });
                                 } else {
                                     console.warn('Outbound diagram: XHR response is not SVG');
