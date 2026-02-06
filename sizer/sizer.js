@@ -2,7 +2,10 @@
 // ODIN Sizer - JavaScript
 // ============================================
 
-// Track page view for analytics
+// Initialize and track page view for analytics
+if (typeof initializeAnalytics === 'function') {
+    initializeAnalytics();
+}
 if (typeof trackPageView === 'function') {
     trackPageView();
 }
