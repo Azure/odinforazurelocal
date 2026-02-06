@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.14.52] - 2026-02-06
 
+### Added
+
+#### Duplicate Adapter Name Validation
+
+- **Port Configuration Validation**: Added validation to prevent duplicate adapter names in Step 07 (Network Adapter Ports)
+- **Visual Feedback**: Ports with duplicate names show red border and "⚠ duplicate" warning label
+- **Toast Warning**: Shows warning notification when user enters a duplicate adapter name
+- **Report Readiness Gating**: Blocks report/ARM generation when duplicate adapter names exist
+- Duplicate detection is case-insensitive (e.g., "Ethernet1" and "ETHERNET1" are treated as duplicates)
+
 ### Fixed
 
 #### Diagram Intent Grouping for Custom Intents
