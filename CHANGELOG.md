@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Markdown Report Export
+
+- **Download Markdown**: Added "📝 Download Markdown" button to the Configuration Report page, enabling export of the full report as a `.md` file with embedded network diagrams
+- Markdown export includes all report sections: metadata, scenario & scale, host networking, port configuration, connectivity, infrastructure network, node configuration, identity, security, and SDN settings
+- Host networking and outbound connectivity diagrams are embedded as inline images for self-contained documentation
+- All configuration data is rendered as clean Markdown tables for easy embedding in documentation, wikis, or version-controlled repos
+- File is named with timestamp (e.g., `AzureLocal-Config-20260206-1430.md`)
+
 #### Duplicate Adapter Name Validation
 
 - **Port Configuration Validation**: Added validation to prevent duplicate adapter names in Step 07 (Network Adapter Ports)

@@ -2,6 +2,7 @@
     // Expose a minimal API for report.html buttons.
     window.downloadReportHtml = downloadReportHtml;
     window.downloadReportWord = downloadReportWord;
+    window.downloadReportMarkdown = downloadReportMarkdown;
     window.downloadHostNetworkingDiagramSvg = downloadHostNetworkingDiagramSvg;
     window.downloadOutboundConnectivityDiagramSvg = downloadOutboundConnectivityDiagramSvg;
     window.togglePrintFriendly = togglePrintFriendly;
@@ -921,6 +922,625 @@
             });
         } catch (e) {
             // ignore
+        }
+    }
+
+    // Helper: convert SVG text to PNG data URL via off-screen canvas
+    function svgTextToPngDataUrl(svgText) {
+        return new Promise(function (resolve) {
+            try {
+                // Strip XML prolog and DOCTYPE — these cause img.onerror when
+                // an SVG is loaded from a Blob URL in most browsers.
+                var cleaned = svgText
+                    .replace(/<\?xml[^?]*\?>/gi, '')
+                    .replace(/<!DOCTYPE[^>]*>/gi, '')
+                    .trim();
+                var svgBlob = new Blob([cleaned], { type: 'image/svg+xml;charset=utf-8' });
+                var svgUrl = URL.createObjectURL(svgBlob);
+                var img = new Image();
+                img.onload = function () {
+                    try {
+                        var w = img.naturalWidth || img.width;
+                        var h = img.naturalHeight || img.height;
+                        if (!w || !h) {
+                            console.warn('SVG to PNG: image has 0 dimensions', w, h);
+                            URL.revokeObjectURL(svgUrl);
+                            resolve(null);
+                            return;
+                        }
+                        var canvas = document.createElement('canvas');
+                        canvas.width = w * 2;
+                        canvas.height = h * 2;
+                        var ctx = canvas.getContext('2d');
+                        ctx.scale(2, 2);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        var pngUrl = canvas.toDataURL('image/png');
+                        URL.revokeObjectURL(svgUrl);
+                        resolve(pngUrl);
+                    } catch (e) {
+                        console.warn('SVG to PNG canvas error:', e);
+                        URL.revokeObjectURL(svgUrl);
+                        resolve(null);
+                    }
+                };
+                img.onerror = function () {
+                    console.warn('SVG to PNG image load error for Blob URL');
+                    URL.revokeObjectURL(svgUrl);
+                    resolve(null);
+                };
+                img.src = svgUrl;
+            } catch (e) {
+                console.warn('SVG to PNG setup error:', e);
+                resolve(null);
+            }
+        });
+    }
+
+    function buildMarkdownContent(s, diagrams) {
+        var md = [];
+        md.push('# Azure Local Configuration Report');
+        md.push('');
+
+        // Metadata section
+        md.push('## Report Metadata');
+        md.push('');
+        md.push('| Field | Value |');
+        md.push('|-------|-------|');
+        md.push('| Generated | ' + (new Date().toLocaleString()) + ' |');
+        md.push('| Scenario | ' + (formatScenario(s.scenario) || '-') + ' |');
+        md.push('');
+
+        // Scenario & Scale
+        md.push('## Scenario & Scale');
+        md.push('');
+        md.push('| Setting | Value |');
+        md.push('|---------|-------|');
+        if (s.scenario) md.push('| Scenario | ' + formatScenario(s.scenario) + ' |');
+        if (s.region) md.push('| Azure Cloud | ' + formatCloud(s.region) + ' |');
+        if (s.localInstanceRegion) md.push('| Azure Local Instance Region | ' + formatLocalInstanceRegion(s.localInstanceRegion) + ' |');
+        if (s.scale) md.push('| Scale | ' + formatScale(s.scale) + ' |');
+        if (s.nodes) md.push('| Nodes | ' + s.nodes + ' |');
+        if (s.witnessType) md.push('| Cloud Witness | ' + (s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness') + ' |');
+        md.push('');
+
+        // Host Networking
+        md.push('## Host Networking');
+        md.push('');
+        md.push('| Setting | Value |');
+        md.push('|---------|-------|');
+        if (s.storage) md.push('| Storage | ' + (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) + ' |');
+        if (s.ports) md.push('| Ports | ' + s.ports + ' |');
+        if (s.intent) md.push('| Intent | ' + formatIntent(s.intent) + ' |');
+        if (s.storageAutoIp) md.push('| Storage Auto IP | ' + (s.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled') + ' |');
+        // Storage Subnets
+        if (s.storageAutoIp === 'enabled') {
+            md.push('| Storage Subnets | Default Network ATC (10.71.0.0/16) - IPs assigned automatically |');
+        } else if (s.storageAutoIp === 'disabled' && Array.isArray(s.customStorageSubnets) && s.customStorageSubnets.length > 0) {
+            var validSubnets = s.customStorageSubnets.filter(function(sub) { return sub && String(sub).trim(); });
+            if (validSubnets.length > 0) {
+                md.push('| Storage Subnets | `' + validSubnets.join(', ') + '` |');
+            }
+        }
+        if (s.storagePoolConfiguration) {
+            var spConfig = s.storagePoolConfiguration === 'InfraOnly' ? 'Infrastructure Only' :
+                          s.storagePoolConfiguration === 'KeepStorage' ? 'Keep Existing Storage' : 'Express';
+            md.push('| Storage Pool Configuration | ' + spConfig + ' |');
+        }
+        if (s.torSwitchCount) md.push('| ToR Switch Count | ' + (s.torSwitchCount === '1' ? 'Single' : 'Dual') + ' |');
+        md.push('');
+
+        // Port Configuration
+        if (Array.isArray(s.portConfig) && s.portConfig.length > 0) {
+            md.push('### Port Configuration');
+            md.push('');
+            md.push('| Port | Speed | RDMA |');
+            md.push('|------|-------|------|');
+            s.portConfig.forEach(function(pc, idx) {
+                var name = (pc && pc.customName) ? pc.customName : ('Port ' + (idx + 1));
+                var speed = (pc && pc.speed) ? pc.speed : '-';
+                var rdma = (pc && pc.rdma) ? 'Yes' : 'No';
+                md.push('| ' + name + ' | ' + speed + ' | ' + rdma + ' |');
+            });
+            md.push('');
+        }
+
+        // Host Networking Diagram
+        if (diagrams && diagrams.host) {
+            md.push('### Host Networking Diagram');
+            md.push('');
+            md.push('![Host Networking Diagram](' + diagrams.host + ')');
+            md.push('');
+        }
+
+        // Connectivity
+        md.push('## Connectivity');
+        md.push('');
+        md.push('| Setting | Value |');
+        md.push('|---------|-------|');
+        if (s.outbound) md.push('| Outbound | ' + formatOutbound(s.outbound) + ' |');
+        if (s.arc) {
+            var arcText = s.arc === 'arc_gateway' ? (s.outbound === 'private' ? 'Required' : 'Enabled') : 'Disabled';
+            md.push('| Arc Gateway | ' + arcText + ' |');
+        }
+        if (s.proxy) {
+            var proxyText = s.proxy === 'no_proxy' ? 'Disabled' : (s.outbound === 'private' ? 'Required (Azure Firewall Explicit Proxy)' : 'Enabled');
+            md.push('| Proxy | ' + proxyText + ' |');
+        }
+        if (s.privateEndpoints) {
+            md.push('| Private Endpoints | ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled') + ' |');
+        }
+        md.push('');
+
+        // Outbound Connectivity Diagram
+        if (diagrams && diagrams.outbound) {
+            var diagramTitle = getOutboundDiagramTitle(s);
+            md.push('### ' + diagramTitle);
+            md.push('');
+            md.push('![' + diagramTitle + '](' + diagrams.outbound + ')');
+            md.push('');
+        }
+
+        // Infrastructure Network
+        md.push('## Infrastructure Network');
+        md.push('');
+        md.push('| Setting | Value |');
+        md.push('|---------|-------|');
+        if (s.ip) md.push('| IP Assignment | ' + (s.ip.charAt(0).toUpperCase() + s.ip.slice(1)) + ' |');
+        if (s.infraVlan) md.push('| VLAN | ' + (s.infraVlan === 'custom' ? 'Custom VLAN' : 'Default VLAN') + ' |');
+        if (s.infraVlan === 'custom' && s.infraVlanId) md.push('| VLAN ID | ' + s.infraVlanId + ' |');
+        if (s.infraCidr) md.push('| Infrastructure CIDR | `' + s.infraCidr + '` |');
+        if (s.infra && s.infra.start && s.infra.end) md.push('| IP Pool Range | `' + s.infra.start + ' - ' + s.infra.end + '` |');
+        if (s.infraGateway) md.push('| Default Gateway | `' + s.infraGateway + '` |');
+        md.push('');
+
+        // Node Settings
+        if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
+            md.push('### Node Configuration');
+            md.push('');
+            md.push('| Node | Name | IP Address |');
+            md.push('|------|------|------------|');
+            s.nodeSettings.forEach(function(node, idx) {
+                var name = (node && node.name) ? node.name : ('node' + (idx + 1));
+                var ip = '-';
+                if (node && node.ipCidr) {
+                    ip = String(node.ipCidr).split('/')[0];
+                } else if (node && node.ip) {
+                    ip = node.ip;
+                }
+                md.push('| ' + (idx + 1) + ' | ' + name + ' | `' + ip + '` |');
+            });
+            md.push('');
+        }
+
+        // Active Directory / Identity
+        md.push('## Identity');
+        md.push('');
+        md.push('| Setting | Value |');
+        md.push('|---------|-------|');
+        if (s.activeDirectory) md.push('| Identity Type | ' + (s.activeDirectory === 'azure_ad' ? 'Active Directory' : 'Local Identity') + ' |');
+        if (s.adDomain) md.push('| AD Domain | `' + s.adDomain + '` |');
+        if (s.adOuPath) md.push('| OU Path | `' + s.adOuPath + '` |');
+        if (s.adfsServerName) md.push('| ADFS Server Name | `' + s.adfsServerName + '` |');
+        if (Array.isArray(s.dnsServers) && s.dnsServers.length > 0) {
+            var dnsStr = s.dnsServers.filter(function(d) { return d && d.trim(); }).join(', ');
+            if (dnsStr) md.push('| DNS Servers | `' + dnsStr + '` |');
+        }
+        if (s.localDnsZone) md.push('| Local DNS Zone | `' + s.localDnsZone + '` |');
+        md.push('');
+
+        // Security Configuration
+        if (s.securityConfiguration) {
+            md.push('## Security Configuration');
+            md.push('');
+            md.push('| Setting | Value |');
+            md.push('|---------|-------|');
+            md.push('| Configuration | ' + (s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized') + ' |');
+            if (s.securityConfiguration === 'customized' && s.securitySettings) {
+                var sec = s.securitySettings;
+                if (sec.wdacEnforced !== undefined) md.push('| WDAC | ' + (sec.wdacEnforced ? 'Enabled' : 'Disabled') + ' |');
+                if (sec.credentialGuardEnforced !== undefined) md.push('| Credential Guard | ' + (sec.credentialGuardEnforced ? 'Enabled' : 'Disabled') + ' |');
+                if (sec.driftControlEnforced !== undefined) md.push('| Drift Control | ' + (sec.driftControlEnforced ? 'Enabled' : 'Disabled') + ' |');
+                if (sec.smbSigningEnforced !== undefined) md.push('| SMB Signing | ' + (sec.smbSigningEnforced ? 'Enabled' : 'Disabled') + ' |');
+                if (sec.smbClusterEncryption !== undefined) md.push('| SMB Cluster Encryption | ' + (sec.smbClusterEncryption ? 'Enabled' : 'Disabled') + ' |');
+                if (sec.bitlockerBootVolume !== undefined) md.push('| BitLocker Boot Volume | ' + (sec.bitlockerBootVolume ? 'Enabled' : 'Disabled') + ' |');
+                if (sec.bitlockerDataVolumes !== undefined) md.push('| BitLocker Data Volumes | ' + (sec.bitlockerDataVolumes ? 'Enabled' : 'Disabled') + ' |');
+            }
+            md.push('');
+        }
+
+        // Software Defined Networking
+        if ((s.sdnFeatures && s.sdnFeatures.length > 0) || s.sdnManagement) {
+            md.push('## Software Defined Networking');
+            md.push('');
+            md.push('| Setting | Value |');
+            md.push('|---------|-------|');
+            if (s.sdnFeatures && s.sdnFeatures.length > 0) md.push('| SDN Features | ' + s.sdnFeatures.join(', ') + ' |');
+            if (s.sdnManagement) md.push('| SDN Management | ' + (s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed') + ' |');
+            md.push('');
+        }
+
+        // ── Validation Summary ──
+        var validations = computeValidations(s);
+        var allChecks = validations.results || [];
+        var passCount = allChecks.filter(function (x) { return x.passed; }).length;
+        var failCount = allChecks.length - passCount;
+
+        md.push('## Validation Summary');
+        md.push('');
+        md.push('**Passed:** ' + passCount + ' &nbsp; **Warnings/Failures:** ' + failCount);
+        md.push('');
+
+        if (allChecks.length > 0) {
+            md.push('| Status | Check | Details |');
+            md.push('|--------|-------|---------|');
+            allChecks.forEach(function (v) {
+                var mark = v.passed ? '✅' : '⚠️';
+                var details = v.details ? v.details.replace(/\|/g, '\\|') : '';
+                var name = v.name ? v.name.replace(/\|/g, '\\|') : '';
+                md.push('| ' + mark + ' | ' + name + ' | ' + details + ' |');
+            });
+            md.push('');
+        }
+
+        // ── Decisions & Rationale ──
+        md.push('## Decisions & Rationale');
+        md.push('');
+
+        // Deployment Scenario
+        md.push('### Deployment Scenario');
+        md.push('');
+        md.push('**Selected:** ' + formatScenario(s.scenario));
+        if (s.scenario === 'hyperconverged') {
+            md.push('');
+            md.push('**Why it matters:** Single-rack, consolidated compute/storage. Enables Low Capacity or Standard flows.');
+        } else if (s.scenario === 'disconnected') {
+            md.push('');
+            md.push('**Why it matters:** Air-gapped deployments constrain outbound connectivity and management options.');
+            md.push('');
+            md.push('**Wizard logic:** Disconnected mode disables cloud-specific selections that require internet access.');
+        } else if (s.scenario === 'm365local') {
+            md.push('');
+            md.push('**Why it matters:** M365 Local deployments are optimized for Microsoft 365 workloads with high availability requirements.');
+            md.push('');
+            md.push('**Wizard logic:** M365 Local requires a minimum of 9 physical nodes. Supports Standard scale configuration only.');
+        }
+        md.push('');
+
+        // Azure Cloud & Region
+        md.push('### Azure Cloud & Azure Local Region');
+        md.push('');
+        md.push('**Azure Cloud:** ' + formatCloud(s.region));
+        md.push('');
+        md.push('**Azure Local Instance Region:** ' + formatLocalInstanceRegion(s.localInstanceRegion));
+        md.push('');
+        var cloudNotes = [];
+        cloudNotes.push('Your Azure cloud selection determines which endpoints, compliance boundaries, and region catalogs apply.');
+        if (s.region === 'azure_commercial') {
+            cloudNotes.push('Azure Local supported regions for Azure Public include: East US, South Central US, West Europe, Australia East, Southeast Asia, India Central, Canada Central, Japan East.');
+        } else if (s.region === 'azure_government') {
+            cloudNotes.push('Azure Local supported regions for Azure Government include: US Gov Virginia.');
+        }
+        cloudNotes.forEach(function (n) { md.push('- ' + n); });
+        md.push('');
+
+        // Scale & Nodes
+        md.push('### Scale & Nodes');
+        md.push('');
+        md.push('**Scale:** ' + formatScale(s.scale));
+        md.push('');
+        md.push('**Nodes:** ' + (s.nodes || '-'));
+        md.push('');
+        var scaleNotes = [];
+        if (s.scale === 'low_capacity') scaleNotes.push('Low Capacity targets smaller deployments and limits certain network intent combinations.');
+        if (s.scale === 'rack_aware') scaleNotes.push('Rack Aware is designed for multi-room / split-rack node placement.');
+        if (s.scenario === 'disconnected') scaleNotes.push('Disconnected mode typically enforces Standard scale constraints.');
+        if (scaleNotes.length) {
+            scaleNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // Storage & Ports
+        md.push('### Storage & Ports');
+        md.push('');
+        md.push('**Storage:** ' + (s.storage ? (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) : '-'));
+        md.push('');
+        md.push('**Ports per node:** ' + (s.ports || '-'));
+        md.push('');
+        var storageNotes = [];
+        if (s.storage === 'switchless') {
+            storageNotes.push('Switchless storage typically reduces the number of storage networks and impacts intent options.');
+            storageNotes.push('Switchless storage is generally intended for smaller clusters; larger clusters require switched storage connectivity.');
+        }
+        if (String(s.ports) === '4') storageNotes.push('With 4 ports, the wizard disables Custom intent (insufficient ports for flexible mapping).');
+        if (storageNotes.length) {
+            storageNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // Traffic Intent & Adapter Mapping
+        md.push('### Traffic Intent & Adapter Mapping');
+        md.push('');
+        md.push('**Intent:** ' + formatIntent(s.intent));
+        md.push('');
+        var intentNotes = [];
+        if (s.intent === 'all_traffic') intentNotes.push('Fully converged simplifies adapter mapping but combines all traffic types into one SET team.');
+        if (s.intent === 'mgmt_compute') intentNotes.push('Splits storage traffic away from mgmt/compute to reduce contention and isolate storage behavior.');
+        if (s.intent === 'compute_storage') intentNotes.push('Keeps management isolated while converging compute+storage.');
+        if (s.intent === 'custom') intentNotes.push('Custom intent allows manual adapter assignment.');
+        if (intentNotes.length) {
+            intentNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // Outbound, Arc, Proxy & Private Endpoints
+        md.push('### Outbound, Arc, Proxy & Private Endpoints');
+        md.push('');
+        md.push('**Outbound:** ' + formatOutbound(s.outbound));
+        md.push('');
+        md.push('**Arc Gateway:** ' + (s.arc === 'arc_gateway' ? 'Enabled (Recommended)' : (s.arc === 'no_arc' ? 'Disabled' : '-')));
+        md.push('');
+        md.push('**Proxy:** ' + (s.proxy === 'no_proxy' ? 'Disabled' : (s.proxy ? 'Enabled' : '-')));
+        md.push('');
+        md.push('**Private Endpoints:** ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-')));
+        md.push('');
+        var outboundNotes = [];
+        if (s.outbound === 'private') {
+            outboundNotes.push('Private outbound assumes controlled egress via firewall/proxy; the wizard forces Arc Gateway + explicit proxy behavior.');
+            outboundNotes.push('With Arc Gateway, the node-side Arc proxy establishes a secure HTTPS tunnel to an Azure-hosted Arc Gateway public endpoint.');
+            outboundNotes.push('Proxy bypass lists need to include node IPs, cluster IP, and infrastructure IPs/subnet.');
+        } else if (s.outbound === 'public') {
+            outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allow-listing).');
+        }
+        if (outboundNotes.length) {
+            outboundNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // Proxy Bypass String
+        if (s.proxy === 'proxy') {
+            var bypassItems = ['localhost', '127.0.0.1'];
+            if (s.nodeSettings && s.nodeSettings.length) {
+                s.nodeSettings.forEach(function(node) {
+                    if (node && node.name) bypassItems.push(node.name);
+                });
+                s.nodeSettings.forEach(function(node) {
+                    if (node && node.ipCidr) {
+                        var ip = node.ipCidr.split('/')[0];
+                        if (ip) bypassItems.push(ip);
+                    }
+                });
+            }
+            if (s.adDomain) bypassItems.push('*.' + s.adDomain);
+            if (s.infraCidr) {
+                var infraWild = convertCidrToWildcard(s.infraCidr);
+                if (infraWild) bypassItems.push(infraWild);
+            }
+            if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
+                s.privateEndpointsList.forEach(function(peKey) {
+                    var info = PRIVATE_ENDPOINT_INFO[peKey];
+                    if (info && info.proxyBypass) {
+                        info.proxyBypass.forEach(function(bypass) {
+                            if (bypassItems.indexOf(bypass) === -1) bypassItems.push(bypass);
+                        });
+                    }
+                });
+            }
+            md.push('**Minimum Proxy Bypass String:**');
+            md.push('');
+            md.push('```');
+            md.push(bypassItems.join(','));
+            md.push('```');
+            md.push('');
+            md.push('> Add this bypass string to your Arc registration script. You may also need to add a cluster name and any additional internal resources.');
+            md.push('');
+        }
+
+        // Private Endpoints details
+        if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
+            md.push('#### Private Endpoints Configuration');
+            md.push('');
+            md.push('| Service | FQDN | Private Link Zone |');
+            md.push('|---------|------|-------------------|');
+            s.privateEndpointsList.forEach(function(peKey) {
+                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                if (info) {
+                    md.push('| ' + info.icon + ' ' + info.name + ' | `' + info.fqdn + '` | `' + info.privateLink + '` |');
+                }
+            });
+            md.push('');
+
+            // Show individual PE considerations
+            s.privateEndpointsList.forEach(function(peKey) {
+                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                if (info && info.considerations && info.considerations.length > 0) {
+                    md.push('**' + info.icon + ' ' + info.name + ' Considerations:**');
+                    md.push('');
+                    info.considerations.forEach(function(c) { md.push('- ' + c); });
+                    md.push('');
+                }
+            });
+        }
+
+        // IP, Infrastructure Network & VLAN
+        md.push('### IP, Infrastructure Network & VLAN');
+        md.push('');
+        md.push('**IP:** ' + (s.ip ? (s.ip.charAt(0).toUpperCase() + s.ip.slice(1)) : '-'));
+        md.push('');
+        md.push('**Infra VLAN:** ' + (s.infraVlan === 'custom' ? 'Custom VLAN' : (s.infraVlan === 'default' ? 'Default VLAN' : (s.infraVlan || '-'))));
+        if (s.infraVlan === 'custom' && s.infraVlanId) {
+            md.push('');
+            md.push('**Infra VLAN ID:** `' + s.infraVlanId + '`');
+        }
+        if (s.infraCidr) {
+            md.push('');
+            md.push('**Infra Network:** `' + s.infraCidr + '`');
+        }
+        if (s.infra && s.infra.start && s.infra.end) {
+            md.push('');
+            md.push('**Infra Range:** `' + s.infra.start + ' - ' + s.infra.end + '`');
+        }
+        md.push('');
+        var mgmtNotes = [
+            'Management IP strategy affects provisioning workflow and long-term operations.',
+            'Infrastructure VLAN selection ensures consistent reachability to Arc registration and management endpoints.',
+            'Management VLAN tagging (when required) must be configured on the physical adapters before Azure Arc registration.',
+            'The infrastructure IP pool is designed for cluster infrastructure services; size it with headroom if you expect additional services later.'
+        ];
+        mgmtNotes.forEach(function (n) { md.push('- ' + n); });
+        md.push('');
+
+        // Identity & DNS
+        md.push('### Identity & DNS');
+        md.push('');
+        md.push('**Identity:** ' + (s.activeDirectory === 'azure_ad' ? 'Active Directory' : (s.activeDirectory === 'local_identity' ? 'Local Identity' : '-')));
+        if (s.adDomain) { md.push(''); md.push('**AD Domain:** `' + s.adDomain + '`'); }
+        if (s.dnsServers && s.dnsServers.length) { md.push(''); md.push('**DNS Servers:** `' + s.dnsServers.join(', ') + '`'); }
+        if (s.localDnsZone) { md.push(''); md.push('**Local DNS Zone:** `' + s.localDnsZone + '`'); }
+        md.push('');
+        var idNotes = [];
+        if (s.activeDirectory === 'azure_ad') idNotes.push('Domain-joined deployments require correct AD DNS resolution and domain membership planning.');
+        if (s.activeDirectory === 'local_identity') idNotes.push('Local Identity mode typically requires a local DNS zone for name resolution within the environment.');
+        if (s.dnsServers && s.dnsServers.length) {
+            idNotes.push('DNS settings are a critical dependency for deployment and ongoing management; ensure your chosen DNS resolvers remain reachable.');
+            idNotes.push('Azure Local guidance states DNS server IPs used by nodes are not supported to change after deployment.');
+        }
+        if (idNotes.length) {
+            idNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // SDN Rationale
+        md.push('### Software Defined Networking (SDN)');
+        md.push('');
+        md.push('**Features:** ' + ((s.sdnFeatures && s.sdnFeatures.length) ? s.sdnFeatures.join(', ') : 'None'));
+        md.push('');
+        md.push('**Management:** ' + (s.sdnManagement ? (s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed') : 'Not applicable'));
+        md.push('');
+        if (s.sdnFeatures && s.sdnFeatures.length) {
+            md.push('- SDN features require a management model decision (Arc-managed vs on-prem tooling).');
+        } else {
+            md.push('- No SDN features selected; SDN management is not required.');
+        }
+        md.push('');
+
+        // Footer
+        md.push('---');
+        md.push('');
+        md.push('*Generated by ODIN for Azure Local - ' + new Date().toISOString() + '*');
+
+        return md.join('\n');
+    }
+
+    function triggerMarkdownDownload(content) {
+        var blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+
+        var ts = new Date();
+        var pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
+        var fileName = 'AzureLocal-Config-'
+            + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
+            + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
+            + '.md';
+
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
+
+    function downloadReportMarkdown() {
+        try {
+            if (!CURRENT_REPORT_STATE) return;
+            var s = CURRENT_REPORT_STATE;
+
+            // Collect diagram PNG data URLs first (async), then build markdown
+            var diagramPromises = [];
+
+            // Host Networking diagram (SVG rendered in page)
+            var hostSec = document.querySelector('#report-summary [data-summary-section="host-networking"]');
+            var hostSvg = hostSec ? hostSec.querySelector('svg.switchless-diagram__svg') : null;
+            if (hostSvg) {
+                diagramPromises.push(
+                    svgElementToPngDataUrl(hostSvg, { theme: 'dark', background: '#000000', scale: 2 })
+                        .then(function (url) { return { key: 'host', url: url }; })
+                        .catch(function () { return { key: 'host', url: null }; })
+                );
+            } else {
+                diagramPromises.push(Promise.resolve({ key: 'host', url: null }));
+            }
+
+            // Outbound connectivity diagram
+            // Draw.io SVGs contain <foreignObject> + <switch> patterns that taint the
+            // canvas when drawn from an <img> element.  The proven fix is to parse the
+            // SVG into a DOM element and run it through svgElementToPngDataUrl() which
+            // sanitises the tree (removes foreignObject, flattens <switch> to <image>
+            // fallbacks) before rasterising — the exact same path used for the host
+            // networking diagram.
+            var outboundDiagKey = getOutboundDiagramKey(s);
+            if (outboundDiagKey && OUTBOUND_DIAGRAMS[outboundDiagKey]) {
+                diagramPromises.push(new Promise(function (resolve) {
+                    try {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('GET', OUTBOUND_DIAGRAMS[outboundDiagKey], true);
+                        xhr.onload = function () {
+                            if (xhr.status === 200 || xhr.status === 0) {
+                                var svgText = xhr.responseText;
+                                if (svgText && svgText.indexOf('<svg') !== -1) {
+                                    try {
+                                        var parser = new DOMParser();
+                                        var doc = parser.parseFromString(svgText, 'image/svg+xml');
+                                        var svgEl = doc.querySelector('svg');
+                                        if (svgEl) {
+                                            svgElementToPngDataUrl(svgEl, { theme: 'dark', background: '#000000', scale: 2 })
+                                                .then(function (url) { resolve({ key: 'outbound', url: url }); })
+                                                .catch(function () { resolve({ key: 'outbound', url: null }); });
+                                        } else {
+                                            console.warn('Outbound diagram: no <svg> element in parsed response');
+                                            resolve({ key: 'outbound', url: null });
+                                        }
+                                    } catch (parseErr) {
+                                        console.warn('Outbound diagram: parse error', parseErr.message);
+                                        resolve({ key: 'outbound', url: null });
+                                    }
+                                } else {
+                                    console.warn('Outbound diagram: XHR response is not SVG');
+                                    resolve({ key: 'outbound', url: null });
+                                }
+                            } else {
+                                console.warn('Outbound diagram: XHR status', xhr.status);
+                                resolve({ key: 'outbound', url: null });
+                            }
+                        };
+                        xhr.onerror = function () {
+                            console.warn('Outbound diagram: XHR network error');
+                            resolve({ key: 'outbound', url: null });
+                        };
+                        xhr.send();
+                    } catch (e) {
+                        console.warn('Outbound diagram XHR error:', e.message);
+                        resolve({ key: 'outbound', url: null });
+                    }
+                }));
+            } else {
+                diagramPromises.push(Promise.resolve({ key: 'outbound', url: null }));
+            }
+
+            Promise.all(diagramPromises).then(function (diagramResults) {
+                var diagrams = {};
+                diagramResults.forEach(function (d) { diagrams[d.key] = d.url; });
+                var content = buildMarkdownContent(s, diagrams);
+                triggerMarkdownDownload(content);
+            }).catch(function (err) {
+                console.error('Markdown diagram error, exporting without diagrams:', err);
+                var content = buildMarkdownContent(s, {});
+                triggerMarkdownDownload(content);
+            });
+        } catch (e) {
+            console.error('Markdown export error:', e);
         }
     }
 

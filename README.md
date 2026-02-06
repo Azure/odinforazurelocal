@@ -39,6 +39,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 ### 🎉 Version 0.14.52 - Latest Release
+- **Markdown Report Export**: New "Download Markdown" button on the Configuration Report page — export your full report as a `.md` file with embedded network diagrams for documentation, wikis, or version control
 - **Diagram Intent Grouping Fix**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
 - **Non-Contiguous Port Support**: Ports from different slots assigned to the same intent are now displayed adjacent to each other in the diagram
 - **Duplicate Adapter Name Validation**: Prevents duplicate adapter names in port configuration with visual feedback and validation warnings
@@ -402,7 +403,8 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
 
-#### 0.14.52 - Diagram Intent Grouping Fix & Validation
+#### 0.14.52 - Markdown Export, Diagram Fix & Validation
+- **Markdown Report Export**: Download the Configuration Report as a Markdown file with embedded network diagrams for documentation or version control
 - **Custom Intent Diagram Grouping**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
 - **Duplicate Adapter Name Validation**: Prevents duplicate adapter names in port configuration with visual feedback
 
