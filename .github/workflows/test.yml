@@ -9,6 +9,12 @@ on:
   pull_request:
     branches: [main, Release]
 
+# Permissions required for dorny/test-reporter to create check runs
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
 jobs:
   lint:
     name: ESLint
