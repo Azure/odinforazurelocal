@@ -279,11 +279,6 @@ To extend the wizard:
 - Check `version` field in JSON matches current version
 - Try exporting fresh config to verify format
 
-#### Cost estimates seem wrong
-- Cost estimator provides rough estimates only
-- Actual costs vary by region, usage, and other factors
-- Use official [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/) for accurate quotes
-
 ### Debugging
 
 Enable detailed logging in browser console:
@@ -291,6 +286,13 @@ Enable detailed logging in browser console:
 2. Go to Console tab
 3. Look for errors or warnings
 4. Check localStorage: `localStorage.getItem('azureLocalWizardState')`
+
+### Report an Issue and Contributing:
+- Report bugs or request new features using GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
+- Include browser version, OS, and steps to reproduce for issues.
+- Provide exported config (sanitized) if helpful to recreate the problem.
+
+For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -336,15 +338,6 @@ Enable detailed logging in browser console:
 - Don't share exports containing private IP ranges publicly
 - Review imported configs before applying
 - Use prerequisites checklist to verify security requirements
-
----
-
-## Reporting Issues and Contributing
-- Report bugs or request new features using GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
-- Include browser version, OS, and steps to reproduce for issues.
-- Provide exported config (sanitized) if helpful to recreate the problem.
-
-For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
