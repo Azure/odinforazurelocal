@@ -8379,7 +8379,20 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.51 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.52 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 6, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Diagram Intent Grouping Fix</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Custom Intent Diagram Grouping:</strong> Fixed network diagram to properly group adapters by intent when using custom intent configurations.</li>
+                        <li><strong>Non-Contiguous Port Support:</strong> When ports from different slots are assigned to the same intent, they are now displayed adjacent to each other in the diagram.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.51</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 5, 2026</div>
                 </div>
 

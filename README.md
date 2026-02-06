@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.14.51
+## Version 0.14.52
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -38,14 +38,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.51 - Latest Release
-- **Automated Build Pipeline**: GitHub Actions CI/CD with ESLint, HTML validation, and 136 unit tests
-- **RFC 1918 DNS Validation**: DNS servers must be private IPs when using Active Directory (prevents public DNS like 8.8.8.8)
-- **Light Mode Input Fix**: Fixed all input fields showing white text on light theme backgrounds
-- **Keyboard Navigation**: Option cards now support Tab navigation and Enter/Space selection
-- **SDN Management Resume Fix**: Fixed SDN Management selection not being restored when resuming a saved session
-- **Infrastructure Network Resume Fix**: Fixed Infrastructure Network validation errors when resuming a saved session
-- **Codebase Modularization**: Project restructured with dedicated modules for formatting, validation, DNS, theme, and notifications
+### 🎉 Version 0.14.52 - Latest Release
+- **Diagram Intent Grouping Fix**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
+- **Non-Contiguous Port Support**: Ports from different slots assigned to the same intent are now displayed adjacent to each other in the diagram
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -404,7 +399,7 @@ This project is provided as-is for planning and configuration purposes. See offi
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.51  
+**Version**: 0.14.52  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -419,6 +414,9 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.52 - Diagram Intent Grouping Fix
+- **Custom Intent Diagram Grouping**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
 
 #### 0.14.51 - Automated Build Pipeline & Bug Fixes
 - **GitHub Actions CI/CD**: Automated build validation pipeline with ESLint, HTML validation, and 136 unit tests
