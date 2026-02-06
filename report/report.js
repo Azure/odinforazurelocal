@@ -4882,7 +4882,7 @@
                 + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'dark\')">Download SVG (Dark)</button>'
                 + '</div>'
                 + '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="/docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
+                + '<a href="../docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
                 + '</p>'
                 + '</div>';
         }
