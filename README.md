@@ -363,6 +363,8 @@ Enable detailed logging in browser console:
 
 ## Contributing
 
+For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ### Reporting Issues
 - Report bugs or request features via GitHub Issues
 - Include browser version, OS, and steps to reproduce
