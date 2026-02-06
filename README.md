@@ -294,28 +294,6 @@ Enable detailed logging in browser console:
 
 ---
 
-## Version History
-
-### v0.1.0 (Current)
-- ✨ Auto-save and resume capability
-- ✨ Export/import configuration
-- ✨ Cost estimator
-- ✨ CIDR calculator
-- ✨ Real-time validation
-- ✨ Contextual help system
-- ✨ Toast notifications
-- 🔒 Enhanced input sanitization
-- 📊 Version tracking
-- 🔄 Change detection
-
-### v0.0.1 (Previous)
-- Initial release of wizard framework
-- Support for multiple deployment scenarios
-- ARM parameters generation
-- Report generation
-
----
-
 ## Best Practices
 
 ### Using the Wizard
@@ -361,20 +339,12 @@ Enable detailed logging in browser console:
 
 ---
 
-## Contributing
+## Reporting Issues and Contributing
+- Report bugs or request new features using GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
+- Include browser version, OS, and steps to reproduce for issues.
+- Provide exported config (sanitized) if helpful to recreate the problem.
 
 For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### Reporting Issues
-- Report bugs or request features via GitHub Issues
-- Include browser version, OS, and steps to reproduce
-- Provide exported config (sanitized) if helpful
-
-### Code Contributions
-- Follow existing code style and structure
-- Test changes in multiple browsers
-- Update documentation for new features
-- Add validation for new input fields
 
 ---
 
