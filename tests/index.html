@@ -1529,11 +1529,20 @@
                 const extraInList = knownFields.filter(f => !actualFields.includes(f));
                 
                 // Test for undocumented fields (new fields added to state but not to this list)
+                // Failure message includes actionable instructions for the developer
+                const failureMsg = undocumented.length > 0 
+                    ? 'NEW FIELDS DETECTED: ' + JSON.stringify(undocumented) + 
+                      ' -- ACTION REQUIRED: (1) Add field to knownFields array in tests/index.html line ~1455, ' +
+                      '(2) Verify importConfiguration handles missing field, ' +
+                      '(3) Add ARM mapping in parseArmTemplateToState if applicable, ' +
+                      '(4) Add prompt in showArmImportOptionsDialog if not in ARM templates'
+                    : '[]';
+                
                 return assert(
                     undocumented.length === 0,
-                    'No undocumented state fields (update knownFields when adding new wizard steps)',
+                    'STATE FIELD INVENTORY: All fields documented for import/export',
                     '[]',
-                    undocumented.length > 0 ? 'NEW FIELDS: ' + JSON.stringify(undocumented) : '[]'
+                    failureMsg
                 );
             })(),
             (function() {
