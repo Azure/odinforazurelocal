@@ -127,10 +127,27 @@
         let failCount = 0;
         let totalCount = 0;
         
+        // Structured test results for CI/CD extraction (JUnit XML generation)
+        window.testResults = [];
+        let currentSuite = null;
+        let currentSection = null;
+        
         function assert(condition, testName, expected, actual) {
             totalCount++;
             const testCase = document.createElement('div');
             testCase.className = 'test-case';
+            
+            // Store structured result for CI extraction
+            const result = {
+                name: testName,
+                suite: currentSuite || 'Default',
+                section: currentSection || 'Tests',
+                passed: condition,
+                expected: String(expected),
+                actual: String(actual),
+                timestamp: new Date().toISOString()
+            };
+            window.testResults.push(result);
             
             if (condition) {
                 passCount++;
@@ -152,6 +169,7 @@
         }
         
         function testSuite(name, moduleName, tests) {
+            currentSuite = `${name} (${moduleName})`;
             const suite = document.createElement('div');
             suite.className = 'test-suite';
             suite.innerHTML = `<h2>${name} <span class="module-badge">${moduleName}</span></h2>`;
@@ -164,6 +182,7 @@
         }
         
         function sectionHeader(title) {
+            currentSection = title.replace(/[^\w\s]/g, '').trim();
             const header = document.createElement('div');
             header.className = 'section-header';
             header.textContent = title;
