@@ -1459,34 +1459,41 @@
                 diagramPromises.push(Promise.resolve({ key: 'host', url: null }));
             }
 
-            // Outbound connectivity diagram - grab the already-rendered <img> from the DOM
+            // Outbound connectivity diagram
             var outboundDiagKey = getOutboundDiagramKey(s);
             if (outboundDiagKey && OUTBOUND_DIAGRAMS[outboundDiagKey]) {
                 diagramPromises.push(new Promise(function (resolve) {
-                    // First try the already-loaded <img> on the page
-                    var outboundImg = document.querySelector('#outbound-diagram-img');
-                    if (outboundImg && outboundImg.complete && outboundImg.naturalWidth > 0) {
-                        try {
-                            var canvas = document.createElement('canvas');
-                            canvas.width = outboundImg.naturalWidth * 2;
-                            canvas.height = outboundImg.naturalHeight * 2;
-                            var ctx = canvas.getContext('2d');
-                            ctx.scale(2, 2);
-                            ctx.drawImage(outboundImg, 0, 0);
-                            var pngUrl = canvas.toDataURL('image/png');
-                            resolve({ key: 'outbound', url: pngUrl });
-                            return;
-                        } catch (e) {
-                            // Tainted canvas — fall through to fetch approach
-                            console.warn('Outbound diagram canvas tainted, trying fetch:', e.message);
-                        }
+                    // Use XMLHttpRequest instead of fetch — fetch() does not work on file:// protocol.
+                    // Once we have the SVG text, svgTextToPngDataUrl loads it via a Blob URL
+                    // (which is same-origin, so canvas is NOT tainted even on file://).
+                    try {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('GET', OUTBOUND_DIAGRAMS[outboundDiagKey], true);
+                        xhr.onload = function () {
+                            if (xhr.status === 200 || xhr.status === 0) { // status 0 is normal for file://
+                                var svgText = xhr.responseText;
+                                if (svgText && svgText.indexOf('<svg') !== -1) {
+                                    svgTextToPngDataUrl(svgText)
+                                        .then(function (pngUrl) { resolve({ key: 'outbound', url: pngUrl }); })
+                                        .catch(function () { resolve({ key: 'outbound', url: null }); });
+                                } else {
+                                    console.warn('Outbound diagram: XHR response is not SVG');
+                                    resolve({ key: 'outbound', url: null });
+                                }
+                            } else {
+                                console.warn('Outbound diagram: XHR status', xhr.status);
+                                resolve({ key: 'outbound', url: null });
+                            }
+                        };
+                        xhr.onerror = function () {
+                            console.warn('Outbound diagram: XHR network error');
+                            resolve({ key: 'outbound', url: null });
+                        };
+                        xhr.send();
+                    } catch (e) {
+                        console.warn('Outbound diagram XHR error:', e.message);
+                        resolve({ key: 'outbound', url: null });
                     }
-                    // Fall back: fetch SVG, load into a new image via Blob URL, then canvas
-                    fetch(OUTBOUND_DIAGRAMS[outboundDiagKey])
-                        .then(function (r) { return r.text(); })
-                        .then(function (svgText) { return svgTextToPngDataUrl(svgText); })
-                        .then(function (pngUrl) { resolve({ key: 'outbound', url: pngUrl }); })
-                        .catch(function () { resolve({ key: 'outbound', url: null }); });
                 }));
             } else {
                 diagramPromises.push(Promise.resolve({ key: 'outbound', url: null }));
