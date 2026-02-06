@@ -323,6 +323,7 @@ const missingSectionToStep = {
     'SDN Management': 'step-14',
     'Confirm adapter mapping for Custom intent': 'step-6',
     'RDMA: At least': 'step-5',
+    'Duplicate adapter names': 'step-5',
     'RDMA mapping': 'step-6',
     'Custom mapping': 'step-6',
     'Mgmt + Compute mapping': 'step-6'
