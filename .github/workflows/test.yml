@@ -52,123 +52,8 @@ jobs:
       - name: Install Puppeteer
         run: npm install puppeteer
       
-      - name: Run Unit Tests and Generate JUnit XML
-        run: |
-          node << 'EOF'
-          const puppeteer = require('puppeteer');
-          const path = require('path');
-          const fs = require('fs');
-
-          function generateJUnitXML(results, passed, failed, total) {
-            const timestamp = new Date().toISOString();
-            
-            // Group results by suite
-            const suites = {};
-            results.forEach(r => {
-              const suiteName = r.suite || 'Default';
-              if (!suites[suiteName]) {
-                suites[suiteName] = [];
-              }
-              suites[suiteName].push(r);
-            });
-            
-            let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-            xml += `<testsuites name="ODIN Unit Tests" tests="${total}" failures="${failed}" time="0" timestamp="${timestamp}">\n`;
-            
-            Object.entries(suites).forEach(([suiteName, tests]) => {
-              const suiteFailures = tests.filter(t => !t.passed).length;
-              const safeSuiteName = suiteName.replace(/[<>&"']/g, '');
-              xml += `  <testsuite name="${safeSuiteName}" tests="${tests.length}" failures="${suiteFailures}" time="0">\n`;
-              
-              tests.forEach(test => {
-                const safeTestName = test.name.replace(/[<>&"']/g, '');
-                xml += `    <testcase name="${safeTestName}" classname="${safeSuiteName}" time="0">\n`;
-                
-                if (!test.passed) {
-                  const safeExpected = String(test.expected).replace(/[<>&"']/g, '');
-                  const safeActual = String(test.actual).replace(/[<>&"']/g, '');
-                  xml += `      <failure message="Expected: ${safeExpected}, Got: ${safeActual}" type="AssertionError">\n`;
-                  xml += `Expected: ${safeExpected}\nActual: ${safeActual}\n`;
-                  xml += `      </failure>\n`;
-                }
-                
-                xml += `    </testcase>\n`;
-              });
-              
-              xml += `  </testsuite>\n`;
-            });
-            
-            xml += '</testsuites>\n';
-            return xml;
-          }
-
-          (async () => {
-            const browser = await puppeteer.launch({
-              headless: 'new',
-              args: ['--no-sandbox', '--disable-setuid-sandbox']
-            });
-            
-            const page = await browser.newPage();
-            
-            // Capture console output
-            const logs = [];
-            page.on('console', msg => {
-              logs.push(msg.text());
-              console.log('Browser:', msg.text());
-            });
-            
-            // Load the test file
-            const testPath = path.resolve(process.cwd(), 'tests', 'index.html');
-            console.log('Loading tests from:', testPath);
-            await page.goto(`file://${testPath}`, { waitUntil: 'networkidle0' });
-            
-            // Wait for tests to complete
-            await page.waitForFunction(() => {
-              const passEl = document.getElementById('pass-count');
-              const failEl = document.getElementById('fail-count');
-              return passEl && failEl && (parseInt(passEl.textContent) > 0 || parseInt(failEl.textContent) > 0);
-            }, { timeout: 30000 });
-            
-            // Get test results including detailed results for JUnit XML
-            const results = await page.evaluate(() => {
-              return {
-                passed: parseInt(document.getElementById('pass-count').textContent),
-                failed: parseInt(document.getElementById('fail-count').textContent),
-                total: parseInt(document.getElementById('total-count').textContent),
-                details: window.testResults || []
-              };
-            });
-            
-            console.log(`\n========================================`);
-            console.log(`Test Results: ${results.passed}/${results.total} passed`);
-            console.log(`========================================\n`);
-            
-            // Generate JUnit XML report
-            const junitXml = generateJUnitXML(results.details, results.passed, results.failed, results.total);
-            
-            // Ensure test-results directory exists
-            const resultsDir = path.resolve(process.cwd(), 'test-results');
-            if (!fs.existsSync(resultsDir)) {
-              fs.mkdirSync(resultsDir, { recursive: true });
-            }
-            
-            // Write JUnit XML file
-            const xmlPath = path.join(resultsDir, 'junit.xml');
-            fs.writeFileSync(xmlPath, junitXml);
-            console.log(`JUnit XML report written to: ${xmlPath}`);
-            
-            await browser.close();
-            
-            // Exit with error code if tests failed
-            if (results.failed > 0) {
-              console.error(`❌ ${results.failed} test(s) failed`);
-              process.exit(1);
-            }
-            
-            console.log(`✅ All ${results.passed} tests passed!`);
-            process.exit(0);
-          })();
-          EOF
+      - name: Run Unit Tests
+        run: node scripts/run-tests.js
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
@@ -178,14 +63,23 @@ jobs:
           path: test-results/
           retention-days: 30
 
-      - name: Publish Test Report
+      - name: Publish JUnit Test Report
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: ODIN Unit Tests
+          name: ODIN Unit Tests (JUnit)
           path: test-results/junit.xml
           reporter: java-junit
           fail-on-error: true
+
+      - name: Publish NUnit Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: ODIN Unit Tests (NUnit)
+          path: test-results/nunit.xml
+          reporter: dotnet-nunit
+          fail-on-error: false
 
   html-validate:
     name: HTML Validation
