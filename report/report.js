@@ -1474,29 +1474,15 @@
             }
 
             // Outbound connectivity diagram
+            // Draw.io SVGs contain <foreignObject> + <switch> patterns that taint the
+            // canvas when drawn from an <img> element.  The proven fix is to parse the
+            // SVG into a DOM element and run it through svgElementToPngDataUrl() which
+            // sanitises the tree (removes foreignObject, flattens <switch> to <image>
+            // fallbacks) before rasterising — the exact same path used for the host
+            // networking diagram.
             var outboundDiagKey = getOutboundDiagramKey(s);
             if (outboundDiagKey && OUTBOUND_DIAGRAMS[outboundDiagKey]) {
                 diagramPromises.push(new Promise(function (resolve) {
-                    // Strategy 1: Try the already-rendered <img> in the DOM (works on HTTP same-origin)
-                    var outboundImg = document.querySelector('#outbound-diagram-img');
-                    if (outboundImg && outboundImg.complete && outboundImg.naturalWidth > 0) {
-                        try {
-                            var canvas = document.createElement('canvas');
-                            canvas.width = outboundImg.naturalWidth * 2;
-                            canvas.height = outboundImg.naturalHeight * 2;
-                            var ctx = canvas.getContext('2d');
-                            ctx.scale(2, 2);
-                            ctx.drawImage(outboundImg, 0, 0);
-                            var pngUrl = canvas.toDataURL('image/png');
-                            resolve({ key: 'outbound', url: pngUrl });
-                            return;
-                        } catch (domErr) {
-                            console.warn('Outbound diagram DOM canvas failed:', domErr.message);
-                            // Fall through to Strategy 2
-                        }
-                    }
-                    // Strategy 2: Fetch SVG via XHR, strip XML prolog, load via Blob URL
-                    // XHR works on both http:// and file:// protocols
                     try {
                         var xhr = new XMLHttpRequest();
                         xhr.open('GET', OUTBOUND_DIAGRAMS[outboundDiagKey], true);
@@ -1504,9 +1490,22 @@
                             if (xhr.status === 200 || xhr.status === 0) {
                                 var svgText = xhr.responseText;
                                 if (svgText && svgText.indexOf('<svg') !== -1) {
-                                    svgTextToPngDataUrl(svgText)
-                                        .then(function (url) { resolve({ key: 'outbound', url: url }); })
-                                        .catch(function () { resolve({ key: 'outbound', url: null }); });
+                                    try {
+                                        var parser = new DOMParser();
+                                        var doc = parser.parseFromString(svgText, 'image/svg+xml');
+                                        var svgEl = doc.querySelector('svg');
+                                        if (svgEl) {
+                                            svgElementToPngDataUrl(svgEl, { theme: 'dark', background: '#000000', scale: 2 })
+                                                .then(function (url) { resolve({ key: 'outbound', url: url }); })
+                                                .catch(function () { resolve({ key: 'outbound', url: null }); });
+                                        } else {
+                                            console.warn('Outbound diagram: no <svg> element in parsed response');
+                                            resolve({ key: 'outbound', url: null });
+                                        }
+                                    } catch (parseErr) {
+                                        console.warn('Outbound diagram: parse error', parseErr.message);
+                                        resolve({ key: 'outbound', url: null });
+                                    }
                                 } else {
                                     console.warn('Outbound diagram: XHR response is not SVG');
                                     resolve({ key: 'outbound', url: null });
