@@ -1,0 +1,62 @@
+# GitHub Actions workflow for ODIN Unit Tests
+# Generates both JUnit and NUnit XML test reports
+
+name: Unit Tests
+
+on:
+  push:
+    branches: [main, Release]
+  pull_request:
+    branches: [main, Release]
+
+# Permissions required for test-reporter to create check runs
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
+jobs:
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install Puppeteer
+        run: npm install puppeteer
+      
+      - name: Run Unit Tests
+        run: node scripts/run-tests.js
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Publish JUnit Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit Tests (JUnit)
+          path: test-results/junit.xml
+          reporter: java-junit
+          fail-on-error: true
+
+      - name: Publish NUnit Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit Tests (NUnit)
+          path: test-results/nunit.xml
+          reporter: dotnet-nunit
+          fail-on-error: false

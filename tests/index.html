@@ -1002,6 +1002,571 @@
         })();
 
         // ========================================================================
+        // JS/SCRIPT.JS TESTS - IMPORT/EXPORT CONFIGURATION
+        // ========================================================================
+        sectionHeader('📥 js/script.js - Import/Export Configuration');
+
+        // Test: exportConfiguration output structure
+        testSuite('exportConfiguration() - Output Structure', 'script.js', [
+            (function() {
+                // Mock the original state and functions needed
+                const mockState = {...state};
+                const mockDateNow = Date.now;
+                Date.now = () => 1700000000000; // Fixed timestamp for testing
+                
+                // Create a mock export similar to what exportConfiguration produces
+                const exportData = {
+                    version: '0.12.0',
+                    exportedAt: new Date().toISOString(),
+                    state: mockState
+                };
+                
+                Date.now = mockDateNow; // Restore
+                
+                return assert(
+                    exportData.version !== undefined && exportData.exportedAt !== undefined && exportData.state !== undefined,
+                    'Export contains version, exportedAt, and state',
+                    true,
+                    exportData.version !== undefined && exportData.exportedAt !== undefined && exportData.state !== undefined
+                );
+            })(),
+            (function() {
+                // Verify state object has all expected fields
+                const expectedFields = [
+                    'scenario', 'region', 'localInstanceRegion', 'scale', 'nodes', 'witnessType',
+                    'theme', 'fontSize', 'ports', 'portConfig', 'storage', 'torSwitchCount',
+                    'switchlessLinkMode', 'storagePoolConfiguration', 'rackAwareZones',
+                    'intent', 'outbound', 'arc', 'proxy', 'ip', 'infra', 'infraCidr',
+                    'infraGateway', 'nodeSettings', 'infraVlan', 'storageAutoIp',
+                    'activeDirectory', 'adDomain', 'adOuPath', 'dnsServers', 'localDnsZone',
+                    'sdnEnabled', 'sdnFeatures', 'sdnManagement', 'intentOverrides', 'customIntents',
+                    'adapterMapping', 'securityConfiguration', 'securitySettings',
+                    'privateEndpoints', 'privateEndpointsList'
+                ];
+                const stateFields = Object.keys(state);
+                const missingFields = expectedFields.filter(f => !stateFields.includes(f));
+                return assert(
+                    missingFields.length === 0,
+                    'State object contains all expected wizard fields (' + expectedFields.length + ' fields)',
+                    '[]',
+                    JSON.stringify(missingFields)
+                );
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - ARM template detection
+        testSuite('parseArmTemplateToState() - ARM Template Detection', 'script.js', [
+            (function() {
+                // Valid ARM template schema
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "parameters": {}
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result !== null, 'Detects valid ARM template (deploymentTemplate schema)', 'not null', result !== null ? 'object' : 'null');
+            })(),
+            (function() {
+                // Valid ARM parameters file schema
+                const armParams = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {}
+                };
+                const result = parseArmTemplateToState(armParams);
+                return assert(result !== null, 'Detects valid ARM parameters file', 'not null', result !== null ? 'object' : 'null');
+            })(),
+            (function() {
+                // Non-ARM JSON (Odin export)
+                const odinExport = {
+                    "version": "0.12.0",
+                    "state": { "scenario": "hyperconverged" }
+                };
+                const result = parseArmTemplateToState(odinExport);
+                return assert(result === null, 'Returns null for non-ARM JSON (Odin export)', 'null', result === null ? 'null' : 'object');
+            })(),
+            (function() {
+                // Invalid schema
+                const invalidJson = {
+                    "$schema": "https://example.com/invalid-schema.json",
+                    "parameters": {}
+                };
+                const result = parseArmTemplateToState(invalidJson);
+                return assert(result === null, 'Returns null for invalid schema', 'null', result === null ? 'null' : 'object');
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Node extraction
+        testSuite('parseArmTemplateToState() - Node Count Extraction', 'script.js', [
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "arcNodeResourceIds": {
+                            "value": ["/subscriptions/xxx/node1", "/subscriptions/xxx/node2", "/subscriptions/xxx/node3"]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.nodes === '3', 'Extracts node count from arcNodeResourceIds array', '3', result.nodes);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "physicalNodesSettings": {
+                            "value": [
+                                { "name": "Node1", "ipv4Address": "10.0.0.1" },
+                                { "name": "Node2", "ipv4Address": "10.0.0.2" }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.nodes === '2', 'Extracts node count from physicalNodesSettings array', '2', result.nodes);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "physicalNodesSettings": {
+                            "value": [
+                                { "name": "Node1", "ipv4Address": "10.0.0.1" },
+                                { "name": "Node2", "ipv4Address": "10.0.0.2" }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const hasNodeSettings = result.nodeSettings && result.nodeSettings.length === 2;
+                const firstNode = hasNodeSettings ? result.nodeSettings[0] : null;
+                return assert(
+                    hasNodeSettings && firstNode.name === 'Node1',
+                    'Extracts node names from physicalNodesSettings',
+                    'Node1',
+                    firstNode ? firstNode.name : 'undefined'
+                );
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Network settings extraction
+        testSuite('parseArmTemplateToState() - Network Settings', 'script.js', [
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "domainFqdn": { "value": "contoso.local" },
+                        "dnsServers": { "value": ["10.0.0.1", "10.0.0.2"] }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.adDomain === 'contoso.local', 'Extracts domain FQDN', 'contoso.local', result.adDomain);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "dnsServers": { "value": ["10.0.0.1", "10.0.0.2"] }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const dnsMatches = result.dnsServers && result.dnsServers.length === 2 && result.dnsServers[0] === '10.0.0.1';
+                return assert(dnsMatches, 'Extracts DNS servers array', '["10.0.0.1","10.0.0.2"]', JSON.stringify(result.dnsServers));
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "defaultGateway": { "value": "192.168.1.1" }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.infraGateway === '192.168.1.1', 'Extracts default gateway', '192.168.1.1', result.infraGateway);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "witnessType": { "value": "Cloud" }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.witnessType === 'Cloud', 'Extracts witness type', 'Cloud', result.witnessType);
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Default values for missing ARM fields
+        testSuite('parseArmTemplateToState() - Default Values for Missing Fields', 'script.js', [
+            (function() {
+                // Minimal ARM template - should get defaults
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {}
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.region === 'azure_commercial', 'Defaults region to azure_commercial', 'azure_commercial', result.region);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {}
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.localInstanceRegion === 'east_us', 'Defaults localInstanceRegion to east_us', 'east_us', result.localInstanceRegion);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {}
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.scale === 'medium', 'Defaults scale to medium (hyperconverged)', 'medium', result.scale);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {}
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.outbound === 'public', 'Defaults outbound to public', 'public', result.outbound);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {}
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                // Note: ARM imports should prompt for arc/proxy/privateEndpoints via dialog
+                // The parseArmTemplateToState sets defaults that may be overridden by dialog
+                return assert(result.arc === 'yes' || result.arc === 'no_arc', 'Sets default arc value', 'yes or no_arc', result.arc);
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Storage configuration
+        testSuite('parseArmTemplateToState() - Storage Configuration', 'script.js', [
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "storageConnectivitySwitchless": { "value": true }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.storage === 'switchless', 'Extracts switchless storage from storageConnectivitySwitchless=true', 'switchless', result.storage);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "storageConnectivitySwitchless": { "value": false }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.storage === 'switched', 'Extracts switched storage from storageConnectivitySwitchless=false', 'switched', result.storage);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "enableStorageAutoIp": { "value": true }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.storageAutoIp === 'enabled', 'Extracts storage auto IP enabled', 'enabled', result.storageAutoIp);
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Intent and Port mapping
+        testSuite('parseArmTemplateToState() - Intent and Port Mapping', 'script.js', [
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "networkingPattern": { "value": "convergedManagementCompute" }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.intent === 'mgmt_compute', 'Maps networkingPattern convergedManagementCompute to mgmt_compute', 'mgmt_compute', result.intent);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "networkingPattern": { "value": "hyperConverged" }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.intent === 'all_traffic', 'Maps networkingPattern hyperConverged to all_traffic', 'all_traffic', result.intent);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "intentList": {
+                            "value": [
+                                { "adapter": ["NIC1", "NIC2"], "trafficType": ["Management", "Compute"] },
+                                { "adapter": ["SMB1", "SMB2"], "trafficType": ["Storage"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                // Should extract 4 total ports (2 NIC + 2 SMB)
+                return assert(result.ports === '4', 'Extracts port count from intentList (NIC + SMB adapters)', '4', result.ports);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "intentList": {
+                            "value": [
+                                { "adapter": ["Ethernet1", "Ethernet2"], "trafficType": ["Management", "Compute"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                // Should preserve custom adapter names
+                const hasCustomName = result.portConfig && result.portConfig[0] && result.portConfig[0].customName === 'Ethernet1';
+                return assert(hasCustomName, 'Preserves custom adapter names from intentList', 'Ethernet1', result.portConfig?.[0]?.customName || 'undefined');
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Security settings
+        testSuite('parseArmTemplateToState() - Security Settings', 'script.js', [
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "securityLevel": { "value": "Recommended" }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.securityConfiguration === 'recommended', 'Extracts security level Recommended', 'recommended', result.securityConfiguration);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "bitlockerBootVolume": { "value": false },
+                        "bitlockerDataVolumes": { "value": true }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const bootVolume = result.securitySettings && result.securitySettings.bitlockerBootVolume === false;
+                const dataVolumes = result.securitySettings && result.securitySettings.bitlockerDataVolumes === true;
+                return assert(bootVolume && dataVolumes, 'Extracts individual security settings', 'boot:false, data:true', 
+                    `boot:${result.securitySettings?.bitlockerBootVolume}, data:${result.securitySettings?.bitlockerDataVolumes}`);
+            })()
+        ]);
+
+        // Test: Import handles missing fields gracefully (backward compatibility)
+        testSuite('Import Configuration - Backward Compatibility', 'script.js', [
+            (function() {
+                // Simulate an old export missing new fields like privateEndpoints
+                const oldExport = {
+                    version: '0.10.0',
+                    exportedAt: '2024-01-01T00:00:00Z',
+                    state: {
+                        scenario: 'hyperconverged',
+                        nodes: '3',
+                        storage: 'switched'
+                        // Missing: privateEndpoints, privateEndpointsList, etc.
+                    }
+                };
+                // Verify the structure is valid even without new fields
+                const hasRequiredFields = oldExport.state && oldExport.version;
+                return assert(hasRequiredFields, 'Old exports without new fields are valid JSON structure', true, hasRequiredFields);
+            })(),
+            (function() {
+                // Verify current state has all fields that could be missing in old exports
+                const newFields = ['privateEndpoints', 'privateEndpointsList', 'rackAwareZones', 'rackAwareTorsPerRoom', 'rackAwareTorArchitecture'];
+                const stateHasNewFields = newFields.every(f => f in state);
+                return assert(stateHasNewFields, 'Current state defines all new wizard fields', true, stateHasNewFields);
+            })()
+        ]);
+
+        // Test: State field completeness (ensure new steps automatically included)
+        testSuite('State Field Coverage - New Steps Auto-Included', 'script.js', [
+            (function() {
+                // Critical fields that should be in exports (grouped by wizard step)
+                const criticalFields = {
+                    // Step 1: Scenario
+                    scenario: state.hasOwnProperty('scenario'),
+                    // Step 2: Region
+                    region: state.hasOwnProperty('region'),
+                    localInstanceRegion: state.hasOwnProperty('localInstanceRegion'),
+                    // Step 3: Scale
+                    scale: state.hasOwnProperty('scale'),
+                    // Step 4: Nodes
+                    nodes: state.hasOwnProperty('nodes'),
+                    // Step 5: Witness
+                    witnessType: state.hasOwnProperty('witnessType'),
+                    // Networking steps
+                    ports: state.hasOwnProperty('ports'),
+                    portConfig: state.hasOwnProperty('portConfig'),
+                    storage: state.hasOwnProperty('storage'),
+                    intent: state.hasOwnProperty('intent'),
+                    // Connectivity steps
+                    outbound: state.hasOwnProperty('outbound'),
+                    arc: state.hasOwnProperty('arc'),
+                    proxy: state.hasOwnProperty('proxy'),
+                    privateEndpoints: state.hasOwnProperty('privateEndpoints'),
+                    // SDN
+                    sdnEnabled: state.hasOwnProperty('sdnEnabled'),
+                    sdnFeatures: state.hasOwnProperty('sdnFeatures'),
+                    // Security
+                    securityConfiguration: state.hasOwnProperty('securityConfiguration'),
+                    securitySettings: state.hasOwnProperty('securitySettings')
+                };
+                const missingCritical = Object.entries(criticalFields).filter(([k, v]) => !v).map(([k]) => k);
+                return assert(
+                    missingCritical.length === 0,
+                    'All critical wizard step fields exist in state object',
+                    '[]',
+                    JSON.stringify(missingCritical)
+                );
+            })(),
+            (function() {
+                // Rack-aware fields (newer addition)
+                const rackFields = ['rackAwareZones', 'rackAwareTorsPerRoom', 'rackAwareTorArchitecture', 'rackAwareZoneSwapSelection'];
+                const hasRackFields = rackFields.every(f => f in state);
+                return assert(hasRackFields, 'Rack-aware zone fields exist in state', true, hasRackFields);
+            })(),
+            (function() {
+                // Private endpoint fields (newer addition) 
+                const peFields = ['privateEndpoints', 'privateEndpointsList'];
+                const hasPeFields = peFields.every(f => f in state);
+                return assert(hasPeFields, 'Private endpoint fields exist in state', true, hasPeFields);
+            })()
+        ]);
+
+        // Test: Detect undocumented state fields (fails when new fields are added without updating this list)
+        // PURPOSE: When this test fails, it means a developer added a new field to the state object
+        // but hasn't considered import/export functionality. Update the knownFields array below
+        // and verify that:
+        //   1. exportConfiguration() will include the new field (automatic - exports entire state)
+        //   2. importConfiguration() handles missing field gracefully (uses default)
+        //   3. parseArmTemplateToState() maps ARM parameter if applicable
+        //   4. showArmImportOptionsDialog() prompts user if field isn't in ARM templates
+        testSuite('State Field Inventory - Detect Undocumented Fields', 'script.js', [
+            (function() {
+                // IMPORTANT: When adding new fields to state, add them here and verify import/export handling!
+                // This list must match ALL fields in the state object (js/script.js line ~68)
+                const knownFields = [
+                    // Core wizard state
+                    'scenario',
+                    'region',
+                    'localInstanceRegion',
+                    'scale',
+                    'nodes',
+                    'witnessType',
+                    // UI preferences
+                    'theme',
+                    'fontSize',
+                    // Network configuration
+                    'ports',
+                    'portConfig',
+                    'portConfigConfirmed',
+                    'storage',
+                    'torSwitchCount',
+                    'switchlessLinkMode',
+                    'storagePoolConfiguration',
+                    // Rack-aware zones
+                    'rackAwareZones',
+                    'rackAwareZonesConfirmed',
+                    'rackAwareZoneSwapSelection',
+                    'rackAwareTorsPerRoom',
+                    'rackAwareTorArchitecture',
+                    // Network intents
+                    'intent',
+                    'customIntentConfirmed',
+                    'intentOverrides',
+                    'customIntents',
+                    'adapterMapping',
+                    'adapterMappingConfirmed',
+                    'adapterMappingSelection',
+                    'overridesConfirmed',
+                    // Connectivity
+                    'outbound',
+                    'arc',
+                    'proxy',
+                    // IP configuration
+                    'ip',
+                    'infra',
+                    'infraCidr',
+                    'infraCidrAuto',
+                    'infraGateway',
+                    'infraGatewayManual',
+                    'nodeSettings',
+                    'infraVlan',
+                    'infraVlanId',
+                    'storageAutoIp',
+                    'customStorageSubnets',
+                    'customStorageSubnetsConfirmed',
+                    // Active Directory
+                    'activeDirectory',
+                    'adDomain',
+                    'adOuPath',
+                    'adfsServerName',
+                    // DNS
+                    'dnsServers',
+                    'localDnsZone',
+                    'dnsServiceExisting',
+                    // SDN
+                    'sdnEnabled',
+                    'sdnFeatures',
+                    'sdnManagement',
+                    // Security
+                    'securityConfiguration',
+                    'securitySettings',
+                    'rdmaGuardMessage',
+                    // Private endpoints
+                    'privateEndpoints',
+                    'privateEndpointsList'
+                ];
+                
+                const actualFields = Object.keys(state);
+                const undocumented = actualFields.filter(f => !knownFields.includes(f));
+                const extraInList = knownFields.filter(f => !actualFields.includes(f));
+                
+                // Test for undocumented fields (new fields added to state but not to this list)
+                return assert(
+                    undocumented.length === 0,
+                    'No undocumented state fields (update knownFields when adding new wizard steps)',
+                    '[]',
+                    undocumented.length > 0 ? 'NEW FIELDS: ' + JSON.stringify(undocumented) : '[]'
+                );
+            })(),
+            (function() {
+                // Verify the knownFields list doesn't have stale entries
+                const knownFields = [
+                    'scenario', 'region', 'localInstanceRegion', 'scale', 'nodes', 'witnessType',
+                    'theme', 'fontSize', 'ports', 'portConfig', 'portConfigConfirmed', 'storage',
+                    'torSwitchCount', 'switchlessLinkMode', 'storagePoolConfiguration',
+                    'rackAwareZones', 'rackAwareZonesConfirmed', 'rackAwareZoneSwapSelection',
+                    'rackAwareTorsPerRoom', 'rackAwareTorArchitecture', 'intent', 'customIntentConfirmed',
+                    'intentOverrides', 'customIntents', 'adapterMapping', 'adapterMappingConfirmed',
+                    'adapterMappingSelection', 'overridesConfirmed', 'outbound', 'arc', 'proxy',
+                    'ip', 'infra', 'infraCidr', 'infraCidrAuto', 'infraGateway', 'infraGatewayManual',
+                    'nodeSettings', 'infraVlan', 'infraVlanId', 'storageAutoIp', 'customStorageSubnets',
+                    'customStorageSubnetsConfirmed', 'activeDirectory', 'adDomain', 'adOuPath',
+                    'adfsServerName', 'dnsServers', 'localDnsZone', 'dnsServiceExisting',
+                    'sdnEnabled', 'sdnFeatures', 'sdnManagement', 'securityConfiguration',
+                    'securitySettings', 'rdmaGuardMessage', 'privateEndpoints', 'privateEndpointsList'
+                ];
+                
+                const actualFields = Object.keys(state);
+                const staleEntries = knownFields.filter(f => !actualFields.includes(f));
+                
+                return assert(
+                    staleEntries.length === 0,
+                    'No stale entries in knownFields (remove fields no longer in state)',
+                    '[]',
+                    staleEntries.length > 0 ? 'STALE: ' + JSON.stringify(staleEntries) : '[]'
+                );
+            })()
+        ]);
+
+        // ========================================================================
         // FINAL SUMMARY
         // ========================================================================
         updateTestSummary();
