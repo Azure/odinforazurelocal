@@ -196,16 +196,37 @@ The wizard follows a sequential flow:
 ### File Structure
 
 ```
-Dyktio-v3/
-├── index.html          # Main wizard interface
-├── script.js           # Core logic and state management
-├── style.css           # UI styling
-├── report.html         # Configuration report template
-├── report.js           # Report generation logic
-├── arm.html            # ARM parameters viewer
-├── arm.js              # ARM parameters generation
-├── serve.ps1           # Local development server
-└── README.md           # This file
+odinforazurelocal/
+├── index.html              # Main wizard interface
+├── README.md               # Documentation
+├── CHANGELOG.md            # Version history
+├── CONTRIBUTING.md         # Contribution guidelines
+├── arm/
+│   ├── arm.html            # ARM parameters viewer
+│   └── arm.js              # ARM parameters generation
+├── css/
+│   └── style.css           # UI styling
+├── js/
+│   ├── script.js           # Core logic and state management
+│   ├── analytics.js        # Firebase analytics integration
+│   ├── dns.js              # DNS validation functions
+│   ├── formatting.js       # Output formatting utilities
+│   ├── notifications.js    # Toast notification system
+│   ├── theme.js            # Theme toggle handling
+│   ├── utils.js            # Shared utility functions
+│   └── validation.js       # Input validation functions
+├── report/
+│   ├── report.html         # Configuration report template
+│   └── report.js           # Report generation logic
+├── sizer/
+│   ├── index.html          # Hardware sizer tool
+│   ├── sizer.css           # Sizer styling
+│   └── sizer.js            # Sizer logic
+├── tests/
+│   ├── index.html          # Unit test suite (170+ tests)
+│   └── serve.ps1           # Local test server
+└── scripts/
+    └── run-tests.js        # CI test runner
 ```
 
 ### Technology Stack
