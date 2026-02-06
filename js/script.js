@@ -2495,6 +2495,9 @@ function selectOption(category, value) {
     }
 
     updateUI();
+
+    // Auto-save state after every option selection to ensure Resume works reliably
+    saveStateToLocalStorage();
 }
 
 // ============================================================================
