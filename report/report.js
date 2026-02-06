@@ -1619,52 +1619,50 @@
                     }
                 }
 
-                // Draw boxes around each intent group
-                // First, find contiguous groups of adapters with the same intent
-                var intentBoxes = [];
-                var currentGroup = null;
-                var currentGroupStart = -1;
+                // Build ordered list of ports grouped by intent (following customGroups order)
+                // This ensures ports with the same intent are visually grouped together
+                var orderedPorts = [];
+                var intentGap = 8; // Gap between intent boxes
                 
-                for (var i = 0; i < ports; i++) {
-                    var nicIdx = i + 1;
-                    var grp = portIntent[nicIdx];
-                    var grpKey = grp ? grp.key : 'unused';
-                    
-                    if (currentGroup !== grpKey) {
-                        // Save previous group if it existed
-                        if (currentGroup && currentGroup !== 'unused' && currentGroupStart >= 0) {
-                            intentBoxes.push({
-                                key: currentGroup,
-                                startIdx: currentGroupStart,
-                                endIdx: i - 1,
-                                label: portIntent[currentGroupStart + 1] ? portIntent[currentGroupStart + 1].label : currentGroup
-                            });
-                        }
-                        currentGroup = grpKey;
-                        currentGroupStart = i;
+                for (var gi = 0; gi < customGroups.length; gi++) {
+                    var grp = customGroups[gi];
+                    for (var ni = 0; ni < grp.nics.length; ni++) {
+                        orderedPorts.push(grp.nics[ni]);
                     }
                 }
-                // Don't forget the last group
-                if (currentGroup && currentGroup !== 'unused' && currentGroupStart >= 0) {
-                    intentBoxes.push({
-                        key: currentGroup,
-                        startIdx: currentGroupStart,
-                        endIdx: ports - 1,
-                        label: portIntent[currentGroupStart + 1] ? portIntent[currentGroupStart + 1].label : currentGroup
-                    });
+                
+                // Include any ports not assigned to intents (unused)
+                for (var pi = 1; pi <= ports; pi++) {
+                    if (orderedPorts.indexOf(pi) < 0) {
+                        orderedPorts.push(pi);
+                    }
                 }
 
-                // Draw boxes for each intent group
-                for (var bi = 0; bi < intentBoxes.length; bi++) {
-                    var box = intentBoxes[bi];
-                    var boxStartX = startX + (box.startIdx * (adapterW + adapterGap)) - 8;
-                    var boxW = ((box.endIdx - box.startIdx + 1) * adapterW) + ((box.endIdx - box.startIdx) * adapterGap) + 16;
-                    var boxY = adaptersY - 12;
-                    var boxH = adapterH + 24;
+                // Calculate total width including gaps between intent groups
+                var totalGroupedW = (ports * adapterW) + (Math.max(0, ports - 1) * adapterGap);
+                if (customGroups.length > 1) {
+                    totalGroupedW += (customGroups.length - 1) * intentGap;
+                }
+                var groupedStartX = nodeLeft + (nodeW - totalGroupedW) / 2;
+
+                // Build position map for each port based on grouped layout
+                var portPositions = {};
+                var currentX = groupedStartX;
+                var boxY = adaptersY - 12;
+                var boxH = adapterH + 24;
+                
+                for (var gi = 0; gi < customGroups.length; gi++) {
+                    var grp = customGroups[gi];
+                    var grpPorts = grp.nics;
+                    var grpW = (grpPorts.length * adapterW) + ((grpPorts.length - 1) * adapterGap);
+                    
+                    // Draw intent box
+                    var boxX = currentX - 8;
+                    var boxTotalW = grpW + 16;
                     
                     // Color based on intent type
-                    var isStorageLike = (box.key === 'storage' || box.key === 'compute_storage' || box.key === 'all');
-                    var isCompute = (box.key === 'compute');
+                    var isStorageLike = grp.isStorageLike;
+                    var isCompute = (grp.key === 'compute');
                     var boxFill, boxStroke;
                     if (isStorageLike) {
                         boxFill = 'rgba(139,92,246,0.07)';
@@ -1677,27 +1675,37 @@
                         boxStroke = 'rgba(0,120,212,0.45)';
                     }
                     
-                    out += '<rect x="' + boxStartX + '" y="' + boxY + '" width="' + boxW + '" height="' + boxH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
-                    out += '<text x="' + (boxStartX + boxW / 2) + '" y="' + (boxY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(box.label) + '</text>';
+                    out += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
+                    out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(grp.label) + '</text>';
+                    
+                    // Assign positions to ports in this group
+                    for (var pi = 0; pi < grpPorts.length; pi++) {
+                        var nicIdx = grpPorts[pi];
+                        portPositions[nicIdx] = {
+                            x: currentX + (pi * (adapterW + adapterGap)),
+                            posInGroup: pi
+                        };
+                    }
+                    
+                    // Move currentX for next group
+                    currentX += grpW + adapterGap + intentGap;
                 }
 
-                // Build a map of NIC to position within its intent group
-                var nicPosInGroup = {};
-                var groupCounters = {};
-                for (var i = 0; i < ports; i++) {
-                    var nicIdx = i + 1;
-                    var grpForCount = portIntent[nicIdx];
-                    var grpKeyForCount = grpForCount ? grpForCount.key : 'unused';
-                    if (!groupCounters[grpKeyForCount]) groupCounters[grpKeyForCount] = 0;
-                    nicPosInGroup[nicIdx] = groupCounters[grpKeyForCount];
-                    groupCounters[grpKeyForCount]++;
-                }
-
-                // Draw all adapters horizontally
-                for (var i = 0; i < ports; i++) {
-                    var x = startX + (i * (adapterW + adapterGap));
+                // Draw adapters in grouped order
+                for (var oi = 0; oi < orderedPorts.length; oi++) {
+                    var nicIdx = orderedPorts[oi];
+                    var posData = portPositions[nicIdx];
+                    
+                    // For unassigned ports, calculate position at the end
+                    if (!posData) {
+                        posData = {
+                            x: currentX + ((oi - (orderedPorts.length - (ports - Object.keys(portPositions).length))) * (adapterW + adapterGap)),
+                            posInGroup: 0
+                        };
+                    }
+                    
+                    var x = posData.x;
                     var y = adaptersY;
-                    var nicIdx = i + 1;
 
                     var grp2 = portIntent[nicIdx];
                     var isStorage = grp2 && grp2.isStorageLike;
@@ -1718,7 +1726,7 @@
                     // Always use getNicLabel for physical port names
                     var label = getNicLabel(nicIdx);
                     // Get position within intent group
-                    var posInGroup = nicPosInGroup[nicIdx] || 0;
+                    var posInGroup = posData.posInGroup || 0;
                     // Center text vertically if label is 9 characters or less, otherwise stagger
                     var textY = (label.length <= 9) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
 

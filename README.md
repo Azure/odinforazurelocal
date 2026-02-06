@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.14.51
+## Version 0.14.52
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -38,14 +38,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.51 - Latest Release
-- **Automated Build Pipeline**: GitHub Actions CI/CD with ESLint, HTML validation, and 136 unit tests
-- **RFC 1918 DNS Validation**: DNS servers must be private IPs when using Active Directory (prevents public DNS like 8.8.8.8)
-- **Light Mode Input Fix**: Fixed all input fields showing white text on light theme backgrounds
-- **Keyboard Navigation**: Option cards now support Tab navigation and Enter/Space selection
-- **SDN Management Resume Fix**: Fixed SDN Management selection not being restored when resuming a saved session
-- **Infrastructure Network Resume Fix**: Fixed Infrastructure Network validation errors when resuming a saved session
-- **Codebase Modularization**: Project restructured with dedicated modules for formatting, validation, DNS, theme, and notifications
+### 🎉 Version 0.14.52 - Latest Release
+- **Diagram Intent Grouping Fix**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
+- **Non-Contiguous Port Support**: Ports from different slots assigned to the same intent are now displayed adjacent to each other in the diagram
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -201,16 +196,37 @@ The wizard follows a sequential flow:
 ### File Structure
 
 ```
-Dyktio-v3/
-├── index.html          # Main wizard interface
-├── script.js           # Core logic and state management
-├── style.css           # UI styling
-├── report.html         # Configuration report template
-├── report.js           # Report generation logic
-├── arm.html            # ARM parameters viewer
-├── arm.js              # ARM parameters generation
-├── serve.ps1           # Local development server
-└── README.md           # This file
+odinforazurelocal/
+├── index.html              # Main wizard interface
+├── README.md               # Documentation
+├── CHANGELOG.md            # Version history
+├── CONTRIBUTING.md         # Contribution guidelines
+├── arm/
+│   ├── arm.html            # ARM parameters viewer
+│   └── arm.js              # ARM parameters generation
+├── css/
+│   └── style.css           # UI styling
+├── js/
+│   ├── script.js           # Core logic and state management
+│   ├── analytics.js        # Firebase analytics integration
+│   ├── dns.js              # DNS validation functions
+│   ├── formatting.js       # Output formatting utilities
+│   ├── notifications.js    # Toast notification system
+│   ├── theme.js            # Theme toggle handling
+│   ├── utils.js            # Shared utility functions
+│   └── validation.js       # Input validation functions
+├── report/
+│   ├── report.html         # Configuration report template
+│   └── report.js           # Report generation logic
+├── sizer/
+│   ├── index.html          # Hardware sizer tool
+│   ├── sizer.css           # Sizer styling
+│   └── sizer.js            # Sizer logic
+├── tests/
+│   ├── index.html          # Unit test suite (170+ tests)
+│   └── serve.ps1           # Local test server
+└── scripts/
+    └── run-tests.js        # CI test runner
 ```
 
 ### Technology Stack
@@ -284,11 +300,6 @@ To extend the wizard:
 - Check `version` field in JSON matches current version
 - Try exporting fresh config to verify format
 
-#### Cost estimates seem wrong
-- Cost estimator provides rough estimates only
-- Actual costs vary by region, usage, and other factors
-- Use official [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/) for accurate quotes
-
 ### Debugging
 
 Enable detailed logging in browser console:
@@ -297,27 +308,12 @@ Enable detailed logging in browser console:
 3. Look for errors or warnings
 4. Check localStorage: `localStorage.getItem('azureLocalWizardState')`
 
----
+### Report an Issue and Contributing:
+- Report bugs or request new features using GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
+- Include browser version, OS, and steps to reproduce for issues.
+- Provide exported config (sanitized) if helpful to recreate the problem.
 
-## Version History
-
-### v0.1.0 (Current)
-- ✨ Auto-save and resume capability
-- ✨ Export/import configuration
-- ✨ Cost estimator
-- ✨ CIDR calculator
-- ✨ Real-time validation
-- ✨ Contextual help system
-- ✨ Toast notifications
-- 🔒 Enhanced input sanitization
-- 📊 Version tracking
-- 🔄 Change detection
-
-### v0.0.1 (Previous)
-- Initial release of wizard framework
-- Support for multiple deployment scenarios
-- ARM parameters generation
-- Report generation
+For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
@@ -366,21 +362,6 @@ Enable detailed logging in browser console:
 
 ---
 
-## Contributing
-
-### Reporting Issues
-- Report bugs or request features via GitHub Issues
-- Include browser version, OS, and steps to reproduce
-- Provide exported config (sanitized) if helpful
-
-### Code Contributions
-- Follow existing code style and structure
-- Test changes in multiple browsers
-- Update documentation for new features
-- Add validation for new input fields
-
----
-
 ## Additional Resources
 
 ### Official Documentation
@@ -404,7 +385,7 @@ This project is provided as-is for planning and configuration purposes. See offi
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.51  
+**Version**: 0.14.52  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -419,6 +400,9 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.52 - Diagram Intent Grouping Fix
+- **Custom Intent Diagram Grouping**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
 
 #### 0.14.51 - Automated Build Pipeline & Bug Fixes
 - **GitHub Actions CI/CD**: Automated build validation pipeline with ESLint, HTML validation, and 136 unit tests

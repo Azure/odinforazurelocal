@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.52] - 2026-02-06
+
+### Fixed
+
+#### Diagram Intent Grouping for Custom Intents
+
+- **Custom Intent Diagram Grouping**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
+- When users assign ports from different slots to the same intent (e.g., "Slot 3 Port 1" and "Slot 6 Port 2" both to Compute), the diagram now displays them adjacent to each other within the same intent box
+- Previously, ports were displayed in physical slot order regardless of intent assignment, making the diagram confusing for non-standard configurations
+- Intent boxes are now drawn based on logical grouping rather than physical port ordering
+
+---
+
 ## [0.14.51] - 2026-02-05
 
 ### Added
