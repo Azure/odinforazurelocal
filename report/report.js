@@ -945,49 +945,47 @@
                 diagramPromises.push(Promise.resolve({ key: 'host', url: null }));
             }
 
-            // Outbound connectivity diagram (loaded as <img>)
-            var outboundImg = document.querySelector('#outbound-diagram-img');
-            if (outboundImg && outboundImg.naturalWidth > 0) {
-                diagramPromises.push(new Promise(function (resolve) {
-                    try {
+            // Helper: convert SVG text to PNG data URL via off-screen canvas
+            function svgTextToPngDataUrl(svgText) {
+                return new Promise(function (resolve) {
+                    var svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+                    var svgUrl = URL.createObjectURL(svgBlob);
+                    var img = new Image();
+                    img.onload = function () {
                         var canvas = document.createElement('canvas');
-                        canvas.width = outboundImg.naturalWidth;
-                        canvas.height = outboundImg.naturalHeight;
+                        canvas.width = img.naturalWidth * 2;
+                        canvas.height = img.naturalHeight * 2;
                         var ctx = canvas.getContext('2d');
-                        ctx.drawImage(outboundImg, 0, 0);
-                        resolve({ key: 'outbound', url: canvas.toDataURL('image/png') });
-                    } catch (e) {
-                        // Cross-origin or tainted canvas - try fetching SVG as data URL
-                        var diagKey = getOutboundDiagramKey(s);
-                        if (diagKey && OUTBOUND_DIAGRAMS[diagKey]) {
-                            fetch(OUTBOUND_DIAGRAMS[diagKey])
-                                .then(function (r) { return r.text(); })
-                                .then(function (svgText) {
-                                    var svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgText)));
-                                    resolve({ key: 'outbound', url: svgDataUrl });
-                                })
-                                .catch(function () { resolve({ key: 'outbound', url: null }); });
-                        } else {
-                            resolve({ key: 'outbound', url: null });
-                        }
-                    }
-                }));
+                        ctx.scale(2, 2);
+                        ctx.drawImage(img, 0, 0);
+                        var pngUrl = canvas.toDataURL('image/png');
+                        URL.revokeObjectURL(svgUrl);
+                        resolve(pngUrl);
+                    };
+                    img.onerror = function () {
+                        URL.revokeObjectURL(svgUrl);
+                        resolve(null);
+                    };
+                    img.src = svgUrl;
+                });
+            }
+
+            // Outbound connectivity diagram - fetch SVG and convert to PNG
+            var outboundDiagKey = getOutboundDiagramKey(s);
+            if (outboundDiagKey && OUTBOUND_DIAGRAMS[outboundDiagKey]) {
+                diagramPromises.push(
+                    fetch(OUTBOUND_DIAGRAMS[outboundDiagKey])
+                        .then(function (r) { return r.text(); })
+                        .then(function (svgText) {
+                            return svgTextToPngDataUrl(svgText);
+                        })
+                        .then(function (pngUrl) {
+                            return { key: 'outbound', url: pngUrl };
+                        })
+                        .catch(function () { return { key: 'outbound', url: null }; })
+                );
             } else {
-                // Try fetching the SVG file directly
-                var diagKey = getOutboundDiagramKey(s);
-                if (diagKey && OUTBOUND_DIAGRAMS[diagKey]) {
-                    diagramPromises.push(
-                        fetch(OUTBOUND_DIAGRAMS[diagKey])
-                            .then(function (r) { return r.text(); })
-                            .then(function (svgText) {
-                                var svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgText)));
-                                return { key: 'outbound', url: svgDataUrl };
-                            })
-                            .catch(function () { return { key: 'outbound', url: null }; })
-                    );
-                } else {
-                    diagramPromises.push(Promise.resolve({ key: 'outbound', url: null }));
-                }
+                diagramPromises.push(Promise.resolve({ key: 'outbound', url: null }));
             }
 
             Promise.all(diagramPromises).then(function (diagramResults) {
