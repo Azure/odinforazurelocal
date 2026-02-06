@@ -1459,20 +1459,35 @@
                 diagramPromises.push(Promise.resolve({ key: 'host', url: null }));
             }
 
-            // Outbound connectivity diagram - fetch SVG and convert to PNG
+            // Outbound connectivity diagram - grab the already-rendered <img> from the DOM
             var outboundDiagKey = getOutboundDiagramKey(s);
             if (outboundDiagKey && OUTBOUND_DIAGRAMS[outboundDiagKey]) {
-                diagramPromises.push(
+                diagramPromises.push(new Promise(function (resolve) {
+                    // First try the already-loaded <img> on the page
+                    var outboundImg = document.querySelector('#outbound-diagram-img');
+                    if (outboundImg && outboundImg.complete && outboundImg.naturalWidth > 0) {
+                        try {
+                            var canvas = document.createElement('canvas');
+                            canvas.width = outboundImg.naturalWidth * 2;
+                            canvas.height = outboundImg.naturalHeight * 2;
+                            var ctx = canvas.getContext('2d');
+                            ctx.scale(2, 2);
+                            ctx.drawImage(outboundImg, 0, 0);
+                            var pngUrl = canvas.toDataURL('image/png');
+                            resolve({ key: 'outbound', url: pngUrl });
+                            return;
+                        } catch (e) {
+                            // Tainted canvas — fall through to fetch approach
+                            console.warn('Outbound diagram canvas tainted, trying fetch:', e.message);
+                        }
+                    }
+                    // Fall back: fetch SVG, load into a new image via Blob URL, then canvas
                     fetch(OUTBOUND_DIAGRAMS[outboundDiagKey])
                         .then(function (r) { return r.text(); })
-                        .then(function (svgText) {
-                            return svgTextToPngDataUrl(svgText);
-                        })
-                        .then(function (pngUrl) {
-                            return { key: 'outbound', url: pngUrl };
-                        })
-                        .catch(function () { return { key: 'outbound', url: null }; })
-                );
+                        .then(function (svgText) { return svgTextToPngDataUrl(svgText); })
+                        .then(function (pngUrl) { resolve({ key: 'outbound', url: pngUrl }); })
+                        .catch(function () { resolve({ key: 'outbound', url: null }); });
+                }));
             } else {
                 diagramPromises.push(Promise.resolve({ key: 'outbound', url: null }));
             }
