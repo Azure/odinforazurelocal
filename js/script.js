@@ -8439,10 +8439,11 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Diagram Intent Grouping Fix</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Diagram & Validation Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Custom Intent Diagram Grouping:</strong> Fixed network diagram to properly group adapters by intent when using custom intent configurations.</li>
                         <li><strong>Non-Contiguous Port Support:</strong> When ports from different slots are assigned to the same intent, they are now displayed adjacent to each other in the diagram.</li>
+                        <li><strong>Duplicate Adapter Name Validation:</strong> Prevents duplicate adapter names in port configuration with visual feedback (red border, warning label) and blocks report generation until resolved.</li>
                     </ul>
                 </div>
 

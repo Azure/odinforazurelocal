@@ -41,6 +41,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ### 🎉 Version 0.14.52 - Latest Release
 - **Diagram Intent Grouping Fix**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
 - **Non-Contiguous Port Support**: Ports from different slots assigned to the same intent are now displayed adjacent to each other in the diagram
+- **Duplicate Adapter Name Validation**: Prevents duplicate adapter names in port configuration with visual feedback and validation warnings
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -401,8 +402,9 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
 
-#### 0.14.52 - Diagram Intent Grouping Fix
+#### 0.14.52 - Diagram Intent Grouping Fix & Validation
 - **Custom Intent Diagram Grouping**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
+- **Duplicate Adapter Name Validation**: Prevents duplicate adapter names in port configuration with visual feedback
 
 #### 0.14.51 - Automated Build Pipeline & Bug Fixes
 - **GitHub Actions CI/CD**: Automated build validation pipeline with ESLint, HTML validation, and 136 unit tests
