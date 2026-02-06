@@ -1145,6 +1145,270 @@
             md.push('');
         }
 
+        // ── Validation Summary ──
+        var validations = computeValidations(s);
+        var allChecks = validations.results || [];
+        var passCount = allChecks.filter(function (x) { return x.passed; }).length;
+        var failCount = allChecks.length - passCount;
+
+        md.push('## Validation Summary');
+        md.push('');
+        md.push('**Passed:** ' + passCount + ' &nbsp; **Warnings/Failures:** ' + failCount);
+        md.push('');
+
+        if (allChecks.length > 0) {
+            md.push('| Status | Check | Details |');
+            md.push('|--------|-------|---------|');
+            allChecks.forEach(function (v) {
+                var mark = v.passed ? '✅' : '⚠️';
+                var details = v.details ? v.details.replace(/\|/g, '\\|') : '';
+                var name = v.name ? v.name.replace(/\|/g, '\\|') : '';
+                md.push('| ' + mark + ' | ' + name + ' | ' + details + ' |');
+            });
+            md.push('');
+        }
+
+        // ── Decisions & Rationale ──
+        md.push('## Decisions & Rationale');
+        md.push('');
+
+        // Deployment Scenario
+        md.push('### Deployment Scenario');
+        md.push('');
+        md.push('**Selected:** ' + formatScenario(s.scenario));
+        if (s.scenario === 'hyperconverged') {
+            md.push('');
+            md.push('**Why it matters:** Single-rack, consolidated compute/storage. Enables Low Capacity or Standard flows.');
+        } else if (s.scenario === 'disconnected') {
+            md.push('');
+            md.push('**Why it matters:** Air-gapped deployments constrain outbound connectivity and management options.');
+            md.push('');
+            md.push('**Wizard logic:** Disconnected mode disables cloud-specific selections that require internet access.');
+        } else if (s.scenario === 'm365local') {
+            md.push('');
+            md.push('**Why it matters:** M365 Local deployments are optimized for Microsoft 365 workloads with high availability requirements.');
+            md.push('');
+            md.push('**Wizard logic:** M365 Local requires a minimum of 9 physical nodes. Supports Standard scale configuration only.');
+        }
+        md.push('');
+
+        // Azure Cloud & Region
+        md.push('### Azure Cloud & Azure Local Region');
+        md.push('');
+        md.push('**Azure Cloud:** ' + formatCloud(s.region));
+        md.push('');
+        md.push('**Azure Local Instance Region:** ' + formatLocalInstanceRegion(s.localInstanceRegion));
+        md.push('');
+        var cloudNotes = [];
+        cloudNotes.push('Your Azure cloud selection determines which endpoints, compliance boundaries, and region catalogs apply.');
+        if (s.region === 'azure_commercial') {
+            cloudNotes.push('Azure Local supported regions for Azure Public include: East US, South Central US, West Europe, Australia East, Southeast Asia, India Central, Canada Central, Japan East.');
+        } else if (s.region === 'azure_government') {
+            cloudNotes.push('Azure Local supported regions for Azure Government include: US Gov Virginia.');
+        }
+        cloudNotes.forEach(function (n) { md.push('- ' + n); });
+        md.push('');
+
+        // Scale & Nodes
+        md.push('### Scale & Nodes');
+        md.push('');
+        md.push('**Scale:** ' + formatScale(s.scale));
+        md.push('');
+        md.push('**Nodes:** ' + (s.nodes || '-'));
+        md.push('');
+        var scaleNotes = [];
+        if (s.scale === 'low_capacity') scaleNotes.push('Low Capacity targets smaller deployments and limits certain network intent combinations.');
+        if (s.scale === 'rack_aware') scaleNotes.push('Rack Aware is designed for multi-room / split-rack node placement.');
+        if (s.scenario === 'disconnected') scaleNotes.push('Disconnected mode typically enforces Standard scale constraints.');
+        if (scaleNotes.length) {
+            scaleNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // Storage & Ports
+        md.push('### Storage & Ports');
+        md.push('');
+        md.push('**Storage:** ' + (s.storage ? (s.storage.charAt(0).toUpperCase() + s.storage.slice(1)) : '-'));
+        md.push('');
+        md.push('**Ports per node:** ' + (s.ports || '-'));
+        md.push('');
+        var storageNotes = [];
+        if (s.storage === 'switchless') {
+            storageNotes.push('Switchless storage typically reduces the number of storage networks and impacts intent options.');
+            storageNotes.push('Switchless storage is generally intended for smaller clusters; larger clusters require switched storage connectivity.');
+        }
+        if (String(s.ports) === '4') storageNotes.push('With 4 ports, the wizard disables Custom intent (insufficient ports for flexible mapping).');
+        if (storageNotes.length) {
+            storageNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // Traffic Intent & Adapter Mapping
+        md.push('### Traffic Intent & Adapter Mapping');
+        md.push('');
+        md.push('**Intent:** ' + formatIntent(s.intent));
+        md.push('');
+        var intentNotes = [];
+        if (s.intent === 'all_traffic') intentNotes.push('Fully converged simplifies adapter mapping but combines all traffic types into one SET team.');
+        if (s.intent === 'mgmt_compute') intentNotes.push('Splits storage traffic away from mgmt/compute to reduce contention and isolate storage behavior.');
+        if (s.intent === 'compute_storage') intentNotes.push('Keeps management isolated while converging compute+storage.');
+        if (s.intent === 'custom') intentNotes.push('Custom intent allows manual adapter assignment.');
+        if (intentNotes.length) {
+            intentNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // Outbound, Arc, Proxy & Private Endpoints
+        md.push('### Outbound, Arc, Proxy & Private Endpoints');
+        md.push('');
+        md.push('**Outbound:** ' + formatOutbound(s.outbound));
+        md.push('');
+        md.push('**Arc Gateway:** ' + (s.arc === 'arc_gateway' ? 'Enabled (Recommended)' : (s.arc === 'no_arc' ? 'Disabled' : '-')));
+        md.push('');
+        md.push('**Proxy:** ' + (s.proxy === 'no_proxy' ? 'Disabled' : (s.proxy ? 'Enabled' : '-')));
+        md.push('');
+        md.push('**Private Endpoints:** ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-')));
+        md.push('');
+        var outboundNotes = [];
+        if (s.outbound === 'private') {
+            outboundNotes.push('Private outbound assumes controlled egress via firewall/proxy; the wizard forces Arc Gateway + explicit proxy behavior.');
+            outboundNotes.push('With Arc Gateway, the node-side Arc proxy establishes a secure HTTPS tunnel to an Azure-hosted Arc Gateway public endpoint.');
+            outboundNotes.push('Proxy bypass lists need to include node IPs, cluster IP, and infrastructure IPs/subnet.');
+        } else if (s.outbound === 'public') {
+            outboundNotes.push('Public outbound allows direct access to required endpoints (subject to firewall allow-listing).');
+        }
+        if (outboundNotes.length) {
+            outboundNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // Proxy Bypass String
+        if (s.proxy === 'proxy') {
+            var bypassItems = ['localhost', '127.0.0.1'];
+            if (s.nodeSettings && s.nodeSettings.length) {
+                s.nodeSettings.forEach(function(node) {
+                    if (node && node.name) bypassItems.push(node.name);
+                });
+                s.nodeSettings.forEach(function(node) {
+                    if (node && node.ipCidr) {
+                        var ip = node.ipCidr.split('/')[0];
+                        if (ip) bypassItems.push(ip);
+                    }
+                });
+            }
+            if (s.adDomain) bypassItems.push('*.' + s.adDomain);
+            if (s.infraCidr) {
+                var infraWild = convertCidrToWildcard(s.infraCidr);
+                if (infraWild) bypassItems.push(infraWild);
+            }
+            if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
+                s.privateEndpointsList.forEach(function(peKey) {
+                    var info = PRIVATE_ENDPOINT_INFO[peKey];
+                    if (info && info.proxyBypass) {
+                        info.proxyBypass.forEach(function(bypass) {
+                            if (bypassItems.indexOf(bypass) === -1) bypassItems.push(bypass);
+                        });
+                    }
+                });
+            }
+            md.push('**Minimum Proxy Bypass String:**');
+            md.push('');
+            md.push('```');
+            md.push(bypassItems.join(','));
+            md.push('```');
+            md.push('');
+            md.push('> Add this bypass string to your Arc registration script. You may also need to add a cluster name and any additional internal resources.');
+            md.push('');
+        }
+
+        // Private Endpoints details
+        if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
+            md.push('#### Private Endpoints Configuration');
+            md.push('');
+            md.push('| Service | FQDN | Private Link Zone |');
+            md.push('|---------|------|-------------------|');
+            s.privateEndpointsList.forEach(function(peKey) {
+                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                if (info) {
+                    md.push('| ' + info.icon + ' ' + info.name + ' | `' + info.fqdn + '` | `' + info.privateLink + '` |');
+                }
+            });
+            md.push('');
+
+            // Show individual PE considerations
+            s.privateEndpointsList.forEach(function(peKey) {
+                var info = PRIVATE_ENDPOINT_INFO[peKey];
+                if (info && info.considerations && info.considerations.length > 0) {
+                    md.push('**' + info.icon + ' ' + info.name + ' Considerations:**');
+                    md.push('');
+                    info.considerations.forEach(function(c) { md.push('- ' + c); });
+                    md.push('');
+                }
+            });
+        }
+
+        // IP, Infrastructure Network & VLAN
+        md.push('### IP, Infrastructure Network & VLAN');
+        md.push('');
+        md.push('**IP:** ' + (s.ip ? (s.ip.charAt(0).toUpperCase() + s.ip.slice(1)) : '-'));
+        md.push('');
+        md.push('**Infra VLAN:** ' + (s.infraVlan === 'custom' ? 'Custom VLAN' : (s.infraVlan === 'default' ? 'Default VLAN' : (s.infraVlan || '-'))));
+        if (s.infraVlan === 'custom' && s.infraVlanId) {
+            md.push('');
+            md.push('**Infra VLAN ID:** `' + s.infraVlanId + '`');
+        }
+        if (s.infraCidr) {
+            md.push('');
+            md.push('**Infra Network:** `' + s.infraCidr + '`');
+        }
+        if (s.infra && s.infra.start && s.infra.end) {
+            md.push('');
+            md.push('**Infra Range:** `' + s.infra.start + ' - ' + s.infra.end + '`');
+        }
+        md.push('');
+        var mgmtNotes = [
+            'Management IP strategy affects provisioning workflow and long-term operations.',
+            'Infrastructure VLAN selection ensures consistent reachability to Arc registration and management endpoints.',
+            'Management VLAN tagging (when required) must be configured on the physical adapters before Azure Arc registration.',
+            'The infrastructure IP pool is designed for cluster infrastructure services; size it with headroom if you expect additional services later.'
+        ];
+        mgmtNotes.forEach(function (n) { md.push('- ' + n); });
+        md.push('');
+
+        // Identity & DNS
+        md.push('### Identity & DNS');
+        md.push('');
+        md.push('**Identity:** ' + (s.activeDirectory === 'azure_ad' ? 'Active Directory' : (s.activeDirectory === 'local_identity' ? 'Local Identity' : '-')));
+        if (s.adDomain) { md.push(''); md.push('**AD Domain:** `' + s.adDomain + '`'); }
+        if (s.dnsServers && s.dnsServers.length) { md.push(''); md.push('**DNS Servers:** `' + s.dnsServers.join(', ') + '`'); }
+        if (s.localDnsZone) { md.push(''); md.push('**Local DNS Zone:** `' + s.localDnsZone + '`'); }
+        md.push('');
+        var idNotes = [];
+        if (s.activeDirectory === 'azure_ad') idNotes.push('Domain-joined deployments require correct AD DNS resolution and domain membership planning.');
+        if (s.activeDirectory === 'local_identity') idNotes.push('Local Identity mode typically requires a local DNS zone for name resolution within the environment.');
+        if (s.dnsServers && s.dnsServers.length) {
+            idNotes.push('DNS settings are a critical dependency for deployment and ongoing management; ensure your chosen DNS resolvers remain reachable.');
+            idNotes.push('Azure Local guidance states DNS server IPs used by nodes are not supported to change after deployment.');
+        }
+        if (idNotes.length) {
+            idNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
+        }
+
+        // SDN Rationale
+        md.push('### Software Defined Networking (SDN)');
+        md.push('');
+        md.push('**Features:** ' + ((s.sdnFeatures && s.sdnFeatures.length) ? s.sdnFeatures.join(', ') : 'None'));
+        md.push('');
+        md.push('**Management:** ' + (s.sdnManagement ? (s.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed') : 'Not applicable'));
+        md.push('');
+        if (s.sdnFeatures && s.sdnFeatures.length) {
+            md.push('- SDN features require a management model decision (Arc-managed vs on-prem tooling).');
+        } else {
+            md.push('- No SDN features selected; SDN management is not required.');
+        }
+        md.push('');
+
         // Footer
         md.push('---');
         md.push('');
