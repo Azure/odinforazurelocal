@@ -1263,15 +1263,17 @@ function generateArmParameters() {
         const portCount = parseInt(state.ports, 10) || 0;
 
         const armAdapterNameForNic = (nicIdx1Based) => {
-            // Use custom port name if provided, otherwise match Azure quickstart template naming convention (NIC1, NIC2, ...)
+            // Use custom port name if provided, otherwise use the wizard's default display name (Port 1, Port 2, ...)
             const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
             const pc = cfg[nicIdx1Based - 1];
             if (pc && pc.customName && pc.customName.trim()) {
                 // Sanitize custom name for ARM compatibility: keep alphanumeric, underscore, hyphen
                 const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
-                return sanitized || `NIC${nicIdx1Based}`;
+                return sanitized || `Port_${nicIdx1Based}`;
             }
-            return `NIC${nicIdx1Based}`;
+            // Use the default display name from the wizard, sanitized for ARM
+            const displayName = (typeof getPortDisplayName === 'function') ? getPortDisplayName(nicIdx1Based) : `Port ${nicIdx1Based}`;
+            return displayName.replace(/[^A-Za-z0-9_-]/g, '_') || `Port_${nicIdx1Based}`;
         };
 
         /**
@@ -1292,7 +1294,10 @@ function generateArmParameters() {
                 const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
                 return sanitized || `SMB${smbIdx1Based}`;
             }
-            return `SMB${smbIdx1Based}`;
+            // Use the default display name from the wizard for the physical port, sanitized for ARM
+            const portIdx1Based = portIdx + 1;
+            const displayName = (typeof getPortDisplayName === 'function') ? getPortDisplayName(portIdx1Based) : `Port ${portIdx1Based}`;
+            return displayName.replace(/[^A-Za-z0-9_-]/g, '_') || `SMB${smbIdx1Based}`;
         };
 
         const sanitizeIntentName = (raw) => {
