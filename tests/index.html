@@ -1872,9 +1872,9 @@
                     Object.assign(state, origState);
                     window.open = origOpen;
 
-                    return assert(result !== 'Port_1,Port_1' && result !== 'no_storage_networks',
+                    return assert(result !== 'Port 1,Port 1' && result !== 'no_storage_networks',
                         'StorageNetwork1 and StorageNetwork2 have distinct adapter names',
-                        'Port_1,Port_2', result);
+                        'Port 1,Port 2', result);
                 } catch (e) {
                     Object.assign(state, origState);
                     window.open = origOpen;

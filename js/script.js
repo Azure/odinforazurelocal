@@ -1267,13 +1267,9 @@ function generateArmParameters() {
             const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
             const pc = cfg[nicIdx1Based - 1];
             if (pc && pc.customName && pc.customName.trim()) {
-                // Sanitize custom name for ARM compatibility: keep alphanumeric, underscore, hyphen
-                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
-                return sanitized || `Port_${nicIdx1Based}`;
+                return pc.customName.trim();
             }
-            // Use the default display name from the wizard, sanitized for ARM
-            const displayName = (typeof getPortDisplayName === 'function') ? getPortDisplayName(nicIdx1Based) : `Port ${nicIdx1Based}`;
-            return displayName.replace(/[^A-Za-z0-9_-]/g, '_') || `Port_${nicIdx1Based}`;
+            return (typeof getPortDisplayName === 'function') ? getPortDisplayName(nicIdx1Based) : `Port ${nicIdx1Based}`;
         };
 
         /**
@@ -1291,13 +1287,10 @@ function generateArmParameters() {
             const portIdx = storagePortOffset + smbIdx1Based - 1; // 0-based index in portConfig
             const pc = cfg[portIdx];
             if (pc && pc.customName && pc.customName.trim()) {
-                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
-                return sanitized || `SMB${smbIdx1Based}`;
+                return pc.customName.trim();
             }
-            // Use the default display name from the wizard for the physical port, sanitized for ARM
             const portIdx1Based = portIdx + 1;
-            const displayName = (typeof getPortDisplayName === 'function') ? getPortDisplayName(portIdx1Based) : `Port ${portIdx1Based}`;
-            return displayName.replace(/[^A-Za-z0-9_-]/g, '_') || `SMB${smbIdx1Based}`;
+            return (typeof getPortDisplayName === 'function') ? getPortDisplayName(portIdx1Based) : `Port ${portIdx1Based}`;
         };
 
         const sanitizeIntentName = (raw) => {
