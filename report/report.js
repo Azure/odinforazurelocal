@@ -2144,8 +2144,8 @@
                         var label = getNicLabel(nicIdx);
                         // Calculate position within intent group for staggering
                         var posInGroup = isMgmt ? mgmtPorts.indexOf(nicIdx) : storagePorts.indexOf(nicIdx);
-                        // Center text vertically if label is 9 characters or less, otherwise stagger
-                        var textY = (label.length <= 9) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
+                        // Center text vertically if label is 11 characters or less, otherwise stagger
+                        var textY = (label.length <= 11) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
 
                         out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                         out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -2202,8 +2202,8 @@
                     var label = getNicLabel(nicIdx);
                     // Calculate position within intent group (for uplink routing)
                     var posInGroup = isStorage ? (i - 2) : i;
-                    // Center text vertically if label is 9 characters or less, otherwise stagger
-                    var textY = (label.length <= 9) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
+                    // Center text vertically if label is 11 characters or less, otherwise stagger
+                    var textY = (label.length <= 11) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -2344,8 +2344,8 @@
                     var label = getNicLabel(nicIdx);
                     // Get position within intent group
                     var posInGroup = posData.posInGroup || 0;
-                    // Center text vertically if label is 9 characters or less, otherwise stagger
-                    var textY = (label.length <= 9) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
+                    // Center text vertically if label is 11 characters or less, otherwise stagger
+                    var textY = (label.length <= 11) ? (y + 22) : ((posInGroup % 2 === 0) ? (y + 16) : (y + 28));
 
                     out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="' + fill + '" stroke="' + stroke + '" />';
                     out += '<text x="' + (x + adapterW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="600">' + escapeHtml(label) + '</text>';
@@ -2776,8 +2776,8 @@
 
                 function nicTile(x, y, labelText, idx) {
                     var t = '';
-                    // Center text vertically if label is 9 characters or less, otherwise stagger
-                    var textY = (labelText.length <= 9) ? (y + 18) : ((idx % 2 === 0) ? (y + 14) : (y + 22));
+                    // Center text vertically if label is 11 characters or less, otherwise stagger
+                    var textY = (labelText.length <= 11) ? (y + 18) : ((idx % 2 === 0) ? (y + 14) : (y + 22));
                     t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                     t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelText) + '</text>';
                     return t;
@@ -2842,8 +2842,8 @@
                     // Use the actual storage port index from storagePorts array
                     var portIdx = storagePorts[iS] || (iS + 3);
                     var lbl = getNicLabel(portIdx);
-                    // Center text vertically if label is 9 characters or less, otherwise stagger
-                    var textY = (lbl.length <= 9) ? (yS + 18) : ((iS % 2 === 0) ? (yS + 14) : (yS + 22));
+                    // Center text vertically if label is 11 characters or less, otherwise stagger
+                    var textY = (lbl.length <= 11) ? (yS + 18) : ((iS % 2 === 0) ? (yS + 14) : (yS + 22));
                     out += '<rect x="' + xS + '" y="' + yS + '" width="' + tileW + '" height="' + tileH + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                     out += '<text x="' + (xS + tileW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl) + '</text>';
                     // Port anchors on the outside/top edge of each SMB tile (horizontally centered).
@@ -3428,8 +3428,8 @@
 
                     function nicTile(x, y, label, idx) {
                         var t = '';
-                        // Center text vertically if label is 9 characters or less, otherwise stagger
-                        var textY = (label.length <= 9) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
+                        // Center text vertically if label is 11 characters or less, otherwise stagger
+                        var textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                         t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
@@ -3513,8 +3513,8 @@
                         var tr2 = storageTileRect2(i2, p2);
                         // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
                         var lbl2 = getNicLabel2(p2 + 3);
-                        // Center text vertically if label is 9 characters or less, otherwise stagger
-                        var textY2 = (lbl2.length <= 9) ? (tr2.y + 23) : ((p2 % 2 === 0) ? (tr2.y + 18) : (tr2.y + 28));
+                        // Center text vertically if label is 11 characters or less, otherwise stagger
+                        var textY2 = (lbl2.length <= 11) ? (tr2.y + 23) : ((p2 % 2 === 0) ? (tr2.y + 18) : (tr2.y + 28));
                         svg2 += '<rect x="' + tr2.x + '" y="' + tr2.y + '" width="' + tr2.w + '" height="' + tr2.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg2 += '<text x="' + (tr2.x + tr2.w / 2) + '" y="' + textY2 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl2) + '</text>';
                     }
@@ -3617,8 +3617,8 @@
 
                         function nicTile(x, y, label, idx) {
                             var t = '';
-                            // Center text vertically if label is 9 characters or less, otherwise stagger
-                            var textY = (label.length <= 9) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
+                            // Center text vertically if label is 11 characters or less, otherwise stagger
+                            var textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
                             t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                             t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                             return t;
@@ -3701,8 +3701,8 @@
                             var trS = storageTileRectS(iS, pS);
                             // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
                             var labelS = getNicLabelS(pS + 3);
-                            // Center text vertically if label is 9 characters or less, otherwise stagger
-                            var textYS = (labelS.length <= 9) ? (trS.y + 23) : ((pS % 2 === 0) ? (trS.y + 18) : (trS.y + 28));
+                            // Center text vertically if label is 11 characters or less, otherwise stagger
+                            var textYS = (labelS.length <= 11) ? (trS.y + 23) : ((pS % 2 === 0) ? (trS.y + 18) : (trS.y + 28));
                             svgS += '<rect x="' + trS.x + '" y="' + trS.y + '" width="' + trS.w + '" height="' + trS.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                             svgS += '<text x="' + (trS.x + trS.w / 2) + '" y="' + textYS + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(labelS) + '</text>';
                         }
@@ -3829,8 +3829,8 @@
                     // NIC tiles
                     function nicTile(x, y, label, idx) {
                         var t = '';
-                        // Center text vertically if label is 9 characters or less, otherwise stagger
-                        var textY = (label.length <= 9) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
+                        // Center text vertically if label is 11 characters or less, otherwise stagger
+                        var textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                         t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
@@ -3921,8 +3921,8 @@
                         var tr = storageTileRect(i3, p3);
                         // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
                         var label = getNicLabel(p3 + 3);
-                        // Center text vertically if label is 9 characters or less, otherwise stagger
-                        var textY3 = (label.length <= 9) ? (tr.y + 23) : ((p3 % 2 === 0) ? (tr.y + 18) : (tr.y + 28));
+                        // Center text vertically if label is 11 characters or less, otherwise stagger
+                        var textY3 = (label.length <= 11) ? (tr.y + 23) : ((p3 % 2 === 0) ? (tr.y + 18) : (tr.y + 28));
                         svg3 += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + tr.w + '" height="' + tr.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg3 += '<text x="' + (tr.x + tr.w / 2) + '" y="' + textY3 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                     }
@@ -4032,8 +4032,8 @@
 
                     function nicTile(x, y, label, idx) {
                         var t = '';
-                        // Center text vertically if label is 9 characters or less, otherwise stagger
-                        var textY = (label.length <= 9) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
+                        // Center text vertically if label is 11 characters or less, otherwise stagger
+                        var textY = (label.length <= 11) ? (y + 21) : ((idx % 2 === 0) ? (y + 16) : (y + 26));
                         t += '<rect x="' + x + '" y="' + y + '" width="' + nicW + '" height="' + nicH + '" rx="8" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
                         t += '<text x="' + (x + nicW / 2) + '" y="' + textY + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(label) + '</text>';
                         return t;
@@ -4192,8 +4192,8 @@
                         var tr4 = storageTileRect4(i4, p4);
                         // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
                         var lbl4 = getNicLabel4(p4 + 3);
-                        // Center text vertically if label is 9 characters or less, otherwise stagger
-                        var textY4 = (lbl4.length <= 9) ? (tr4.y + 23) : ((p4 % 2 === 0) ? (tr4.y + 18) : (tr4.y + 28));
+                        // Center text vertically if label is 11 characters or less, otherwise stagger
+                        var textY4 = (lbl4.length <= 11) ? (tr4.y + 23) : ((p4 % 2 === 0) ? (tr4.y + 18) : (tr4.y + 28));
                         svg4 += '<rect x="' + tr4.x + '" y="' + tr4.y + '" width="' + tr4.w + '" height="' + tr4.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
                         svg4 += '<text x="' + (tr4.x + tr4.w / 2) + '" y="' + textY4 + '" text-anchor="middle" font-size="9" fill="var(--text-primary)" font-weight="700">' + escapeHtml(lbl4) + '</text>';
                     }
