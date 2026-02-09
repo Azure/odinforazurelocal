@@ -48,7 +48,7 @@
                 Sizer
                 <span class="odin-tab-badge">Preview</span>
             </a>
-            <button onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" title="Toggle light/dark theme">🌙</button>
+            <button onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" title="Toggle light/dark theme">ðŸŒ™</button>
         </div>
     </nav>
 
@@ -87,32 +87,32 @@
                 <!-- Workload Type Selector -->
                 <div class="workload-types">
                     <button class="workload-type-btn" onclick="showAddWorkloadModal('vm')">
-                        <div class="workload-icon vm">
+                        <span class="workload-icon vm">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="2" y="3" width="20" height="14" rx="2"/>
                                 <path d="M8 21h8M12 17v4"/>
                             </svg>
-                        </div>
+                        </span>
                         <span>Azure Local VMs</span>
                     </button>
                     <button class="workload-type-btn" onclick="showAddWorkloadModal('aks')">
-                        <div class="workload-icon aks">
+                        <span class="workload-icon aks">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                                 <path d="M2 17l10 5 10-5"/>
                                 <path d="M2 12l10 5 10-5"/>
                             </svg>
-                        </div>
+                        </span>
                         <span>AKS Arc Clusters</span>
                     </button>
                     <button class="workload-type-btn" onclick="showAddWorkloadModal('avd')">
-                        <div class="workload-icon avd">
+                        <span class="workload-icon avd">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="2" y="3" width="20" height="14" rx="2"/>
                                 <path d="M6 21h12"/>
                                 <path d="M9 17v4M15 17v4"/>
                             </svg>
-                        </div>
+                        </span>
                         <span>Azure Virtual Desktop</span>
                     </button>
                 </div>
@@ -139,7 +139,7 @@
                         Cluster Configuration
                     </h2>
                     <p class="section-desc">Configure your cluster topology and storage settings.</p>
-                    
+
                     <div class="config-row">
                         <label for="node-count">Number of Nodes</label>
                         <select id="node-count" onchange="onNodeCountChange()">
