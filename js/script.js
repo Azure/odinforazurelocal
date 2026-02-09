@@ -464,13 +464,29 @@ function getReportReadiness() {
         // DNS required for both identity options in this wizard.
         if (!state.dnsServers || state.dnsServers.length <= 0) {
             missing.push('DNS Servers');
-        } else if (state.activeDirectory === 'azure_ad') {
-            // RFC 1918 validation - AD mode requires private DNS servers
+        } else {
             const validDnsServers = state.dnsServers.filter(s => s && s.trim());
+            // Reject network (.0) and broadcast (.255) DNS addresses
             for (const server of validDnsServers) {
-                if (!isRfc1918Ip(server)) {
-                    missing.push('DNS Servers must be private IPs (RFC 1918) for Active Directory');
-                    break;
+                if (typeof isLastOctetNetworkOrBroadcast === 'function') {
+                    const check = isLastOctetNetworkOrBroadcast(server);
+                    if (check === 'network') {
+                        missing.push(`DNS server ${server} cannot be a network address (.0)`);
+                        break;
+                    }
+                    if (check === 'broadcast') {
+                        missing.push(`DNS server ${server} cannot be a broadcast address (.255)`);
+                        break;
+                    }
+                }
+            }
+            if (state.activeDirectory === 'azure_ad') {
+                // RFC 1918 validation - AD mode requires private DNS servers
+                for (const server of validDnsServers) {
+                    if (!isRfc1918Ip(server)) {
+                        missing.push('DNS Servers must be private IPs (RFC 1918) for Active Directory');
+                        break;
+                    }
                 }
             }
         }
