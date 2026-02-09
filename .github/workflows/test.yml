@@ -66,9 +66,18 @@ jobs:
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: ODIN Unit Tests
+          name: ODIN Unit Tests (JUnit)
           path: test-results/junit.xml
           reporter: java-junit
+          fail-on-error: true
+
+      - name: Publish NUnit Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: ODIN Unit Tests (NUnit)
+          path: test-results/nunit.xml
+          reporter: dotnet-nunit
           fail-on-error: true
 
   html-validate:
