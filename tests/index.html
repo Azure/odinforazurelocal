@@ -1805,6 +1805,95 @@
             })()
         ]);
 
+        // Custom intent + adapter mapping confirmed: VLAN IDs should appear in ARM output
+        testSuite('Issue #75: Custom intent VLAN IDs in ARM output', 'script.js', [
+            (function() {
+                const origState = JSON.parse(JSON.stringify(state));
+                const origOpen = window.open;
+                window.open = function() {};
+
+                // Set up a 3-node custom intent with adapter mapping confirmed
+                state.scenario = 'hyperconverged';
+                state.region = 'eastus';
+                state.localInstanceRegion = 'East US';
+                state.scale = 'medium';
+                state.nodes = '3';
+                state.ports = '4';
+                state.storage = 'switched';
+                state.storagePoolConfiguration = 'default';
+                state.intent = 'custom';
+                state.portConfig = [];
+                for (let i = 0; i < 4; i++) {
+                    state.portConfig.push({ speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: false, customName: null });
+                }
+                state.portConfigConfirmed = true;
+
+                // Custom intent: ports 1-2 = mgmt, 3-4 = storage
+                state.customIntents = { 1: 'mgmt', 2: 'mgmt', 3: 'storage', 4: 'storage' };
+                state.customIntentConfirmed = true;
+
+                // Adapter mapping confirmed (same as customIntents)
+                state.adapterMapping = { 1: 'mgmt', 2: 'mgmt', 3: 'storage', 4: 'storage' };
+                state.adapterMappingConfirmed = true;
+
+                // Set VLAN IDs via the override key that adapter mapping path uses (unprefixed 'storage')
+                state.intentOverrides = {
+                    storage: { storageNetwork1VlanId: 711, storageNetwork2VlanId: 714, rdmaMode: 'RoCEv2', jumboFrames: '1514' },
+                    mgmt: { rdmaMode: 'RoCEv2', jumboFrames: '1514' }
+                };
+                state.overridesConfirmed = true;
+
+                state.storageAutoIp = 'enabled';
+                state.nodeSettings = [
+                    { name: 'node1', ipCidr: '10.0.0.2/24' },
+                    { name: 'node2', ipCidr: '10.0.0.3/24' },
+                    { name: 'node3', ipCidr: '10.0.0.4/24' }
+                ];
+                state.witnessType = 'cloud';
+                state.ip = 'static';
+                state.infraGateway = '10.0.0.1';
+                state.outbound = 'proxy';
+                state.proxy = 'none';
+                state.arc = 'spn';
+                state.infra = { start: '10.0.0.100', end: '10.0.0.200' };
+                state.infraCidr = '10.0.0.0/24';
+                state.infraVlan = 'default';
+                state.activeDirectory = 'azure_ad';
+                state.adDomain = 'contoso.local';
+                state.dnsServers = ['10.0.0.1'];
+                state.privateEndpoints = 'no';
+                state.securityConfiguration = 'recommended';
+                state.securitySettings = {};
+                state.sdnEnabled = 'no';
+
+                try {
+                    localStorage.removeItem('azloc_arm_payload');
+                    generateArmParameters();
+                    const raw = localStorage.getItem('azloc_arm_payload');
+                    const payload = raw ? JSON.parse(raw) : null;
+                    const arm = payload && payload.parametersFile;
+                    let result = 'no_vlans';
+                    if (arm && arm.parameters && arm.parameters.storageNetworkList && arm.parameters.storageNetworkList.value) {
+                        const nets = arm.parameters.storageNetworkList.value;
+                        if (nets.length >= 2) {
+                            result = nets[0].vlanId + ',' + nets[1].vlanId;
+                        }
+                    }
+
+                    Object.assign(state, origState);
+                    window.open = origOpen;
+
+                    return assert(result === '711,714',
+                        'Custom intent + adapter mapping: VLAN IDs 711/714 in ARM output',
+                        '711,714', result);
+                } catch (e) {
+                    Object.assign(state, origState);
+                    window.open = origOpen;
+                    return assert(false, 'ARM generation did not throw', 'no error', e.message);
+                }
+            })()
+        ]);
+
         // Issue #74: StorageNetwork2 adapter name should not duplicate StorageNetwork1
         // Test via generateArmParameters() which stores result in localStorage
         testSuite('Issue #74: Storage adapter names in ARM output', 'script.js', [

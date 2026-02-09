@@ -1362,6 +1362,15 @@ function generateArmParameters() {
 
         const getStorageOverrideKey = () => {
             // Keys used by getIntentNicGroups + ensureDefaultOverridesForGroups.
+            // When adapter mapping is confirmed, getIntentNicGroups uses unprefixed
+            // keys (e.g. 'storage') for all intent types including custom.
+            if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
+                // Check if there's an 'all' bucket (all traffic)
+                for (const k of Object.values(state.adapterMapping)) {
+                    if (k === 'all') return 'all';
+                }
+                return 'storage';
+            }
             if (state.intent === 'custom') return 'custom_storage';
             if (state.intent === 'all_traffic') return 'all';
             return 'storage';
@@ -1370,7 +1379,16 @@ function generateArmParameters() {
         const getStorageVlans = () => {
             ensureIntentOverrideDefaults();
             const key = getStorageOverrideKey();
-            const ov = (state.intentOverrides && state.intentOverrides[key]) ? state.intentOverrides[key] : null;
+            let ov = (state.intentOverrides && state.intentOverrides[key]) ? state.intentOverrides[key] : null;
+
+            // Fallback: for custom intents, VLANs may be stored under either
+            // 'custom_storage' or 'storage' depending on whether adapter mapping
+            // was confirmed before or after the overrides were edited.
+            if (!ov && state.intent === 'custom') {
+                const alt = (key === 'custom_storage') ? 'storage' : 'custom_storage';
+                ov = (state.intentOverrides && state.intentOverrides[alt]) ? state.intentOverrides[alt] : null;
+            }
+
             const vlan1 = ov && (ov.storageNetwork1VlanId ?? ov.storageVlanNic1);
             const vlan2 = ov && (ov.storageNetwork2VlanId ?? ov.storageVlanNic2);
             // Guard against empty strings: Number('') === 0 which is an invalid VLAN and would slip through
