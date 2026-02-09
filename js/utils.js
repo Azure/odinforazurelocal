@@ -275,6 +275,51 @@ function isRfc1918Ip(ip) {
     return false;
 }
 
+/**
+ * Check if an IPv4 address is a network address or broadcast address within its subnet.
+ * Network address: host portion is all zeros (e.g., 192.168.1.0/24)
+ * Broadcast address: host portion is all ones (e.g., 192.168.1.255/24)
+ * These addresses cannot be assigned to hosts.
+ * @param {string} ip - IPv4 address (without CIDR prefix)
+ * @param {number} prefix - Subnet prefix length (0-32)
+ * @returns {string|null} 'network' if network address, 'broadcast' if broadcast address, null if usable host address
+ */
+function isNetworkOrBroadcastAddress(ip, prefix) {
+    if (!ip || prefix === null || prefix === undefined) return null;
+    const p = parseInt(prefix, 10);
+    if (!Number.isFinite(p) || p < 0 || p > 32) return null;
+    // /32 is a host route — always valid. /31 is a point-to-point link — both addresses usable.
+    if (p >= 31) return null;
+    const ipInt = ipv4ToInt(ip);
+    if (ipInt === null) return null;
+    const mask = prefixToMask(p);
+    if (mask === null) return null;
+    const networkAddr = (ipInt & mask) >>> 0;
+    const hostBits = 32 - p;
+    const broadcastAddr = (networkAddr | ((1 << hostBits) - 1)) >>> 0;
+    if (ipInt === networkAddr) return 'network';
+    if (ipInt === broadcastAddr) return 'broadcast';
+    return null;
+}
+
+/**
+ * Check if a bare IPv4 address has a last octet of 0 or 255.
+ * This is a simplified check for addresses without a known subnet prefix —
+ * assumes standard /24-or-smaller subnets where .0 and .255 are typically
+ * the network and broadcast addresses.
+ * @param {string} ip - IPv4 address
+ * @returns {string|null} 'network' if last octet is 0, 'broadcast' if 255, null otherwise
+ */
+function isLastOctetNetworkOrBroadcast(ip) {
+    if (!ip) return null;
+    const parts = String(ip).trim().split('.');
+    if (parts.length !== 4) return null;
+    const lastOctet = parseInt(parts[3], 10);
+    if (lastOctet === 0) return 'network';
+    if (lastOctet === 255) return 'broadcast';
+    return null;
+}
+
 // ============================================================================
 // END UTILITIES MODULE
 // ============================================================================

@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.50';
+const WIZARD_VERSION = '0.14.53';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -381,6 +381,10 @@ function findStepForMissingItem(item) {
     if (/^Node \d+ Name$/i.test(item) || /^Node \d+ IP/i.test(item) || item === 'Node names must be unique' || item === 'Node IPs must be unique') {
         return 'step-10';
     }
+    // Pattern match for DNS server validation messages
+    if (/^DNS server/i.test(item)) {
+        return 'step-13';
+    }
     // Partial match for RDMA messages and others
     for (const key in missingSectionToStep) {
         if (item.includes(key) || key.includes(item)) {
@@ -464,13 +468,29 @@ function getReportReadiness() {
         // DNS required for both identity options in this wizard.
         if (!state.dnsServers || state.dnsServers.length <= 0) {
             missing.push('DNS Servers');
-        } else if (state.activeDirectory === 'azure_ad') {
-            // RFC 1918 validation - AD mode requires private DNS servers
+        } else {
             const validDnsServers = state.dnsServers.filter(s => s && s.trim());
+            // Reject network (.0) and broadcast (.255) DNS addresses
             for (const server of validDnsServers) {
-                if (!isRfc1918Ip(server)) {
-                    missing.push('DNS Servers must be private IPs (RFC 1918) for Active Directory');
-                    break;
+                if (typeof isLastOctetNetworkOrBroadcast === 'function') {
+                    const check = isLastOctetNetworkOrBroadcast(server);
+                    if (check === 'network') {
+                        missing.push(`DNS server ${server} cannot be a network address (.0)`);
+                        break;
+                    }
+                    if (check === 'broadcast') {
+                        missing.push(`DNS server ${server} cannot be a broadcast address (.255)`);
+                        break;
+                    }
+                }
+            }
+            if (state.activeDirectory === 'azure_ad') {
+                // RFC 1918 validation - AD mode requires private DNS servers
+                for (const server of validDnsServers) {
+                    if (!isRfc1918Ip(server)) {
+                        missing.push('DNS Servers must be private IPs (RFC 1918) for Active Directory');
+                        break;
+                    }
                 }
             }
         }
@@ -1028,7 +1048,15 @@ function getNodeSettingsReadiness() {
             missing.push(`Node ${i + 1} IP (CIDR)`);
         } else {
             const ip = extractIpFromCidr(ipCidr);
-            if (ips.has(ip)) missing.push('Node IPs must be unique');
+            const prefix = extractPrefixFromCidr(ipCidr);
+            const addrType = isNetworkOrBroadcastAddress(ip, prefix);
+            if (addrType === 'network') {
+                missing.push(`Node ${i + 1} IP is a network address (host portion cannot be all zeros)`);
+            } else if (addrType === 'broadcast') {
+                missing.push(`Node ${i + 1} IP is a broadcast address (host portion cannot be all ones)`);
+            } else if (ips.has(ip)) {
+                missing.push('Node IPs must be unique');
+            }
             ips.add(ip);
         }
     }
@@ -1255,15 +1283,13 @@ function generateArmParameters() {
         const portCount = parseInt(state.ports, 10) || 0;
 
         const armAdapterNameForNic = (nicIdx1Based) => {
-            // Use custom port name if provided, otherwise match Azure quickstart template naming convention (NIC1, NIC2, ...)
+            // Use custom port name if provided, otherwise use the wizard's default display name (Port 1, Port 2, ...)
             const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
             const pc = cfg[nicIdx1Based - 1];
             if (pc && pc.customName && pc.customName.trim()) {
-                // Sanitize custom name for ARM compatibility: keep alphanumeric, underscore, hyphen
-                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
-                return sanitized || `NIC${nicIdx1Based}`;
+                return pc.customName.trim();
             }
-            return `NIC${nicIdx1Based}`;
+            return (typeof getPortDisplayName === 'function') ? getPortDisplayName(nicIdx1Based) : `Port ${nicIdx1Based}`;
         };
 
         /**
@@ -1281,10 +1307,10 @@ function generateArmParameters() {
             const portIdx = storagePortOffset + smbIdx1Based - 1; // 0-based index in portConfig
             const pc = cfg[portIdx];
             if (pc && pc.customName && pc.customName.trim()) {
-                const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
-                return sanitized || `SMB${smbIdx1Based}`;
+                return pc.customName.trim();
             }
-            return `SMB${smbIdx1Based}`;
+            const portIdx1Based = portIdx + 1;
+            return (typeof getPortDisplayName === 'function') ? getPortDisplayName(portIdx1Based) : `Port ${portIdx1Based}`;
         };
 
         const sanitizeIntentName = (raw) => {
@@ -1333,8 +1359,9 @@ function generateArmParameters() {
             const ov = (state.intentOverrides && state.intentOverrides[key]) ? state.intentOverrides[key] : null;
             const vlan1 = ov && (ov.storageNetwork1VlanId ?? ov.storageVlanNic1);
             const vlan2 = ov && (ov.storageNetwork2VlanId ?? ov.storageVlanNic2);
-            const v1 = Number.isInteger(Number(vlan1)) ? Number(vlan1) : null;
-            const v2 = Number.isInteger(Number(vlan2)) ? Number(vlan2) : null;
+            // Guard against empty strings: Number('') === 0 which is an invalid VLAN and would slip through
+            const v1 = (vlan1 !== '' && vlan1 !== null && vlan1 !== undefined && Number.isInteger(Number(vlan1)) && Number(vlan1) >= 1) ? Number(vlan1) : null;
+            const v2 = (vlan2 !== '' && vlan2 !== null && vlan2 !== undefined && Number.isInteger(Number(vlan2)) && Number(vlan2) >= 1) ? Number(vlan2) : null;
             return { v1, v2 };
         };
 
@@ -1630,7 +1657,7 @@ function generateArmParameters() {
             if (storageNetworkCount >= 2) {
                 const network2 = {
                     name: 'StorageNetwork2',
-                    networkAdapterName: nic2 ? armAdapterNameForSmb(1, nic2 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_2',
+                    networkAdapterName: nic2 ? armAdapterNameForSmb(2, nic2 - 2) : 'REPLACE_WITH_STORAGE_ADAPTER_2',
                     vlanId: (storageVlan2 !== null && storageVlan2 !== undefined) ? String(storageVlan2) : 'REPLACE_WITH_STORAGE_VLAN_2'
                 };
                 if (includeStorageAdapterIPInfo) {
@@ -4441,34 +4468,25 @@ function updateUI() {
             const defaultRdmaEnabled = isLowCapacity ? false : true;
             const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
 
-            // Single-node default: 10GbE (RDMA depends on scale - enabled for non-low-capacity).
+            // Single-node default RDMA alignment (speed is NOT overridden — user may change it).
             if (isSingleNode && !isLowCapacity) {
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
                     if (!pc) continue;
-                    pc.speed = '10GbE';
                     if (!pc.rdmaManual) {
                         pc.rdma = true;
                         pc.rdmaMode = 'RoCEv2';
                     }
                 }
             } else if (isSingleNode && isLowCapacity) {
-                // Single-node Low Capacity: 10GbE, no RDMA.
+                // Single-node Low Capacity: no RDMA (speed is NOT overridden).
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
                     if (!pc) continue;
-                    pc.speed = '10GbE';
                     if (!pc.rdmaManual) {
                         pc.rdma = false;
                         pc.rdmaMode = 'Disabled';
                     }
-                }
-            } else if (isLowCapacity) {
-                // Low Capacity default: always use 1GbE.
-                for (let idx = 0; idx < pCount; idx++) {
-                    const pc = state.portConfig[idx];
-                    if (!pc) continue;
-                    pc.speed = '1GbE';
                 }
             }
 
@@ -5160,10 +5178,10 @@ function ensureDefaultOverridesForGroups(groups) {
                 ov.storageNetwork2VlanId = ov.storageVlanNic2;
             }
 
-            if (ov.storageNetwork1VlanId === undefined || ov.storageNetwork1VlanId === null) {
+            if (ov.storageNetwork1VlanId === undefined || ov.storageNetwork1VlanId === null || ov.storageNetwork1VlanId === '' || ov.storageNetwork1VlanId === 0) {
                 ov.storageNetwork1VlanId = 711;
             }
-            if (ov.storageNetwork2VlanId === undefined || ov.storageNetwork2VlanId === null) {
+            if (ov.storageNetwork2VlanId === undefined || ov.storageNetwork2VlanId === null || ov.storageNetwork2VlanId === '' || ov.storageNetwork2VlanId === 0) {
                 ov.storageNetwork2VlanId = 712;
             }
         }
@@ -5629,23 +5647,28 @@ function getNicMapping(intent, portCount, isSwitchless) {
     if (!intent || !portCount) return null;
 
     const mapping = [];
+    const pn = (i) => getPortDisplayName(i); // Use custom port names
 
     if (intent === 'all_traffic') {
-        mapping.push(`NICs 1-${portCount}: Management + Compute + Storage (Converged)`);
+        for (let i = 1; i <= portCount; i++) {
+            mapping.push(`${pn(i)}: Management + Compute + Storage`);
+        }
     } else if (intent === 'mgmt_compute') {
         if (portCount === 2) {
-            mapping.push('NIC 1: Management + Compute');
-            mapping.push('NIC 2: Storage');
+            mapping.push(`${pn(1)}: Management + Compute`);
+            mapping.push(`${pn(2)}: Storage`);
         } else {
-            mapping.push('NICs 1-2: Management + Compute');
-            if (portCount > 2) {
-                mapping.push(`NICs 3-${portCount}: Storage`);
+            mapping.push(`${pn(1)}: Management + Compute`);
+            mapping.push(`${pn(2)}: Management + Compute`);
+            for (let i = 3; i <= portCount; i++) {
+                mapping.push(`${pn(i)}: Storage`);
             }
         }
     } else if (intent === 'compute_storage') {
-        mapping.push('NICs 1-2: Management');
-        if (portCount > 2) {
-            mapping.push(`NICs 3-${portCount}: Compute + Storage`);
+        mapping.push(`${pn(1)}: Management`);
+        mapping.push(`${pn(2)}: Management`);
+        for (let i = 3; i <= portCount; i++) {
+            mapping.push(`${pn(i)}: Compute + Storage`);
         }
     }
 
@@ -5669,7 +5692,7 @@ function getCustomNicMapping(customIntents, portCount) {
     for (let i = 1; i <= portCount; i++) {
         const assignment = customIntents[i] || 'unused';
         if (assignment !== 'unused') {
-            mapping.push(`NIC ${i}: ${trafficNames[assignment] || assignment}`);
+            mapping.push(`${getPortDisplayName(i)}: ${trafficNames[assignment] || assignment}`);
         }
     }
 
@@ -8438,7 +8461,30 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.52 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.53 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 9, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>ARM Storage Adapter Naming (#74):</strong> Fixed ARM template where both StorageNetwork1 and StorageNetwork2 incorrectly used the same adapter name (SMB1). StorageNetwork2 now correctly references the second adapter.</li>
+                        <li><strong>VLAN ID Defaults of Zero (#75):</strong> Fixed empty string and zero VLAN values being treated as valid, which produced invalid VLAN ID 0. Proper defaults (711/712) are now applied.</li>
+                        <li><strong>NIC Speed Locked on Single-Node (#76):</strong> Removed forced 10 GbE speed override on single-node clusters, allowing users to retain their selected NIC speed.</li>
+                        <li><strong>IP Address Validation (#78):</strong> Node IPs, DNS servers, and inline validators now reject network (.0) and broadcast (.255) addresses with clear error messages.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Port Name Consistency:</strong> ARM parameter file adapter names now match the wizard's port display names (e.g., Port_1, Port_2) instead of generic NIC1/SMB1 prefixes.</li>
+                        <li><strong>Configuration Summary Labels:</strong> The sidebar Configuration Summary now shows custom port names instead of generic "NIC X" labels.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.52</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 6, 2026</div>
                 </div>
 

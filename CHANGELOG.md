@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.53] - 2026-02-09
+
+### Fixed
+
+#### ARM Template Storage Adapter Naming (#74)
+
+- **StorageNetwork2 Adapter Name**: Fixed ARM template generation where both StorageNetwork1 and StorageNetwork2 used the same adapter name (SMB1). StorageNetwork2 now correctly references the second adapter name (SMB2) by passing the correct 1-based index to the adapter lookup function.
+
+#### VLAN ID Defaults of Zero (#75)
+
+- **Empty String VLAN Handling**: Fixed `getStorageVlans()` to reject empty strings that JavaScript's `Number('')` silently converts to `0`, which is an invalid VLAN ID for Azure Local.
+- **Default Override Guard**: Updated `ensureDefaultOverridesForGroups()` to treat VLAN values of `0` and empty string as unset, ensuring proper defaults (711/712) are applied instead of invalid zero values.
+
+#### NIC Speed Locked to 10 GbE on Single-Node (#76)
+
+- **Port Speed Override Removed**: Removed the forced `speed = '10GbE'` override that was applied to all ports in single-node cluster configurations, allowing users to select and retain their preferred NIC speed (1 GbE, 10 GbE, 25 GbE, 50 GbE, 100 GbE).
+
+#### IP Address Validation — Network and Broadcast Addresses (#78)
+
+- **Node IP Validation**: Node IP/CIDR entries now reject network addresses (host portion all zeros, e.g., `192.168.1.0/24`) and broadcast addresses (host portion all ones, e.g., `192.168.1.255/24`) with clear error messages.
+- **DNS Server Validation**: DNS server IP fields now reject addresses with last octet `.0` (network) or `.255` (broadcast).
+- **Real-time Feedback**: The inline field validators for `ipv4cidr` and `ipv4` types now show specific error messages when a network or broadcast address is entered.
+- **Utility Functions**: Added `isNetworkOrBroadcastAddress()` for CIDR-aware validation and `isLastOctetNetworkOrBroadcast()` for bare IP checks.
+
+### Improved
+
+#### Port Name Consistency Across All Outputs
+
+- **ARM Adapter Names**: ARM parameter file adapter names now use the wizard's port display names (e.g., `Port_1`, `Port_2`) instead of generic `NIC1`/`SMB1` prefixes, matching what users see in the wizard UI.
+- **Configuration Summary Labels**: The sidebar Configuration Summary now displays custom port names from `getPortDisplayName()` instead of hardcoded "NIC X" labels.
+
+---
+
 ## [0.14.52] - 2026-02-06
 
 ### Added
