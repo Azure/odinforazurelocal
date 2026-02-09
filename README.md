@@ -38,11 +38,16 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.52 - Latest Release
-- **Markdown Report Export**: New "Download Markdown" button on the Configuration Report page — export your full report as a `.md` file with embedded network diagrams for documentation, wikis, or version control
-- **Diagram Intent Grouping Fix**: Fixed network diagram to properly group adapters by intent when using custom intent configurations with non-contiguous port assignments
-- **Non-Contiguous Port Support**: Ports from different slots assigned to the same intent are now displayed adjacent to each other in the diagram
-- **Duplicate Adapter Name Validation**: Prevents duplicate adapter names in port configuration with visual feedback and validation warnings
+### 🎉 Version 0.14.53 - Latest Release
+- **ARM Storage Adapter Naming (#74)**: Fixed ARM template where both StorageNetwork1 and StorageNetwork2 used the same adapter name
+- **Switchless Intent Adapter Names**: Fixed ARM `intentList` using `SMB1`/`SMB2` instead of `Port 3`/`Port 4` for switchless storage
+- **VLAN ID Defaults of Zero (#75)**: Fixed empty string VLAN values producing invalid VLAN ID 0
+- **NIC Speed Locked on Single-Node (#76)**: Removed forced 10 GbE speed override on single-node clusters
+- **IP Address Validation (#78)**: Node IPs and DNS servers now reject network (.0) and broadcast (.255) addresses
+- **Port Name Consistency**: ARM adapter names now use wizard display names (`Port 1`, `Port 2`) instead of `NIC1`/`SMB1`
+- **DNS Validation Gating**: DNS validation now blocks report/ARM generation instead of warning only
+- **CI Pipeline Hardening**: ESLint, unit tests, and HTML validation are now blocking CI checks
+- **197 Unit Tests**: Expanded from 136 to 197 tests with regression coverage for all fixes
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -402,6 +407,15 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.53 - Bug Fixes, Port Name Consistency & CI Hardening
+- **ARM Storage Adapter Naming (#74)**: Fixed ARM template adapter naming for StorageNetwork1/2
+- **Switchless Intent Adapter Names**: Fixed `intentList` using `SMB N` instead of `Port N` for switchless storage
+- **VLAN Defaults (#75)**: Fixed empty string VLAN values producing invalid VLAN ID 0
+- **NIC Speed (#76)**: Removed forced 10 GbE speed override on single-node clusters
+- **IP Validation (#78)**: Node IPs and DNS reject network/broadcast addresses
+- **Port Name Consistency**: ARM adapter names match wizard display names
+- **197 Unit Tests**: Expanded test suite with regression coverage
 
 #### 0.14.52 - Markdown Export, Diagram Fix & Validation
 - **Markdown Report Export**: Download the Configuration Report as a Markdown file with embedded network diagrams for documentation or version control
