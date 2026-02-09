@@ -162,6 +162,22 @@ function validateAllDnsServers() {
             }
             return;
         }
+        // Reject network (.0) and broadcast (.255) addresses
+        const lastOctetCheck = isLastOctetNetworkOrBroadcast(server);
+        if (lastOctetCheck === 'network') {
+            if (err) {
+                err.innerText = `DNS server ${server} cannot use a network address (last octet .0)`;
+                err.classList.remove('hidden');
+            }
+            return;
+        }
+        if (lastOctetCheck === 'broadcast') {
+            if (err) {
+                err.innerText = `DNS server ${server} cannot use a broadcast address (last octet .255)`;
+                err.classList.remove('hidden');
+            }
+            return;
+        }
     }
 
     // RFC 1918 validation for Active Directory mode

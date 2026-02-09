@@ -483,7 +483,7 @@
                 document.body.appendChild(mockInput);
                 mockInput.parentNode.insertBefore(mockFeedback, mockInput.nextSibling);
                 
-                const result = validateFieldRealtime(mockInput, '192.168.1.0/24', 'ipv4cidr');
+                const result = validateFieldRealtime(mockInput, '192.168.1.10/24', 'ipv4cidr');
                 mockInput.remove();
                 mockFeedback.remove();
                 return assert(result === true, 'Valid IPv4 CIDR', true, result);
@@ -686,7 +686,7 @@
             })(),
             (function() {
                 const origServers = [...state.dnsServers];
-                state.dnsServers = ['10.95.255.255']; // Just outside 10.96.0.0/12
+                state.dnsServers = ['10.95.254.1']; // Just outside 10.96.0.0/12
                 
                 const errDiv = document.createElement('div');
                 errDiv.id = 'dns-error';
@@ -1952,6 +1952,139 @@
                     window.open = origOpen;
                     return assert(false, 'ARM generation did not throw', 'no error', e.message);
                 }
+            })()
+        ]);
+
+        // ========================================================================
+        // REGRESSION TESTS - GitHub Issue #78: IP Address Validation
+        // ========================================================================
+        sectionHeader('🐛 Regression Tests - Issue #78: IP Address Validation');
+
+        // Test isNetworkOrBroadcastAddress utility
+        testSuite('Issue #78: isNetworkOrBroadcastAddress utility', 'utils.js', [
+            (function() {
+                const result = isNetworkOrBroadcastAddress('192.168.1.0', 24);
+                return assert(result === 'network',
+                    '192.168.1.0/24 is detected as network address',
+                    'network', result);
+            })(),
+            (function() {
+                const result = isNetworkOrBroadcastAddress('192.168.1.255', 24);
+                return assert(result === 'broadcast',
+                    '192.168.1.255/24 is detected as broadcast address',
+                    'broadcast', result);
+            })(),
+            (function() {
+                const result = isNetworkOrBroadcastAddress('192.168.1.1', 24);
+                return assert(result === null,
+                    '192.168.1.1/24 is a valid host address',
+                    'null', String(result));
+            })(),
+            (function() {
+                const result = isNetworkOrBroadcastAddress('10.0.0.0', 8);
+                return assert(result === 'network',
+                    '10.0.0.0/8 is detected as network address',
+                    'network', result);
+            })(),
+            (function() {
+                const result = isNetworkOrBroadcastAddress('10.255.255.255', 8);
+                return assert(result === 'broadcast',
+                    '10.255.255.255/8 is detected as broadcast address',
+                    'broadcast', result);
+            })(),
+            (function() {
+                const result = isNetworkOrBroadcastAddress('10.0.0.1', 32);
+                return assert(result === null,
+                    '/32 host route is always valid',
+                    'null', String(result));
+            })()
+        ]);
+
+        // Test isLastOctetNetworkOrBroadcast utility
+        testSuite('Issue #78: isLastOctetNetworkOrBroadcast utility', 'utils.js', [
+            (function() {
+                const result = isLastOctetNetworkOrBroadcast('192.168.0.0');
+                return assert(result === 'network',
+                    'Last octet .0 detected as network',
+                    'network', result);
+            })(),
+            (function() {
+                const result = isLastOctetNetworkOrBroadcast('192.168.0.255');
+                return assert(result === 'broadcast',
+                    'Last octet .255 detected as broadcast',
+                    'broadcast', result);
+            })(),
+            (function() {
+                const result = isLastOctetNetworkOrBroadcast('192.168.0.1');
+                return assert(result === null,
+                    'Last octet .1 is valid host',
+                    'null', String(result));
+            })(),
+            (function() {
+                const result = isLastOctetNetworkOrBroadcast('10.0.0.254');
+                return assert(result === null,
+                    'Last octet .254 is valid host',
+                    'null', String(result));
+            })()
+        ]);
+
+        // Test node IP CIDR validation rejects network/broadcast
+        testSuite('Issue #78: Node IP rejects network/broadcast', 'script.js', [
+            (function() {
+                const origNodes = state.nodes;
+                const origIp = state.ip;
+                const origSettings = state.nodeSettings;
+
+                state.nodes = '1';
+                state.ip = 'static';
+                state.nodeSettings = [{ name: 'node1', ipCidr: '192.168.1.0/24' }];
+                const readiness = getNodeSettingsReadiness();
+                const hasNetworkError = readiness.missing.some(m => m.includes('network address'));
+
+                state.nodes = origNodes;
+                state.ip = origIp;
+                state.nodeSettings = origSettings;
+
+                return assert(hasNetworkError,
+                    'Node with .0/24 IP is rejected as network address',
+                    'true', String(hasNetworkError));
+            })(),
+            (function() {
+                const origNodes = state.nodes;
+                const origIp = state.ip;
+                const origSettings = state.nodeSettings;
+
+                state.nodes = '1';
+                state.ip = 'static';
+                state.nodeSettings = [{ name: 'node1', ipCidr: '192.168.1.255/24' }];
+                const readiness = getNodeSettingsReadiness();
+                const hasBroadcastError = readiness.missing.some(m => m.includes('broadcast address'));
+
+                state.nodes = origNodes;
+                state.ip = origIp;
+                state.nodeSettings = origSettings;
+
+                return assert(hasBroadcastError,
+                    'Node with .255/24 IP is rejected as broadcast address',
+                    'true', String(hasBroadcastError));
+            })(),
+            (function() {
+                const origNodes = state.nodes;
+                const origIp = state.ip;
+                const origSettings = state.nodeSettings;
+
+                state.nodes = '1';
+                state.ip = 'static';
+                state.nodeSettings = [{ name: 'node1', ipCidr: '192.168.1.10/24' }];
+                const readiness = getNodeSettingsReadiness();
+
+                state.nodes = origNodes;
+                state.ip = origIp;
+                state.nodeSettings = origSettings;
+
+                return assert(readiness.ready === true,
+                    'Node with .10/24 IP is accepted as valid host',
+                    'true', String(readiness.ready));
             })()
         ]);
 

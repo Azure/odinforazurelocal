@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Port Speed Override Removed**: Removed the forced `speed = '10GbE'` override that was applied to all ports in single-node cluster configurations, allowing users to select and retain their preferred NIC speed (1 GbE, 10 GbE, 25 GbE, 50 GbE, 100 GbE).
 
+#### IP Address Validation — Network and Broadcast Addresses (#78)
+
+- **Node IP Validation**: Node IP/CIDR entries now reject network addresses (host portion all zeros, e.g., `192.168.1.0/24`) and broadcast addresses (host portion all ones, e.g., `192.168.1.255/24`) with clear error messages.
+- **DNS Server Validation**: DNS server IP fields now reject addresses with last octet `.0` (network) or `.255` (broadcast).
+- **Real-time Feedback**: The inline field validators for `ipv4cidr` and `ipv4` types now show specific error messages when a network or broadcast address is entered.
+- **Utility Functions**: Added `isNetworkOrBroadcastAddress()` for CIDR-aware validation and `isLastOctetNetworkOrBroadcast()` for bare IP checks.
+
 ---
 
 ## [0.14.52] - 2026-02-06

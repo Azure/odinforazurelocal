@@ -1028,7 +1028,15 @@ function getNodeSettingsReadiness() {
             missing.push(`Node ${i + 1} IP (CIDR)`);
         } else {
             const ip = extractIpFromCidr(ipCidr);
-            if (ips.has(ip)) missing.push('Node IPs must be unique');
+            const prefix = extractPrefixFromCidr(ipCidr);
+            const addrType = isNetworkOrBroadcastAddress(ip, prefix);
+            if (addrType === 'network') {
+                missing.push(`Node ${i + 1} IP is a network address (host portion cannot be all zeros)`);
+            } else if (addrType === 'broadcast') {
+                missing.push(`Node ${i + 1} IP is a broadcast address (host portion cannot be all ones)`);
+            } else if (ips.has(ip)) {
+                missing.push('Node IPs must be unique');
+            }
             ips.add(ip);
         }
     }

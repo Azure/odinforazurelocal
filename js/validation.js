@@ -29,12 +29,36 @@ function validateFieldRealtime(field, value, type) {
             break;
         case 'ipv4cidr':
             isValid = isValidIpv4Cidr(value);
-            message = isValid ? '' : 'Must be valid IPv4 CIDR (e.g., 192.168.1.0/24)';
+            if (isValid) {
+                const cidrIp = extractIpFromCidr(value);
+                const cidrPrefix = extractPrefixFromCidr(value);
+                const cidrAddrType = isNetworkOrBroadcastAddress(cidrIp, cidrPrefix);
+                if (cidrAddrType === 'network') {
+                    isValid = false;
+                    message = 'IP is a network address — host portion cannot be all zeros';
+                } else if (cidrAddrType === 'broadcast') {
+                    isValid = false;
+                    message = 'IP is a broadcast address — host portion cannot be all ones';
+                }
+            } else {
+                message = 'Must be valid IPv4 CIDR (e.g., 192.168.1.10/24)';
+            }
             break;
         case 'ipv4': {
             const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
             isValid = ipv4Regex.test(value);
-            message = isValid ? '' : 'Must be valid IPv4 address';
+            if (isValid) {
+                const lastOctetCheck = isLastOctetNetworkOrBroadcast(value);
+                if (lastOctetCheck === 'network') {
+                    isValid = false;
+                    message = 'Last octet cannot be 0 (network address)';
+                } else if (lastOctetCheck === 'broadcast') {
+                    isValid = false;
+                    message = 'Last octet cannot be 255 (broadcast address)';
+                }
+            } else {
+                message = 'Must be valid IPv4 address';
+            }
             break;
         }
         case 'domain':
