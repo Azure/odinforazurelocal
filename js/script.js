@@ -8494,6 +8494,8 @@ function showChangelog() {
                         <li><strong>NIC Speed Locked on Single-Node (#76):</strong> Removed forced 10 GbE speed override on single-node clusters, allowing users to retain their selected NIC speed.</li>
                         <li><strong>IP Address Validation (#78):</strong> Node IPs, DNS servers, and inline validators now reject network (.0) and broadcast (.255) addresses with clear error messages.</li>
                         <li><strong>Switchless Intent Adapters:</strong> Fixed ARM <code>intentList</code> where switchless storage adapters were named SMB1, SMB2 instead of using the wizard's port display names (Port 3, Port 4, etc.).</li>
+                        <li><strong>Default Gateway Validation:</strong> Fixed "Complete These Sections: Default Gateway" warning appearing incorrectly after resuming a saved session or loading a template.</li>
+                        <li><strong>Storage VLAN Placeholders:</strong> Fixed ARM output showing <code>REPLACE_WITH_STORAGE_VLAN</code> instead of actual VLAN IDs when using custom intent with adapter mapping confirmed.</li>
                     </ul>
                 </div>
 
@@ -8504,7 +8506,7 @@ function showChangelog() {
                         <li><strong>Configuration Summary Labels:</strong> The sidebar Configuration Summary now shows custom port names instead of generic "NIC X" labels.</li>
                         <li><strong>DNS Validation Gating:</strong> DNS server validation now blocks report and ARM generation instead of only showing a warning.</li>
                         <li><strong>CI Pipeline Hardening:</strong> ESLint, unit tests, and HTML validation CI jobs now block pull request merges on failure.</li>
-                        <li><strong>197 Unit Tests:</strong> Expanded test suite from 136 to 197 tests with regression coverage for all bug fixes.</li>
+                        <li><strong>198 Unit Tests:</strong> Expanded test suite from 136 to 198 tests with regression coverage for all bug fixes.</li>
                     </ul>
                 </div>
 

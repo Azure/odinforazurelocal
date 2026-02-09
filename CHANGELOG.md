@@ -35,6 +35,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Intent List Adapter Names**: Fixed ARM `intentList` where switchless storage adapters were named `SMB1`, `SMB2`, etc. instead of using the wizard's port display names (`Port 3`, `Port 4`, etc.). Refactored `getStorageAdapterNamesForIntent()` to delegate to `armAdapterNameForSmb()` instead of duplicating logic with hardcoded "SMB" fallback.
 
+#### Default Gateway Validation on Resume/Load
+
+- **Gateway State Sync**: Fixed "Complete These Sections: Default Gateway" warning appearing incorrectly after resuming a saved session or loading a template, even when the gateway was already configured.
+- **DOM Fallback Check**: `getReportReadiness()` now checks the DOM input field as a fallback when `state.infraGateway` is stale.
+- **Resume/Load Restore**: `resumeSavedState()` and `loadTemplate()` now properly restore the `infraGatewayManual` flag and call `updateInfraNetwork()` to sync state.
+
+#### Storage VLAN Key Mismatch for Custom Intent
+
+- **VLAN Placeholder Fix**: Fixed ARM output showing `REPLACE_WITH_STORAGE_VLAN_1` / `REPLACE_WITH_STORAGE_VLAN_2` placeholders instead of actual VLAN IDs when using a custom intent with adapter mapping confirmed.
+- **Key Alignment**: `getStorageOverrideKey()` now checks `adapterMappingConfirmed` and returns the correct unprefixed key (`storage`) matching `getIntentNicGroups()` behavior.
+- **Fallback Lookup**: `getStorageVlans()` checks both `custom_storage` and `storage` override keys to handle timing-dependent state.
+
 #### DNS Validation Blocks Report Generation
 
 - **DNS Validation Gating**: DNS server validation (network/broadcast address checks) now blocks report and ARM generation instead of only showing a warning.
@@ -50,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Blocking CI Jobs**: ESLint, unit tests, and HTML validation CI jobs now block pull request merges on failure (removed `continue-on-error`).
 - **HTML Validation**: Added automated HTML5 validation for all HTML files with `.htmlvalidate.json` configuration.
-- **197 Unit Tests**: Expanded test suite from 136 to 197 tests with regression coverage for all bug fixes.
+- **198 Unit Tests**: Expanded test suite from 136 to 198 tests with regression coverage for all bug fixes.
 
 ---
 
