@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Real-time Feedback**: The inline field validators for `ipv4cidr` and `ipv4` types now show specific error messages when a network or broadcast address is entered.
 - **Utility Functions**: Added `isNetworkOrBroadcastAddress()` for CIDR-aware validation and `isLastOctetNetworkOrBroadcast()` for bare IP checks.
 
+### Improved
+
+#### Port Name Consistency Across All Outputs
+
+- **ARM Adapter Names**: ARM parameter file adapter names now use the wizard's port display names (e.g., `Port_1`, `Port_2`) instead of generic `NIC1`/`SMB1` prefixes, matching what users see in the wizard UI.
+- **Configuration Summary Labels**: The sidebar Configuration Summary now displays custom port names from `getPortDisplayName()` instead of hardcoded "NIC X" labels.
+
 ---
 
 ## [0.14.52] - 2026-02-06

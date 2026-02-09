@@ -8458,6 +8458,15 @@ function showChangelog() {
                         <li><strong>ARM Storage Adapter Naming (#74):</strong> Fixed ARM template where both StorageNetwork1 and StorageNetwork2 incorrectly used the same adapter name (SMB1). StorageNetwork2 now correctly references the second adapter.</li>
                         <li><strong>VLAN ID Defaults of Zero (#75):</strong> Fixed empty string and zero VLAN values being treated as valid, which produced invalid VLAN ID 0. Proper defaults (711/712) are now applied.</li>
                         <li><strong>NIC Speed Locked on Single-Node (#76):</strong> Removed forced 10 GbE speed override on single-node clusters, allowing users to retain their selected NIC speed.</li>
+                        <li><strong>IP Address Validation (#78):</strong> Node IPs, DNS servers, and inline validators now reject network (.0) and broadcast (.255) addresses with clear error messages.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Port Name Consistency:</strong> ARM parameter file adapter names now match the wizard's port display names (e.g., Port_1, Port_2) instead of generic NIC1/SMB1 prefixes.</li>
+                        <li><strong>Configuration Summary Labels:</strong> The sidebar Configuration Summary now shows custom port names instead of generic "NIC X" labels.</li>
                     </ul>
                 </div>
 
