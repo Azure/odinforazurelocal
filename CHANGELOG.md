@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+#### Shared Navigation Component
+
+- **Centralized Nav Bar**: Extracted the duplicated navigation bar HTML from `index.html`, `sizer/index.html`, and `docs/outbound-connectivity/index.html` into a shared `js/nav.js` component. All pages now render the nav from a single source, ensuring consistency.
+- **Feedback Button**: Added a "💡 Feedback" link in the navigation bar (all pages) pointing to the GitHub Issues page for raising feedback or bugs.
+- **Sizer Disclaimer**: Added a disclaimer banner on the Sizer page noting that Sizer functionality is in active development and integration with the Designer wizard will be available in a future release.
+
 #### Port Name Consistency Across All Outputs
 
 - **ARM Adapter Names**: ARM parameter file adapter names now use the wizard's port display names (e.g., `Port 1`, `Port 2`) instead of generic `NIC1`/`SMB1` prefixes, matching what users see in the wizard UI. JSON strings support spaces, so no sanitization is applied.

@@ -48,6 +48,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Storage VLAN Placeholders**: Fixed ARM output showing `REPLACE_WITH_STORAGE_VLAN` instead of actual VLAN IDs for custom intent with adapter mapping
 - **Port Name Consistency**: ARM adapter names now use wizard display names (`Port 1`, `Port 2`) instead of `NIC1`/`SMB1`
 - **DNS Validation Gating**: DNS validation now blocks report/ARM generation instead of warning only
+- **Shared Navigation Bar**: Centralized nav bar across all pages via `js/nav.js` for consistent updates
+- **Feedback Button**: Added "💡 Feedback" link in the nav bar pointing to GitHub Issues
+- **Sizer Disclaimer**: Added development status notice on the Sizer page
 - **CI Pipeline Hardening**: ESLint, unit tests, and HTML validation are now blocking CI checks
 - **198 Unit Tests**: Expanded from 136 to 198 tests with regression coverage for all fixes
 
@@ -419,6 +422,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Default Gateway Validation**: Fixed gateway validation warning on resume/load
 - **Storage VLAN Placeholders**: Fixed `REPLACE_WITH_STORAGE_VLAN` in ARM output for custom intent with adapter mapping
 - **Port Name Consistency**: ARM adapter names match wizard display names
+- **Shared Navigation Bar**: Centralized nav component across all pages with Feedback link
 - **198 Unit Tests**: Expanded test suite with regression coverage
 
 #### 0.14.52 - Markdown Export, Diagram Fix & Validation
