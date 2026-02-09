@@ -8456,14 +8456,18 @@ function showChangelog() {
                         <li><strong>VLAN ID Defaults of Zero (#75):</strong> Fixed empty string and zero VLAN values being treated as valid, which produced invalid VLAN ID 0. Proper defaults (711/712) are now applied.</li>
                         <li><strong>NIC Speed Locked on Single-Node (#76):</strong> Removed forced 10 GbE speed override on single-node clusters, allowing users to retain their selected NIC speed.</li>
                         <li><strong>IP Address Validation (#78):</strong> Node IPs, DNS servers, and inline validators now reject network (.0) and broadcast (.255) addresses with clear error messages.</li>
+                        <li><strong>Switchless Intent Adapters:</strong> Fixed ARM <code>intentList</code> where switchless storage adapters were named SMB1, SMB2 instead of using the wizard's port display names (Port 3, Port 4, etc.).</li>
                     </ul>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Port Name Consistency:</strong> ARM parameter file adapter names now match the wizard's port display names (e.g., Port_1, Port_2) instead of generic NIC1/SMB1 prefixes.</li>
+                        <li><strong>Port Name Consistency:</strong> ARM parameter file adapter names now match the wizard's port display names (e.g., Port 1, Port 2) instead of generic NIC1/SMB1 prefixes.</li>
                         <li><strong>Configuration Summary Labels:</strong> The sidebar Configuration Summary now shows custom port names instead of generic "NIC X" labels.</li>
+                        <li><strong>DNS Validation Gating:</strong> DNS server validation now blocks report and ARM generation instead of only showing a warning.</li>
+                        <li><strong>CI Pipeline Hardening:</strong> ESLint, unit tests, and HTML validation CI jobs now block pull request merges on failure.</li>
+                        <li><strong>197 Unit Tests:</strong> Expanded test suite from 136 to 197 tests with regression coverage for all bug fixes.</li>
                     </ul>
                 </div>
 

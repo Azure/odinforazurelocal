@@ -31,12 +31,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Real-time Feedback**: The inline field validators for `ipv4cidr` and `ipv4` types now show specific error messages when a network or broadcast address is entered.
 - **Utility Functions**: Added `isNetworkOrBroadcastAddress()` for CIDR-aware validation and `isLastOctetNetworkOrBroadcast()` for bare IP checks.
 
+#### Switchless Storage Intent Adapter Names
+
+- **Intent List Adapter Names**: Fixed ARM `intentList` where switchless storage adapters were named `SMB1`, `SMB2`, etc. instead of using the wizard's port display names (`Port 3`, `Port 4`, etc.). Refactored `getStorageAdapterNamesForIntent()` to delegate to `armAdapterNameForSmb()` instead of duplicating logic with hardcoded "SMB" fallback.
+
+#### DNS Validation Blocks Report Generation
+
+- **DNS Validation Gating**: DNS server validation (network/broadcast address checks) now blocks report and ARM generation instead of only showing a warning.
+
 ### Improved
 
 #### Port Name Consistency Across All Outputs
 
-- **ARM Adapter Names**: ARM parameter file adapter names now use the wizard's port display names (e.g., `Port_1`, `Port_2`) instead of generic `NIC1`/`SMB1` prefixes, matching what users see in the wizard UI.
+- **ARM Adapter Names**: ARM parameter file adapter names now use the wizard's port display names (e.g., `Port 1`, `Port 2`) instead of generic `NIC1`/`SMB1` prefixes, matching what users see in the wizard UI. JSON strings support spaces, so no sanitization is applied.
 - **Configuration Summary Labels**: The sidebar Configuration Summary now displays custom port names from `getPortDisplayName()` instead of hardcoded "NIC X" labels.
+
+#### CI Pipeline Hardening
+
+- **Blocking CI Jobs**: ESLint, unit tests, and HTML validation CI jobs now block pull request merges on failure (removed `continue-on-error`).
+- **HTML Validation**: Added automated HTML5 validation for all HTML files with `.htmlvalidate.json` configuration.
+- **197 Unit Tests**: Expanded test suite from 136 to 197 tests with regression coverage for all bug fixes.
 
 ---
 
