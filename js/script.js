@@ -8505,6 +8505,8 @@ function showChangelog() {
                         <li><strong>Port Name Consistency:</strong> ARM parameter file adapter names now match the wizard's port display names (e.g., Port 1, Port 2) instead of generic NIC1/SMB1 prefixes.</li>
                         <li><strong>Configuration Summary Labels:</strong> The sidebar Configuration Summary now shows custom port names instead of generic "NIC X" labels.</li>
                         <li><strong>DNS Validation Gating:</strong> DNS server validation now blocks report and ARM generation instead of only showing a warning.</li>
+                        <li><strong>Shared Navigation Bar:</strong> Centralized nav bar into a shared <code>js/nav.js</code> component used by all pages, with a new 💡 Feedback link to GitHub Issues.</li>
+                        <li><strong>Sizer Disclaimer:</strong> Added development status notice on the Sizer page.</li>
                         <li><strong>CI Pipeline Hardening:</strong> ESLint, unit tests, and HTML validation CI jobs now block pull request merges on failure.</li>
                         <li><strong>198 Unit Tests:</strong> Expanded test suite from 136 to 198 tests with regression coverage for all bug fixes.</li>
                     </ul>

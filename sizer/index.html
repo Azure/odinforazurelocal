@@ -17,40 +17,9 @@
     <link rel="stylesheet" href="sizer.css">
 </head>
 <body>
-    <!-- Tab Navigation -->
-    <nav class="odin-tab-nav">
-        <div class="odin-tab-container">
-            <a href="../index.html" class="odin-tab-logo">
-                <img src="../images/odin-logo.png" alt="Odin">
-                <span>ODIN</span>
-            </a>
-            <a href="../index.html" class="odin-tab-btn" data-tab="designer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <path d="M3 9h18M9 21V9"/>
-                </svg>
-                Designer
-            </a>
-            <a href="../docs/outbound-connectivity/index.html" class="odin-tab-btn" data-tab="knowledge">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                </svg>
-                Knowledge
-            </a>
-            <a href="#" class="odin-tab-btn active" data-tab="sizer">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 3v18h18"/>
-                    <path d="M18 17V9"/>
-                    <path d="M13 17V5"/>
-                    <path d="M8 17v-3"/>
-                </svg>
-                Sizer
-                <span class="odin-tab-badge">Preview</span>
-            </a>
-            <button onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" title="Toggle light/dark theme">ðŸŒ™</button>
-        </div>
-    </nav>
+    <!-- Tab Navigation (shared component) -->
+    <nav class="odin-tab-nav" id="odin-nav" data-active="sizer" data-base="../"></nav>
+    <script src="../js/nav.js"></script>
 
     <main class="container">
         <!-- Header -->
@@ -69,6 +38,12 @@
                 </button>
             </div>
         </header>
+
+        <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+            <div style="font-size: 12px; color: var(--text-primary); padding: 12px; background: rgba(255, 193, 7, 0.15); border: 1px solid rgba(255, 193, 7, 0.4); border-radius: 8px;">
+                <strong>⚠️ Note:</strong> The Sizer functionality is in active development. Using the Sizer output as input for the Designer wizard will be available in a future release.
+            </div>
+        </div>
 
         <div class="sizer-layout">
             <!-- Left Panel: Workload Configuration -->
