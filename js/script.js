@@ -451,7 +451,21 @@ function getReportReadiness() {
     if (!state.ip) missing.push('IP Assignment');
 
     // Static IP deployments require a default gateway.
-    if (state.ip === 'static' && !state.infraGateway) missing.push('Default Gateway');
+    // If the DOM field is populated but state was not synced (e.g. after resume/load),
+    // pull the value from the field to avoid a stale "missing" entry.
+    if (state.ip === 'static') {
+        if (!state.infraGateway) {
+            try {
+                const gwInput = document.getElementById('infra-default-gateway');
+                const gwVal = gwInput ? gwInput.value.trim() : '';
+                if (gwVal && /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(gwVal)) {
+                    state.infraGateway = gwVal;
+                    state.infraGatewayManual = true;
+                }
+            } catch (e) { /* ignore */ }
+        }
+        if (!state.infraGateway) missing.push('Default Gateway');
+    }
 
     // Node settings (names + IP CIDR)
     const nodeReadiness = getNodeSettingsReadiness();
@@ -8158,6 +8172,11 @@ function resumeSavedState() {
             renderDnsServers();
         }
 
+        // Preserve manual gateway flag so auto-suggest doesn't overwrite restored value
+        if (state.infraGateway) {
+            state.infraGatewayManual = true;
+        }
+
         // Re-run infrastructure network validation after UI is restored
         // This ensures gateway and IP pool validations run with restored values
         if (state.infraCidr || state.infra || state.infraGateway) {
@@ -9669,6 +9688,7 @@ function loadTemplate(templateIndex) {
     }
     if (config.infraGateway) {
         state.infraGateway = config.infraGateway;
+        state.infraGatewayManual = true;
     }
 
     if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
@@ -9710,6 +9730,13 @@ function loadTemplate(templateIndex) {
             el.remove();
         }
     });
+
+    // Re-run infrastructure network validation with restored values
+    if (state.infraCidr || state.infra || state.infraGateway) {
+        setTimeout(() => {
+            updateInfraNetwork();
+        }, 100);
+    }
 
     // Show success message
     showNotification('✅ Template loaded successfully!', 'success');
