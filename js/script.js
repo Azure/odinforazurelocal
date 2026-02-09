@@ -451,7 +451,21 @@ function getReportReadiness() {
     if (!state.ip) missing.push('IP Assignment');
 
     // Static IP deployments require a default gateway.
-    if (state.ip === 'static' && !state.infraGateway) missing.push('Default Gateway');
+    // If the DOM field is populated but state was not synced (e.g. after resume/load),
+    // pull the value from the field to avoid a stale "missing" entry.
+    if (state.ip === 'static') {
+        if (!state.infraGateway) {
+            try {
+                const gwInput = document.getElementById('infra-default-gateway');
+                const gwVal = gwInput ? gwInput.value.trim() : '';
+                if (gwVal && /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(gwVal)) {
+                    state.infraGateway = gwVal;
+                    state.infraGatewayManual = true;
+                }
+            } catch (e) { /* ignore */ }
+        }
+        if (!state.infraGateway) missing.push('Default Gateway');
+    }
 
     // Node settings (names + IP CIDR)
     const nodeReadiness = getNodeSettingsReadiness();
@@ -1348,6 +1362,15 @@ function generateArmParameters() {
 
         const getStorageOverrideKey = () => {
             // Keys used by getIntentNicGroups + ensureDefaultOverridesForGroups.
+            // When adapter mapping is confirmed, getIntentNicGroups uses unprefixed
+            // keys (e.g. 'storage') for all intent types including custom.
+            if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
+                // Check if there's an 'all' bucket (all traffic)
+                for (const k of Object.values(state.adapterMapping)) {
+                    if (k === 'all') return 'all';
+                }
+                return 'storage';
+            }
             if (state.intent === 'custom') return 'custom_storage';
             if (state.intent === 'all_traffic') return 'all';
             return 'storage';
@@ -1356,7 +1379,16 @@ function generateArmParameters() {
         const getStorageVlans = () => {
             ensureIntentOverrideDefaults();
             const key = getStorageOverrideKey();
-            const ov = (state.intentOverrides && state.intentOverrides[key]) ? state.intentOverrides[key] : null;
+            let ov = (state.intentOverrides && state.intentOverrides[key]) ? state.intentOverrides[key] : null;
+
+            // Fallback: for custom intents, VLANs may be stored under either
+            // 'custom_storage' or 'storage' depending on whether adapter mapping
+            // was confirmed before or after the overrides were edited.
+            if (!ov && state.intent === 'custom') {
+                const alt = (key === 'custom_storage') ? 'storage' : 'custom_storage';
+                ov = (state.intentOverrides && state.intentOverrides[alt]) ? state.intentOverrides[alt] : null;
+            }
+
             const vlan1 = ov && (ov.storageNetwork1VlanId ?? ov.storageVlanNic1);
             const vlan2 = ov && (ov.storageNetwork2VlanId ?? ov.storageVlanNic2);
             // Guard against empty strings: Number('') === 0 which is an invalid VLAN and would slip through
@@ -8158,6 +8190,11 @@ function resumeSavedState() {
             renderDnsServers();
         }
 
+        // Preserve manual gateway flag so auto-suggest doesn't overwrite restored value
+        if (state.infraGateway) {
+            state.infraGatewayManual = true;
+        }
+
         // Re-run infrastructure network validation after UI is restored
         // This ensures gateway and IP pool validations run with restored values
         if (state.infraCidr || state.infra || state.infraGateway) {
@@ -8457,6 +8494,8 @@ function showChangelog() {
                         <li><strong>NIC Speed Locked on Single-Node (#76):</strong> Removed forced 10 GbE speed override on single-node clusters, allowing users to retain their selected NIC speed.</li>
                         <li><strong>IP Address Validation (#78):</strong> Node IPs, DNS servers, and inline validators now reject network (.0) and broadcast (.255) addresses with clear error messages.</li>
                         <li><strong>Switchless Intent Adapters:</strong> Fixed ARM <code>intentList</code> where switchless storage adapters were named SMB1, SMB2 instead of using the wizard's port display names (Port 3, Port 4, etc.).</li>
+                        <li><strong>Default Gateway Validation:</strong> Fixed "Complete These Sections: Default Gateway" warning appearing incorrectly after resuming a saved session or loading a template.</li>
+                        <li><strong>Storage VLAN Placeholders:</strong> Fixed ARM output showing <code>REPLACE_WITH_STORAGE_VLAN</code> instead of actual VLAN IDs when using custom intent with adapter mapping confirmed.</li>
                     </ul>
                 </div>
 
@@ -8467,7 +8506,7 @@ function showChangelog() {
                         <li><strong>Configuration Summary Labels:</strong> The sidebar Configuration Summary now shows custom port names instead of generic "NIC X" labels.</li>
                         <li><strong>DNS Validation Gating:</strong> DNS server validation now blocks report and ARM generation instead of only showing a warning.</li>
                         <li><strong>CI Pipeline Hardening:</strong> ESLint, unit tests, and HTML validation CI jobs now block pull request merges on failure.</li>
-                        <li><strong>197 Unit Tests:</strong> Expanded test suite from 136 to 197 tests with regression coverage for all bug fixes.</li>
+                        <li><strong>198 Unit Tests:</strong> Expanded test suite from 136 to 198 tests with regression coverage for all bug fixes.</li>
                     </ul>
                 </div>
 
@@ -9669,6 +9708,7 @@ function loadTemplate(templateIndex) {
     }
     if (config.infraGateway) {
         state.infraGateway = config.infraGateway;
+        state.infraGatewayManual = true;
     }
 
     if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
@@ -9710,6 +9750,13 @@ function loadTemplate(templateIndex) {
             el.remove();
         }
     });
+
+    // Re-run infrastructure network validation with restored values
+    if (state.infraCidr || state.infra || state.infraGateway) {
+        setTimeout(() => {
+            updateInfraNetwork();
+        }, 100);
+    }
 
     // Show success message
     showNotification('✅ Template loaded successfully!', 'success');

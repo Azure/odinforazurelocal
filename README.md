@@ -44,10 +44,12 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **VLAN ID Defaults of Zero (#75)**: Fixed empty string VLAN values producing invalid VLAN ID 0
 - **NIC Speed Locked on Single-Node (#76)**: Removed forced 10 GbE speed override on single-node clusters
 - **IP Address Validation (#78)**: Node IPs and DNS servers now reject network (.0) and broadcast (.255) addresses
+- **Default Gateway Validation**: Fixed gateway validation warning appearing incorrectly after resume/load
+- **Storage VLAN Placeholders**: Fixed ARM output showing `REPLACE_WITH_STORAGE_VLAN` instead of actual VLAN IDs for custom intent with adapter mapping
 - **Port Name Consistency**: ARM adapter names now use wizard display names (`Port 1`, `Port 2`) instead of `NIC1`/`SMB1`
 - **DNS Validation Gating**: DNS validation now blocks report/ARM generation instead of warning only
 - **CI Pipeline Hardening**: ESLint, unit tests, and HTML validation are now blocking CI checks
-- **197 Unit Tests**: Expanded from 136 to 197 tests with regression coverage for all fixes
+- **198 Unit Tests**: Expanded from 136 to 198 tests with regression coverage for all fixes
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -392,8 +394,8 @@ This project is provided as-is for planning and configuration purposes. See offi
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.52  
-**Last Updated**: February 2026  
+**Version**: 0.14.53  
+**Last Updated**: February 9th 2026  
 **Compatibility**: Azure Local 2506+
 
 ---
@@ -414,8 +416,10 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **VLAN Defaults (#75)**: Fixed empty string VLAN values producing invalid VLAN ID 0
 - **NIC Speed (#76)**: Removed forced 10 GbE speed override on single-node clusters
 - **IP Validation (#78)**: Node IPs and DNS reject network/broadcast addresses
+- **Default Gateway Validation**: Fixed gateway validation warning on resume/load
+- **Storage VLAN Placeholders**: Fixed `REPLACE_WITH_STORAGE_VLAN` in ARM output for custom intent with adapter mapping
 - **Port Name Consistency**: ARM adapter names match wizard display names
-- **197 Unit Tests**: Expanded test suite with regression coverage
+- **198 Unit Tests**: Expanded test suite with regression coverage
 
 #### 0.14.52 - Markdown Export, Diagram Fix & Validation
 - **Markdown Report Export**: Download the Configuration Report as a Markdown file with embedded network diagrams for documentation or version control
