@@ -1428,6 +1428,307 @@
             })()
         ]);
 
+        // Test: parseArmTemplateToState - Intent override from intentList traffic types
+        testSuite('parseArmTemplateToState() - Intent Override from IntentList', 'script.js', [
+            (function() {
+                // networkingPattern says hyperConverged but intentList has 2 intents (Mgmt+Compute & Storage)
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "networkingPattern": { "value": "hyperConverged" },
+                        "intentList": {
+                            "value": [
+                                { "name": "HCI", "adapter": ["Port3", "Port2"], "trafficType": ["Management", "Compute"] },
+                                { "name": "Storage", "adapter": ["Port0", "Port1"], "trafficType": ["Storage"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.intent === 'mgmt_compute', 'Overrides hyperConverged to mgmt_compute when intentList has Mgmt+Compute & Storage intents', 'mgmt_compute', result.intent);
+            })(),
+            (function() {
+                // networkingPattern says hyperConverged and intentList confirms single all-traffic intent
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "networkingPattern": { "value": "hyperConverged" },
+                        "intentList": {
+                            "value": [
+                                { "name": "HCI", "adapter": ["Port1", "Port2"], "trafficType": ["Management", "Compute", "Storage"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.intent === 'all_traffic', 'Keeps all_traffic when intentList confirms single all-traffic intent', 'all_traffic', result.intent);
+            })(),
+            (function() {
+                // Compute+Storage and Management separate
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "intentList": {
+                            "value": [
+                                { "adapter": ["NIC1", "NIC2"], "trafficType": ["Compute", "Storage"] },
+                                { "adapter": ["NIC3"], "trafficType": ["Management"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.intent === 'compute_storage', 'Detects compute_storage intent from intentList', 'compute_storage', result.intent);
+            })(),
+            (function() {
+                // 3+ intents should map to custom
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "intentList": {
+                            "value": [
+                                { "adapter": ["NIC1"], "trafficType": ["Management"] },
+                                { "adapter": ["NIC2"], "trafficType": ["Compute"] },
+                                { "adapter": ["NIC3"], "trafficType": ["Storage"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.intent === 'custom', 'Maps 3+ intents to custom', 'custom', result.intent);
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Rack Aware and Local Availability Zones
+        testSuite('parseArmTemplateToState() - Rack Aware Import', 'script.js', [
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "clusterPattern": { "value": "RackAware" },
+                        "physicalNodesSettings": {
+                            "value": [
+                                { "name": "Node1", "ipv4Address": "10.0.0.1" },
+                                { "name": "Node2", "ipv4Address": "10.0.0.2" },
+                                { "name": "Node3", "ipv4Address": "10.0.0.3" },
+                                { "name": "Node4", "ipv4Address": "10.0.0.4" }
+                            ]
+                        },
+                        "localAvailabilityZones": {
+                            "value": [
+                                { "localAvailabilityZoneName": "Rack-A", "nodes": ["Node1", "Node2"] },
+                                { "localAvailabilityZoneName": "Rack-B", "nodes": ["Node3", "Node4"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.scale === 'rack_aware', 'Sets scale to rack_aware for RackAware clusterPattern', 'rack_aware', result.scale);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "clusterPattern": { "value": "RackAware" },
+                        "physicalNodesSettings": {
+                            "value": [
+                                { "name": "Node1", "ipv4Address": "10.0.0.1" },
+                                { "name": "Node2", "ipv4Address": "10.0.0.2" },
+                                { "name": "Node3", "ipv4Address": "10.0.0.3" },
+                                { "name": "Node4", "ipv4Address": "10.0.0.4" }
+                            ]
+                        },
+                        "localAvailabilityZones": {
+                            "value": [
+                                { "localAvailabilityZoneName": "Rack-A", "nodes": ["Node1", "Node2"] },
+                                { "localAvailabilityZoneName": "Rack-B", "nodes": ["Node3", "Node4"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const z = result.rackAwareZones;
+                return assert(z && z.zone1Name === 'Rack-A' && z.zone2Name === 'Rack-B', 'Imports zone names from localAvailabilityZones', 'Rack-A / Rack-B', z ? `${z.zone1Name} / ${z.zone2Name}` : 'undefined');
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "clusterPattern": { "value": "RackAware" },
+                        "physicalNodesSettings": {
+                            "value": [
+                                { "name": "Node1", "ipv4Address": "10.0.0.1" },
+                                { "name": "Node2", "ipv4Address": "10.0.0.2" },
+                                { "name": "Node3", "ipv4Address": "10.0.0.3" },
+                                { "name": "Node4", "ipv4Address": "10.0.0.4" }
+                            ]
+                        },
+                        "localAvailabilityZones": {
+                            "value": [
+                                { "localAvailabilityZoneName": "Rack-A", "nodes": ["Node1", "Node2"] },
+                                { "localAvailabilityZoneName": "Rack-B", "nodes": ["Node3", "Node4"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const z = result.rackAwareZones;
+                const assignments = z ? z.assignments : {};
+                const correct = assignments[1] === 1 && assignments[2] === 1 && assignments[3] === 2 && assignments[4] === 2;
+                return assert(correct, 'Maps node assignments to correct zones (Nodes 1-2 → Zone1, Nodes 3-4 → Zone2)', '{1:1,2:1,3:2,4:2}', JSON.stringify(assignments));
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "clusterPattern": { "value": "RackAware" },
+                        "physicalNodesSettings": {
+                            "value": [
+                                { "name": "Node1", "ipv4Address": "10.0.0.1" },
+                                { "name": "Node2", "ipv4Address": "10.0.0.2" }
+                            ]
+                        },
+                        "localAvailabilityZones": {
+                            "value": [
+                                { "localAvailabilityZoneName": "Zone1", "nodes": ["Node1"] },
+                                { "localAvailabilityZoneName": "Zone2", "nodes": ["Node2"] }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                return assert(result.rackAwareZonesConfirmed === true, 'Auto-confirms rack aware zones on import', true, result.rackAwareZonesConfirmed);
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Storage VLAN import from storageNetworkList
+        testSuite('parseArmTemplateToState() - Storage VLAN Import', 'script.js', [
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "intentList": {
+                            "value": [
+                                { "adapter": ["NIC1", "NIC2"], "trafficType": ["Management", "Compute"] },
+                                { "adapter": ["SMB1", "SMB2"], "trafficType": ["Storage"] }
+                            ]
+                        },
+                        "storageNetworkList": {
+                            "value": [
+                                { "name": "StorageNetwork1", "networkAdapterName": "SMB1", "vlanId": "21" },
+                                { "name": "StorageNetwork2", "networkAdapterName": "SMB2", "vlanId": "22" }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const ov = result.intentOverrides && result.intentOverrides['storage'];
+                return assert(ov && ov.storageNetwork1VlanId === 21, 'Imports storage VLAN 1 from storageNetworkList', 21, ov ? ov.storageNetwork1VlanId : 'undefined');
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "intentList": {
+                            "value": [
+                                { "adapter": ["NIC1", "NIC2"], "trafficType": ["Management", "Compute"] },
+                                { "adapter": ["SMB1", "SMB2"], "trafficType": ["Storage"] }
+                            ]
+                        },
+                        "storageNetworkList": {
+                            "value": [
+                                { "name": "StorageNetwork1", "networkAdapterName": "SMB1", "vlanId": "21" },
+                                { "name": "StorageNetwork2", "networkAdapterName": "SMB2", "vlanId": "22" }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const ov = result.intentOverrides && result.intentOverrides['storage'];
+                return assert(ov && ov.storageNetwork2VlanId === 22, 'Imports storage VLAN 2 from storageNetworkList', 22, ov ? ov.storageNetwork2VlanId : 'undefined');
+            })(),
+            (function() {
+                // All-traffic intent should use 'all' override key
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "intentList": {
+                            "value": [
+                                { "adapter": ["NIC1", "NIC2"], "trafficType": ["Management", "Compute", "Storage"] }
+                            ]
+                        },
+                        "storageNetworkList": {
+                            "value": [
+                                { "name": "StorageNetwork1", "networkAdapterName": "NIC1", "vlanId": "711" },
+                                { "name": "StorageNetwork2", "networkAdapterName": "NIC2", "vlanId": "712" }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const ov = result.intentOverrides && result.intentOverrides['all'];
+                return assert(ov && ov.storageNetwork1VlanId === 711, 'Uses all override key for all_traffic intent VLANs', 711, ov ? ov.storageNetwork1VlanId : 'undefined');
+            })()
+        ]);
+
+        // Test: parseArmTemplateToState - Custom storage subnets import
+        testSuite('parseArmTemplateToState() - Custom Storage Subnets Import', 'script.js', [
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "enableStorageAutoIp": { "value": false },
+                        "storageNetworkList": {
+                            "value": [
+                                {
+                                    "name": "StorageNetwork1",
+                                    "networkAdapterName": "SMB1",
+                                    "vlanId": "21",
+                                    "storageAdapterIPInfo": [
+                                        { "physicalNode": "Node1", "ipv4Address": "172.25.117.160", "subnetMask": "255.255.255.192" }
+                                    ]
+                                },
+                                {
+                                    "name": "StorageNetwork2",
+                                    "networkAdapterName": "SMB2",
+                                    "vlanId": "22",
+                                    "storageAdapterIPInfo": [
+                                        { "physicalNode": "Node1", "ipv4Address": "172.25.117.240", "subnetMask": "255.255.255.192" }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const subnets = result.customStorageSubnets;
+                return assert(subnets && subnets.length === 2, 'Imports 2 custom storage subnets from storageNetworkList', 2, subnets ? subnets.length : 0);
+            })(),
+            (function() {
+                const armTemplate = {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+                    "parameters": {
+                        "enableStorageAutoIp": { "value": false },
+                        "storageNetworkList": {
+                            "value": [
+                                {
+                                    "name": "StorageNetwork1",
+                                    "networkAdapterName": "SMB1",
+                                    "vlanId": "21",
+                                    "storageAdapterIPInfo": [
+                                        { "physicalNode": "Node1", "ipv4Address": "172.25.117.160", "subnetMask": "255.255.255.192" }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                };
+                const result = parseArmTemplateToState(armTemplate);
+                const subnets = result.customStorageSubnets;
+                // 172.25.117.160 with /26 mask → network 172.25.117.128/26
+                return assert(subnets && subnets[0] === '172.25.117.128/26', 'Calculates correct CIDR from storage IP and subnet mask', '172.25.117.128/26', subnets ? subnets[0] : 'undefined');
+            })()
+        ]);
+
         // Test: parseArmTemplateToState - Security settings
         testSuite('parseArmTemplateToState() - Security Settings', 'script.js', [
             (function() {
