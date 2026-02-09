@@ -5621,23 +5621,28 @@ function getNicMapping(intent, portCount, isSwitchless) {
     if (!intent || !portCount) return null;
 
     const mapping = [];
+    const pn = (i) => getPortDisplayName(i); // Use custom port names
 
     if (intent === 'all_traffic') {
-        mapping.push(`NICs 1-${portCount}: Management + Compute + Storage (Converged)`);
+        for (let i = 1; i <= portCount; i++) {
+            mapping.push(`${pn(i)}: Management + Compute + Storage`);
+        }
     } else if (intent === 'mgmt_compute') {
         if (portCount === 2) {
-            mapping.push('NIC 1: Management + Compute');
-            mapping.push('NIC 2: Storage');
+            mapping.push(`${pn(1)}: Management + Compute`);
+            mapping.push(`${pn(2)}: Storage`);
         } else {
-            mapping.push('NICs 1-2: Management + Compute');
-            if (portCount > 2) {
-                mapping.push(`NICs 3-${portCount}: Storage`);
+            mapping.push(`${pn(1)}: Management + Compute`);
+            mapping.push(`${pn(2)}: Management + Compute`);
+            for (let i = 3; i <= portCount; i++) {
+                mapping.push(`${pn(i)}: Storage`);
             }
         }
     } else if (intent === 'compute_storage') {
-        mapping.push('NICs 1-2: Management');
-        if (portCount > 2) {
-            mapping.push(`NICs 3-${portCount}: Compute + Storage`);
+        mapping.push(`${pn(1)}: Management`);
+        mapping.push(`${pn(2)}: Management`);
+        for (let i = 3; i <= portCount; i++) {
+            mapping.push(`${pn(i)}: Compute + Storage`);
         }
     }
 
@@ -5661,7 +5666,7 @@ function getCustomNicMapping(customIntents, portCount) {
     for (let i = 1; i <= portCount; i++) {
         const assignment = customIntents[i] || 'unused';
         if (assignment !== 'unused') {
-            mapping.push(`NIC ${i}: ${trafficNames[assignment] || assignment}`);
+            mapping.push(`${getPortDisplayName(i)}: ${trafficNames[assignment] || assignment}`);
         }
     }
 
