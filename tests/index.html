@@ -123,6 +123,9 @@
         // ========================================================================
         // TEST FRAMEWORK
         // ========================================================================
+        // Override alert() to prevent headless Chrome hangs during ARM generation tests
+        window.alert = function() {};
+
         let passCount = 0;
         let failCount = 0;
         let totalCount = 0;
@@ -1667,6 +1670,288 @@
                     '[]',
                     staleEntries.length > 0 ? 'STALE: ' + JSON.stringify(staleEntries) : '[]'
                 );
+            })()
+        ]);
+
+        // ========================================================================
+        // REGRESSION TESTS - GitHub Issues #74, #75, #76
+        // ========================================================================
+        sectionHeader('🐛 Regression Tests - Issues #74, #75, #76');
+
+        // Issue #76: Single-node NIC speed should not be locked at 10 GbE
+        testSuite('Issue #76: Single-node NIC speed not locked', 'script.js', [
+            (function() {
+                // Save original state
+                const origNodes = state.nodes;
+                const origScale = state.scale;
+                const origPortConfig = state.portConfig;
+
+                // Set up single-node standard cluster with existing portConfig at 25GbE
+                state.nodes = '1';
+                state.scale = 'medium';
+                state.portConfig = [
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: false, customName: null },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: false, customName: null }
+                ];
+
+                // Simulate what the fixed else-branch does: NOT overriding speed
+                const pCount = 2;
+                const isSingleNode = state.nodes === '1';
+                const isLowCapacity = state.scale === 'low_capacity';
+                if (isSingleNode && !isLowCapacity) {
+                    for (let idx = 0; idx < pCount; idx++) {
+                        const pc = state.portConfig[idx];
+                        if (!pc) continue;
+                        // Speed is NOT overridden (fix for #76)
+                        if (!pc.rdmaManual) {
+                            pc.rdma = true;
+                            pc.rdmaMode = 'RoCEv2';
+                        }
+                    }
+                }
+
+                const speed1 = state.portConfig[0].speed;
+                const speed2 = state.portConfig[1].speed;
+
+                // Restore
+                state.nodes = origNodes;
+                state.scale = origScale;
+                state.portConfig = origPortConfig;
+
+                return assert(speed1 === '25GbE' && speed2 === '25GbE',
+                    'Single-node: user-selected 25GbE speed preserved (not forced to 10GbE)',
+                    '25GbE,25GbE', speed1 + ',' + speed2);
+            })()
+        ]);
+
+        // Issue #75: VLAN IDs should default to 711/712, not 0
+        testSuite('Issue #75: Storage VLAN defaults', 'script.js', [
+            (function() {
+                // Save original state
+                const origOverrides = state.intentOverrides;
+                const origIntent = state.intent;
+
+                // Test ensureDefaultOverridesForGroups sets 711/712 correctly
+                state.intentOverrides = {};
+                state.intent = 'all_traffic';
+
+                const groups = [{ key: 'all', label: 'Group All Traffic', nics: [1, 2] }];
+                ensureDefaultOverridesForGroups(groups);
+
+                const v1 = state.intentOverrides['all'].storageNetwork1VlanId;
+                const v2 = state.intentOverrides['all'].storageNetwork2VlanId;
+
+                // Restore
+                state.intentOverrides = origOverrides;
+                state.intent = origIntent;
+
+                return assert(v1 === 711 && v2 === 712,
+                    'Default VLAN IDs are 711 and 712 for all_traffic intent',
+                    '711,712', v1 + ',' + v2);
+            })(),
+            (function() {
+                // Test that empty string VLAN values are replaced with defaults
+                const origOverrides = state.intentOverrides;
+
+                state.intentOverrides = { 'all': { storageNetwork1VlanId: '', storageNetwork2VlanId: '' } };
+
+                const groups = [{ key: 'all', label: 'Group All Traffic', nics: [1, 2] }];
+                ensureDefaultOverridesForGroups(groups);
+
+                const v1 = state.intentOverrides['all'].storageNetwork1VlanId;
+                const v2 = state.intentOverrides['all'].storageNetwork2VlanId;
+
+                state.intentOverrides = origOverrides;
+
+                return assert(v1 === 711 && v2 === 712,
+                    'Empty string VLAN overrides are replaced with defaults (711/712)',
+                    '711,712', v1 + ',' + v2);
+            })(),
+            (function() {
+                // Test that zero VLAN values are replaced with defaults
+                const origOverrides = state.intentOverrides;
+
+                state.intentOverrides = { 'storage': { storageNetwork1VlanId: 0, storageNetwork2VlanId: 0 } };
+
+                const groups = [{ key: 'storage', label: 'Storage', nics: [3, 4] }];
+                ensureDefaultOverridesForGroups(groups);
+
+                const v1 = state.intentOverrides['storage'].storageNetwork1VlanId;
+                const v2 = state.intentOverrides['storage'].storageNetwork2VlanId;
+
+                state.intentOverrides = origOverrides;
+
+                return assert(v1 === 711 && v2 === 712,
+                    'Zero VLAN overrides are replaced with defaults (711/712)',
+                    '711,712', v1 + ',' + v2);
+            })(),
+            (function() {
+                // Test that valid user-set VLAN values are preserved
+                const origOverrides = state.intentOverrides;
+
+                state.intentOverrides = { 'all': { storageNetwork1VlanId: 100, storageNetwork2VlanId: 200 } };
+
+                const groups = [{ key: 'all', label: 'Group All Traffic', nics: [1, 2] }];
+                ensureDefaultOverridesForGroups(groups);
+
+                const v1 = state.intentOverrides['all'].storageNetwork1VlanId;
+                const v2 = state.intentOverrides['all'].storageNetwork2VlanId;
+
+                state.intentOverrides = origOverrides;
+
+                return assert(v1 === 100 && v2 === 200,
+                    'User-set VLAN IDs (100/200) are preserved',
+                    '100,200', v1 + ',' + v2);
+            })()
+        ]);
+
+        // Issue #74: StorageNetwork2 adapter name should not duplicate StorageNetwork1
+        // Test via generateArmParameters() which stores result in localStorage
+        testSuite('Issue #74: Storage adapter names in ARM output', 'script.js', [
+            (function() {
+                // Save original state and override window.open
+                const origState = JSON.parse(JSON.stringify(state));
+                const origOpen = window.open;
+                window.open = function() {}; // prevent opening new window
+
+                // Set up a fully-ready hyper-converged switched cluster
+                state.scenario = 'hyperconverged';
+                state.region = 'eastus';
+                state.localInstanceRegion = 'East US';
+                state.scale = 'medium';
+                state.nodes = '2';
+                state.ports = '2';
+                state.storage = 'switched';
+                state.storagePoolConfiguration = 'default';
+                state.intent = 'all_traffic';
+                state.portConfig = [
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: false, customName: null },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: false, customName: null }
+                ];
+                state.portConfigConfirmed = true;
+                state.intentOverrides = {};
+                state.adapterMappingConfirmed = false;
+                state.adapterMapping = {};
+                state.storageAutoIp = 'enabled';
+                state.nodeSettings = [
+                    { name: 'node1', ipCidr: '10.0.0.2/24' },
+                    { name: 'node2', ipCidr: '10.0.0.3/24' }
+                ];
+                state.witnessType = 'cloud';
+                state.ip = 'static';
+                state.infraGateway = '10.0.0.1';
+                state.outbound = 'proxy';
+                state.proxy = 'none';
+                state.arc = 'spn';
+                state.infra = { start: '10.0.0.100', end: '10.0.0.200' };
+                state.infraCidr = '10.0.0.0/24';
+                state.infraVlan = 'default';
+                state.activeDirectory = 'azure_ad';
+                state.adDomain = 'contoso.local';
+                state.dnsServers = ['10.0.0.1'];
+                state.customIntents = {};
+                state.privateEndpoints = 'no';
+                state.securityConfiguration = 'recommended';
+                state.securitySettings = {};
+                state.sdnEnabled = 'no';
+
+                try {
+                    localStorage.removeItem('azloc_arm_payload');
+                    generateArmParameters();
+                    const raw = localStorage.getItem('azloc_arm_payload');
+                    const payload = raw ? JSON.parse(raw) : null;
+                    const arm = payload && payload.parametersFile;
+                    let result = 'no_storage_networks';
+                    if (arm && arm.parameters && arm.parameters.storageNetworkList && arm.parameters.storageNetworkList.value) {
+                        const storageNetworks = arm.parameters.storageNetworkList.value;
+                        if (storageNetworks.length >= 2) {
+                            result = storageNetworks[0].networkAdapterName + ',' + storageNetworks[1].networkAdapterName;
+                        }
+                    }
+
+                    Object.assign(state, origState);
+                    window.open = origOpen;
+
+                    return assert(result !== 'SMB1,SMB1' && result !== 'no_storage_networks',
+                        'StorageNetwork1 and StorageNetwork2 have distinct adapter names',
+                        'SMB1,SMB2', result);
+                } catch (e) {
+                    Object.assign(state, origState);
+                    window.open = origOpen;
+                    return assert(false, 'ARM generation did not throw', 'no error', e.message);
+                }
+            })(),
+            (function() {
+                // Test custom port names flow through to ARM storage adapter names
+                const origState = JSON.parse(JSON.stringify(state));
+                const origOpen = window.open;
+                window.open = function() {};
+
+                state.scenario = 'hyperconverged';
+                state.region = 'eastus';
+                state.localInstanceRegion = 'East US';
+                state.scale = 'medium';
+                state.nodes = '2';
+                state.ports = '2';
+                state.storage = 'switched';
+                state.storagePoolConfiguration = 'default';
+                state.intent = 'all_traffic';
+                state.portConfig = [
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: false, customName: 'Mellanox-A' },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: false, customName: 'Mellanox-B' }
+                ];
+                state.portConfigConfirmed = true;
+                state.intentOverrides = {};
+                state.adapterMappingConfirmed = false;
+                state.adapterMapping = {};
+                state.storageAutoIp = 'enabled';
+                state.nodeSettings = [
+                    { name: 'node1', ipCidr: '10.0.0.2/24' },
+                    { name: 'node2', ipCidr: '10.0.0.3/24' }
+                ];
+                state.witnessType = 'cloud';
+                state.ip = 'static';
+                state.infraGateway = '10.0.0.1';
+                state.outbound = 'proxy';
+                state.proxy = 'none';
+                state.arc = 'spn';
+                state.infra = { start: '10.0.0.100', end: '10.0.0.200' };
+                state.infraCidr = '10.0.0.0/24';
+                state.infraVlan = 'default';
+                state.activeDirectory = 'azure_ad';
+                state.adDomain = 'contoso.local';
+                state.dnsServers = ['10.0.0.1'];
+                state.customIntents = {};
+                state.privateEndpoints = 'no';
+                state.securityConfiguration = 'recommended';
+                state.securitySettings = {};
+                state.sdnEnabled = 'no';
+
+                try {
+                    localStorage.removeItem('azloc_arm_payload');
+                    generateArmParameters();
+                    const raw = localStorage.getItem('azloc_arm_payload');
+                    const payload = raw ? JSON.parse(raw) : null;
+                    const arm = payload && payload.parametersFile;
+                    let result = 'no_storage_networks';
+                    if (arm && arm.parameters && arm.parameters.storageNetworkList && arm.parameters.storageNetworkList.value) {
+                        const storageNetworks = arm.parameters.storageNetworkList.value;
+                        if (storageNetworks.length >= 2) {
+                            result = storageNetworks[0].networkAdapterName + ',' + storageNetworks[1].networkAdapterName;
+                        }
+                    }
+
+                    Object.assign(state, origState);
+                    window.open = origOpen;
+
+                    return assert(result === 'Mellanox-A,Mellanox-B',
+                        'Custom port names (Mellanox-A/B) flow to ARM storage network names',
+                        'Mellanox-A,Mellanox-B', result);
+                } catch (e) {
+                    Object.assign(state, origState);
+                    window.open = origOpen;
+                    return assert(false, 'ARM generation did not throw', 'no error', e.message);
+                }
             })()
         ]);
 

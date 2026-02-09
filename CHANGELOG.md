@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.53] - 2026-02-09
+
+### Fixed
+
+#### ARM Template Storage Adapter Naming (#74)
+
+- **StorageNetwork2 Adapter Name**: Fixed ARM template generation where both StorageNetwork1 and StorageNetwork2 used the same adapter name (SMB1). StorageNetwork2 now correctly references the second adapter name (SMB2) by passing the correct 1-based index to the adapter lookup function.
+
+#### VLAN ID Defaults of Zero (#75)
+
+- **Empty String VLAN Handling**: Fixed `getStorageVlans()` to reject empty strings that JavaScript's `Number('')` silently converts to `0`, which is an invalid VLAN ID for Azure Local.
+- **Default Override Guard**: Updated `ensureDefaultOverridesForGroups()` to treat VLAN values of `0` and empty string as unset, ensuring proper defaults (711/712) are applied instead of invalid zero values.
+
+#### NIC Speed Locked to 10 GbE on Single-Node (#76)
+
+- **Port Speed Override Removed**: Removed the forced `speed = '10GbE'` override that was applied to all ports in single-node cluster configurations, allowing users to select and retain their preferred NIC speed (1 GbE, 10 GbE, 25 GbE, 50 GbE, 100 GbE).
+
+---
+
 ## [0.14.52] - 2026-02-06
 
 ### Added

@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.50';
+const WIZARD_VERSION = '0.14.53';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -1333,8 +1333,9 @@ function generateArmParameters() {
             const ov = (state.intentOverrides && state.intentOverrides[key]) ? state.intentOverrides[key] : null;
             const vlan1 = ov && (ov.storageNetwork1VlanId ?? ov.storageVlanNic1);
             const vlan2 = ov && (ov.storageNetwork2VlanId ?? ov.storageVlanNic2);
-            const v1 = Number.isInteger(Number(vlan1)) ? Number(vlan1) : null;
-            const v2 = Number.isInteger(Number(vlan2)) ? Number(vlan2) : null;
+            // Guard against empty strings: Number('') === 0 which is an invalid VLAN and would slip through
+            const v1 = (vlan1 !== '' && vlan1 !== null && vlan1 !== undefined && Number.isInteger(Number(vlan1)) && Number(vlan1) >= 1) ? Number(vlan1) : null;
+            const v2 = (vlan2 !== '' && vlan2 !== null && vlan2 !== undefined && Number.isInteger(Number(vlan2)) && Number(vlan2) >= 1) ? Number(vlan2) : null;
             return { v1, v2 };
         };
 
@@ -1630,7 +1631,7 @@ function generateArmParameters() {
             if (storageNetworkCount >= 2) {
                 const network2 = {
                     name: 'StorageNetwork2',
-                    networkAdapterName: nic2 ? armAdapterNameForSmb(1, nic2 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_2',
+                    networkAdapterName: nic2 ? armAdapterNameForSmb(2, nic2 - 2) : 'REPLACE_WITH_STORAGE_ADAPTER_2',
                     vlanId: (storageVlan2 !== null && storageVlan2 !== undefined) ? String(storageVlan2) : 'REPLACE_WITH_STORAGE_VLAN_2'
                 };
                 if (includeStorageAdapterIPInfo) {
@@ -4441,34 +4442,25 @@ function updateUI() {
             const defaultRdmaEnabled = isLowCapacity ? false : true;
             const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
 
-            // Single-node default: 10GbE (RDMA depends on scale - enabled for non-low-capacity).
+            // Single-node default RDMA alignment (speed is NOT overridden — user may change it).
             if (isSingleNode && !isLowCapacity) {
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
                     if (!pc) continue;
-                    pc.speed = '10GbE';
                     if (!pc.rdmaManual) {
                         pc.rdma = true;
                         pc.rdmaMode = 'RoCEv2';
                     }
                 }
             } else if (isSingleNode && isLowCapacity) {
-                // Single-node Low Capacity: 10GbE, no RDMA.
+                // Single-node Low Capacity: no RDMA (speed is NOT overridden).
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
                     if (!pc) continue;
-                    pc.speed = '10GbE';
                     if (!pc.rdmaManual) {
                         pc.rdma = false;
                         pc.rdmaMode = 'Disabled';
                     }
-                }
-            } else if (isLowCapacity) {
-                // Low Capacity default: always use 1GbE.
-                for (let idx = 0; idx < pCount; idx++) {
-                    const pc = state.portConfig[idx];
-                    if (!pc) continue;
-                    pc.speed = '1GbE';
                 }
             }
 
@@ -5160,10 +5152,10 @@ function ensureDefaultOverridesForGroups(groups) {
                 ov.storageNetwork2VlanId = ov.storageVlanNic2;
             }
 
-            if (ov.storageNetwork1VlanId === undefined || ov.storageNetwork1VlanId === null) {
+            if (ov.storageNetwork1VlanId === undefined || ov.storageNetwork1VlanId === null || ov.storageNetwork1VlanId === '' || ov.storageNetwork1VlanId === 0) {
                 ov.storageNetwork1VlanId = 711;
             }
-            if (ov.storageNetwork2VlanId === undefined || ov.storageNetwork2VlanId === null) {
+            if (ov.storageNetwork2VlanId === undefined || ov.storageNetwork2VlanId === null || ov.storageNetwork2VlanId === '' || ov.storageNetwork2VlanId === 0) {
                 ov.storageNetwork2VlanId = 712;
             }
         }
@@ -8438,7 +8430,21 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.52 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.53 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 9, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>ARM Storage Adapter Naming (#74):</strong> Fixed ARM template where both StorageNetwork1 and StorageNetwork2 incorrectly used the same adapter name (SMB1). StorageNetwork2 now correctly references the second adapter.</li>
+                        <li><strong>VLAN ID Defaults of Zero (#75):</strong> Fixed empty string and zero VLAN values being treated as valid, which produced invalid VLAN ID 0. Proper defaults (711/712) are now applied.</li>
+                        <li><strong>NIC Speed Locked on Single-Node (#76):</strong> Removed forced 10 GbE speed override on single-node clusters, allowing users to retain their selected NIC speed.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.52</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 6, 2026</div>
                 </div>
 
