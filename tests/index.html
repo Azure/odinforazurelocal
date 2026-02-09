@@ -1955,6 +1955,87 @@
             })()
         ]);
 
+        // Test switchless storage intent adapter names use Port N (not SMB N)
+        testSuite('Issue #74: Switchless storage intent adapter names', 'script.js', [
+            (function() {
+                const origState = JSON.parse(JSON.stringify(state));
+                const origOpen = window.open;
+                window.open = function() {};
+
+                // Set up a switchless 4-node cluster with 8 ports (2 mgmt + 6 storage)
+                state.scenario = 'hyperconverged';
+                state.region = 'eastus';
+                state.localInstanceRegion = 'East US';
+                state.scale = 'medium';
+                state.nodes = '4';
+                state.ports = '8';
+                state.storage = 'switchless';
+                state.storagePoolConfiguration = 'default';
+                state.intent = 'mgmt_compute';
+                state.portConfig = [];
+                for (let i = 0; i < 8; i++) {
+                    state.portConfig.push({ speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2', rdmaManual: false, customName: null });
+                }
+                state.portConfigConfirmed = true;
+                state.intentOverrides = {};
+                state.adapterMappingConfirmed = false;
+                state.adapterMapping = {};
+                state.storageAutoIp = 'enabled';
+                state.nodeSettings = [
+                    { name: 'node1', ipCidr: '10.0.0.2/24' },
+                    { name: 'node2', ipCidr: '10.0.0.3/24' },
+                    { name: 'node3', ipCidr: '10.0.0.4/24' },
+                    { name: 'node4', ipCidr: '10.0.0.5/24' }
+                ];
+                state.witnessType = 'cloud';
+                state.ip = 'static';
+                state.infraGateway = '10.0.0.1';
+                state.outbound = 'proxy';
+                state.proxy = 'none';
+                state.arc = 'spn';
+                state.infra = { start: '10.0.0.100', end: '10.0.0.200' };
+                state.infraCidr = '10.0.0.0/24';
+                state.infraVlan = 'default';
+                state.activeDirectory = 'azure_ad';
+                state.adDomain = 'contoso.local';
+                state.dnsServers = ['10.0.0.1'];
+                state.customIntents = {};
+                state.privateEndpoints = 'no';
+                state.securityConfiguration = 'recommended';
+                state.securitySettings = {};
+                state.sdnEnabled = 'no';
+
+                try {
+                    localStorage.removeItem('azloc_arm_payload');
+                    generateArmParameters();
+                    const raw = localStorage.getItem('azloc_arm_payload');
+                    const payload = raw ? JSON.parse(raw) : null;
+                    const arm = payload && payload.parametersFile;
+                    let result = 'no_intent_list';
+                    if (arm && arm.parameters && arm.parameters.intentList && arm.parameters.intentList.value) {
+                        const intents = arm.parameters.intentList.value;
+                        const storageIntent = intents.find(i => i.trafficType && i.trafficType.includes('Storage'));
+                        if (storageIntent && storageIntent.adapter) {
+                            result = storageIntent.adapter.join(',');
+                        }
+                    }
+
+                    Object.assign(state, origState);
+                    window.open = origOpen;
+
+                    // Storage adapter names in the intent should use Port N format, not SMB N
+                    const hasSMB = result.includes('SMB');
+                    return assert(!hasSMB && result !== 'no_intent_list',
+                        'Switchless storage intent adapters use Port N names (not SMB N)',
+                        'Port 3,Port 4,Port 5,Port 6,Port 7,Port 8', result);
+                } catch (e) {
+                    Object.assign(state, origState);
+                    window.open = origOpen;
+                    return assert(false, 'ARM generation did not throw', 'no error', e.message);
+                }
+            })()
+        ]);
+
         // ========================================================================
         // REGRESSION TESTS - GitHub Issue #78: IP Address Validation
         // ========================================================================
