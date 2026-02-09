@@ -62,7 +62,9 @@
     "updateDnsServiceExistingNote": "readonly",
     "validateAllDnsServers": "readonly",
     "updateLocalDnsZone": "readonly",
-    "isRfc1918Ip": "readonly"
+    "isRfc1918Ip": "readonly",
+    "isNetworkOrBroadcastAddress": "readonly",
+    "isLastOctetNetworkOrBroadcast": "readonly"
   },
   "rules": {
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],

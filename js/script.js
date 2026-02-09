@@ -6286,7 +6286,7 @@ function getDuplicateAdapterNameIndices() {
     const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
     const portCount = cfg.length;
     const nameToIndices = new Map();
-    
+
     // Build map of name -> indices
     for (let i = 0; i < portCount; i++) {
         const name = getPortDisplayName(i + 1).toLowerCase();
@@ -6295,7 +6295,7 @@ function getDuplicateAdapterNameIndices() {
         }
         nameToIndices.get(name).push(i);
     }
-    
+
     // Collect indices of duplicates
     const duplicateIndices = new Set();
     for (const indices of nameToIndices.values()) {
@@ -6303,7 +6303,7 @@ function getDuplicateAdapterNameIndices() {
             indices.forEach(idx => duplicateIndices.add(idx));
         }
     }
-    
+
     return duplicateIndices;
 }
 
@@ -6319,11 +6319,11 @@ function renderPortConfiguration(count) {
         const displayName = getPortDisplayName(i + 1);
         const hasCustomName = config.customName && config.customName.trim();
         const isDuplicate = duplicateIndices.has(i);
-        
+
         // Determine border color: red for duplicate, blue for custom, default otherwise
         const borderColor = isDuplicate ? '#ef4444' : (hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)');
         // Determine label: 'duplicate' warning or 'custom' indicator
-        const labelHtml = isDuplicate 
+        const labelHtml = isDuplicate
             ? '<span style="font-size:10px; color:#ef4444; font-weight:600;">⚠ duplicate</span>'
             : (hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : '');
 
@@ -6408,7 +6408,7 @@ function updatePortConfig(index, key, value) {
                 state.portConfig[index].customName = trimmed;
             }
             updateUI();
-            
+
             // Check for duplicates after UI update and show warning toast
             const duplicates = getDuplicateAdapterNameIndices();
             if (duplicates.size > 0) {
