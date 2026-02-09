@@ -34,7 +34,6 @@ jobs:
       
       - name: Run ESLint on JS modules
         run: npx eslint js/*.js --format stylish
-        continue-on-error: true  # Warn but don't fail build initially
 
   test:
     name: Unit Tests
@@ -91,4 +90,4 @@ jobs:
       - name: Validate HTML files
         run: |
           npx html-validate index.html arm/arm.html report/report.html sizer/index.html --formatter stylish || true
-        continue-on-error: true  # Warn but don't fail build initially
+        continue-on-error: true  # Non-blocking: inline styles in dynamic dialogs trigger expected warnings
