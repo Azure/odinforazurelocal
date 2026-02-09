@@ -381,6 +381,10 @@ function findStepForMissingItem(item) {
     if (/^Node \d+ Name$/i.test(item) || /^Node \d+ IP/i.test(item) || item === 'Node names must be unique' || item === 'Node IPs must be unique') {
         return 'step-10';
     }
+    // Pattern match for DNS server validation messages
+    if (/^DNS server/i.test(item)) {
+        return 'step-13';
+    }
     // Partial match for RDMA messages and others
     for (const key in missingSectionToStep) {
         if (item.includes(key) || key.includes(item)) {
