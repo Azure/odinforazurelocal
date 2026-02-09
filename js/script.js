@@ -1679,37 +1679,21 @@ function generateArmParameters() {
 
             const getStorageAdapterNamesForIntent = (groupNics) => {
                 // Storage intent adapters in the ARM template.
-                // - Switchless: SMB1..SMB{2*(n-1)} are virtual adapters, not directly mapped to physical ports.
-                //   For switchless, check if ports have custom names and use them sequentially.
-                // - Switched: use custom port names if available, otherwise SMB{NIC#}.
+                // - Switchless: virtual adapters mapped to ports after mgmt/compute (ports 3, 4, ...)
+                // - Switched: use the port display names based on assigned NIC numbers.
                 if (state.storage === 'switchless') {
                     const n = nodeCount;
                     const smbCount = (Number.isFinite(n) && n > 1) ? (2 * (n - 1)) : 2;
-                    // For switchless, SMB adapters are virtual. Use custom names from storage ports if available.
-                    // Storage ports are typically the ports after the management/compute ports.
-                    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
+                    // Storage ports start after the management/compute ports (typically port 3+)
                     return Array.from({ length: smbCount }, (_, i) => {
-                        // Try to get custom name from corresponding port (offset by mgmt/compute ports)
-                        // For typical 4-port config: ports 1-2 are mgmt/compute, ports 3-4+ are storage
-                        const portIdx = 2 + i; // 0-based index for storage ports (after first 2)
-                        const pc = cfg[portIdx];
-                        if (pc && pc.customName && pc.customName.trim()) {
-                            const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
-                            return sanitized || `SMB${i + 1}`;
-                        }
-                        return `SMB${i + 1}`;
+                        const portIdx1Based = 2 + i + 1; // ports 3, 4, 5, ...
+                        return armAdapterNameForSmb(i + 1, 2);
                     });
                 }
 
-                // Switched: use custom port names from portConfig based on the NIC number
+                // Switched: use armAdapterNameForSmb with port number offset
                 return (Array.isArray(groupNics) ? groupNics : []).map(nicNum => {
-                    const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
-                    const pc = cfg[nicNum - 1]; // nicNum is 1-based, array is 0-based
-                    if (pc && pc.customName && pc.customName.trim()) {
-                        const sanitized = pc.customName.trim().replace(/[^A-Za-z0-9_-]/g, '_');
-                        return sanitized || `SMB${nicNum}`;
-                    }
-                    return `SMB${nicNum}`;
+                    return armAdapterNameForSmb(1, nicNum - 1);
                 });
             };
 
@@ -6286,7 +6270,7 @@ function getDuplicateAdapterNameIndices() {
     const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
     const portCount = cfg.length;
     const nameToIndices = new Map();
-    
+
     // Build map of name -> indices
     for (let i = 0; i < portCount; i++) {
         const name = getPortDisplayName(i + 1).toLowerCase();
@@ -6295,7 +6279,7 @@ function getDuplicateAdapterNameIndices() {
         }
         nameToIndices.get(name).push(i);
     }
-    
+
     // Collect indices of duplicates
     const duplicateIndices = new Set();
     for (const indices of nameToIndices.values()) {
@@ -6303,7 +6287,7 @@ function getDuplicateAdapterNameIndices() {
             indices.forEach(idx => duplicateIndices.add(idx));
         }
     }
-    
+
     return duplicateIndices;
 }
 
@@ -6319,11 +6303,11 @@ function renderPortConfiguration(count) {
         const displayName = getPortDisplayName(i + 1);
         const hasCustomName = config.customName && config.customName.trim();
         const isDuplicate = duplicateIndices.has(i);
-        
+
         // Determine border color: red for duplicate, blue for custom, default otherwise
         const borderColor = isDuplicate ? '#ef4444' : (hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)');
         // Determine label: 'duplicate' warning or 'custom' indicator
-        const labelHtml = isDuplicate 
+        const labelHtml = isDuplicate
             ? '<span style="font-size:10px; color:#ef4444; font-weight:600;">⚠ duplicate</span>'
             : (hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : '');
 
@@ -6408,7 +6392,7 @@ function updatePortConfig(index, key, value) {
                 state.portConfig[index].customName = trimmed;
             }
             updateUI();
-            
+
             // Check for duplicates after UI update and show warning toast
             const duplicates = getDuplicateAdapterNameIndices();
             if (duplicates.size > 0) {

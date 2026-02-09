@@ -338,8 +338,8 @@
             </div>
         </nav>
 
-        <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 12px;">
-            <div class="disclaimer-banner" style="font-size: 12px; color: var(--text-primary); padding: 12px; background: var(--disclaimer-bg, rgba(255, 193, 7, 0.15)); border: 1px solid var(--disclaimer-border, rgba(255, 193, 7, 0.4)); border-radius: 8px;">
+        <div class="disclaimer-wrapper">
+            <div class="disclaimer-banner">
                 <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
             </div>
         </div>
@@ -350,37 +350,37 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.14.53 | <a href="#" onclick="event.preventDefault(); showChangelog();" style="color: var(--accent-blue); text-decoration: none;">What's New</a>
+                        Version 0.14.53 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
                     </div>
                 </div>
             </div>
             <p class="header-description">Odin, the Norse god embodying strategic thinking and architecture, is your guide for Azure Local deployments. This <strong>O</strong>ptimal <strong>D</strong>eployment and <strong>I</strong>nfrastructure <strong>N</strong>avigator provides a decision tree interface to select an Azure Local deployment type, and instance design using validated architecture and network configuration.</p>
 
             <!-- Page Statistics -->
-            <div id="page-statistics" style="display: flex; justify-content: center; align-items: center; margin-top: 16px;">
-                <div style="display: flex; gap: 24px; padding: 10px 20px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; font-size: 13px;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
+            <div id="page-statistics">
+                <div class="stats-container">
+                    <div class="stat-item">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
                         </svg>
-                        <span style="color: var(--text-secondary);">Page Views:</span>
-                        <span id="stat-page-views" style="color: var(--text-primary); font-weight: 600;">—</span>
+                        <span class="stat-label">Page Views:</span>
+                        <span id="stat-page-views" class="stat-value">—</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 6px;">
+                    <div class="stat-item">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
                         </svg>
-                        <span style="color: var(--text-secondary);">Designs Generated:</span>
-                        <span id="stat-design-docs" style="color: var(--text-primary); font-weight: 600;">—</span>
+                        <span class="stat-label">Designs Generated:</span>
+                        <span id="stat-design-docs" class="stat-value">—</span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 6px;">
+                    <div class="stat-item">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                         </svg>
-                        <span style="color: var(--text-secondary);">ARM Deployments:</span>
-                        <span id="stat-arm-deployments" style="color: var(--text-primary); font-weight: 600;">—</span>
+                        <span class="stat-label">ARM Deployments:</span>
+                        <span id="stat-arm-deployments" class="stat-value">—</span>
                     </div>
                 </div>
             </div>
@@ -706,7 +706,7 @@
                                 </div>
                                 <div class="rack-az-field">
                                     <div class="rack-az-label">Servers on local availability zone 1 <span style="color: var(--accent-purple);">*</span></div>
-                                    <div id="rack-az1-drop" class="rack-az-drop" aria-label="Zone 1 node assignment drop area"></div>
+                                    <div id="rack-az1-drop" class="rack-az-drop" role="group" aria-label="Zone 1 node assignment drop area"></div>
                                 </div>
                                 <div class="info-box visible" style="margin-top: 0.75rem;">
                                     <strong>Note</strong>
@@ -722,7 +722,7 @@
                                 </div>
                                 <div class="rack-az-field">
                                     <div class="rack-az-label">Servers on local availability zone 2</div>
-                                    <div id="rack-az2-drop" class="rack-az-drop" aria-label="Zone 2 node assignment drop area"></div>
+                                    <div id="rack-az2-drop" class="rack-az-drop" role="group" aria-label="Zone 2 node assignment drop area"></div>
                                 </div>
                             </div>
                         </div>
@@ -1409,7 +1409,7 @@
                     <div id="private-endpoints-selection" class="hidden" style="margin-top: 1.5rem;">
                         <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Select Azure Services for Private Endpoints</h4>
                         <p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">Choose which Azure services should use Private Link endpoints. These FQDNs will be added to your proxy bypass list.</p>
-                        
+
                         <div class="private-endpoints-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
                             <!-- Arc Private Link (Not Supported) -->
                             <div class="pe-service-card disabled" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; cursor: not-allowed;">
@@ -1755,7 +1755,7 @@
                         <input type="text" id="ad-domain" placeholder="e.g. contoso.com"
                             style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
                             onchange="updateAdDomain()">
-                        
+
                         <div style="margin-top:1.5rem;">
                             <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">
                                 AD OU Path
@@ -1771,7 +1771,7 @@
                                 style="margin-top:0.5rem; color:#ef4444; font-size:0.85rem; background:rgba(239,68,68,0.1); padding:0.5rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
                             </div>
                         </div>
-                        
+
                         <div id="adfs-server-section" class="hidden" style="margin-top:1.5rem;">
                             <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">
                                 ADFS Server Name
@@ -1856,17 +1856,17 @@
                         <span class="step-number">18</span>
                         <h2>Security Configuration</h2>
                     </div>
-                    
+
                     <p style="margin-bottom:1.5rem; color:var(--text-secondary);">
-                        Configure security controls for your Azure Local deployment. 
-                        <a href="https://learn.microsoft.com/azure/azure-local/concepts/security-features" 
-                           target="_blank" 
-                           rel="noopener noreferrer" 
+                        Configure security controls for your Azure Local deployment.
+                        <a href="https://learn.microsoft.com/azure/azure-local/concepts/security-features"
+                           target="_blank"
+                           rel="noopener noreferrer"
                            style="color:var(--accent-blue); text-decoration:none;">
                             More information on security controls ↗
                         </a>
                     </p>
-                    
+
                     <div class="options-grid">
                         <div class="option-card" data-value="recommended"
                             onclick="selectOption('securityConfiguration', 'recommended')">
@@ -1898,7 +1898,7 @@
                     <div id="custom-security-section" class="hidden"
                         style="margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid var(--glass-border);">
                         <h4 style="color:var(--accent-purple); font-size:1.2rem; margin-bottom:1rem;">Custom Security Settings</h4>
-                        
+
                         <div style="display:flex; flex-direction:column; gap:1rem;">
                             <div class="security-toggle-item" style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--glass-border);">
                                 <div>
@@ -2022,41 +2022,41 @@
                                 <label class="sdn-feature-card" data-feature="lnet">
                                     <input type="checkbox" onchange="toggleSdnFeature('lnet', this.checked)"
                                         style="margin-right:0.5rem;">
-                                    <div>
+                                    <span>
                                         <strong>Logical Networks (LNET)</strong>
-                                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Network
-                                            virtualization</p>
-                                    </div>
+                                        <span style="display:block; font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Network
+                                            virtualization</span>
+                                    </span>
                                 </label>
 
                                 <label class="sdn-feature-card" data-feature="nsg">
                                     <input type="checkbox" onchange="toggleSdnFeature('nsg', this.checked)"
                                         style="margin-right:0.5rem;">
-                                    <div>
+                                    <span>
                                         <strong>Network Security Groups (NSG)</strong>
-                                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
-                                            filtering</p>
-                                    </div>
+                                        <span style="display:block; font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
+                                            filtering</span>
+                                    </span>
                                 </label>
 
                                 <label class="sdn-feature-card" data-feature="vnet">
                                     <input type="checkbox" onchange="toggleSdnFeature('vnet', this.checked)"
                                         style="margin-right:0.5rem;">
-                                    <div>
+                                    <span>
                                         <strong>Virtual Networks (VNET)</strong>
-                                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">
-                                            Isolated networks</p>
-                                    </div>
+                                        <span style="display:block; font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">
+                                            Isolated networks</span>
+                                    </span>
                                 </label>
 
                                 <label class="sdn-feature-card" data-feature="slb">
                                     <input type="checkbox" onchange="toggleSdnFeature('slb', this.checked)"
                                         style="margin-right:0.5rem;">
-                                    <div>
+                                    <span>
                                         <strong>Load Balancers (SLB)</strong>
-                                        <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
-                                            distribution</p>
-                                    </div>
+                                        <span style="display:block; font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
+                                            distribution</span>
+                                    </span>
                                 </label>
                             </div>
                         </div>
@@ -2139,7 +2139,7 @@
 
             <div class="summary-column">
                 <div id="summary-panel" class="hidden">
-                    <div id="wizard-progress" class="wizard-progress" aria-label="Wizard progress">
+                    <div id="wizard-progress" class="wizard-progress" role="region" aria-label="Wizard progress">
                         <div class="wizard-progress__top">
                             <div class="wizard-progress__title">Progress</div>
                             <div id="wizard-progress-text" class="wizard-progress__text">0% • 0/0</div>

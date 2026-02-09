@@ -2652,6 +2652,62 @@ header .header-description {
     .option-card:hover {
         transform: none;
     }
+}
+
+/* ── Disclaimer banner wrapper ── */
+.disclaimer-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.disclaimer-banner {
+    font-size: 12px;
+    color: var(--text-primary);
+    padding: 12px;
+    background: var(--disclaimer-bg, rgba(255, 193, 7, 0.15));
+    border: 1px solid var(--disclaimer-border, rgba(255, 193, 7, 0.4));
+    border-radius: 8px;
+}
+
+/* ── Header "What's New" link ── */
+.whats-new-link {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+/* ── Page statistics bar ── */
+#page-statistics {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 16px;
+}
+
+.stats-container {
+    display: flex;
+    gap: 24px;
+    padding: 10px 20px;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+}
+
+.stat-value {
+    color: var(--text-primary);
+    font-weight: 600;
 
     .onboarding-btn-primary:hover {
         transform: none;

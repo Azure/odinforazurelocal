@@ -34,7 +34,6 @@ jobs:
       
       - name: Run ESLint on JS modules
         run: npx eslint js/*.js --format stylish
-        continue-on-error: true  # Warn but don't fail build initially
 
   test:
     name: Unit Tests
@@ -89,6 +88,4 @@ jobs:
         run: npm install html-validate
       
       - name: Validate HTML files
-        run: |
-          npx html-validate index.html arm/arm.html report/report.html sizer/index.html --formatter stylish || true
-        continue-on-error: true  # Warn but don't fail build initially
+        run: npx html-validate index.html arm/arm.html report/report.html sizer/index.html --formatter stylish
