@@ -223,11 +223,8 @@
         } catch (e) {
             // ignore
         }
-        // Default naming based on type
-        if (type === 'smb') {
-            return 'SMB' + idx1Based;
-        }
-        return 'NIC ' + idx1Based;
+        // Default naming: use "Port N" to match the wizard UI
+        return 'Port ' + idx1Based;
     }
 
     // Convert CIDR notation to wildcard format for proxy bypass
@@ -5386,12 +5383,13 @@
                     };
                     
                     if (s.storage === 'switched') {
-                        // For switched storage, show IPs from the first two subnets (SMB1, SMB2)
+                        // For switched storage, show IPs from the first two subnets
                         // All nodes share the same two subnets
+                        // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
                         for (var subnetIdx = 0; subnetIdx < Math.min(validSubnets.length, 2); subnetIdx++) {
                             var prefix = getSubnetPrefix(validSubnets[subnetIdx]);
                             if (prefix) {
-                                var adapterName = 'SMB' + (subnetIdx + 1);
+                                var adapterName = getPortCustomName(s, subnetIdx + 3, 'nic');
                                 var nodeIps = [];
                                 for (var nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
                                     nodeIps.push(getNodeName(nodeIdx) + ': ' + prefix + '.' + (nodeIdx + 2));
