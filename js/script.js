@@ -7517,7 +7517,7 @@ function parseArmTemplateToState(armTemplate) {
         result.storageAutoIp = params.enableStorageAutoIp ? 'enabled' : 'disabled';
     }
 
-    // Networking pattern to intent
+    // Networking pattern to intent - use as initial hint, then override from actual intentList
     if (params.networkingPattern) {
         const patternToIntent = {
             'hyperConverged': 'all_traffic',
@@ -7526,6 +7526,40 @@ function parseArmTemplateToState(armTemplate) {
             'custom': 'custom'
         };
         result.intent = patternToIntent[params.networkingPattern] || 'compute_storage';
+    }
+
+    // Override intent from actual intentList traffic types (more reliable than networkingPattern)
+    if (params.intentList && Array.isArray(params.intentList) && params.intentList.length > 0) {
+        const trafficSets = params.intentList.map(intent => {
+            const types = (intent.trafficType || []).map(t => t.toLowerCase()).sort();
+            return types.join('+');
+        });
+        const allTypes = new Set();
+        params.intentList.forEach(intent => {
+            (intent.trafficType || []).forEach(t => allTypes.add(t.toLowerCase()));
+        });
+        const hasManagement = allTypes.has('management');
+        const hasCompute = allTypes.has('compute');
+        const hasStorage = allTypes.has('storage');
+
+        if (params.intentList.length === 1 && hasManagement && hasCompute && hasStorage) {
+            result.intent = 'all_traffic';
+        } else if (params.intentList.length === 2) {
+            const hasMgmtComputeIntent = trafficSets.some(s => s === 'compute+management');
+            const hasStorageOnlyIntent = trafficSets.some(s => s === 'storage');
+            const hasComputeStorageIntent = trafficSets.some(s => s === 'compute+storage');
+            const hasMgmtOnlyIntent = trafficSets.some(s => s === 'management');
+
+            if (hasMgmtComputeIntent && hasStorageOnlyIntent) {
+                result.intent = 'mgmt_compute';
+            } else if (hasComputeStorageIntent && hasMgmtOnlyIntent) {
+                result.intent = 'compute_storage';
+            } else {
+                result.intent = 'custom';
+            }
+        } else if (params.intentList.length >= 3) {
+            result.intent = 'custom';
+        }
     }
 
     // Port count and custom adapter names from intentList
@@ -7619,6 +7653,92 @@ function parseArmTemplateToState(armTemplate) {
         }
     }
 
+    // Import storage VLANs and custom storage subnets from storageNetworkList
+    if (params.storageNetworkList && Array.isArray(params.storageNetworkList) && params.storageNetworkList.length > 0) {
+        // Determine the override key based on the detected intent
+        const vlanOverrideKey = (() => {
+            if (result.intent === 'all_traffic') return 'all';
+            if (result.intent === 'custom') return 'custom_storage';
+            if (result.intent === 'compute_storage') return 'compute_storage';
+            return 'storage'; // mgmt_compute default
+        })();
+
+        if (!result.intentOverrides) result.intentOverrides = {};
+        if (!result.intentOverrides[vlanOverrideKey]) result.intentOverrides[vlanOverrideKey] = {};
+
+        const storageNet1 = params.storageNetworkList[0];
+        if (storageNet1 && storageNet1.vlanId) {
+            result.intentOverrides[vlanOverrideKey].storageNetwork1VlanId = Number(storageNet1.vlanId);
+        }
+
+        if (params.storageNetworkList.length >= 2) {
+            const storageNet2 = params.storageNetworkList[1];
+            if (storageNet2 && storageNet2.vlanId) {
+                result.intentOverrides[vlanOverrideKey].storageNetwork2VlanId = Number(storageNet2.vlanId);
+            }
+        }
+
+        // Import custom storage subnets from storageNetworkList IP/mask info
+        if (result.storageAutoIp === 'disabled' || params.enableStorageAutoIp === false) {
+            const maskToCidr = {
+                '255.255.255.0': 24, '255.255.255.128': 25, '255.255.255.192': 26,
+                '255.255.255.224': 27, '255.255.255.240': 28, '255.255.255.248': 29,
+                '255.255.254.0': 23, '255.255.252.0': 22, '255.255.248.0': 21,
+                '255.255.240.0': 20, '255.255.0.0': 16
+            };
+            result.customStorageSubnets = [];
+            params.storageNetworkList.forEach(net => {
+                if (net.storageAdapterIPInfo && Array.isArray(net.storageAdapterIPInfo) && net.storageAdapterIPInfo.length > 0) {
+                    const firstNode = net.storageAdapterIPInfo[0];
+                    const ip = firstNode.ipv4Address || '';
+                    const mask = firstNode.subnetMask || '255.255.255.0';
+                    const cidrBits = maskToCidr[mask] || 24;
+                    // Calculate network address from IP and mask
+                    if (ip) {
+                        const ipParts = ip.split('.').map(Number);
+                        const maskParts = mask.split('.').map(Number);
+                        const networkParts = ipParts.map((p, i) => p & maskParts[i]);
+                        result.customStorageSubnets.push(networkParts.join('.') + '/' + cidrBits);
+                    }
+                }
+            });
+            if (result.customStorageSubnets.length > 0) {
+                result.customStorageSubnetsConfirmed = true;
+            }
+        }
+    }
+
+    // Import RDMA and adapter property overrides from intentList
+    if (params.intentList && Array.isArray(params.intentList)) {
+        params.intentList.forEach(intent => {
+            if (intent.adapterPropertyOverrides) {
+                const props = intent.adapterPropertyOverrides;
+                // Detect RDMA mode from storage intent
+                const isStorageIntent = intent.trafficType &&
+                    Array.isArray(intent.trafficType) &&
+                    intent.trafficType.length === 1 &&
+                    intent.trafficType[0] === 'Storage';
+                if (isStorageIntent || (intent.trafficType && intent.trafficType.includes('Storage'))) {
+                    if (props.networkDirect === 'Enabled' && props.networkDirectTechnology) {
+                        // Apply RDMA mode to portConfig for storage ports
+                        if (result.portConfig) {
+                            result.portConfig.forEach(pc => {
+                                pc.rdma = true;
+                                pc.rdmaMode = props.networkDirectTechnology;
+                            });
+                        }
+                    } else if (props.networkDirect === 'Disabled') {
+                        if (result.portConfig) {
+                            result.portConfig.forEach(pc => {
+                                pc.rdma = false;
+                            });
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     // Security settings
     if (params.securityLevel) {
         result.securityConfiguration = params.securityLevel.toLowerCase() === 'recommended' ? 'recommended' : 'customized';
@@ -7637,6 +7757,43 @@ function parseArmTemplateToState(armTemplate) {
     // OU Path
     if (params.adouPath) {
         result.adOuPath = params.adouPath;
+    }
+
+    // Cluster pattern - Rack Aware and Local Availability Zones
+    if (params.clusterPattern && params.clusterPattern === 'RackAware') {
+        result.scale = 'rack_aware';
+
+        // Parse localAvailabilityZones into rackAwareZones state
+        if (params.localAvailabilityZones && Array.isArray(params.localAvailabilityZones) && params.localAvailabilityZones.length >= 2) {
+            const zone1 = params.localAvailabilityZones[0];
+            const zone2 = params.localAvailabilityZones[1];
+            const assignments = {};
+
+            // Build node name to index mapping from physicalNodesSettings
+            const nodeNames = (params.physicalNodesSettings || []).map(n => n.name);
+
+            // Assign nodes to zones based on their index in physicalNodesSettings
+            if (zone1.nodes && Array.isArray(zone1.nodes)) {
+                zone1.nodes.forEach(nodeName => {
+                    const idx = nodeNames.indexOf(nodeName);
+                    if (idx >= 0) assignments[idx + 1] = 1; // 1-based index, zone 1
+                });
+            }
+            if (zone2.nodes && Array.isArray(zone2.nodes)) {
+                zone2.nodes.forEach(nodeName => {
+                    const idx = nodeNames.indexOf(nodeName);
+                    if (idx >= 0) assignments[idx + 1] = 2; // 1-based index, zone 2
+                });
+            }
+
+            result.rackAwareZones = {
+                zone1Name: zone1.localAvailabilityZoneName || 'Zone1',
+                zone2Name: zone2.localAvailabilityZoneName || 'Zone2',
+                assignments: assignments,
+                nodeCount: nodeNames.length
+            };
+            result.rackAwareZonesConfirmed = true;
+        }
     }
 
     // Set defaults for fields not in ARM template
