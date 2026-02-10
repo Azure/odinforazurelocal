@@ -657,36 +657,36 @@ function getMgmtComputeNicAssignment(portCount) {
         };
     }
 
-    const isStandard = state.scale === 'medium';
-    if (isStandard) {
-        // Exception: when all ports are RDMA-capable, keep NICs 1-2 as Mgmt+Compute.
-        if (allRdma) {
-            const mgmtCompute = [1, 2].filter(n => n <= p);
-            const mgmtComputeSet = new Set(mgmtCompute);
-            return {
-                mgmtCompute,
-                storage: indices.filter(n => !mgmtComputeSet.has(n)),
-                allRdma: true,
-                valid: true,
-                reason: ''
-            };
-        }
+    // Exception: when all ports are RDMA-capable, keep NICs 1-2 as Mgmt+Compute.
+    if (allRdma) {
+        const mgmtCompute = [1, 2].filter(n => n <= p);
+        const mgmtComputeSet = new Set(mgmtCompute);
+        return {
+            mgmtCompute,
+            storage: indices.filter(n => !mgmtComputeSet.has(n)),
+            allRdma: true,
+            valid: true,
+            reason: ''
+        };
+    }
 
-        // Prefer Mgmt+Compute on non-RDMA ports.
+    // Prefer Mgmt+Compute on non-RDMA ports (applies to all scales including Low Capacity).
+    // If there are at least 2 non-RDMA ports, assign them to Mgmt+Compute so RDMA
+    // ports stay available for Storage traffic.
+    if (nonRdma.length >= 2) {
         const mgmtCompute = nonRdma.slice(0, 2);
         const mgmtComputeSet = new Set(mgmtCompute);
         const storage = indices.filter(n => !mgmtComputeSet.has(n));
-        const valid = mgmtCompute.length >= 2;
         return {
             mgmtCompute,
             storage,
             allRdma: false,
-            valid,
-            reason: valid ? '' : 'Mgmt + Compute requires at least 2 non-RDMA port(s) unless all ports are RDMA-capable.'
+            valid: true,
+            reason: ''
         };
     }
 
-    // Non-standard scales keep the fixed Pair 1 / Pair 2+ model.
+    // Fewer than 2 non-RDMA ports — fall back to fixed Pair 1 / Pair 2+ model.
     const mgmtCompute = [1, 2].filter(n => n <= p);
     const mgmtComputeSet = new Set(mgmtCompute);
     return {
@@ -10887,6 +10887,9 @@ function renderIntentZones(intent, portCount, confirmed) {
     });
 }
 
+// Module-level flag to suppress click events fired by Safari after a drag-and-drop.
+let _adapterDragActive = false;
+
 function buildAdapterPill(portId, locked) {
     const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
     const pc = cfg[portId - 1];
@@ -10923,6 +10926,7 @@ function buildAdapterPill(portId, locked) {
     // Drag events
     pill.addEventListener('dragstart', (e) => {
         if (locked) return;
+        _adapterDragActive = true;
         pill.setAttribute('aria-grabbed', 'true');
         pill.classList.add('is-dragging');
         e.dataTransfer.setData('text/plain', String(portId));
@@ -10932,12 +10936,25 @@ function buildAdapterPill(portId, locked) {
     pill.addEventListener('dragend', () => {
         pill.setAttribute('aria-grabbed', 'false');
         pill.classList.remove('is-dragging');
+        // Delay clearing the flag so any spurious click event fired by Safari
+        // after a drag-and-drop is suppressed.
+        setTimeout(() => { _adapterDragActive = false; }, 100);
     });
 
-    // Click-to-select fallback
+    // Click-to-select fallback (suppressed during/after drag to avoid Safari swap bug)
     pill.addEventListener('click', (e) => {
-        if (locked) return;
+        if (locked || _adapterDragActive) return;
         handleAdapterClick(portId);
+    });
+
+    // Touch-to-select fallback for mobile Safari and touch devices
+    pill.addEventListener('touchend', (e) => {
+        if (locked || _adapterDragActive) return;
+        // Only handle single taps (not multi-touch or scroll gestures)
+        if (e.changedTouches && e.changedTouches.length === 1) {
+            e.preventDefault();
+            handleAdapterClick(portId);
+        }
     });
 
     pill.addEventListener('keydown', (e) => {
