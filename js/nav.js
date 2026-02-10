@@ -86,7 +86,7 @@
     }
 
     // Feedback link
-    html += '<a href="https://github.com/Azure/odinforazurelocal/issues" target="_blank" rel="noopener noreferrer" class="nav-theme-toggle" title="Raise feedback or issue" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">\uD83D\uDCA1 Feedback</a>';
+    html += '<a href="https://github.com/Azure/odinforazurelocal/issues" target="_blank" rel="noopener noreferrer" class="nav-theme-toggle" title="Raise feedback or issue" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">\uD83D\uDCA1<span class="nav-feedback-text"> Feedback</span></a>';
 
     // Theme toggle
     html += '<button type="button" onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" style="margin-left: 0;" title="Toggle light/dark theme">\uD83C\uDF19</button>';

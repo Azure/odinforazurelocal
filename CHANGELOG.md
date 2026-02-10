@@ -27,9 +27,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Tap-to-Select Fallback**: Added `touchend` event handler on adapter pills for mobile Safari and other touch devices where HTML5 drag-and-drop is not supported. Users can now tap adapters to select them and tap a target zone to move them.
 
+#### Touch Device Support
+
+- **Tap-to-Select Fallback**: Added `touchend` event handler on adapter pills for mobile Safari and other touch devices where HTML5 drag-and-drop is not supported. Users can now tap adapters to select them and tap a target zone to move them.
+
 #### Test Coverage
 
 - **215 Unit Tests**: Added 4 regression tests for issue #88 covering RDMA-aware port assignment on Low Capacity, RDMA port ordering, all-RDMA fallback, and consistency between `getIntentNicGroups()` and `getDefaultAdapterMapping()`.
+
+### Added
+
+#### Mobile-Responsive Navigation (#87)
+
+- **Responsive Nav Bar**: Added `@media (max-width: 768px)` breakpoint for the navigation bar. On mobile portrait, tab labels collapse to icon-only display, padding is reduced, and badge text is hidden to prevent overflow.
+- **Onboarding Card Scrollability**: The welcome splash / onboarding card now has `max-height: 90vh` with `overflow-y: auto`, ensuring the "Next" button remains reachable on small screens.
+- **Touch-Friendly Buttons**: Onboarding navigation buttons now have `min-height: 44px` to meet mobile touch target guidelines.
+
+#### Mermaid Diagram Export (#86)
+
+- **Generate Mermaid Diagram**: New `generateMermaidDiagram()` function produces Mermaid flowchart markup from the current network configuration state, including node subgraphs, port traffic assignments, and rack-aware room groupings.
+- **Copy to Clipboard**: "📋 Copy Mermaid" button copies the diagram as a fenced Mermaid code block, ready to paste into GitHub issues, wikis, or documentation.
+- **Download as Markdown**: "⬇️ Download .md" button downloads the diagram as a Markdown file with embedded Mermaid code block.
 
 ---
 

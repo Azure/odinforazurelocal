@@ -210,6 +210,8 @@ body {
     padding: 32px;
     max-width: 600px;
     width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
     text-align: center;
     animation: scaleIn 0.3s ease;
 }
@@ -318,6 +320,7 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    min-height: 44px;
 }
 
 .onboarding-btn-primary {

@@ -6266,6 +6266,214 @@ function renderDiagram() {
     container.innerHTML = html;
 }
 
+/**
+ * Generate a Mermaid diagram representation of the current network configuration.
+ * Uses the same state data as renderDiagram() to produce portable Mermaid flowchart syntax.
+ * @returns {string} Mermaid diagram markup, or empty string if insufficient state
+ */
+function generateMermaidDiagram() {
+    if (!state.nodes || !state.ports || !state.intent) return '';
+
+    const n = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
+    const isRackAware = state.scale === 'rack_aware';
+    const showN = isRackAware ? n : Math.min(n, 4);
+    const p = parseInt(state.ports) || 0;
+    const intent = state.intent;
+
+    // Reuse the same traffic logic as renderDiagram
+    const getTraffic = (portIdx) => {
+        const nic = portIdx + 1;
+        if (!intent) return [];
+        if (state.adapterMappingConfirmed && state.adapterMapping && state.adapterMapping[nic]) {
+            const mapping = state.adapterMapping[nic];
+            if (mapping === 'mgmt') return ['Management'];
+            if (mapping === 'compute') return ['Compute'];
+            if (mapping === 'storage') return ['Storage'];
+            if (mapping === 'mgmt_compute') return ['Management', 'Compute'];
+            if (mapping === 'compute_storage') return ['Compute', 'Storage'];
+            if (mapping === 'all') return ['Management', 'Compute', 'Storage'];
+            if (mapping === 'pool') return [];
+            return [];
+        }
+        if (intent === 'all_traffic') return ['Management', 'Compute', 'Storage'];
+        if (intent === 'mgmt_compute') {
+            if (p === 2) return portIdx === 0 ? ['Management', 'Compute'] : ['Storage'];
+            const assignment = getMgmtComputeNicAssignment(p);
+            return assignment.mgmtCompute.includes(nic) ? ['Management', 'Compute'] : ['Storage'];
+        }
+        if (intent === 'compute_storage') {
+            if (portIdx < 2) return ['Management'];
+            return ['Compute', 'Storage'];
+        }
+        if (intent === 'custom') {
+            const val = (state.customIntents && state.customIntents[nic]) || 'unused';
+            if (val === 'mgmt') return ['Management'];
+            if (val === 'compute') return ['Compute'];
+            if (val === 'storage') return ['Storage'];
+            if (val === 'mgmt_compute') return ['Management', 'Compute'];
+            if (val === 'compute_storage') return ['Compute', 'Storage'];
+            if (val === 'all') return ['Management', 'Compute', 'Storage'];
+            return [];
+        }
+        return [];
+    };
+
+    const lines = [];
+    lines.push('flowchart TB');
+
+    // Build scale/intent title
+    const scaleLabel = typeof formatScale === 'function' ? formatScale(state.scale) : state.scale;
+    const intentLabel = typeof formatIntent === 'function' ? formatIntent(intent) : intent;
+    lines.push(`    title["${scaleLabel} — ${intentLabel}"]`);
+    lines.push('    style title fill:none,stroke:none,color:#888');
+    lines.push('');
+
+    const renderNodeMermaid = (nodeIdx, nodeId) => {
+        const nodeLabel = `Node ${nodeIdx + 1}`;
+        lines.push(`    subgraph ${nodeId}["${nodeLabel}"]`);
+        lines.push('        direction LR');
+        for (let j = 0; j < p; j++) {
+            const portName = typeof getPortDisplayName === 'function' ? getPortDisplayName(j + 1) : `Port ${j + 1}`;
+            const traffic = getTraffic(j);
+            const portId = `${nodeId}_p${j + 1}`;
+            if (traffic.length > 0) {
+                lines.push(`        ${portId}["${portName}<br/>${traffic.join(' + ')}"]`);
+            } else {
+                lines.push(`        ${portId}["${portName}<br/>Unused"]`);
+            }
+        }
+        lines.push('    end');
+    };
+
+    if (isRackAware) {
+        const half = Math.ceil(showN / 2);
+
+        lines.push('    subgraph Room1["Room 1 — Rack A"]');
+        for (let i = 0; i < half; i++) {
+            renderNodeMermaid(i, `N${i + 1}`);
+        }
+        lines.push('    end');
+        lines.push('');
+
+        lines.push('    subgraph Room2["Room 2 — Rack B"]');
+        for (let i = half; i < showN; i++) {
+            renderNodeMermaid(i, `N${i + 1}`);
+        }
+        lines.push('    end');
+    } else {
+        for (let i = 0; i < showN; i++) {
+            renderNodeMermaid(i, `N${i + 1}`);
+        }
+        if (n > 4) {
+            lines.push(`    More["+ ${n - 4} more nodes"]`);
+            lines.push('    style More fill:none,stroke-dasharray:5 5,color:#888');
+        }
+    }
+
+    // Add styling for traffic types
+    lines.push('');
+    lines.push('    %% Traffic type styling');
+    for (let i = 0; i < showN; i++) {
+        for (let j = 0; j < p; j++) {
+            const traffic = getTraffic(j);
+            const portId = `N${i + 1}_p${j + 1}`;
+            if (traffic.length === 0) {
+                lines.push(`    style ${portId} fill:#333,stroke-dasharray:5 5,color:#888`);
+            } else if (traffic.length === 3) {
+                lines.push(`    style ${portId} fill:#2d3a5e,stroke:#3b82f6,color:#fff`);
+            } else if (traffic.includes('Storage') && !traffic.includes('Management')) {
+                lines.push(`    style ${portId} fill:#1a3a2a,stroke:#22c55e,color:#fff`);
+            } else if (traffic.includes('Management') && !traffic.includes('Storage')) {
+                lines.push(`    style ${portId} fill:#2d2a5e,stroke:#8b5cf6,color:#fff`);
+            } else {
+                lines.push(`    style ${portId} fill:#2d3a5e,stroke:#3b82f6,color:#fff`);
+            }
+        }
+    }
+
+    return lines.join('\n');
+}
+
+/**
+ * Copy the Mermaid diagram to the clipboard.
+ * Shows a notification on success or failure.
+ */
+function copyMermaidDiagram() {
+    const mermaid = generateMermaidDiagram();
+    if (!mermaid) {
+        if (typeof showNotification === 'function') {
+            showNotification('Configure nodes, ports, and intent first to generate a diagram.', 'warning');
+        }
+        return;
+    }
+
+    const mermaidBlock = '```mermaid\n' + mermaid + '\n```';
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(mermaidBlock).then(() => {
+            if (typeof showNotification === 'function') {
+                showNotification('Mermaid diagram copied to clipboard!', 'success');
+            }
+        }).catch(() => {
+            fallbackCopyMermaid(mermaidBlock);
+        });
+    } else {
+        fallbackCopyMermaid(mermaidBlock);
+    }
+}
+
+/**
+ * Fallback copy method for browsers without Clipboard API.
+ * @param {string} text - Text to copy
+ */
+function fallbackCopyMermaid(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        if (typeof showNotification === 'function') {
+            showNotification('Mermaid diagram copied to clipboard!', 'success');
+        }
+    } catch (e) {
+        if (typeof showNotification === 'function') {
+            showNotification('Failed to copy diagram. Please try again.', 'error');
+        }
+    }
+    document.body.removeChild(textarea);
+}
+
+/**
+ * Download the Mermaid diagram as a .md file.
+ */
+function downloadMermaidDiagram() {
+    const mermaid = generateMermaidDiagram();
+    if (!mermaid) {
+        if (typeof showNotification === 'function') {
+            showNotification('Configure nodes, ports, and intent first to generate a diagram.', 'warning');
+        }
+        return;
+    }
+
+    const content = '# Azure Local Network Diagram\n\n```mermaid\n' + mermaid + '\n```\n';
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'azure-local-network-diagram.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof showNotification === 'function') {
+        showNotification('Mermaid diagram downloaded!', 'success');
+    }
+}
+
 // NOTE: Formatting functions moved to js/formatting.js:
 // - getProxyLabel()
 // - formatScenario()
@@ -8654,6 +8862,8 @@ function showChangelog() {
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Mobile-Responsive Navigation (#87):</strong> Nav bar collapses to icon-only on mobile portrait (≤768px). Onboarding card is now scrollable with the "Next" button always reachable on small screens.</li>
+                        <li><strong>Mermaid Diagram Export (#86):</strong> Copy or download the network topology diagram as portable Mermaid markup for documentation, GitHub issues, or wikis.</li>
                         <li><strong>Touch Device Support:</strong> Added tap-to-select fallback for adapter mapping on mobile Safari and other touch devices where HTML5 drag-and-drop is not supported.</li>
                         <li><strong>215 Unit Tests:</strong> Expanded test suite from 198 to 215 tests with regression coverage for NIC mapping fixes.</li>
                     </ul>
