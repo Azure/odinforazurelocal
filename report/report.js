@@ -5,6 +5,8 @@
     window.downloadReportMarkdown = downloadReportMarkdown;
     window.downloadHostNetworkingDiagramSvg = downloadHostNetworkingDiagramSvg;
     window.downloadOutboundConnectivityDiagramSvg = downloadOutboundConnectivityDiagramSvg;
+    window.copyHostNetworkingMermaid = copyHostNetworkingMermaid;
+    window.downloadHostNetworkingMermaid = downloadHostNetworkingMermaid;
     window.togglePrintFriendly = togglePrintFriendly;
 
     var CURRENT_REPORT_STATE = null;
@@ -1539,6 +1541,245 @@
         } catch (e) {
             console.error('Markdown export error:', e);
         }
+    }
+
+    /**
+     * Generate a Mermaid diagram of the host networking topology from report state.
+     * Mirrors the SVG diagram logic: ToR switches, nodes, adapters grouped by intent.
+     * @param {Object} s - The report state object
+     * @returns {string} Mermaid flowchart markup, or empty string if insufficient state
+     */
+    function generateHostNetworkingMermaid(s) {
+        if (!s || !s.ports || !s.intent) return '';
+
+        var ports = parseInt(s.ports, 10) || 0;
+        if (ports <= 0) return '';
+
+        var nAll = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
+        var isSingleNode = nAll === 1;
+        var n = Math.min(nAll, 4);
+        var isRackAware = s.scale === 'rack_aware';
+        var isCustom = s.intent === 'custom';
+        var hasAdapterMapping = s.adapterMappingConfirmed && s.adapterMapping && Object.keys(s.adapterMapping).length > 0;
+
+        // Show ToR switches for switched storage on medium/low_capacity scales
+        var showTorSwitches = !isSingleNode && (s.scale === 'medium' || s.scale === 'low_capacity') && !!s.torSwitchCount;
+        var torCount = (s.torSwitchCount === 'single') ? 1 : 2;
+
+        // Port naming
+        function getPortName(idx1Based) {
+            return getPortCustomName(s, idx1Based, 'nic');
+        }
+
+        // Determine traffic assignment per port
+        function getTraffic(portIdx) {
+            var nic = portIdx + 1;
+            if (!s.intent) return [];
+            if (hasAdapterMapping && s.adapterMapping[nic]) {
+                var mapping = s.adapterMapping[nic];
+                if (mapping === 'mgmt') return ['Mgmt'];
+                if (mapping === 'compute') return ['Compute'];
+                if (mapping === 'storage') return ['Storage'];
+                if (mapping === 'mgmt_compute') return ['Mgmt', 'Compute'];
+                if (mapping === 'compute_storage') return ['Compute', 'Storage'];
+                if (mapping === 'all') return ['Mgmt', 'Compute', 'Storage'];
+                if (mapping === 'pool') return [];
+                return [];
+            }
+            if (s.intent === 'all_traffic') return ['Mgmt', 'Compute', 'Storage'];
+            if (s.intent === 'mgmt_compute') {
+                if (ports === 2) return portIdx === 0 ? ['Mgmt', 'Compute'] : ['Storage'];
+                return portIdx < 2 ? ['Mgmt', 'Compute'] : ['Storage'];
+            }
+            if (s.intent === 'compute_storage') {
+                return portIdx < 2 ? ['Mgmt'] : ['Compute', 'Storage'];
+            }
+            if (isCustom && s.customIntents) {
+                var val = s.customIntents[nic] || 'unused';
+                if (val === 'mgmt') return ['Mgmt'];
+                if (val === 'compute') return ['Compute'];
+                if (val === 'storage') return ['Storage'];
+                if (val === 'mgmt_compute') return ['Mgmt', 'Compute'];
+                if (val === 'compute_storage') return ['Compute', 'Storage'];
+                if (val === 'all') return ['Mgmt', 'Compute', 'Storage'];
+                return [];
+            }
+            return [];
+        }
+
+        // Intent label
+        function intentLabel() {
+            if (s.intent === 'all_traffic') return 'Group All Traffic';
+            if (s.intent === 'mgmt_compute') return 'Management + Compute / Storage';
+            if (s.intent === 'compute_storage') return 'Compute + Storage';
+            if (s.intent === 'custom') return 'Custom Intent';
+            return s.intent || '';
+        }
+
+        var lines = [];
+        lines.push('flowchart TB');
+
+        // Title
+        var scaleLabel = '';
+        if (s.scale === 'low_capacity') scaleLabel = 'Low Capacity';
+        else if (s.scale === 'medium') scaleLabel = 'Hyperconverged';
+        else if (s.scale === 'rack_aware') scaleLabel = 'Rack Aware';
+        else scaleLabel = s.scale || '';
+        var storageMode = s.storage === 'switchless' ? 'Switchless' : 'Switched';
+        lines.push('    title["' + scaleLabel + ' — ' + intentLabel() + ' — ' + storageMode + '"]');
+        lines.push('    style title fill:none,stroke:none,color:#888');
+        lines.push('');
+
+        // ToR switches
+        if (showTorSwitches) {
+            if (torCount === 2) {
+                lines.push('    ToR1["ToR Switch 1"]');
+                lines.push('    ToR2["ToR Switch 2"]');
+            } else {
+                lines.push('    ToR1["ToR Switch"]');
+            }
+            lines.push('');
+        }
+
+        // Render nodes
+        var renderNode = function (nodeIdx, nodeId) {
+            var nodeName = 'Node ' + (nodeIdx + 1);
+            if (s.nodeSettings && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name) {
+                var customName = String(s.nodeSettings[nodeIdx].name).trim();
+                if (customName) nodeName = customName;
+            }
+            lines.push('    subgraph ' + nodeId + '["' + nodeName + '"]');
+            lines.push('        direction LR');
+            for (var j = 0; j < ports; j++) {
+                var portName = getPortName(j + 1);
+                var traffic = getTraffic(j);
+                var portId = nodeId + '_p' + (j + 1);
+                if (traffic.length > 0) {
+                    lines.push('        ' + portId + '["' + portName + '<br/>' + traffic.join(' + ') + '"]');
+                } else {
+                    lines.push('        ' + portId + '["' + portName + '<br/>Unused"]');
+                }
+            }
+            lines.push('    end');
+        };
+
+        if (isRackAware) {
+            var half = Math.ceil(n / 2);
+            lines.push('    subgraph Room1["Room 1 — Rack A"]');
+            for (var i = 0; i < half; i++) renderNode(i, 'N' + (i + 1));
+            lines.push('    end');
+            lines.push('');
+            lines.push('    subgraph Room2["Room 2 — Rack B"]');
+            for (var i2 = half; i2 < n; i2++) renderNode(i2, 'N' + (i2 + 1));
+            lines.push('    end');
+        } else {
+            for (var i3 = 0; i3 < n; i3++) renderNode(i3, 'N' + (i3 + 1));
+        }
+
+        // Connections from ToR to nodes
+        if (showTorSwitches) {
+            lines.push('');
+            for (var ni = 0; ni < n; ni++) {
+                lines.push('    ToR1 --- N' + (ni + 1));
+                if (torCount === 2) {
+                    lines.push('    ToR2 --- N' + (ni + 1));
+                }
+            }
+        }
+
+        // More nodes indicator
+        if (!isRackAware && nAll > 4) {
+            lines.push('    More["+ ' + (nAll - 4) + ' more nodes"]');
+            lines.push('    style More fill:none,stroke-dasharray:5 5,color:#888');
+        }
+
+        // Style ports by traffic type
+        lines.push('');
+        lines.push('    %% Traffic type styling');
+        for (var si = 0; si < n; si++) {
+            for (var sj = 0; sj < ports; sj++) {
+                var traffic2 = getTraffic(sj);
+                var portId2 = 'N' + (si + 1) + '_p' + (sj + 1);
+                if (traffic2.length === 0) {
+                    lines.push('    style ' + portId2 + ' fill:#333,stroke-dasharray:5 5,color:#888');
+                } else if (traffic2.includes('Storage') && !traffic2.includes('Mgmt')) {
+                    lines.push('    style ' + portId2 + ' fill:#1a3a2a,stroke:#22c55e,color:#fff');
+                } else if (traffic2.includes('Mgmt') && !traffic2.includes('Storage')) {
+                    lines.push('    style ' + portId2 + ' fill:#2d2a5e,stroke:#8b5cf6,color:#fff');
+                } else {
+                    lines.push('    style ' + portId2 + ' fill:#2d3a5e,stroke:#3b82f6,color:#fff');
+                }
+            }
+        }
+
+        // Style ToR switches
+        if (showTorSwitches) {
+            lines.push('    style ToR1 fill:#1e3a5f,stroke:#3b82f6,color:#fff');
+            if (torCount === 2) {
+                lines.push('    style ToR2 fill:#1e3a5f,stroke:#3b82f6,color:#fff');
+            }
+        }
+
+        return lines.join('\n');
+    }
+
+    /**
+     * Copy the host networking Mermaid diagram to clipboard.
+     */
+    function copyHostNetworkingMermaid() {
+        if (!CURRENT_REPORT_STATE) return;
+        var mermaid = generateHostNetworkingMermaid(CURRENT_REPORT_STATE);
+        if (!mermaid) return;
+
+        var block = '```mermaid\n' + mermaid + '\n```';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(block).then(function () {
+                alert('Mermaid diagram copied to clipboard!');
+            }).catch(function () {
+                fallbackCopy(block);
+            });
+        } else {
+            fallbackCopy(block);
+        }
+    }
+
+    /**
+     * Download the host networking Mermaid diagram as a .md file.
+     */
+    function downloadHostNetworkingMermaid() {
+        if (!CURRENT_REPORT_STATE) return;
+        var mermaid = generateHostNetworkingMermaid(CURRENT_REPORT_STATE);
+        if (!mermaid) return;
+
+        var content = '# Host Networking Diagram\n\n```mermaid\n' + mermaid + '\n```\n';
+        var blob = new Blob([content], { type: 'text/markdown' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'host-networking-diagram.md';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
+
+    /**
+     * Fallback clipboard copy for browsers without Clipboard API.
+     */
+    function fallbackCopy(text) {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            alert('Mermaid diagram copied to clipboard!');
+        } catch (e) {
+            alert('Failed to copy. Please try again.');
+        }
+        document.body.removeChild(textarea);
     }
 
     function downloadHostNetworkingDiagramSvg(variant) {
@@ -5723,6 +5964,25 @@
 
                             btnWrap.appendChild(btnLight);
                             btnWrap.appendChild(btnDark);
+
+                            var btnMermaidCopy = document.createElement('button');
+                            btnMermaidCopy.type = 'button';
+                            btnMermaidCopy.className = 'report-action-button';
+                            btnMermaidCopy.textContent = '📋 Copy Mermaid';
+                            btnMermaidCopy.addEventListener('click', function () {
+                                window.copyHostNetworkingMermaid();
+                            });
+
+                            var btnMermaidDl = document.createElement('button');
+                            btnMermaidDl.type = 'button';
+                            btnMermaidDl.className = 'report-action-button';
+                            btnMermaidDl.textContent = '⬇️ Download .md';
+                            btnMermaidDl.addEventListener('click', function () {
+                                window.downloadHostNetworkingMermaid();
+                            });
+
+                            btnWrap.appendChild(btnMermaidCopy);
+                            btnWrap.appendChild(btnMermaidDl);
                             hostSec.appendChild(btnWrap);
                         }
                     }
