@@ -8948,7 +8948,7 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Mobile-Responsive Navigation (#87):</strong> Nav bar collapses to icon-only on mobile portrait (≤768px). Onboarding card is now scrollable with the "Next" button always reachable on small screens.</li>
-                        <li><strong>Mermaid Diagram Export (#86):</strong> Copy or download the network topology diagram as portable Mermaid markup for documentation, GitHub issues, or wikis.</li>
+                        <li><strong>Mermaid Diagram Export (#86):</strong> Copy or download the network topology diagram as portable Mermaid markup with intent-grouped adapter subgraphs and switchless storage subnet connections with CIDR labels.</li>
                         <li><strong>Touch Device Support:</strong> Added tap-to-select fallback for adapter mapping on mobile Safari and other touch devices where HTML5 drag-and-drop is not supported.</li>
                         <li><strong>215 Unit Tests:</strong> Expanded test suite from 198 to 215 tests with regression coverage for NIC mapping fixes.</li>
                     </ul>

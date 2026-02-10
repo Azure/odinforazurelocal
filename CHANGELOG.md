@@ -45,7 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Mermaid Diagram Export (#86)
 
-- **Generate Mermaid Diagram**: New `generateMermaidDiagram()` function produces Mermaid flowchart markup from the current network configuration state, including node subgraphs, port traffic assignments, and rack-aware room groupings.
+- **Generate Mermaid Diagram**: New `generateMermaidDiagram()` function produces Mermaid flowchart markup from the current network configuration state, including intent-grouped adapter subgraphs ("Mgmt + Compute intent" / "Storage intent - RDMA"), switchless storage subnet connections with CIDR labels, AutoIP status, and rack-aware room groupings.
+- **Report Page Mermaid**: New `generateHostNetworkingMermaid()` on the report page produces the same intent-grouped Mermaid output with switchless subnet edges for 2/3/4-node topologies.
 - **Copy to Clipboard**: "📋 Copy Mermaid" button copies the diagram as a fenced Mermaid code block, ready to paste into GitHub issues, wikis, or documentation.
 - **Download as Markdown**: "⬇️ Download .md" button downloads the diagram as a Markdown file with embedded Mermaid code block.
 
