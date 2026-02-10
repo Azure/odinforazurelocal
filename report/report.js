@@ -1825,8 +1825,8 @@
         if (classified.mgmt.length > 0 && classified.stor.length > 0) {
             for (var gi = 0; gi < n; gi++) {
                 var nid = 'N' + (gi + 1);
-                lines.push('    style ' + nid + '_mc fill:rgba(0,120,212,0.07),stroke:#3b82f6,stroke-dasharray:6 4,color:#fff');
-                lines.push('    style ' + nid + '_st fill:rgba(139,92,246,0.07),stroke:#8b5cf6,stroke-dasharray:6 4,color:#fff');
+                lines.push('    style ' + nid + '_mc fill:#0a1520,stroke:#3b82f6,stroke-dasharray:6 4,color:#fff');
+                lines.push('    style ' + nid + '_st fill:#151222,stroke:#8b5cf6,stroke-dasharray:6 4,color:#fff');
             }
         }
 

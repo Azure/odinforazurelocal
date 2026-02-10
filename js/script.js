@@ -6471,8 +6471,8 @@ function generateMermaidDiagram() {
     // Style intent group subgraphs
     if (hasTwoGroups) {
         for (let i = 0; i < showN; i++) {
-            lines.push(`    style N${i + 1}_mc fill:rgba(0,120,212,0.07),stroke:#3b82f6,stroke-dasharray:6 4,color:#fff`);
-            lines.push(`    style N${i + 1}_st fill:rgba(139,92,246,0.07),stroke:#8b5cf6,stroke-dasharray:6 4,color:#fff`);
+            lines.push(`    style N${i + 1}_mc fill:#0a1520,stroke:#3b82f6,stroke-dasharray:6 4,color:#fff`);
+            lines.push(`    style N${i + 1}_st fill:#151222,stroke:#8b5cf6,stroke-dasharray:6 4,color:#fff`);
         }
     }
 
