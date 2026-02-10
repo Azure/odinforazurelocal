@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.53';
+const WIZARD_VERSION = '0.14.54';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -657,36 +657,36 @@ function getMgmtComputeNicAssignment(portCount) {
         };
     }
 
-    const isStandard = state.scale === 'medium';
-    if (isStandard) {
-        // Exception: when all ports are RDMA-capable, keep NICs 1-2 as Mgmt+Compute.
-        if (allRdma) {
-            const mgmtCompute = [1, 2].filter(n => n <= p);
-            const mgmtComputeSet = new Set(mgmtCompute);
-            return {
-                mgmtCompute,
-                storage: indices.filter(n => !mgmtComputeSet.has(n)),
-                allRdma: true,
-                valid: true,
-                reason: ''
-            };
-        }
+    // Exception: when all ports are RDMA-capable, keep NICs 1-2 as Mgmt+Compute.
+    if (allRdma) {
+        const mgmtCompute = [1, 2].filter(n => n <= p);
+        const mgmtComputeSet = new Set(mgmtCompute);
+        return {
+            mgmtCompute,
+            storage: indices.filter(n => !mgmtComputeSet.has(n)),
+            allRdma: true,
+            valid: true,
+            reason: ''
+        };
+    }
 
-        // Prefer Mgmt+Compute on non-RDMA ports.
+    // Prefer Mgmt+Compute on non-RDMA ports (applies to all scales including Low Capacity).
+    // If there are at least 2 non-RDMA ports, assign them to Mgmt+Compute so RDMA
+    // ports stay available for Storage traffic.
+    if (nonRdma.length >= 2) {
         const mgmtCompute = nonRdma.slice(0, 2);
         const mgmtComputeSet = new Set(mgmtCompute);
         const storage = indices.filter(n => !mgmtComputeSet.has(n));
-        const valid = mgmtCompute.length >= 2;
         return {
             mgmtCompute,
             storage,
             allRdma: false,
-            valid,
-            reason: valid ? '' : 'Mgmt + Compute requires at least 2 non-RDMA port(s) unless all ports are RDMA-capable.'
+            valid: true,
+            reason: ''
         };
     }
 
-    // Non-standard scales keep the fixed Pair 1 / Pair 2+ model.
+    // Fewer than 2 non-RDMA ports — fall back to fixed Pair 1 / Pair 2+ model.
     const mgmtCompute = [1, 2].filter(n => n <= p);
     const mgmtComputeSet = new Set(mgmtCompute);
     return {
@@ -6266,6 +6266,299 @@ function renderDiagram() {
     container.innerHTML = html;
 }
 
+/**
+ * Generate a Mermaid diagram representation of the current network configuration.
+ * Uses the same state data as renderDiagram() to produce portable Mermaid flowchart syntax.
+ * Includes intent-grouped adapter subgraphs and switchless storage subnet connections.
+ * @returns {string} Mermaid diagram markup, or empty string if insufficient state
+ */
+function generateMermaidDiagram() {
+    if (!state.nodes || !state.ports || !state.intent) return '';
+
+    const n = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
+    const isRackAware = state.scale === 'rack_aware';
+    const showN = isRackAware ? n : Math.min(n, 4);
+    const p = parseInt(state.ports) || 0;
+    const intent = state.intent;
+    const isSwitchless = state.storage === 'switchless';
+
+    // Reuse the same traffic logic as renderDiagram
+    const getTraffic = (portIdx) => {
+        const nic = portIdx + 1;
+        if (!intent) return [];
+        if (state.adapterMappingConfirmed && state.adapterMapping && state.adapterMapping[nic]) {
+            const mapping = state.adapterMapping[nic];
+            if (mapping === 'mgmt') return ['Mgmt'];
+            if (mapping === 'compute') return ['Compute'];
+            if (mapping === 'storage') return ['Storage'];
+            if (mapping === 'mgmt_compute') return ['Mgmt', 'Compute'];
+            if (mapping === 'compute_storage') return ['Compute', 'Storage'];
+            if (mapping === 'all') return ['Mgmt', 'Compute', 'Storage'];
+            if (mapping === 'pool') return [];
+            return [];
+        }
+        if (intent === 'all_traffic') return ['Mgmt', 'Compute', 'Storage'];
+        if (intent === 'mgmt_compute') {
+            if (p === 2) return portIdx === 0 ? ['Mgmt', 'Compute'] : ['Storage'];
+            const assignment = getMgmtComputeNicAssignment(p);
+            return assignment.mgmtCompute.includes(nic) ? ['Mgmt', 'Compute'] : ['Storage'];
+        }
+        if (intent === 'compute_storage') {
+            if (portIdx < 2) return ['Mgmt'];
+            return ['Compute', 'Storage'];
+        }
+        if (intent === 'custom') {
+            const val = (state.customIntents && state.customIntents[nic]) || 'unused';
+            if (val === 'mgmt') return ['Mgmt'];
+            if (val === 'compute') return ['Compute'];
+            if (val === 'storage') return ['Storage'];
+            if (val === 'mgmt_compute') return ['Mgmt', 'Compute'];
+            if (val === 'compute_storage') return ['Compute', 'Storage'];
+            if (val === 'all') return ['Mgmt', 'Compute', 'Storage'];
+            return [];
+        }
+        return [];
+    };
+
+    // Classify ports into Mgmt+Compute vs Storage groups
+    const mgmtPorts = [];
+    const storPorts = [];
+    for (let j = 0; j < p; j++) {
+        const traffic = getTraffic(j);
+        const isStorage = traffic.length > 0 && traffic.includes('Storage') && !traffic.includes('Mgmt');
+        if (isStorage) {
+            storPorts.push(j + 1);
+        } else {
+            mgmtPorts.push(j + 1);
+        }
+    }
+    const hasTwoGroups = mgmtPorts.length > 0 && storPorts.length > 0;
+
+    // AutoIP label
+    const autoIp = state.storageAutoIp === 'disabled' ? 'AutoIP: False' : (state.storageAutoIp === 'enabled' ? 'AutoIP: True' : '');
+
+    const lines = [];
+    lines.push('flowchart TB');
+
+    // Build title
+    const scaleLabel = typeof formatScale === 'function' ? formatScale(state.scale) : state.scale;
+    const storageMode = isSwitchless ? 'Switchless=true' : 'Switchless=false';
+    const titleParts = [scaleLabel, storageMode];
+    if (autoIp) titleParts.push(autoIp);
+    lines.push(`    title["${titleParts.join(' — ')}"]`);
+    lines.push('    style title fill:none,stroke:none,color:#888');
+    lines.push('');
+
+    const getPortName = (idx) => typeof getPortDisplayName === 'function' ? getPortDisplayName(idx) : `Port ${idx}`;
+
+    const renderNodeMermaid = (nodeIdx, nodeId) => {
+        const nodeLabel = `Node ${nodeIdx + 1}`;
+        lines.push(`    subgraph ${nodeId}["${nodeLabel}"]`);
+
+        if (hasTwoGroups) {
+            // Mgmt + Compute intent group
+            const mcLabel = intent === 'all_traffic' ? 'Mgmt + Compute + Storage' : 'Mgmt + Compute intent';
+            lines.push(`        subgraph ${nodeId}_mc["${mcLabel}"]`);
+            lines.push('            direction LR');
+            for (const mPort of mgmtPorts) {
+                lines.push(`            ${nodeId}_p${mPort}["${getPortName(mPort)}"]`);
+            }
+            lines.push('        end');
+
+            // Storage intent group
+            const stLabel = isSwitchless ? 'Storage intent - RDMA' : 'Storage';
+            lines.push(`        subgraph ${nodeId}_st["${stLabel}"]`);
+            lines.push('            direction LR');
+            for (const sPort of storPorts) {
+                lines.push(`            ${nodeId}_p${sPort}["${getPortName(sPort)}"]`);
+            }
+            lines.push('        end');
+        } else {
+            lines.push('        direction LR');
+            for (let j = 0; j < p; j++) {
+                const portName = getPortName(j + 1);
+                const traffic = getTraffic(j);
+                const portId = `${nodeId}_p${j + 1}`;
+                if (traffic.length > 0) {
+                    lines.push(`        ${portId}["${portName}<br/>${traffic.join(' + ')}"]`);
+                } else {
+                    lines.push(`        ${portId}["${portName}<br/>Unused"]`);
+                }
+            }
+        }
+        lines.push('    end');
+    };
+
+    if (isRackAware) {
+        const half = Math.ceil(showN / 2);
+        lines.push('    subgraph Room1["Room 1 — Rack A"]');
+        for (let i = 0; i < half; i++) renderNodeMermaid(i, `N${i + 1}`);
+        lines.push('    end');
+        lines.push('');
+        lines.push('    subgraph Room2["Room 2 — Rack B"]');
+        for (let i = half; i < showN; i++) renderNodeMermaid(i, `N${i + 1}`);
+        lines.push('    end');
+    } else {
+        for (let i = 0; i < showN; i++) renderNodeMermaid(i, `N${i + 1}`);
+        if (n > 4) {
+            lines.push(`    More["+ ${n - 4} more nodes"]`);
+            lines.push('    style More fill:none,stroke-dasharray:5 5,color:#888');
+        }
+    }
+
+    // Switchless storage subnet connections
+    if (isSwitchless && showN >= 2 && showN <= 4 && storPorts.length > 0) {
+        lines.push('');
+        lines.push('    %% Storage subnet connections');
+
+        const edges = [];
+        const isDualLink = state.switchlessLinkMode === 'dual_link';
+
+        if (showN === 2) {
+            edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+            edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
+        } else if (showN === 3 && !isDualLink) {
+            edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+            edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 2, p: 0 } });
+            edges.push({ subnet: 3, a: { n: 1, p: 1 }, b: { n: 2, p: 1 } });
+        } else if (showN === 3 && isDualLink) {
+            edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+            edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
+            edges.push({ subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 } });
+            edges.push({ subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 } });
+            edges.push({ subnet: 5, a: { n: 1, p: 2 }, b: { n: 2, p: 2 } });
+            edges.push({ subnet: 6, a: { n: 1, p: 3 }, b: { n: 2, p: 3 } });
+        } else if (showN === 4) {
+            let pairIdx = 0;
+            for (let a = 0; a < 4; a++) {
+                for (let b = a + 1; b < 4; b++) {
+                    edges.push({ subnet: pairIdx * 2 + 1, a: { n: a, p: pairIdx * 2 }, b: { n: b, p: pairIdx * 2 } });
+                    edges.push({ subnet: pairIdx * 2 + 2, a: { n: a, p: pairIdx * 2 + 1 }, b: { n: b, p: pairIdx * 2 + 1 } });
+                    pairIdx++;
+                }
+            }
+        }
+
+        for (const edge of edges) {
+            const aN = `N${edge.a.n + 1}`;
+            const bN = `N${edge.b.n + 1}`;
+            const aPort = storPorts[edge.a.p] || (edge.a.p + mgmtPorts.length + 1);
+            const bPort = storPorts[edge.b.p] || (edge.b.p + mgmtPorts.length + 1);
+            const cidr = `10.0.${edge.subnet}.0/24`;
+            lines.push(`    ${aN}_p${aPort} <-->|"Subnet ${edge.subnet}<br/>${cidr}"| ${bN}_p${bPort}`);
+        }
+    }
+
+    // Styling
+    lines.push('');
+    lines.push('    %% Styling');
+    for (let i = 0; i < showN; i++) {
+        for (let j = 0; j < p; j++) {
+            const traffic = getTraffic(j);
+            const portId = `N${i + 1}_p${j + 1}`;
+            if (traffic.length === 0) {
+                lines.push(`    style ${portId} fill:#333,stroke-dasharray:5 5,color:#888`);
+            } else if (traffic.includes('Storage') && !traffic.includes('Mgmt')) {
+                lines.push(`    style ${portId} fill:#1a3a2a,stroke:#22c55e,color:#fff`);
+            } else if (traffic.includes('Mgmt') && !traffic.includes('Storage')) {
+                lines.push(`    style ${portId} fill:#2d2a5e,stroke:#8b5cf6,color:#fff`);
+            } else {
+                lines.push(`    style ${portId} fill:#2d3a5e,stroke:#3b82f6,color:#fff`);
+            }
+        }
+    }
+
+    // Style intent group subgraphs
+    if (hasTwoGroups) {
+        for (let i = 0; i < showN; i++) {
+            lines.push(`    style N${i + 1}_mc fill:#0a1520,stroke:#3b82f6,stroke-dasharray:6 4,color:#fff`);
+            lines.push(`    style N${i + 1}_st fill:#151222,stroke:#8b5cf6,stroke-dasharray:6 4,color:#fff`);
+        }
+    }
+
+    return lines.join('\n');
+}
+
+/**
+ * Copy the Mermaid diagram to the clipboard.
+ * Shows a notification on success or failure.
+ */
+function copyMermaidDiagram() {
+    const mermaid = generateMermaidDiagram();
+    if (!mermaid) {
+        if (typeof showNotification === 'function') {
+            showNotification('Configure nodes, ports, and intent first to generate a diagram.', 'warning');
+        }
+        return;
+    }
+
+    const mermaidBlock = '```mermaid\n' + mermaid + '\n```';
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(mermaidBlock).then(() => {
+            if (typeof showNotification === 'function') {
+                showNotification('Mermaid diagram copied to clipboard!', 'success');
+            }
+        }).catch(() => {
+            fallbackCopyMermaid(mermaidBlock);
+        });
+    } else {
+        fallbackCopyMermaid(mermaidBlock);
+    }
+}
+
+/**
+ * Fallback copy method for browsers without Clipboard API.
+ * @param {string} text - Text to copy
+ */
+function fallbackCopyMermaid(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+        document.execCommand('copy');
+        if (typeof showNotification === 'function') {
+            showNotification('Mermaid diagram copied to clipboard!', 'success');
+        }
+    } catch (e) {
+        if (typeof showNotification === 'function') {
+            showNotification('Failed to copy diagram. Please try again.', 'error');
+        }
+    }
+    document.body.removeChild(textarea);
+}
+
+/**
+ * Download the Mermaid diagram as a .md file.
+ */
+function downloadMermaidDiagram() {
+    const mermaid = generateMermaidDiagram();
+    if (!mermaid) {
+        if (typeof showNotification === 'function') {
+            showNotification('Configure nodes, ports, and intent first to generate a diagram.', 'warning');
+        }
+        return;
+    }
+
+    const content = '# Azure Local Network Diagram\n\n```mermaid\n' + mermaid + '\n```\n';
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'azure-local-network-diagram.md';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof showNotification === 'function') {
+        showNotification('Mermaid diagram downloaded!', 'success');
+    }
+}
+
 // NOTE: Formatting functions moved to js/formatting.js:
 // - getProxyLabel()
 // - formatScenario()
@@ -8639,7 +8932,30 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.53 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.54 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 10, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>NIC Mapping to Intent (#88):</strong> Fixed adapter-to-intent assignment ignoring RDMA status on Low Capacity scale. Non-RDMA ports are now correctly preferred for Management + Compute across all scales, keeping RDMA ports available for Storage.</li>
+                        <li><strong>Safari Drag-and-Drop (#88):</strong> Fixed adapter mapping "flip-flop" on Safari where a click event fired after drag-and-drop, causing the click-to-swap fallback to unintentionally reverse the user's drag operation.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Mobile-Responsive Navigation (#87):</strong> Nav bar collapses to icon-only on mobile portrait (≤768px). Onboarding card is now scrollable with the "Next" button always reachable on small screens.</li>
+                        <li><strong>Mermaid Diagram Export (#86):</strong> Copy or download the network topology diagram as portable Mermaid markup with intent-grouped adapter subgraphs and switchless storage subnet connections with CIDR labels.</li>
+                        <li><strong>Touch Device Support:</strong> Added tap-to-select fallback for adapter mapping on mobile Safari and other touch devices where HTML5 drag-and-drop is not supported.</li>
+                        <li><strong>215 Unit Tests:</strong> Expanded test suite from 198 to 215 tests with regression coverage for NIC mapping fixes.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.53</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 9, 2026</div>
                 </div>
 
@@ -10887,6 +11203,9 @@ function renderIntentZones(intent, portCount, confirmed) {
     });
 }
 
+// Module-level flag to suppress click events fired by Safari after a drag-and-drop.
+let _adapterDragActive = false;
+
 function buildAdapterPill(portId, locked) {
     const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
     const pc = cfg[portId - 1];
@@ -10923,6 +11242,7 @@ function buildAdapterPill(portId, locked) {
     // Drag events
     pill.addEventListener('dragstart', (e) => {
         if (locked) return;
+        _adapterDragActive = true;
         pill.setAttribute('aria-grabbed', 'true');
         pill.classList.add('is-dragging');
         e.dataTransfer.setData('text/plain', String(portId));
@@ -10932,12 +11252,25 @@ function buildAdapterPill(portId, locked) {
     pill.addEventListener('dragend', () => {
         pill.setAttribute('aria-grabbed', 'false');
         pill.classList.remove('is-dragging');
+        // Delay clearing the flag so any spurious click event fired by Safari
+        // after a drag-and-drop is suppressed.
+        setTimeout(() => { _adapterDragActive = false; }, 100);
     });
 
-    // Click-to-select fallback
+    // Click-to-select fallback (suppressed during/after drag to avoid Safari swap bug)
     pill.addEventListener('click', (e) => {
-        if (locked) return;
+        if (locked || _adapterDragActive) return;
         handleAdapterClick(portId);
+    });
+
+    // Touch-to-select fallback for mobile Safari and touch devices
+    pill.addEventListener('touchend', (e) => {
+        if (locked || _adapterDragActive) return;
+        // Only handle single taps (not multi-touch or scroll gestures)
+        if (e.changedTouches && e.changedTouches.length === 1) {
+            e.preventDefault();
+            handleAdapterClick(portId);
+        }
     });
 
     pill.addEventListener('keydown', (e) => {

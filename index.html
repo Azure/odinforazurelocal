@@ -185,6 +185,52 @@
             background: var(--subtle-bg-hover);
         }
 
+        /* Mobile nav: hide text labels, show only icons */
+        @media (max-width: 768px) {
+            .odin-tab-nav {
+                padding: 0 8px;
+            }
+
+            .odin-tab-container {
+                gap: 4px;
+            }
+
+            .odin-tab-logo {
+                padding-right: 8px;
+                margin-right: 4px;
+                gap: 6px;
+            }
+
+            .odin-tab-logo span {
+                display: none;
+            }
+
+            .odin-tab-btn {
+                padding: 8px 10px;
+                font-size: 0;
+                gap: 0;
+            }
+
+            .odin-tab-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            .odin-tab-badge {
+                display: none;
+            }
+
+            .nav-theme-toggle {
+                padding: 6px 8px;
+                font-size: 14px;
+            }
+
+            /* Hide the "Feedback" text, keep emoji */
+            .nav-feedback-text {
+                display: none;
+            }
+        }
+
         /* Adjust body padding for fixed nav */
         body.has-tab-nav {
             padding-top: 56px;
@@ -319,7 +365,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.14.53 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+                        Version 0.14.54 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
                     </div>
                 </div>
             </div>
@@ -2129,6 +2175,14 @@
                     <h3>Configuration Summary</h3>
                     <div id="summary-content"></div>
                     <div id="summary-diagram-container" class="summary-diagram"></div>
+                    <div id="mermaid-export-buttons" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button onclick="copyMermaidDiagram()" style="flex: 1; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: var(--accent-purple); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;" title="Copy Mermaid diagram markup to clipboard">
+                            📋 Copy Mermaid
+                        </button>
+                        <button onclick="downloadMermaidDiagram()" style="flex: 1; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: var(--accent-purple); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;" title="Download diagram as Markdown file with Mermaid code block">
+                            ⬇️ Download .md
+                        </button>
+                    </div>
 
                     <button onclick="showTemplates()" style="width: 100%; padding: 10px 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; margin-bottom: 8px;">
                         📋 Load Example Configuration Template

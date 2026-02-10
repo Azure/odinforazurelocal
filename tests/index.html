@@ -2560,6 +2560,157 @@
         ]);
 
         // ========================================================================
+        // REGRESSION TESTS - GitHub Issue #88: NIC Mapping to Intent
+        // ========================================================================
+        sectionHeader('🐛 Regression Tests - Issue #88: NIC Mapping to Intent');
+
+        // Test: getMgmtComputeNicAssignment prefers non-RDMA ports for Mgmt+Compute on Low Capacity
+        testSuite('Issue #88: getMgmtComputeNicAssignment respects RDMA on Low Capacity', 'script.js', [
+            (function() {
+                // Setup: Low Capacity, 4 ports, ports 3&4 are RDMA, ports 1&2 are non-RDMA
+                const origScale = state.scale;
+                const origPorts = state.ports;
+                const origPortConfig = state.portConfig;
+
+                state.scale = 'low_capacity';
+                state.ports = '4';
+                state.portConfig = [
+                    { speed: '1GbE', rdma: false, rdmaMode: 'Disabled' },
+                    { speed: '1GbE', rdma: false, rdmaMode: 'Disabled' },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' }
+                ];
+
+                const result = getMgmtComputeNicAssignment(4);
+
+                state.scale = origScale;
+                state.ports = origPorts;
+                state.portConfig = origPortConfig;
+
+                const mgmtOk = JSON.stringify(result.mgmtCompute) === JSON.stringify([1, 2]);
+                const storageOk = JSON.stringify(result.storage) === JSON.stringify([3, 4]);
+                return assert(mgmtOk && storageOk,
+                    'Non-RDMA ports (1,2) assigned to Mgmt+Compute, RDMA ports (3,4) to Storage',
+                    'mgmt:[1,2] storage:[3,4]',
+                    'mgmt:[' + result.mgmtCompute + '] storage:[' + result.storage + ']');
+            })(),
+            (function() {
+                // Setup: Low Capacity, 4 ports, ports 1&2 are RDMA, ports 3&4 are non-RDMA
+                const origScale = state.scale;
+                const origPorts = state.ports;
+                const origPortConfig = state.portConfig;
+
+                state.scale = 'low_capacity';
+                state.ports = '4';
+                state.portConfig = [
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' },
+                    { speed: '1GbE', rdma: false, rdmaMode: 'Disabled' },
+                    { speed: '1GbE', rdma: false, rdmaMode: 'Disabled' }
+                ];
+
+                const result = getMgmtComputeNicAssignment(4);
+
+                state.scale = origScale;
+                state.ports = origPorts;
+                state.portConfig = origPortConfig;
+
+                const mgmtOk = JSON.stringify(result.mgmtCompute) === JSON.stringify([3, 4]);
+                const storageOk = JSON.stringify(result.storage) === JSON.stringify([1, 2]);
+                return assert(mgmtOk && storageOk,
+                    'RDMA ports (1,2) go to Storage when non-RDMA ports (3,4) available for Mgmt+Compute',
+                    'mgmt:[3,4] storage:[1,2]',
+                    'mgmt:[' + result.mgmtCompute + '] storage:[' + result.storage + ']');
+            })(),
+            (function() {
+                // Setup: Low Capacity, 4 ports, all RDMA — should fallback to [1,2] Mgmt
+                const origScale = state.scale;
+                const origPorts = state.ports;
+                const origPortConfig = state.portConfig;
+
+                state.scale = 'low_capacity';
+                state.ports = '4';
+                state.portConfig = [
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' }
+                ];
+
+                const result = getMgmtComputeNicAssignment(4);
+
+                state.scale = origScale;
+                state.ports = origPorts;
+                state.portConfig = origPortConfig;
+
+                const mgmtOk = JSON.stringify(result.mgmtCompute) === JSON.stringify([1, 2]);
+                const storageOk = JSON.stringify(result.storage) === JSON.stringify([3, 4]);
+                return assert(mgmtOk && storageOk && result.allRdma === true,
+                    'All-RDMA config: ports 1,2 to Mgmt+Compute, ports 3,4 to Storage',
+                    'mgmt:[1,2] storage:[3,4] allRdma:true',
+                    'mgmt:[' + result.mgmtCompute + '] storage:[' + result.storage + '] allRdma:' + result.allRdma);
+            })()
+        ]);
+
+        // Test: getIntentNicGroups matches getDefaultAdapterMapping for Low Capacity mgmt_compute
+        testSuite('Issue #88: NIC groups consistent with adapter mapping defaults', 'script.js', [
+            (function() {
+                // Verify getIntentNicGroups and getDefaultAdapterMapping produce consistent
+                // port assignments for mgmt_compute intent on Low Capacity.
+                const origScale = state.scale;
+                const origPorts = state.ports;
+                const origPortConfig = state.portConfig;
+                const origIntent = state.intent;
+                const origMapping = state.adapterMapping;
+                const origConfirmed = state.adapterMappingConfirmed;
+
+                state.scale = 'low_capacity';
+                state.ports = '4';
+                state.intent = 'mgmt_compute';
+                state.portConfig = [
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' },
+                    { speed: '25GbE', rdma: true, rdmaMode: 'RoCEv2' },
+                    { speed: '1GbE', rdma: false, rdmaMode: 'Disabled' },
+                    { speed: '1GbE', rdma: false, rdmaMode: 'Disabled' }
+                ];
+                state.adapterMapping = {};
+                state.adapterMappingConfirmed = false;
+
+                // getIntentNicGroups fallback (no confirmed mapping)
+                const nicGroups = getIntentNicGroups('mgmt_compute', 4);
+                const mgmtGroup = nicGroups.find(g => g.key === 'mgmt_compute');
+                const storageGroup = nicGroups.find(g => g.key === 'storage');
+
+                // getDefaultAdapterMapping
+                const defaultMapping = getDefaultAdapterMapping('mgmt_compute', 4);
+                const defaultMgmt = [];
+                const defaultStorage = [];
+                for (let i = 1; i <= 4; i++) {
+                    if (defaultMapping[i] === 'mgmt_compute') defaultMgmt.push(i);
+                    if (defaultMapping[i] === 'storage') defaultStorage.push(i);
+                }
+
+                state.scale = origScale;
+                state.ports = origPorts;
+                state.portConfig = origPortConfig;
+                state.intent = origIntent;
+                state.adapterMapping = origMapping;
+                state.adapterMappingConfirmed = origConfirmed;
+
+                const groupMgmt = mgmtGroup ? JSON.stringify(mgmtGroup.nics) : '[]';
+                const groupStorage = storageGroup ? JSON.stringify(storageGroup.nics) : '[]';
+                const mapMgmt = JSON.stringify(defaultMgmt);
+                const mapStorage = JSON.stringify(defaultStorage);
+
+                const consistent = groupMgmt === mapMgmt && groupStorage === mapStorage;
+                return assert(consistent,
+                    'NIC groups and default adapter mapping agree on port assignments',
+                    'groups:' + mapMgmt + '/' + mapStorage,
+                    'groups:' + groupMgmt + '/' + groupStorage);
+            })()
+        ]);
+
+        // ========================================================================
         // FINAL SUMMARY
         // ========================================================================
         updateTestSummary();

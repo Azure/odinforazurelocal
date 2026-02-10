@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.54] - 2026-02-10
+
+### Fixed
+
+#### NIC Mapping to Intent on Low Capacity (#88)
+
+- **RDMA-Aware Port Assignment**: Fixed `getMgmtComputeNicAssignment()` which ignored RDMA capability when assigning ports on non-standard scales (Low Capacity, etc.). The function previously always placed ports [1, 2] in Management + Compute regardless of RDMA status, causing RDMA ports to be incorrectly assigned to Management + Compute instead of Storage.
+- **All Scales Now Consistent**: Non-RDMA ports are now preferred for Management + Compute across ALL scales (not just standard/medium), keeping RDMA-capable ports available for Storage traffic. Falls back to fixed [1, 2] assignment only when fewer than 2 non-RDMA ports exist.
+- **Diagram and ARM Alignment**: The network diagram, ARM output fallback, and intent override cards now correctly reflect RDMA-based port assignments on Low Capacity, matching what the adapter mapping UI displays.
+
+#### Safari Drag-and-Drop Interference (#88)
+
+- **Click-After-Drag Guard**: Added `_adapterDragActive` flag that is set on `dragstart` and cleared 100ms after `dragend`, preventing Safari's spurious `click` event from triggering the click-to-swap fallback and unintentionally reversing the user's drag-and-drop operation.
+
+### Improved
+
+#### Touch Device Support
+
+- **Tap-to-Select Fallback**: Added `touchend` event handler on adapter pills for mobile Safari and other touch devices where HTML5 drag-and-drop is not supported. Users can now tap adapters to select them and tap a target zone to move them.
+
+#### Touch Device Support
+
+- **Tap-to-Select Fallback**: Added `touchend` event handler on adapter pills for mobile Safari and other touch devices where HTML5 drag-and-drop is not supported. Users can now tap adapters to select them and tap a target zone to move them.
+
+#### Test Coverage
+
+- **215 Unit Tests**: Added 4 regression tests for issue #88 covering RDMA-aware port assignment on Low Capacity, RDMA port ordering, all-RDMA fallback, and consistency between `getIntentNicGroups()` and `getDefaultAdapterMapping()`.
+
+### Added
+
+#### Mobile-Responsive Navigation (#87)
+
+- **Responsive Nav Bar**: Added `@media (max-width: 768px)` breakpoint for the navigation bar. On mobile portrait, tab labels collapse to icon-only display, padding is reduced, and badge text is hidden to prevent overflow.
+- **Onboarding Card Scrollability**: The welcome splash / onboarding card now has `max-height: 90vh` with `overflow-y: auto`, ensuring the "Next" button remains reachable on small screens.
+- **Touch-Friendly Buttons**: Onboarding navigation buttons now have `min-height: 44px` to meet mobile touch target guidelines.
+
+#### Mermaid Diagram Export (#86)
+
+- **Generate Mermaid Diagram**: New `generateMermaidDiagram()` function produces Mermaid flowchart markup from the current network configuration state, including intent-grouped adapter subgraphs ("Mgmt + Compute intent" / "Storage intent - RDMA"), switchless storage subnet connections with CIDR labels, AutoIP status, and rack-aware room groupings.
+- **Report Page Mermaid**: New `generateHostNetworkingMermaid()` on the report page produces the same intent-grouped Mermaid output with switchless subnet edges for 2/3/4-node topologies.
+- **Copy to Clipboard**: "📋 Copy Mermaid" button copies the diagram as a fenced Mermaid code block, ready to paste into GitHub issues, wikis, or documentation.
+- **Download as Markdown**: "⬇️ Download .md" button downloads the diagram as a Markdown file with embedded Mermaid code block.
+
+---
+
 ## [0.14.53] - 2026-02-09
 
 ### Fixed
