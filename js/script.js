@@ -6269,6 +6269,7 @@ function renderDiagram() {
 /**
  * Generate a Mermaid diagram representation of the current network configuration.
  * Uses the same state data as renderDiagram() to produce portable Mermaid flowchart syntax.
+ * Includes intent-grouped adapter subgraphs and switchless storage subnet connections.
  * @returns {string} Mermaid diagram markup, or empty string if insufficient state
  */
 function generateMermaidDiagram() {
@@ -6279,6 +6280,7 @@ function generateMermaidDiagram() {
     const showN = isRackAware ? n : Math.min(n, 4);
     const p = parseInt(state.ports) || 0;
     const intent = state.intent;
+    const isSwitchless = state.storage === 'switchless';
 
     // Reuse the same traffic logic as renderDiagram
     const getTraffic = (portIdx) => {
@@ -6286,60 +6288,102 @@ function generateMermaidDiagram() {
         if (!intent) return [];
         if (state.adapterMappingConfirmed && state.adapterMapping && state.adapterMapping[nic]) {
             const mapping = state.adapterMapping[nic];
-            if (mapping === 'mgmt') return ['Management'];
+            if (mapping === 'mgmt') return ['Mgmt'];
             if (mapping === 'compute') return ['Compute'];
             if (mapping === 'storage') return ['Storage'];
-            if (mapping === 'mgmt_compute') return ['Management', 'Compute'];
+            if (mapping === 'mgmt_compute') return ['Mgmt', 'Compute'];
             if (mapping === 'compute_storage') return ['Compute', 'Storage'];
-            if (mapping === 'all') return ['Management', 'Compute', 'Storage'];
+            if (mapping === 'all') return ['Mgmt', 'Compute', 'Storage'];
             if (mapping === 'pool') return [];
             return [];
         }
-        if (intent === 'all_traffic') return ['Management', 'Compute', 'Storage'];
+        if (intent === 'all_traffic') return ['Mgmt', 'Compute', 'Storage'];
         if (intent === 'mgmt_compute') {
-            if (p === 2) return portIdx === 0 ? ['Management', 'Compute'] : ['Storage'];
+            if (p === 2) return portIdx === 0 ? ['Mgmt', 'Compute'] : ['Storage'];
             const assignment = getMgmtComputeNicAssignment(p);
-            return assignment.mgmtCompute.includes(nic) ? ['Management', 'Compute'] : ['Storage'];
+            return assignment.mgmtCompute.includes(nic) ? ['Mgmt', 'Compute'] : ['Storage'];
         }
         if (intent === 'compute_storage') {
-            if (portIdx < 2) return ['Management'];
+            if (portIdx < 2) return ['Mgmt'];
             return ['Compute', 'Storage'];
         }
         if (intent === 'custom') {
             const val = (state.customIntents && state.customIntents[nic]) || 'unused';
-            if (val === 'mgmt') return ['Management'];
+            if (val === 'mgmt') return ['Mgmt'];
             if (val === 'compute') return ['Compute'];
             if (val === 'storage') return ['Storage'];
-            if (val === 'mgmt_compute') return ['Management', 'Compute'];
+            if (val === 'mgmt_compute') return ['Mgmt', 'Compute'];
             if (val === 'compute_storage') return ['Compute', 'Storage'];
-            if (val === 'all') return ['Management', 'Compute', 'Storage'];
+            if (val === 'all') return ['Mgmt', 'Compute', 'Storage'];
             return [];
         }
         return [];
     };
 
+    // Classify ports into Mgmt+Compute vs Storage groups
+    const mgmtPorts = [];
+    const storPorts = [];
+    for (let j = 0; j < p; j++) {
+        const traffic = getTraffic(j);
+        const isStorage = traffic.length > 0 && traffic.includes('Storage') && !traffic.includes('Mgmt');
+        if (isStorage) {
+            storPorts.push(j + 1);
+        } else {
+            mgmtPorts.push(j + 1);
+        }
+    }
+    const hasTwoGroups = mgmtPorts.length > 0 && storPorts.length > 0;
+
+    // AutoIP label
+    const autoIp = state.storageAutoIp === 'disabled' ? 'AutoIP: False' : (state.storageAutoIp === 'enabled' ? 'AutoIP: True' : '');
+
     const lines = [];
     lines.push('flowchart TB');
 
-    // Build scale/intent title
+    // Build title
     const scaleLabel = typeof formatScale === 'function' ? formatScale(state.scale) : state.scale;
-    const intentLabel = typeof formatIntent === 'function' ? formatIntent(intent) : intent;
-    lines.push(`    title["${scaleLabel} — ${intentLabel}"]`);
+    const storageMode = isSwitchless ? 'Switchless=true' : 'Switchless=false';
+    const titleParts = [scaleLabel, storageMode];
+    if (autoIp) titleParts.push(autoIp);
+    lines.push(`    title["${titleParts.join(' — ')}"]`);
     lines.push('    style title fill:none,stroke:none,color:#888');
     lines.push('');
+
+    const getPortName = (idx) => typeof getPortDisplayName === 'function' ? getPortDisplayName(idx) : `Port ${idx}`;
 
     const renderNodeMermaid = (nodeIdx, nodeId) => {
         const nodeLabel = `Node ${nodeIdx + 1}`;
         lines.push(`    subgraph ${nodeId}["${nodeLabel}"]`);
-        lines.push('        direction LR');
-        for (let j = 0; j < p; j++) {
-            const portName = typeof getPortDisplayName === 'function' ? getPortDisplayName(j + 1) : `Port ${j + 1}`;
-            const traffic = getTraffic(j);
-            const portId = `${nodeId}_p${j + 1}`;
-            if (traffic.length > 0) {
-                lines.push(`        ${portId}["${portName}<br/>${traffic.join(' + ')}"]`);
-            } else {
-                lines.push(`        ${portId}["${portName}<br/>Unused"]`);
+
+        if (hasTwoGroups) {
+            // Mgmt + Compute intent group
+            const mcLabel = intent === 'all_traffic' ? 'Mgmt + Compute + Storage' : 'Mgmt + Compute intent';
+            lines.push(`        subgraph ${nodeId}_mc["${mcLabel}"]`);
+            lines.push('            direction LR');
+            for (const mPort of mgmtPorts) {
+                lines.push(`            ${nodeId}_p${mPort}["${getPortName(mPort)}"]`);
+            }
+            lines.push('        end');
+
+            // Storage intent group
+            const stLabel = isSwitchless ? 'Storage intent - RDMA' : 'Storage';
+            lines.push(`        subgraph ${nodeId}_st["${stLabel}"]`);
+            lines.push('            direction LR');
+            for (const sPort of storPorts) {
+                lines.push(`            ${nodeId}_p${sPort}["${getPortName(sPort)}"]`);
+            }
+            lines.push('        end');
+        } else {
+            lines.push('        direction LR');
+            for (let j = 0; j < p; j++) {
+                const portName = getPortName(j + 1);
+                const traffic = getTraffic(j);
+                const portId = `${nodeId}_p${j + 1}`;
+                if (traffic.length > 0) {
+                    lines.push(`        ${portId}["${portName}<br/>${traffic.join(' + ')}"]`);
+                } else {
+                    lines.push(`        ${portId}["${portName}<br/>Unused"]`);
+                }
             }
         }
         lines.push('    end');
@@ -6347,47 +6391,88 @@ function generateMermaidDiagram() {
 
     if (isRackAware) {
         const half = Math.ceil(showN / 2);
-
         lines.push('    subgraph Room1["Room 1 — Rack A"]');
-        for (let i = 0; i < half; i++) {
-            renderNodeMermaid(i, `N${i + 1}`);
-        }
+        for (let i = 0; i < half; i++) renderNodeMermaid(i, `N${i + 1}`);
         lines.push('    end');
         lines.push('');
-
         lines.push('    subgraph Room2["Room 2 — Rack B"]');
-        for (let i = half; i < showN; i++) {
-            renderNodeMermaid(i, `N${i + 1}`);
-        }
+        for (let i = half; i < showN; i++) renderNodeMermaid(i, `N${i + 1}`);
         lines.push('    end');
     } else {
-        for (let i = 0; i < showN; i++) {
-            renderNodeMermaid(i, `N${i + 1}`);
-        }
+        for (let i = 0; i < showN; i++) renderNodeMermaid(i, `N${i + 1}`);
         if (n > 4) {
             lines.push(`    More["+ ${n - 4} more nodes"]`);
             lines.push('    style More fill:none,stroke-dasharray:5 5,color:#888');
         }
     }
 
-    // Add styling for traffic types
+    // Switchless storage subnet connections
+    if (isSwitchless && showN >= 2 && showN <= 4 && storPorts.length > 0) {
+        lines.push('');
+        lines.push('    %% Storage subnet connections');
+
+        const edges = [];
+        const isDualLink = state.switchlessLinkMode === 'dual_link';
+
+        if (showN === 2) {
+            edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+            edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
+        } else if (showN === 3 && !isDualLink) {
+            edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+            edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 2, p: 0 } });
+            edges.push({ subnet: 3, a: { n: 1, p: 1 }, b: { n: 2, p: 1 } });
+        } else if (showN === 3 && isDualLink) {
+            edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+            edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
+            edges.push({ subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 } });
+            edges.push({ subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 } });
+            edges.push({ subnet: 5, a: { n: 1, p: 2 }, b: { n: 2, p: 2 } });
+            edges.push({ subnet: 6, a: { n: 1, p: 3 }, b: { n: 2, p: 3 } });
+        } else if (showN === 4) {
+            let pairIdx = 0;
+            for (let a = 0; a < 4; a++) {
+                for (let b = a + 1; b < 4; b++) {
+                    edges.push({ subnet: pairIdx * 2 + 1, a: { n: a, p: pairIdx * 2 }, b: { n: b, p: pairIdx * 2 } });
+                    edges.push({ subnet: pairIdx * 2 + 2, a: { n: a, p: pairIdx * 2 + 1 }, b: { n: b, p: pairIdx * 2 + 1 } });
+                    pairIdx++;
+                }
+            }
+        }
+
+        for (const edge of edges) {
+            const aN = `N${edge.a.n + 1}`;
+            const bN = `N${edge.b.n + 1}`;
+            const aPort = storPorts[edge.a.p] || (edge.a.p + mgmtPorts.length + 1);
+            const bPort = storPorts[edge.b.p] || (edge.b.p + mgmtPorts.length + 1);
+            const cidr = `10.0.${edge.subnet}.0/24`;
+            lines.push(`    ${aN}_p${aPort} <-->|"Subnet ${edge.subnet}<br/>${cidr}"| ${bN}_p${bPort}`);
+        }
+    }
+
+    // Styling
     lines.push('');
-    lines.push('    %% Traffic type styling');
+    lines.push('    %% Styling');
     for (let i = 0; i < showN; i++) {
         for (let j = 0; j < p; j++) {
             const traffic = getTraffic(j);
             const portId = `N${i + 1}_p${j + 1}`;
             if (traffic.length === 0) {
                 lines.push(`    style ${portId} fill:#333,stroke-dasharray:5 5,color:#888`);
-            } else if (traffic.length === 3) {
-                lines.push(`    style ${portId} fill:#2d3a5e,stroke:#3b82f6,color:#fff`);
-            } else if (traffic.includes('Storage') && !traffic.includes('Management')) {
+            } else if (traffic.includes('Storage') && !traffic.includes('Mgmt')) {
                 lines.push(`    style ${portId} fill:#1a3a2a,stroke:#22c55e,color:#fff`);
-            } else if (traffic.includes('Management') && !traffic.includes('Storage')) {
+            } else if (traffic.includes('Mgmt') && !traffic.includes('Storage')) {
                 lines.push(`    style ${portId} fill:#2d2a5e,stroke:#8b5cf6,color:#fff`);
             } else {
                 lines.push(`    style ${portId} fill:#2d3a5e,stroke:#3b82f6,color:#fff`);
             }
+        }
+    }
+
+    // Style intent group subgraphs
+    if (hasTwoGroups) {
+        for (let i = 0; i < showN; i++) {
+            lines.push(`    style N${i + 1}_mc fill:rgba(0,120,212,0.07),stroke:#3b82f6,stroke-dasharray:6 4,color:#fff`);
+            lines.push(`    style N${i + 1}_st fill:rgba(139,92,246,0.07),stroke:#8b5cf6,stroke-dasharray:6 4,color:#fff`);
         }
     }
 
