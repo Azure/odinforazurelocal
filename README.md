@@ -39,10 +39,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 ### 🎉 Version 0.14.54 - Latest Release
-- **NIC Mapping to Intent (#88)**: Fixed adapter-to-intent assignment ignoring RDMA on Low Capacity scale — non-RDMA ports now correctly preferred for Management + Compute across all scales
-- **Safari Drag-and-Drop (#88)**: Fixed adapter mapping "flip-flop" on Safari where click fired after drag, reversing the user's intended assignment
-- **Mobile-Responsive Navigation (#87)**: Nav bar now collapses to icon-only on mobile portrait; onboarding "Next" button always reachable
-- **Mermaid Diagram Export (#86)**: Copy or download network diagrams as Mermaid markup with intent grouping and switchless subnet connections
+- **NIC Mapping to Intent ([#88](https://github.com/Azure/odinforazurelocal/issues/88))**: Fixed adapter-to-intent assignment ignoring RDMA on Low Capacity scale — non-RDMA ports now correctly preferred for Management + Compute across all scales
+- **Safari Drag-and-Drop ([#88](https://github.com/Azure/odinforazurelocal/issues/88))**: Fixed adapter mapping "flip-flop" on Safari where click fired after drag, reversing the user's intended assignment
+- **Mobile-Responsive Navigation ([#87](https://github.com/Azure/odinforazurelocal/issues/87))**: Nav bar now collapses to icon-only on mobile portrait; onboarding "Next" button always reachable
+- **Mermaid Diagram Export ([#86](https://github.com/Azure/odinforazurelocal/issues/86))**: Copy or download network diagrams as Mermaid markup with intent grouping and switchless subnet connections
 - **Touch Device Support**: Added tap-to-select fallback for adapter mapping on mobile Safari and touch devices
 - **215 Unit Tests**: Expanded from 198 to 215 tests with regression coverage for NIC mapping fixes
 
