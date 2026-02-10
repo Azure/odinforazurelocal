@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.53';
+const WIZARD_VERSION = '0.14.54';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -8639,7 +8639,28 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.53 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.54 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 10, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>NIC Mapping to Intent (#88):</strong> Fixed adapter-to-intent assignment ignoring RDMA status on Low Capacity scale. Non-RDMA ports are now correctly preferred for Management + Compute across all scales, keeping RDMA ports available for Storage.</li>
+                        <li><strong>Safari Drag-and-Drop (#88):</strong> Fixed adapter mapping "flip-flop" on Safari where a click event fired after drag-and-drop, causing the click-to-swap fallback to unintentionally reverse the user's drag operation.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Touch Device Support:</strong> Added tap-to-select fallback for adapter mapping on mobile Safari and other touch devices where HTML5 drag-and-drop is not supported.</li>
+                        <li><strong>215 Unit Tests:</strong> Expanded test suite from 198 to 215 tests with regression coverage for NIC mapping fixes.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.53</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 9, 2026</div>
                 </div>
 

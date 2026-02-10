@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.14.53 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.14.54 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -38,21 +38,11 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.53 - Latest Release
-- **ARM Storage Adapter Naming (#74)**: Fixed ARM template where both StorageNetwork1 and StorageNetwork2 used the same adapter name
-- **Switchless Intent Adapter Names**: Fixed ARM `intentList` using `SMB1`/`SMB2` instead of `Port 3`/`Port 4` for switchless storage
-- **VLAN ID Defaults of Zero (#75)**: Fixed empty string VLAN values producing invalid VLAN ID 0
-- **NIC Speed Locked on Single-Node (#76)**: Removed forced 10 GbE speed override on single-node clusters
-- **IP Address Validation (#78)**: Node IPs and DNS servers now reject network (.0) and broadcast (.255) addresses
-- **Default Gateway Validation**: Fixed gateway validation warning appearing incorrectly after resume/load
-- **Storage VLAN Placeholders**: Fixed ARM output showing `REPLACE_WITH_STORAGE_VLAN` instead of actual VLAN IDs for custom intent with adapter mapping
-- **Port Name Consistency**: ARM adapter names now use wizard display names (`Port 1`, `Port 2`) instead of `NIC1`/`SMB1`
-- **DNS Validation Gating**: DNS validation now blocks report/ARM generation instead of warning only
-- **Shared Navigation Bar**: Centralized nav bar across all pages via `js/nav.js` for consistent updates
-- **Feedback Button**: Added "💡 Feedback" link in the nav bar pointing to GitHub Issues
-- **Sizer Disclaimer**: Added development status notice on the Sizer page
-- **CI Pipeline Hardening**: ESLint, unit tests, and HTML validation are now blocking CI checks
-- **198 Unit Tests**: Expanded from 136 to 198 tests with regression coverage for all fixes
+### 🎉 Version 0.14.54 - Latest Release
+- **NIC Mapping to Intent (#88)**: Fixed adapter-to-intent assignment ignoring RDMA on Low Capacity scale — non-RDMA ports now correctly preferred for Management + Compute across all scales
+- **Safari Drag-and-Drop (#88)**: Fixed adapter mapping "flip-flop" on Safari where click fired after drag, reversing the user's intended assignment
+- **Touch Device Support**: Added tap-to-select fallback for adapter mapping on mobile Safari and touch devices
+- **215 Unit Tests**: Expanded from 198 to 215 tests with regression coverage for NIC mapping fixes
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -397,8 +387,8 @@ This project is provided as-is for planning and configuration purposes. See offi
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.53  
-**Last Updated**: February 9th 2026  
+**Version**: 0.14.54  
+**Last Updated**: February 10th 2026  
 **Compatibility**: Azure Local 2506+
 
 ---
@@ -412,6 +402,12 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.54 - NIC Mapping Fix & Touch Support
+- **NIC Mapping to Intent (#88)**: Fixed adapter assignment ignoring RDMA on Low Capacity scale
+- **Safari Drag-and-Drop (#88)**: Fixed adapter mapping flip-flop caused by click firing after drag
+- **Touch Device Support**: Tap-to-select fallback for adapter mapping on mobile/touch devices
+- **215 Unit Tests**: Expanded test suite with NIC mapping regression coverage
 
 #### 0.14.53 - Bug Fixes, Port Name Consistency & CI Hardening
 - **ARM Storage Adapter Naming (#74)**: Fixed ARM template adapter naming for StorageNetwork1/2
