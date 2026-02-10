@@ -62,9 +62,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### Quick Start
 
-1. **Open the wizard**:
-   - Open `index.html` in a modern web browser
-   - Or serve via a local web server: `pwsh serve.ps1` (runs on http://localhost:8080)
+1. **Open the ODIN designer wizard**:
+   - Open in a modern web browser, navigate to ODIN online version: https://aka.ms/ODIN-for-AzureLocal
+   - For offline or local access, download the source code of this repo, to run a local web server: `PowerShell.exe -ExecutionPolicy Bypass -file .\tests\serve.ps1` (then open address http://localhost:8080 using browser)
 
 2. **Follow the wizard**:
    - Answer questions about your deployment scenario
