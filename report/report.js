@@ -269,6 +269,10 @@
             var customCidr = String(state.customStorageSubnets[subnetIndex - 1]).trim();
             if (customCidr) return customCidr;
         }
+        // When Auto IP is enabled, use Network ATC default subnets (10.71.0.0/16 range)
+        if (state && state.storageAutoIp !== 'disabled') {
+            return '10.71.' + subnetIndex + '.0/24';
+        }
         return defaultCidr;
     }
 

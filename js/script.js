@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.56';
+const WIZARD_VERSION = '0.14.57';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -8639,12 +8639,24 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.56 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.57 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 12, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Storage Subnet CIDRs (<a href='https://github.com/Azure/odinforazurelocal/issues/99'>#99</a>):</strong> SVG diagram legends now show correct Network ATC default subnets (10.71.x.0/24) when Auto IP is enabled, instead of incorrect 10.0.x.0/24 addresses.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.56</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 11, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">� Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>draw.io Orthogonal Routing (<a href='https://github.com/Azure/odinforazurelocal/issues/94'>#94</a>):</strong> Switchless storage connectors now use L-shaped orthogonal routing with dedicated lanes per subnet instead of straight overlapping lines.</li>
                         <li><strong>Canonical Switchless Port Layout:</strong> Switchless topologies force canonical port allocation ensuring correct mesh connectivity for all node counts.</li>
