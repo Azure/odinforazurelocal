@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.54';
+const WIZARD_VERSION = '0.14.55';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -6480,10 +6480,10 @@ function generateMermaidDiagram() {
 }
 
 /**
- * Copy the Mermaid diagram to the clipboard.
+ * Copy the Mermaid diagram wrapped in markdown code fences (for GitHub, wikis, docs).
  * Shows a notification on success or failure.
  */
-function copyMermaidDiagram() {
+function copyMermaidForMarkdown() {
     const mermaid = generateMermaidDiagram();
     if (!mermaid) {
         if (typeof showNotification === 'function') {
@@ -6497,7 +6497,7 @@ function copyMermaidDiagram() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(mermaidBlock).then(() => {
             if (typeof showNotification === 'function') {
-                showNotification('Mermaid diagram copied to clipboard!', 'success');
+                showNotification('Mermaid diagram copied to clipboard (Markdown format)!', 'success');
             }
         }).catch(() => {
             fallbackCopyMermaid(mermaidBlock);
@@ -6505,6 +6505,39 @@ function copyMermaidDiagram() {
     } else {
         fallbackCopyMermaid(mermaidBlock);
     }
+}
+
+/**
+ * Copy the raw Mermaid diagram to the clipboard (for mermaid.live and other renderers).
+ * Shows a notification on success or failure.
+ */
+function copyMermaidRaw() {
+    const mermaid = generateMermaidDiagram();
+    if (!mermaid) {
+        if (typeof showNotification === 'function') {
+            showNotification('Configure nodes, ports, and intent first to generate a diagram.', 'warning');
+        }
+        return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(mermaid).then(() => {
+            if (typeof showNotification === 'function') {
+                showNotification('Mermaid diagram copied to clipboard (raw format for mermaid.live)!', 'success');
+            }
+        }).catch(() => {
+            fallbackCopyMermaid(mermaid);
+        });
+    } else {
+        fallbackCopyMermaid(mermaid);
+    }
+}
+
+/**
+ * Legacy alias — calls copyMermaidForMarkdown for backward compatibility.
+ */
+function copyMermaidDiagram() {
+    copyMermaidForMarkdown();
 }
 
 /**
@@ -8932,7 +8965,19 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.54 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.55 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 11, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Mermaid Export for mermaid.live (<a href='https://github.com/Azure/odinforazurelocal/issues/94'>#94</a>):</strong> Fixed exported Mermaid code failing on mermaid.live because it was wrapped in markdown code fences. Added separate "Copy for Mermaid.live" button that copies raw diagram code.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.54</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 10, 2026</div>
                 </div>
 

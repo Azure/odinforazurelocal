@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.14.54 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.14.55 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,7 +37,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.54 - Latest Release
+### 🎉 Version 0.14.55 - Latest Release
+- **Mermaid Export for mermaid.live ([#94](https://github.com/Azure/odinforazurelocal/issues/94))**: Fixed exported Mermaid code failing on mermaid.live by adding separate "Copy for Mermaid.live" button that copies raw diagram code without markdown fences
 - **NIC Mapping to Intent ([#88](https://github.com/Azure/odinforazurelocal/issues/88))**: Fixed adapter-to-intent assignment ignoring RDMA on Low Capacity scale — non-RDMA ports now correctly preferred for Management + Compute across all scales
 - **Safari Drag-and-Drop ([#88](https://github.com/Azure/odinforazurelocal/issues/88))**: Fixed adapter mapping "flip-flop" on Safari where click fired after drag, reversing the user's intended assignment
 - **Mobile-Responsive Navigation ([#87](https://github.com/Azure/odinforazurelocal/issues/87))**: Nav bar now collapses to icon-only on mobile portrait; onboarding "Next" button always reachable
@@ -325,8 +326,8 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.54  
-**Last Updated**: February 10th 2026  
+**Version**: 0.14.55  
+**Last Updated**: February 11th 2026  
 **Compatibility**: Azure Local 2506+
 
 ---
@@ -340,6 +341,9 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.55 - Mermaid Export Fix for mermaid.live
+- **Mermaid Export for mermaid.live (#94)**: Fixed exported Mermaid code failing on mermaid.live because it was wrapped in markdown code fences. Added separate "Copy for Mermaid.live" (raw) and "Copy for Markdown" (fenced) buttons in both the main tool and the Configuration Report.
 
 #### 0.14.54 - NIC Mapping Fix, Mobile Nav & Mermaid Export
 - **NIC Mapping to Intent (#88)**: Fixed adapter assignment ignoring RDMA on Low Capacity scale
