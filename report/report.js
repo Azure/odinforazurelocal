@@ -1678,41 +1678,46 @@
             }
 
             var pad2 = pad + '    ';
+            var pad3 = pad2 + '    ';
             lines.push(pad + 'block:' + nodeId + '["' + sanitize(nodeName) + '"]');
 
             if (hasMultipleGroups) {
                 lines.push(pad2 + 'columns ' + groupCount);
 
-                // Management + Compute block
+                // Management + Compute group
                 if (mgmtPorts.length > 0) {
-                    var portNames = [];
-                    for (var m = 0; m < mgmtPorts.length; m++) portNames.push(getPortName(mgmtPorts[m]));
                     var mcLabel = s.intent === 'all_traffic' ? 'All Traffic' : 'Management + Compute';
-                    lines.push(pad2 + nodeId + 'mc["' + sanitize(mcLabel + ': ' + portNames.join(', ')) + '"]');
+                    lines.push(pad2 + 'block:' + nodeId + 'mc["' + sanitize(mcLabel) + '"]');
+                    lines.push(pad3 + 'columns ' + mgmtPorts.length);
+                    for (var m = 0; m < mgmtPorts.length; m++) {
+                        lines.push(pad3 + nodeId + 'p' + mgmtPorts[m] + '["' + sanitize(getPortName(mgmtPorts[m])) + '"]');
+                    }
+                    lines.push(pad2 + 'end');
                 }
 
                 // Compute-only block (custom intents)
                 if (computePorts.length > 0) {
-                    var cpNames = [];
-                    for (var c = 0; c < computePorts.length; c++) cpNames.push(getPortName(computePorts[c]));
-                    lines.push(pad2 + nodeId + 'co["' + sanitize('Compute: ' + cpNames.join(', ')) + '"]');
+                    lines.push(pad2 + 'block:' + nodeId + 'co["' + sanitize('Compute') + '"]');
+                    lines.push(pad3 + 'columns ' + computePorts.length);
+                    for (var c = 0; c < computePorts.length; c++) {
+                        lines.push(pad3 + nodeId + 'p' + computePorts[c] + '["' + sanitize(getPortName(computePorts[c])) + '"]');
+                    }
+                    lines.push(pad2 + 'end');
                 }
 
-                // Storage block(s)
+                // Storage block
                 if (storPorts.length > 0) {
-                    if (isSwitchless) {
-                        for (var si = 0; si < storPorts.length; si++) {
-                            var sp = storPorts[si];
-                            lines.push(pad2 + nodeId + 's' + sp + '["' + sanitize('Storage: ' + getPortName(sp)) + '"]');
-                        }
-                    } else {
-                        var stNames = [];
-                        for (var sti = 0; sti < storPorts.length; sti++) stNames.push(getPortName(storPorts[sti]));
-                        lines.push(pad2 + nodeId + 'st["' + sanitize('Storage (RDMA): ' + stNames.join(', ')) + '"]');
+                    var stLabel = isSwitchless ? 'Storage' : 'Storage (RDMA)';
+                    lines.push(pad2 + 'block:' + nodeId + 'st["' + sanitize(stLabel) + '"]');
+                    lines.push(pad3 + 'columns ' + storPorts.length);
+                    for (var si = 0; si < storPorts.length; si++) {
+                        var sp = storPorts[si];
+                        var spId = isSwitchless ? (nodeId + 's' + sp) : (nodeId + 'p' + sp);
+                        lines.push(pad3 + spId + '["' + sanitize(getPortName(sp)) + '"]');
                     }
+                    lines.push(pad2 + 'end');
                 }
             } else {
-                lines.push(pad2 + 'columns 1');
                 var allPortNames = [];
                 var trafficTypes = [];
                 for (var pi = 0; pi < ports; pi++) {
@@ -1723,7 +1728,13 @@
                     }
                 }
                 var label = trafficTypes.join(', ') || 'All Traffic';
-                lines.push(pad2 + nodeId + 'all["' + sanitize(label + ': ' + allPortNames.join(', ')) + '"]');
+                lines.push(pad2 + 'columns 1');
+                lines.push(pad2 + 'block:' + nodeId + 'all["' + sanitize(label) + '"]');
+                lines.push(pad3 + 'columns ' + ports);
+                for (var api = 0; api < ports; api++) {
+                    lines.push(pad3 + nodeId + 'p' + (api + 1) + '["' + sanitize(getPortName(api + 1)) + '"]');
+                }
+                lines.push(pad2 + 'end');
             }
 
             lines.push(pad + 'end');
@@ -1948,27 +1959,30 @@
             }
         }
 
-        // Node port group styling
+        // Node port styling (individual ports)
         for (var ci = 0; ci < n; ci++) {
             var nid = 'N' + (ci + 1);
             if (hasMultipleGroups) {
                 if (mgmtPorts.length > 0) {
-                    lines.push('    style ' + nid + 'mc fill:#0078d4,stroke:#005a9e,color:#fff');
+                    for (var mi = 0; mi < mgmtPorts.length; mi++) {
+                        lines.push('    style ' + nid + 'p' + mgmtPorts[mi] + ' fill:#0078d4,stroke:#005a9e,color:#fff');
+                    }
                 }
                 if (computePorts.length > 0) {
-                    lines.push('    style ' + nid + 'co fill:#10b981,stroke:#059669,color:#fff');
+                    for (var coi = 0; coi < computePorts.length; coi++) {
+                        lines.push('    style ' + nid + 'p' + computePorts[coi] + ' fill:#10b981,stroke:#059669,color:#fff');
+                    }
                 }
                 if (storPorts.length > 0) {
-                    if (isSwitchless) {
-                        for (var spi = 0; spi < storPorts.length; spi++) {
-                            lines.push('    style ' + nid + 's' + storPorts[spi] + ' fill:#8b5cf6,stroke:#7c3aed,color:#fff');
-                        }
-                    } else {
-                        lines.push('    style ' + nid + 'st fill:#8b5cf6,stroke:#7c3aed,color:#fff');
+                    for (var spi = 0; spi < storPorts.length; spi++) {
+                        var spBlockId = isSwitchless ? (nid + 's' + storPorts[spi]) : (nid + 'p' + storPorts[spi]);
+                        lines.push('    style ' + spBlockId + ' fill:#8b5cf6,stroke:#7c3aed,color:#fff');
                     }
                 }
             } else {
-                lines.push('    style ' + nid + 'all fill:#0078d4,stroke:#005a9e,color:#fff');
+                for (var api = 0; api < ports; api++) {
+                    lines.push('    style ' + nid + 'p' + (api + 1) + ' fill:#0078d4,stroke:#005a9e,color:#fff');
+                }
             }
         }
 
