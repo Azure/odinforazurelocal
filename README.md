@@ -16,10 +16,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - [Usage Guide](#usage-guide)
 - [Configuration Options](#configuration-options)
 - [Export Formats](#export-formats)
-- [Development](#development)
 - [Browser Compatibility](#browser-compatibility)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
+- [Contributing](CONTRIBUTING.md)
 - [License](#license)
 - [Appendix A - Version History](#appendix-a---version-history)
 
@@ -29,7 +28,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### ✨ Core Functionality
 - **Step-by-Step Wizard**: Guided decision flow for Azure Local network configuration
-- **Multiple Deployment Scenarios**: Hyperconverged, Disaggregated, Disconnected, and Multi-Rack
+- **Multiple Deployment Scenarios**: Hyperconverged, Multi-Rack, Disconnected, and M365 Local
 - **Cloud Witness Configuration**: Automatic witness type selection based on cluster topology
 - **Storage Pool Management**: Configure storage pool deployment mode (Express, InfraOnly, KeepStorage)
 - **Security Configuration**: Configure security controls with recommended or customized settings
@@ -70,13 +69,13 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### Prerequisites Checklist
 
-Before starting, ensure you have:
+If you want to deploy physical hardware, before starting, ensure you have:
 
 #### Hardware
 - ✅ Azure Local certified hardware (check [Microsoft Hardware Catalog](https://aka.ms/AzureStackHCICatalog))
-- ✅ Minimum 2 nodes (up to 16 for single-site clusters)
-- ✅ RDMA-capable network adapters for storage
-- ✅ Compatible ToR switches with proper firmware
+- ✅ Minimum 1 node (up to 16 for single-site clusters)
+- ✅ RDMA-capable network adapters for storage, for multi-node clusters.
+- ✅ Compatible Top of Rack (ToR) switches with latest firmware installed.
 
 #### Network
 - ✅ Outbound internet connectivity or configured proxy
@@ -94,7 +93,7 @@ Before starting, ensure you have:
 #### Identity & Access
 - ✅ Active Directory domain or Local Identity setup
 - ✅ Domain credentials with appropriate permissions
-- ✅ Service Principal or Managed Identity for Azure integration
+- ✅ Managed Identity is required / created for Azure integration
 
 ---
 
@@ -123,24 +122,29 @@ The wizard follows a sequential flow:
 - Choose to continue or start fresh
 
 #### Export Configuration
-- Click **Export Config** button in header
+- Click **Export** button in the summary panel (right side)
 - Saves complete state as timestamped JSON file
 - Share with team members or backup for later
 
 #### Import Configuration
-- Click **Import Config** button in header
+- Click **Import** button in the summary panel (right side)
 - Select previously exported JSON file
 - Review changes and confirm import
 
 #### CIDR Calculator
-- Click **CIDR Calculator** in header
+- Click **Subnet Calculator** button next to the Infrastructure Network CIDR input
 - Enter IP/CIDR notation (e.g., 192.168.1.0/24)
 - See network details, usable host range, and subnet info
 
-#### Cost Estimator
-- Click **Cost Estimate** in header
-- View rough monthly cost breakdown
-- Based on node count, Arc Gateway, and region
+#### Templates
+- Click **Load Example Configuration Template** in the summary panel (right side)
+- Browse pre-built deployment configurations for common scenarios
+- Load a template to pre-populate the wizard with recommended settings
+
+#### Onboarding Walkthrough
+- Automatically shown on first visit (can be reset by clearing browser localStorage)
+- Step-by-step overlay highlighting key wizard features
+- Helps new users understand the workflow quickly
 
 ---
 
@@ -150,10 +154,10 @@ The wizard follows a sequential flow:
 
 | Scenario | Description | Use Case |
 |----------|-------------|----------|
-| **Hyperconverged** | Compute and storage on same nodes | Most common, balanced workloads |
-| **Disaggregated** | Separate compute and storage nodes | High-performance scenarios |
-| **Disconnected** | No internet connectivity | Air-gapped environments |
-| **Multi-Rack** | Multiple availability zones | High availability, large scale |
+| **Hyperconverged** | Single rack or rack-aware cluster with compute, storage, and network | Most common, balanced workloads. One to sixteen nodes in scale. |
+| **Multi-Rack** | Scalable, multi-rack distributed architecture | High availability, large scale |
+| **Disconnected** | Air-gapped operation with local management | Isolated / security-sensitive environments |
+| **M365 Local** | Microsoft 365 workloads with minimum 9 nodes | M365 on-premises deployments |
 
 ### Network Intents
 
@@ -188,78 +192,10 @@ The wizard follows a sequential flow:
 - Can be re-imported to restore session
 
 ### Reports
-- Comprehensive HTML reports
-- Download as HTML or Word (DOCX-compatible)
+- Comprehensive configuration reports
+- Download as Word (DOCX-compatible), Markdown, or PDF
 - Includes decision rationale and network diagrams
 - Print-friendly formatting
-
----
-
-## Development
-
-### File Structure
-
-```
-odinforazurelocal/
-├── index.html              # Main wizard interface
-├── README.md               # Documentation
-├── CHANGELOG.md            # Version history
-├── CONTRIBUTING.md         # Contribution guidelines
-├── arm/
-│   ├── arm.html            # ARM parameters viewer
-│   └── arm.js              # ARM parameters generation
-├── css/
-│   └── style.css           # UI styling
-├── js/
-│   ├── script.js           # Core logic and state management
-│   ├── analytics.js        # Firebase analytics integration
-│   ├── dns.js              # DNS validation functions
-│   ├── formatting.js       # Output formatting utilities
-│   ├── notifications.js    # Toast notification system
-│   ├── theme.js            # Theme toggle handling
-│   ├── utils.js            # Shared utility functions
-│   └── validation.js       # Input validation functions
-├── report/
-│   ├── report.html         # Configuration report template
-│   └── report.js           # Report generation logic
-├── sizer/
-│   ├── index.html          # Hardware sizer tool
-│   ├── sizer.css           # Sizer styling
-│   └── sizer.js            # Sizer logic
-├── tests/
-│   ├── index.html          # Unit test suite (170+ tests)
-│   └── serve.ps1           # Local test server
-└── scripts/
-    └── run-tests.js        # CI test runner
-```
-
-### Technology Stack
-- **HTML5** - Structure and semantic markup
-- **CSS3** - Styling with custom properties and animations
-- **Vanilla JavaScript** - No frameworks, pure ES6+
-- **localStorage API** - Client-side state persistence
-
-### Key Functions
-
-| Function | Purpose |
-|----------|---------|
-| `saveStateToLocalStorage()` | Auto-saves wizard state |
-| `exportConfiguration()` | Exports config as JSON |
-| `importConfiguration()` | Imports config from JSON |
-| `validateFieldRealtime()` | Real-time input validation |
-| `showCidrCalculator()` | CIDR subnet calculator |
-| `estimateCosts()` | Cost estimation tool |
-| `showHelp()` | Contextual help system |
-
-### Adding Features
-
-To extend the wizard:
-
-1. **Add new step**: Update `index.html` with new section
-2. **Add state property**: Update `state` object in `script.js`
-3. **Update validation**: Add validation in `getReportReadiness()`
-4. **Update summary**: Add summary rendering in `updateSummary()`
-5. **Update exports**: Include in ARM/report generation
 
 ---
 
@@ -314,8 +250,8 @@ Enable detailed logging in browser console:
 
 ### Report an Issue and Contributing:
 - Report bugs or request new features using GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
-- Include browser version, OS, and steps to reproduce for issues.
-- Provide exported config (sanitized) if helpful to recreate the problem.
+- Include browser version, OS, screenshot if possible, and steps to reproduce the issue.
+- Provide exported config (sanitized) if required to recreate the problem.
 
 For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -325,10 +261,10 @@ For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Using the Wizard
 1. **Review Prerequisites** - Click "Prerequisites" before starting
-2. **Save Progress** - Export configuration at major milestones
-3. **Validate Early** - Use real-time validation to catch errors
-4. **Use Calculator** - CIDR calculator helps avoid subnet conflicts
-5. **Check Estimates** - Cost estimator for budget planning
+2. **Try Templates** - Load a pre-built template for common scenarios
+3. **Save Progress** - Export configuration at major milestones
+4. **Validate Early** - Use real-time validation to catch errors
+5. **Use Calculator** - CIDR calculator helps avoid subnet conflicts
 
 ### Network Planning
 1. **Document IP Ranges** - Keep track of all CIDRs and ranges
@@ -375,13 +311,13 @@ For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Community
 - [Azure Local Tech Community](https://techcommunity.microsoft.com/t5/azure-stack-hub/ct-p/AzureStackHub)
-- [GitHub - Azure Local Supportability](https://github.com/Azure/AzureLocal-Supportability)
+- [GitHub - Azure Local Supportability Forum](https://github.com/Azure/AzureLocal-Supportability)
 
 ---
 
 ## License
 
-This project is provided as-is for planning and configuration purposes. See official Azure documentation for deployment guidance and support.
+Published under [MIT License](/LICENSE). This project is provided as-is, without warranty or support, it is intended for planning and automation example purposes. See official Azure documentation for deployment guidance and support.
 
 ---
 
@@ -395,7 +331,7 @@ Built for the Azure Local community to simplify network architecture planning an
 
 ---
 
-For questions, feedback, or support, please visit the [GitHub repository](https://github.com/Azure/AzureLocal-Supportability) or consult the official Azure Local documentation.
+For questions, feedback, or support, please visit the [GitHub repository](https://github.com/Azure/odinforazurelocal) or consult the official Azure Local documentation.
 
 ---
 
