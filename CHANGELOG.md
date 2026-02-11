@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.57] - 2026-02-12
+
+### Fixed
+
+#### Storage Subnet CIDRs (#99)
+
+- **Network ATC Default Subnets**: SVG diagram legends now show the correct Network ATC default subnets (`10.71.x.0/24`) when Storage Auto IP is enabled. Previously displayed incorrect `10.0.x.0/24` addresses. The fix updates `getStorageSubnetCidr()` to return `10.71.{subnetIndex}.0/24` when Auto IP is active, consistent with the report HTML tables which already referenced the `10.71.0.0/16` range.
+
+---
+
 ## [0.14.56] - 2026-02-11
 
 ### Fixed
