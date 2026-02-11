@@ -6207,7 +6207,7 @@
                             var btnDrawio = document.createElement('button');
                             btnDrawio.type = 'button';
                             btnDrawio.className = 'report-action-button';
-                            btnDrawio.textContent = 'â¬‡ï¸ Download .drawio';
+                            btnDrawio.textContent = 'Download .drawio';
                             btnDrawio.title = 'Download diagram as a draw.io file (editable in draw.io / diagrams.net)';
                             btnDrawio.addEventListener('click', function () {
                                 window.downloadHostNetworkingDrawio();
