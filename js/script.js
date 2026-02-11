@@ -6384,37 +6384,50 @@ function generateMermaidDiagram() {
 
         if (hasMultipleGroups) {
             lines.push(`${pad2}columns ${groupCount}`);
+            const pad4 = pad3 + '    ';
 
             // Management + Compute group
             if (mgmtPorts.length > 0) {
                 const mcLabel = intent === 'all_traffic' ? 'All Traffic' : 'Management + Compute';
-                lines.push(`${pad2}block:${nodeId}mc["${sanitize(mcLabel)}"]`);
-                lines.push(`${pad3}columns ${mgmtPorts.length}`);
+                lines.push(`${pad2}block:${nodeId}mc`);
+                lines.push(`${pad3}columns 1`);
+                lines.push(`${pad3}${nodeId}mcLbl["${sanitize(mcLabel)}"]`);
+                lines.push(`${pad3}block:${nodeId}mcP`);
+                lines.push(`${pad4}columns ${mgmtPorts.length}`);
                 for (const mp of mgmtPorts) {
-                    lines.push(`${pad3}${nodeId}p${mp}["${sanitize(getPortName(mp))}"]`);
+                    lines.push(`${pad4}${nodeId}p${mp}["${sanitize(getPortName(mp))}"]`);
                 }
+                lines.push(`${pad3}end`);
                 lines.push(`${pad2}end`);
             }
 
             // Compute-only block (custom intents)
             if (computePorts.length > 0) {
-                lines.push(`${pad2}block:${nodeId}co["${sanitize('Compute')}"]`);
-                lines.push(`${pad3}columns ${computePorts.length}`);
+                lines.push(`${pad2}block:${nodeId}co`);
+                lines.push(`${pad3}columns 1`);
+                lines.push(`${pad3}${nodeId}coLbl["${sanitize('Compute')}"]`);
+                lines.push(`${pad3}block:${nodeId}coP`);
+                lines.push(`${pad4}columns ${computePorts.length}`);
                 for (const cp of computePorts) {
-                    lines.push(`${pad3}${nodeId}p${cp}["${sanitize(getPortName(cp))}"]`);
+                    lines.push(`${pad4}${nodeId}p${cp}["${sanitize(getPortName(cp))}"]`);
                 }
+                lines.push(`${pad3}end`);
                 lines.push(`${pad2}end`);
             }
 
             // Storage block
             if (storPorts.length > 0) {
                 const stLabel = isSwitchless ? 'Storage' : 'Storage (RDMA)';
-                lines.push(`${pad2}block:${nodeId}st["${sanitize(stLabel)}"]`);
-                lines.push(`${pad3}columns ${storPorts.length}`);
+                lines.push(`${pad2}block:${nodeId}st`);
+                lines.push(`${pad3}columns 1`);
+                lines.push(`${pad3}${nodeId}stLbl["${sanitize(stLabel)}"]`);
+                lines.push(`${pad3}block:${nodeId}stP`);
+                lines.push(`${pad4}columns ${storPorts.length}`);
                 for (const sp of storPorts) {
                     const spId = isSwitchless ? `${nodeId}s${sp}` : `${nodeId}p${sp}`;
-                    lines.push(`${pad3}${spId}["${sanitize(getPortName(sp))}"]`);
+                    lines.push(`${pad4}${spId}["${sanitize(getPortName(sp))}"]`);
                 }
+                lines.push(`${pad3}end`);
                 lines.push(`${pad2}end`);
             }
         } else {
@@ -6429,11 +6442,16 @@ function generateMermaidDiagram() {
             }
             const label = trafficTypes.join(', ') || 'All Traffic';
             lines.push(`${pad2}columns 1`);
-            lines.push(`${pad2}block:${nodeId}all["${sanitize(label)}"]`);
-            lines.push(`${pad3}columns ${p}`);;
+            lines.push(`${pad2}block:${nodeId}all`);
+            lines.push(`${pad3}columns 1`);
+            lines.push(`${pad3}${nodeId}allLbl["${sanitize(label)}"]`);
+            lines.push(`${pad3}block:${nodeId}allP`);
+            const pad4b = pad3 + '    ';
+            lines.push(`${pad4b}columns ${p}`);
             for (let j = 0; j < p; j++) {
-                lines.push(`${pad3}${nodeId}p${j + 1}["${sanitize(getPortName(j + 1))}"]`);
+                lines.push(`${pad4b}${nodeId}p${j + 1}["${sanitize(getPortName(j + 1))}"]`);
             }
+            lines.push(`${pad3}end`);
             lines.push(`${pad2}end`);
         }
 
@@ -6639,23 +6657,27 @@ function generateMermaidDiagram() {
         }
     }
 
-    // Node port styling (individual ports)
+    // Node port styling (individual ports + intent labels)
     for (let ci = 0; ci < showN; ci++) {
         const nid = `N${ci + 1}`;
         if (hasMultipleGroups) {
             if (mgmtPorts.length > 0) {
+                lines.push(`    style ${nid}mcLbl fill:#0078d4,stroke:#005a9e,color:#fff`);
                 for (const mp of mgmtPorts) lines.push(`    style ${nid}p${mp} fill:#0078d4,stroke:#005a9e,color:#fff`);
             }
             if (computePorts.length > 0) {
+                lines.push(`    style ${nid}coLbl fill:#10b981,stroke:#059669,color:#fff`);
                 for (const cp of computePorts) lines.push(`    style ${nid}p${cp} fill:#10b981,stroke:#059669,color:#fff`);
             }
             if (storPorts.length > 0) {
+                lines.push(`    style ${nid}stLbl fill:#8b5cf6,stroke:#7c3aed,color:#fff`);
                 for (const sp of storPorts) {
                     const spId = isSwitchless ? `${nid}s${sp}` : `${nid}p${sp}`;
                     lines.push(`    style ${spId} fill:#8b5cf6,stroke:#7c3aed,color:#fff`);
                 }
             }
         } else {
+            lines.push(`    style ${nid}allLbl fill:#0078d4,stroke:#005a9e,color:#fff`);
             for (let j = 0; j < p; j++) {
                 lines.push(`    style ${nid}p${j + 1} fill:#0078d4,stroke:#005a9e,color:#fff`);
             }
