@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.55] - 2026-02-11
+
+### Fixed
+
+#### Mermaid Export for mermaid.live (#94)
+
+- **Dual Copy Buttons**: The single "Copy Mermaid" button has been replaced with two separate buttons: "Copy for Markdown" (wraps diagram in ````mermaid` code fences for GitHub/wikis/docs) and "Copy for Mermaid.live" (copies raw Mermaid code that works directly in mermaid.live and other Mermaid renderers).
+- **Root Cause**: The exported Mermaid code was always wrapped in markdown code fences (`` ```mermaid ... ``` ``), which is correct for markdown files but causes mermaid.live to fail with `UnknownDiagramError` because it cannot parse the fence markers as diagram syntax.
+- **Both Main Tool & Report**: The fix applies to both the main configuration wizard's diagram export and the Configuration Report's host networking diagram export.
+
+---
+
 ## [0.14.54] - 2026-02-10
 
 ### Fixed

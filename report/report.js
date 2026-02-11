@@ -6,6 +6,7 @@
     window.downloadHostNetworkingDiagramSvg = downloadHostNetworkingDiagramSvg;
     window.downloadOutboundConnectivityDiagramSvg = downloadOutboundConnectivityDiagramSvg;
     window.copyHostNetworkingMermaid = copyHostNetworkingMermaid;
+    window.copyHostNetworkingMermaidRaw = copyHostNetworkingMermaidRaw;
     window.downloadHostNetworkingMermaid = downloadHostNetworkingMermaid;
     window.togglePrintFriendly = togglePrintFriendly;
 
@@ -1842,7 +1843,7 @@
     }
 
     /**
-     * Copy the host networking Mermaid diagram to clipboard.
+     * Copy the host networking Mermaid diagram to clipboard (markdown fenced format).
      */
     function copyHostNetworkingMermaid() {
         if (!CURRENT_REPORT_STATE) return;
@@ -1852,12 +1853,31 @@
         var block = '```mermaid\n' + mermaid + '\n```';
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(block).then(function () {
-                alert('Mermaid diagram copied to clipboard!');
+                alert('Mermaid diagram copied to clipboard (Markdown format)!');
             }).catch(function () {
                 fallbackCopy(block);
             });
         } else {
             fallbackCopy(block);
+        }
+    }
+
+    /**
+     * Copy the host networking Mermaid diagram to clipboard (raw format for mermaid.live).
+     */
+    function copyHostNetworkingMermaidRaw() {
+        if (!CURRENT_REPORT_STATE) return;
+        var mermaid = generateHostNetworkingMermaid(CURRENT_REPORT_STATE);
+        if (!mermaid) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(mermaid).then(function () {
+                alert('Mermaid diagram copied to clipboard (raw format for mermaid.live)!');
+            }).catch(function () {
+                fallbackCopy(mermaid);
+            });
+        } else {
+            fallbackCopy(mermaid);
         }
     }
 
@@ -6086,9 +6106,19 @@
                             var btnMermaidCopy = document.createElement('button');
                             btnMermaidCopy.type = 'button';
                             btnMermaidCopy.className = 'report-action-button';
-                            btnMermaidCopy.textContent = '📋 Copy Mermaid';
+                            btnMermaidCopy.textContent = '📋 Copy for Markdown';
+                            btnMermaidCopy.title = 'Copy Mermaid diagram wrapped in markdown code fences (for GitHub, wikis, docs)';
                             btnMermaidCopy.addEventListener('click', function () {
                                 window.copyHostNetworkingMermaid();
+                            });
+
+                            var btnMermaidCopyRaw = document.createElement('button');
+                            btnMermaidCopyRaw.type = 'button';
+                            btnMermaidCopyRaw.className = 'report-action-button';
+                            btnMermaidCopyRaw.textContent = '📋 Copy for Mermaid.live';
+                            btnMermaidCopyRaw.title = 'Copy raw Mermaid code for mermaid.live or other Mermaid renderers';
+                            btnMermaidCopyRaw.addEventListener('click', function () {
+                                window.copyHostNetworkingMermaidRaw();
                             });
 
                             var btnMermaidDl = document.createElement('button');
@@ -6100,6 +6130,7 @@
                             });
 
                             btnWrap.appendChild(btnMermaidCopy);
+                            btnWrap.appendChild(btnMermaidCopyRaw);
                             btnWrap.appendChild(btnMermaidDl);
                             hostSec.appendChild(btnWrap);
                         }

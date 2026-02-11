@@ -365,7 +365,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.14.54 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+                        Version 0.14.55 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
                     </div>
                 </div>
             </div>
@@ -2175,11 +2175,14 @@
                     <h3>Configuration Summary</h3>
                     <div id="summary-content"></div>
                     <div id="summary-diagram-container" class="summary-diagram"></div>
-                    <div id="mermaid-export-buttons" style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <button onclick="copyMermaidDiagram()" style="flex: 1; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: var(--accent-purple); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;" title="Copy Mermaid diagram markup to clipboard">
-                            📋 Copy Mermaid
+                    <div id="mermaid-export-buttons" style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                        <button onclick="copyMermaidForMarkdown()" style="flex: 1; min-width: 120px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: var(--accent-purple); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;" title="Copy Mermaid diagram wrapped in markdown code fences (for GitHub, wikis, docs)">
+                            📋 Copy for Markdown
                         </button>
-                        <button onclick="downloadMermaidDiagram()" style="flex: 1; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: var(--accent-purple); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;" title="Download diagram as Markdown file with Mermaid code block">
+                        <button onclick="copyMermaidRaw()" style="flex: 1; min-width: 120px; padding: 8px 12px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: var(--accent-green, #22c55e); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;" title="Copy raw Mermaid code for mermaid.live or other Mermaid renderers">
+                            📋 Copy for Mermaid.live
+                        </button>
+                        <button onclick="downloadMermaidDiagram()" style="flex: 1; min-width: 120px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); color: var(--accent-purple); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;" title="Download diagram as Markdown file with Mermaid code block">
                             ⬇️ Download .md
                         </button>
                     </div>
