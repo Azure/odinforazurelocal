@@ -1545,11 +1545,12 @@
     }
 
     /**
-     * Generate a Mermaid diagram of the host networking topology from report state.
-     * Mirrors the SVG diagram logic: ToR switches, nodes with intent-grouped adapters,
-     * and switchless storage subnet connections between nodes.
+     * Generate a Mermaid block diagram for the host networking topology.
+     * Uses the block-beta diagram type for explicit layout control and rich labels.
+     * Matches the ODIN SVG layout: Switch/Router, per-rack ToR pairs with LAG,
+     * port groups per node, cross-connections, and color coding.
      * @param {Object} s - The report state object
-     * @returns {string} Mermaid flowchart markup, or empty string if insufficient state
+     * @returns {string} Mermaid block-beta markup, or empty string if insufficient state
      */
     function generateHostNetworkingMermaid(s) {
         if (!s || !s.ports || !s.intent) return '';
@@ -1565,9 +1566,9 @@
         var isSwitchless = s.storage === 'switchless';
         var hasAdapterMapping = s.adapterMappingConfirmed && s.adapterMapping && Object.keys(s.adapterMapping).length > 0;
 
-        // Show ToR switches for switched storage on medium/low_capacity scales
-        var showTorSwitches = !isSingleNode && (s.scale === 'medium' || s.scale === 'low_capacity') && !!s.torSwitchCount;
-        var torCount = (s.torSwitchCount === 'single') ? 1 : 2;
+        // ToR switches: show for all non-switchless configs (including single-node)
+        var showTorSwitches = !isSwitchless;
+        var torCount = isSingleNode ? 1 : ((s.torSwitchCount === 'single') ? 1 : 2);
 
         // Port naming
         function getPortName(idx1Based) {
@@ -1610,21 +1611,25 @@
             return [];
         }
 
-        // Classify ports into Mgmt+Compute vs Storage groups
-        function classifyPorts() {
-            var mgmt = [];
-            var stor = [];
-            for (var j = 0; j < ports; j++) {
-                var traffic = getTraffic(j);
-                var isStorage = traffic.length > 0 && traffic.indexOf('Storage') >= 0 && traffic.indexOf('Mgmt') < 0;
-                if (isStorage) {
-                    stor.push(j + 1);
-                } else {
-                    mgmt.push(j + 1);
-                }
+        // Enhanced three-way port classification: mgmt, compute-only, storage
+        var mgmtPorts = [], computePorts = [], storPorts = [];
+        for (var cj = 0; cj < ports; cj++) {
+            var ctr = getTraffic(cj);
+            if (ctr.length === 0) continue;
+            var cHasMgmt = ctr.indexOf('Mgmt') >= 0;
+            var cHasCompute = ctr.indexOf('Compute') >= 0;
+            var cHasStorage = ctr.indexOf('Storage') >= 0;
+            if (cHasStorage && !cHasMgmt && !cHasCompute) {
+                storPorts.push(cj + 1);
+            } else if (cHasCompute && !cHasMgmt && !cHasStorage) {
+                computePorts.push(cj + 1);
+            } else {
+                mgmtPorts.push(cj + 1);
             }
-            return { mgmt: mgmt, stor: stor };
         }
+
+        var groupCount = (mgmtPorts.length > 0 ? 1 : 0) + (computePorts.length > 0 ? 1 : 0) + (storPorts.length > 0 ? 1 : 0);
+        var hasMultipleGroups = groupCount > 1;
 
         // AutoIP label
         function autoIpLabel() {
@@ -1641,201 +1646,328 @@
             return s.scale || '';
         }
 
-        // Storage mode label
-        function storageModeLabel() {
-            if (isSwitchless) {
-                var mode = 'Switchless=true';
-                if (autoIpLabel()) mode += ', ' + autoIpLabel();
-                return mode;
-            }
-            var mode2 = 'Switchless=false';
-            if (autoIpLabel()) mode2 += ', ' + autoIpLabel();
-            return mode2;
+        // Sanitize label for block-beta quoted labels: escape double quotes
+        function sanitize(str) {
+            return String(str).replace(/"/g, "'").trim();
         }
 
-        var classified = classifyPorts();
         var lines = [];
-        lines.push('flowchart TB');
+        lines.push('block-beta');
 
-        // Title
-        lines.push('    title["' + scaleLabel() + ' — ' + storageModeLabel() + '"]');
-        lines.push('    style title fill:none,stroke:none,color:#888');
+        // Configuration info as comment
+        var titleParts = [];
+        if (isSingleNode) {
+            titleParts.push('Single-node network connectivity');
+        } else {
+            titleParts.push(scaleLabel());
+            titleParts.push(isSwitchless ? 'Switchless=true' : 'Switchless=false');
+        }
+        if (autoIpLabel()) titleParts.push(autoIpLabel());
+        lines.push('    %% ' + titleParts.join(' | '));
         lines.push('');
 
-        // ToR switches
-        if (showTorSwitches) {
-            if (torCount === 2) {
-                lines.push('    ToR1["ToR Switch 1"]');
-                lines.push('    ToR2["ToR Switch 2"]');
-            } else {
-                lines.push('    ToR1["ToR Switch"]');
-            }
-            lines.push('');
-        }
+        lines.push('    columns 1');
+        lines.push('');
 
-        // Render a node with intent-grouped adapters
-        var renderNode = function (nodeIdx, nodeId) {
+        // --- Render a node block with port groups ---
+        var renderNode = function (nodeIdx, nodeId, pad) {
             var nodeName = 'Node ' + (nodeIdx + 1);
             if (s.nodeSettings && s.nodeSettings[nodeIdx] && s.nodeSettings[nodeIdx].name) {
                 var customName = String(s.nodeSettings[nodeIdx].name).trim();
                 if (customName) nodeName = customName;
             }
 
-            lines.push('    subgraph ' + nodeId + '["' + nodeName + '"]');
+            var pad2 = pad + '    ';
+            lines.push(pad + 'block:' + nodeId + '["' + sanitize(nodeName) + '"]');
 
-            // If intent produces two distinct groups, render nested subgraphs
-            if (classified.mgmt.length > 0 && classified.stor.length > 0) {
-                // Mgmt + Compute intent group
-                var mgmtLabel = s.intent === 'all_traffic' ? 'Mgmt + Compute + Storage' : 'Mgmt + Compute intent';
-                lines.push('        subgraph ' + nodeId + '_mc["' + mgmtLabel + '"]');
-                lines.push('            direction LR');
-                for (var m = 0; m < classified.mgmt.length; m++) {
-                    var mPort = classified.mgmt[m];
-                    var mName = getPortName(mPort);
-                    lines.push('            ' + nodeId + '_p' + mPort + '["' + mName + '"]');
-                }
-                lines.push('        end');
+            if (hasMultipleGroups) {
+                lines.push(pad2 + 'columns ' + groupCount);
 
-                // Storage intent group
-                var storLabel = isSwitchless ? 'Storage intent - RDMA' : 'Storage';
-                lines.push('        subgraph ' + nodeId + '_st["' + storLabel + '"]');
-                lines.push('            direction LR');
-                for (var st = 0; st < classified.stor.length; st++) {
-                    var sPort = classified.stor[st];
-                    var sName = getPortName(sPort);
-                    lines.push('            ' + nodeId + '_p' + sPort + '["' + sName + '"]');
+                // Management + Compute block
+                if (mgmtPorts.length > 0) {
+                    var portNames = [];
+                    for (var m = 0; m < mgmtPorts.length; m++) portNames.push(getPortName(mgmtPorts[m]));
+                    var mcLabel = s.intent === 'all_traffic' ? 'All Traffic' : 'Management + Compute';
+                    lines.push(pad2 + nodeId + 'mc["' + sanitize(mcLabel + ': ' + portNames.join(', ')) + '"]');
                 }
-                lines.push('        end');
-            } else {
-                // Single group (all_traffic or all ports same type)
-                lines.push('        direction LR');
-                for (var j = 0; j < ports; j++) {
-                    var portName = getPortName(j + 1);
-                    var traffic = getTraffic(j);
-                    var portId = nodeId + '_p' + (j + 1);
-                    if (traffic.length > 0) {
-                        lines.push('        ' + portId + '["' + portName + '<br/>' + traffic.join(' + ') + '"]');
+
+                // Compute-only block (custom intents)
+                if (computePorts.length > 0) {
+                    var cpNames = [];
+                    for (var c = 0; c < computePorts.length; c++) cpNames.push(getPortName(computePorts[c]));
+                    lines.push(pad2 + nodeId + 'co["' + sanitize('Compute: ' + cpNames.join(', ')) + '"]');
+                }
+
+                // Storage block(s)
+                if (storPorts.length > 0) {
+                    if (isSwitchless) {
+                        for (var si = 0; si < storPorts.length; si++) {
+                            var sp = storPorts[si];
+                            lines.push(pad2 + nodeId + 's' + sp + '["' + sanitize('Storage: ' + getPortName(sp)) + '"]');
+                        }
                     } else {
-                        lines.push('        ' + portId + '["' + portName + '<br/>Unused"]');
+                        var stNames = [];
+                        for (var sti = 0; sti < storPorts.length; sti++) stNames.push(getPortName(storPorts[sti]));
+                        lines.push(pad2 + nodeId + 'st["' + sanitize('Storage (RDMA): ' + stNames.join(', ')) + '"]');
                     }
                 }
+            } else {
+                lines.push(pad2 + 'columns 1');
+                var allPortNames = [];
+                var trafficTypes = [];
+                for (var pi = 0; pi < ports; pi++) {
+                    allPortNames.push(getPortName(pi + 1));
+                    var t = getTraffic(pi);
+                    for (var ti = 0; ti < t.length; ti++) {
+                        if (trafficTypes.indexOf(t[ti]) < 0) trafficTypes.push(t[ti]);
+                    }
+                }
+                var label = trafficTypes.join(', ') || 'All Traffic';
+                lines.push(pad2 + nodeId + 'all["' + sanitize(label + ': ' + allPortNames.join(', ')) + '"]');
             }
-            lines.push('    end');
+
+            lines.push(pad + 'end');
         };
 
-        if (isRackAware) {
-            var half = Math.ceil(n / 2);
-            lines.push('    subgraph Room1["Room 1 — Rack A"]');
-            for (var i = 0; i < half; i++) renderNode(i, 'N' + (i + 1));
-            lines.push('    end');
-            lines.push('');
-            lines.push('    subgraph Room2["Room 2 — Rack B"]');
-            for (var i2 = half; i2 < n; i2++) renderNode(i2, 'N' + (i2 + 1));
-            lines.push('    end');
-        } else {
-            for (var i3 = 0; i3 < n; i3++) renderNode(i3, 'N' + (i3 + 1));
-        }
+        // --- Connect all node port groups to their ToR switches ---
+        var connectNodeToTors = function (nodeId, torIds) {
+            for (var ti = 0; ti < torIds.length; ti++) {
+                var tid = torIds[ti];
+                if (hasMultipleGroups) {
+                    if (mgmtPorts.length > 0) {
+                        lines.push('    ' + tid + ' --- ' + nodeId + 'mc');
+                    }
+                    if (computePorts.length > 0) {
+                        lines.push('    ' + tid + ' --- ' + nodeId + 'co');
+                    }
+                    if (storPorts.length > 0 && !isSwitchless) {
+                        lines.push('    ' + tid + ' --- ' + nodeId + 'st');
+                    }
+                } else {
+                    lines.push('    ' + tid + ' --- ' + nodeId + 'all');
+                }
+            }
+        };
 
-        // Connections from ToR to nodes
-        if (showTorSwitches) {
+        // --- MAIN STRUCTURE ---
+        if (isRackAware) {
+            // Switch / Router at top
+            lines.push('    switch["Switch / Router"]');
+            lines.push('    space');
             lines.push('');
-            for (var ni = 0; ni < n; ni++) {
-                lines.push('    ToR1 --- N' + (ni + 1));
+
+            var half = Math.ceil(n / 2);
+
+            lines.push('    block:Racks');
+            lines.push('        columns 2');
+            lines.push('');
+
+            // --- Rack-A (Room 1) ---
+            lines.push('        block:RackA["Rack-A (Room 1)"]');
+            lines.push('            columns 1');
+            if (showTorSwitches) {
                 if (torCount === 2) {
-                    lines.push('    ToR2 --- N' + (ni + 1));
+                    lines.push('            block:TorPairA');
+                    lines.push('                columns 3');
+                    lines.push('                tor1["TOR-1"]');
+                    lines.push('                lagA["LAG"]');
+                    lines.push('                tor2["TOR-2"]');
+                    lines.push('            end');
+                } else {
+                    lines.push('            tor1["TOR-1"]');
+                }
+                lines.push('            space');
+            }
+            lines.push('            block:NodesA');
+            lines.push('                columns ' + half);
+            for (var ra = 0; ra < half; ra++) {
+                renderNode(ra, 'N' + (ra + 1), '                ');
+            }
+            lines.push('            end');
+            lines.push('        end');
+            lines.push('');
+
+            // --- Rack-B (Room 2) ---
+            var rackBTor1 = torCount === 2 ? 3 : 2;
+            var rackBTor2 = torCount === 2 ? 4 : null;
+            lines.push('        block:RackB["Rack-B (Room 2)"]');
+            lines.push('            columns 1');
+            if (showTorSwitches) {
+                if (torCount === 2) {
+                    lines.push('            block:TorPairB');
+                    lines.push('                columns 3');
+                    lines.push('                tor' + rackBTor1 + '["TOR-' + rackBTor1 + '"]');
+                    lines.push('                lagB["LAG"]');
+                    lines.push('                tor' + rackBTor2 + '["TOR-' + rackBTor2 + '"]');
+                    lines.push('            end');
+                } else {
+                    lines.push('            tor' + rackBTor1 + '["TOR-' + rackBTor1 + '"]');
+                }
+                lines.push('            space');
+            }
+            lines.push('            block:NodesB');
+            lines.push('                columns ' + (n - half));
+            for (var rb = half; rb < n; rb++) {
+                renderNode(rb, 'N' + (rb + 1), '                ');
+            }
+            lines.push('            end');
+            lines.push('        end');
+            lines.push('');
+            lines.push('    end');
+            lines.push('');
+
+            // --- Edges ---
+            if (showTorSwitches) {
+                // Switch to all ToRs
+                lines.push('    switch --- tor1');
+                if (torCount === 2) lines.push('    switch --- tor2');
+                lines.push('    switch --- tor' + rackBTor1);
+                if (torCount === 2 && rackBTor2) lines.push('    switch --- tor' + rackBTor2);
+                lines.push('');
+
+                // Rack A ToRs to Rack A nodes
+                var rackATors = torCount === 2 ? ['tor1', 'tor2'] : ['tor1'];
+                for (var ea = 0; ea < half; ea++) {
+                    connectNodeToTors('N' + (ea + 1), rackATors);
+                }
+
+                // Rack B ToRs to Rack B nodes
+                var rackBTors = torCount === 2 ? ['tor' + rackBTor1, 'tor' + rackBTor2] : ['tor' + rackBTor1];
+                for (var eb = half; eb < n; eb++) {
+                    connectNodeToTors('N' + (eb + 1), rackBTors);
+                }
+            }
+
+        } else {
+            // --- NON-RACK-AWARE ---
+            if (showTorSwitches) {
+                if (torCount === 2) {
+                    lines.push('    block:ToR');
+                    lines.push('        columns 3');
+                    lines.push('        tor1["TOR-1"]');
+                    lines.push('        lag["LAG"]');
+                    lines.push('        tor2["TOR-2"]');
+                    lines.push('    end');
+                } else {
+                    lines.push('    tor1["ToR Switch"]');
+                }
+                lines.push('    space');
+                lines.push('');
+            }
+
+            lines.push('    block:Nodes');
+            lines.push('        columns ' + n);
+            for (var nn = 0; nn < n; nn++) {
+                renderNode(nn, 'N' + (nn + 1), '        ');
+            }
+            if (nAll > 4) {
+                lines.push('        more["... ' + (nAll - 4) + ' more nodes"]');
+            }
+            lines.push('    end');
+            lines.push('');
+
+            // Edges: ToRs to all nodes
+            if (showTorSwitches) {
+                var allTors = torCount === 2 ? ['tor1', 'tor2'] : ['tor1'];
+                for (var en = 0; en < n; en++) {
+                    connectNodeToTors('N' + (en + 1), allTors);
                 }
             }
         }
 
-        // Switchless storage subnet connections between nodes
-        if (isSwitchless && n >= 2 && n <= 4 && classified.stor.length > 0) {
+        // --- Switchless storage mesh ---
+        if (isSwitchless && n >= 2 && n <= 4 && storPorts.length > 0) {
             lines.push('');
-            lines.push('    %% Storage subnet connections');
-
             var edges = [];
             var isDualLink = s.switchlessLinkMode === 'dual_link';
 
             if (n === 2) {
-                // 2-node: 2 subnets, port-to-port
-                edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
-                edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
+                edges.push({ a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+                edges.push({ a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
             } else if (n === 3 && !isDualLink) {
-                // 3-node single-link: 3 subnets
-                edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
-                edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 2, p: 0 } });
-                edges.push({ subnet: 3, a: { n: 1, p: 1 }, b: { n: 2, p: 1 } });
+                edges.push({ a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+                edges.push({ a: { n: 0, p: 1 }, b: { n: 2, p: 0 } });
+                edges.push({ a: { n: 1, p: 1 }, b: { n: 2, p: 1 } });
             } else if (n === 3 && isDualLink) {
-                // 3-node dual-link: 6 subnets
-                edges.push({ subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
-                edges.push({ subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
-                edges.push({ subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 } });
-                edges.push({ subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 } });
-                edges.push({ subnet: 5, a: { n: 1, p: 2 }, b: { n: 2, p: 2 } });
-                edges.push({ subnet: 6, a: { n: 1, p: 3 }, b: { n: 2, p: 3 } });
+                edges.push({ a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
+                edges.push({ a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
+                edges.push({ a: { n: 0, p: 2 }, b: { n: 2, p: 0 } });
+                edges.push({ a: { n: 0, p: 3 }, b: { n: 2, p: 1 } });
+                edges.push({ a: { n: 1, p: 2 }, b: { n: 2, p: 2 } });
+                edges.push({ a: { n: 1, p: 3 }, b: { n: 2, p: 3 } });
             } else if (n === 4) {
-                // 4-node: 12 subnets (2 per node-pair)
                 var pairIdx = 0;
                 for (var a = 0; a < 4; a++) {
                     for (var b = a + 1; b < 4; b++) {
-                        edges.push({ subnet: pairIdx * 2 + 1, a: { n: a, p: pairIdx * 2 }, b: { n: b, p: pairIdx * 2 } });
-                        edges.push({ subnet: pairIdx * 2 + 2, a: { n: a, p: pairIdx * 2 + 1 }, b: { n: b, p: pairIdx * 2 + 1 } });
+                        edges.push({ a: { n: a, p: pairIdx * 2 }, b: { n: b, p: pairIdx * 2 } });
+                        edges.push({ a: { n: a, p: pairIdx * 2 + 1 }, b: { n: b, p: pairIdx * 2 + 1 } });
                         pairIdx++;
                     }
                 }
             }
 
-            // Render subnet edges
             for (var ei = 0; ei < edges.length; ei++) {
                 var edge = edges[ei];
-                var aN = 'N' + (edge.a.n + 1);
-                var bN = 'N' + (edge.b.n + 1);
-                // Map storage port index to actual port number (storage ports start after mgmt ports)
-                var aPort = classified.stor[edge.a.p] || (edge.a.p + classified.mgmt.length + 1);
-                var bPort = classified.stor[edge.b.p] || (edge.b.p + classified.mgmt.length + 1);
-                var cidr = getStorageSubnetCidr(s, edge.subnet, '10.0.' + edge.subnet + '.0/24');
-                lines.push('    ' + aN + '_p' + aPort + ' <-->|"Subnet ' + edge.subnet + '<br/>' + cidr + '"| ' + bN + '_p' + bPort);
+                var aNode = 'N' + (edge.a.n + 1);
+                var bNode = 'N' + (edge.b.n + 1);
+                var aPortNum = storPorts[edge.a.p];
+                var bPortNum = storPorts[edge.b.p];
+                if (!aPortNum || !bPortNum) continue;
+                lines.push('    ' + aNode + 's' + aPortNum + ' --- ' + bNode + 's' + bPortNum);
             }
         }
 
-        // More nodes indicator
-        if (!isRackAware && nAll > 4) {
-            lines.push('    More["+ ' + (nAll - 4) + ' more nodes"]');
-            lines.push('    style More fill:none,stroke-dasharray:5 5,color:#888');
-        }
-
-        // Style ports by traffic type
+        // --- Styling ---
         lines.push('');
-        lines.push('    %% Styling');
-        for (var si = 0; si < n; si++) {
-            for (var sj = 0; sj < ports; sj++) {
-                var traffic2 = getTraffic(sj);
-                var portId2 = 'N' + (si + 1) + '_p' + (sj + 1);
-                if (traffic2.length === 0) {
-                    lines.push('    style ' + portId2 + ' fill:#333,stroke-dasharray:5 5,color:#888');
-                } else if (traffic2.indexOf('Storage') >= 0 && traffic2.indexOf('Mgmt') < 0) {
-                    lines.push('    style ' + portId2 + ' fill:#1a3a2a,stroke:#22c55e,color:#fff');
-                } else if (traffic2.indexOf('Mgmt') >= 0 && traffic2.indexOf('Storage') < 0) {
-                    lines.push('    style ' + portId2 + ' fill:#2d2a5e,stroke:#8b5cf6,color:#fff');
-                } else {
-                    lines.push('    style ' + portId2 + ' fill:#2d3a5e,stroke:#3b82f6,color:#fff');
-                }
-            }
+
+        // Switch/Router
+        if (isRackAware) {
+            lines.push('    style switch fill:#333,stroke:#555,color:#fff');
         }
 
-        // Style intent group subgraphs
-        if (classified.mgmt.length > 0 && classified.stor.length > 0) {
-            for (var gi = 0; gi < n; gi++) {
-                var nid = 'N' + (gi + 1);
-                lines.push('    style ' + nid + '_mc fill:#0a1520,stroke:#3b82f6,stroke-dasharray:6 4,color:#fff');
-                lines.push('    style ' + nid + '_st fill:#151222,stroke:#8b5cf6,stroke-dasharray:6 4,color:#fff');
-            }
-        }
-
-        // Style ToR switches
+        // ToR switches
         if (showTorSwitches) {
-            lines.push('    style ToR1 fill:#1e3a5f,stroke:#3b82f6,color:#fff');
+            lines.push('    style tor1 fill:#2d6a8e,stroke:#1a4a6e,color:#fff');
             if (torCount === 2) {
-                lines.push('    style ToR2 fill:#1e3a5f,stroke:#3b82f6,color:#fff');
+                lines.push('    style tor2 fill:#2d6a8e,stroke:#1a4a6e,color:#fff');
+            }
+            if (isRackAware) {
+                var rbft = torCount === 2 ? 3 : 2;
+                lines.push('    style tor' + rbft + ' fill:#2d6a8e,stroke:#1a4a6e,color:#fff');
+                if (torCount === 2) {
+                    lines.push('    style tor4 fill:#2d6a8e,stroke:#1a4a6e,color:#fff');
+                }
+                // LAG styling
+                if (torCount === 2) {
+                    lines.push('    style lagA fill:#e67e22,stroke:#d35400,color:#fff');
+                    lines.push('    style lagB fill:#e67e22,stroke:#d35400,color:#fff');
+                }
+            } else if (torCount === 2) {
+                lines.push('    style lag fill:#e67e22,stroke:#d35400,color:#fff');
+            }
+        }
+
+        // Node port group styling
+        for (var ci = 0; ci < n; ci++) {
+            var nid = 'N' + (ci + 1);
+            if (hasMultipleGroups) {
+                if (mgmtPorts.length > 0) {
+                    lines.push('    style ' + nid + 'mc fill:#9b59b6,stroke:#8e44ad,color:#fff');
+                }
+                if (computePorts.length > 0) {
+                    lines.push('    style ' + nid + 'co fill:#3498db,stroke:#2980b9,color:#fff');
+                }
+                if (storPorts.length > 0) {
+                    if (isSwitchless) {
+                        for (var spi = 0; spi < storPorts.length; spi++) {
+                            lines.push('    style ' + nid + 's' + storPorts[spi] + ' fill:#27ae60,stroke:#1e8449,color:#fff');
+                        }
+                    } else {
+                        lines.push('    style ' + nid + 'st fill:#27ae60,stroke:#1e8449,color:#fff');
+                    }
+                }
+            } else {
+                lines.push('    style ' + nid + 'all fill:#9b59b6,stroke:#8e44ad,color:#fff');
             }
         }
 
