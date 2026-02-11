@@ -6458,9 +6458,8 @@ function generateMermaidDiagram() {
         if (showTorSwitches) {
             if (torCount === 2) {
                 lines.push('            block:TorPairA');
-                lines.push('                columns 3');
+                lines.push('                columns 2');
                 lines.push('                tor1["TOR-1"]');
-                lines.push('                lagA["LAG"]');
                 lines.push('                tor2["TOR-2"]');
                 lines.push('            end');
             } else {
@@ -6483,9 +6482,8 @@ function generateMermaidDiagram() {
         if (showTorSwitches) {
             if (torCount === 2) {
                 lines.push('            block:TorPairB');
-                lines.push('                columns 3');
+                lines.push('                columns 2');
                 lines.push(`                tor${rackBTor1}["TOR-${rackBTor1}"]`);
-                lines.push('                lagB["LAG"]');
                 lines.push(`                tor${rackBTor2}["TOR-${rackBTor2}"]`);
                 lines.push('            end');
             } else {
@@ -6509,6 +6507,12 @@ function generateMermaidDiagram() {
             if (torCount === 2) lines.push('    switch --- tor2');
             lines.push(`    switch --- tor${rackBTor1}`);
             if (torCount === 2 && rackBTor2) lines.push(`    switch --- tor${rackBTor2}`);
+
+            // LAG connectors between ToR pairs
+            if (torCount === 2) {
+                lines.push('    tor1 -- "LAG" --- tor2');
+                lines.push(`    tor${rackBTor1} -- "LAG" --- tor${rackBTor2}`);
+            }
             lines.push('');
 
             // Rack A ToRs to Rack A nodes
@@ -6525,9 +6529,8 @@ function generateMermaidDiagram() {
         if (showTorSwitches) {
             if (torCount === 2) {
                 lines.push('    block:ToR');
-                lines.push('        columns 3');
+                lines.push('        columns 2');
                 lines.push('        tor1["TOR-1"]');
-                lines.push('        lag["LAG"]');
                 lines.push('        tor2["TOR-2"]');
                 lines.push('    end');
             } else {
@@ -6548,6 +6551,11 @@ function generateMermaidDiagram() {
 
         // Edges: ToRs to all nodes
         if (showTorSwitches) {
+            // LAG connector between ToR pair
+            if (torCount === 2) {
+                lines.push('    tor1 -- "LAG" --- tor2');
+            }
+
             const allTors = torCount === 2 ? ['tor1', 'tor2'] : ['tor1'];
             for (let i = 0; i < showN; i++) connectNodeToTors(`N${i + 1}`, allTors);
         }
@@ -6599,28 +6607,21 @@ function generateMermaidDiagram() {
 
     // Switch/Router
     if (isRackAware) {
-        lines.push('    style switch fill:#333,stroke:#555,color:#fff');
+        lines.push('    style switch fill:#1e3a5f,stroke:#3b82f6,color:#fff');
     }
 
     // ToR switches
     if (showTorSwitches) {
-        lines.push('    style tor1 fill:#2d6a8e,stroke:#1a4a6e,color:#fff');
+        lines.push('    style tor1 fill:#3b82f6,stroke:#2563eb,color:#fff');
         if (torCount === 2) {
-            lines.push('    style tor2 fill:#2d6a8e,stroke:#1a4a6e,color:#fff');
+            lines.push('    style tor2 fill:#3b82f6,stroke:#2563eb,color:#fff');
         }
         if (isRackAware) {
             const rbft = torCount === 2 ? 3 : 2;
-            lines.push(`    style tor${rbft} fill:#2d6a8e,stroke:#1a4a6e,color:#fff`);
+            lines.push(`    style tor${rbft} fill:#3b82f6,stroke:#2563eb,color:#fff`);
             if (torCount === 2) {
-                lines.push('    style tor4 fill:#2d6a8e,stroke:#1a4a6e,color:#fff');
+                lines.push('    style tor4 fill:#3b82f6,stroke:#2563eb,color:#fff');
             }
-            // LAG styling
-            if (torCount === 2) {
-                lines.push('    style lagA fill:#e67e22,stroke:#d35400,color:#fff');
-                lines.push('    style lagB fill:#e67e22,stroke:#d35400,color:#fff');
-            }
-        } else if (torCount === 2) {
-            lines.push('    style lag fill:#e67e22,stroke:#d35400,color:#fff');
         }
     }
 
@@ -6628,17 +6629,17 @@ function generateMermaidDiagram() {
     for (let ci = 0; ci < showN; ci++) {
         const nid = `N${ci + 1}`;
         if (hasMultipleGroups) {
-            if (mgmtPorts.length > 0) lines.push(`    style ${nid}mc fill:#9b59b6,stroke:#8e44ad,color:#fff`);
-            if (computePorts.length > 0) lines.push(`    style ${nid}co fill:#3498db,stroke:#2980b9,color:#fff`);
+            if (mgmtPorts.length > 0) lines.push(`    style ${nid}mc fill:#0078d4,stroke:#005a9e,color:#fff`);
+            if (computePorts.length > 0) lines.push(`    style ${nid}co fill:#10b981,stroke:#059669,color:#fff`);
             if (storPorts.length > 0) {
                 if (isSwitchless) {
-                    for (const sp of storPorts) lines.push(`    style ${nid}s${sp} fill:#27ae60,stroke:#1e8449,color:#fff`);
+                    for (const sp of storPorts) lines.push(`    style ${nid}s${sp} fill:#8b5cf6,stroke:#7c3aed,color:#fff`);
                 } else {
-                    lines.push(`    style ${nid}st fill:#27ae60,stroke:#1e8449,color:#fff`);
+                    lines.push(`    style ${nid}st fill:#8b5cf6,stroke:#7c3aed,color:#fff`);
                 }
             }
         } else {
-            lines.push(`    style ${nid}all fill:#9b59b6,stroke:#8e44ad,color:#fff`);
+            lines.push(`    style ${nid}all fill:#0078d4,stroke:#005a9e,color:#fff`);
         }
     }
 
