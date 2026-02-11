@@ -18,7 +18,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - [Export Formats](#export-formats)
 - [Browser Compatibility](#browser-compatibility)
 - [Troubleshooting](#troubleshooting)
-- [Contributing](#report-an-issue-and-contributing)
+- [Report an Issue and Contributing](#report-an-issue-and-contributing)
 - [License](#license)
 - [Appendix A - Version History](#appendix-a---version-history)
 
