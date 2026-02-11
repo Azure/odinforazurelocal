@@ -1,5 +1,5 @@
-// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.55';
+﻿// Odin for Azure Local - version for tracking changes
+const WIZARD_VERSION = '0.14.56';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -178,17 +178,17 @@ function clearSavedState() {
 
 // ============================================================================
 // NOTE: The following functions have been moved to modular files:
-// - escapeHtml, sanitizeInput, formatNumber, capitalize → js/utils.js
-// - isValidNetbiosName, isValidIpv4Cidr, isValidCidrFormat → js/utils.js
-// - extractIpFromCidr, extractPrefixFromCidr → js/utils.js
-// - ipv4ToInt, intToIpv4, prefixToMask, ipToLong, longToIp → js/utils.js
-// - incrementCidrThirdOctet → js/utils.js
-// - showToast, reportUiError, showNotification → js/notifications.js
-// - copyToClipboard, fallbackCopyToClipboard → js/notifications.js
-// - FIREBASE_CONFIG, analytics, initializeAnalytics → js/analytics.js
-// - trackPageView, trackFormCompletion, fetchAndDisplayStats → js/analytics.js
-// - increaseFontSize, decreaseFontSize, applyFontSize → js/theme.js
-// - toggleTheme, applyTheme → js/theme.js
+// - escapeHtml, sanitizeInput, formatNumber, capitalize â†’ js/utils.js
+// - isValidNetbiosName, isValidIpv4Cidr, isValidCidrFormat â†’ js/utils.js
+// - extractIpFromCidr, extractPrefixFromCidr â†’ js/utils.js
+// - ipv4ToInt, intToIpv4, prefixToMask, ipToLong, longToIp â†’ js/utils.js
+// - incrementCidrThirdOctet â†’ js/utils.js
+// - showToast, reportUiError, showNotification â†’ js/notifications.js
+// - copyToClipboard, fallbackCopyToClipboard â†’ js/notifications.js
+// - FIREBASE_CONFIG, analytics, initializeAnalytics â†’ js/analytics.js
+// - trackPageView, trackFormCompletion, fetchAndDisplayStats â†’ js/analytics.js
+// - increaseFontSize, decreaseFontSize, applyFontSize â†’ js/theme.js
+// - toggleTheme, applyTheme â†’ js/theme.js
 // ============================================================================
 
 function computeWizardProgress() {
@@ -266,7 +266,7 @@ function updateProgressUi() {
     if (!root || !text || !fill) return;
 
     const p = computeWizardProgress();
-    text.textContent = `${p.percent}% • ${p.completed}/${p.total}`;
+    text.textContent = `${p.percent}% â€¢ ${p.completed}/${p.total}`;
     fill.style.width = `${p.percent}%`;
     root.setAttribute('aria-valuenow', String(p.percent));
 
@@ -686,7 +686,7 @@ function getMgmtComputeNicAssignment(portCount) {
         };
     }
 
-    // Fewer than 2 non-RDMA ports — fall back to fixed Pair 1 / Pair 2+ model.
+    // Fewer than 2 non-RDMA ports â€” fall back to fixed Pair 1 / Pair 2+ model.
     const mgmtCompute = [1, 2].filter(n => n <= p);
     const mgmtComputeSet = new Set(mgmtCompute);
     return {
@@ -740,9 +740,9 @@ const MAX_NODE_NAME_LENGTH = 15;
 
 /**
  * Parse a node name into base prefix and numeric suffix.
- * E.g., "customname01" → { base: "customname", num: 1, padding: 2 }
- *       "node5"        → { base: "node", num: 5, padding: 1 }
- *       "myserver"     → { base: "myserver", num: null, padding: 0 }
+ * E.g., "customname01" â†’ { base: "customname", num: 1, padding: 2 }
+ *       "node5"        â†’ { base: "node", num: 5, padding: 1 }
+ *       "myserver"     â†’ { base: "myserver", num: null, padding: 0 }
  */
 function parseNodeNamePattern(name) {
     const trimmed = String(name || '').trim();
@@ -1219,7 +1219,7 @@ function generateArmParameters() {
         // Priority: US Gov cloud template > Rack-Aware template > Commercial default.
         const referenceTemplate = isAdlessExternalDns
             ? {
-                name: 'Azure Stack HCI ADLess cluster (external DNS) — Public Preview',
+                name: 'Azure Stack HCI ADLess cluster (external DNS) â€” Public Preview',
                 url: 'https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-adless-cluster-external-dns-public-preview/azuredeploy.json'
             }
             : isUsGovCloud
@@ -1488,7 +1488,7 @@ function generateArmParameters() {
         const storageNetworkList = (() => {
             // Special-case: 3-node switchless requires explicit storage subnet/IP assignment.
             // Use the same example subnet numbering shown in the report:
-            // 1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
+            // 1-2: Node1â†”Node2, 3-4: Node1â†”Node3, 5-6: Node2â†”Node3.
             if (state.storage === 'switchless' && nodeCount === 3) {
                 const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? String(storageVlan1) : 'REPLACE_WITH_STORAGE_VLAN_1';
 
@@ -2636,7 +2636,7 @@ function toggleRackAwareZonesConfirmed() {
             // Validate 50/50 split
             const expectedPerZone = n / 2;
             if (zone1Count !== expectedPerZone || zone2Count !== expectedPerZone) {
-                alert(`Rack Aware clusters require an even 50/50 split of nodes between zones.\n\nCurrent distribution:\n• ${z.zone1Name || 'Zone1'}: ${zone1Count} node${zone1Count !== 1 ? 's' : ''}\n• ${z.zone2Name || 'Zone2'}: ${zone2Count} node${zone2Count !== 1 ? 's' : ''}\n\nRequired:\n• Each zone must have exactly ${expectedPerZone} node${expectedPerZone !== 1 ? 's' : ''}\n\nPlease adjust the node assignments and try again.`);
+                alert(`Rack Aware clusters require an even 50/50 split of nodes between zones.\n\nCurrent distribution:\nâ€¢ ${z.zone1Name || 'Zone1'}: ${zone1Count} node${zone1Count !== 1 ? 's' : ''}\nâ€¢ ${z.zone2Name || 'Zone2'}: ${zone2Count} node${zone2Count !== 1 ? 's' : ''}\n\nRequired:\nâ€¢ Each zone must have exactly ${expectedPerZone} node${expectedPerZone !== 1 ? 's' : ''}\n\nPlease adjust the node assignments and try again.`);
                 return;
             }
         }
@@ -2901,7 +2901,7 @@ function renderRackAwareTorUi() {
             root.insertBefore(lockMsg, root.firstChild.nextSibling);
         }
         lockMsg.classList.toggle('hidden', confirmed);
-        lockMsg.innerHTML = '<strong>Confirm availability zones to continue</strong><p style="margin-top:0.35rem;">Use the “Confirm zones &amp; node placement” button above, then select TOR switches per room.</p>';
+        lockMsg.innerHTML = '<strong>Confirm availability zones to continue</strong><p style="margin-top:0.35rem;">Use the â€œConfirm zones &amp; node placementâ€ button above, then select TOR switches per room.</p>';
 
         // Disable cards until confirmed (visual + functional).
         try {
@@ -3133,49 +3133,49 @@ function getPrivateEndpointInfo(serviceKey) {
             fqdn: 'vault.azure.net',
             privateLink: 'privatelink.vaultcore.azure.net',
             notes: 'Required for deployment. Keep public access enabled during initial deployment, then restrict.',
-            icon: '🔐'
+            icon: 'ðŸ”'
         },
         'storage': {
             name: 'Azure Storage (Blob)',
             fqdn: 'blob.core.windows.net',
             privateLink: 'privatelink.blob.core.windows.net',
             notes: 'Required for 2-node deployments as cloud witness. Keep public access during deployment.',
-            icon: '💾'
+            icon: 'ðŸ’¾'
         },
         'acr': {
             name: 'Azure Container Registry',
             fqdn: 'azurecr.io',
             privateLink: 'privatelink.azurecr.io',
             notes: 'Important: Wildcards (*.azurecr.io) are NOT supported. Use specific ACR FQDNs before deployment.',
-            icon: '📦'
+            icon: 'ðŸ“¦'
         },
         'asr': {
             name: 'Azure Site Recovery',
             fqdn: 'siterecovery.windowsazure.com',
             privateLink: 'privatelink.siterecovery.windowsazure.com',
             notes: 'Not allowed via Arc Gateway. Add to proxy bypass list for direct traffic to private endpoint.',
-            icon: '🔄'
+            icon: 'ðŸ”„'
         },
         'backup': {
             name: 'Recovery Services Vault',
             fqdn: 'backup.windowsazure.com',
             privateLink: 'privatelink.backup.windowsazure.com',
             notes: 'Azure Backup private endpoints for VM backup and recovery.',
-            icon: '🗄️'
+            icon: 'ðŸ—„ï¸'
         },
         'sql': {
             name: 'SQL Managed Instance',
             fqdn: 'database.windows.net',
             privateLink: 'privatelink.database.windows.net',
             notes: 'Private connectivity for Azure SQL Managed Instance.',
-            icon: '🗃️'
+            icon: 'ðŸ—ƒï¸'
         },
         'defender': {
             name: 'Microsoft Defender for Cloud',
             fqdn: 'Various security endpoints',
             privateLink: 'Multiple Private Link endpoints',
             notes: 'For advanced security monitoring scenarios.',
-            icon: '🛡️'
+            icon: 'ðŸ›¡ï¸'
         }
     };
     return peInfo[serviceKey] || null;
@@ -3254,7 +3254,7 @@ function updateUI() {
             if (scenarioExp) {
                 scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">M365 Local Deployment</strong>
         Optimized for Microsoft 365 workloads. Requires a minimum of 9 physical nodes for high availability and performance. Supports Standard scale configuration only.
-        <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">📘 More information on M365 Local</a>`;
+        <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">ðŸ“˜ More information on M365 Local</a>`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
         } else if (state.scenario === 'hyperconverged') {
@@ -3724,7 +3724,7 @@ function updateUI() {
             }
         }
 
-        // Ports (Step 07): User requirement — Rack Aware supports only 4 ports per node.
+        // Ports (Step 07): User requirement â€” Rack Aware supports only 4 ports per node.
         // Keep other options visible but disabled (so users can see they exist).
         if (cards.ports) {
             const card4 = cards.ports['4'];
@@ -3776,7 +3776,7 @@ function updateUI() {
             if (enabledCard) {
                 enabledCard.classList.add('disabled');
                 enabledCard.classList.remove('selected');
-                enabledCard.title = 'Required: Switchless 3–4 node clusters must use Storage Auto IP Disabled.';
+                enabledCard.title = 'Required: Switchless 3â€“4 node clusters must use Storage Auto IP Disabled.';
             }
         }
     }
@@ -4484,7 +4484,7 @@ function updateUI() {
             const defaultRdmaEnabled = isLowCapacity ? false : true;
             const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
 
-            // Single-node default RDMA alignment (speed is NOT overridden — user may change it).
+            // Single-node default RDMA alignment (speed is NOT overridden â€” user may change it).
             if (isSingleNode && !isLowCapacity) {
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
@@ -4532,7 +4532,7 @@ function updateUI() {
                 rdmaWarn.classList.add('visible');
                 state.rdmaGuardMessage = null;
             } else if (requiredRdma > 0 && rdmaEnabled < requiredRdma) {
-                rdmaWarn.innerHTML = '<strong style="color:#ffc107;">⚠ Not supported</strong><br>At least ' + escapeHtml(String(requiredRdma)) + ' port(s) must be RDMA capable unless you selected Low Capacity. Update Port Configuration to enable RDMA on at least ' + escapeHtml(String(requiredRdma)) + ' port(s).';
+                rdmaWarn.innerHTML = '<strong style="color:#ffc107;">âš  Not supported</strong><br>At least ' + escapeHtml(String(requiredRdma)) + ' port(s) must be RDMA capable unless you selected Low Capacity. Update Port Configuration to enable RDMA on at least ' + escapeHtml(String(requiredRdma)) + ' port(s).';
                 rdmaWarn.classList.remove('hidden');
                 rdmaWarn.classList.add('visible');
             } else {
@@ -4880,7 +4880,7 @@ function updateUI() {
                 if (nonStorageRdma.length > 0) {
                     parts.push('RDMA is enabled on non-Storage port(s): ' + nonStorageRdma.map(i => 'Port ' + i).join(', ') + '.');
                 }
-                rdmaIntentWarn.innerHTML = '<strong style="color:#ffc107;">⚠ Not supported</strong><br>' + parts.join('<br>') + '<br>Update Step 07 Port Configuration so RDMA is enabled on the ports used for Storage traffic.';
+                rdmaIntentWarn.innerHTML = '<strong style="color:#ffc107;">âš  Not supported</strong><br>' + parts.join('<br>') + '<br>Update Step 07 Port Configuration so RDMA is enabled on the ports used for Storage traffic.';
                 rdmaIntentWarn.classList.remove('hidden');
                 rdmaIntentWarn.classList.add('visible');
 
@@ -4934,7 +4934,7 @@ function updateUI() {
     } else if (state.arc === 'no_arc') {
         arcExp.classList.add('visible');
         arcExp.classList.add('warning');
-        arcExp.innerHTML = `<strong style="color:#ffc107;">⚠ Important</strong>
+        arcExp.innerHTML = `<strong style="color:#ffc107;">âš  Important</strong>
         <p>Disabling Arc Gateway requires you to allowlist 80+ individual endpoints in your firewall/proxy for proper operation.</p>
         <p><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements?view=azloc-2511" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Review the required firewall endpoints</a></p>`;
     } else {
@@ -5328,7 +5328,7 @@ function updateCustomStorageSubnetsConfirmButton() {
 
     if (confirmStatus) {
         if (confirmed) {
-            confirmStatus.textContent = '✓ Confirmed';
+            confirmStatus.textContent = 'âœ“ Confirmed';
             confirmStatus.style.color = 'var(--accent-blue)';
         } else if (allFilled && !allValid) {
             confirmStatus.textContent = 'Fix invalid CIDR format';
@@ -5806,7 +5806,7 @@ function updateStepIndicators() {
             // Add checkmark indicator
             const indicator = document.createElement('span');
             indicator.className = 'step-indicator';
-            indicator.innerHTML = '✓';
+            indicator.innerHTML = 'âœ“';
             indicator.style.cssText = 'color: var(--success); font-size: 20px; font-weight: bold; margin-left: 8px;';
             stepHeader.appendChild(indicator);
         }
@@ -5875,7 +5875,7 @@ function updateSummary() {
     };
 
     // Build section rows (grouped by step ranges)
-    // Step 01–05: Scenario and Scale
+    // Step 01â€“05: Scenario and Scale
     let scenarioScaleRows = '';
     if (state.scenario) scenarioScaleRows += renderRow('Scenario', escapeHtml(formatScenario(state.scenario)));
     if (state.region) scenarioScaleRows += renderRow('Azure Cloud', escapeHtml(formatRegion(state.region)));
@@ -5909,7 +5909,7 @@ function updateSummary() {
                 const nodeName = (state.nodeSettings && state.nodeSettings[i - 1] && state.nodeSettings[i - 1].name)
                     ? String(state.nodeSettings[i - 1].name).trim()
                     : '';
-                lines.push(`${nodeName || `Node ${i}`} → ${zoneName}`);
+                lines.push(`${nodeName || `Node ${i}`} â†’ ${zoneName}`);
             }
             rackAwareRows += `<div class="summary-row">
                 <div class="summary-label">Zone assignments</div>
@@ -5928,7 +5928,7 @@ function updateSummary() {
         }
     }
 
-    // Step 06–08: Host Networking
+    // Step 06â€“08: Host Networking
     let hostNetworkingRows = '';
     if (state.storage) hostNetworkingRows += renderRow('Storage', escapeHtml(capitalize(state.storage)));
     if (state.ports) hostNetworkingRows += renderRow('Ports', escapeHtml(state.ports), { mono: true });
@@ -5968,8 +5968,8 @@ function updateSummary() {
         for (const g of groups) {
             const ov = state.intentOverrides[g.key];
             if (!ov) continue;
-            if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${g.label}`, escapeHtml(ov.rdmaMode));
-            if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo Frames — ${g.label}`, escapeHtml(ov.jumboFrames));
+            if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA â€” ${g.label}`, escapeHtml(ov.rdmaMode));
+            if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo Frames â€” ${g.label}`, escapeHtml(ov.jumboFrames));
 
             if (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') {
                 const count = getStorageVlanOverrideNetworkCount();
@@ -5978,7 +5978,7 @@ function updateSummary() {
                         ? ov.storageNetwork1VlanId
                         : ov.storageVlanNic1;
                     if (v1 !== undefined && v1 !== null) {
-                        hostNetworkingRows += renderRow(`Storage Network 1 VLAN ID — ${g.label}`, escapeHtml(v1), { mono: true });
+                        hostNetworkingRows += renderRow(`Storage Network 1 VLAN ID â€” ${g.label}`, escapeHtml(v1), { mono: true });
                     }
                 }
                 if (count >= 2) {
@@ -5986,20 +5986,20 @@ function updateSummary() {
                         ? ov.storageNetwork2VlanId
                         : ov.storageVlanNic2;
                     if (v2 !== undefined && v2 !== null) {
-                        hostNetworkingRows += renderRow(`Storage Network 2 VLAN ID — ${g.label}`, escapeHtml(v2), { mono: true });
+                        hostNetworkingRows += renderRow(`Storage Network 2 VLAN ID â€” ${g.label}`, escapeHtml(v2), { mono: true });
                     }
                 }
             }
         }
     }
 
-    // Step 09–11: Connectivity
+    // Step 09â€“11: Connectivity
     let connectivityRows = '';
     if (state.outbound) connectivityRows += renderRow('Outbound', escapeHtml(formatOutbound(state.outbound)));
     if (state.arc) connectivityRows += renderRow('Arc Gateway', state.arc === 'arc_gateway' ? 'Enabled' : 'Disabled');
     if (state.proxy) connectivityRows += renderRow('Proxy', state.proxy === 'no_proxy' ? 'Disabled' : 'Enabled');
 
-    // Step 12–14: Infrastructure network
+    // Step 12â€“14: Infrastructure network
     let infraNetworkRows = '';
     if (state.ip) infraNetworkRows += renderRow('IP', escapeHtml(capitalize(state.ip)));
     if (state.nodeSettings && state.nodeSettings.length > 0) {
@@ -6008,8 +6008,8 @@ function updateSummary() {
                 const name = (n && n.name) ? String(n.name).trim() : '';
                 const ipCidr = (n && n.ipCidr) ? String(n.ipCidr).trim() : '';
                 if (!name && !ipCidr) return `Node ${idx + 1}: (not set)`;
-                if (name && ipCidr) return `${name} — ${ipCidr}`;
-                return `${name || `Node ${idx + 1}`} — ${ipCidr || '(IP not set)'}`;
+                if (name && ipCidr) return `${name} â€” ${ipCidr}`;
+                return `${name || `Node ${idx + 1}`} â€” ${ipCidr || '(IP not set)'}`;
             })
             .filter(Boolean);
         infraNetworkRows += `<div class="summary-row">
@@ -6263,543 +6263,6 @@ function renderDiagram() {
     }
     if (!isRackAware && n > 4) html += '<div style="text-align:center; font-size:0.7rem; color:var(--text-secondary); margin-top:0.5rem;">+ ' + (n - 4) + ' more nodes</div>';
 
-    container.innerHTML = html;
-}
-
-/**
- * Generate a Mermaid block diagram for the current network configuration.
- * Uses the block-beta diagram type for explicit layout control and rich labels.
- * Matches the ODIN SVG layout: Switch/Router, per-rack ToR pairs with LAG,
- * port groups per node, cross-connections, and color coding.
- * @returns {string} Mermaid block-beta markup, or empty string if insufficient state
- */
-function generateMermaidDiagram() {
-    if (!state.nodes || !state.ports || !state.intent) return '';
-
-    const n = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
-    const isSingleNode = n === 1;
-    const isRackAware = state.scale === 'rack_aware';
-    const showN = isRackAware ? n : Math.min(n, 4);
-    const p = parseInt(state.ports) || 0;
-    const intent = state.intent;
-    const isSwitchless = state.storage === 'switchless';
-
-    // ToR switches: show for all non-switchless configs (including single-node)
-    const showTorSwitches = !isSwitchless;
-    const torCount = isSingleNode ? 1 : ((state.torSwitchCount === 'single') ? 1 : 2);
-
-    // Reuse the same traffic logic as renderDiagram
-    const getTraffic = (portIdx) => {
-        const nic = portIdx + 1;
-        if (!intent) return [];
-        if (state.adapterMappingConfirmed && state.adapterMapping && state.adapterMapping[nic]) {
-            const mapping = state.adapterMapping[nic];
-            if (mapping === 'mgmt') return ['Mgmt'];
-            if (mapping === 'compute') return ['Compute'];
-            if (mapping === 'storage') return ['Storage'];
-            if (mapping === 'mgmt_compute') return ['Mgmt', 'Compute'];
-            if (mapping === 'compute_storage') return ['Compute', 'Storage'];
-            if (mapping === 'all') return ['Mgmt', 'Compute', 'Storage'];
-            if (mapping === 'pool') return [];
-            return [];
-        }
-        if (intent === 'all_traffic') return ['Mgmt', 'Compute', 'Storage'];
-        if (intent === 'mgmt_compute') {
-            if (p === 2) return portIdx === 0 ? ['Mgmt', 'Compute'] : ['Storage'];
-            const assignment = getMgmtComputeNicAssignment(p);
-            return assignment.mgmtCompute.includes(nic) ? ['Mgmt', 'Compute'] : ['Storage'];
-        }
-        if (intent === 'compute_storage') {
-            if (portIdx < 2) return ['Mgmt'];
-            return ['Compute', 'Storage'];
-        }
-        if (intent === 'custom') {
-            const val = (state.customIntents && state.customIntents[nic]) || 'unused';
-            if (val === 'mgmt') return ['Mgmt'];
-            if (val === 'compute') return ['Compute'];
-            if (val === 'storage') return ['Storage'];
-            if (val === 'mgmt_compute') return ['Mgmt', 'Compute'];
-            if (val === 'compute_storage') return ['Compute', 'Storage'];
-            if (val === 'all') return ['Mgmt', 'Compute', 'Storage'];
-            return [];
-        }
-        return [];
-    };
-
-    // Enhanced three-way port classification: mgmt, compute-only, storage
-    const mgmtPorts = [];
-    const computePorts = [];
-    const storPorts = [];
-    for (let j = 0; j < p; j++) {
-        const traffic = getTraffic(j);
-        if (traffic.length === 0) continue;
-        const hasMgmt = traffic.includes('Mgmt');
-        const hasCompute = traffic.includes('Compute');
-        const hasStorage = traffic.includes('Storage');
-        if (hasStorage && !hasMgmt && !hasCompute) {
-            storPorts.push(j + 1);
-        } else if (hasCompute && !hasMgmt && !hasStorage) {
-            computePorts.push(j + 1);
-        } else {
-            mgmtPorts.push(j + 1);
-        }
-    }
-    const groupCount = (mgmtPorts.length > 0 ? 1 : 0) + (computePorts.length > 0 ? 1 : 0) + (storPorts.length > 0 ? 1 : 0);
-    const hasMultipleGroups = groupCount > 1;
-
-    // AutoIP label
-    const autoIp = state.storageAutoIp === 'disabled' ? 'AutoIP: False' : (state.storageAutoIp === 'enabled' ? 'AutoIP: True' : '');
-
-    // Sanitize label for block-beta quoted labels: escape double quotes
-    const sanitize = (str) => String(str).replace(/"/g, "'").trim();
-
-    const lines = [];
-    lines.push('block-beta');
-
-    // Configuration info as comment
-    const titleParts = [];
-    if (isSingleNode) {
-        titleParts.push('Single-node network connectivity');
-    } else {
-        const scaleLabel = typeof formatScale === 'function' ? formatScale(state.scale) : state.scale;
-        titleParts.push(scaleLabel);
-        titleParts.push(isSwitchless ? 'Switchless=true' : 'Switchless=false');
-    }
-    if (autoIp) titleParts.push(autoIp);
-    lines.push(`    %% ${titleParts.join(' | ')}`);
-    lines.push('');
-
-    lines.push('    columns 1');
-    lines.push('');
-
-    const getPortName = (idx) => typeof getPortDisplayName === 'function' ? getPortDisplayName(idx) : `Port ${idx}`;
-
-    // --- Render a node block with port groups ---
-    const renderNodeMermaid = (nodeIdx, nodeId, pad) => {
-        const nodeLabel = `Node ${nodeIdx + 1}`;
-        const pad2 = pad + '    ';
-        const pad3 = pad2 + '    ';
-
-        lines.push(`${pad}block:${nodeId}["${sanitize(nodeLabel)}"]`);
-
-        if (hasMultipleGroups) {
-            lines.push(`${pad2}columns ${groupCount}`);
-            const pad4 = pad3 + '    ';
-
-            // Management + Compute group
-            if (mgmtPorts.length > 0) {
-                const mcLabel = intent === 'all_traffic' ? 'All Traffic' : 'Management + Compute';
-                lines.push(`${pad2}block:${nodeId}mc`);
-                lines.push(`${pad3}columns 1`);
-                lines.push(`${pad3}${nodeId}mcLbl["${sanitize(mcLabel)}"]`);
-                lines.push(`${pad3}block:${nodeId}mcP`);
-                lines.push(`${pad4}columns ${mgmtPorts.length}`);
-                for (const mp of mgmtPorts) {
-                    lines.push(`${pad4}${nodeId}p${mp}["${sanitize(getPortName(mp))}"]`);
-                }
-                lines.push(`${pad3}end`);
-                lines.push(`${pad2}end`);
-            }
-
-            // Compute-only block (custom intents)
-            if (computePorts.length > 0) {
-                lines.push(`${pad2}block:${nodeId}co`);
-                lines.push(`${pad3}columns 1`);
-                lines.push(`${pad3}${nodeId}coLbl["${sanitize('Compute')}"]`);
-                lines.push(`${pad3}block:${nodeId}coP`);
-                lines.push(`${pad4}columns ${computePorts.length}`);
-                for (const cp of computePorts) {
-                    lines.push(`${pad4}${nodeId}p${cp}["${sanitize(getPortName(cp))}"]`);
-                }
-                lines.push(`${pad3}end`);
-                lines.push(`${pad2}end`);
-            }
-
-            // Storage block
-            if (storPorts.length > 0) {
-                const stLabel = isSwitchless ? 'Storage' : 'Storage (RDMA)';
-                lines.push(`${pad2}block:${nodeId}st`);
-                lines.push(`${pad3}columns 1`);
-                lines.push(`${pad3}${nodeId}stLbl["${sanitize(stLabel)}"]`);
-                lines.push(`${pad3}block:${nodeId}stP`);
-                lines.push(`${pad4}columns ${storPorts.length}`);
-                for (const sp of storPorts) {
-                    const spId = isSwitchless ? `${nodeId}s${sp}` : `${nodeId}p${sp}`;
-                    lines.push(`${pad4}${spId}["${sanitize(getPortName(sp))}"]`);
-                }
-                lines.push(`${pad3}end`);
-                lines.push(`${pad2}end`);
-            }
-        } else {
-            const portNames = [];
-            const trafficTypes = [];
-            for (let j = 0; j < p; j++) {
-                portNames.push(getPortName(j + 1));
-                const traffic = getTraffic(j);
-                for (const t of traffic) {
-                    if (!trafficTypes.includes(t)) trafficTypes.push(t);
-                }
-            }
-            const label = trafficTypes.join(', ') || 'All Traffic';
-            lines.push(`${pad2}columns 1`);
-            lines.push(`${pad2}block:${nodeId}all`);
-            lines.push(`${pad3}columns 1`);
-            lines.push(`${pad3}${nodeId}allLbl["${sanitize(label)}"]`);
-            lines.push(`${pad3}block:${nodeId}allP`);
-            const pad4b = pad3 + '    ';
-            lines.push(`${pad4b}columns ${p}`);
-            for (let j = 0; j < p; j++) {
-                lines.push(`${pad4b}${nodeId}p${j + 1}["${sanitize(getPortName(j + 1))}"]`);
-            }
-            lines.push(`${pad3}end`);
-            lines.push(`${pad2}end`);
-        }
-
-        lines.push(`${pad}end`);
-    };
-
-    // --- Connect all node port groups to their ToR switches ---
-    const connectNodeToTors = (nodeId, torIds) => {
-        for (const tid of torIds) {
-            if (hasMultipleGroups) {
-                if (mgmtPorts.length > 0) lines.push(`    ${tid} --- ${nodeId}mc`);
-                if (computePorts.length > 0) lines.push(`    ${tid} --- ${nodeId}co`);
-                if (storPorts.length > 0 && !isSwitchless) lines.push(`    ${tid} --- ${nodeId}st`);
-            } else {
-                lines.push(`    ${tid} --- ${nodeId}all`);
-            }
-        }
-    };
-
-    // --- MAIN STRUCTURE ---
-    if (isRackAware) {
-        // Switch / Router at top
-        lines.push('    switch["Switch / Router"]');
-        lines.push('    space');
-        lines.push('');
-
-        const half = Math.ceil(showN / 2);
-
-        lines.push('    block:Racks');
-        lines.push('        columns 2');
-        lines.push('');
-
-        // --- Rack-A (Room 1) ---
-        lines.push('        block:RackA["Rack-A (Room 1)"]');
-        lines.push('            columns 1');
-        if (showTorSwitches) {
-            if (torCount === 2) {
-                lines.push('            block:TorPairA');
-                lines.push('                columns 2');
-                lines.push('                tor1["TOR-1"]');
-                lines.push('                tor2["TOR-2"]');
-                lines.push('            end');
-            } else {
-                lines.push('            tor1["TOR-1"]');
-            }
-            lines.push('            space');
-        }
-        lines.push('            block:NodesA');
-        lines.push(`                columns ${half}`);
-        for (let i = 0; i < half; i++) renderNodeMermaid(i, `N${i + 1}`, '                ');
-        lines.push('            end');
-        lines.push('        end');
-        lines.push('');
-
-        // --- Rack-B (Room 2) ---
-        const rackBTor1 = torCount === 2 ? 3 : 2;
-        const rackBTor2 = torCount === 2 ? 4 : null;
-        lines.push('        block:RackB["Rack-B (Room 2)"]');
-        lines.push('            columns 1');
-        if (showTorSwitches) {
-            if (torCount === 2) {
-                lines.push('            block:TorPairB');
-                lines.push('                columns 2');
-                lines.push(`                tor${rackBTor1}["TOR-${rackBTor1}"]`);
-                lines.push(`                tor${rackBTor2}["TOR-${rackBTor2}"]`);
-                lines.push('            end');
-            } else {
-                lines.push(`            tor${rackBTor1}["TOR-${rackBTor1}"]`);
-            }
-            lines.push('            space');
-        }
-        lines.push('            block:NodesB');
-        lines.push(`                columns ${showN - half}`);
-        for (let i = half; i < showN; i++) renderNodeMermaid(i, `N${i + 1}`, '                ');
-        lines.push('            end');
-        lines.push('        end');
-        lines.push('');
-        lines.push('    end');
-        lines.push('');
-
-        // --- Edges ---
-        if (showTorSwitches) {
-            // Switch to all ToRs
-            lines.push('    switch --- tor1');
-            if (torCount === 2) lines.push('    switch --- tor2');
-            lines.push(`    switch --- tor${rackBTor1}`);
-            if (torCount === 2 && rackBTor2) lines.push(`    switch --- tor${rackBTor2}`);
-
-            // LAG connectors between ToR pairs
-            if (torCount === 2) {
-                lines.push('    tor1 -- "LAG" --- tor2');
-                lines.push(`    tor${rackBTor1} -- "LAG" --- tor${rackBTor2}`);
-            }
-            lines.push('');
-
-            // Rack A ToRs to Rack A nodes
-            const rackATors = torCount === 2 ? ['tor1', 'tor2'] : ['tor1'];
-            for (let i = 0; i < half; i++) connectNodeToTors(`N${i + 1}`, rackATors);
-
-            // Rack B ToRs to Rack B nodes
-            const rackBTors = torCount === 2 ? [`tor${rackBTor1}`, `tor${rackBTor2}`] : [`tor${rackBTor1}`];
-            for (let i = half; i < showN; i++) connectNodeToTors(`N${i + 1}`, rackBTors);
-        }
-
-    } else {
-        // --- NON-RACK-AWARE ---
-        if (showTorSwitches) {
-            if (torCount === 2) {
-                lines.push('    block:ToR');
-                lines.push('        columns 2');
-                lines.push('        tor1["TOR-1"]');
-                lines.push('        tor2["TOR-2"]');
-                lines.push('    end');
-            } else {
-                lines.push('    tor1["ToR Switch"]');
-            }
-            lines.push('    space');
-            lines.push('');
-        }
-
-        lines.push('    block:Nodes');
-        lines.push(`        columns ${showN}`);
-        for (let i = 0; i < showN; i++) renderNodeMermaid(i, `N${i + 1}`, '        ');
-        if (n > 4) {
-            lines.push(`        more["... ${n - 4} more nodes"]`);
-        }
-        lines.push('    end');
-        lines.push('');
-
-        // Edges: ToRs to all nodes
-        if (showTorSwitches) {
-            // LAG connector between ToR pair
-            if (torCount === 2) {
-                lines.push('    tor1 -- "LAG" --- tor2');
-            }
-
-            const allTors = torCount === 2 ? ['tor1', 'tor2'] : ['tor1'];
-            for (let i = 0; i < showN; i++) connectNodeToTors(`N${i + 1}`, allTors);
-        }
-    }
-
-    // --- Switchless storage mesh ---
-    if (isSwitchless && showN >= 2 && showN <= 4 && storPorts.length > 0) {
-        lines.push('');
-        const edges = [];
-        const isDualLink = state.switchlessLinkMode === 'dual_link';
-
-        if (showN === 2) {
-            edges.push({ a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
-            edges.push({ a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
-        } else if (showN === 3 && !isDualLink) {
-            edges.push({ a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
-            edges.push({ a: { n: 0, p: 1 }, b: { n: 2, p: 0 } });
-            edges.push({ a: { n: 1, p: 1 }, b: { n: 2, p: 1 } });
-        } else if (showN === 3 && isDualLink) {
-            edges.push({ a: { n: 0, p: 0 }, b: { n: 1, p: 0 } });
-            edges.push({ a: { n: 0, p: 1 }, b: { n: 1, p: 1 } });
-            edges.push({ a: { n: 0, p: 2 }, b: { n: 2, p: 0 } });
-            edges.push({ a: { n: 0, p: 3 }, b: { n: 2, p: 1 } });
-            edges.push({ a: { n: 1, p: 2 }, b: { n: 2, p: 2 } });
-            edges.push({ a: { n: 1, p: 3 }, b: { n: 2, p: 3 } });
-        } else if (showN === 4) {
-            let pairIdx = 0;
-            for (let a = 0; a < 4; a++) {
-                for (let b = a + 1; b < 4; b++) {
-                    edges.push({ a: { n: a, p: pairIdx * 2 }, b: { n: b, p: pairIdx * 2 } });
-                    edges.push({ a: { n: a, p: pairIdx * 2 + 1 }, b: { n: b, p: pairIdx * 2 + 1 } });
-                    pairIdx++;
-                }
-            }
-        }
-
-        for (const edge of edges) {
-            const aNode = `N${edge.a.n + 1}`;
-            const bNode = `N${edge.b.n + 1}`;
-            const aPortNum = storPorts[edge.a.p];
-            const bPortNum = storPorts[edge.b.p];
-            if (!aPortNum || !bPortNum) continue;
-            lines.push(`    ${aNode}s${aPortNum} --- ${bNode}s${bPortNum}`);
-        }
-    }
-
-    // --- Styling ---
-    lines.push('');
-
-    // Switch/Router
-    if (isRackAware) {
-        lines.push('    style switch fill:#1e3a5f,stroke:#3b82f6,color:#fff');
-    }
-
-    // ToR switches
-    if (showTorSwitches) {
-        lines.push('    style tor1 fill:#3b82f6,stroke:#2563eb,color:#fff');
-        if (torCount === 2) {
-            lines.push('    style tor2 fill:#3b82f6,stroke:#2563eb,color:#fff');
-        }
-        if (isRackAware) {
-            const rbft = torCount === 2 ? 3 : 2;
-            lines.push(`    style tor${rbft} fill:#3b82f6,stroke:#2563eb,color:#fff`);
-            if (torCount === 2) {
-                lines.push('    style tor4 fill:#3b82f6,stroke:#2563eb,color:#fff');
-            }
-        }
-    }
-
-    // Node port styling (individual ports + intent labels)
-    for (let ci = 0; ci < showN; ci++) {
-        const nid = `N${ci + 1}`;
-        if (hasMultipleGroups) {
-            if (mgmtPorts.length > 0) {
-                lines.push(`    style ${nid}mcLbl fill:#0078d4,stroke:#005a9e,color:#fff`);
-                for (const mp of mgmtPorts) lines.push(`    style ${nid}p${mp} fill:#0078d4,stroke:#005a9e,color:#fff`);
-            }
-            if (computePorts.length > 0) {
-                lines.push(`    style ${nid}coLbl fill:#10b981,stroke:#059669,color:#fff`);
-                for (const cp of computePorts) lines.push(`    style ${nid}p${cp} fill:#10b981,stroke:#059669,color:#fff`);
-            }
-            if (storPorts.length > 0) {
-                lines.push(`    style ${nid}stLbl fill:#8b5cf6,stroke:#7c3aed,color:#fff`);
-                for (const sp of storPorts) {
-                    const spId = isSwitchless ? `${nid}s${sp}` : `${nid}p${sp}`;
-                    lines.push(`    style ${spId} fill:#8b5cf6,stroke:#7c3aed,color:#fff`);
-                }
-            }
-        } else {
-            lines.push(`    style ${nid}allLbl fill:#0078d4,stroke:#005a9e,color:#fff`);
-            for (let j = 0; j < p; j++) {
-                lines.push(`    style ${nid}p${j + 1} fill:#0078d4,stroke:#005a9e,color:#fff`);
-            }
-        }
-    }
-
-    return lines.join('\n');
-}
-
-/**
- * Copy the Mermaid diagram wrapped in markdown code fences (for GitHub, wikis, docs).
- * Shows a notification on success or failure.
- */
-function copyMermaidForMarkdown() {
-    const mermaid = generateMermaidDiagram();
-    if (!mermaid) {
-        if (typeof showNotification === 'function') {
-            showNotification('Configure nodes, ports, and intent first to generate a diagram.', 'warning');
-        }
-        return;
-    }
-
-    const mermaidBlock = '```mermaid\n' + mermaid + '\n```';
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(mermaidBlock).then(() => {
-            if (typeof showNotification === 'function') {
-                showNotification('Mermaid diagram copied to clipboard (Markdown format)!', 'success');
-            }
-        }).catch(() => {
-            fallbackCopyMermaid(mermaidBlock);
-        });
-    } else {
-        fallbackCopyMermaid(mermaidBlock);
-    }
-}
-
-/**
- * Copy the raw Mermaid diagram to the clipboard (for mermaid.live and other renderers).
- * Shows a notification on success or failure.
- */
-function copyMermaidRaw() {
-    const mermaid = generateMermaidDiagram();
-    if (!mermaid) {
-        if (typeof showNotification === 'function') {
-            showNotification('Configure nodes, ports, and intent first to generate a diagram.', 'warning');
-        }
-        return;
-    }
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(mermaid).then(() => {
-            if (typeof showNotification === 'function') {
-                showNotification('Mermaid diagram copied to clipboard (raw format for mermaid.live)!', 'success');
-            }
-        }).catch(() => {
-            fallbackCopyMermaid(mermaid);
-        });
-    } else {
-        fallbackCopyMermaid(mermaid);
-    }
-}
-
-/**
- * Legacy alias — calls copyMermaidForMarkdown for backward compatibility.
- */
-function copyMermaidDiagram() {
-    copyMermaidForMarkdown();
-}
-
-/**
- * Fallback copy method for browsers without Clipboard API.
- * @param {string} text - Text to copy
- */
-function fallbackCopyMermaid(text) {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-        document.execCommand('copy');
-        if (typeof showNotification === 'function') {
-            showNotification('Mermaid diagram copied to clipboard!', 'success');
-        }
-    } catch (e) {
-        if (typeof showNotification === 'function') {
-            showNotification('Failed to copy diagram. Please try again.', 'error');
-        }
-    }
-    document.body.removeChild(textarea);
-}
-
-/**
- * Download the Mermaid diagram as a .md file.
- */
-function downloadMermaidDiagram() {
-    const mermaid = generateMermaidDiagram();
-    if (!mermaid) {
-        if (typeof showNotification === 'function') {
-            showNotification('Configure nodes, ports, and intent first to generate a diagram.', 'warning');
-        }
-        return;
-    }
-
-    const content = '# Azure Local Network Diagram\n\n```mermaid\n' + mermaid + '\n```\n';
-    const blob = new Blob([content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'azure-local-network-diagram.md';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    if (typeof showNotification === 'function') {
-        showNotification('Mermaid diagram downloaded!', 'success');
-    }
-}
-
 // NOTE: Formatting functions moved to js/formatting.js:
 // - getProxyLabel()
 // - formatScenario()
@@ -6874,7 +6337,7 @@ function renderPortConfiguration(count) {
         const borderColor = isDuplicate ? '#ef4444' : (hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)');
         // Determine label: 'duplicate' warning or 'custom' indicator
         const labelHtml = isDuplicate
-            ? '<span style="font-size:10px; color:#ef4444; font-weight:600;">⚠ duplicate</span>'
+            ? '<span style="font-size:10px; color:#ef4444; font-weight:600;">âš  duplicate</span>'
             : (hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : '');
 
         const card = document.createElement('div');
@@ -6893,7 +6356,7 @@ function renderPortConfiguration(count) {
                         onchange="updatePortConfig(${i}, 'customName', this.value);"
                         onkeydown="if(event.key==='Enter'){this.blur();}"
                         title="${isDuplicate ? 'Duplicate adapter name - each port must have a unique name' : (isConfirmed ? 'Edit configuration to rename' : 'Enter custom port name')}">
-                    ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
+                    ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">âš¡</span>' : ''}
                 </div>
                 ${labelHtml}
             </div>
@@ -6980,7 +6443,7 @@ function updatePortConfig(index, key, value) {
                     (key === 'rdmaMode' && String(value) === 'Disabled' && state.portConfig[index].rdma === true);
 
                 if (isDisablingRdma && (currentRdmaEnabled - 1) < requiredRdma) {
-                    state.rdmaGuardMessage = '⚠ Not supported: At least ' + String(requiredRdma) + ' port(s) must remain RDMA capable unless you selected Low Capacity.';
+                    state.rdmaGuardMessage = 'âš  Not supported: At least ' + String(requiredRdma) + ' port(s) must remain RDMA capable unless you selected Low Capacity.';
                     updateUI();
                     return;
                 }
@@ -7306,7 +6769,7 @@ function updateInfraNetwork() {
     // Valid
     state.infra = { start, end };
     if (succ) {
-        succ.innerText = `✓ Valid Range (${count} IPs)`;
+        succ.innerText = `âœ“ Valid Range (${count} IPs)`;
         succ.classList.remove('hidden');
     }
 
@@ -8358,7 +7821,7 @@ function showArmImportOptionsDialog(armState) {
     overlay.innerHTML = `
         <div style="background:var(--card-bg);border:2px solid var(--accent-blue);border-radius:16px;padding:28px;max-width:650px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
             <div style="text-align:center;margin-bottom:24px;">
-                <div style="font-size:48px;margin-bottom:12px;">📥</div>
+                <div style="font-size:48px;margin-bottom:12px;">ðŸ“¥</div>
                 <h2 style="margin:0 0 8px 0;color:var(--accent-blue);font-size:22px;">ARM Template Import Options</h2>
                 <p style="color:var(--text-secondary);font-size:14px;margin:0;">
                     The following settings are not included in ARM templates.<br>Please specify them for your imported deployment.
@@ -8434,31 +7897,31 @@ function showArmImportOptionsDialog(armState) {
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="keyvault" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">🔐 Key Vault</span>
+                            <span style="color:var(--text-primary);font-size:13px;">ðŸ” Key Vault</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="storage" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">📦 Storage Account</span>
+                            <span style="color:var(--text-primary);font-size:13px;">ðŸ“¦ Storage Account</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="acr" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">🐳 Container Registry</span>
+                            <span style="color:var(--text-primary);font-size:13px;">ðŸ³ Container Registry</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="asr" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">🔄 Site Recovery</span>
+                            <span style="color:var(--text-primary);font-size:13px;">ðŸ”„ Site Recovery</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="backup" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">💾 Azure Backup</span>
+                            <span style="color:var(--text-primary);font-size:13px;">ðŸ’¾ Azure Backup</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="sql" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">🗄️ SQL Managed Instance</span>
+                            <span style="color:var(--text-primary);font-size:13px;">ðŸ—„ï¸ SQL Managed Instance</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="defender" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">🛡️ Microsoft Defender</span>
+                            <span style="color:var(--text-primary);font-size:13px;">ðŸ›¡ï¸ Microsoft Defender</span>
                         </label>
                     </div>
                 </div>
@@ -9173,14 +8636,29 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.55 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.56 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 11, 2026</div>
+                </div>
+
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛠 Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>draw.io Orthogonal Routing (<a href='https://github.com/Azure/odinforazurelocal/issues/94'>#94</a>):</strong> Switchless storage connectors now use L-shaped orthogonal routing with dedicated lanes per subnet instead of straight overlapping lines.</li>
+                        <li><strong>Canonical Switchless Port Layout:</strong> Switchless topologies force canonical port allocation ensuring correct mesh connectivity for all node counts.</li>
+                        <li><strong>Report-Only Export:</strong> draw.io download is now available exclusively on the Configuration Report page.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.55</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 11, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Mermaid Export for mermaid.live (<a href='https://github.com/Azure/odinforazurelocal/issues/94'>#94</a>):</strong> Fixed exported Mermaid code failing on mermaid.live because it was wrapped in markdown code fences. Added separate "Copy for Mermaid.live" button that copies raw diagram code.</li>
+                        <li><strong>Diagram Export for draw.io (<a href='https://github.com/Azure/odinforazurelocal/issues/94'>#94</a>):</strong> Replaced Mermaid export with draw.io format for higher-quality, editable network topology diagrams.</li>
                     </ul>
                 </div>
 
@@ -9190,7 +8668,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>NIC Mapping to Intent (#88):</strong> Fixed adapter-to-intent assignment ignoring RDMA status on Low Capacity scale. Non-RDMA ports are now correctly preferred for Management + Compute across all scales, keeping RDMA ports available for Storage.</li>
                         <li><strong>Safari Drag-and-Drop (#88):</strong> Fixed adapter mapping "flip-flop" on Safari where a click event fired after drag-and-drop, causing the click-to-swap fallback to unintentionally reverse the user's drag operation.</li>
@@ -9198,10 +8676,10 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Mobile-Responsive Navigation (#87):</strong> Nav bar collapses to icon-only on mobile portrait (≤768px). Onboarding card is now scrollable with the "Next" button always reachable on small screens.</li>
-                        <li><strong>Mermaid Diagram Export (#86):</strong> Copy or download the network topology diagram as portable Mermaid markup with intent-grouped adapter subgraphs and switchless storage subnet connections with CIDR labels.</li>
+                        <li><strong>Mobile-Responsive Navigation (#87):</strong> Nav bar collapses to icon-only on mobile portrait (â‰¤768px). Onboarding card is now scrollable with the "Next" button always reachable on small screens.</li>
+                        <li><strong>draw.io Diagram Export (#86):</strong> Download the network topology diagram as an editable draw.io file with intent-grouped adapter layouts, switchless storage subnet connections, and color-coded RDMA ports.</li>
                         <li><strong>Touch Device Support:</strong> Added tap-to-select fallback for adapter mapping on mobile Safari and other touch devices where HTML5 drag-and-drop is not supported.</li>
                         <li><strong>215 Unit Tests:</strong> Expanded test suite from 198 to 215 tests with regression coverage for NIC mapping fixes.</li>
                     </ul>
@@ -9213,7 +8691,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>ARM Storage Adapter Naming (#74):</strong> Fixed ARM template where both StorageNetwork1 and StorageNetwork2 incorrectly used the same adapter name (SMB1). StorageNetwork2 now correctly references the second adapter.</li>
                         <li><strong>VLAN ID Defaults of Zero (#75):</strong> Fixed empty string and zero VLAN values being treated as valid, which produced invalid VLAN ID 0. Proper defaults (711/712) are now applied.</li>
@@ -9226,12 +8704,12 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Port Name Consistency:</strong> ARM parameter file adapter names now match the wizard's port display names (e.g., Port 1, Port 2) instead of generic NIC1/SMB1 prefixes.</li>
                         <li><strong>Configuration Summary Labels:</strong> The sidebar Configuration Summary now shows custom port names instead of generic "NIC X" labels.</li>
                         <li><strong>DNS Validation Gating:</strong> DNS server validation now blocks report and ARM generation instead of only showing a warning.</li>
-                        <li><strong>Shared Navigation Bar:</strong> Centralized nav bar into a shared <code>js/nav.js</code> component used by all pages, with a new 💡 Feedback link to GitHub Issues.</li>
+                        <li><strong>Shared Navigation Bar:</strong> Centralized nav bar into a shared <code>js/nav.js</code> component used by all pages, with a new ðŸ’¡ Feedback link to GitHub Issues.</li>
                         <li><strong>Sizer Disclaimer:</strong> Added development status notice on the Sizer page.</li>
                         <li><strong>CI Pipeline Hardening:</strong> ESLint, unit tests, and HTML validation CI jobs now block pull request merges on failure.</li>
                         <li><strong>198 Unit Tests:</strong> Expanded test suite from 136 to 198 tests with regression coverage for all bug fixes.</li>
@@ -9244,9 +8722,9 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 New Features & Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ New Features & Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Markdown Report Export:</strong> New "Download Markdown" button on the Configuration Report page — export your full report as a <code>.md</code> file with embedded network diagrams for documentation, wikis, or version control.</li>
+                        <li><strong>Markdown Report Export:</strong> New "Download Markdown" button on the Configuration Report page â€” export your full report as a <code>.md</code> file with embedded network diagrams for documentation, wikis, or version control.</li>
                         <li><strong>Custom Intent Diagram Grouping:</strong> Fixed network diagram to properly group adapters by intent when using custom intent configurations.</li>
                         <li><strong>Non-Contiguous Port Support:</strong> When ports from different slots are assigned to the same intent, they are now displayed adjacent to each other in the diagram.</li>
                         <li><strong>Duplicate Adapter Name Validation:</strong> Prevents duplicate adapter names in port configuration with visual feedback (red border, warning label) and blocks report generation until resolved.</li>
@@ -9259,7 +8737,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🚀 Automated Build Pipeline</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸš€ Automated Build Pipeline</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>GitHub Actions CI/CD:</strong> Automated build validation pipeline runs on every push and pull request.</li>
                         <li><strong>ESLint Integration:</strong> JavaScript code quality checks with comprehensive linting rules.</li>
@@ -9280,7 +8758,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛠️ Codebase Optimization & Modularization</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› ï¸ Codebase Optimization & Modularization</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Project Reorganized:</strong> Cleaner folder structure with dedicated directories for ARM, Report, CSS, Images, JS modules, Tests, and Scripts.</li>
                         <li><strong>Phase 2A Modularization:</strong> Extracted formatting, validation, and DNS functions into dedicated JavaScript modules for better maintainability.</li>
@@ -9296,7 +8774,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Template Import Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› ARM Template Import Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Adapter Names Preserved:</strong> Importing ARM templates now preserves adapter names (NIC1, NIC2, SMB1, SMB2, etc.) from the template.</li>
                         <li><strong>Single-Node Diagram:</strong> Fixed host networking diagram display for single-node deployments.</li>
@@ -9310,7 +8788,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📥 ARM Import & Theme Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ“¥ ARM Import & Theme Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Private Endpoints Import:</strong> ARM import dialog now asks about Private Endpoints usage - select Yes to specify which Azure services have Private Link configured.</li>
                         <li><strong>Rack-Aware Node Validation:</strong> Rack-Aware clusters now only allow 2, 4, 6, or 8 nodes (even numbers for balanced rack distribution).</li>
@@ -9327,7 +8805,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🌙 Theme Toggle & Sizer Preview</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸŒ™ Theme Toggle & Sizer Preview</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Sizer Preview Badge:</strong> "Preview" badge now appears on the Sizer tab button in the navigation bar.</li>
                         <li><strong>Theme Toggle in Nav:</strong> Light/Dark mode toggle added to the navigation bar for easy access on all pages.</li>
@@ -9343,7 +8821,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧭 Tab Navigation System</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ§­ Tab Navigation System</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Top Navigation Bar:</strong> New fixed navigation with ODIN branding and tabs for Designer, Knowledge, and Sizer sections.</li>
                         <li><strong>ODIN Designer:</strong> The existing wizard is now accessible via the Designer tab (default view).</li>
@@ -9359,7 +8837,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📡 Outbound Connectivity Guide</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ“¡ Outbound Connectivity Guide</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Architecture Documentation:</strong> Comprehensive guide for Public Path vs Private Path (ExpressRoute) scenarios.</li>
                         <li><strong>Private Endpoints Selection:</strong> New wizard step for selecting Azure services that use Private Link.</li>
@@ -9373,7 +8851,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Switchless Storage IPs by Adapter</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ Switchless Storage IPs by Adapter</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>ARM Template Alignment:</strong> Switchless storage adapter IPs now display grouped by SMB adapter (SMB1, SMB2, etc.) matching the ARM template structure.</li>
                         <li><strong>Node-to-IP Mapping:</strong> Each adapter shows which node gets which IP, consistent with the generated ARM parameters.</li>
@@ -9387,7 +8865,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Switchless Storage Adapter IPs</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ Switchless Storage Adapter IPs</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Switchless Support:</strong> Configuration Report now displays storage adapter IPs for switchless storage when Auto IP is disabled.</li>
                         <li><strong>Subnet-Based Display:</strong> Shows each switchless subnet with its two assigned IPs (one per connected node pair).</li>
@@ -9400,7 +8878,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Auto IP Storage Display Correction</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ Auto IP Storage Display Correction</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Auto IP Subnet Only:</strong> When Storage Auto IP is enabled, report now shows only the subnet (10.71.0.0/16) since IPs are assigned automatically by Network ATC.</li>
                         <li><strong>Custom Subnets Unchanged:</strong> Storage adapter IPs continue to display when Auto IP is disabled (user-defined subnets).</li>
@@ -9413,7 +8891,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Storage Adapter IPs for Auto IP Enabled</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ Storage Adapter IPs for Auto IP Enabled</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Auto IP Storage IPs:</strong> Configuration Report now shows default Network ATC storage adapter IPs (10.71.x.x) when Storage Auto IP is enabled.</li>
                         <li><strong>Both Scenarios Covered:</strong> Storage adapter IPs now display for both Auto IP enabled and disabled configurations.</li>
@@ -9427,7 +8905,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 IP Address Display in Report (Issue #11)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ IP Address Display in Report (Issue #11)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Node Infrastructure IPs:</strong> Configuration Report now shows each node's name and IP address in the Infrastructure Network section.</li>
                         <li><strong>Storage Adapter IPs:</strong> When Storage Auto IP is disabled, report displays calculated storage adapter IPs for each node per subnet.</li>
@@ -9441,7 +8919,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Storage Intent Subnet Display (Issue #9)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ Storage Intent Subnet Display (Issue #9)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Storage Subnets in Report:</strong> Configuration Report now displays storage intent subnet information.</li>
                         <li><strong>Auto IP Enabled:</strong> Shows default Network ATC subnet (10.71.0.0/16) when Storage Auto IP is enabled.</li>
@@ -9455,7 +8933,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Configuration Report Security Details (Issue #7)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ Configuration Report Security Details (Issue #7)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Security Details Display:</strong> Configuration Report now shows all security configuration details when using customized security settings.</li>
                         <li><strong>Fixed Property Names:</strong> Corrected property name mismatches between wizard state and report rendering.</li>
@@ -9469,7 +8947,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Single-Node Storage Intent Support (Issue #100)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ Single-Node Storage Intent Support (Issue #100)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Storage Intent for Single-Node:</strong> Single-node (1-node) clusters can now configure storage intent with all options available.</li>
                         <li><strong>All Intents Available:</strong> All Traffic, Mgmt + Compute, Compute + Storage, and Custom intents now work for single-node.</li>
@@ -9484,7 +8962,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📝 Auto-Populate Storage Subnets (Issue #95)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ“ Auto-Populate Storage Subnets (Issue #95)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Storage Subnet Auto-Fill:</strong> Entering the first storage subnet automatically populates remaining fields by incrementing the 3rd octet.</li>
                         <li><strong>Smart Population:</strong> Only empty fields are auto-filled; existing values are preserved.</li>
@@ -9497,7 +8975,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚙️ SDN Configuration Redesign (Step 18)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âš™ï¸ SDN Configuration Redesign (Step 18)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Enable/Disable Selection:</strong> Step 18 now starts with a clear Yes/No choice for enabling SDN.</li>
                         <li><strong>Conditional Features:</strong> SDN feature cards (LNET, NSG, VNET, SLB) only appear when SDN is enabled.</li>
@@ -9512,7 +8990,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📥 ARM Template Import Options (Issue #90)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ“¥ ARM Template Import Options (Issue #90)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Import Options Dialog:</strong> When importing ARM templates, a dialog now prompts for settings not included in ARM templates.</li>
                         <li><strong>Arc Gateway:</strong> Specify if the deployment uses Arc Gateway for secure connectivity.</li>
@@ -9527,7 +9005,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 ARM Parameters Pre-Population (Issue #85, #86)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› ARM Parameters Pre-Population (Issue #85, #86)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>OU Path Auto-Population:</strong> The OU Path field is now pre-filled with the value from the wizard. If already provided, the input field is hidden.</li>
                         <li><strong>Cluster Name Loading:</strong> The Cluster Name field is now properly loaded when navigating to the ARM Parameters page.</li>
@@ -9542,7 +9020,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ ARM Placeholder Input Enhancement</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ ARM Placeholder Input Enhancement</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Complete Placeholder Form:</strong> Users can now input all ARM template placeholder values directly on the ARM page.</li>
                         <li><strong>Organized Sections:</strong> Inputs grouped into Azure Context, Cluster Configuration, Azure Resources, and Arc Node Resource IDs.</li>
@@ -9557,7 +9035,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Required Badge Styling (Issue #76)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Required Badge Styling (Issue #76)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Badge-Style Labels:</strong> "Required" indicators for Cloud Witness and Storage Switched now use the same badge styling as "Recommended" badges.</li>
                     </ul>
@@ -9569,7 +9047,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Deploy to Azure UX Enhancement</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ Deploy to Azure UX Enhancement</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Step-by-Step Instructions:</strong> Added detailed guide on how to copy parameters to Azure Portal.</li>
                         <li><strong>Copy Parameters Button:</strong> New button copies JSON and scrolls to the parameters section with visual feedback.</li>
@@ -9582,11 +9060,11 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Enhancements (Issues #69, #70, #71)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ Enhancements (Issues #69, #70, #71)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Alphabetized Azure Regions:</strong> Commercial regions now displayed in alphabetical order for easier navigation.</li>
                         <li><strong>Low Capacity & Rack Aware Links:</strong> Added "Learn more" documentation links to cluster configuration options.</li>
-                        <li><strong>Knowledge Links:</strong> Added info icons (ℹ️) to Cloud Witness and Network Traffic Intents steps linking to Microsoft documentation.</li>
+                        <li><strong>Knowledge Links:</strong> Added info icons (â„¹ï¸) to Cloud Witness and Network Traffic Intents steps linking to Microsoft documentation.</li>
                     </ul>
                 </div>
 
@@ -9596,7 +9074,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fix (Issue #67)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fix (Issue #67)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Custom Adapter Mapping Fixed:</strong> ARM output and diagrams now correctly reflect user's custom adapter port assignments (e.g., Ports 2 & 4 for Storage instead of defaulting to Ports 3 & 4).</li>
                     </ul>
@@ -9608,7 +9086,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issues #64, #65)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fixes (Issues #64, #65)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>DNS Server Display Fixed:</strong> DNS servers now properly display after ARM template import or session resume.</li>
                     </ul>
@@ -9620,7 +9098,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issue #59)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fixes (Issue #59)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Template Loading Fixed:</strong> Example configurations now load all fields correctly (Ports, Traffic Intent, Outbound).</li>
                         <li><strong>Missing Sections Navigation:</strong> Clicking on missing section links now scrolls to the correct step.</li>
@@ -9633,7 +9111,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 UI Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸŽ¨ UI Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Page Statistics Repositioned:</strong> Moved Page Stats below header description for better visual flow.</li>
                         <li><strong>Renamed Label:</strong> Changed "Documents Generated" to "Designs Generated" for clarity.</li>
@@ -9647,7 +9125,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features (Issues #55, #56)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ New Features (Issues #55, #56)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Missing Sections Display:</strong> Dynamic red-bordered container shows incomplete sections with clickable navigation links.</li>
                         <li><strong>Complete Example Templates:</strong> All 5 templates now include full configurations (network, DNS, nodes, ports).</li>
@@ -9661,13 +9139,13 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Custom Storage Subnets (Issue #50):</strong> Switchless diagram legends now display custom subnet CIDRs when Storage Auto IP is disabled.</li>
                         <li><strong>RDMA Tooltip:</strong> Clarified hardware requirement applies to multi-node clusters only.</li>
                         <li><strong>Code Cleanup:</strong> Simplified redundant null checks per Copilot review.</li>
                     </ul>
-                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">✨ Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">âœ¨ Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>MLAG Peer Links:</strong> Added visual MLAG links between ToR switches in Storage Switched diagram.</li>
                     </ul>
@@ -9679,7 +9157,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes (Issue #48)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fixes (Issue #48)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Compare Options Popup:</strong> Fixed styling - added max-height with scrolling, visible close button with hover effect, and sticky header.</li>
                         <li><strong>ToR Switch Logic:</strong> Fixed conditional logic so 1-3 node Hyperconverged clusters can choose Single or Dual ToR, while 4+ nodes correctly restrict to Dual only.</li>
@@ -9692,7 +9170,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features (Issue #47)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ New Features (Issue #47)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>ToR Switch Options:</strong> Added Single/Dual ToR Switch selection for Storage Switched scenarios with Hyperconverged or Low Capacity clusters. Dual is required for 4+ node Hyperconverged clusters.</li>
                         <li><strong>Improved Storage Switched Diagram:</strong> Completely redesigned network diagram showing ToR switches at top, horizontal adapter layout, and uplink connections from adapters to switches.</li>
@@ -9706,7 +9184,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Features</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ Features</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Deploy to Azure Button:</strong> One-click deployment to Azure Portal with correct ARM template pre-loaded.</li>
                         <li><strong>Node Name Auto-Population:</strong> Auto-fill sequential node names from Node 1 pattern.</li>
@@ -9722,7 +9200,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 iOS Mobile Layout Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› iOS Mobile Layout Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Summary Panel Fixed:</strong> Configuration Summary no longer blocks the page on iOS - now properly stacks below wizard steps.</li>
                         <li><strong>Header Layout Fixed:</strong> Logo no longer overlaps title on mobile - displays above with proper sizing.</li>
@@ -9736,7 +9214,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📱 Mobile Browser Support</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ“± Mobile Browser Support</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Responsive Design:</strong> Full mobile and tablet support with optimized layouts for all screen sizes.</li>
                         <li><strong>Touch-Friendly:</strong> Larger touch targets, removed hover effects on touch devices, and added active states.</li>
@@ -9751,12 +9229,12 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ New Features</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ New Features</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Selected Option Checkmarks:</strong> Option cards now display a blue checkmark when selected for clear visual feedback.</li>
-                        <li><strong>Renamed Action Buttons:</strong> "Generate Report" → "📋 Generate Cluster Design Document", "Generate ARM" → "🚀 Generate Cluster ARM Deployment Files".</li>
+                        <li><strong>Renamed Action Buttons:</strong> "Generate Report" â†’ "ðŸ“‹ Generate Cluster Design Document", "Generate ARM" â†’ "ðŸš€ Generate Cluster ARM Deployment Files".</li>
                     </ul>
-                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Bug Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">ðŸ› Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Step Indicators:</strong> Fixed all 19 step indicators to correctly show completion status.</li>
                         <li><strong>Validation Fixes:</strong> Improved validation for Network Traffic Intents, Management Connectivity, Infrastructure Network, and Active Directory steps.</li>
@@ -9770,7 +9248,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Multi-Rack Message Visibility:</strong> Fixed issue where Multi-Rack option note remained visible after changing scenarios.</li>
                         <li><strong>RDMA Dropdown Auto-Disable:</strong> RDMA dropdown now auto-disables when NICs don't have RDMA enabled in Port Configuration.</li>
@@ -9784,7 +9262,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 Logo and Header Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸŽ¨ Logo and Header Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Updated Logo:</strong> New Odin logo with improved design and proper aspect ratio.</li>
                         <li><strong>Theme-Aware Logo:</strong> Logo automatically switches between dark and light variants when toggling theme.</li>
@@ -9800,7 +9278,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Professional UX Enhancements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ Professional UX Enhancements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Configuration Preview:</strong> New preview button shows complete configuration summary before generating outputs.</li>
                         <li><strong>Breadcrumb Navigation:</strong> Clickable step indicators at the top for quick navigation between sections.</li>
@@ -9817,9 +9295,9 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ› Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Scale Option Names:</strong> Renamed Step 04 options for clarity: "Low Capacity" → "Hyperconverged Low Capacity", "Standard" → "Hyperconverged", "Rack Aware" → "Hyperconverged Rack Aware".</li>
+                        <li><strong>Scale Option Names:</strong> Renamed Step 04 options for clarity: "Low Capacity" â†’ "Hyperconverged Low Capacity", "Standard" â†’ "Hyperconverged", "Rack Aware" â†’ "Hyperconverged Rack Aware".</li>
                         <li><strong>AD-Less Initial State:</strong> Fixed AD-Less option showing enabled on page load before infra IP is configured.</li>
                         <li><strong>M365 Local Warning:</strong> Fixed warning message persisting after selecting another deployment type.</li>
                     </ul>
@@ -9831,9 +9309,9 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📋 Example Configuration Templates</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ“‹ Example Configuration Templates</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Renamed Button & Modal:</strong> "Load Configuration Template" → "Load Example Configuration Template" for clarity.</li>
+                        <li><strong>Renamed Button & Modal:</strong> "Load Configuration Template" â†’ "Load Example Configuration Template" for clarity.</li>
                         <li><strong>Complete Templates:</strong> All 5 templates now include ALL required wizard settings (witnessType, proxy, securityConfiguration, activeDirectory).</li>
                         <li><strong>Fixed Disconnected Template:</strong> Now correctly uses local_identity and NoWitness for air-gapped scenarios.</li>
                         <li><strong>Improved Descriptions:</strong> Updated template descriptions to be more informative about use cases.</li>
@@ -9846,7 +9324,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📋 Updates & Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ“‹ Updates & Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Disclaimer Notice:</strong> Added disclaimer informing users this tool is provided as-is without Microsoft support.</li>
                         <li><strong>Updated Description:</strong> Streamlined the main description text.</li>
@@ -9860,7 +9338,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🚀 ARM Parameters - Deployment Automation</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸš€ ARM Parameters - Deployment Automation</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Deployment Script Generation:</strong> Generate PowerShell and Azure CLI deployment scripts with one click.</li>
                         <li><strong>Parameter Input Fields:</strong> Editable fields for Subscription ID, Resource Group, and Deployment Name.</li>
@@ -9875,17 +9353,17 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 User Experience Enhancements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸŽ¨ User Experience Enhancements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Font Size Controls:</strong> Adjust text size with A+ and A- buttons (4 size options: small, medium, large, x-large).</li>
                         <li><strong>Dark/Light Theme Toggle:</strong> Switch between dark and light themes instantly.</li>
-                        <li><strong>Step Progress Indicators:</strong> Green checkmarks (✓) show completed configuration steps.</li>
+                        <li><strong>Step Progress Indicators:</strong> Green checkmarks (âœ“) show completed configuration steps.</li>
                         <li><strong>Configuration Templates:</strong> 5 pre-built templates for common deployment scenarios.</li>
                     </ul>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📚 Documentation & Branding</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ“š Documentation & Branding</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Tool Rebranding:</strong> Now called "Odin for Azure Local" (Optimal Deployment and Infrastructure Navigator).</li>
                         <li><strong>Firewall Requirements Link:</strong> Direct access to firewall and endpoint documentation in Outbound Connectivity step.</li>
@@ -9894,14 +9372,14 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--success); margin: 0 0 12px 0;">🔧 Fixes & Improvements</h4>
+                    <h4 style="color: var(--success); margin: 0 0 12px 0;">ðŸ”§ Fixes & Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Rack Aware Restriction:</strong> Local Identity option is now properly disabled for Rack Aware deployments.</li>
                     </ul>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-blue); margin: 0 0 12px 0;">📋 Configuration Templates Included</h4>
+                    <h4 style="color: var(--accent-blue); margin: 0 0 12px 0;">ðŸ“‹ Configuration Templates Included</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li>2-Node Standard Cluster (small production with cloud witness)</li>
                         <li>4-Node High Performance (medium cluster with dedicated storage)</li>
@@ -9921,7 +9399,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎉 Major Enhancements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸŽ‰ Major Enhancements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Auto-Save & Resume:</strong> Your progress is automatically saved. Return anytime and pick up where you left off.</li>
                         <li><strong>Export/Import Configuration:</strong> Save your configuration as JSON and share it with your team or restore it later.</li>
@@ -9930,7 +9408,7 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ User Experience</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">âœ¨ User Experience</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Real-time Validation:</strong> Instant feedback on input fields with helpful error messages.</li>
                         <li><strong>Contextual Help:</strong> Click help icons throughout for detailed explanations.</li>
@@ -9940,7 +9418,7 @@ function showChangelog() {
                 </div>
 
                 <div>
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Technical Improvements</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">ðŸ”§ Technical Improvements</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Enhanced Input Sanitization:</strong> Improved security for all user inputs.</li>
                         <li><strong>Version Tracking:</strong> All exports and saves include version information.</li>
@@ -9952,7 +9430,7 @@ function showChangelog() {
 
             <div style="margin-top: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; text-align: center;">
                 <div style="font-size: 14px; color: var(--accent-blue); margin-bottom: 8px;">Need Help?</div>
-                <a href="https://github.com/Azure/AzureLocal-Supportability" target="_blank" style="color: var(--accent-blue); text-decoration: none; font-weight: 600;">View Documentation →</a>
+                <a href="https://github.com/Azure/AzureLocal-Supportability" target="_blank" style="color: var(--accent-blue); text-decoration: none; font-weight: 600;">View Documentation â†’</a>
             </div>
         </div>
     `;
@@ -10016,14 +9494,14 @@ function showComparison(category) {
             title: 'Outbound Connectivity Comparison',
             options: [
                 {
-                    name: '🌐 Public Path',
+                    name: 'ðŸŒ Public Path',
                     pros: ['Simpler initial setup', 'Lower cost (no ExpressRoute/VPN required)', 'Uses existing on-premises proxy/firewall infrastructure', 'Multiple configuration options (4 scenarios)'],
                     cons: ['Requires public internet egress', 'Traffic routes through public endpoints', 'More firewall rules if not using Arc Gateway'],
                     useCases: ['Standard deployments with reliable internet', 'Existing on-premises proxy/firewall infrastructure', 'Cost-sensitive environments', 'Public internet egress acceptable per security policy'],
                     recommended: 'For most deployments with internet connectivity'
                 },
                 {
-                    name: '🔐 Private Path (ExpressRoute)',
+                    name: 'ðŸ” Private Path (ExpressRoute)',
                     pros: ['Zero public internet exposure', 'Traffic stays on private network', 'Azure Firewall provides centralized security', 'Highest security posture', 'Compliance-friendly for regulated industries'],
                     cons: ['Higher cost (ExpressRoute + Azure Firewall)', 'More complex initial setup', 'Requires Arc Gateway + Azure Firewall Explicit Proxy', 'ExpressRoute or Site-to-Site VPN required'],
                     useCases: ['Zero public internet exposure required', 'Government, healthcare, financial industries', 'Existing ExpressRoute or Site-to-Site VPN', 'Regulatory/compliance requirements mandate private connectivity'],
@@ -10079,28 +9557,28 @@ function showComparison(category) {
                 <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">${escapeHtml(option.name)}</h4>
 
                 <div style="margin-bottom: 12px;">
-                    <strong style="color: #10b981;">✓ Pros:</strong>
+                    <strong style="color: #10b981;">âœ“ Pros:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.pros.map(pro => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(pro)}</li>`).join('')}
                     </ul>
                 </div>
 
                 <div style="margin-bottom: 12px;">
-                    <strong style="color: #ef4444;">✗ Cons:</strong>
+                    <strong style="color: #ef4444;">âœ— Cons:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.cons.map(con => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(con)}</li>`).join('')}
                     </ul>
                 </div>
 
                 <div style="margin-bottom: 12px;">
-                    <strong style="color: var(--accent-blue);">📌 Use Cases:</strong>
+                    <strong style="color: var(--accent-blue);">ðŸ“Œ Use Cases:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.useCases.map(uc => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(uc)}</li>`).join('')}
                     </ul>
                 </div>
 
                 <div style="padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; color: var(--accent-blue); font-size: 13px;">
-                    <strong>💡 Recommended:</strong> ${escapeHtml(option.recommended)}
+                    <strong>ðŸ’¡ Recommended:</strong> ${escapeHtml(option.recommended)}
                 </div>
             </div>
         `;
@@ -10357,7 +9835,7 @@ function showTemplates() {
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: var(--accent-blue);">📋 Example Configuration Templates</h3>
+                <h3 style="margin: 0; color: var(--accent-blue);">ðŸ“‹ Example Configuration Templates</h3>
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
             </div>
 
@@ -10487,7 +9965,7 @@ function loadTemplate(templateIndex) {
     }
 
     // Show success message
-    showNotification('✅ Template loaded successfully!', 'success');
+    showNotification('âœ… Template loaded successfully!', 'success');
 
     // Save state
     saveStateToLocalStorage();
@@ -10773,7 +10251,7 @@ function showShortcutsHelp() {
     overlay.innerHTML = `
         <div class="preview-content" style="max-width: 500px;">
             <div class="preview-header">
-                <h2>⌨️ Keyboard Shortcuts</h2>
+                <h2>âŒ¨ï¸ Keyboard Shortcuts</h2>
                 <button class="preview-close" data-action="close-modal">&times;</button>
             </div>
             <div class="preview-body">
@@ -10880,12 +10358,12 @@ function exportToPDF() {
         <h1>Odin for Azure Local</h1>
         <p>Configuration Summary - Generated ${new Date().toLocaleString()}</p>
         <div class="status ${readiness.ready ? 'ready' : 'incomplete'}">
-            ${readiness.ready ? '✓ Configuration Complete' : `⚠ ${readiness.missing.length} items need attention`}
+            ${readiness.ready ? 'âœ“ Configuration Complete' : `âš  ${readiness.missing.length} items need attention`}
         </div>
     </div>
 
     <div class="section">
-        <div class="section-title">🏢 Deployment Configuration</div>
+        <div class="section-title">ðŸ¢ Deployment Configuration</div>
         <div class="grid">
             <div class="item"><div class="item-label">Deployment Type</div><div class="item-value">${getDisplayName('scenario', state.scenario)}</div></div>
             <div class="item"><div class="item-label">Azure Cloud</div><div class="item-value">${getDisplayName('region', state.region)}</div></div>
@@ -10895,7 +10373,7 @@ function exportToPDF() {
     </div>
 
     <div class="section">
-        <div class="section-title">🖥️ Cluster Configuration</div>
+        <div class="section-title">ðŸ–¥ï¸ Cluster Configuration</div>
         <div class="grid">
             <div class="item"><div class="item-label">Node Count</div><div class="item-value">${state.nodes || 'Not configured'}</div></div>
             <div class="item"><div class="item-label">Witness Type</div><div class="item-value">${getDisplayName('witnessType', state.witnessType)}</div></div>
@@ -10905,7 +10383,7 @@ function exportToPDF() {
     </div>
 
     <div class="section">
-        <div class="section-title">🌐 Network Configuration</div>
+        <div class="section-title">ðŸŒ Network Configuration</div>
         <div class="grid">
             <div class="item"><div class="item-label">IP Assignment</div><div class="item-value">${getDisplayName('ip', state.ip)}</div></div>
             <div class="item"><div class="item-label">Infrastructure CIDR</div><div class="item-value">${state.infraCidr || 'Not configured'}</div></div>
@@ -10917,7 +10395,7 @@ function exportToPDF() {
     </div>
 
     <div class="section">
-        <div class="section-title">🔐 Identity & Security</div>
+        <div class="section-title">ðŸ” Identity & Security</div>
         <div class="grid">
             <div class="item"><div class="item-label">Identity Provider</div><div class="item-value">${getDisplayName('activeDirectory', state.activeDirectory)}</div></div>
             <div class="item"><div class="item-label">AD Domain</div><div class="item-value">${state.adDomain || 'Not configured'}</div></div>
@@ -10928,7 +10406,7 @@ function exportToPDF() {
 
     ${state.nodeSettings && state.nodeSettings.length > 0 ? `
     <div class="section">
-        <div class="section-title">📝 Node Settings</div>
+        <div class="section-title">ðŸ“ Node Settings</div>
         <table>
             <thead>
                 <tr><th>Node</th><th>Name</th><th>IP Address</th></tr>
@@ -10946,7 +10424,7 @@ function exportToPDF() {
 
     ${!readiness.ready ? `
     <div class="section">
-        <div class="section-title" style="color: #dc3545;">⚠️ Missing Configuration</div>
+        <div class="section-title" style="color: #dc3545;">âš ï¸ Missing Configuration</div>
         <ul style="padding-left: 20px;">
             ${readiness.missing.map(item => item.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')).map(item => `<li>${item}</li>`).join('')}
         </ul>
@@ -10985,32 +10463,32 @@ const onboardingSteps = [
         title: 'Welcome to Odin for Azure Local',
         description: 'Your intelligent guide for planning Azure Local deployments. This wizard helps you make informed decisions and generates deployment-ready configurations.',
         features: [
-            { icon: '🧭', title: 'Guided Workflow', text: 'Step-by-step configuration with intelligent defaults' },
-            { icon: '💾', title: 'Auto-Save', text: 'Progress is automatically saved to your browser' },
-            { icon: '📊', title: 'Visual Reports', text: 'Generate detailed deployment reports and diagrams' },
-            { icon: '⚡', title: 'ARM Templates', text: 'Export Azure Resource Manager parameters' }
+            { icon: 'ðŸ§­', title: 'Guided Workflow', text: 'Step-by-step configuration with intelligent defaults' },
+            { icon: 'ðŸ’¾', title: 'Auto-Save', text: 'Progress is automatically saved to your browser' },
+            { icon: 'ðŸ“Š', title: 'Visual Reports', text: 'Generate detailed deployment reports and diagrams' },
+            { icon: 'âš¡', title: 'ARM Templates', text: 'Export Azure Resource Manager parameters' }
         ]
     },
     {
-        icon: '🔧',
+        icon: 'ðŸ”§',
         title: 'How It Works',
         description: 'Follow the numbered steps on the left to configure your Azure Local deployment. The summary panel on the right shows your progress.',
         features: [
-            { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Select Hyperconverged, Disconnected, or other options' },
-            { icon: '2️⃣', title: 'Configure Cluster', text: 'Set up nodes, storage, and network settings' },
-            { icon: '3️⃣', title: 'Set Identity & Security', text: 'Configure AD, DNS, and security policies' },
-            { icon: '4️⃣', title: 'Generate Outputs', text: 'Create reports and ARM parameter files' }
+            { icon: '1ï¸âƒ£', title: 'Choose Deployment Type', text: 'Select Hyperconverged, Disconnected, or other options' },
+            { icon: '2ï¸âƒ£', title: 'Configure Cluster', text: 'Set up nodes, storage, and network settings' },
+            { icon: '3ï¸âƒ£', title: 'Set Identity & Security', text: 'Configure AD, DNS, and security policies' },
+            { icon: '4ï¸âƒ£', title: 'Generate Outputs', text: 'Create reports and ARM parameter files' }
         ]
     },
     {
-        icon: '⌨️',
+        icon: 'âŒ¨ï¸',
         title: 'Pro Tips',
         description: 'Make the most of Odin with these helpful features.',
         features: [
-            { icon: '📋', title: 'Templates', text: 'Load pre-configured templates for common scenarios' },
-            { icon: '🔄', title: 'Import/Export', text: 'Save and share configurations as JSON files' },
-            { icon: '🎨', title: 'Customization', text: 'Adjust font size and toggle dark/light theme' },
-            { icon: '⌨️', title: 'Shortcuts', text: 'Press Alt+? anytime to see keyboard shortcuts' }
+            { icon: 'ðŸ“‹', title: 'Templates', text: 'Load pre-configured templates for common scenarios' },
+            { icon: 'ðŸ”„', title: 'Import/Export', text: 'Save and share configurations as JSON files' },
+            { icon: 'ðŸŽ¨', title: 'Customization', text: 'Adjust font size and toggle dark/light theme' },
+            { icon: 'âŒ¨ï¸', title: 'Shortcuts', text: 'Press Alt+? anytime to see keyboard shortcuts' }
         ]
     }
 ];

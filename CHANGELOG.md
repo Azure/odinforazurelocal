@@ -7,15 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.56] - 2026-02-11
+
+### Fixed
+
+#### draw.io Diagram Enhancements (#94)
+
+- **Orthogonal Routing**: Switchless storage subnet connectors now use L-shaped orthogonal routing (down → horizontal lane → up) with dedicated lanes per subnet, instead of straight overlapping lines. Matches the ODIN SVG diagram visual style.
+- **Canonical Switchless Port Layout**: Switchless topologies now force canonical port allocation (2 management+compute ports + (n-1)×2 storage ports) regardless of user-configured port count, ensuring correct mesh edge connectivity for all node counts.
+- **Report-Only Export**: Removed draw.io export button and generation code from the main wizard page (`script.js`). The draw.io download is now available exclusively on the Configuration Report page (`report.js`).
+
+---
+
 ## [0.14.55] - 2026-02-11
 
 ### Fixed
 
-#### Mermaid Export for mermaid.live (#94)
+#### Diagram Export Replaced with draw.io (#94)
 
-- **Dual Copy Buttons**: The single "Copy Mermaid" button has been replaced with two separate buttons: "Copy for Markdown" (wraps diagram in ````mermaid` code fences for GitHub/wikis/docs) and "Copy for Mermaid.live" (copies raw Mermaid code that works directly in mermaid.live and other Mermaid renderers).
-- **Root Cause**: The exported Mermaid code was always wrapped in markdown code fences (`` ```mermaid ... ``` ``), which is correct for markdown files but causes mermaid.live to fail with `UnknownDiagramError` because it cannot parse the fence markers as diagram syntax.
-- **Both Main Tool & Report**: The fix applies to both the main configuration wizard's diagram export and the Configuration Report's host networking diagram export.
+- **Mermaid Removed, draw.io Added**: Replaced Mermaid export (which had rendering limitations with block-beta layout and no colored connectors) with draw.io format. Diagrams can now be downloaded as `.drawio` files and edited in draw.io / diagrams.net.
+- **Both Main Tool & Report**: The draw.io export applies to both the main configuration wizard's diagram export and the Configuration Report's host networking diagram export.
 
 ---
 
@@ -55,12 +66,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Onboarding Card Scrollability**: The welcome splash / onboarding card now has `max-height: 90vh` with `overflow-y: auto`, ensuring the "Next" button remains reachable on small screens.
 - **Touch-Friendly Buttons**: Onboarding navigation buttons now have `min-height: 44px` to meet mobile touch target guidelines.
 
-#### Mermaid Diagram Export (#86)
+#### draw.io Diagram Export (#86)
 
-- **Generate Mermaid Diagram**: New `generateMermaidDiagram()` function produces Mermaid flowchart markup from the current network configuration state, including intent-grouped adapter subgraphs ("Mgmt + Compute intent" / "Storage intent - RDMA"), switchless storage subnet connections with CIDR labels, AutoIP status, and rack-aware room groupings.
-- **Report Page Mermaid**: New `generateHostNetworkingMermaid()` on the report page produces the same intent-grouped Mermaid output with switchless subnet edges for 2/3/4-node topologies.
-- **Copy to Clipboard**: "📋 Copy Mermaid" button copies the diagram as a fenced Mermaid code block, ready to paste into GitHub issues, wikis, or documentation.
-- **Download as Markdown**: "⬇️ Download .md" button downloads the diagram as a Markdown file with embedded Mermaid code block.
+- **Generate draw.io Diagram**: New `generateDrawioDiagram()` function produces draw.io XML from the current network configuration state, including intent-grouped adapter layouts, switchless storage subnet connections with color-coded RDMA ports, and rack-aware groupings.
+- **Report Page draw.io**: New `generateHostNetworkingDrawio()` on the report page produces the same intent-grouped draw.io output with switchless subnet edges for 2/3/4-node topologies.
+- **Download as .drawio**: "⬇️ Download .drawio" button downloads the diagram as an editable draw.io file compatible with diagrams.net.
 
 ---
 
