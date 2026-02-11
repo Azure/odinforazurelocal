@@ -6263,6 +6263,9 @@ function renderDiagram() {
     }
     if (!isRackAware && n > 4) html += '<div style="text-align:center; font-size:0.7rem; color:var(--text-secondary); margin-top:0.5rem;">+ ' + (n - 4) + ' more nodes</div>';
 
+    container.innerHTML = html;
+}
+
 // NOTE: Formatting functions moved to js/formatting.js:
 // - getProxyLabel()
 // - formatScenario()
