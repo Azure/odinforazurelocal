@@ -69,7 +69,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### Prerequisites Checklist
 
-If you want to deploy physical hardware, before starting, ensure you have:
+If you want to deploy Azure Local on physical hardware, before starting, ensure you have:
 
 #### Hardware
 - ✅ Azure Local certified hardware (check [Microsoft Hardware Catalog](https://aka.ms/AzureStackHCICatalog))
