@@ -68,7 +68,7 @@
                 'Replace <your-keyvault-name> with your actual Key Vault name'
             ],
             docUrl: 'https://learn.microsoft.com/azure/key-vault/general/private-link-service',
-            icon: 'ðŸ”'
+            icon: '🔐'
         },
         'storage': {
             name: 'Azure Storage (Blob)',
@@ -84,7 +84,7 @@
                 'Public access may be required during initial deployment'
             ],
             docUrl: 'https://learn.microsoft.com/azure/storage/common/storage-private-endpoints',
-            icon: 'ðŸ’¾'
+            icon: '💾'
         },
         'acr': {
             name: 'Azure Container Registry',
@@ -100,7 +100,7 @@
                 'Data endpoint may also need bypass: <your-acr-name>.<region>.data.azurecr.io'
             ],
             docUrl: 'https://learn.microsoft.com/azure/container-registry/container-registry-private-link',
-            icon: 'ðŸ“¦'
+            icon: '📦'
         },
         'asr': {
             name: 'Azure Site Recovery',
@@ -116,7 +116,7 @@
                 'Replace <region> with your Azure region (e.g., eastus, westeurope)'
             ],
             docUrl: 'https://learn.microsoft.com/azure/site-recovery/azure-to-azure-how-to-enable-replication-private-endpoints',
-            icon: 'ðŸ”„'
+            icon: '🔄'
         },
         'backup': {
             name: 'Recovery Services Vault',
@@ -132,7 +132,7 @@
                 'Mars agent communication uses these endpoints'
             ],
             docUrl: 'https://learn.microsoft.com/azure/backup/private-endpoints',
-            icon: 'ðŸ—„ï¸'
+            icon: '🗄️'
         },
         'sql': {
             name: 'SQL Managed Instance',
@@ -148,7 +148,7 @@
                 'DNS resolution must point to private endpoint IP'
             ],
             docUrl: 'https://learn.microsoft.com/azure/azure-sql/managed-instance/private-endpoint-overview',
-            icon: 'ðŸ—ƒï¸'
+            icon: '🗃️'
         },
         'defender': {
             name: 'Microsoft Defender for Cloud',
@@ -164,7 +164,7 @@
                 'Consider Azure Monitor Private Link Scope for consolidated management'
             ],
             docUrl: 'https://learn.microsoft.com/azure/azure-monitor/logs/private-link-security',
-            icon: 'ðŸ›¡ï¸'
+            icon: '🛡️'
         }
     };
 
@@ -295,7 +295,7 @@
         opts = opts || {};
         var inlineCss = opts.inlineCss || '';
 
-        var title = document.title || 'Azure Local Design Assistant (ALDA) Tool â€” Report';
+        var title = document.title || 'Azure Local Design Assistant (ALDA) Tool — Report';
         var headParts = [];
         headParts.push('<meta charset="UTF-8">');
         headParts.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
@@ -338,7 +338,7 @@
         opts = opts || {};
         var inlineCss = opts.inlineCss || '';
         var bodyHtml = opts.bodyHtml || '';
-        var title = opts.title || (document.title || 'Azure Local Design Assistant (ALDA) Tool â€” Report');
+        var title = opts.title || (document.title || 'Azure Local Design Assistant (ALDA) Tool — Report');
 
         var headParts = [];
         headParts.push('<meta http-equiv="Content-Type" content="text/html; charset=utf-8">');
@@ -777,7 +777,7 @@
         // Show a tiny loading message for the on-screen report.
         if (!containerEl.__loadingSet) {
             containerEl.__loadingSet = true;
-            containerEl.innerHTML = '<div class="switchless-diagram__note">Loading Arc Gateway diagramâ€¦</div>';
+            containerEl.innerHTML = '<div class="switchless-diagram__note">Loading Arc Gateway diagram…</div>';
         }
 
         try {
@@ -931,7 +931,7 @@
     function svgTextToPngDataUrl(svgText) {
         return new Promise(function (resolve) {
             try {
-                // Strip XML prolog and DOCTYPE â€” these cause img.onerror when
+                // Strip XML prolog and DOCTYPE — these cause img.onerror when
                 // an SVG is loaded from a Blob URL in most browsers.
                 var cleaned = svgText
                     .replace(/<\?xml[^?]*\?>/gi, '')
@@ -1161,7 +1161,7 @@
             md.push('');
         }
 
-        // â”€â”€ Validation Summary â”€â”€
+        // ── Validation Summary ──
         var validations = computeValidations(s);
         var allChecks = validations.results || [];
         var passCount = allChecks.filter(function (x) { return x.passed; }).length;
@@ -1176,7 +1176,7 @@
             md.push('| Status | Check | Details |');
             md.push('|--------|-------|---------|');
             allChecks.forEach(function (v) {
-                var mark = v.passed ? 'âœ…' : 'âš ï¸';
+                var mark = v.passed ? '✅' : '⚠️';
                 var details = v.details ? v.details.replace(/\|/g, '\\|') : '';
                 var name = v.name ? v.name.replace(/\|/g, '\\|') : '';
                 md.push('| ' + mark + ' | ' + name + ' | ' + details + ' |');
@@ -1184,7 +1184,7 @@
             md.push('');
         }
 
-        // â”€â”€ Decisions & Rationale â”€â”€
+        // ── Decisions & Rationale ──
         md.push('## Decisions & Rationale');
         md.push('');
 
@@ -1480,7 +1480,7 @@
             // canvas when drawn from an <img> element.  The proven fix is to parse the
             // SVG into a DOM element and run it through svgElementToPngDataUrl() which
             // sanitises the tree (removes foreignObject, flattens <switch> to <image>
-            // fallbacks) before rasterising â€” the exact same path used for the host
+            // fallbacks) before rasterising — the exact same path used for the host
             // networking diagram.
             var outboundDiagKey = getOutboundDiagramKey(s);
             if (outboundDiagKey && OUTBOUND_DIAGRAMS[outboundDiagKey]) {
@@ -2858,14 +2858,14 @@
                     var adapterTopY = ap.y;
 
                     // Determine which ToR switch to connect to
-                    // For dual ToR: use position within intent group (first port â†’ ToR 1, second port â†’ ToR 2)
+                    // For dual ToR: use position within intent group (first port → ToR 1, second port → ToR 2)
                     // For single ToR: all connect to the single switch
                     var targetTorX;
                     if (torCount === 2) {
                         // Use posInGroup if available (adapter mapping), otherwise fall back to NIC index
                         var posInGroup = (ap.posInGroup !== undefined) ? ap.posInGroup : (ap.nicIdx - 1);
-                        // First port of each intent (posInGroup 0, 2, 4...) â†’ ToR 1
-                        // Second port of each intent (posInGroup 1, 3, 5...) â†’ ToR 2
+                        // First port of each intent (posInGroup 0, 2, 4...) → ToR 1
+                        // Second port of each intent (posInGroup 1, 3, 5...) → ToR 2
                         targetTorX = (posInGroup % 2 === 0) ? (tor1X + torSwitchW / 2) : (tor2X + torSwitchW / 2);
                     } else {
                         targetTorX = tor1X + torSwitchW / 2;
@@ -2900,8 +2900,8 @@
 
             // Title text
             var titleText = isSingleNode 
-                ? 'Single-node network connectivity â€” ' + escapeHtml(autoIpLabel(state.storageAutoIp))
-                : 'Storage Switched connectivity â€” Switchless=false, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + (nAll > 2 ? (' â€” Total nodes: ' + escapeHtml(String(nAll))) : '');
+                ? 'Single-node network connectivity — ' + escapeHtml(autoIpLabel(state.storageAutoIp))
+                : 'Storage Switched connectivity — Switchless=false, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + (nAll > 2 ? (' — Total nodes: ' + escapeHtml(String(nAll))) : '');
             svg += '<text x="' + (svgW / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">' + titleText + '</text>';
 
             // Render ToR switches
@@ -3021,10 +3021,10 @@
             }
 
             function titleForArch(a) {
-                if (a === 'option_a') return 'Option A â€” Dedicated storage links';
-                if (a === 'option_b') return 'Option B â€” Aggregated storage links';
-                if (a === 'option_c') return 'Option C â€” Single TOR per room';
-                if (a === 'option_d') return 'Option D â€” Cross-room node connectivity';
+                if (a === 'option_a') return 'Option A — Dedicated storage links';
+                if (a === 'option_b') return 'Option B — Aggregated storage links';
+                if (a === 'option_c') return 'Option C — Single TOR per room';
+                if (a === 'option_d') return 'Option D — Cross-room node connectivity';
                 return 'Rack Aware TOR architecture';
             }
 
@@ -3700,13 +3700,13 @@
 
                 var y1 = linkYBase;
                 var y2 = linkYBase - 18;
-                // Inter-room SMB trunks (TORâ†”TOR) should use the SMB accent (purple), while keeping dotted style.
+                // Inter-room SMB trunks (TOR↔TOR) should use the SMB accent (purple), while keeping dotted style.
                 var smbTrunkStroke = 'var(--accent-purple)';
                 var smbTrunkOpacity = 0.55;
                 var smbTrunkDash = '1 7';
 
                 function insideTorTopX(torX, dir) {
-                    // Nudge toward the diagram interior to avoid overlapping the TORâ†’Switch/Router anchor at top-center.
+                    // Nudge toward the diagram interior to avoid overlapping the TOR→Switch/Router anchor at top-center.
                     // dir: +1 (nudge right), -1 (nudge left)
                     var nudge = 12;
                     var x = torX + Math.floor(torW / 2) + (dir * nudge);
@@ -3717,17 +3717,17 @@
                     return x;
                 }
 
-                // SMB1 trunk: TOR-1 â†” TOR-3 (connect to TOR top edge)
+                // SMB1 trunk: TOR-1 ↔ TOR-3 (connect to TOR top edge)
                 var a1x = insideTorTopX(room1TorXs[0], +1);
                 var b1x = insideTorTopX(room2TorXs[0], -1);
                 svg += '<path d="M ' + a1x + ' ' + torY + ' L ' + a1x + ' ' + y1 + ' L ' + b1x + ' ' + y1 + ' L ' + b1x + ' ' + torY + '" stroke="' + smbTrunkStroke + '" stroke-opacity="' + smbTrunkOpacity + '" stroke-width="2" stroke-dasharray="' + smbTrunkDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
-                svg += label((a1x + b1x) / 2, y1 - 6, 'SMB1 trunk (TOR-1 â†” TOR-3) â€” VLAN 711', 'var(--text-secondary)', 11, '400');
+                svg += label((a1x + b1x) / 2, y1 - 6, 'SMB1 trunk (TOR-1 ↔ TOR-3) — VLAN 711', 'var(--text-secondary)', 11, '400');
 
-                // SMB2 trunk: TOR-2 â†” TOR-4 (connect to TOR top edge)
+                // SMB2 trunk: TOR-2 ↔ TOR-4 (connect to TOR top edge)
                 var a2x = insideTorTopX(room1TorXs[1], +1);
                 var b2x = insideTorTopX(room2TorXs[1], -1);
                 svg += '<path d="M ' + a2x + ' ' + torY + ' L ' + a2x + ' ' + y2 + ' L ' + b2x + ' ' + y2 + ' L ' + b2x + ' ' + torY + '" stroke="' + smbTrunkStroke + '" stroke-opacity="' + smbTrunkOpacity + '" stroke-width="2" stroke-dasharray="' + smbTrunkDash + '" stroke-linecap="round" stroke-linejoin="round" fill="none" />';
-                svg += label((a2x + b2x) / 2, y2 - 6, 'SMB2 trunk (TOR-2 â†” TOR-4) â€” VLAN 712', 'var(--text-secondary)', 11, '400');
+                svg += label((a2x + b2x) / 2, y2 - 6, 'SMB2 trunk (TOR-2 ↔ TOR-4) — VLAN 712', 'var(--text-secondary)', 11, '400');
             } else if (arch === 'option_b' && torCountPerRoom === 2) {
                 // Option B: Aggregated storage links.
                 // Add the upstream Switch/Router and Mgmt/Compute trunks (same visual style as Option A).
@@ -3774,7 +3774,7 @@
                 var smbDashB = '1 7';
 
                 function insideTorTopXb(torX, dir) {
-                    // Nudge toward the diagram interior so anchors don't overlap TORâ†’Switch/Router (top-center).
+                    // Nudge toward the diagram interior so anchors don't overlap TOR→Switch/Router (top-center).
                     var nudge = 12;
                     var x = torX + Math.floor(torW / 2) + (dir * nudge);
                     var minX = torX + 8;
@@ -3856,7 +3856,7 @@
 
             var n = parseInt(state.nodes, 10);
             if (isNaN(n) || n < 2 || n > 4) {
-                return '<div style="color:var(--text-secondary);">Diagram is available for 2â€“4 node switchless scenarios only.</div>';
+                return '<div style="color:var(--text-secondary);">Diagram is available for 2–4 node switchless scenarios only.</div>';
             }
 
             var REF_3NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-two-links?view=azloc-2511';
@@ -3959,14 +3959,14 @@
 
                 var intro2 = ''
                     + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
-                    + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) â€” storage connectivity only.'
+                    + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only.'
                     + '<br>'
-                    + '2-node switchless uses <strong style="color:var(--text-primary);">2 RDMA storage ports per node</strong> (commonly named SMB1â€“SMB2), and uses <strong style="color:var(--text-primary);">two storage subnets</strong> between the pair.'
+                    + '2-node switchless uses <strong style="color:var(--text-primary);">2 RDMA storage ports per node</strong> (commonly named SMB1–SMB2), and uses <strong style="color:var(--text-primary);">two storage subnets</strong> between the pair.'
                     + '</div>';
 
                 var edges2 = [
-                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1â†”Node2', lane: 0 },
-                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1â†”Node2', lane: 1 }
+                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
+                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 }
                 ];
 
                 function pathBetween2Clean(a, b, busY, midX) {
@@ -3981,7 +3981,7 @@
                 svg2 += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW2 + ' ' + svgH2 + '" role="img" aria-label="2-node switchless storage connectivity diagram">';
 
                 svg2 += '<rect x="35" y="55" width="' + (svgW2 - 70) + '" height="' + (svgH2 - 90) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
-                svg2 += '<text x="' + (svgW2 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent â€” Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
+                svg2 += '<text x="' + (svgW2 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
                 for (var i2 = 0; i2 < 2; i2++) {
                     var x2 = nodeX2[i2];
@@ -4035,14 +4035,14 @@
                     + [1, 2].map(function (num) {
                         var edge = edges2.filter(function (e) { return e.subnet === num; })[0];
                         var pair = edge ? edge.pair : '';
-                        var ex = subnetExamples2[num] ? (' â€” ' + subnetExamples2[num]) : '';
+                        var ex = subnetExamples2[num] ? (' — ' + subnetExamples2[num]) : '';
                         var preview = ''
                             + '<svg width="56" height="10" viewBox="0 0 56 10" aria-hidden="true">'
                             + '<line x1="0" y1="5" x2="56" y2="5" stroke="' + subnetColor2(num) + '" stroke-width="2" opacity="0.95" />'
                             + '</svg>';
                         return '<div class="switchless-diagram__legend-item">'
                             + preview
-                            + '<span class="switchless-diagram__legend-text">Subnet ' + num + (pair ? (' â€” ' + escapeHtml(pair)) : '') + (ex ? (' <span style="color:var(--text-secondary)">' + escapeHtml(ex.trim()) + '</span>') : '') + '</span>'
+                            + '<span class="switchless-diagram__legend-text">Subnet ' + num + (pair ? (' — ' + escapeHtml(pair)) : '') + (ex ? (' <span style="color:var(--text-secondary)">' + escapeHtml(ex.trim()) + '</span>') : '') + '</span>'
                             + '</div>';
                     }).join('')
                     + '</div>'
@@ -4143,18 +4143,18 @@
 
                     var introS = ''
                         + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
-                        + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) â€” storage connectivity only.'
+                        + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only.'
                         + '<br>'
-                        + '3-node switchless (single-link) uses <strong style="color:var(--text-primary);">2 RDMA storage ports per node</strong> (commonly named SMB1â€“SMB2), and uses <strong style="color:var(--text-primary);">three storage subnets</strong> (one per node-pair).'
+                        + '3-node switchless (single-link) uses <strong style="color:var(--text-primary);">2 RDMA storage ports per node</strong> (commonly named SMB1–SMB2), and uses <strong style="color:var(--text-primary);">three storage subnets</strong> (one per node-pair).'
                         + '</div>';
 
                     // Full-mesh single-link mapping:
                     // - Each node connects to both peers with a single link.
                     // - With 2 ports per node, each node dedicates one port per peer.
                     var edgesS = [
-                        { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1â†”Node2', lane: 0 },
-                        { subnet: 2, a: { n: 0, p: 1 }, b: { n: 2, p: 0 }, pair: 'Node1â†”Node3', lane: 1 },
-                        { subnet: 3, a: { n: 1, p: 1 }, b: { n: 2, p: 1 }, pair: 'Node2â†”Node3', lane: 2 }
+                        { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
+                        { subnet: 2, a: { n: 0, p: 1 }, b: { n: 2, p: 0 }, pair: 'Node1↔Node3', lane: 1 },
+                        { subnet: 3, a: { n: 1, p: 1 }, b: { n: 2, p: 1 }, pair: 'Node2↔Node3', lane: 2 }
                     ];
 
                     function pathBetweenS(a, b, busY, midX) {
@@ -4169,7 +4169,7 @@
                     svgS += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgWS + ' ' + svgHS + '" role="img" aria-label="3-node switchless (single-link) storage connectivity diagram">';
 
                     svgS += '<rect x="35" y="55" width="' + (svgWS - 70) + '" height="' + (svgHS - 90) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
-                    svgS += '<text x="' + (svgWS / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent â€” Switchless=true, Link=Single-Link, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
+                    svgS += '<text x="' + (svgWS / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, Link=Single-Link, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
                     for (var iS = 0; iS < 3; iS++) {
                         var xS = nodeXS[iS];
@@ -4223,14 +4223,14 @@
                         + [1, 2, 3].map(function (num) {
                             var edge = edgesS.filter(function (e) { return e.subnet === num; })[0];
                             var pair = edge ? edge.pair : '';
-                            var ex = subnetExamplesS[num] ? (' â€” ' + subnetExamplesS[num]) : '';
+                            var ex = subnetExamplesS[num] ? (' — ' + subnetExamplesS[num]) : '';
                             var preview = ''
                                 + '<svg width="56" height="10" viewBox="0 0 56 10" aria-hidden="true">'
                                 + '<line x1="0" y1="5" x2="56" y2="5" stroke="' + subnetColorS(num) + '" stroke-width="2" opacity="0.95" />'
                                 + '</svg>';
                             return '<div class="switchless-diagram__legend-item">'
                                 + preview
-                                + '<span class="switchless-diagram__legend-text">Subnet ' + num + (pair ? (' â€” ' + escapeHtml(pair)) : '') + (ex ? (' <span style="color:var(--text-secondary)">' + escapeHtml(ex.trim()) + '</span>') : '') + '</span>'
+                                + '<span class="switchless-diagram__legend-text">Subnet ' + num + (pair ? (' — ' + escapeHtml(pair)) : '') + (ex ? (' <span style="color:var(--text-secondary)">' + escapeHtml(ex.trim()) + '</span>') : '') + '</span>'
                                 + '</div>';
                         }).join('')
                         + '</div>'
@@ -4326,9 +4326,9 @@
 
                 var intro3 = ''
                     + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
-                    + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) â€” storage connectivity only.'
+                    + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only.'
                     + '<br>'
-                    + '3-node switchless (dual-link) uses <strong style="color:var(--text-primary);">4 RDMA storage ports per node</strong> (commonly named SMB1â€“SMB4), and uses <strong style="color:var(--text-primary);">six storage subnets</strong> (two per node-pair).'
+                    + '3-node switchless (dual-link) uses <strong style="color:var(--text-primary);">4 RDMA storage ports per node</strong> (commonly named SMB1–SMB4), and uses <strong style="color:var(--text-primary);">six storage subnets</strong> (two per node-pair).'
                     + '</div>';
 
                 // Subnet line styles (no new colors; differentiate via dash patterns and opacity)
@@ -4353,17 +4353,17 @@
                 // A clear, consistent mapping (conceptual) between ports and the 6 storage subnets.
                 // - Two subnets per node-pair.
                 // - Numbering aligns to the 4-node reference pattern numbering style:
-                //   1-2: Node1â†”Node2, 3-4: Node1â†”Node3, 5-6: Node2â†”Node3.
+                //   1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
                 var edges = [
                     // Node1 <-> Node2 (two lanes)
-                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1â†”Node2', lane: 0 },
-                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1â†”Node2', lane: 1 },
+                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
+                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 },
                     // Node1 <-> Node3 (two lanes)
-                    { subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 }, pair: 'Node1â†”Node3', lane: 2 },
-                    { subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 }, pair: 'Node1â†”Node3', lane: 3 },
+                    { subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 }, pair: 'Node1↔Node3', lane: 2 },
+                    { subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 }, pair: 'Node1↔Node3', lane: 3 },
                     // Node2 <-> Node3 (two lanes)
-                    { subnet: 5, a: { n: 1, p: 2 }, b: { n: 2, p: 2 }, pair: 'Node2â†”Node3', lane: 4 },
-                    { subnet: 6, a: { n: 1, p: 3 }, b: { n: 2, p: 3 }, pair: 'Node2â†”Node3', lane: 5 }
+                    { subnet: 5, a: { n: 1, p: 2 }, b: { n: 2, p: 2 }, pair: 'Node2↔Node3', lane: 4 },
+                    { subnet: 6, a: { n: 1, p: 3 }, b: { n: 2, p: 3 }, pair: 'Node2↔Node3', lane: 5 }
                 ];
 
                 function pathBetween(a, b, busY, midX) {
@@ -4387,7 +4387,7 @@
 
                 // Intent container
                 svg3 += '<rect x="35" y="55" width="' + (svgW3 - 70) + '" height="' + (svgH3 - 90) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
-                svg3 += '<text x="' + (svgW3 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent â€” Switchless=true, Link=Dual-Link, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
+                svg3 += '<text x="' + (svgW3 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, Link=Dual-Link, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
                 // Node cards + ports
                 for (var i3 = 0; i3 < 3; i3++) {
@@ -4455,7 +4455,7 @@
                         var num = idx + 1;
                         var edge = edges.filter(function (e) { return e.subnet === num; })[0];
                         var pair = edge ? edge.pair : '';
-                        var ex = subnetExamples3[num] ? (' â€” ' + subnetExamples3[num]) : '';
+                        var ex = subnetExamples3[num] ? (' — ' + subnetExamples3[num]) : '';
                         // Use inline SVG line preview with the same per-subnet color.
                         var preview = ''
                             + '<svg width="56" height="10" viewBox="0 0 56 10" aria-hidden="true">'
@@ -4463,7 +4463,7 @@
                             + '</svg>';
                         return '<div class="switchless-diagram__legend-item">'
                             + preview
-                            + '<span class="switchless-diagram__legend-text">Subnet ' + num + (pair ? (' â€” ' + escapeHtml(pair)) : '') + (ex ? (' <span style="color:var(--text-secondary)">' + escapeHtml(ex.trim()) + '</span>') : '') + '</span>'
+                            + '<span class="switchless-diagram__legend-text">Subnet ' + num + (pair ? (' — ' + escapeHtml(pair)) : '') + (ex ? (' <span style="color:var(--text-secondary)">' + escapeHtml(ex.trim()) + '</span>') : '') + '</span>'
                             + '</div>';
                     }).join('')
                     + '</div>'
@@ -4573,9 +4573,9 @@
 
                 var intro4 = ''
                     + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
-                    + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) â€” storage connectivity only.'
+                    + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only.'
                     + '<br>'
-                    + '4-node switchless commonly uses <strong style="color:var(--text-primary);">8 physical ports per node</strong>: two for <strong style="color:var(--text-primary);">Mgmt+Compute (SET team)</strong> plus <strong style="color:var(--text-primary);">6 RDMA storage ports</strong> (commonly named SMB1â€“SMB6).'
+                    + '4-node switchless commonly uses <strong style="color:var(--text-primary);">8 physical ports per node</strong>: two for <strong style="color:var(--text-primary);">Mgmt+Compute (SET team)</strong> plus <strong style="color:var(--text-primary);">6 RDMA storage ports</strong> (commonly named SMB1–SMB6).'
                     + '<br>'
                     + 'Storage uses <strong style="color:var(--text-primary);">12 storage networks</strong> (two per node-pair).'
                     + '</div>';
@@ -4609,23 +4609,23 @@
                 // Each node has 3 peers; dual-link means 6 RDMA ports and each SMB port maps to exactly one peer.
                 var edges4 = [
                     // Node1 <-> Node2
-                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1â†”Node2', lane: 0 },
-                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1â†”Node2', lane: 1 },
+                    { subnet: 1, a: { n: 0, p: 0 }, b: { n: 1, p: 0 }, pair: 'Node1↔Node2', lane: 0 },
+                    { subnet: 2, a: { n: 0, p: 1 }, b: { n: 1, p: 1 }, pair: 'Node1↔Node2', lane: 1 },
                     // Node1 <-> Node3
-                    { subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 }, pair: 'Node1â†”Node3', lane: 2 },
-                    { subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 }, pair: 'Node1â†”Node3', lane: 3 },
+                    { subnet: 3, a: { n: 0, p: 2 }, b: { n: 2, p: 0 }, pair: 'Node1↔Node3', lane: 2 },
+                    { subnet: 4, a: { n: 0, p: 3 }, b: { n: 2, p: 1 }, pair: 'Node1↔Node3', lane: 3 },
                     // Node1 <-> Node4
-                    { subnet: 5, a: { n: 0, p: 4 }, b: { n: 3, p: 0 }, pair: 'Node1â†”Node4', lane: 4 },
-                    { subnet: 6, a: { n: 0, p: 5 }, b: { n: 3, p: 1 }, pair: 'Node1â†”Node4', lane: 5 },
+                    { subnet: 5, a: { n: 0, p: 4 }, b: { n: 3, p: 0 }, pair: 'Node1↔Node4', lane: 4 },
+                    { subnet: 6, a: { n: 0, p: 5 }, b: { n: 3, p: 1 }, pair: 'Node1↔Node4', lane: 5 },
                     // Node2 <-> Node3
-                    { subnet: 7, a: { n: 1, p: 2 }, b: { n: 2, p: 2 }, pair: 'Node2â†”Node3', lane: 6 },
-                    { subnet: 8, a: { n: 1, p: 3 }, b: { n: 2, p: 3 }, pair: 'Node2â†”Node3', lane: 7 },
+                    { subnet: 7, a: { n: 1, p: 2 }, b: { n: 2, p: 2 }, pair: 'Node2↔Node3', lane: 6 },
+                    { subnet: 8, a: { n: 1, p: 3 }, b: { n: 2, p: 3 }, pair: 'Node2↔Node3', lane: 7 },
                     // Node2 <-> Node4
-                    { subnet: 9, a: { n: 1, p: 4 }, b: { n: 3, p: 2 }, pair: 'Node2â†”Node4', lane: 8 },
-                    { subnet: 10, a: { n: 1, p: 5 }, b: { n: 3, p: 3 }, pair: 'Node2â†”Node4', lane: 9 },
+                    { subnet: 9, a: { n: 1, p: 4 }, b: { n: 3, p: 2 }, pair: 'Node2↔Node4', lane: 8 },
+                    { subnet: 10, a: { n: 1, p: 5 }, b: { n: 3, p: 3 }, pair: 'Node2↔Node4', lane: 9 },
                     // Node3 <-> Node4
-                    { subnet: 11, a: { n: 2, p: 4 }, b: { n: 3, p: 4 }, pair: 'Node3â†”Node4', lane: 10 },
-                    { subnet: 12, a: { n: 2, p: 5 }, b: { n: 3, p: 5 }, pair: 'Node3â†”Node4', lane: 11 }
+                    { subnet: 11, a: { n: 2, p: 4 }, b: { n: 3, p: 4 }, pair: 'Node3↔Node4', lane: 10 },
+                    { subnet: 12, a: { n: 2, p: 5 }, b: { n: 3, p: 5 }, pair: 'Node3↔Node4', lane: 11 }
                 ];
 
                 function pathBetween4(a, b, busY, midX) {
@@ -4659,7 +4659,7 @@
 
                 // Intent container
                 svg4 += '<rect x="35" y="55" width="' + (svgW4 - 70) + '" height="' + (svgH4 - 90) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
-                svg4 += '<text x="' + (svgW4 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent â€” Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
+                svg4 += '<text x="' + (svgW4 / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
                 // Nodes
                 for (var i4 = 0; i4 < 4; i4++) {
@@ -4722,7 +4722,7 @@
                             + '</svg>';
                         return '<div class="switchless-diagram__legend-item">'
                             + preview
-                            + '<span class="switchless-diagram__legend-text">Subnet ' + num + (pair ? (' â€” ' + escapeHtml(pair)) : '') + ' <span style="color:var(--text-secondary)">â€” ' + escapeHtml(ex4) + '</span></span>'
+                            + '<span class="switchless-diagram__legend-text">Subnet ' + num + (pair ? (' — ' + escapeHtml(pair)) : '') + ' <span style="color:var(--text-secondary)">— ' + escapeHtml(ex4) + '</span></span>'
                             + '</div>';
                     }).join('')
                     + '</div>'
@@ -4742,7 +4742,7 @@
             // This is intentionally abstract because detailed subnet/port mapping is pattern-specific.
             var rdmaPerNode = 2 * (n - 1);
             var intro = '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
-                + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) â€” storage connectivity only (conceptual). '
+                + '<strong style="color:var(--text-primary);">Storage Network ATC intent</strong> (switchless) — storage connectivity only (conceptual). '
                 + 'Dual-link full mesh implies <strong style="color:var(--text-primary);">' + rdmaPerNode + ' RDMA storage ports per node</strong>.'
                 + '</div>';
 
@@ -4831,7 +4831,7 @@
                 + '</defs>';
 
             svg += '<rect x="35" y="45" width="' + (svgW - 70) + '" height="' + (svgH - 80) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
-            svg += '<text x="' + (svgW / 2) + '" y="32" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent â€” Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
+            svg += '<text x="' + (svgW / 2) + '" y="32" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Storage Network ATC intent — Switchless=true, ' + escapeHtml(autoIpLabel(state.storageAutoIp)) + '</text>';
 
             for (var l = 0; l < links.length; l++) {
                 var ln = links[l];
@@ -5084,7 +5084,7 @@
                 + '<div style="display: none; padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available. <a href="docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue);">View Connectivity Guide</a></div>'
                 + '</div>'
                 + '<p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">ðŸ“˜ View complete Outbound Connectivity Guide</a>'
+                + '<a href="docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
                 + '</p>'
                 + '</div>';
         }
@@ -5128,7 +5128,7 @@
                     // Add documentation link if available
                     if (info.docUrl) {
                         peItems += '<div style="margin-top: 0.5rem;">'
-                            + '<a href="' + escapeHtml(info.docUrl) + '" target="_blank" style="font-size: 0.8rem; color: var(--accent-blue); text-decoration: none;">ðŸ“š View documentation â†—</a>'
+                            + '<a href="' + escapeHtml(info.docUrl) + '" target="_blank" style="font-size: 0.8rem; color: var(--accent-blue); text-decoration: none;">📚 View documentation ↗</a>'
                             + '</div>';
                     }
                     
@@ -5160,7 +5160,7 @@
                 : 'The following Azure services will use Private Link endpoints. Configure DNS to resolve them to private IPs.';
             
             privateEndpointsHtml = '<div style="margin-top: 1.5rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">'
-                + '<h4 style="margin: 0 0 1rem 0; color: var(--success);">ðŸ”’ Private Endpoints Configuration</h4>'
+                + '<h4 style="margin: 0 0 1rem 0; color: var(--success);">🔒 Private Endpoints Configuration</h4>'
                 + '<p style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">' + peDescription + '</p>'
                 + peItems
                 + (showBypassSection && peBypassItems.length > 0 ? (
@@ -5383,7 +5383,7 @@
         if (s.scenario === 'disconnected') {
             add('ScaleNodes', 'Disconnected only allows Standard scale', s.scale === 'medium' || !s.scale, 'Disconnected deployments restrict options for operational/supportability reasons in this wizard.', [REF_AZLOC_PREREQS]);
             if (s.scale === 'medium') {
-                add('ScaleNodes', 'Disconnected + Standard requires >= 3 nodes', (s.nodes !== '1' && s.nodes !== '2'), 'Wizard disables 1â€“2 nodes for Disconnected Standard.');
+                add('ScaleNodes', 'Disconnected + Standard requires >= 3 nodes', (s.nodes !== '1' && s.nodes !== '2'), 'Wizard disables 1–2 nodes for Disconnected Standard.');
             }
         }
 
@@ -5510,7 +5510,7 @@
 
         if (s.infraVlan === 'custom') {
             var v = parseInt(s.infraVlanId, 10);
-            add('Infrastructure', 'Infra VLAN ID is valid (1-4096)', (!isNaN(v) && String(v) === String(s.infraVlanId) && v >= 1 && v <= 4096), 'Valid VLAN IDs are integers 1â€“4096. Azure Local guidance emphasizes that management VLAN tagging must be configured on the physical adapters before Azure Arc registration so connectivity is preserved through deployment.', [REF_AZLOC_VLAN, REF_AZLOC_NET_CONSIDERATIONS]);
+            add('Infrastructure', 'Infra VLAN ID is valid (1-4096)', (!isNaN(v) && String(v) === String(s.infraVlanId) && v >= 1 && v <= 4096), 'Valid VLAN IDs are integers 1–4096. Azure Local guidance emphasizes that management VLAN tagging must be configured on the physical adapters before Azure Arc registration so connectivity is preserved through deployment.', [REF_AZLOC_VLAN, REF_AZLOC_NET_CONSIDERATIONS]);
         }
 
         // Infra network validation (mirrors updateInfraNetwork)
@@ -5766,10 +5766,10 @@
 
         html += '<ul style="margin:0.4rem 0 0 1.25rem; color:var(--text-primary);">'
             + items.slice(0, 6).map(function (v) {
-                var mark = v.passed ? '<span style="color:var(--success);">âœ“</span>' : '<span style="color:var(--accent-purple);">âš </span>';
+                var mark = v.passed ? '<span style="color:var(--success);">✓</span>' : '<span style="color:var(--accent-purple);">⚠</span>';
                 return '<li>'
                     + mark + ' ' + escapeHtml(v.name)
-                    + (v.details ? (' â€” <span style="color:var(--text-secondary);">' + escapeHtml(v.details) + '</span>') : '')
+                    + (v.details ? (' — <span style="color:var(--text-secondary);">' + escapeHtml(v.details) + '</span>') : '')
                     + (v.refs && v.refs.length ? renderRefs(v.refs) : '')
                     + '</li>';
             }).join('')
@@ -5791,7 +5791,7 @@
             + '</div>';
 
         var rows = all.map(function (v) {
-            var mark = v.passed ? '<span style="color:var(--success); font-weight:700;">âœ“</span>' : '<span style="color:var(--accent-purple); font-weight:700;">âš </span>';
+            var mark = v.passed ? '<span style="color:var(--success); font-weight:700;">✓</span>' : '<span style="color:var(--accent-purple); font-weight:700;">⚠</span>';
             var detail = v.details ? ('<div style="color:var(--text-secondary); margin-top:0.15rem;">' + escapeHtml(v.details) + '</div>') : '';
             var refs = (v.refs && v.refs.length) ? renderRefs(v.refs) : '';
             return '<div style="padding:0.55rem 0; border-top:1px solid var(--glass-border);">'
@@ -5818,7 +5818,7 @@
                 + '</div>';
         }
 
-        // Step 01â€“05: Scenario & Scale
+        // Step 01–05: Scenario & Scale
         var scenarioScaleRows = '';
         if (s.scenario) scenarioScaleRows += row('Scenario', formatScenario(s.scenario));
         if (s.region) scenarioScaleRows += row('Azure Cloud', formatCloud(s.region));
@@ -5827,7 +5827,7 @@
         if (s.nodes) scenarioScaleRows += row('Nodes', s.nodes, true);
         if (s.witnessType) scenarioScaleRows += row('Cloud Witness', s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness');
 
-        // Step 06â€“08: Host Networking
+        // Step 06–08: Host Networking
         var hostNetworkingRows = '';
         if (s.storage) hostNetworkingRows += row('Storage', s.storage.charAt(0).toUpperCase() + s.storage.slice(1));
         if (s.ports) hostNetworkingRows += row('Ports', s.ports, true);
@@ -5901,7 +5901,7 @@
                             }
                         } else if (nodeCount === 3) {
                             // 3-node switchless dual-link: 4 SMB adapters, 6 subnets
-                            // Subnet pairs: 1-2 (Node1â†”Node2), 3-4 (Node1â†”Node3), 5-6 (Node2â†”Node3)
+                            // Subnet pairs: 1-2 (Node1↔Node2), 3-4 (Node1↔Node3), 5-6 (Node2↔Node3)
                             var subnetPairs3 = { 1: [1, 2], 2: [1, 2], 3: [1, 3], 4: [1, 3], 5: [2, 3], 6: [2, 3] };
                             var nodeToSubnetBySmb3 = { 1: [1, 2, 3, 4], 2: [1, 2, 5, 6], 3: [3, 4, 5, 6] };
                             
@@ -5962,7 +5962,7 @@
             hostNetworkingRows += row('Storage Pool Configuration', spConfig);
         }
 
-        // Step 09â€“11: Connectivity
+        // Step 09–11: Connectivity
         var connectivityRows = '';
         if (s.outbound) connectivityRows += row('Outbound', formatOutbound(s.outbound));
         if (s.arc) {
@@ -5992,12 +5992,12 @@
                 + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'dark\')">Download SVG (Dark)</button>'
                 + '</div>'
                 + '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="../docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">ðŸ“˜ View complete Outbound Connectivity Guide</a>'
+                + '<a href="../docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
                 + '</p>'
                 + '</div>';
         }
 
-        // Step 12â€“14: Infrastructure Network
+        // Step 12–14: Infrastructure Network
         var infraNetworkRows = '';
         if (s.ip) infraNetworkRows += row('IP', s.ip.charAt(0).toUpperCase() + s.ip.slice(1));
         if (s.infraVlan) infraNetworkRows += row('Infra VLAN', s.infraVlan === 'custom' ? 'Custom VLAN' : 'Default VLAN');

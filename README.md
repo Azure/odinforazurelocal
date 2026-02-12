@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.14.57 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.14.58 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,7 +37,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.57 - Latest Release
+### 🎉 Version 0.14.58 - Latest Release
+- **Character Encoding Fix ([#103](https://github.com/Azure/odinforazurelocal/issues/103))**: Fixed 106 corrupted UTF-8 characters in Configuration Report diagrams (em dashes, arrows, emojis) that displayed as garbled text due to double-encoding
+
+### Version 0.14.57
 - **Storage Subnet CIDRs ([#99](https://github.com/Azure/odinforazurelocal/issues/99))**: SVG diagram legends now show correct Network ATC default subnets (10.71.x.0/24) when Auto IP is enabled, instead of incorrect 10.0.x.0/24 addresses
 
 ### Version 0.14.56
@@ -325,7 +328,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.57  
+**Version**: 0.14.58  
 **Last Updated**: February 12th 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -340,6 +343,9 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.58 - Character Encoding Fix
+- **Character Encoding (#103)**: Fixed 106 corrupted UTF-8 characters in Configuration Report diagrams and legends
 
 #### 0.14.57 - Storage Subnet CIDR Fix
 - **Storage Subnet CIDRs (#99)**: SVG diagram legends now show correct Network ATC default subnets (10.71.x.0/24) when Auto IP is enabled
