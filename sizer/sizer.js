@@ -1942,7 +1942,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Resiliency note
         const resiliencyNames = {
             'simple': 'Simple (no redundancy, 1x raw storage)',
-            '2way': 'Two-way mirror (2x raw storage, 50% efficiency)',
+            '2way': 'Two-way mirror (50% efficiency), performant and resilient to one node failure',
             '3way': 'Three-way mirror (33% efficiency for three copies of data), most performant and resilient',
             '4way': 'Four-way mirror (4x raw storage, 25% efficiency)'
         };
