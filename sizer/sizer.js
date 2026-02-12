@@ -1013,6 +1013,7 @@ let currentModalType = null;
 // Handle node count change
 function onNodeCountChange() {
     updateResiliencyOptions();
+    updateResiliencyRecommendation();
     updateClusterInfo();
     calculateRequirements({ skipAutoNodeRecommend: true });
 }
@@ -1022,6 +1023,7 @@ function onClusterTypeChange() {
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
     updateResiliencyOptions();
+    updateResiliencyRecommendation();
     updateClusterInfo();
     calculateRequirements();
 }
@@ -1042,8 +1044,20 @@ function updateStorageForClusterType() {
 
 // Handle resiliency change
 function onResiliencyChange() {
+    updateResiliencyRecommendation();
     updateClusterInfo();
     calculateRequirements({ skipAutoNodeRecommend: true });
+}
+
+// Show a recommendation warning when user picks 2-way on a standard 3+ node cluster
+function updateResiliencyRecommendation() {
+    const el = document.getElementById('resiliency-recommendation');
+    if (!el) return;
+    const clusterType = document.getElementById('cluster-type').value;
+    const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
+    const resiliency = document.getElementById('resiliency').value;
+    // Show warning only for standard clusters with 3+ nodes that chose 2-way mirror
+    el.style.display = (clusterType === 'standard' && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
 }
 
 // Update node count options based on cluster type
