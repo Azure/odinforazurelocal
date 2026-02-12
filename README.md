@@ -44,7 +44,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Hardware in Configuration Report**: When imported from Sizer, the report now includes a Hardware Configuration section with CPU, memory, storage, and workload summary
 - **Sizer Session Persistence**: Sizer state auto-saves to localStorage with Resume / Start Fresh prompt on return
 - **Sizer Auto-Sizing Engine**: Intelligent node count recommendation based on compute, memory, and storage requirements — favours scaling up CPU cores, memory (up to 1 TB), and disks per node before adding nodes
-- **Storage Utilization Guard**: Blocks configurations with storage utilization ≥ 90% — visual warning, red capacity bar, and disabled Designer button
+- **Capacity Utilization Guard**: Blocks configurations when Compute, Memory, or Storage utilization ≥ 90% — visual warning, red capacity bars, and disabled Designer button
 - **Hybrid Cache-to-Capacity Ratio**: Hybrid storage enforces a 1:2 cache-to-capacity disk ratio (e.g., 6 cache + 12 HDD)
 - **Export Options**: Save as PDF and Word export for sizer results
 - **Edit Workloads**: Edit existing workloads via cog icon on workload cards
@@ -355,7 +355,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Hardware in Configuration Report**: Conditional Hardware Configuration section in reports when imported from Sizer
 - **Sizer Session Persistence**: Auto-save/resume with localStorage, matching the Designer pattern
 - **Auto-Sizing Engine**: Intelligent node and disk scaling based on workload compute, memory, and storage requirements — favours scaling up CPU cores, memory (up to 1 TB), and disks per node before adding nodes
-- **Storage Utilization Guard**: Blocks configurations with storage utilization ≥ 90% with visual warning and disabled Designer button
+- **Capacity Utilization Guard**: Blocks configurations when Compute, Memory, or Storage utilization ≥ 90% with visual warning and disabled Designer button
 - **Hybrid Cache-to-Capacity Ratio**: Hybrid storage enforces 1:2 cache-to-capacity disk ratio (e.g., 6 cache + 12 HDD)
 - **Hardware Configuration Panel**: CPU manufacturer/generation/cores/sockets, memory, and tiered storage configuration
 - **Export Options**: Save as PDF and Word export for sizer results

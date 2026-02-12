@@ -1647,6 +1647,19 @@ function calculateRequirements() {
         document.getElementById('storage-used').textContent = (totalStorage / 1000).toFixed(1);
         document.getElementById('storage-total').textContent = totalAvailableStorage.toFixed(1);
 
+        // Toggle over-threshold (red) on any capacity bar >= 90%
+        const UTILIZATION_THRESHOLD = 90;
+        document.getElementById('compute-fill').classList.toggle('over-threshold', computePercent >= UTILIZATION_THRESHOLD);
+        document.getElementById('memory-fill').classList.toggle('over-threshold', memoryPercent >= UTILIZATION_THRESHOLD);
+        document.getElementById('storage-fill').classList.toggle('over-threshold', storagePercent >= UTILIZATION_THRESHOLD);
+
+        // Show/hide utilization warning banner
+        const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storagePercent >= UTILIZATION_THRESHOLD) && workloads.length > 0;
+        const warningBanner = document.getElementById('capacity-utilization-warning');
+        if (warningBanner) {
+            warningBanner.style.display = anyOverThreshold ? 'flex' : 'none';
+        }
+
         // Update sizing notes
         updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig);
 
@@ -1738,8 +1751,16 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // Storage utilization threshold check
+        // Utilization threshold checks (compute, memory, storage)
+        const currentComputePercent = parseInt(document.getElementById('compute-percent').textContent) || 0;
+        const currentMemoryPercent = parseInt(document.getElementById('memory-percent').textContent) || 0;
         const currentStoragePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
+        if (currentComputePercent >= 90) {
+            notes.push('🚫 Compute utilization is at ' + currentComputePercent + '% — configurations at or above 90% are not recommended. Increase CPU cores, add nodes, or reduce workloads.');
+        }
+        if (currentMemoryPercent >= 90) {
+            notes.push('🚫 Memory utilization is at ' + currentMemoryPercent + '% — configurations at or above 90% are not recommended. Increase memory per node, add nodes, or reduce workloads.');
+        }
         if (currentStoragePercent >= 90) {
             notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add nodes, increase disk count/size, or reduce workloads.');
         }
@@ -1758,19 +1779,26 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     updateDesignerActionVisibility();
 }
 
-// Show "Configure in Designer" button only when workloads exist and storage is under 90%
+// Show "Configure in Designer" button only when workloads exist and all resources are under 90%
 function updateDesignerActionVisibility() {
     const actionDiv = document.getElementById('designer-action');
     const designerBtn = document.querySelector('.btn-designer');
     if (actionDiv) {
         actionDiv.style.display = workloads.length > 0 ? 'block' : 'none';
     }
-    // Disable button when storage >= 90%
+    // Disable button when any resource >= 90%
     if (designerBtn) {
+        const computePercent = parseInt(document.getElementById('compute-percent').textContent) || 0;
+        const memoryPercent = parseInt(document.getElementById('memory-percent').textContent) || 0;
         const storagePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
-        if (storagePercent >= 90 && workloads.length > 0) {
+        const overResources = [];
+        if (computePercent >= 90) overResources.push('Compute');
+        if (memoryPercent >= 90) overResources.push('Memory');
+        if (storagePercent >= 90) overResources.push('Storage');
+
+        if (overResources.length > 0 && workloads.length > 0) {
             designerBtn.disabled = true;
-            designerBtn.title = 'Storage utilization must be below 90% before configuring in Designer';
+            designerBtn.title = overResources.join(', ') + ' utilization must be below 90% before configuring in Designer';
         } else {
             designerBtn.disabled = false;
             designerBtn.title = '';
