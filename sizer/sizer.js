@@ -937,8 +937,7 @@ const RESILIENCY_CONFIG = {
     'simple': { multiplier: 1, minNodes: 1, name: 'Simple (No Fault Tolerance)', singleNodeOnly: true },
     '2way': { multiplier: 2, minNodes: 1, name: 'Two-way Mirror' },
     '3way': { multiplier: 3, minNodes: 3, name: 'Three-way Mirror' },
-    '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' },
-    'parity': { multiplier: 1.5, minNodes: 4, name: 'Dual Parity' }
+    '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' }
 };
 
 // Storage resiliency multipliers (for backward compatibility)
@@ -946,8 +945,7 @@ const RESILIENCY_MULTIPLIERS = {
     'simple': 1,    // Simple = no redundancy (1x raw storage)
     '2way': 2,      // Two-way mirror = 2x raw storage
     '3way': 3,      // Three-way mirror = 3x raw storage
-    '4way': 4,      // Four-way mirror = 4x raw storage (rack-aware 4+ nodes)
-    'parity': 1.5   // Dual parity ≈ 1.5x raw storage
+    '4way': 4       // Four-way mirror = 4x raw storage (rack-aware 4+ nodes)
 };
 
 // Current modal state
@@ -1113,11 +1111,10 @@ function updateResiliencyOptions() {
             <option value="3way">Three-way Mirror (min 3 nodes)</option>
         `;
     } else {
-        // 4+ nodes: all options available
+        // 4+ nodes: 2-way or 3-way mirror
         options = `
             <option value="2way">Two-way Mirror (min 2 nodes)</option>
             <option value="3way">Three-way Mirror (min 3 nodes)</option>
-            <option value="parity">Dual Parity (min 4 nodes)</option>
         `;
     }
     
@@ -1888,8 +1885,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             'simple': 'Simple (no redundancy, 1x raw storage)',
             '2way': 'Two-way mirror (2x raw storage, 50% efficiency)',
             '3way': 'Three-way mirror (3x raw storage)',
-            '4way': 'Four-way mirror (4x raw storage, 25% efficiency)',
-            'parity': 'Dual parity (~1.5x raw storage)'
+            '4way': 'Four-way mirror (4x raw storage, 25% efficiency)'
         };
         notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
         

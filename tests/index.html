@@ -2740,9 +2740,7 @@
             assert(RESILIENCY_CONFIG['4way'].multiplier === 4, '4-way: multiplier = 4', 4, RESILIENCY_CONFIG['4way'].multiplier),
             assert(RESILIENCY_CONFIG['4way'].minNodes === 4, '4-way: minNodes = 4', 4, RESILIENCY_CONFIG['4way'].minNodes),
             assert(RESILIENCY_MULTIPLIERS['4way'] === 4, '4-way MULTIPLIERS entry = 4', 4, RESILIENCY_MULTIPLIERS['4way']),
-            assert(RESILIENCY_CONFIG['parity'].multiplier === 1.5, 'Parity: multiplier = 1.5', 1.5, RESILIENCY_CONFIG['parity'].multiplier),
-            assert(RESILIENCY_CONFIG['3way'].minNodes === 3, '3-way: minNodes = 3', 3, RESILIENCY_CONFIG['3way'].minNodes),
-            assert(RESILIENCY_CONFIG['parity'].minNodes === 4, 'Parity: minNodes = 4', 4, RESILIENCY_CONFIG['parity'].minNodes)
+            assert(RESILIENCY_CONFIG['3way'].minNodes === 3, '3-way: minNodes = 3', 3, RESILIENCY_CONFIG['3way'].minNodes)
         ]);
 
         testSuite('AVD_PROFILES', 'sizer.js', [
@@ -2949,16 +2947,6 @@
                 };
                 const r = getRecommendedNodeCount(10, 10, 10, hw, 3, '3way');
                 return assert(r.recommended >= 3, '3-way mirror: enforces minimum 3 nodes', '>=3', r.recommended);
-            })(),
-            (() => {
-                // Dual parity enforces minNodes=4
-                const hw = {
-                    totalPhysicalCores: 128,
-                    memoryGB: 2048,
-                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
-                };
-                const r = getRecommendedNodeCount(10, 10, 10, hw, 1.5, 'parity');
-                return assert(r.recommended >= 4, 'Dual parity: enforces minimum 4 nodes', '>=4', r.recommended);
             })(),
             (() => {
                 // Return structure has all expected fields
