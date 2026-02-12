@@ -1570,7 +1570,7 @@ function calculateRequirements() {
         }
 
         // Read (possibly updated) node count
-        const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
+        let nodeCount = parseInt(document.getElementById('node-count').value) || 3;
 
         // --- Auto-scale CPU cores, memory & disk count to avoid >100% capacity ---
         if (workloads.length > 0) {
@@ -1586,6 +1586,55 @@ function calculateRequirements() {
                 );
                 if (updatedRec) {
                     updateNodeRecommendation(updatedRec);
+                }
+            }
+
+            // --- Auto-increment node count if any resource is still >= 90% after hw scale-up ---
+            const clusterType = document.getElementById('cluster-type').value;
+            if (clusterType !== 'single') {
+                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 12, 16];
+                const maxNodeOption = nodeOptions[nodeOptions.length - 1];
+                const UTIL_THRESHOLD = 90;
+                let attempts = 0;
+
+                while (nodeCount < maxNodeOption && attempts < 16) {
+                    attempts++;
+                    const effNodes = nodeCount > 1 ? nodeCount - 1 : 1;
+                    const vcpuToCore = 4;
+                    const physCores = hwConfig.totalPhysicalCores || 64;
+                    const memPerNode = hwConfig.memoryGB || 512;
+                    let rawGBPerNode = 0;
+                    if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+                        rawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
+                    }
+                    const rawTBPerNode = rawGBPerNode / 1024 || 10;
+
+                    const availVcpus = physCores * effNodes * vcpuToCore;
+                    const availMem = memPerNode * effNodes;
+                    const availStorage = (rawTBPerNode * nodeCount) / resiliencyMultiplier;
+
+                    const cpuPct = availVcpus > 0 ? Math.round((totalVcpus / availVcpus) * 100) : 0;
+                    const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
+                    const stoPct = availStorage > 0 ? Math.round(((totalStorage / 1000) / availStorage) * 100) : 0;
+
+                    if (cpuPct < UTIL_THRESHOLD && memPct < UTIL_THRESHOLD && stoPct < UTIL_THRESHOLD) break;
+
+                    // Bump to next available node option
+                    let nextNode = null;
+                    for (const opt of nodeOptions) {
+                        if (opt > nodeCount) { nextNode = opt; break; }
+                    }
+                    if (!nextNode) break;
+
+                    nodeCount = nextNode;
+                    const nodeSelect = document.getElementById('node-count');
+                    nodeSelect.value = nodeCount;
+                    updateResiliencyOptions();
+                    updateClusterInfo();
+
+                    // Re-run autoScale with the new node count
+                    autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig);
+                    hwConfig = getHardwareConfig();
                 }
             }
         }
