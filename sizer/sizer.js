@@ -1986,6 +1986,9 @@ function initHardwareDefaults() {
 // Initialize on page load
 var isInitialLoad = true;
 document.addEventListener('DOMContentLoaded', function() {
+    // Skip UI initialization when running in test harness (no sizer DOM elements present)
+    if (window.__SIZER_TEST_MODE__) return;
+
     // Check for saved session BEFORE initial calc (so it doesn't get overwritten)
     checkForSavedSizerState();
 
