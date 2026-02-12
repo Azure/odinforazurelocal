@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.59';
+const WIZARD_VERSION = '0.14.60';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -5417,8 +5417,13 @@ function updateCustomStorageSubnet(index, value) {
 function getStorageVlanOverrideNetworkCount() {
     // Step 05 Storage Connectivity controls how many storage networks exist.
     // - Switched: 2 storage networks
-    // - Switchless: 1 storage network
-    if (state.storage === 'switchless') return 1;
+    // - Switchless 2-node: 2 storage networks (VLANs 711, 712)
+    // - Switchless 3/4-node: 1 storage network (single VLAN across all subnets)
+    if (state.storage === 'switchless') {
+        var nodeCount = parseInt(state.nodes, 10) || 0;
+        if (nodeCount === 2) return 2;
+        return 1;
+    }
     if (state.storage === 'switched') {
         return 2;
     }
@@ -8658,7 +8663,20 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.59 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.60 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 12, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>2-Node Switchless Storage VLANs (<a href='https://github.com/Azure/odinforazurelocal/issues/93'>#93</a>):</strong> 2-node switchless now correctly shows two Storage VLAN ID fields (default 711, 712) in the overrides UI, ARM template output, and configuration summary. Previously only one VLAN field was shown.</li>
+                        <li><strong>Report Diagram Port Labels (<a href='https://github.com/Azure/odinforazurelocal/issues/93'>#93</a>):</strong> The 2-node switchless Configuration Report diagram now reflects the user's custom adapter mapping (e.g., Port 1,3 → Mgmt+Compute, Port 2,4 → Storage) instead of always showing Port 1,2 and Port 3,4.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.59</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 12, 2026</div>
                 </div>
 

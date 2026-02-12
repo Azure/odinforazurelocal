@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.60] - 2026-02-12
+
+### Fixed
+
+#### 2-Node Switchless Storage VLANs & Report Diagram (#93)
+
+- **Missing Second VLAN ID Field**: `getStorageVlanOverrideNetworkCount()` unconditionally returned `1` for all switchless scenarios. For 2-node switchless, which requires two storage networks (VLANs 711 and 712), the function now returns `2`. This fixes the overrides UI (only 1 VLAN field shown), ARM template output (only 1 StorageNetwork entry), and configuration summary (only 1 VLAN displayed).
+- **Report Diagram Port Labels**: The 2-node switchless Configuration Report diagram hardcoded port indices (Port 1,2 → Mgmt+Compute, Port 3,4 → Storage) instead of reading the user's custom adapter mapping from `state.adapterMapping`. Now resolves actual port assignments so the diagram matches the wizard configuration.
+
+---
+
 ## [0.14.59] - 2026-02-12
 
 ### Fixed
