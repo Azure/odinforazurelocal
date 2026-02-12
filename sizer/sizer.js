@@ -2059,7 +2059,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             'simple': 'Simple (no redundancy, 1x raw storage)',
             '2way': 'Two-way mirror (50% efficiency for two copies of data), performant and resilient to one fault domain (node) failure',
             '3way': 'Three-way mirror (33% efficiency for three copies of data), most performant and resilient to two fault domain (nodes) failures',
-            '4way': 'Four-way mirror (4x raw storage, 25% efficiency)'
+            '4way': 'Four-way mirror (25% efficiency), implemented as a rack-level nested mirror'
         };
         notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
         
