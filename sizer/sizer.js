@@ -236,8 +236,35 @@ function onStorageTieringChange() {
     onHardwareConfigChange();
 }
 
+// Enforce 1:2 cache-to-capacity disk ratio for hybrid storage
+function enforceCacheToCapacityRatio() {
+    const storageConfig = document.getElementById('storage-config').value;
+    if (storageConfig !== 'hybrid') return;
+
+    const tieringId = document.getElementById('storage-tiering').value;
+    const options = STORAGE_TIERING_OPTIONS[storageConfig];
+    const selectedTier = options.find(o => o.id === tieringId) || options[0];
+    if (!selectedTier.isTiered) return;
+
+    const capacityCount = parseInt(document.getElementById('tiered-capacity-disk-count').value) || 4;
+    const targetCacheCount = Math.ceil(capacityCount / 2);
+    const cacheDiskSelect = document.getElementById('cache-disk-count');
+
+    const cacheOptions = Array.from(cacheDiskSelect.options).map(o => parseInt(o.value));
+    let bestCache = cacheOptions[cacheOptions.length - 1];
+    for (const c of cacheOptions) {
+        if (c >= targetCacheCount) {
+            bestCache = c;
+            break;
+        }
+    }
+
+    cacheDiskSelect.value = bestCache;
+}
+
 // Generic hardware config change handler
 function onHardwareConfigChange() {
+    enforceCacheToCapacityRatio();
     calculateRequirements();
 }
 
@@ -313,6 +340,28 @@ function getHardwareConfig() {
 // ============================================
 // Growth Factor & Node Recommendation
 // ============================================
+
+// Build a "max possible" hardware config to favour scaling up per-node specs
+// (CPU cores, memory, disk count) before recommending additional nodes.
+function buildMaxHardwareConfig(hwConfig) {
+    // Max CPU cores for selected generation (fall back to current if no generation info)
+    let maxCoresPerSocket = hwConfig.coresPerSocket || 24;
+    if (hwConfig.generation && hwConfig.generation.coreOptions && hwConfig.generation.coreOptions.length > 0) {
+        maxCoresPerSocket = hwConfig.generation.coreOptions[hwConfig.generation.coreOptions.length - 1];
+    }
+    const sockets = hwConfig.sockets || 2;
+
+    // Preferred max memory: 1 TB — favour scaling memory before adding nodes
+    const PREFERRED_MAX_MEMORY_GB = 1024;
+
+    return {
+        totalPhysicalCores: maxCoresPerSocket * sockets,
+        memoryGB: PREFERRED_MAX_MEMORY_GB,
+        sockets: sockets,
+        coresPerSocket: maxCoresPerSocket,
+        diskConfig: hwConfig.diskConfig // disk config unchanged (getRecommendedNodeCount already uses maxDiskCount)
+    };
+}
 
 // Get growth factor from the future-growth dropdown
 function getGrowthFactor() {
@@ -536,6 +585,29 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         }
         if (targetDisks > currentDiskCount) {
             diskCountSelect.value = targetDisks;
+            changed = true;
+        }
+    }
+
+    // --- Enforce 1:2 cache-to-capacity ratio for hybrid storage ---
+    if (isTiered && hwConfig.storageConfig === 'hybrid') {
+        const finalCapacityCount = parseInt(document.getElementById(diskCountId).value) || 4;
+        const targetCacheCount = Math.ceil(finalCapacityCount / 2);
+        const cacheDiskSelect = document.getElementById('cache-disk-count');
+        const currentCacheCount = parseInt(cacheDiskSelect.value) || 2;
+
+        // Find the smallest available cache option >= target
+        const cacheOptions = Array.from(cacheDiskSelect.options).map(o => parseInt(o.value));
+        let bestCache = cacheOptions[cacheOptions.length - 1];
+        for (const c of cacheOptions) {
+            if (c >= targetCacheCount) {
+                bestCache = c;
+                break;
+            }
+        }
+
+        if (bestCache !== currentCacheCount) {
+            cacheDiskSelect.value = bestCache;
             changed = true;
         }
     }
@@ -1481,11 +1553,14 @@ function calculateRequirements() {
         // Get hardware configuration (per-node specs)
         let hwConfig = getHardwareConfig();
 
-        // --- Auto-recommend node count based on workload + hardware ---
+        // Build "max possible" config to favour scaling up before adding nodes
+        const maxHwConfig = buildMaxHardwareConfig(hwConfig);
+
+        // --- Auto-recommend node count based on max hardware potential ---
         if (workloads.length > 0) {
             const recommendation = getRecommendedNodeCount(
                 totalVcpus, totalMemory, totalStorage,
-                hwConfig, resiliencyMultiplier, resiliency
+                maxHwConfig, resiliencyMultiplier, resiliency
             );
             if (recommendation) {
                 updateNodeRecommendation(recommendation);
@@ -1504,10 +1579,10 @@ function calculateRequirements() {
                 // Re-read hardware config with the updated dropdown values
                 hwConfig = getHardwareConfig();
 
-                // Re-run node recommendation with updated hardware so the message is accurate
+                // Re-run node recommendation with maxHwConfig so the message stays consistent
                 const updatedRec = getRecommendedNodeCount(
                     totalVcpus, totalMemory, totalStorage,
-                    hwConfig, resiliencyMultiplier, resiliency
+                    maxHwConfig, resiliencyMultiplier, resiliency
                 );
                 if (updatedRec) {
                     updateNodeRecommendation(updatedRec);
