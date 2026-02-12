@@ -44,6 +44,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Hardware in Configuration Report**: When imported from Sizer, the report now includes a Hardware Configuration section with CPU, memory, storage, and workload summary
 - **Sizer Session Persistence**: Sizer state auto-saves to localStorage with Resume / Start Fresh prompt on return
 - **Sizer Auto-Sizing Engine**: Intelligent node count recommendation based on compute, memory, and storage requirements with disk-first scaling
+- **Export Options**: Save as PDF and Word export for sizer results
+- **Edit Workloads**: Edit existing workloads via cog icon on workload cards
+- **Official Azure Icons**: VM, AKS Arc, and AVD workload types use official Azure service icons
 
 ### Version 0.14.60
 - **2-Node Switchless VLAN & Diagram Fix ([#93](https://github.com/Azure/odinforazurelocal/issues/93))**: 2-node switchless now correctly shows two Storage VLAN ID fields (711, 712) in overrides, ARM output, and summary. Configuration Report diagram now reflects the user's custom adapter mapping instead of hardcoded port assignments.
@@ -366,6 +369,9 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer Session Persistence**: Auto-save/resume with localStorage, matching the Designer pattern
 - **Auto-Sizing Engine**: Intelligent node and disk scaling based on workload compute, memory, and storage requirements
 - **Hardware Configuration Panel**: CPU manufacturer/generation/cores/sockets, memory, and tiered storage configuration
+- **Export Options**: Save as PDF and Word export for sizer results
+- **Edit Workloads**: Edit existing workloads via cog icon on workload cards
+- **Official Azure Icons**: VM, AKS Arc, and AVD workload types use official Azure service icons
 
 ### 🎉 Version 0.14.x Series (February 2026)
 
