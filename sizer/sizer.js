@@ -189,6 +189,7 @@ function onCpuGenerationChange() {
 function onStorageConfigChange() {
     const storageConfig = document.getElementById('storage-config').value;
     const tieringSelect = document.getElementById('storage-tiering');
+    if (!tieringSelect) return; // Guard for test harness
     const options = STORAGE_TIERING_OPTIONS[storageConfig];
 
     // Show/hide hybrid warning
@@ -777,6 +778,7 @@ function resumeSizerState() {
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
     updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '0';
 
@@ -935,6 +937,7 @@ const RESILIENCY_CONFIG = {
     'simple': { multiplier: 1, minNodes: 1, name: 'Simple (No Fault Tolerance)', singleNodeOnly: true },
     '2way': { multiplier: 2, minNodes: 1, name: 'Two-way Mirror' },
     '3way': { multiplier: 3, minNodes: 3, name: 'Three-way Mirror' },
+    '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' },
     'parity': { multiplier: 1.5, minNodes: 4, name: 'Dual Parity' }
 };
 
@@ -943,6 +946,7 @@ const RESILIENCY_MULTIPLIERS = {
     'simple': 1,    // Simple = no redundancy (1x raw storage)
     '2way': 2,      // Two-way mirror = 2x raw storage
     '3way': 3,      // Three-way mirror = 3x raw storage
+    '4way': 4,      // Four-way mirror = 4x raw storage (rack-aware 4+ nodes)
     'parity': 1.5   // Dual parity ≈ 1.5x raw storage
 };
 
@@ -959,9 +963,24 @@ function onNodeCountChange() {
 // Handle cluster type change (single / standard / rack-aware)
 function onClusterTypeChange() {
     updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
     updateResiliencyOptions();
     updateClusterInfo();
     calculateRequirements();
+}
+
+// Enforce storage constraints for rack-aware clusters (All-Flash only)
+function updateStorageForClusterType() {
+    const clusterType = document.getElementById('cluster-type').value;
+    const storageSelect = document.getElementById('storage-config');
+    if (!storageSelect) return; // Guard for test harness
+    if (clusterType === 'rack-aware') {
+        storageSelect.value = 'all-flash';
+        storageSelect.disabled = true;
+        onStorageConfigChange();
+    } else {
+        storageSelect.disabled = false;
+    }
 }
 
 // Handle resiliency change
@@ -1071,8 +1090,19 @@ function updateResiliencyOptions() {
             <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
             <option value="2way">Two-way Mirror (2+ drives, single fault tolerance)</option>
         `;
+    } else if (clusterType === 'rack-aware') {
+        // Rack-aware: 2-node = 2-way mirror only; 4/6/8-node = 4-way mirror only
+        if (nodeCount <= 2) {
+            options = `
+                <option value="2way">Two-way Mirror (50% efficiency)</option>
+            `;
+        } else {
+            options = `
+                <option value="4way">Four-way Mirror (25% efficiency)</option>
+            `;
+        }
     } else if (nodeCount === 2) {
-        // 2 nodes: simple, 2-way mirror
+        // 2 nodes: 2-way mirror
         options = `
             <option value="2way">Two-way Mirror (min 2 nodes)</option>
         `;
@@ -1093,9 +1123,11 @@ function updateResiliencyOptions() {
     
     resiliencySelect.innerHTML = options;
     
-    // Default to 3-way mirror (recommended) when available and node count supports it
+    // Default to best option: rack-aware auto-selects, standard defaults to 3-way when available
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
-    if (validOptions.includes('3way') && clusterType !== 'single') {
+    if (clusterType === 'rack-aware') {
+        // Rack-aware has only one option per node count — already selected
+    } else if (validOptions.includes('3way') && clusterType !== 'single') {
         resiliencySelect.value = '3way';
     } else if (validOptions.includes(currentResiliency)) {
         resiliencySelect.value = currentResiliency;
@@ -1111,11 +1143,18 @@ function updateClusterInfo() {
     const infoDiv = document.getElementById('cluster-info');
     const infoText = document.getElementById('cluster-info-text');
     
-    // Only show warning when 3-way mirror is selected but node count is below minimum
+    // Only show warning when resiliency requirements aren't met, or info for rack-aware
     let showWarning = false;
     let message = '';
     
-    if (clusterType !== 'single' && resiliency === '3way' && nodeCount < config.minNodes) {
+    if (clusterType === 'rack-aware') {
+        showWarning = true;
+        if (nodeCount <= 2) {
+            message = 'Rack-aware cluster: Two-way Mirror with 50% storage efficiency. Only All-Flash storage is supported.';
+        } else {
+            message = 'Rack-aware cluster: Four-way Mirror with 25% storage efficiency. Only All-Flash storage is supported.';
+        }
+    } else if (clusterType !== 'single' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
         if (clusterType === 'rack-aware') {
             message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (racks). Current configuration has only ${nodeCount} nodes.`;
@@ -1853,8 +1892,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Resiliency note
         const resiliencyNames = {
             'simple': 'Simple (no redundancy, 1x raw storage)',
-            '2way': 'Two-way mirror (2x raw storage)',
+            '2way': 'Two-way mirror (2x raw storage, 50% efficiency)',
             '3way': 'Three-way mirror (3x raw storage)',
+            '4way': 'Four-way mirror (4x raw storage, 25% efficiency)',
             'parity': 'Dual parity (~1.5x raw storage)'
         };
         notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
@@ -2207,6 +2247,7 @@ function resetScenario() {
     // Reset cluster config
     document.getElementById('cluster-type').value = 'standard';
     updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
     document.getElementById('node-count').value = '3';
     updateResiliencyOptions();
     document.getElementById('resiliency').value = '3way';
@@ -2253,6 +2294,7 @@ document.addEventListener('DOMContentLoaded', function() {
     checkForSavedSizerState();
 
     updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
     updateResiliencyOptions();
     updateClusterInfo();
     // Initialize hardware defaults

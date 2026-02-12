@@ -2737,6 +2737,9 @@
             assert(RESILIENCY_CONFIG['simple'].multiplier === 1, 'Simple: multiplier = 1', 1, RESILIENCY_CONFIG['simple'].multiplier),
             assert(RESILIENCY_CONFIG['2way'].multiplier === 2, '2-way: multiplier = 2', 2, RESILIENCY_CONFIG['2way'].multiplier),
             assert(RESILIENCY_CONFIG['3way'].multiplier === 3, '3-way: multiplier = 3', 3, RESILIENCY_CONFIG['3way'].multiplier),
+            assert(RESILIENCY_CONFIG['4way'].multiplier === 4, '4-way: multiplier = 4', 4, RESILIENCY_CONFIG['4way'].multiplier),
+            assert(RESILIENCY_CONFIG['4way'].minNodes === 4, '4-way: minNodes = 4', 4, RESILIENCY_CONFIG['4way'].minNodes),
+            assert(RESILIENCY_MULTIPLIERS['4way'] === 4, '4-way MULTIPLIERS entry = 4', 4, RESILIENCY_MULTIPLIERS['4way']),
             assert(RESILIENCY_CONFIG['parity'].multiplier === 1.5, 'Parity: multiplier = 1.5', 1.5, RESILIENCY_CONFIG['parity'].multiplier),
             assert(RESILIENCY_CONFIG['3way'].minNodes === 3, '3-way: minNodes = 3', 3, RESILIENCY_CONFIG['3way'].minNodes),
             assert(RESILIENCY_CONFIG['parity'].minNodes === 4, 'Parity: minNodes = 4', 4, RESILIENCY_CONFIG['parity'].minNodes)
@@ -3127,6 +3130,116 @@
                 const d = getWorkloadDetails(w);
                 return assert(d.includes('50') && d.includes('Medium'), 'AVD details contain user count and profile', true,
                     d.includes('50') && d.includes('Medium'));
+            })()
+        ]);
+
+        // --- Rack-aware storage and resiliency constraints ---
+        // Create stub DOM elements needed for these tests
+        (() => {
+            // storage-config stub
+            let storageStub = document.getElementById('storage-config');
+            if (!storageStub) {
+                storageStub = document.createElement('select');
+                storageStub.id = 'storage-config';
+                storageStub.style.display = 'none';
+                ['all-flash', 'mixed-flash', 'hybrid'].forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.text = v;
+                    storageStub.appendChild(opt);
+                });
+                document.body.appendChild(storageStub);
+            }
+            // node-count stub
+            let nodeStub = document.getElementById('node-count');
+            if (!nodeStub) {
+                nodeStub = document.createElement('select');
+                nodeStub.id = 'node-count';
+                nodeStub.style.display = 'none';
+                [1,2,3,4,5,6,7,8].forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.text = v;
+                    nodeStub.appendChild(opt);
+                });
+                document.body.appendChild(nodeStub);
+            }
+            // resiliency stub
+            let resStub = document.getElementById('resiliency');
+            if (!resStub) {
+                resStub = document.createElement('select');
+                resStub.id = 'resiliency';
+                resStub.style.display = 'none';
+                document.body.appendChild(resStub);
+            }
+        })();
+
+        testSuite('Rack-aware: All-Flash only', 'sizer.js', [
+            (() => {
+                // updateStorageForClusterType should disable non-all-flash for rack-aware
+                document.getElementById('cluster-type').value = 'rack-aware';
+                document.getElementById('storage-config').value = 'hybrid';
+                updateStorageForClusterType();
+                const storageVal = document.getElementById('storage-config').value;
+                const disabled = document.getElementById('storage-config').disabled;
+                // Reset
+                document.getElementById('cluster-type').value = 'standard';
+                updateStorageForClusterType();
+                return assert(storageVal === 'all-flash' && disabled === true,
+                    'Rack-aware forces all-flash and disables storage dropdown',
+                    'all-flash + disabled', storageVal + ' + ' + (disabled ? 'disabled' : 'enabled'));
+            })(),
+            (() => {
+                // Standard cluster should NOT disable storage dropdown
+                document.getElementById('cluster-type').value = 'standard';
+                updateStorageForClusterType();
+                const disabled = document.getElementById('storage-config').disabled;
+                return assert(disabled === false, 'Standard cluster: storage dropdown enabled', false, disabled);
+            })()
+        ]);
+
+        testSuite('Rack-aware: resiliency options', 'sizer.js', [
+            (() => {
+                // 2-node rack-aware: only 2-way mirror
+                document.getElementById('cluster-type').value = 'rack-aware';
+                document.getElementById('node-count').value = '2';
+                updateResiliencyOptions();
+                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
+                // Reset
+                document.getElementById('cluster-type').value = 'standard';
+                document.getElementById('node-count').value = '3';
+                updateResiliencyOptions();
+                return assert(opts.length === 1 && opts[0] === '2way',
+                    '2-node rack-aware: only 2-way mirror', '["2way"]', JSON.stringify(opts));
+            })(),
+            (() => {
+                // 4-node rack-aware: only 4-way mirror
+                document.getElementById('cluster-type').value = 'rack-aware';
+                document.getElementById('node-count').value = '4';
+                updateResiliencyOptions();
+                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
+                document.getElementById('cluster-type').value = 'standard';
+                document.getElementById('node-count').value = '3';
+                updateResiliencyOptions();
+                return assert(opts.length === 1 && opts[0] === '4way',
+                    '4-node rack-aware: only 4-way mirror', '["4way"]', JSON.stringify(opts));
+            })(),
+            (() => {
+                // 8-node rack-aware: only 4-way mirror
+                document.getElementById('cluster-type').value = 'rack-aware';
+                document.getElementById('node-count').value = '8';
+                updateResiliencyOptions();
+                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
+                document.getElementById('cluster-type').value = 'standard';
+                document.getElementById('node-count').value = '3';
+                updateResiliencyOptions();
+                return assert(opts.length === 1 && opts[0] === '4way',
+                    '8-node rack-aware: only 4-way mirror', '["4way"]', JSON.stringify(opts));
+            })(),
+            (() => {
+                // 4-way mirror has 4x multiplier (25% efficiency)
+                return assert(RESILIENCY_MULTIPLIERS['4way'] === 4,
+                    '4-way mirror: 4x raw storage (25% efficiency)', 4, RESILIENCY_MULTIPLIERS['4way']);
             })()
         ]);
 
