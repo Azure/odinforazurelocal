@@ -984,7 +984,7 @@ function updateStorageForClusterType() {
 // Handle resiliency change
 function onResiliencyChange() {
     updateClusterInfo();
-    calculateRequirements();
+    calculateRequirements({ skipAutoNodeRecommend: true });
 }
 
 // Update node count options based on cluster type
