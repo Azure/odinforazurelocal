@@ -1224,7 +1224,7 @@ function updateNodeTip() {
     if (clusterType === 'single') {
         tipText.textContent = 'Tip: Single node clusters will always incur workload downtime during updates. No N+1 capacity is available.';
     } else {
-        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Storage remains accessible across all nodes during maintenance. Single Node clusters will always incur workload downtime during updates.';
+        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.';
     }
     tipDiv.style.display = 'flex';
 }
