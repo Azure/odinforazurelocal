@@ -1414,7 +1414,7 @@ function getAVDModalContent() {
             </select>
             <span class="hint" id="avd-profile-desc">${AVD_PROFILES.medium.description}</span>
         </div>
-        <div class="form-group">
+        <div class="form-group" id="avd-concurrency-group">
             <label>Max Concurrency %
                 <span class="info-icon" title="Peak percentage of users active simultaneously. Most organisations see 60-90% peak concurrency. Reduces compute/memory requirements.">ⓘ</span>
             </label>
@@ -1495,6 +1495,12 @@ function updateAVDDescription() {
     const specsPanel = document.getElementById('avd-specs-panel');
 
     document.getElementById('avd-profile-desc').textContent = profileData.description;
+
+    // Hide concurrency for single-session (every user gets a dedicated VM)
+    const concGroup = document.getElementById('avd-concurrency-group');
+    if (concGroup) {
+        concGroup.style.display = sessionType === 'single' ? 'none' : 'block';
+    }
 
     if (profile === 'custom') {
         // Show editable custom fields, hide read-only specs panel
@@ -1772,7 +1778,8 @@ function calculateWorkloadRequirements(w) {
             storage = (cpStorage + workerStorage) * w.clusterCount;
             break;
         case 'avd': {
-            const concPct = (w.concurrency != null ? w.concurrency : 100) / 100;
+            // Single-session = every user gets a dedicated VM, so concurrency is always 100%
+            const concPct = (w.sessionType === 'single') ? 1 : (w.concurrency != null ? w.concurrency : 100) / 100;
             const concUsers = Math.ceil(w.userCount * concPct);
             const sType = w.sessionType || 'multi';
             let vPerUser, mPerUser, sPerUser;
