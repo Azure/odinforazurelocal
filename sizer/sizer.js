@@ -616,6 +616,65 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         }
     }
 
+    // --- Headroom pass: nudge cores / memory up if capacity bars > 80% ---
+    // The initial auto-scale above ensures resources fit (< 100%). This pass
+    // provides additional headroom so the Capacity Breakdown stays ≤ 80%
+    // wherever a larger per-node option is available.
+    const HEADROOM_THRESHOLD = 80;
+
+    // Re-read current hardware after initial auto-scale
+    let hrCores = parseInt(document.getElementById('cpu-cores').value) || 0;
+    let hrSockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
+    let hrMemory = parseInt(document.getElementById('node-memory').value) || 512;
+
+    // CPU headroom — bump cores first, then sockets
+    if (manufacturer && genId) {
+        const gen = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
+        if (gen) {
+            let cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+            let cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+            let safety = 0;
+            while (cpuPct > HEADROOM_THRESHOLD && safety < 20) {
+                safety++;
+                const coreIdx = gen.coreOptions.indexOf(hrCores);
+                if (coreIdx >= 0 && coreIdx < gen.coreOptions.length - 1) {
+                    hrCores = gen.coreOptions[coreIdx + 1];
+                    document.getElementById('cpu-cores').value = hrCores;
+                    changed = true;
+                } else if (hrSockets < 4) {
+                    const nextSocket = SOCKET_OPTIONS.find(s => s > hrSockets);
+                    if (nextSocket) {
+                        hrSockets = nextSocket;
+                        document.getElementById('cpu-sockets').value = hrSockets;
+                        changed = true;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break; // maxed out on both cores and sockets
+                }
+                cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+                cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+            }
+        }
+    }
+
+    // Memory headroom — bump to next memory tier
+    let memCap = hrMemory * effectiveNodes;
+    let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
+    while (memPct > HEADROOM_THRESHOLD) {
+        const memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
+        if (memIdx >= 0 && memIdx < MEMORY_OPTIONS_GB.length - 1) {
+            hrMemory = MEMORY_OPTIONS_GB[memIdx + 1];
+            document.getElementById('node-memory').value = hrMemory;
+            changed = true;
+        } else {
+            break; // at max memory
+        }
+        memCap = hrMemory * effectiveNodes;
+        memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
+    }
+
     // --- Enforce 1:2 cache-to-capacity ratio for hybrid storage ---
     if (isTiered && hwConfig.storageConfig === 'hybrid') {
         const finalCapacityCount = parseInt(document.getElementById(diskCountId).value) || 4;
