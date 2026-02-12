@@ -8771,6 +8771,9 @@ function showChangelog() {
                         <li><strong>"Unsure? Start with Sizer" Links:</strong> Steps 04 (Cluster Configuration) and 05 (Cluster Size) now include a navigation link to launch the Sizer for users who need guidance.</li>
                         <li><strong>Hardware in Configuration Report:</strong> When imported from Sizer, reports include CPU, memory, storage, resiliency, and workload summary details.</li>
                         <li><strong>Session Persistence:</strong> Sizer state auto-saves to localStorage with Resume / Start Fresh prompt on return.</li>
+                        <li><strong>Export Options:</strong> Save as PDF and Word export for sizer results.</li>
+                        <li><strong>Edit Workloads:</strong> Edit existing workloads via cog icon on workload cards.</li>
+                        <li><strong>Official Azure Icons:</strong> VM, AKS Arc, and AVD workload types use official Azure service icons.</li>
                     </ul>
                 </div>
 

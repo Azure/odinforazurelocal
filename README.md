@@ -48,23 +48,6 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Edit Workloads**: Edit existing workloads via cog icon on workload cards
 - **Official Azure Icons**: VM, AKS Arc, and AVD workload types use official Azure service icons
 
-### Version 0.14.60
-- **2-Node Switchless VLAN & Diagram Fix ([#93](https://github.com/Azure/odinforazurelocal/issues/93))**: 2-node switchless now correctly shows two Storage VLAN ID fields (711, 712) in overrides, ARM output, and summary. Configuration Report diagram now reflects the user's custom adapter mapping instead of hardcoded port assignments.
-
-### Version 0.14.59
-- **Summary Blade NIC Mapping ([#88](https://github.com/Azure/odinforazurelocal/issues/88))**: Summary blade now updates to reflect custom adapter mapping after confirming, instead of always showing default port assignments
-
-### Version 0.14.58
-- **Character Encoding Fix ([#103](https://github.com/Azure/odinforazurelocal/issues/103))**: Fixed 106 corrupted UTF-8 characters in Configuration Report diagrams (em dashes, arrows, emojis) that displayed as garbled text due to double-encoding
-
-### Version 0.14.57
-- **Storage Subnet CIDRs ([#99](https://github.com/Azure/odinforazurelocal/issues/99))**: SVG diagram legends now show correct Network ATC default subnets (10.71.x.0/24) when Auto IP is enabled, instead of incorrect 10.0.x.0/24 addresses
-
-### Version 0.14.56
-- **draw.io Orthogonal Routing ([#94](https://github.com/Azure/odinforazurelocal/issues/94))**: Switchless storage subnet connectors now use L-shaped orthogonal routing (down → horizontal lane → up) instead of straight overlapping lines, matching the ODIN SVG diagram style
-- **Canonical Switchless Port Layout**: Switchless topologies now force canonical port allocation (2 management+compute + (n-1)×2 storage ports) regardless of user port count, ensuring correct mesh connectivity
-- **draw.io Export Scoped to Report**: Removed draw.io export button from the main wizard page; the download is now available exclusively on the Configuration Report page
-
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
 ---
