@@ -189,6 +189,7 @@ function onCpuGenerationChange() {
 function onStorageConfigChange() {
     const storageConfig = document.getElementById('storage-config').value;
     const tieringSelect = document.getElementById('storage-tiering');
+    if (!tieringSelect) return; // Guard for test harness
     const options = STORAGE_TIERING_OPTIONS[storageConfig];
 
     // Show/hide hybrid warning
@@ -615,6 +616,65 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         }
     }
 
+    // --- Headroom pass: nudge cores / memory up if capacity bars > 80% ---
+    // The initial auto-scale above ensures resources fit (< 100%). This pass
+    // provides additional headroom so the Capacity Breakdown stays ≤ 80%
+    // wherever a larger per-node option is available.
+    const HEADROOM_THRESHOLD = 80;
+
+    // Re-read current hardware after initial auto-scale
+    let hrCores = parseInt(document.getElementById('cpu-cores').value) || 0;
+    let hrSockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
+    let hrMemory = parseInt(document.getElementById('node-memory').value) || 512;
+
+    // CPU headroom — bump cores first, then sockets
+    if (manufacturer && genId) {
+        const gen = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
+        if (gen) {
+            let cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+            let cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+            let safety = 0;
+            while (cpuPct > HEADROOM_THRESHOLD && safety < 20) {
+                safety++;
+                const coreIdx = gen.coreOptions.indexOf(hrCores);
+                if (coreIdx >= 0 && coreIdx < gen.coreOptions.length - 1) {
+                    hrCores = gen.coreOptions[coreIdx + 1];
+                    document.getElementById('cpu-cores').value = hrCores;
+                    changed = true;
+                } else if (hrSockets < 4) {
+                    const nextSocket = SOCKET_OPTIONS.find(s => s > hrSockets);
+                    if (nextSocket) {
+                        hrSockets = nextSocket;
+                        document.getElementById('cpu-sockets').value = hrSockets;
+                        changed = true;
+                    } else {
+                        break;
+                    }
+                } else {
+                    break; // maxed out on both cores and sockets
+                }
+                cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+                cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+            }
+        }
+    }
+
+    // Memory headroom — bump to next memory tier
+    let memCap = hrMemory * effectiveNodes;
+    let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
+    while (memPct > HEADROOM_THRESHOLD) {
+        const memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
+        if (memIdx >= 0 && memIdx < MEMORY_OPTIONS_GB.length - 1) {
+            hrMemory = MEMORY_OPTIONS_GB[memIdx + 1];
+            document.getElementById('node-memory').value = hrMemory;
+            changed = true;
+        } else {
+            break; // at max memory
+        }
+        memCap = hrMemory * effectiveNodes;
+        memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
+    }
+
     // --- Enforce 1:2 cache-to-capacity ratio for hybrid storage ---
     if (isTiered && hwConfig.storageConfig === 'hybrid') {
         const finalCapacityCount = parseInt(document.getElementById(diskCountId).value) || 4;
@@ -777,6 +837,7 @@ function resumeSizerState() {
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
     updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '0';
 
@@ -935,7 +996,7 @@ const RESILIENCY_CONFIG = {
     'simple': { multiplier: 1, minNodes: 1, name: 'Simple (No Fault Tolerance)', singleNodeOnly: true },
     '2way': { multiplier: 2, minNodes: 1, name: 'Two-way Mirror' },
     '3way': { multiplier: 3, minNodes: 3, name: 'Three-way Mirror' },
-    'parity': { multiplier: 1.5, minNodes: 4, name: 'Dual Parity' }
+    '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' }
 };
 
 // Storage resiliency multipliers (for backward compatibility)
@@ -943,7 +1004,7 @@ const RESILIENCY_MULTIPLIERS = {
     'simple': 1,    // Simple = no redundancy (1x raw storage)
     '2way': 2,      // Two-way mirror = 2x raw storage
     '3way': 3,      // Three-way mirror = 3x raw storage
-    'parity': 1.5   // Dual parity ≈ 1.5x raw storage
+    '4way': 4       // Four-way mirror = 4x raw storage (rack-aware 4+ nodes)
 };
 
 // Current modal state
@@ -953,21 +1014,36 @@ let currentModalType = null;
 function onNodeCountChange() {
     updateResiliencyOptions();
     updateClusterInfo();
-    calculateRequirements();
+    calculateRequirements({ skipAutoNodeRecommend: true });
 }
 
 // Handle cluster type change (single / standard / rack-aware)
 function onClusterTypeChange() {
     updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
     updateResiliencyOptions();
     updateClusterInfo();
     calculateRequirements();
 }
 
+// Enforce storage constraints for rack-aware clusters (All-Flash only)
+function updateStorageForClusterType() {
+    const clusterType = document.getElementById('cluster-type').value;
+    const storageSelect = document.getElementById('storage-config');
+    if (!storageSelect) return; // Guard for test harness
+    if (clusterType === 'rack-aware') {
+        storageSelect.value = 'all-flash';
+        storageSelect.disabled = true;
+        onStorageConfigChange();
+    } else {
+        storageSelect.disabled = false;
+    }
+}
+
 // Handle resiliency change
 function onResiliencyChange() {
     updateClusterInfo();
-    calculateRequirements();
+    calculateRequirements({ skipAutoNodeRecommend: true });
 }
 
 // Update node count options based on cluster type
@@ -1071,8 +1147,19 @@ function updateResiliencyOptions() {
             <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
             <option value="2way">Two-way Mirror (2+ drives, single fault tolerance)</option>
         `;
+    } else if (clusterType === 'rack-aware') {
+        // Rack-aware: 2-node = 2-way mirror only; 4/6/8-node = 4-way mirror only
+        if (nodeCount <= 2) {
+            options = `
+                <option value="2way">Two-way Mirror (50% efficiency)</option>
+            `;
+        } else {
+            options = `
+                <option value="4way">Four-way Mirror (25% efficiency)</option>
+            `;
+        }
     } else if (nodeCount === 2) {
-        // 2 nodes: simple, 2-way mirror
+        // 2 nodes: 2-way mirror
         options = `
             <option value="2way">Two-way Mirror (min 2 nodes)</option>
         `;
@@ -1083,19 +1170,20 @@ function updateResiliencyOptions() {
             <option value="3way">Three-way Mirror (min 3 nodes)</option>
         `;
     } else {
-        // 4+ nodes: all options available
+        // 4+ nodes: 2-way or 3-way mirror
         options = `
             <option value="2way">Two-way Mirror (min 2 nodes)</option>
             <option value="3way">Three-way Mirror (min 3 nodes)</option>
-            <option value="parity">Dual Parity (min 4 nodes)</option>
         `;
     }
     
     resiliencySelect.innerHTML = options;
     
-    // Default to 3-way mirror (recommended) when available and node count supports it
+    // Default to best option: rack-aware auto-selects, standard defaults to 3-way when available
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
-    if (validOptions.includes('3way') && clusterType !== 'single') {
+    if (clusterType === 'rack-aware') {
+        // Rack-aware has only one option per node count — already selected
+    } else if (validOptions.includes('3way') && clusterType !== 'single') {
         resiliencySelect.value = '3way';
     } else if (validOptions.includes(currentResiliency)) {
         resiliencySelect.value = currentResiliency;
@@ -1111,17 +1199,13 @@ function updateClusterInfo() {
     const infoDiv = document.getElementById('cluster-info');
     const infoText = document.getElementById('cluster-info-text');
     
-    // Only show warning when 3-way mirror is selected but node count is below minimum
+    // Only show warning when resiliency requirements aren't met
     let showWarning = false;
     let message = '';
     
-    if (clusterType !== 'single' && resiliency === '3way' && nodeCount < config.minNodes) {
+    if (clusterType !== 'single' && clusterType !== 'rack-aware' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
-        if (clusterType === 'rack-aware') {
-            message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (racks). Current configuration has only ${nodeCount} nodes.`;
-        } else {
-            message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
-        }
+        message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
     }
     
     infoDiv.style.display = showWarning ? 'flex' : 'none';
@@ -1140,7 +1224,7 @@ function updateNodeTip() {
     if (clusterType === 'single') {
         tipText.textContent = 'Tip: Single node clusters will always incur workload downtime during updates. No N+1 capacity is available.';
     } else {
-        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Storage remains accessible across all nodes during maintenance. Single Node clusters will always incur workload downtime during updates.';
+        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.';
     }
     tipDiv.style.display = 'flex';
 }
@@ -1604,9 +1688,10 @@ function calculateWorkloadRequirements(w) {
 }
 
 // Calculate all requirements
-function calculateRequirements() {
+function calculateRequirements(options) {
     if (isCalculating) return;
     isCalculating = true;
+    const skipAutoNodeRecommend = options && options.skipAutoNodeRecommend;
 
     try {
         // Sum all workload requirements (raw, before growth)
@@ -1636,16 +1721,19 @@ function calculateRequirements() {
         const maxHwConfig = buildMaxHardwareConfig(hwConfig);
 
         // --- Auto-recommend node count based on max hardware potential ---
-        if (workloads.length > 0) {
-            const recommendation = getRecommendedNodeCount(
-                totalVcpus, totalMemory, totalStorage,
-                maxHwConfig, resiliencyMultiplier, resiliency
-            );
-            if (recommendation) {
-                updateNodeRecommendation(recommendation);
+        // Skip when user manually changed node count to respect their selection
+        if (!skipAutoNodeRecommend) {
+            if (workloads.length > 0) {
+                const recommendation = getRecommendedNodeCount(
+                    totalVcpus, totalMemory, totalStorage,
+                    maxHwConfig, resiliencyMultiplier, resiliency
+                );
+                if (recommendation) {
+                    updateNodeRecommendation(recommendation);
+                }
+            } else {
+                hideNodeRecommendation();
             }
-        } else {
-            hideNodeRecommendation();
         }
 
         // Read (possibly updated) node count
@@ -1669,8 +1757,9 @@ function calculateRequirements() {
             }
 
             // --- Auto-increment node count if any resource is still >= 90% after hw scale-up ---
+            // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
-            if (clusterType !== 'single') {
+            if (clusterType !== 'single' && !skipAutoNodeRecommend) {
                 const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
@@ -1853,9 +1942,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Resiliency note
         const resiliencyNames = {
             'simple': 'Simple (no redundancy, 1x raw storage)',
-            '2way': 'Two-way mirror (2x raw storage)',
-            '3way': 'Three-way mirror (3x raw storage)',
-            'parity': 'Dual parity (~1.5x raw storage)'
+            '2way': 'Two-way mirror (50% efficiency for two copies of data), performant and resilient to one fault domain (node) failure',
+            '3way': 'Three-way mirror (33% efficiency for three copies of data), most performant and resilient to two fault domain (nodes) failures',
+            '4way': 'Four-way mirror (4x raw storage, 25% efficiency)'
         };
         notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
         
@@ -1876,7 +1965,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push(`⚠️ Workload memory (${memPerNode} GB/node) exceeds configured node memory (${hwConfig.memoryGB} GB). Consider increasing memory or adding nodes.`);
             }
             if (memPerNode > 768) {
-                notes.push('⚠️ High memory per node: Consider larger servers (>768 GB requires 400GB+ OS drive)');
+                notes.push('⚠️ Large memory system: Requires 400 GB+ or larger OS disks for supportability');
             }
         }
         
@@ -1905,7 +1994,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         }
         
         // vCPU to core ratio
-        notes.push('vCPU calculations assume 4:1 overcommit ratio');
+        notes.push('vCPU calculations assume 4:1 pCPU to vCPU ratio');
         
         // Minimum requirements
         notes.push('Minimum per node: 32 GB RAM, 4 cores (Azure Local requirements)');
@@ -2207,6 +2296,7 @@ function resetScenario() {
     // Reset cluster config
     document.getElementById('cluster-type').value = 'standard';
     updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
     document.getElementById('node-count').value = '3';
     updateResiliencyOptions();
     document.getElementById('resiliency').value = '3way';
@@ -2253,6 +2343,7 @@ document.addEventListener('DOMContentLoaded', function() {
     checkForSavedSizerState();
 
     updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
     updateResiliencyOptions();
     updateClusterInfo();
     // Initialize hardware defaults
@@ -2264,6 +2355,141 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Allow saves from now on
     isInitialLoad = false;
+
+    // Show onboarding walkthrough on first visit
+    if (!localStorage.getItem(SIZER_ONBOARDING_KEY)) {
+        showSizerOnboarding();
+    }
+});
+
+// ============================================
+// ONBOARDING WALKTHROUGH
+// ============================================
+
+const SIZER_ONBOARDING_KEY = 'odin_sizer_onboarding_complete';
+
+const sizerOnboardingSteps = [
+    {
+        icon: '<img src="../images/odin-logo.png" alt="Odin Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        isImage: true,
+        title: 'Welcome to the ODIN Sizer',
+        description: 'Plan your Azure Local hardware requirements by modelling workloads, resiliency, and capacity — before you buy.',
+        features: [
+            { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, and AVD workloads with CPU, memory, and storage needs' },
+            { icon: '⚖️', title: 'Resiliency Options', text: 'Choose mirror types and see the real impact on usable storage' },
+            { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, and storage utilization update in real time' },
+            { icon: '💾', title: 'Auto-Save', text: 'Progress is automatically saved to your browser' }
+        ]
+    },
+    {
+        icon: '🔧',
+        title: 'How It Works',
+        description: 'Configure your cluster, add workloads, and let the sizer recommend the right hardware.',
+        features: [
+            { icon: '1️⃣', title: 'Choose Cluster Type', text: 'Standard, Rack-Aware, or Single Node — each with its own constraints' },
+            { icon: '2️⃣', title: 'Add Workloads', text: 'Click VM, AKS, or AVD buttons to define your workload scenarios' },
+            { icon: '3️⃣', title: 'Review Sizing', text: 'Auto-sizing recommends nodes, cores, memory, and disks' },
+            { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config into the deployment wizard' }
+        ]
+    },
+    {
+        icon: '⚡',
+        title: 'Pro Tips',
+        description: 'Get the most out of the ODIN Sizer with these features.',
+        features: [
+            { icon: '📈', title: 'Growth Factor', text: 'Plan for future growth — the sizer applies your growth % to all workloads' },
+            { icon: '🔄', title: 'Auto-Scaling', text: 'The engine scales up cores, memory, and disks before adding nodes' },
+            { icon: '🚫', title: 'Utilization Guard', text: 'Configurations above 90% utilization are flagged with warnings' },
+            { icon: '📄', title: 'Export Results', text: 'Download your sizing as PDF or Word for stakeholder review' }
+        ]
+    }
+];
+
+let currentSizerOnboardingStep = 0;
+
+function showSizerOnboarding() {
+    currentSizerOnboardingStep = 0;
+    renderSizerOnboardingStep();
+}
+
+function renderSizerOnboardingStep() {
+    const step = sizerOnboardingSteps[currentSizerOnboardingStep];
+
+    // Remove existing overlay if any
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+
+    const overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.innerHTML = `
+        <div class="onboarding-card">
+            <div class="onboarding-icon${step.isImage ? ' onboarding-icon-image' : ''}">${step.icon}</div>
+            <h2 class="onboarding-title">${step.title}</h2>
+            <p class="onboarding-description">${step.description}</p>
+
+            <div class="onboarding-features">
+                ${step.features.map(f => `
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">${f.icon}</span>
+                        <div class="onboarding-feature-text">
+                            <strong>${f.title}</strong>
+                            ${f.text}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="onboarding-progress">
+                ${sizerOnboardingSteps.map((_, i) => `<div class="onboarding-dot ${i === currentSizerOnboardingStep ? 'active' : ''}"></div>`).join('')}
+            </div>
+
+            <div class="onboarding-buttons">
+                <button class="onboarding-btn onboarding-btn-secondary" data-action="skip">Skip</button>
+                <button class="onboarding-btn onboarding-btn-primary" data-action="next">
+                    ${currentSizerOnboardingStep === sizerOnboardingSteps.length - 1 ? 'Get Started' : 'Next'}
+                </button>
+            </div>
+        </div>
+    `;
+
+    overlay.querySelector('[data-action="skip"]').addEventListener('click', skipSizerOnboarding);
+    overlay.querySelector('[data-action="next"]').addEventListener('click', () => {
+        if (currentSizerOnboardingStep === sizerOnboardingSteps.length - 1) {
+            finishSizerOnboarding();
+        } else {
+            nextSizerOnboardingStep();
+        }
+    });
+
+    document.body.appendChild(overlay);
+}
+
+function nextSizerOnboardingStep() {
+    currentSizerOnboardingStep++;
+    if (currentSizerOnboardingStep < sizerOnboardingSteps.length) {
+        renderSizerOnboardingStep();
+    } else {
+        finishSizerOnboarding();
+    }
+}
+
+function skipSizerOnboarding() {
+    localStorage.setItem(SIZER_ONBOARDING_KEY, 'true');
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+}
+
+function finishSizerOnboarding() {
+    localStorage.setItem(SIZER_ONBOARDING_KEY, 'true');
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+}
+
+// Close onboarding overlay on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const overlay = document.querySelector('.onboarding-overlay');
+        if (overlay) {
+            skipSizerOnboarding();
+        }
+    }
 });
 
 // Theme toggle functionality
