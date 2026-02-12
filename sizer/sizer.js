@@ -1143,24 +1143,13 @@ function updateClusterInfo() {
     const infoDiv = document.getElementById('cluster-info');
     const infoText = document.getElementById('cluster-info-text');
     
-    // Only show warning when resiliency requirements aren't met, or info for rack-aware
+    // Only show warning when resiliency requirements aren't met
     let showWarning = false;
     let message = '';
     
-    if (clusterType === 'rack-aware') {
+    if (clusterType !== 'single' && clusterType !== 'rack-aware' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
-        if (nodeCount <= 2) {
-            message = 'Rack-aware cluster: Two-way Mirror with 50% storage efficiency. Only All-Flash storage is supported.';
-        } else {
-            message = 'Rack-aware cluster: Four-way Mirror with 25% storage efficiency. Only All-Flash storage is supported.';
-        }
-    } else if (clusterType !== 'single' && resiliency === '3way' && nodeCount < config.minNodes) {
-        showWarning = true;
-        if (clusterType === 'rack-aware') {
-            message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (racks). Current configuration has only ${nodeCount} nodes.`;
-        } else {
-            message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
-        }
+        message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
     }
     
     infoDiv.style.display = showWarning ? 'flex' : 'none';
