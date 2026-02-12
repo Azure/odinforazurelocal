@@ -2744,15 +2744,21 @@
         ]);
 
         testSuite('AVD_PROFILES', 'sizer.js', [
-            assert(AVD_PROFILES.light.vcpusPerUser === 0.5, 'Light: 0.5 vCPUs/user', 0.5, AVD_PROFILES.light.vcpusPerUser),
-            assert(AVD_PROFILES.medium.vcpusPerUser === 1, 'Medium: 1 vCPU/user', 1, AVD_PROFILES.medium.vcpusPerUser),
-            assert(AVD_PROFILES.power.vcpusPerUser === 2, 'Power: 2 vCPUs/user', 2, AVD_PROFILES.power.vcpusPerUser),
+            assert(AVD_PROFILES.light.multi.vcpusPerUser === 0.5, 'Light multi: 0.5 vCPUs/user', 0.5, AVD_PROFILES.light.multi.vcpusPerUser),
+            assert(AVD_PROFILES.medium.multi.vcpusPerUser === 1, 'Medium multi: 1 vCPU/user', 1, AVD_PROFILES.medium.multi.vcpusPerUser),
+            assert(AVD_PROFILES.heavy.multi.vcpusPerUser === 1.5, 'Heavy multi: 1.5 vCPUs/user', 1.5, AVD_PROFILES.heavy.multi.vcpusPerUser),
+            assert(AVD_PROFILES.power.multi.vcpusPerUser === 2, 'Power multi: 2 vCPUs/user', 2, AVD_PROFILES.power.multi.vcpusPerUser),
+            assert(AVD_PROFILES.light.single.vcpusPerUser === 2, 'Light single: 2 vCPUs/user', 2, AVD_PROFILES.light.single.vcpusPerUser),
+            assert(AVD_PROFILES.medium.single.vcpusPerUser === 4, 'Medium single: 4 vCPUs/user', 4, AVD_PROFILES.medium.single.vcpusPerUser),
             assert(AVD_PROFILES.custom !== undefined, 'Custom profile exists', true, AVD_PROFILES.custom !== undefined),
             assert(AVD_PROFILES.custom.name === 'Custom', 'Custom profile name is Custom', 'Custom', AVD_PROFILES.custom.name),
-            assert(AVD_PROFILES.light.memoryPerUser < AVD_PROFILES.medium.memoryPerUser, 'Light memory < Medium memory', true,
-                AVD_PROFILES.light.memoryPerUser < AVD_PROFILES.medium.memoryPerUser),
-            assert(AVD_PROFILES.medium.memoryPerUser < AVD_PROFILES.power.memoryPerUser, 'Medium memory < Power memory', true,
-                AVD_PROFILES.medium.memoryPerUser < AVD_PROFILES.power.memoryPerUser)
+            assert(AVD_PROFILES.light.multi.memoryPerUser < AVD_PROFILES.medium.multi.memoryPerUser, 'Light memory < Medium memory', true,
+                AVD_PROFILES.light.multi.memoryPerUser < AVD_PROFILES.medium.multi.memoryPerUser),
+            assert(AVD_PROFILES.medium.multi.memoryPerUser < AVD_PROFILES.power.multi.memoryPerUser, 'Medium memory < Power memory', true,
+                AVD_PROFILES.medium.multi.memoryPerUser < AVD_PROFILES.power.multi.memoryPerUser),
+            assert(AVD_PROFILES.light.maxUsersPerVcpu === 6, 'Light: 6 users/vCPU max density', 6, AVD_PROFILES.light.maxUsersPerVcpu),
+            assert(AVD_PROFILES.medium.maxUsersPerVcpu === 4, 'Medium: 4 users/vCPU max density', 4, AVD_PROFILES.medium.maxUsersPerVcpu),
+            assert(AVD_PROFILES.heavy !== undefined, 'Heavy profile exists', true, AVD_PROFILES.heavy !== undefined)
         ]);
 
         testSuite('STORAGE_TIERING_OPTIONS', 'sizer.js', [
