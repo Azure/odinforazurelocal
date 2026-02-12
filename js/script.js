@@ -8767,6 +8767,9 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧮 ODIN Sizer (Preview)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Hardware Sizing Tool:</strong> New sizer calculates cluster requirements based on workload scenarios (VMs, AKS, AVD), storage resiliency, and capacity needs with an intelligent auto-sizing engine.</li>
+                        <li><strong>Scale-Up Before Scale-Out:</strong> Auto-sizing favours increasing CPU cores, memory (up to 1 TB), and disks per node before recommending additional cluster nodes.</li>
+                        <li><strong>Capacity Utilization Guard:</strong> Blocks configurations when Compute, Memory, or Storage utilization ≥ 90% — visual warning, red capacity bars, and disabled Designer button.</li>
+                        <li><strong>Hybrid Cache Ratio:</strong> Hybrid storage enforces a 1:2 cache-to-capacity disk ratio (e.g., 6 cache + 12 HDD).</li>
                         <li><strong>Sizer-to-Designer Integration:</strong> "Configure in Designer" button transfers the full sizer configuration into the Designer, auto-populating steps 01–05 (Hyperconverged, Azure Commercial, East US, cluster type, and node count).</li>
                         <li><strong>"Unsure? Start with Sizer" Links:</strong> Steps 04 (Cluster Configuration) and 05 (Cluster Size) now include a navigation link to launch the Sizer for users who need guidance.</li>
                         <li><strong>Hardware in Configuration Report:</strong> When imported from Sizer, reports include CPU, memory, storage, resiliency, and workload summary details.</li>
@@ -8774,6 +8777,7 @@ function showChangelog() {
                         <li><strong>Export Options:</strong> Save as PDF and Word export for sizer results.</li>
                         <li><strong>Edit Workloads:</strong> Edit existing workloads via cog icon on workload cards.</li>
                         <li><strong>Official Azure Icons:</strong> VM, AKS Arc, and AVD workload types use official Azure service icons.</li>
+                        <li><strong>ODIN Favicon:</strong> ODIN logo shown as browser favicon across all pages.</li>
                     </ul>
                 </div>
 

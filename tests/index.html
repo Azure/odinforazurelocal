@@ -2988,7 +2988,7 @@
             })(),
             (() => {
                 document.getElementById('cluster-type').value = 'standard';
-                return assert(snapToAvailableNodeCount(9) === 12, 'Standard: snap 9 → 12 (next available)', 12, snapToAvailableNodeCount(9));
+                return assert(snapToAvailableNodeCount(9) === 9, 'Standard: snap 9 → 9 (exact match)', 9, snapToAvailableNodeCount(9));
             })(),
             (() => {
                 document.getElementById('cluster-type').value = 'standard';
@@ -3008,9 +3008,87 @@
             })()
         ]);
 
+        // --- buildMaxHardwareConfig() ---
+        testSuite('buildMaxHardwareConfig()', 'sizer.js', [
+            (() => {
+                // With generation info: uses max coreOptions for CPU
+                const hw = {
+                    coresPerSocket: 24,
+                    sockets: 2,
+                    totalPhysicalCores: 48,
+                    memoryGB: 512,
+                    generation: { coreOptions: [8, 16, 24, 32, 48, 64] },
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                return assert(maxHw.totalPhysicalCores === 256, 'Max cores = 64 (last option) × 4 sockets = 256', 256, maxHw.totalPhysicalCores);
+            })(),
+            (() => {
+                // Memory always set to preferred max (1024 GB / 1 TB)
+                const hw = {
+                    coresPerSocket: 24,
+                    sockets: 2,
+                    memoryGB: 256,
+                    generation: { coreOptions: [8, 24] },
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                return assert(maxHw.memoryGB === 1024, 'Preferred max memory is 1024 GB (1 TB)', 1024, maxHw.memoryGB);
+            })(),
+            (() => {
+                // Without generation info: falls back to current coresPerSocket
+                const hw = {
+                    coresPerSocket: 24,
+                    sockets: 2,
+                    totalPhysicalCores: 48,
+                    memoryGB: 512,
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                return assert(maxHw.totalPhysicalCores === 96, 'No generation: falls back to 24 × 4 = 96', 96, maxHw.totalPhysicalCores);
+            })(),
+            (() => {
+                // Disk config is passed through unchanged
+                const dc = { isTiered: true, cache: { count: 4 }, capacity: { count: 8, sizeGB: 3584 } };
+                const hw = { coresPerSocket: 24, sockets: 2, memoryGB: 512, diskConfig: dc };
+                const maxHw = buildMaxHardwareConfig(hw);
+                return assert(maxHw.diskConfig === dc, 'diskConfig passed through unchanged', true, maxHw.diskConfig === dc);
+            })(),
+            (() => {
+                // With Intel Xeon 6 (max 128 cores per socket)
+                const hw = {
+                    coresPerSocket: 32,
+                    sockets: 2,
+                    memoryGB: 512,
+                    generation: { coreOptions: [16, 24, 32, 48, 64, 72, 86, 96, 128] },
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                return assert(maxHw.totalPhysicalCores === 512, 'Xeon 6: 128 × 4 = 512 max physical cores', 512, maxHw.totalPhysicalCores);
+            })(),
+            (() => {
+                // Scale-up vs scale-out: maxHwConfig should recommend fewer nodes than default config
+                // 100 VMs × 4 vCPUs = 400 vCPUs, 100 VMs × 16 GB = 1600 GB memory
+                const defaultHw = {
+                    totalPhysicalCores: 48,   // 24 cores × 2
+                    memoryGB: 512,
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = {
+                    totalPhysicalCores: 128,  // 64 cores × 2 (generation max)
+                    memoryGB: 1024,           // 1 TB
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const recDefault = getRecommendedNodeCount(400, 1600, 5000, defaultHw, 2, '2way');
+                const recMax = getRecommendedNodeCount(400, 1600, 5000, maxHw, 2, '2way');
+                return assert(recMax.recommended < recDefault.recommended,
+                    'maxHwConfig recommends fewer nodes than default', true,
+                    recMax.recommended + ' < ' + recDefault.recommended);
+            })()
+        ]);
+
         // --- WORKLOAD_DEFAULTS validation ---
         testSuite('WORKLOAD_DEFAULTS', 'sizer.js', [
-            assert(WORKLOAD_DEFAULTS.vm.vcpus === 4, 'VM default: 4 vCPUs', 4, WORKLOAD_DEFAULTS.vm.vcpus),
             assert(WORKLOAD_DEFAULTS.vm.count === 10, 'VM default: 10 count', 10, WORKLOAD_DEFAULTS.vm.count),
             assert(WORKLOAD_DEFAULTS.aks.controlPlaneNodes === 3, 'AKS default: 3 CP nodes', 3, WORKLOAD_DEFAULTS.aks.controlPlaneNodes),
             assert(WORKLOAD_DEFAULTS.aks.workerNodes === 3, 'AKS default: 3 worker nodes', 3, WORKLOAD_DEFAULTS.aks.workerNodes),

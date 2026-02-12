@@ -236,8 +236,35 @@ function onStorageTieringChange() {
     onHardwareConfigChange();
 }
 
+// Enforce 1:2 cache-to-capacity disk ratio for hybrid storage
+function enforceCacheToCapacityRatio() {
+    const storageConfig = document.getElementById('storage-config').value;
+    if (storageConfig !== 'hybrid') return;
+
+    const tieringId = document.getElementById('storage-tiering').value;
+    const options = STORAGE_TIERING_OPTIONS[storageConfig];
+    const selectedTier = options.find(o => o.id === tieringId) || options[0];
+    if (!selectedTier.isTiered) return;
+
+    const capacityCount = parseInt(document.getElementById('tiered-capacity-disk-count').value) || 4;
+    const targetCacheCount = Math.ceil(capacityCount / 2);
+    const cacheDiskSelect = document.getElementById('cache-disk-count');
+
+    const cacheOptions = Array.from(cacheDiskSelect.options).map(o => parseInt(o.value));
+    let bestCache = cacheOptions[cacheOptions.length - 1];
+    for (const c of cacheOptions) {
+        if (c >= targetCacheCount) {
+            bestCache = c;
+            break;
+        }
+    }
+
+    cacheDiskSelect.value = bestCache;
+}
+
 // Generic hardware config change handler
 function onHardwareConfigChange() {
+    enforceCacheToCapacityRatio();
     calculateRequirements();
 }
 
@@ -314,6 +341,29 @@ function getHardwareConfig() {
 // Growth Factor & Node Recommendation
 // ============================================
 
+// Build a "max possible" hardware config to favour scaling up per-node specs
+// (CPU cores, memory, disk count) before recommending additional nodes.
+function buildMaxHardwareConfig(hwConfig) {
+    // Max CPU cores for selected generation (fall back to current if no generation info)
+    let maxCoresPerSocket = hwConfig.coresPerSocket || 24;
+    if (hwConfig.generation && hwConfig.generation.coreOptions && hwConfig.generation.coreOptions.length > 0) {
+        maxCoresPerSocket = hwConfig.generation.coreOptions[hwConfig.generation.coreOptions.length - 1];
+    }
+    // Use max 4 sockets — favour scaling sockets before adding nodes
+    const MAX_SOCKETS = 4;
+
+    // Preferred max memory: 1 TB — favour scaling memory before adding nodes
+    const PREFERRED_MAX_MEMORY_GB = 1024;
+
+    return {
+        totalPhysicalCores: maxCoresPerSocket * MAX_SOCKETS,
+        memoryGB: PREFERRED_MAX_MEMORY_GB,
+        sockets: MAX_SOCKETS,
+        coresPerSocket: maxCoresPerSocket,
+        diskConfig: hwConfig.diskConfig // disk config unchanged (getRecommendedNodeCount already uses maxDiskCount)
+    };
+}
+
 // Get growth factor from the future-growth dropdown
 function getGrowthFactor() {
     const el = document.getElementById('future-growth');
@@ -380,7 +430,7 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
 function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'single') return 1;
-    const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 12, 16];
+    const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     for (const opt of options) {
         if (opt >= recommended) return opt;
     }
@@ -448,10 +498,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     let changed = false;
 
-    // --- Auto-scale CPU cores ---
+    // --- Auto-scale CPU cores (and sockets if needed) ---
     const requiredCoresPerNode = Math.ceil(totalVcpus / effectiveNodes / vcpuToCore);
-    const sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
-    const requiredCoresPerSocket = Math.ceil(requiredCoresPerNode / sockets);
+    let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
+    const socketsSelect = document.getElementById('cpu-sockets');
+    const SOCKET_OPTIONS = [1, 2, 4];
 
     const manufacturer = document.getElementById('cpu-manufacturer').value;
     const genId = document.getElementById('cpu-generation').value;
@@ -460,8 +511,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         if (generation) {
             const coresSelect = document.getElementById('cpu-cores');
             const currentCores = parseInt(coresSelect.value) || 0;
+            const maxCoresForGen = generation.coreOptions[generation.coreOptions.length - 1];
 
-            // Find the smallest core option that satisfies the requirement
+            // Find the smallest core option that satisfies the requirement at current sockets
             let targetCores = null;
             for (const c of generation.coreOptions) {
                 if (c * sockets >= requiredCoresPerNode) {
@@ -470,9 +522,32 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 }
             }
 
-            // If no single option is big enough, pick the max
+            // If max cores at current sockets still aren't enough, try increasing sockets
+            if (targetCores === null && sockets < 4) {
+                for (const s of SOCKET_OPTIONS) {
+                    if (s <= sockets) continue;
+                    // Re-check with more sockets — find smallest cores that work
+                    for (const c of generation.coreOptions) {
+                        if (c * s >= requiredCoresPerNode) {
+                            targetCores = c;
+                            sockets = s;
+                            socketsSelect.value = s;
+                            changed = true;
+                            break;
+                        }
+                    }
+                    if (targetCores !== null) break;
+                }
+            }
+
+            // If still no option is big enough, pick max cores and max sockets
             if (targetCores === null) {
-                targetCores = generation.coreOptions[generation.coreOptions.length - 1];
+                targetCores = maxCoresForGen;
+                if (sockets < 4) {
+                    sockets = 4;
+                    socketsSelect.value = 4;
+                    changed = true;
+                }
             }
 
             if (targetCores > currentCores) {
@@ -536,6 +611,29 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         }
         if (targetDisks > currentDiskCount) {
             diskCountSelect.value = targetDisks;
+            changed = true;
+        }
+    }
+
+    // --- Enforce 1:2 cache-to-capacity ratio for hybrid storage ---
+    if (isTiered && hwConfig.storageConfig === 'hybrid') {
+        const finalCapacityCount = parseInt(document.getElementById(diskCountId).value) || 4;
+        const targetCacheCount = Math.ceil(finalCapacityCount / 2);
+        const cacheDiskSelect = document.getElementById('cache-disk-count');
+        const currentCacheCount = parseInt(cacheDiskSelect.value) || 2;
+
+        // Find the smallest available cache option >= target
+        const cacheOptions = Array.from(cacheDiskSelect.options).map(o => parseInt(o.value));
+        let bestCache = cacheOptions[cacheOptions.length - 1];
+        for (const c of cacheOptions) {
+            if (c >= targetCacheCount) {
+                bestCache = c;
+                break;
+            }
+        }
+
+        if (bestCache !== currentCacheCount) {
+            cacheDiskSelect.value = bestCache;
             changed = true;
         }
     }
@@ -900,7 +998,7 @@ function updateNodeOptionsForClusterType() {
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
-        const nodeOptions = [2, 3, 4, 5, 6, 7, 8, 12, 16];
+        const nodeOptions = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         nodeSelect.innerHTML = nodeOptions.map(n => `<option value="${n}">${n} Nodes</option>`).join('');
         
         // Preserve current value if valid
@@ -928,9 +1026,7 @@ function updateNodeOptions() {
     // Rebuild options starting from minimum
     const nodeOptions = [];
     for (let i = minNodes; i <= 16; i++) {
-        if (i <= 8 || i === 12 || i === 16) {
-            nodeOptions.push(i);
-        }
+        nodeOptions.push(i);
     }
     
     nodeSelect.innerHTML = nodeOptions.map(n => {
@@ -1481,11 +1577,14 @@ function calculateRequirements() {
         // Get hardware configuration (per-node specs)
         let hwConfig = getHardwareConfig();
 
-        // --- Auto-recommend node count based on workload + hardware ---
+        // Build "max possible" config to favour scaling up before adding nodes
+        const maxHwConfig = buildMaxHardwareConfig(hwConfig);
+
+        // --- Auto-recommend node count based on max hardware potential ---
         if (workloads.length > 0) {
             const recommendation = getRecommendedNodeCount(
                 totalVcpus, totalMemory, totalStorage,
-                hwConfig, resiliencyMultiplier, resiliency
+                maxHwConfig, resiliencyMultiplier, resiliency
             );
             if (recommendation) {
                 updateNodeRecommendation(recommendation);
@@ -1495,7 +1594,7 @@ function calculateRequirements() {
         }
 
         // Read (possibly updated) node count
-        const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
+        let nodeCount = parseInt(document.getElementById('node-count').value) || 3;
 
         // --- Auto-scale CPU cores, memory & disk count to avoid >100% capacity ---
         if (workloads.length > 0) {
@@ -1504,13 +1603,73 @@ function calculateRequirements() {
                 // Re-read hardware config with the updated dropdown values
                 hwConfig = getHardwareConfig();
 
-                // Re-run node recommendation with updated hardware so the message is accurate
+                // Re-run node recommendation with maxHwConfig so the message stays consistent
                 const updatedRec = getRecommendedNodeCount(
                     totalVcpus, totalMemory, totalStorage,
-                    hwConfig, resiliencyMultiplier, resiliency
+                    maxHwConfig, resiliencyMultiplier, resiliency
                 );
                 if (updatedRec) {
                     updateNodeRecommendation(updatedRec);
+                }
+            }
+
+            // --- Auto-increment node count if any resource is still >= 90% after hw scale-up ---
+            const clusterType = document.getElementById('cluster-type').value;
+            if (clusterType !== 'single') {
+                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+                const maxNodeOption = nodeOptions[nodeOptions.length - 1];
+                const UTIL_THRESHOLD = 90;
+                let attempts = 0;
+
+                while (nodeCount < maxNodeOption && attempts < 16) {
+                    attempts++;
+                    const effNodes = nodeCount > 1 ? nodeCount - 1 : 1;
+                    const vcpuToCore = 4;
+                    const physCores = hwConfig.totalPhysicalCores || 64;
+                    const memPerNode = hwConfig.memoryGB || 512;
+                    let rawGBPerNode = 0;
+                    if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+                        rawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
+                    }
+                    const rawTBPerNode = rawGBPerNode / 1024 || 10;
+
+                    const availVcpus = physCores * effNodes * vcpuToCore;
+                    const availMem = memPerNode * effNodes;
+                    const availStorage = (rawTBPerNode * nodeCount) / resiliencyMultiplier;
+
+                    const cpuPct = availVcpus > 0 ? Math.round((totalVcpus / availVcpus) * 100) : 0;
+                    const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
+                    const stoPct = availStorage > 0 ? Math.round(((totalStorage / 1000) / availStorage) * 100) : 0;
+
+                    if (cpuPct < UTIL_THRESHOLD && memPct < UTIL_THRESHOLD && stoPct < UTIL_THRESHOLD) break;
+
+                    // Bump to next available node option
+                    let nextNode = null;
+                    for (const opt of nodeOptions) {
+                        if (opt > nodeCount) { nextNode = opt; break; }
+                    }
+                    if (!nextNode) break;
+
+                    nodeCount = nextNode;
+                    const nodeSelect = document.getElementById('node-count');
+                    nodeSelect.value = nodeCount;
+                    updateResiliencyOptions();
+                    updateClusterInfo();
+
+                    // Re-run autoScale with the new node count
+                    autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig);
+                    hwConfig = getHardwareConfig();
+                }
+
+                // Update the recommendation message to reflect the final node count
+                const finalRec = getRecommendedNodeCount(
+                    totalVcpus, totalMemory, totalStorage,
+                    hwConfig, resiliencyMultiplier, resiliency
+                );
+                if (finalRec) {
+                    // Override recommended with actual final node count so message matches dropdown
+                    finalRec.recommended = nodeCount;
+                    updateNodeRecommendation(finalRec);
                 }
             }
         }
@@ -1571,6 +1730,19 @@ function calculateRequirements() {
         document.getElementById('storage-fill').style.width = storagePercent + '%';
         document.getElementById('storage-used').textContent = (totalStorage / 1000).toFixed(1);
         document.getElementById('storage-total').textContent = totalAvailableStorage.toFixed(1);
+
+        // Toggle over-threshold (red) on any capacity bar >= 90%
+        const UTILIZATION_THRESHOLD = 90;
+        document.getElementById('compute-fill').classList.toggle('over-threshold', computePercent >= UTILIZATION_THRESHOLD);
+        document.getElementById('memory-fill').classList.toggle('over-threshold', memoryPercent >= UTILIZATION_THRESHOLD);
+        document.getElementById('storage-fill').classList.toggle('over-threshold', storagePercent >= UTILIZATION_THRESHOLD);
+
+        // Show/hide utilization warning banner
+        const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storagePercent >= UTILIZATION_THRESHOLD) && workloads.length > 0;
+        const warningBanner = document.getElementById('capacity-utilization-warning');
+        if (warningBanner) {
+            warningBanner.style.display = anyOverThreshold ? 'flex' : 'none';
+        }
 
         // Update sizing notes
         updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig);
@@ -1662,6 +1834,20 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push(`⚠️ Required cores per node (${requiredCoresPerNode}) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional nodes.`);
             }
         }
+
+        // Utilization threshold checks (compute, memory, storage)
+        const currentComputePercent = parseInt(document.getElementById('compute-percent').textContent) || 0;
+        const currentMemoryPercent = parseInt(document.getElementById('memory-percent').textContent) || 0;
+        const currentStoragePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
+        if (currentComputePercent >= 90) {
+            notes.push('🚫 Compute utilization is at ' + currentComputePercent + '% — configurations at or above 90% are not recommended. Increase CPU cores, add nodes, or reduce workloads.');
+        }
+        if (currentMemoryPercent >= 90) {
+            notes.push('🚫 Memory utilization is at ' + currentMemoryPercent + '% — configurations at or above 90% are not recommended. Increase memory per node, add nodes, or reduce workloads.');
+        }
+        if (currentStoragePercent >= 90) {
+            notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add nodes, increase disk count/size, or reduce workloads.');
+        }
         
         // vCPU to core ratio
         notes.push('vCPU calculations assume 4:1 overcommit ratio');
@@ -1677,11 +1863,30 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     updateDesignerActionVisibility();
 }
 
-// Show "Configure in Designer" button only when workloads exist
+// Show "Configure in Designer" button only when workloads exist and all resources are under 90%
 function updateDesignerActionVisibility() {
     const actionDiv = document.getElementById('designer-action');
+    const designerBtn = document.querySelector('.btn-designer');
     if (actionDiv) {
         actionDiv.style.display = workloads.length > 0 ? 'block' : 'none';
+    }
+    // Disable button when any resource >= 90%
+    if (designerBtn) {
+        const computePercent = parseInt(document.getElementById('compute-percent').textContent) || 0;
+        const memoryPercent = parseInt(document.getElementById('memory-percent').textContent) || 0;
+        const storagePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
+        const overResources = [];
+        if (computePercent >= 90) overResources.push('Compute');
+        if (memoryPercent >= 90) overResources.push('Memory');
+        if (storagePercent >= 90) overResources.push('Storage');
+
+        if (overResources.length > 0 && workloads.length > 0) {
+            designerBtn.disabled = true;
+            designerBtn.title = overResources.join(', ') + ' utilization must be below 90% before configuring in Designer';
+        } else {
+            designerBtn.disabled = false;
+            designerBtn.title = '';
+        }
     }
 }
 
