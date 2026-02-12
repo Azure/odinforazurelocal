@@ -1965,7 +1965,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push(`⚠️ Workload memory (${memPerNode} GB/node) exceeds configured node memory (${hwConfig.memoryGB} GB). Consider increasing memory or adding nodes.`);
             }
             if (memPerNode > 768) {
-                notes.push('⚠️ High memory per node: Consider larger servers (>768 GB requires 400GB+ OS drive)');
+                notes.push('⚠️ Large memory system: Requires 400 GB+ or larger OS disks for supportability');
             }
         }
         
