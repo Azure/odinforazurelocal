@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.61] - 2026-02-12
+
+### Fixed
+
+#### 2-Node Switchless Diagram Port Labels (#93)
+
+- **Missing `ports` variable in `renderSwitchlessStorageDiagram()`**: The adapter mapping resolution loop used `ports` which was undefined in the `renderSwitchlessStorageDiagram` function scope (it existed in a different parent function). The loop condition `ami <= undefined` was always false, so the port arrays kept their hardcoded defaults `[1,2]` / `[3,4]` regardless of the user's custom mapping. Added `var ports = parseInt(state.ports, 10) || 0;` at the top of the function.
+
+---
+
 ## [0.14.60] - 2026-02-12
 
 ### Fixed

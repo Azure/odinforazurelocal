@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.14.60 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.14.61 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,7 +37,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.60 - Latest Release
+### 🎉 Version 0.14.61 - Latest Release
+- **2-Node Switchless Diagram Port Labels ([#93](https://github.com/Azure/odinforazurelocal/issues/93))**: Configuration Report diagram for 2-node switchless now correctly reflects the user's custom adapter mapping instead of always showing default Port 1,2 / Port 3,4 assignments
+
+### Version 0.14.60
 - **2-Node Switchless VLAN & Diagram Fix ([#93](https://github.com/Azure/odinforazurelocal/issues/93))**: 2-node switchless now correctly shows two Storage VLAN ID fields (711, 712) in overrides, ARM output, and summary. Configuration Report diagram now reflects the user's custom adapter mapping instead of hardcoded port assignments.
 
 ### Version 0.14.59
@@ -334,7 +337,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.60  
+**Version**: 0.14.61  
 **Last Updated**: February 12th 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -349,6 +352,9 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.61 - 2-Node Switchless Diagram Port Labels Fix
+- **Report Diagram Port Labels (#93)**: Added missing `ports` variable in `renderSwitchlessStorageDiagram()` so adapter mapping resolution loop can iterate; diagram now shows correct port assignments
 
 #### 0.14.60 - 2-Node Switchless VLAN & Diagram Fix
 - **2-Node Switchless Storage VLANs (#93)**: `getStorageVlanOverrideNetworkCount()` now returns 2 for 2-node switchless, exposing both VLAN ID fields (711, 712) in overrides UI, ARM template, and summary

@@ -3859,6 +3859,8 @@
                 return '<div style="color:var(--text-secondary);">Diagram is available for 2–4 node switchless scenarios only.</div>';
             }
 
+            var ports = parseInt(state.ports, 10) || 0;
+
             var REF_3NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-two-links?view=azloc-2511';
             var REF_3NODE_SWITCHLESS_SINGLE = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-one-link?view=azloc-2511';
 
