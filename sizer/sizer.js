@@ -1915,7 +1915,7 @@ function configureInDesigner() {
     }
 
     // Navigate to Designer
-    window.location.href = '../index.html?from=sizer';
+    window.location.href = '../?from=sizer';
 }
 
 // Reset scenario
