@@ -920,6 +920,13 @@ const AVD_PROFILES = {
         vcpusPerUser: 2,
         memoryPerUser: 8,
         storagePerUser: 80
+    },
+    custom: {
+        name: 'Custom',
+        description: 'Custom per-user resource specification',
+        vcpusPerUser: 2,
+        memoryPerUser: 8,
+        storagePerUser: 50
     }
 };
 
@@ -1282,10 +1289,25 @@ function getAVDModalContent() {
                 <option value="light">Light - Task Workers</option>
                 <option value="medium" selected>Medium - Knowledge Workers</option>
                 <option value="power">Power - Power Users</option>
+                <option value="custom">Custom</option>
             </select>
             <span class="hint" id="avd-profile-desc">${AVD_PROFILES.medium.description}</span>
         </div>
-        <div style="margin-top: 16px; padding: 16px; background: var(--subtle-bg); border-radius: 8px;">
+        <div id="avd-custom-fields" style="display: none; margin-top: 12px;">
+            <div class="form-group">
+                <label>vCPUs per User</label>
+                <input type="number" id="avd-custom-vcpus" value="${AVD_PROFILES.custom.vcpusPerUser}" min="0.25" max="16" step="0.25">
+            </div>
+            <div class="form-group">
+                <label>Memory per User (GB)</label>
+                <input type="number" id="avd-custom-memory" value="${AVD_PROFILES.custom.memoryPerUser}" min="1" max="64" step="1">
+            </div>
+            <div class="form-group">
+                <label>Storage per User (GB)</label>
+                <input type="number" id="avd-custom-storage" value="${AVD_PROFILES.custom.storagePerUser}" min="5" max="500" step="5">
+            </div>
+        </div>
+        <div id="avd-specs-panel" style="margin-top: 16px; padding: 16px; background: var(--subtle-bg); border-radius: 8px;">
             <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Profile Specifications</h4>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px;">
                 <div>
@@ -1309,10 +1331,23 @@ function getAVDModalContent() {
 function updateAVDDescription() {
     const profile = document.getElementById('avd-profile').value;
     const profileData = AVD_PROFILES[profile];
+    const customFields = document.getElementById('avd-custom-fields');
+    const specsPanel = document.getElementById('avd-specs-panel');
+
     document.getElementById('avd-profile-desc').textContent = profileData.description;
-    document.getElementById('avd-spec-vcpus').textContent = profileData.vcpusPerUser;
-    document.getElementById('avd-spec-memory').textContent = profileData.memoryPerUser + ' GB';
-    document.getElementById('avd-spec-storage').textContent = profileData.storagePerUser + ' GB';
+
+    if (profile === 'custom') {
+        // Show editable custom fields, hide read-only specs panel
+        customFields.style.display = 'block';
+        specsPanel.style.display = 'none';
+    } else {
+        // Hide custom fields, show read-only specs panel
+        customFields.style.display = 'none';
+        specsPanel.style.display = 'block';
+        document.getElementById('avd-spec-vcpus').textContent = profileData.vcpusPerUser;
+        document.getElementById('avd-spec-memory').textContent = profileData.memoryPerUser + ' GB';
+        document.getElementById('avd-spec-storage').textContent = profileData.storagePerUser + ' GB';
+    }
 }
 
 // Add workload
@@ -1349,6 +1384,11 @@ function addWorkload() {
         case 'avd':
             workload.profile = document.getElementById('avd-profile').value;
             workload.userCount = parseInt(document.getElementById('avd-users').value) || 50;
+            if (workload.profile === 'custom') {
+                workload.customVcpus = parseFloat(document.getElementById('avd-custom-vcpus').value) || 2;
+                workload.customMemory = parseFloat(document.getElementById('avd-custom-memory').value) || 8;
+                workload.customStorage = parseFloat(document.getElementById('avd-custom-storage').value) || 50;
+            }
             break;
     }
     
@@ -1408,6 +1448,12 @@ function editWorkload(id) {
             document.getElementById('workload-name').value = w.name;
             document.getElementById('avd-profile').value = w.profile;
             document.getElementById('avd-users').value = w.userCount;
+            updateAVDDescription();
+            if (w.profile === 'custom') {
+                document.getElementById('avd-custom-vcpus').value = w.customVcpus || 2;
+                document.getElementById('avd-custom-memory').value = w.customMemory || 8;
+                document.getElementById('avd-custom-storage').value = w.customStorage || 50;
+            }
             break;
     }
 
@@ -1504,8 +1550,11 @@ function getWorkloadDetails(w) {
             const totalNodes = (w.controlPlaneNodes + w.workerNodes) * w.clusterCount;
             return `${w.clusterCount} cluster(s) × ${totalNodes / w.clusterCount} nodes each`;
         case 'avd':
-            const profile = AVD_PROFILES[w.profile];
-            return `${w.userCount} ${profile.name} users`;
+            if (w.profile === 'custom') {
+                return `${w.userCount} Custom users (${w.customVcpus} vCPUs, ${w.customMemory} GB RAM, ${w.customStorage} GB storage each)`;
+            }
+            const avdProfile = AVD_PROFILES[w.profile];
+            return `${w.userCount} ${avdProfile.name} users`;
         default:
             return '';
     }
@@ -1538,10 +1587,16 @@ function calculateWorkloadRequirements(w) {
             storage = (cpStorage + workerStorage) * w.clusterCount;
             break;
         case 'avd':
-            const profile = AVD_PROFILES[w.profile];
-            vcpus = Math.ceil(profile.vcpusPerUser * w.userCount);
-            memory = profile.memoryPerUser * w.userCount;
-            storage = profile.storagePerUser * w.userCount;
+            if (w.profile === 'custom') {
+                vcpus = Math.ceil((w.customVcpus || 2) * w.userCount);
+                memory = (w.customMemory || 8) * w.userCount;
+                storage = (w.customStorage || 50) * w.userCount;
+            } else {
+                const profile = AVD_PROFILES[w.profile];
+                vcpus = Math.ceil(profile.vcpusPerUser * w.userCount);
+                memory = profile.memoryPerUser * w.userCount;
+                storage = profile.storagePerUser * w.userCount;
+            }
             break;
     }
     
