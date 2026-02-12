@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.58] - 2026-02-12
+
+### Fixed
+
+#### Character Encoding in Configuration Report (#103)
+
+- **UTF-8 Double-Encoding Fix**: Fixed 106 corrupted character sequences in `report/report.js` where UTF-8 multi-byte characters (em dashes, en dashes, arrows, emojis) were double-encoded through CP1252, causing garbled text in diagram titles, legends, and UI labels. Recovered all 21 unique character patterns to their correct Unicode representations.
+
+---
+
 ## [0.14.57] - 2026-02-12
 
 ### Fixed
