@@ -5143,10 +5143,10 @@
                 + '<h4 style="margin-bottom: 0.75rem; color: var(--text-primary);">' + escapeHtml(diagramTitle) + '</h4>'
                 + '<div class="switchless-diagram" style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 1rem; background: rgba(0,0,0,0.2);">'
                 + '<img src="' + escapeHtml(diagramUrl) + '" alt="' + escapeHtml(diagramTitle) + '" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\';">'
-                + '<div style="display: none; padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available. <a href="docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue);">View Connectivity Guide</a></div>'
+                + '<div style="display: none; padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available. <a href="docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue);">View Connectivity Guide</a></div>'
                 + '</div>'
                 + '<p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
+                + '<a href="docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
                 + '</p>'
                 + '</div>';
         }
@@ -6054,7 +6054,7 @@
                 + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'dark\')">Download SVG (Dark)</button>'
                 + '</div>'
                 + '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="../docs/outbound-connectivity/index.html" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
+                + '<a href="../docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
                 + '</p>'
                 + '</div>';
         }
