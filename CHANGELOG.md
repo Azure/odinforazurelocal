@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### ODIN Sizer (Preview) & Designer Integration
 
 - **ODIN Sizer (Preview)**: New hardware sizing tool that calculates cluster requirements based on workload scenarios (VMs, AKS, AVD), storage resiliency, and capacity needs. Includes a hardware configuration panel for CPU manufacturer/generation/cores/sockets, memory, and tiered storage options.
-- **Auto-Sizing Engine**: Intelligent node count recommendation based on compute, memory, and storage requirements. Prefers scaling disks (up to 24 per node) before adding nodes. N+1 applied to compute/memory only (storage remains accessible during node drain).
+- **Auto-Sizing Engine**: Intelligent node count recommendation based on compute, memory, and storage requirements. Favours scaling up CPU cores, memory (up to 1 TB), and disks per node before adding additional nodes. N+1 applied to compute/memory only (storage remains accessible during node drain).
+- **Storage Utilization Guard**: Blocks configurations with storage utilization ≥ 90% — visual warning banner, red capacity bar, sizing note, and disabled "Configure in Designer" button to prevent overcommitted deployments.
+- **Hybrid Cache-to-Capacity Ratio**: Hybrid storage automatically enforces a 1:2 cache-to-capacity disk ratio (e.g., 6× SSD cache + 12× HDD capacity). Ratio maintained during auto-scaling and manual capacity disk changes.
 - **Sizer-to-Designer Integration**: "Configure in Designer" button transfers the full sizer configuration (CPU, memory, storage, workload summary) into the Designer wizard via localStorage. Auto-populates steps 01–05: Hyperconverged, Azure Commercial, East US (with update notice), cluster type, and node count.
 - **"Unsure? Start with Sizer" Links**: Steps 04 (Cluster Configuration) and 05 (Cluster Size) in the Designer now include a styled navigation link to launch the Sizer.
 - **Hardware in Configuration Report**: When imported from Sizer, the Markdown/PDF report includes a conditional "Hardware Configuration (from Sizer)" section with CPU, memory, storage, resiliency, and workload summary details.
@@ -23,7 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Export Options**: Save as PDF (print-optimised layout) and Word (.doc) export for sizer results, including cluster config, hardware specs, requirements summary, and workload details.
 - **Edit Workloads**: Edit existing workloads via cog icon on workload cards — opens the modal pre-populated with current values and changes the button to "Update Workload".
 - **Official Azure Icons**: Replaced generic SVG icons with official Azure service icons (PNG) for VM, AKS Arc, and AVD workload types in the workload selector and workload cards.
+- **Capacity Disks per Node**: Renamed "Number of Disks per Node" to "Capacity Disks per Node" for clarity.
 - **Usable Storage Label**: Capacity Breakdown bar now labelled "Usable Storage" instead of "Storage" for clarity.
+- **ODIN Favicon**: Added ODIN logo as browser favicon across all five HTML pages (Designer, Sizer, Report, ARM, Outbound Connectivity).
+- **Clean Navigation URLs**: All internal links now use folder paths instead of explicit `index.html` references for cleaner URLs.
 
 ### Fixed
 
