@@ -119,6 +119,9 @@
     <script src="../js/validation.js"></script>
     <script src="../js/dns.js"></script>
     <script src="../js/script.js"></script>
+    <!-- Enable test mode before loading sizer (skips DOMContentLoaded UI init) -->
+    <script>window.__SIZER_TEST_MODE__ = true;</script>
+    <script src="../sizer/sizer.js"></script>
     <script>
         // ========================================================================
         // TEST FRAMEWORK
@@ -1920,7 +1923,9 @@
                     'rdmaGuardMessage',
                     // Private endpoints
                     'privateEndpoints',
-                    'privateEndpointsList'
+                    'privateEndpointsList',
+                    // Sizer hardware (hidden, imported from Sizer tool)
+                    'sizerHardware'
                 ];
                 
                 const actualFields = Object.keys(state);
@@ -1959,7 +1964,8 @@
                     'customStorageSubnetsConfirmed', 'activeDirectory', 'adDomain', 'adOuPath',
                     'adfsServerName', 'dnsServers', 'localDnsZone', 'dnsServiceExisting',
                     'sdnEnabled', 'sdnFeatures', 'sdnManagement', 'securityConfiguration',
-                    'securitySettings', 'rdmaGuardMessage', 'privateEndpoints', 'privateEndpointsList'
+                    'securitySettings', 'rdmaGuardMessage', 'privateEndpoints', 'privateEndpointsList',
+                    'sizerHardware'
                 ];
                 
                 const actualFields = Object.keys(state);
@@ -2707,6 +2713,333 @@
                     'NIC groups and default adapter mapping agree on port assignments',
                     'groups:' + mapMgmt + '/' + mapStorage,
                     'groups:' + groupMgmt + '/' + groupStorage);
+            })()
+        ]);
+
+        // ========================================================================
+        // SIZER/SIZER.JS TESTS
+        // ========================================================================
+        sectionHeader('🧮 sizer/sizer.js - Sizer Calculations');
+
+        // --- Constants Validation ---
+        testSuite('CPU_GENERATIONS', 'sizer.js', [
+            assert(CPU_GENERATIONS.intel.length >= 3, 'Intel has at least 3 CPU generations', '>=3', CPU_GENERATIONS.intel.length),
+            assert(CPU_GENERATIONS.amd.length >= 4, 'AMD has at least 4 CPU generations', '>=4', CPU_GENERATIONS.amd.length),
+            assert(CPU_GENERATIONS.intel[0].coreOptions.length > 0, 'Intel gen has core options', '>0', CPU_GENERATIONS.intel[0].coreOptions.length),
+            assert(CPU_GENERATIONS.amd[0].coreOptions.length > 0, 'AMD gen has core options', '>0', CPU_GENERATIONS.amd[0].coreOptions.length),
+            assert(CPU_GENERATIONS.intel.every(g => g.id && g.name && g.defaultCores), 'All Intel gens have id, name, defaultCores', true,
+                CPU_GENERATIONS.intel.every(g => g.id && g.name && g.defaultCores)),
+            assert(CPU_GENERATIONS.amd.every(g => g.id && g.name && g.defaultCores), 'All AMD gens have id, name, defaultCores', true,
+                CPU_GENERATIONS.amd.every(g => g.id && g.name && g.defaultCores))
+        ]);
+
+        testSuite('RESILIENCY_CONFIG', 'sizer.js', [
+            assert(RESILIENCY_CONFIG['simple'].multiplier === 1, 'Simple: multiplier = 1', 1, RESILIENCY_CONFIG['simple'].multiplier),
+            assert(RESILIENCY_CONFIG['2way'].multiplier === 2, '2-way: multiplier = 2', 2, RESILIENCY_CONFIG['2way'].multiplier),
+            assert(RESILIENCY_CONFIG['3way'].multiplier === 3, '3-way: multiplier = 3', 3, RESILIENCY_CONFIG['3way'].multiplier),
+            assert(RESILIENCY_CONFIG['parity'].multiplier === 1.5, 'Parity: multiplier = 1.5', 1.5, RESILIENCY_CONFIG['parity'].multiplier),
+            assert(RESILIENCY_CONFIG['3way'].minNodes === 3, '3-way: minNodes = 3', 3, RESILIENCY_CONFIG['3way'].minNodes),
+            assert(RESILIENCY_CONFIG['parity'].minNodes === 4, 'Parity: minNodes = 4', 4, RESILIENCY_CONFIG['parity'].minNodes)
+        ]);
+
+        testSuite('AVD_PROFILES', 'sizer.js', [
+            assert(AVD_PROFILES.light.vcpusPerUser === 0.5, 'Light: 0.5 vCPUs/user', 0.5, AVD_PROFILES.light.vcpusPerUser),
+            assert(AVD_PROFILES.medium.vcpusPerUser === 1, 'Medium: 1 vCPU/user', 1, AVD_PROFILES.medium.vcpusPerUser),
+            assert(AVD_PROFILES.power.vcpusPerUser === 2, 'Power: 2 vCPUs/user', 2, AVD_PROFILES.power.vcpusPerUser),
+            assert(AVD_PROFILES.light.memoryPerUser < AVD_PROFILES.medium.memoryPerUser, 'Light memory < Medium memory', true,
+                AVD_PROFILES.light.memoryPerUser < AVD_PROFILES.medium.memoryPerUser),
+            assert(AVD_PROFILES.medium.memoryPerUser < AVD_PROFILES.power.memoryPerUser, 'Medium memory < Power memory', true,
+                AVD_PROFILES.medium.memoryPerUser < AVD_PROFILES.power.memoryPerUser)
+        ]);
+
+        testSuite('STORAGE_TIERING_OPTIONS', 'sizer.js', [
+            assert(STORAGE_TIERING_OPTIONS['all-flash'].length >= 2, 'All-flash has at least 2 options', '>=2', STORAGE_TIERING_OPTIONS['all-flash'].length),
+            assert(STORAGE_TIERING_OPTIONS['mixed-flash'].length >= 1, 'Mixed-flash has at least 1 option', '>=1', STORAGE_TIERING_OPTIONS['mixed-flash'].length),
+            assert(STORAGE_TIERING_OPTIONS['hybrid'].length >= 2, 'Hybrid has at least 2 options', '>=2', STORAGE_TIERING_OPTIONS['hybrid'].length),
+            assert(STORAGE_TIERING_OPTIONS['all-flash'][0].isTiered === false, 'All-flash is not tiered', false, STORAGE_TIERING_OPTIONS['all-flash'][0].isTiered),
+            assert(STORAGE_TIERING_OPTIONS['mixed-flash'][0].isTiered === true, 'Mixed-flash is tiered', true, STORAGE_TIERING_OPTIONS['mixed-flash'][0].isTiered)
+        ]);
+
+        // --- formatDiskSize() ---
+        testSuite('formatDiskSize()', 'sizer.js', [
+            assert(formatDiskSize(100) === '100 GB', 'Format 100 GB', '100 GB', formatDiskSize(100)),
+            assert(formatDiskSize(512) === '512 GB', 'Format 512 GB', '512 GB', formatDiskSize(512)),
+            assert(formatDiskSize(1024) === '1.0 TB', 'Format 1024 GB = 1.0 TB', '1.0 TB', formatDiskSize(1024)),
+            assert(formatDiskSize(3584) === '3.5 TB', 'Format 3584 GB = 3.5 TB', '3.5 TB', formatDiskSize(3584)),
+            assert(formatDiskSize(2048) === '2.0 TB', 'Format 2048 GB = 2.0 TB', '2.0 TB', formatDiskSize(2048))
+        ]);
+
+        // --- escapeHtmlSizer() ---
+        testSuite('escapeHtmlSizer()', 'sizer.js', [
+            assert(escapeHtmlSizer('hello') === 'hello', 'Plain text unchanged', 'hello', escapeHtmlSizer('hello')),
+            assert(escapeHtmlSizer('<script>') === '&lt;script&gt;', 'Escapes angle brackets', '&lt;script&gt;', escapeHtmlSizer('<script>')),
+            assert(escapeHtmlSizer('a & b') === 'a &amp; b', 'Escapes ampersand', 'a &amp; b', escapeHtmlSizer('a & b')),
+            assert(escapeHtmlSizer('"quoted"') === '&quot;quoted&quot;', 'Escapes double quotes', '&quot;quoted&quot;', escapeHtmlSizer('"quoted"')),
+            assert(escapeHtmlSizer('') === '', 'Empty string returns empty', '', escapeHtmlSizer('')),
+            assert(escapeHtmlSizer(null) === '', 'Null returns empty', '', escapeHtmlSizer(null)),
+            assert(escapeHtmlSizer(undefined) === '', 'Undefined returns empty', '', escapeHtmlSizer(undefined))
+        ]);
+
+        // --- getWorkloadTypeName() ---
+        testSuite('getWorkloadTypeName()', 'sizer.js', [
+            assert(getWorkloadTypeName('vm') === 'VMs', 'VM type name', 'VMs', getWorkloadTypeName('vm')),
+            assert(getWorkloadTypeName('aks') === 'AKS Arc', 'AKS type name', 'AKS Arc', getWorkloadTypeName('aks')),
+            assert(getWorkloadTypeName('avd') === 'AVD', 'AVD type name', 'AVD', getWorkloadTypeName('avd')),
+            assert(getWorkloadTypeName('unknown') === '', 'Unknown type returns empty', '', getWorkloadTypeName('unknown'))
+        ]);
+
+        // --- mapSizerToDesignerScale() ---
+        testSuite('mapSizerToDesignerScale()', 'sizer.js', [
+            assert(mapSizerToDesignerScale('rack-aware') === 'rack_aware', 'rack-aware → rack_aware', 'rack_aware', mapSizerToDesignerScale('rack-aware')),
+            assert(mapSizerToDesignerScale('standard') === 'medium', 'standard → medium', 'medium', mapSizerToDesignerScale('standard')),
+            assert(mapSizerToDesignerScale('single') === 'medium', 'single → medium', 'medium', mapSizerToDesignerScale('single'))
+        ]);
+
+        // --- calculateWorkloadRequirements() ---
+        testSuite('calculateWorkloadRequirements() - VM', 'sizer.js', [
+            (() => {
+                const w = { type: 'vm', vcpus: 4, memory: 16, storage: 100, count: 10 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 40, 'VM: 10 × 4 vCPUs = 40', 40, r.vcpus);
+            })(),
+            (() => {
+                const w = { type: 'vm', vcpus: 4, memory: 16, storage: 100, count: 10 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.memory === 160, 'VM: 10 × 16 GB = 160 GB', 160, r.memory);
+            })(),
+            (() => {
+                const w = { type: 'vm', vcpus: 4, memory: 16, storage: 100, count: 10 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.storage === 1000, 'VM: 10 × 100 GB = 1000 GB', 1000, r.storage);
+            })(),
+            (() => {
+                const w = { type: 'vm', vcpus: 8, memory: 32, storage: 256, count: 1 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 8 && r.memory === 32 && r.storage === 256,
+                    'VM: single VM preserves values', '8/32/256', r.vcpus + '/' + r.memory + '/' + r.storage);
+            })()
+        ]);
+
+        testSuite('calculateWorkloadRequirements() - AKS', 'sizer.js', [
+            (() => {
+                const w = {
+                    type: 'aks', clusterCount: 1,
+                    controlPlaneNodes: 3, controlPlaneVcpus: 4, controlPlaneMemory: 8,
+                    workerNodes: 3, workerVcpus: 8, workerMemory: 16, workerStorage: 200
+                };
+                const r = calculateWorkloadRequirements(w);
+                // CP: 3×4=12, Worker: 3×8=24, total vCPUs = 36
+                return assert(r.vcpus === 36, 'AKS: 1 cluster vCPUs = 36', 36, r.vcpus);
+            })(),
+            (() => {
+                const w = {
+                    type: 'aks', clusterCount: 2,
+                    controlPlaneNodes: 3, controlPlaneVcpus: 4, controlPlaneMemory: 8,
+                    workerNodes: 3, workerVcpus: 8, workerMemory: 16, workerStorage: 200
+                };
+                const r = calculateWorkloadRequirements(w);
+                // (12+24)*2 = 72
+                return assert(r.vcpus === 72, 'AKS: 2 clusters doubles vCPUs', 72, r.vcpus);
+            })(),
+            (() => {
+                const w = {
+                    type: 'aks', clusterCount: 1,
+                    controlPlaneNodes: 3, controlPlaneVcpus: 4, controlPlaneMemory: 8,
+                    workerNodes: 3, workerVcpus: 8, workerMemory: 16, workerStorage: 200
+                };
+                const r = calculateWorkloadRequirements(w);
+                // CP mem: 3×8=24, Worker mem: 3×16=48, total = 72
+                return assert(r.memory === 72, 'AKS: 1 cluster memory = 72 GB', 72, r.memory);
+            })(),
+            (() => {
+                const w = {
+                    type: 'aks', clusterCount: 1,
+                    controlPlaneNodes: 3, controlPlaneVcpus: 4, controlPlaneMemory: 8,
+                    workerNodes: 3, workerVcpus: 8, workerMemory: 16, workerStorage: 200
+                };
+                const r = calculateWorkloadRequirements(w);
+                // CP storage: 3×100=300, Worker storage: 3×200=600, total = 900
+                return assert(r.storage === 900, 'AKS: 1 cluster storage = 900 GB', 900, r.storage);
+            })()
+        ]);
+
+        testSuite('calculateWorkloadRequirements() - AVD', 'sizer.js', [
+            (() => {
+                const w = { type: 'avd', profile: 'light', userCount: 100 };
+                const r = calculateWorkloadRequirements(w);
+                // 0.5 vCPUs × 100 = 50
+                return assert(r.vcpus === 50, 'AVD Light: 100 users = 50 vCPUs', 50, r.vcpus);
+            })(),
+            (() => {
+                const w = { type: 'avd', profile: 'medium', userCount: 50 };
+                const r = calculateWorkloadRequirements(w);
+                // 1 vCPU × 50 = 50, 4GB × 50 = 200, 40GB × 50 = 2000
+                return assert(r.vcpus === 50 && r.memory === 200 && r.storage === 2000,
+                    'AVD Medium: 50 users = 50/200/2000', '50/200/2000', r.vcpus + '/' + r.memory + '/' + r.storage);
+            })(),
+            (() => {
+                const w = { type: 'avd', profile: 'power', userCount: 25 };
+                const r = calculateWorkloadRequirements(w);
+                // 2 vCPUs × 25 = 50, 8GB × 25 = 200, 80GB × 25 = 2000
+                return assert(r.vcpus === 50 && r.memory === 200 && r.storage === 2000,
+                    'AVD Power: 25 users = 50/200/2000', '50/200/2000', r.vcpus + '/' + r.memory + '/' + r.storage);
+            })()
+        ]);
+
+        // --- getRecommendedNodeCount() ---
+        testSuite('getRecommendedNodeCount()', 'sizer.js', [
+            (() => {
+                // Small workload, 24 cores × 2 sockets, 512 GB memory, 4 × 3.5TB disks
+                const hw = {
+                    totalPhysicalCores: 48,
+                    memoryGB: 512,
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(40, 160, 1000, hw, 2, '2way');
+                return assert(r.recommended >= 1, 'Small workload recommends at least 1 node', '>=1', r.recommended);
+            })(),
+            (() => {
+                // Verify bottleneck detection - compute heavy
+                const hw = {
+                    totalPhysicalCores: 8,  // small cores
+                    memoryGB: 2048,         // huge memory
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(400, 100, 100, hw, 2, '2way');
+                return assert(r.bottleneck === 'compute', 'Compute-heavy workload identifies compute bottleneck', 'compute', r.bottleneck);
+            })(),
+            (() => {
+                // Verify bottleneck detection - memory heavy
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 128,  // small memory, - 32 overhead = 96 usable
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(10, 500, 100, hw, 2, '2way');
+                return assert(r.bottleneck === 'memory', 'Memory-heavy workload identifies memory bottleneck', 'memory', r.bottleneck);
+            })(),
+            (() => {
+                // Verify bottleneck detection - storage heavy
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 1, sizeGB: 100, type: 'SSD' } }
+                };
+                const r = getRecommendedNodeCount(10, 100, 50000, hw, 3, '3way');
+                return assert(r.bottleneck === 'storage', 'Storage-heavy workload identifies storage bottleneck', 'storage', r.bottleneck);
+            })(),
+            (() => {
+                // 3-way mirror enforces minNodes=3
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(10, 10, 10, hw, 3, '3way');
+                return assert(r.recommended >= 3, '3-way mirror: enforces minimum 3 nodes', '>=3', r.recommended);
+            })(),
+            (() => {
+                // Dual parity enforces minNodes=4
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(10, 10, 10, hw, 1.5, 'parity');
+                return assert(r.recommended >= 4, 'Dual parity: enforces minimum 4 nodes', '>=4', r.recommended);
+            })(),
+            (() => {
+                // Return structure has all expected fields
+                const hw = {
+                    totalPhysicalCores: 48,
+                    memoryGB: 512,
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(40, 160, 1000, hw, 2, '2way');
+                const hasFields = 'recommended' in r && 'computeNodes' in r && 'memoryNodes' in r && 'storageNodes' in r && 'bottleneck' in r;
+                return assert(hasFields, 'Returns recommended, computeNodes, memoryNodes, storageNodes, bottleneck', true, hasFields);
+            })()
+        ]);
+
+        // --- snapToAvailableNodeCount() ---
+        // Create a temporary cluster-type select with proper options for these tests
+        testSuite('snapToAvailableNodeCount()', 'sizer.js', [
+            (() => {
+                // Create stub DOM select element with valid options
+                let stub = document.getElementById('cluster-type');
+                if (!stub) {
+                    stub = document.createElement('select');
+                    stub.id = 'cluster-type';
+                    stub.style.display = 'none';
+                    ['single', 'standard', 'rack-aware'].forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v;
+                        opt.text = v;
+                        stub.appendChild(opt);
+                    });
+                    document.body.appendChild(stub);
+                }
+                stub.value = 'single';
+                return assert(snapToAvailableNodeCount(5) === 1, 'Single node cluster always returns 1', 1, snapToAvailableNodeCount(5));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'standard';
+                return assert(snapToAvailableNodeCount(3) === 3, 'Standard: snap 3 → 3 (exact match)', 3, snapToAvailableNodeCount(3));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'standard';
+                return assert(snapToAvailableNodeCount(9) === 12, 'Standard: snap 9 → 12 (next available)', 12, snapToAvailableNodeCount(9));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'standard';
+                return assert(snapToAvailableNodeCount(100) === 16, 'Standard: snap 100 → 16 (capped at max)', 16, snapToAvailableNodeCount(100));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'rack-aware';
+                return assert(snapToAvailableNodeCount(3) === 4, 'Rack-aware: snap 3 → 4 (even numbers only)', 4, snapToAvailableNodeCount(3));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'rack-aware';
+                return assert(snapToAvailableNodeCount(6) === 6, 'Rack-aware: snap 6 → 6 (exact match)', 6, snapToAvailableNodeCount(6));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'rack-aware';
+                return assert(snapToAvailableNodeCount(100) === 8, 'Rack-aware: snap 100 → 8 (capped at max)', 8, snapToAvailableNodeCount(100));
+            })()
+        ]);
+
+        // --- WORKLOAD_DEFAULTS validation ---
+        testSuite('WORKLOAD_DEFAULTS', 'sizer.js', [
+            assert(WORKLOAD_DEFAULTS.vm.vcpus === 4, 'VM default: 4 vCPUs', 4, WORKLOAD_DEFAULTS.vm.vcpus),
+            assert(WORKLOAD_DEFAULTS.vm.count === 10, 'VM default: 10 count', 10, WORKLOAD_DEFAULTS.vm.count),
+            assert(WORKLOAD_DEFAULTS.aks.controlPlaneNodes === 3, 'AKS default: 3 CP nodes', 3, WORKLOAD_DEFAULTS.aks.controlPlaneNodes),
+            assert(WORKLOAD_DEFAULTS.aks.workerNodes === 3, 'AKS default: 3 worker nodes', 3, WORKLOAD_DEFAULTS.aks.workerNodes),
+            assert(WORKLOAD_DEFAULTS.avd.profile === 'medium', 'AVD default: medium profile', 'medium', WORKLOAD_DEFAULTS.avd.profile),
+            assert(WORKLOAD_DEFAULTS.avd.userCount === 50, 'AVD default: 50 users', 50, WORKLOAD_DEFAULTS.avd.userCount)
+        ]);
+
+        // --- getWorkloadDetails() ---
+        testSuite('getWorkloadDetails()', 'sizer.js', [
+            (() => {
+                const w = { type: 'vm', vcpus: 4, memory: 16, storage: 100, count: 10 };
+                const d = getWorkloadDetails(w);
+                return assert(d.includes('10 VMs') && d.includes('4 vCPUs'), 'VM details contain count and vCPUs', true,
+                    d.includes('10 VMs') && d.includes('4 vCPUs'));
+            })(),
+            (() => {
+                const w = {
+                    type: 'aks', clusterCount: 2,
+                    controlPlaneNodes: 3, controlPlaneVcpus: 4, controlPlaneMemory: 8,
+                    workerNodes: 3, workerVcpus: 8, workerMemory: 16, workerStorage: 200
+                };
+                const d = getWorkloadDetails(w);
+                return assert(d.includes('2 cluster'), 'AKS details contain cluster count', true, d.includes('2 cluster'));
+            })(),
+            (() => {
+                const w = { type: 'avd', profile: 'medium', userCount: 50 };
+                const d = getWorkloadDetails(w);
+                return assert(d.includes('50') && d.includes('Medium'), 'AVD details contain user count and profile', true,
+                    d.includes('50') && d.includes('Medium'));
             })()
         ]);
 

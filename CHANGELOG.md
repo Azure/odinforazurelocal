@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.15.01] - 2026-02-12
+
+### Added
+
+#### ODIN Sizer (Preview) & Designer Integration
+
+- **ODIN Sizer (Preview)**: New hardware sizing tool that calculates cluster requirements based on workload scenarios (VMs, AKS, AVD), storage resiliency, and capacity needs. Includes a hardware configuration panel for CPU manufacturer/generation/cores/sockets, memory, and tiered storage options.
+- **Auto-Sizing Engine**: Intelligent node count recommendation based on compute, memory, and storage requirements. Prefers scaling disks (up to 24 per node) before adding nodes. N+1 applied to compute/memory only (storage remains accessible during node drain).
+- **Sizer-to-Designer Integration**: "Configure in Designer" button transfers the full sizer configuration (CPU, memory, storage, workload summary) into the Designer wizard via localStorage. Auto-populates steps 01–05: Hyperconverged, Azure Commercial, East US (with update notice), cluster type, and node count.
+- **"Unsure? Start with Sizer" Links**: Steps 04 (Cluster Configuration) and 05 (Cluster Size) in the Designer now include a styled navigation link to launch the Sizer.
+- **Hardware in Configuration Report**: When imported from Sizer, the Markdown/PDF report includes a conditional "Hardware Configuration (from Sizer)" section with CPU, memory, storage, resiliency, and workload summary details.
+- **Sizer Session Persistence**: Sizer state auto-saves to localStorage after every calculation. On return, a Resume / Start Fresh prompt appears — matching the Designer's existing pattern.
+- **Sizer Description**: Updated subtitle to describe the tool's purpose for calculating hardware requirements.
+- **Export Options**: Save as PDF (print-optimised layout) and Word (.doc) export for sizer results, including cluster config, hardware specs, requirements summary, and workload details.
+- **Edit Workloads**: Edit existing workloads via cog icon on workload cards — opens the modal pre-populated with current values and changes the button to "Update Workload".
+- **Official Azure Icons**: Replaced generic SVG icons with official Azure service icons (PNG) for VM, AKS Arc, and AVD workload types in the workload selector and workload cards.
+- **Usable Storage Label**: Capacity Breakdown bar now labelled "Usable Storage" instead of "Storage" for clarity.
+
+### Fixed
+
+- **Sizer Save-on-Init Bug**: Initial `calculateRequirements()` during page load no longer overwrites saved localStorage state. The resume banner now correctly appears when returning to a previous session.
+
+---
+
 ## [0.14.61] - 2026-02-12
 
 ### Fixed

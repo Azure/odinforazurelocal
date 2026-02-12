@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.14.61 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.15.01 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,25 +37,16 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.61 - Latest Release
-- **2-Node Switchless Diagram Port Labels ([#93](https://github.com/Azure/odinforazurelocal/issues/93))**: Configuration Report diagram for 2-node switchless now correctly reflects the user's custom adapter mapping instead of always showing default Port 1,2 / Port 3,4 assignments
-
-### Version 0.14.60
-- **2-Node Switchless VLAN & Diagram Fix ([#93](https://github.com/Azure/odinforazurelocal/issues/93))**: 2-node switchless now correctly shows two Storage VLAN ID fields (711, 712) in overrides, ARM output, and summary. Configuration Report diagram now reflects the user's custom adapter mapping instead of hardcoded port assignments.
-
-### Version 0.14.59
-- **Summary Blade NIC Mapping ([#88](https://github.com/Azure/odinforazurelocal/issues/88))**: Summary blade now updates to reflect custom adapter mapping after confirming, instead of always showing default port assignments
-
-### Version 0.14.58
-- **Character Encoding Fix ([#103](https://github.com/Azure/odinforazurelocal/issues/103))**: Fixed 106 corrupted UTF-8 characters in Configuration Report diagrams (em dashes, arrows, emojis) that displayed as garbled text due to double-encoding
-
-### Version 0.14.57
-- **Storage Subnet CIDRs ([#99](https://github.com/Azure/odinforazurelocal/issues/99))**: SVG diagram legends now show correct Network ATC default subnets (10.71.x.0/24) when Auto IP is enabled, instead of incorrect 10.0.x.0/24 addresses
-
-### Version 0.14.56
-- **draw.io Orthogonal Routing ([#94](https://github.com/Azure/odinforazurelocal/issues/94))**: Switchless storage subnet connectors now use L-shaped orthogonal routing (down → horizontal lane → up) instead of straight overlapping lines, matching the ODIN SVG diagram style
-- **Canonical Switchless Port Layout**: Switchless topologies now force canonical port allocation (2 management+compute + (n-1)×2 storage ports) regardless of user port count, ensuring correct mesh connectivity
-- **draw.io Export Scoped to Report**: Removed draw.io export button from the main wizard page; the download is now available exclusively on the Configuration Report page
+### 🎉 Version 0.15.01 - Latest Release
+- **ODIN Sizer (Preview)**: New hardware sizing tool to calculate cluster requirements based on workload scenarios, resiliency, and capacity needs
+- **Sizer-to-Designer Integration**: "Configure in Designer" button passes sizer hardware config (CPU, memory, storage, workloads) into the Designer wizard, auto-populating steps 01–05
+- **"Unsure? Start with Sizer" Links**: Steps 04 (Cluster Configuration) and 05 (Cluster Size) now include a styled link to launch the Sizer for users who need guidance
+- **Hardware in Configuration Report**: When imported from Sizer, the report now includes a Hardware Configuration section with CPU, memory, storage, and workload summary
+- **Sizer Session Persistence**: Sizer state auto-saves to localStorage with Resume / Start Fresh prompt on return
+- **Sizer Auto-Sizing Engine**: Intelligent node count recommendation based on compute, memory, and storage requirements with disk-first scaling
+- **Export Options**: Save as PDF and Word export for sizer results
+- **Edit Workloads**: Edit existing workloads via cog icon on workload cards
+- **Official Azure Icons**: VM, AKS Arc, and AVD workload types use official Azure service icons
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -337,7 +328,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.61  
+**Version**: 0.15.01  
 **Last Updated**: February 12th 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -350,6 +341,20 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 ## Appendix A - Version History
 
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
+
+### 🎉 Version 0.15.x Series (February 2026)
+
+#### 0.15.01 - ODIN Sizer (Preview) & Designer Integration
+- **ODIN Sizer (Preview)**: New hardware sizing tool to calculate cluster requirements based on workload scenarios (VMs, AKS, AVD), resiliency, and capacity needs
+- **Sizer-to-Designer Integration**: "Configure in Designer" button transfers hardware config into the Designer wizard, auto-populating Hyperconverged, Azure Commercial, East US, cluster type, and node count
+- **"Unsure? Start with Sizer" Links**: Steps 04 and 05 in the Designer now include navigation links to the Sizer
+- **Hardware in Configuration Report**: Conditional Hardware Configuration section in reports when imported from Sizer
+- **Sizer Session Persistence**: Auto-save/resume with localStorage, matching the Designer pattern
+- **Auto-Sizing Engine**: Intelligent node and disk scaling based on workload compute, memory, and storage requirements
+- **Hardware Configuration Panel**: CPU manufacturer/generation/cores/sockets, memory, and tiered storage configuration
+- **Export Options**: Save as PDF and Word export for sizer results
+- **Edit Workloads**: Edit existing workloads via cog icon on workload cards
+- **Official Azure Icons**: VM, AKS Arc, and AVD workload types use official Azure service icons
 
 ### 🎉 Version 0.14.x Series (February 2026)
 
