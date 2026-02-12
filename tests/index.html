@@ -2746,6 +2746,8 @@
             assert(AVD_PROFILES.light.vcpusPerUser === 0.5, 'Light: 0.5 vCPUs/user', 0.5, AVD_PROFILES.light.vcpusPerUser),
             assert(AVD_PROFILES.medium.vcpusPerUser === 1, 'Medium: 1 vCPU/user', 1, AVD_PROFILES.medium.vcpusPerUser),
             assert(AVD_PROFILES.power.vcpusPerUser === 2, 'Power: 2 vCPUs/user', 2, AVD_PROFILES.power.vcpusPerUser),
+            assert(AVD_PROFILES.custom !== undefined, 'Custom profile exists', true, AVD_PROFILES.custom !== undefined),
+            assert(AVD_PROFILES.custom.name === 'Custom', 'Custom profile name is Custom', 'Custom', AVD_PROFILES.custom.name),
             assert(AVD_PROFILES.light.memoryPerUser < AVD_PROFILES.medium.memoryPerUser, 'Light memory < Medium memory', true,
                 AVD_PROFILES.light.memoryPerUser < AVD_PROFILES.medium.memoryPerUser),
             assert(AVD_PROFILES.medium.memoryPerUser < AVD_PROFILES.power.memoryPerUser, 'Medium memory < Power memory', true,
@@ -2883,6 +2885,13 @@
                 // 2 vCPUs × 25 = 50, 8GB × 25 = 200, 80GB × 25 = 2000
                 return assert(r.vcpus === 50 && r.memory === 200 && r.storage === 2000,
                     'AVD Power: 25 users = 50/200/2000', '50/200/2000', r.vcpus + '/' + r.memory + '/' + r.storage);
+            })(),
+            (() => {
+                const w = { type: 'avd', profile: 'custom', userCount: 10, customVcpus: 4, customMemory: 16, customStorage: 100 };
+                const r = calculateWorkloadRequirements(w);
+                // 4 vCPUs × 10 = 40, 16GB × 10 = 160, 100GB × 10 = 1000
+                return assert(r.vcpus === 40 && r.memory === 160 && r.storage === 1000,
+                    'AVD Custom: 10 users × 4/16/100 = 40/160/1000', '40/160/1000', r.vcpus + '/' + r.memory + '/' + r.storage);
             })()
         ]);
 

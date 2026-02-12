@@ -731,6 +731,7 @@ body {
     font-size: 13px;
     color: var(--accent-orange);
     margin-top: 16px;
+    margin-bottom: 12px;
 }
 
 .config-info-subtle {
