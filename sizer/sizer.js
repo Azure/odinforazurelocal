@@ -1636,6 +1636,17 @@ function calculateRequirements() {
                     autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig);
                     hwConfig = getHardwareConfig();
                 }
+
+                // Update the recommendation message to reflect the final node count
+                const finalRec = getRecommendedNodeCount(
+                    totalVcpus, totalMemory, totalStorage,
+                    hwConfig, resiliencyMultiplier, resiliency
+                );
+                if (finalRec) {
+                    // Override recommended with actual final node count so message matches dropdown
+                    finalRec.recommended = nodeCount;
+                    updateNodeRecommendation(finalRec);
+                }
             }
         }
 
