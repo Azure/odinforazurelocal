@@ -4027,7 +4027,7 @@
                     2: getStorageSubnetCidr(state, 2, '10.0.2.0/24')
                 };
                 var legendTitle2 = hasCustomStorageSubnets(state) ? 'Storage subnets (custom)' : 'Storage subnets (conceptual)';
-                var legendNote2 = getStorageSubnetNote(state, "CIDRs shown are an extrapolated example consistent with Microsoft Learn's 4-node switchless storage intent numbering; use your own addressing plan.");
+                var legendNote2 = getStorageSubnetNote(state, "CIDRs shown are the default Network ATC values for 2-node switchless storage connectivity; these are automatically assigned.");
 
                 var legend2 = '<div class="switchless-diagram__legend">'
                     + '<div class="switchless-diagram__legend-title">' + legendTitle2 + '</div>'
