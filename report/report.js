@@ -3892,6 +3892,19 @@
                     return getPortCustomName(state, idx1Based, 'nic');
                 }
 
+                // Resolve actual port assignments from adapter mapping or defaults
+                var mgmtComputePorts2 = [1, 2];
+                var storagePorts2 = [3, 4];
+                if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
+                    mgmtComputePorts2 = [];
+                    storagePorts2 = [];
+                    for (var ami = 1; ami <= portCount; ami++) {
+                        var amAssign = state.adapterMapping[ami] || 'pool';
+                        if (amAssign === 'storage') storagePorts2.push(ami);
+                        else mgmtComputePorts2.push(ami);
+                    }
+                }
+
                 function renderSetTeam2(nodeLeft, nodeTop) {
                     var setW = 220;
                     var setH = 62;
@@ -3919,8 +3932,8 @@
                         return t;
                     }
 
-                    out += nicTile(nic1X, nicY, getNicLabel2(1), 0);
-                    out += nicTile(nic2X, nicY, getNicLabel2(2), 1);
+                    out += nicTile(nic1X, nicY, getNicLabel2(mgmtComputePorts2[0] || 1), 0);
+                    out += nicTile(nic2X, nicY, getNicLabel2(mgmtComputePorts2[1] || 2), 1);
                     return out;
                 }
 
@@ -3995,8 +4008,8 @@
 
                     for (var p2 = 0; p2 < 2; p2++) {
                         var tr2 = storageTileRect2(i2, p2);
-                        // Storage ports start at port 3 (after 2 Mgmt+Compute ports)
-                        var lbl2 = getNicLabel2(p2 + 3);
+                        // Use actual storage port indices from adapter mapping
+                        var lbl2 = getNicLabel2(storagePorts2[p2] || (p2 + 3));
                         // Center text vertically if label is 11 characters or less, otherwise stagger
                         var textY2 = (lbl2.length <= 11) ? (tr2.y + 23) : ((p2 % 2 === 0) ? (tr2.y + 18) : (tr2.y + 28));
                         svg2 += '<rect x="' + tr2.x + '" y="' + tr2.y + '" width="' + tr2.w + '" height="' + tr2.h + '" rx="8" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';

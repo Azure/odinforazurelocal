@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.14.59 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.14.60 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,7 +37,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.14.59 - Latest Release
+### 🎉 Version 0.14.60 - Latest Release
+- **2-Node Switchless VLAN & Diagram Fix ([#93](https://github.com/Azure/odinforazurelocal/issues/93))**: 2-node switchless now correctly shows two Storage VLAN ID fields (711, 712) in overrides, ARM output, and summary. Configuration Report diagram now reflects the user's custom adapter mapping instead of hardcoded port assignments.
+
+### Version 0.14.59
 - **Summary Blade NIC Mapping ([#88](https://github.com/Azure/odinforazurelocal/issues/88))**: Summary blade now updates to reflect custom adapter mapping after confirming, instead of always showing default port assignments
 
 ### Version 0.14.58
@@ -331,7 +334,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.14.59  
+**Version**: 0.14.60  
 **Last Updated**: February 12th 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -346,6 +349,10 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.14.x Series (February 2026)
+
+#### 0.14.60 - 2-Node Switchless VLAN & Diagram Fix
+- **2-Node Switchless Storage VLANs (#93)**: `getStorageVlanOverrideNetworkCount()` now returns 2 for 2-node switchless, exposing both VLAN ID fields (711, 712) in overrides UI, ARM template, and summary
+- **Report Diagram Port Labels (#93)**: 2-node switchless diagram now reads actual port assignments from `state.adapterMapping` instead of hardcoding Port 1,2 → Mgmt+Compute and Port 3,4 → Storage
 
 #### 0.14.59 - Summary Blade NIC Mapping Fix
 - **Summary Blade NIC Mapping (#88)**: Summary blade now reflects custom adapter mapping after confirmation
