@@ -1662,6 +1662,12 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push(`⚠️ Required cores per node (${requiredCoresPerNode}) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional nodes.`);
             }
         }
+
+        // Storage utilization threshold check
+        const currentStoragePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
+        if (currentStoragePercent >= 90) {
+            notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add nodes, increase disk count/size, or reduce workloads.');
+        }
         
         // vCPU to core ratio
         notes.push('vCPU calculations assume 4:1 overcommit ratio');
@@ -1677,11 +1683,23 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     updateDesignerActionVisibility();
 }
 
-// Show "Configure in Designer" button only when workloads exist
+// Show "Configure in Designer" button only when workloads exist and storage is under 90%
 function updateDesignerActionVisibility() {
     const actionDiv = document.getElementById('designer-action');
+    const designerBtn = document.querySelector('.btn-designer');
     if (actionDiv) {
         actionDiv.style.display = workloads.length > 0 ? 'block' : 'none';
+    }
+    // Disable button when storage >= 90%
+    if (designerBtn) {
+        const storagePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
+        if (storagePercent >= 90 && workloads.length > 0) {
+            designerBtn.disabled = true;
+            designerBtn.title = 'Storage utilization must be below 90% before configuring in Designer';
+        } else {
+            designerBtn.disabled = false;
+            designerBtn.title = '';
+        }
     }
 }
 

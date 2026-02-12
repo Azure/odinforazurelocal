@@ -910,6 +910,16 @@ body {
     background: linear-gradient(90deg, var(--accent-green), #34d399);
 }
 
+.breakdown-fill.over-threshold {
+    background: linear-gradient(90deg, #ef4444, #f87171) !important;
+}
+
+.btn-designer:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(0.5);
+}
+
 .breakdown-legend {
     font-size: 11px;
     color: var(--text-secondary);
