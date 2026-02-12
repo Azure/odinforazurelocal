@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.14.59] - 2026-02-12
+
+### Fixed
+
+#### Summary Blade NIC Mapping (#88)
+
+- **Custom Adapter Mapping in Summary**: The right-side summary blade now correctly displays the user's custom NIC-to-intent mapping after clicking "Confirm Adapter Mapping". Previously, `getNicMapping()` used hardcoded default logic (Port 1,2 → Mgmt+Compute, Port 3+ → Storage) regardless of the user's drag-and-drop rearrangement. Added a check at the top of `getNicMapping()` to read from `state.adapterMapping` when `state.adapterMappingConfirmed` is true, consistent with how `getIntentNicGroups()` already handles this for the OVERRIDES section.
+
+---
+
 ## [0.14.58] - 2026-02-12
 
 ### Fixed
