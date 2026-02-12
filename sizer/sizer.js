@@ -954,40 +954,51 @@ const WORKLOAD_DEFAULTS = {
     },
     avd: {
         name: 'Azure Virtual Desktop',
-        profile: 'medium', // light, medium, power
+        profile: 'medium', // light, medium, heavy, power
+        sessionType: 'multi', // multi or single
+        concurrency: 90,
+        fslogix: false,
+        fslogixSize: 30,
         userCount: 50
     }
 };
 
-// AVD Profile specifications
+// AVD Profile specifications — multi-session per-user shares, single-session per-VM
 const AVD_PROFILES = {
     light: {
         name: 'Light',
-        description: 'Task workers (basic apps, web browsing)',
-        vcpusPerUser: 0.5,
-        memoryPerUser: 2,
-        storagePerUser: 20
+        description: 'Task workers (basic data entry, web browsing)',
+        maxUsersPerVcpu: 6,
+        multi:  { vcpusPerUser: 0.5, memoryPerUser: 2,  storagePerUser: 20 },
+        single: { vcpusPerUser: 2,   memoryPerUser: 8,  storagePerUser: 32 }
     },
     medium: {
         name: 'Medium',
         description: 'Knowledge workers (Office, email, multi-tasking)',
-        vcpusPerUser: 1,
-        memoryPerUser: 4,
-        storagePerUser: 40
+        maxUsersPerVcpu: 4,
+        multi:  { vcpusPerUser: 1,   memoryPerUser: 4,  storagePerUser: 40 },
+        single: { vcpusPerUser: 4,   memoryPerUser: 16, storagePerUser: 32 }
+    },
+    heavy: {
+        name: 'Heavy',
+        description: 'Engineers & content creators (dev, Outlook, PowerPoint)',
+        maxUsersPerVcpu: 2,
+        multi:  { vcpusPerUser: 1.5, memoryPerUser: 6,  storagePerUser: 60 },
+        single: { vcpusPerUser: 8,   memoryPerUser: 32, storagePerUser: 32 }
     },
     power: {
         name: 'Power',
-        description: 'Power users (development, data analysis)',
-        vcpusPerUser: 2,
-        memoryPerUser: 8,
-        storagePerUser: 80
+        description: 'Graphic designers, 3D modelers, CAD/CAM, ML',
+        maxUsersPerVcpu: 1,
+        multi:  { vcpusPerUser: 2,   memoryPerUser: 8,  storagePerUser: 80 },
+        single: { vcpusPerUser: 8,   memoryPerUser: 32, storagePerUser: 80 }
     },
     custom: {
         name: 'Custom',
         description: 'Custom per-user resource specification',
-        vcpusPerUser: 2,
-        memoryPerUser: 8,
-        storagePerUser: 50
+        maxUsersPerVcpu: 4,
+        multi:  { vcpusPerUser: 2,   memoryPerUser: 8,  storagePerUser: 50 },
+        single: { vcpusPerUser: 4,   memoryPerUser: 16, storagePerUser: 50 }
     }
 };
 
@@ -1013,6 +1024,7 @@ let currentModalType = null;
 // Handle node count change
 function onNodeCountChange() {
     updateResiliencyOptions();
+    updateResiliencyRecommendation();
     updateClusterInfo();
     calculateRequirements({ skipAutoNodeRecommend: true });
 }
@@ -1022,6 +1034,7 @@ function onClusterTypeChange() {
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
     updateResiliencyOptions();
+    updateResiliencyRecommendation();
     updateClusterInfo();
     calculateRequirements();
 }
@@ -1042,8 +1055,20 @@ function updateStorageForClusterType() {
 
 // Handle resiliency change
 function onResiliencyChange() {
+    updateResiliencyRecommendation();
     updateClusterInfo();
     calculateRequirements({ skipAutoNodeRecommend: true });
+}
+
+// Show a recommendation warning when user picks 2-way on a standard 3+ node cluster
+function updateResiliencyRecommendation() {
+    const el = document.getElementById('resiliency-recommendation');
+    if (!el) return;
+    const clusterType = document.getElementById('cluster-type').value;
+    const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
+    const resiliency = document.getElementById('resiliency').value;
+    // Show warning only for standard clusters with 3+ nodes that chose 2-way mirror
+    el.style.display = (clusterType === 'standard' && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
 }
 
 // Update node count options based on cluster type
@@ -1358,6 +1383,8 @@ function getAKSModalContent() {
 // Get AVD modal content
 function getAVDModalContent() {
     const defaults = WORKLOAD_DEFAULTS.avd;
+    const medSpecs = AVD_PROFILES.medium.multi;
+    const custSpecs = AVD_PROFILES.custom.multi;
     return `
         <div class="form-group">
             <label>Workload Name</label>
@@ -1368,27 +1395,55 @@ function getAVDModalContent() {
             <input type="number" id="avd-users" value="${defaults.userCount}" min="1" max="10000">
         </div>
         <div class="form-group">
+            <label>Session Type
+                <span class="info-icon" title="Multi-session: multiple users share VMs (Windows 10/11 Enterprise multi-session). Single-session: one dedicated VM per user (personal desktop).">ⓘ</span>
+            </label>
+            <select id="avd-session-type" onchange="updateAVDDescription()">
+                <option value="multi" selected>Multi-session (shared VMs)</option>
+                <option value="single">Single-session (1 VM per user)</option>
+            </select>
+        </div>
+        <div class="form-group">
             <label>User Profile</label>
             <select id="avd-profile" onchange="updateAVDDescription()">
                 <option value="light">Light - Task Workers</option>
                 <option value="medium" selected>Medium - Knowledge Workers</option>
-                <option value="power">Power - Power Users</option>
+                <option value="heavy">Heavy - Engineers & Content Creators</option>
+                <option value="power">Power - 3D / CAD / ML</option>
                 <option value="custom">Custom</option>
             </select>
             <span class="hint" id="avd-profile-desc">${AVD_PROFILES.medium.description}</span>
         </div>
+        <div class="form-group" id="avd-concurrency-group">
+            <label>Max Concurrency %
+                <span class="info-icon" title="Peak percentage of users active simultaneously. Most organisations see 60-90% peak concurrency. Reduces compute/memory requirements.">ⓘ</span>
+            </label>
+            <input type="number" id="avd-concurrency" value="${defaults.concurrency}" min="10" max="100" step="5">
+            <span class="hint">Peak concurrent user percentage (default 90%)</span>
+        </div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="avd-fslogix" style="width: auto; margin: 0;" onchange="toggleFSLogixSize()">
+            <label for="avd-fslogix" style="margin: 0; cursor: pointer;">Add FSLogix user profile storage
+                <span class="info-icon" title="FSLogix profile containers store user profiles on a file share. Adds per-user storage for profiles, settings, and data.">ⓘ</span>
+            </label>
+        </div>
+        <div id="avd-fslogix-size-group" class="form-group" style="display: none; margin-left: 28px;">
+            <label>Profile Size per User (GB)</label>
+            <input type="number" id="avd-fslogix-size" value="${defaults.fslogixSize}" min="5" max="100" step="5">
+            <span class="hint">Typical: 20-30 GB per user for Office / profile data</span>
+        </div>
         <div id="avd-custom-fields" style="display: none; margin-top: 12px;">
             <div class="form-group">
                 <label>vCPUs per User</label>
-                <input type="number" id="avd-custom-vcpus" value="${AVD_PROFILES.custom.vcpusPerUser}" min="0.25" max="16" step="0.25">
+                <input type="number" id="avd-custom-vcpus" value="${custSpecs.vcpusPerUser}" min="0.25" max="16" step="0.25">
             </div>
             <div class="form-group">
                 <label>Memory per User (GB)</label>
-                <input type="number" id="avd-custom-memory" value="${AVD_PROFILES.custom.memoryPerUser}" min="1" max="64" step="1">
+                <input type="number" id="avd-custom-memory" value="${custSpecs.memoryPerUser}" min="1" max="64" step="1">
             </div>
             <div class="form-group">
                 <label>Storage per User (GB)</label>
-                <input type="number" id="avd-custom-storage" value="${AVD_PROFILES.custom.storagePerUser}" min="5" max="500" step="5">
+                <input type="number" id="avd-custom-storage" value="${custSpecs.storagePerUser}" min="5" max="500" step="5">
             </div>
         </div>
         <div id="avd-specs-panel" style="margin-top: 16px; padding: 16px; background: var(--subtle-bg); border-radius: 8px;">
@@ -1396,29 +1451,56 @@ function getAVDModalContent() {
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px;">
                 <div>
                     <span style="color: var(--text-secondary);">vCPUs/User:</span>
-                    <span id="avd-spec-vcpus">${AVD_PROFILES.medium.vcpusPerUser}</span>
+                    <span id="avd-spec-vcpus">${medSpecs.vcpusPerUser}</span>
                 </div>
                 <div>
                     <span style="color: var(--text-secondary);">Memory/User:</span>
-                    <span id="avd-spec-memory">${AVD_PROFILES.medium.memoryPerUser} GB</span>
+                    <span id="avd-spec-memory">${medSpecs.memoryPerUser} GB</span>
                 </div>
                 <div>
                     <span style="color: var(--text-secondary);">Storage/User:</span>
-                    <span id="avd-spec-storage">${AVD_PROFILES.medium.storagePerUser} GB</span>
+                    <span id="avd-spec-storage">${medSpecs.storagePerUser} GB</span>
                 </div>
             </div>
+            <div id="avd-spec-density" style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                Max density: ${AVD_PROFILES.medium.maxUsersPerVcpu} users/vCPU
+            </div>
+        </div>
+        <div style="margin-top: 16px; padding: 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">📖</span>
+            <a href="https://learn.microsoft.com/en-us/azure/architecture/hybrid/azure-local-workload-virtual-desktop" target="_blank" style="color: var(--link-color);">AVD for Azure Local architecture guide</a>
+            <span style="margin: 0 6px;">|</span>
+            <a href="https://learn.microsoft.com/en-us/windows-server/remote/remote-desktop-services/virtual-machine-recs" target="_blank" style="color: var(--link-color);">Session host sizing guidelines</a>
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
+            We recommend using simulation tools (e.g. LoginVSI) to validate sizing with stress tests and real-life usage simulations.
         </div>
     `;
 }
 
-// Update AVD description when profile changes
+// Toggle FSLogix size input visibility
+function toggleFSLogixSize() {
+    const cb = document.getElementById('avd-fslogix');
+    const sizeGroup = document.getElementById('avd-fslogix-size-group');
+    sizeGroup.style.display = cb.checked ? 'block' : 'none';
+}
+
+// Update AVD description when profile or session type changes
 function updateAVDDescription() {
     const profile = document.getElementById('avd-profile').value;
+    const sessionType = document.getElementById('avd-session-type').value;
     const profileData = AVD_PROFILES[profile];
+    const specs = profileData[sessionType] || profileData.multi;
     const customFields = document.getElementById('avd-custom-fields');
     const specsPanel = document.getElementById('avd-specs-panel');
 
     document.getElementById('avd-profile-desc').textContent = profileData.description;
+
+    // Hide concurrency for single-session (every user gets a dedicated VM)
+    const concGroup = document.getElementById('avd-concurrency-group');
+    if (concGroup) {
+        concGroup.style.display = sessionType === 'single' ? 'none' : 'block';
+    }
 
     if (profile === 'custom') {
         // Show editable custom fields, hide read-only specs panel
@@ -1428,9 +1510,15 @@ function updateAVDDescription() {
         // Hide custom fields, show read-only specs panel
         customFields.style.display = 'none';
         specsPanel.style.display = 'block';
-        document.getElementById('avd-spec-vcpus').textContent = profileData.vcpusPerUser;
-        document.getElementById('avd-spec-memory').textContent = profileData.memoryPerUser + ' GB';
-        document.getElementById('avd-spec-storage').textContent = profileData.storagePerUser + ' GB';
+        document.getElementById('avd-spec-vcpus').textContent = specs.vcpusPerUser;
+        document.getElementById('avd-spec-memory').textContent = specs.memoryPerUser + ' GB';
+        document.getElementById('avd-spec-storage').textContent = specs.storagePerUser + ' GB';
+        const densityEl = document.getElementById('avd-spec-density');
+        if (densityEl) {
+            densityEl.textContent = sessionType === 'multi'
+                ? 'Max density: ' + profileData.maxUsersPerVcpu + ' users/vCPU'
+                : 'Dedicated VM per user';
+        }
     }
 }
 
@@ -1468,6 +1556,10 @@ function addWorkload() {
         case 'avd':
             workload.profile = document.getElementById('avd-profile').value;
             workload.userCount = parseInt(document.getElementById('avd-users').value) || 50;
+            workload.sessionType = document.getElementById('avd-session-type').value || 'multi';
+            workload.concurrency = parseInt(document.getElementById('avd-concurrency').value) || 90;
+            workload.fslogix = document.getElementById('avd-fslogix').checked;
+            workload.fslogixSize = parseInt(document.getElementById('avd-fslogix-size').value) || 30;
             if (workload.profile === 'custom') {
                 workload.customVcpus = parseFloat(document.getElementById('avd-custom-vcpus').value) || 2;
                 workload.customMemory = parseFloat(document.getElementById('avd-custom-memory').value) || 8;
@@ -1530,8 +1622,15 @@ function editWorkload(id) {
             title.textContent = 'Edit Azure Virtual Desktop';
             body.innerHTML = getAVDModalContent();
             document.getElementById('workload-name').value = w.name;
+            document.getElementById('avd-session-type').value = w.sessionType || 'multi';
             document.getElementById('avd-profile').value = w.profile;
             document.getElementById('avd-users').value = w.userCount;
+            document.getElementById('avd-concurrency').value = w.concurrency != null ? w.concurrency : 90;
+            document.getElementById('avd-fslogix').checked = !!w.fslogix;
+            if (w.fslogix) {
+                document.getElementById('avd-fslogix-size-group').style.display = 'block';
+                document.getElementById('avd-fslogix-size').value = w.fslogixSize || 30;
+            }
             updateAVDDescription();
             if (w.profile === 'custom') {
                 document.getElementById('avd-custom-vcpus').value = w.customVcpus || 2;
@@ -1634,11 +1733,19 @@ function getWorkloadDetails(w) {
             const totalNodes = (w.controlPlaneNodes + w.workerNodes) * w.clusterCount;
             return `${w.clusterCount} cluster(s) × ${totalNodes / w.clusterCount} nodes each`;
         case 'avd':
+            const sessionLabel = (w.sessionType || 'multi') === 'multi' ? 'multi-session' : 'single-session';
+            const conc = w.concurrency != null ? w.concurrency : 100;
+            const concurrentUsers = Math.ceil(w.userCount * conc / 100);
+            let avdDesc;
             if (w.profile === 'custom') {
-                return `${w.userCount} Custom users (${w.customVcpus} vCPUs, ${w.customMemory} GB RAM, ${w.customStorage} GB storage each)`;
+                avdDesc = `${w.userCount} Custom users (${w.customVcpus} vCPUs, ${w.customMemory} GB RAM each)`;
+            } else {
+                const avdProfile = AVD_PROFILES[w.profile];
+                avdDesc = `${w.userCount} ${avdProfile.name} users`;
             }
-            const avdProfile = AVD_PROFILES[w.profile];
-            return `${w.userCount} ${avdProfile.name} users`;
+            avdDesc += ` \u2022 ${sessionLabel} \u2022 ${conc}% concurrency (${concurrentUsers} peak)`;
+            if (w.fslogix) avdDesc += ` \u2022 FSLogix ${w.fslogixSize || 30} GB/user`;
+            return avdDesc;
         default:
             return '';
     }
@@ -1670,18 +1777,33 @@ function calculateWorkloadRequirements(w) {
             memory = (cpMemory + workerMemory) * w.clusterCount;
             storage = (cpStorage + workerStorage) * w.clusterCount;
             break;
-        case 'avd':
+        case 'avd': {
+            // Single-session = every user gets a dedicated VM, so concurrency is always 100%
+            const concPct = (w.sessionType === 'single') ? 1 : (w.concurrency != null ? w.concurrency : 100) / 100;
+            const concUsers = Math.ceil(w.userCount * concPct);
+            const sType = w.sessionType || 'multi';
+            let vPerUser, mPerUser, sPerUser;
             if (w.profile === 'custom') {
-                vcpus = Math.ceil((w.customVcpus || 2) * w.userCount);
-                memory = (w.customMemory || 8) * w.userCount;
-                storage = (w.customStorage || 50) * w.userCount;
+                vPerUser = w.customVcpus || 2;
+                mPerUser = w.customMemory || 8;
+                sPerUser = w.customStorage || 50;
             } else {
                 const profile = AVD_PROFILES[w.profile];
-                vcpus = Math.ceil(profile.vcpusPerUser * w.userCount);
-                memory = profile.memoryPerUser * w.userCount;
-                storage = profile.storagePerUser * w.userCount;
+                const specs = profile[sType] || profile.multi;
+                vPerUser = specs.vcpusPerUser;
+                mPerUser = specs.memoryPerUser;
+                sPerUser = specs.storagePerUser;
+            }
+            // Compute & memory scale with concurrent users; storage with total users
+            vcpus = Math.ceil(vPerUser * concUsers);
+            memory = mPerUser * concUsers;
+            storage = sPerUser * w.userCount;
+            // FSLogix profile storage (all users, not just concurrent)
+            if (w.fslogix) {
+                storage += (w.fslogixSize || 30) * w.userCount;
             }
             break;
+        }
     }
     
     return { vcpus, memory, storage };
@@ -1944,7 +2066,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             'simple': 'Simple (no redundancy, 1x raw storage)',
             '2way': 'Two-way mirror (50% efficiency for two copies of data), performant and resilient to one fault domain (node) failure',
             '3way': 'Three-way mirror (33% efficiency for three copies of data), most performant and resilient to two fault domain (nodes) failures',
-            '4way': 'Four-way mirror (4x raw storage, 25% efficiency)'
+            '4way': 'Four-way mirror (25% efficiency), implemented as a rack-level nested mirror'
         };
         notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
         
