@@ -957,7 +957,7 @@ let currentModalType = null;
 function onNodeCountChange() {
     updateResiliencyOptions();
     updateClusterInfo();
-    calculateRequirements();
+    calculateRequirements({ skipAutoNodeRecommend: true });
 }
 
 // Handle cluster type change (single / standard / rack-aware)
@@ -1643,9 +1643,10 @@ function calculateWorkloadRequirements(w) {
 }
 
 // Calculate all requirements
-function calculateRequirements() {
+function calculateRequirements(options) {
     if (isCalculating) return;
     isCalculating = true;
+    const skipAutoNodeRecommend = options && options.skipAutoNodeRecommend;
 
     try {
         // Sum all workload requirements (raw, before growth)
@@ -1675,16 +1676,19 @@ function calculateRequirements() {
         const maxHwConfig = buildMaxHardwareConfig(hwConfig);
 
         // --- Auto-recommend node count based on max hardware potential ---
-        if (workloads.length > 0) {
-            const recommendation = getRecommendedNodeCount(
-                totalVcpus, totalMemory, totalStorage,
-                maxHwConfig, resiliencyMultiplier, resiliency
-            );
-            if (recommendation) {
-                updateNodeRecommendation(recommendation);
+        // Skip when user manually changed node count to respect their selection
+        if (!skipAutoNodeRecommend) {
+            if (workloads.length > 0) {
+                const recommendation = getRecommendedNodeCount(
+                    totalVcpus, totalMemory, totalStorage,
+                    maxHwConfig, resiliencyMultiplier, resiliency
+                );
+                if (recommendation) {
+                    updateNodeRecommendation(recommendation);
+                }
+            } else {
+                hideNodeRecommendation();
             }
-        } else {
-            hideNodeRecommendation();
         }
 
         // Read (possibly updated) node count
@@ -1708,8 +1712,9 @@ function calculateRequirements() {
             }
 
             // --- Auto-increment node count if any resource is still >= 90% after hw scale-up ---
+            // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
-            if (clusterType !== 'single') {
+            if (clusterType !== 'single' && !skipAutoNodeRecommend) {
                 const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
