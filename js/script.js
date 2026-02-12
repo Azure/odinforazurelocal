@@ -8781,6 +8781,26 @@ function showChangelog() {
                     </ul>
                 </div>
 
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🖥️ AVD Workload Enhancements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Session Type:</strong> Multi-session (shared VMs) / single-session (dedicated VM per user) dropdown aligned to Microsoft session host sizing guidelines.</li>
+                        <li><strong>Heavy Profile:</strong> New workload tier for engineers and content creators.</li>
+                        <li><strong>Max Concurrency %:</strong> Default 90% reduces compute/memory sizing for realistic peak loads. Auto-hidden for single-session.</li>
+                        <li><strong>FSLogix Profile Storage:</strong> Optional per-user profile container storage (default 30 GB).</li>
+                        <li><strong>Knowledge Links:</strong> Links to AVD for Azure Local architecture guide and session host sizing guidelines.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛡️ Resiliency &amp; Sizing Notes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>2-Way Mirror Warning:</strong> Recommendation banner when 2-way mirror is selected on a 3+ node cluster.</li>
+                        <li><strong>80% Headroom Auto-Scale:</strong> Automatically bumps CPU cores/sockets and memory when capacity exceeds 80%.</li>
+                        <li><strong>Improved Resiliency Notes:</strong> Clearer descriptions for 2-way, 3-way, and 4-way mirror efficiency and fault domain details.</li>
+                    </ul>
+                </div>
+
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.61</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 12, 2026</div>

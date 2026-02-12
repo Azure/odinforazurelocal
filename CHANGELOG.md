@@ -30,6 +30,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ODIN Favicon**: Added ODIN logo as browser favicon across all five HTML pages (Designer, Sizer, Report, ARM, Outbound Connectivity).
 - **Clean Navigation URLs**: All internal links now use folder paths instead of explicit `index.html` references for cleaner URLs.
 
+#### AVD Workload Enhancements
+
+- **AVD Session Type**: Multi-session (shared VMs) / single-session (dedicated VM per user) dropdown with session-type-aware specs aligned to Microsoft session host sizing guidelines.
+- **AVD Heavy Profile**: New workload tier for engineers and content creators (per MS session host sizing guide).
+- **AVD Max Concurrency %**: Default 90% — reduces compute/memory sizing for realistic peak loads. Auto-hidden for single-session (always 100%).
+- **AVD FSLogix Profile Storage**: Optional checkbox + per-user GB (default 30 GB) for user profile container storage.
+- **AVD Knowledge Links**: Links to AVD for Azure Local architecture guide and session host sizing guidelines.
+- **AVD Simulation Tools Note**: Recommendation to use LoginVSI for stress testing.
+- **AVD Max Density Indicator**: Shows users/vCPU for multi-session or "Dedicated VM per user" for single-session.
+
+#### Resiliency Guidance
+
+- **2-Way Mirror Warning**: Recommendation banner when 2-way mirror is selected on a standard 3+ node cluster.
+- **80% Headroom Auto-Scale**: Automatically bumps CPU cores/sockets and memory when capacity bars exceed 80%.
+
+### Changed
+
+- **2-Way Mirror Note**: Updated to "Two-way mirror (50% efficiency for two copies of data), performant and resilient to one fault domain (node) failure".
+- **3-Way Mirror Note**: Updated to "Three-way mirror (33% efficiency for three copies of data), most performant and resilient to two fault domain (nodes) failures".
+- **4-Way Mirror Note**: Updated to "Four-way mirror (25% efficiency), implemented as a rack-level nested mirror".
+- **vCPU Ratio Note**: Updated to "vCPU calculations assume 4:1 pCPU to vCPU ratio".
+- **High-Memory Note**: Updated to "Large memory system: Requires 400 GB+ or larger OS disks for supportability".
+
+### Removed
+
+- **N+1 Storage Tip**: Removed misleading storage maintenance sentence from sizing notes.
+
 ### Fixed
 
 - **Sizer Save-on-Init Bug**: Initial `calculateRequirements()` during page load no longer overwrites saved localStorage state. The resume banner now correctly appears when returning to a previous session.
