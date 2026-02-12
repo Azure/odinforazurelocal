@@ -3898,7 +3898,7 @@
                 if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
                     mgmtComputePorts2 = [];
                     storagePorts2 = [];
-                    for (var ami = 1; ami <= portCount; ami++) {
+                    for (var ami = 1; ami <= ports; ami++) {
                         var amAssign = state.adapterMapping[ami] || 'pool';
                         if (amAssign === 'storage') storagePorts2.push(ami);
                         else mgmtComputePorts2.push(ami);
