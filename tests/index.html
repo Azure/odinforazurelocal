@@ -2988,7 +2988,7 @@
             })(),
             (() => {
                 document.getElementById('cluster-type').value = 'standard';
-                return assert(snapToAvailableNodeCount(9) === 12, 'Standard: snap 9 → 12 (next available)', 12, snapToAvailableNodeCount(9));
+                return assert(snapToAvailableNodeCount(9) === 9, 'Standard: snap 9 → 9 (exact match)', 9, snapToAvailableNodeCount(9));
             })(),
             (() => {
                 document.getElementById('cluster-type').value = 'standard';

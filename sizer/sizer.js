@@ -429,7 +429,7 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
 function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'single') return 1;
-    const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 12, 16];
+    const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     for (const opt of options) {
         if (opt >= recommended) return opt;
     }
@@ -972,7 +972,7 @@ function updateNodeOptionsForClusterType() {
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
-        const nodeOptions = [2, 3, 4, 5, 6, 7, 8, 12, 16];
+        const nodeOptions = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
         nodeSelect.innerHTML = nodeOptions.map(n => `<option value="${n}">${n} Nodes</option>`).join('');
         
         // Preserve current value if valid
@@ -1000,9 +1000,7 @@ function updateNodeOptions() {
     // Rebuild options starting from minimum
     const nodeOptions = [];
     for (let i = minNodes; i <= 16; i++) {
-        if (i <= 8 || i === 12 || i === 16) {
-            nodeOptions.push(i);
-        }
+        nodeOptions.push(i);
     }
     
     nodeSelect.innerHTML = nodeOptions.map(n => {
@@ -1592,7 +1590,7 @@ function calculateRequirements() {
             // --- Auto-increment node count if any resource is still >= 90% after hw scale-up ---
             const clusterType = document.getElementById('cluster-type').value;
             if (clusterType !== 'single') {
-                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 12, 16];
+                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
                 let attempts = 0;
