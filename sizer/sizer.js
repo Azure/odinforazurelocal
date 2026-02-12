@@ -2311,6 +2311,141 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Allow saves from now on
     isInitialLoad = false;
+
+    // Show onboarding walkthrough on first visit
+    if (!localStorage.getItem(SIZER_ONBOARDING_KEY)) {
+        showSizerOnboarding();
+    }
+});
+
+// ============================================
+// ONBOARDING WALKTHROUGH
+// ============================================
+
+const SIZER_ONBOARDING_KEY = 'odin_sizer_onboarding_complete';
+
+const sizerOnboardingSteps = [
+    {
+        icon: '<img src="../images/odin-logo.png" alt="Odin Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        isImage: true,
+        title: 'Welcome to the ODIN Sizer',
+        description: 'Plan your Azure Local hardware requirements by modelling workloads, resiliency, and capacity — before you buy.',
+        features: [
+            { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, and AVD workloads with CPU, memory, and storage needs' },
+            { icon: '⚖️', title: 'Resiliency Options', text: 'Choose mirror types and see the real impact on usable storage' },
+            { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, and storage utilization update in real time' },
+            { icon: '💾', title: 'Auto-Save', text: 'Progress is automatically saved to your browser' }
+        ]
+    },
+    {
+        icon: '🔧',
+        title: 'How It Works',
+        description: 'Configure your cluster, add workloads, and let the sizer recommend the right hardware.',
+        features: [
+            { icon: '1️⃣', title: 'Choose Cluster Type', text: 'Standard, Rack-Aware, or Single Node — each with its own constraints' },
+            { icon: '2️⃣', title: 'Add Workloads', text: 'Click VM, AKS, or AVD buttons to define your workload scenarios' },
+            { icon: '3️⃣', title: 'Review Sizing', text: 'Auto-sizing recommends nodes, cores, memory, and disks' },
+            { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config into the deployment wizard' }
+        ]
+    },
+    {
+        icon: '⚡',
+        title: 'Pro Tips',
+        description: 'Get the most out of the ODIN Sizer with these features.',
+        features: [
+            { icon: '📈', title: 'Growth Factor', text: 'Plan for future growth — the sizer applies your growth % to all workloads' },
+            { icon: '🔄', title: 'Auto-Scaling', text: 'The engine scales up cores, memory, and disks before adding nodes' },
+            { icon: '🚫', title: 'Utilization Guard', text: 'Configurations above 90% utilization are flagged with warnings' },
+            { icon: '📄', title: 'Export Results', text: 'Download your sizing as PDF or Word for stakeholder review' }
+        ]
+    }
+];
+
+let currentSizerOnboardingStep = 0;
+
+function showSizerOnboarding() {
+    currentSizerOnboardingStep = 0;
+    renderSizerOnboardingStep();
+}
+
+function renderSizerOnboardingStep() {
+    const step = sizerOnboardingSteps[currentSizerOnboardingStep];
+
+    // Remove existing overlay if any
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+
+    const overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+    overlay.innerHTML = `
+        <div class="onboarding-card">
+            <div class="onboarding-icon${step.isImage ? ' onboarding-icon-image' : ''}">${step.icon}</div>
+            <h2 class="onboarding-title">${step.title}</h2>
+            <p class="onboarding-description">${step.description}</p>
+
+            <div class="onboarding-features">
+                ${step.features.map(f => `
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">${f.icon}</span>
+                        <div class="onboarding-feature-text">
+                            <strong>${f.title}</strong>
+                            ${f.text}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="onboarding-progress">
+                ${sizerOnboardingSteps.map((_, i) => `<div class="onboarding-dot ${i === currentSizerOnboardingStep ? 'active' : ''}"></div>`).join('')}
+            </div>
+
+            <div class="onboarding-buttons">
+                <button class="onboarding-btn onboarding-btn-secondary" data-action="skip">Skip</button>
+                <button class="onboarding-btn onboarding-btn-primary" data-action="next">
+                    ${currentSizerOnboardingStep === sizerOnboardingSteps.length - 1 ? 'Get Started' : 'Next'}
+                </button>
+            </div>
+        </div>
+    `;
+
+    overlay.querySelector('[data-action="skip"]').addEventListener('click', skipSizerOnboarding);
+    overlay.querySelector('[data-action="next"]').addEventListener('click', () => {
+        if (currentSizerOnboardingStep === sizerOnboardingSteps.length - 1) {
+            finishSizerOnboarding();
+        } else {
+            nextSizerOnboardingStep();
+        }
+    });
+
+    document.body.appendChild(overlay);
+}
+
+function nextSizerOnboardingStep() {
+    currentSizerOnboardingStep++;
+    if (currentSizerOnboardingStep < sizerOnboardingSteps.length) {
+        renderSizerOnboardingStep();
+    } else {
+        finishSizerOnboarding();
+    }
+}
+
+function skipSizerOnboarding() {
+    localStorage.setItem(SIZER_ONBOARDING_KEY, 'true');
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+}
+
+function finishSizerOnboarding() {
+    localStorage.setItem(SIZER_ONBOARDING_KEY, 'true');
+    document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
+}
+
+// Close onboarding overlay on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const overlay = document.querySelector('.onboarding-overlay');
+        if (overlay) {
+            skipSizerOnboarding();
+        }
+    }
 });
 
 // Theme toggle functionality
