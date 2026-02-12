@@ -744,6 +744,28 @@ header .header-description {
     margin-bottom: 1.5rem;
 }
 
+.sizer-link {
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent-blue);
+    text-decoration: none;
+    padding: 0.3rem 0.85rem;
+    border-radius: 20px;
+    border: 1px solid rgba(0, 120, 212, 0.25);
+    background: linear-gradient(135deg, rgba(0, 120, 212, 0.08), rgba(134, 97, 193, 0.08));
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+}
+
+.sizer-link:hover {
+    background: linear-gradient(135deg, rgba(0, 120, 212, 0.18), rgba(134, 97, 193, 0.18));
+    border-color: rgba(0, 120, 212, 0.45);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 120, 212, 0.15);
+}
+
 .step-number {
     font-size: 0.9rem;
     font-weight: 700;

@@ -1005,6 +1005,53 @@
         if (s.witnessType) md.push('| Cloud Witness | ' + (s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness') + ' |');
         md.push('');
 
+        // Sizer Hardware Configuration (only present when imported from Sizer)
+        if (s.sizerHardware) {
+            var hw = s.sizerHardware;
+            md.push('## Hardware Configuration (from Sizer)');
+            md.push('');
+            md.push('| Setting | Value |');
+            md.push('|---------|-------|');
+            if (hw.cpu) {
+                md.push('| CPU | ' + (hw.cpu.generation || '-') + ' |');
+                md.push('| Cores per Socket | ' + (hw.cpu.coresPerSocket || '-') + ' |');
+                md.push('| CPU Sockets | ' + (hw.cpu.sockets || '-') + ' |');
+                md.push('| Total Physical Cores per Node | ' + (hw.cpu.totalCores || '-') + ' |');
+            }
+            if (hw.memory) {
+                md.push('| Memory per Node | ' + (hw.memory.perNodeGB || '-') + ' GB |');
+            }
+            if (hw.storage) {
+                var storageLabel = hw.storage.config === 'all-flash' ? 'All-Flash' :
+                                   hw.storage.config === 'mixed-flash' ? 'Mixed All-Flash (NVMe + SSD)' :
+                                   hw.storage.config === 'hybrid' ? 'Hybrid (SSD/NVMe + HDD)' : (hw.storage.config || '-');
+                md.push('| Storage Configuration | ' + storageLabel + ' |');
+                if (hw.storage.diskConfig) {
+                    var dc = hw.storage.diskConfig;
+                    if (dc.isTiered && dc.cache && dc.capacity) {
+                        md.push('| Cache Disks | ' + dc.cache.count + 'x ' + (dc.cache.sizeGB >= 1024 ? (dc.cache.sizeGB / 1024).toFixed(1) + ' TB' : dc.cache.sizeGB + ' GB') + ' (' + (dc.cache.type || '') + ') |');
+                        md.push('| Capacity Disks | ' + dc.capacity.count + 'x ' + (dc.capacity.sizeGB >= 1024 ? (dc.capacity.sizeGB / 1024).toFixed(1) + ' TB' : dc.capacity.sizeGB + ' GB') + ' (' + (dc.capacity.type || '') + ') |');
+                    } else if (dc.capacity) {
+                        md.push('| Capacity Disks | ' + dc.capacity.count + 'x ' + (dc.capacity.sizeGB >= 1024 ? (dc.capacity.sizeGB / 1024).toFixed(1) + ' TB' : dc.capacity.sizeGB + ' GB') + ' (' + (dc.capacity.type || '') + ') |');
+                    }
+                }
+            }
+            if (hw.resiliency) {
+                var resLabel = hw.resiliency === '3way' ? 'Three-way Mirror' :
+                               hw.resiliency === '2way' ? 'Two-way Mirror' :
+                               hw.resiliency === 'simple' ? 'Simple' : (hw.resiliency || '-');
+                md.push('| Storage Resiliency | ' + resLabel + ' |');
+            }
+            if (hw.workloadSummary) {
+                var ws = hw.workloadSummary;
+                md.push('| Workloads | ' + (ws.count || 0) + ' |');
+                md.push('| Total vCPUs Required | ' + (ws.totalVcpus || 0) + ' |');
+                md.push('| Total Memory Required | ' + (ws.totalMemoryGB || 0) + ' GB |');
+                md.push('| Total Storage Required | ' + (ws.totalStorageTB || 0) + ' TB |');
+            }
+            md.push('');
+        }
+
         // Host Networking
         md.push('## Host Networking');
         md.push('');

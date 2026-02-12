@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.14.61';
+const WIZARD_VERSION = '0.15.01';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -131,7 +131,8 @@ const state = {
     },
     rdmaGuardMessage: null,
     privateEndpoints: null, // 'pe_enabled' or 'pe_disabled'
-    privateEndpointsList: [] // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
+    privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
+    sizerHardware: null // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
 };
 
 // Auto-save state to localStorage
@@ -8266,6 +8267,101 @@ function importConfiguration() {
     }
 }
 
+// Check for and apply Sizer-to-Designer payload
+function checkForSizerImport() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('from') !== 'sizer') return false;
+
+    try {
+        const raw = localStorage.getItem('odinSizerToDesigner');
+        if (!raw) return false;
+
+        const payload = JSON.parse(raw);
+        if (!payload || payload.source !== 'sizer') return false;
+
+        // Store hardware details as hidden state property
+        if (payload.sizerHardware) {
+            state.sizerHardware = payload.sizerHardware;
+        }
+
+        // Step 01: Always select Hyperconverged
+        selectOption('scenario', 'hyperconverged');
+
+        // Step 02: Always select Azure Commercial
+        selectOption('region', 'azure_commercial');
+
+        // Step 03: Default to East US
+        selectOption('localInstanceRegion', 'east_us');
+
+        // Step 04: Cluster Configuration based on sizer input
+        if (payload.scale) {
+            selectOption('scale', payload.scale);
+        } else {
+            selectOption('scale', 'medium');
+        }
+
+        // Step 05: Cluster Size from sizer
+        if (payload.nodes) selectOption('nodes', String(payload.nodes));
+
+        // Update UI to reflect imported values
+        updateUI();
+        saveStateToLocalStorage();
+
+        // Clean up: remove the payload so it doesn't re-apply on next load
+        localStorage.removeItem('odinSizerToDesigner');
+
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        // Show confirmation banner
+        const banner = document.createElement('div');
+        banner.id = 'sizer-import-banner';
+        banner.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(59, 130, 246, 0.95));
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            animation: slideDown 0.3s ease;
+            max-width: 600px;
+        `;
+
+        const hw = payload.sizerHardware || {};
+        const details = `${hw.nodeCount || '?'} node(s) • ${hw.cpu ? hw.cpu.totalCores + ' cores' : ''} • ${hw.memory ? hw.memory.perNodeGB + ' GB RAM' : ''} per node`;
+
+        banner.innerHTML = `
+            <div style="flex: 1;">
+                <div style="font-weight: 700; margin-bottom: 4px;">Sizer Configuration Imported</div>
+                <div style="font-size: 12px; opacity: 0.9;">${details}</div>
+                <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">⚠️ Azure region defaulted to East US, update above if needed</div>
+            </div>
+            <button onclick="this.parentElement.remove()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Dismiss</button>
+        `;
+
+        document.body.appendChild(banner);
+
+        // Scroll to Step 05 (Cluster Size)
+        setTimeout(() => {
+            navigateToStep('step-3');
+        }, 500);
+
+        return true;
+    } catch (e) {
+        console.warn('Failed to import sizer configuration:', e);
+        return false;
+    }
+}
+
 // Show resume prompt on page load if saved state exists
 function checkForSavedState() {
     // Skip on test page
@@ -8663,27 +8759,30 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.14.61 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.15.01 - Latest Release</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 12, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧮 ODIN Sizer (Preview)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>2-Node Switchless Diagram Port Labels (<a href='https://github.com/Azure/odinforazurelocal/issues/93'>#93</a>):</strong> The Configuration Report diagram for 2-node switchless now correctly reflects the user's custom adapter mapping (e.g., Port 1,3 → Storage, Port 2,4 → Mgmt+Compute) instead of always showing the default Port 1,2 / Port 3,4 split.</li>
+                        <li><strong>Hardware Sizing Tool:</strong> New sizer calculates cluster requirements based on workload scenarios (VMs, AKS, AVD), storage resiliency, and capacity needs with an intelligent auto-sizing engine.</li>
+                        <li><strong>Sizer-to-Designer Integration:</strong> "Configure in Designer" button transfers the full sizer configuration into the Designer, auto-populating steps 01–05 (Hyperconverged, Azure Commercial, East US, cluster type, and node count).</li>
+                        <li><strong>"Unsure? Start with Sizer" Links:</strong> Steps 04 (Cluster Configuration) and 05 (Cluster Size) now include a navigation link to launch the Sizer for users who need guidance.</li>
+                        <li><strong>Hardware in Configuration Report:</strong> When imported from Sizer, reports include CPU, memory, storage, resiliency, and workload summary details.</li>
+                        <li><strong>Session Persistence:</strong> Sizer state auto-saves to localStorage with Resume / Start Fresh prompt on return.</li>
                     </ul>
                 </div>
 
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.60</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.14.61</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 12, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>2-Node Switchless Storage VLANs (<a href='https://github.com/Azure/odinforazurelocal/issues/93'>#93</a>):</strong> 2-node switchless now correctly shows two Storage VLAN ID fields (default 711, 712) in the overrides UI, ARM template output, and configuration summary. Previously only one VLAN field was shown.</li>
-                        <li><strong>Report Diagram Port Labels (<a href='https://github.com/Azure/odinforazurelocal/issues/93'>#93</a>):</strong> The 2-node switchless Configuration Report diagram now reflects the user's custom adapter mapping (e.g., Port 1,3 → Mgmt+Compute, Port 2,4 → Storage) instead of always showing Port 1,2 and Port 3,4.</li>
+                        <li><strong>2-Node Switchless Diagram Port Labels (<a href='https://github.com/Azure/odinforazurelocal/issues/93'>#93</a>):</strong> The Configuration Report diagram for 2-node switchless now correctly reflects the user's custom adapter mapping instead of always showing the default Port 1,2 / Port 3,4 split.</li>
                     </ul>
                 </div>
 
@@ -10108,8 +10207,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize UI state (ensure AD cards are disabled until infra is set)
     updateUI();
 
-    // Check for saved state
-    setTimeout(checkForSavedState, 500);
+    // Check for sizer import first, then check for saved state
+    setTimeout(function() {
+        if (!checkForSizerImport()) {
+            checkForSavedState();
+        }
+    }, 500);
 
     // Add CSS animations
     const style = document.createElement('style');
