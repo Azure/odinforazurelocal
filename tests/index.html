@@ -3021,7 +3021,7 @@
                     diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
                 };
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.totalPhysicalCores === 128, 'Max cores = 64 (last option) × 2 sockets = 128', 128, maxHw.totalPhysicalCores);
+                return assert(maxHw.totalPhysicalCores === 256, 'Max cores = 64 (last option) × 4 sockets = 256', 256, maxHw.totalPhysicalCores);
             })(),
             (() => {
                 // Memory always set to preferred max (1024 GB / 1 TB)
@@ -3045,7 +3045,7 @@
                     diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
                 };
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.totalPhysicalCores === 48, 'No generation: falls back to 24 × 2 = 48', 48, maxHw.totalPhysicalCores);
+                return assert(maxHw.totalPhysicalCores === 96, 'No generation: falls back to 24 × 4 = 96', 96, maxHw.totalPhysicalCores);
             })(),
             (() => {
                 // Disk config is passed through unchanged
@@ -3064,7 +3064,7 @@
                     diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
                 };
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.totalPhysicalCores === 256, 'Xeon 6: 128 × 2 = 256 max physical cores', 256, maxHw.totalPhysicalCores);
+                return assert(maxHw.totalPhysicalCores === 512, 'Xeon 6: 128 × 4 = 512 max physical cores', 512, maxHw.totalPhysicalCores);
             })(),
             (() => {
                 // Scale-up vs scale-out: maxHwConfig should recommend fewer nodes than default config

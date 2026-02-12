@@ -349,15 +349,16 @@ function buildMaxHardwareConfig(hwConfig) {
     if (hwConfig.generation && hwConfig.generation.coreOptions && hwConfig.generation.coreOptions.length > 0) {
         maxCoresPerSocket = hwConfig.generation.coreOptions[hwConfig.generation.coreOptions.length - 1];
     }
-    const sockets = hwConfig.sockets || 2;
+    // Use max 4 sockets — favour scaling sockets before adding nodes
+    const MAX_SOCKETS = 4;
 
     // Preferred max memory: 1 TB — favour scaling memory before adding nodes
     const PREFERRED_MAX_MEMORY_GB = 1024;
 
     return {
-        totalPhysicalCores: maxCoresPerSocket * sockets,
+        totalPhysicalCores: maxCoresPerSocket * MAX_SOCKETS,
         memoryGB: PREFERRED_MAX_MEMORY_GB,
-        sockets: sockets,
+        sockets: MAX_SOCKETS,
         coresPerSocket: maxCoresPerSocket,
         diskConfig: hwConfig.diskConfig // disk config unchanged (getRecommendedNodeCount already uses maxDiskCount)
     };
@@ -497,10 +498,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     let changed = false;
 
-    // --- Auto-scale CPU cores ---
+    // --- Auto-scale CPU cores (and sockets if needed) ---
     const requiredCoresPerNode = Math.ceil(totalVcpus / effectiveNodes / vcpuToCore);
-    const sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
-    const requiredCoresPerSocket = Math.ceil(requiredCoresPerNode / sockets);
+    let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
+    const socketsSelect = document.getElementById('cpu-sockets');
+    const SOCKET_OPTIONS = [1, 2, 4];
 
     const manufacturer = document.getElementById('cpu-manufacturer').value;
     const genId = document.getElementById('cpu-generation').value;
@@ -509,8 +511,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         if (generation) {
             const coresSelect = document.getElementById('cpu-cores');
             const currentCores = parseInt(coresSelect.value) || 0;
+            const maxCoresForGen = generation.coreOptions[generation.coreOptions.length - 1];
 
-            // Find the smallest core option that satisfies the requirement
+            // Find the smallest core option that satisfies the requirement at current sockets
             let targetCores = null;
             for (const c of generation.coreOptions) {
                 if (c * sockets >= requiredCoresPerNode) {
@@ -519,9 +522,32 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 }
             }
 
-            // If no single option is big enough, pick the max
+            // If max cores at current sockets still aren't enough, try increasing sockets
+            if (targetCores === null && sockets < 4) {
+                for (const s of SOCKET_OPTIONS) {
+                    if (s <= sockets) continue;
+                    // Re-check with more sockets — find smallest cores that work
+                    for (const c of generation.coreOptions) {
+                        if (c * s >= requiredCoresPerNode) {
+                            targetCores = c;
+                            sockets = s;
+                            socketsSelect.value = s;
+                            changed = true;
+                            break;
+                        }
+                    }
+                    if (targetCores !== null) break;
+                }
+            }
+
+            // If still no option is big enough, pick max cores and max sockets
             if (targetCores === null) {
-                targetCores = generation.coreOptions[generation.coreOptions.length - 1];
+                targetCores = maxCoresForGen;
+                if (sockets < 4) {
+                    sockets = 4;
+                    socketsSelect.value = 4;
+                    changed = true;
+                }
             }
 
             if (targetCores > currentCores) {
