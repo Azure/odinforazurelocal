@@ -1077,6 +1077,10 @@ function closeModal() {
     modal.classList.remove('active');
     overlay.classList.remove('active');
     currentModalType = null;
+    editingWorkloadId = null;
+    // Reset button text
+    const submitBtn = document.getElementById('modal-submit-btn');
+    if (submitBtn) submitBtn.textContent = 'Add Workload';
 }
 
 // Get VM modal content
@@ -1216,12 +1220,15 @@ function updateAVDDescription() {
 }
 
 // Add workload
+// Track edit mode
+let editingWorkloadId = null;
+
 function addWorkload() {
     if (!currentModalType) return;
     
     const name = document.getElementById('workload-name').value;
     let workload = {
-        id: ++workloadIdCounter,
+        id: editingWorkloadId || ++workloadIdCounter,
         type: currentModalType,
         name: name
     };
@@ -1249,10 +1256,68 @@ function addWorkload() {
             break;
     }
     
-    workloads.push(workload);
+    if (editingWorkloadId) {
+        // Replace existing workload
+        const idx = workloads.findIndex(w => w.id === editingWorkloadId);
+        if (idx !== -1) workloads[idx] = workload;
+        editingWorkloadId = null;
+    } else {
+        workloads.push(workload);
+    }
     closeModal();
     renderWorkloads();
     calculateRequirements();
+}
+
+// Edit workload - open modal pre-populated with existing values
+function editWorkload(id) {
+    const w = workloads.find(wl => wl.id === id);
+    if (!w) return;
+
+    editingWorkloadId = id;
+    currentModalType = w.type;
+
+    const modal = document.getElementById('add-workload-modal');
+    const overlay = document.getElementById('modal-overlay');
+    const title = document.getElementById('modal-title');
+    const body = document.getElementById('modal-body');
+    const submitBtn = document.getElementById('modal-submit-btn');
+
+    switch (w.type) {
+        case 'vm':
+            title.textContent = 'Edit Azure Local VMs';
+            body.innerHTML = getVMModalContent();
+            document.getElementById('workload-name').value = w.name;
+            document.getElementById('vm-count').value = w.count;
+            document.getElementById('vm-vcpus').value = w.vcpus;
+            document.getElementById('vm-memory').value = w.memory;
+            document.getElementById('vm-storage').value = w.storage;
+            break;
+        case 'aks':
+            title.textContent = 'Edit AKS Arc Cluster';
+            body.innerHTML = getAKSModalContent();
+            document.getElementById('workload-name').value = w.name;
+            document.getElementById('aks-cluster-count').value = w.clusterCount;
+            document.getElementById('aks-cp-nodes').value = w.controlPlaneNodes;
+            document.getElementById('aks-cp-vcpus').value = w.controlPlaneVcpus;
+            document.getElementById('aks-cp-memory').value = w.controlPlaneMemory;
+            document.getElementById('aks-worker-nodes').value = w.workerNodes;
+            document.getElementById('aks-worker-vcpus').value = w.workerVcpus;
+            document.getElementById('aks-worker-memory').value = w.workerMemory;
+            document.getElementById('aks-worker-storage').value = w.workerStorage;
+            break;
+        case 'avd':
+            title.textContent = 'Edit Azure Virtual Desktop';
+            body.innerHTML = getAVDModalContent();
+            document.getElementById('workload-name').value = w.name;
+            document.getElementById('avd-profile').value = w.profile;
+            document.getElementById('avd-users').value = w.userCount;
+            break;
+    }
+
+    if (submitBtn) submitBtn.textContent = 'Update Workload';
+    modal.classList.add('active');
+    overlay.classList.add('active');
 }
 
 // Delete workload
@@ -1291,6 +1356,12 @@ function renderWorkloads() {
                     <div class="workload-card-details">${details}</div>
                 </div>
                 <div class="workload-card-actions">
+                    <button class="edit" onclick="editWorkload(${w.id})" title="Edit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </button>
                     <button class="delete" onclick="deleteWorkload(${w.id})" title="Delete">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -1622,6 +1693,178 @@ function mapSizerToDesignerScale(clusterType) {
 }
 
 // Transfer sizer configuration to the Designer via localStorage
+// ============================================
+// Export Functions
+// ============================================
+
+function exportSizerWord() {
+    var hwConfig = getHardwareConfig();
+    var clusterType = document.getElementById('cluster-type').value;
+    var nodeCount = document.getElementById('node-count').value;
+    var resiliency = document.getElementById('resiliency').value;
+    var futureGrowth = document.getElementById('future-growth').value;
+    var resConfig = RESILIENCY_CONFIG[resiliency] || {};
+
+    var clusterLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
+    var storageLabels = { 'all-flash': 'All-Flash (NVMe or SSD)', 'mixed-flash': 'Mixed All-Flash (NVMe + SSD)', 'hybrid': 'Hybrid (SSD/NVMe + HDD)' };
+    var growthLabels = { '0': 'None', '10': '10%', '20': '20%', '30': '30%', '50': '50%' };
+
+    // Build workload rows
+    var workloadRows = '';
+    workloads.forEach(function(w) {
+        var reqs = calculateWorkloadRequirements(w);
+        var typeLabel = w.type === 'vm' ? 'Virtual Machine' : w.type === 'aks' ? 'AKS Cluster' : 'Azure Virtual Desktop';
+        workloadRows += '<tr><td>' + escapeHtmlSizer(w.name || typeLabel) + '</td><td>' + typeLabel + '</td><td>' + reqs.vcpus + '</td><td>' + reqs.memory + ' GB</td><td>' + (reqs.storage / 1000).toFixed(2) + ' TB</td></tr>';
+    });
+
+    // Read totals from the DOM
+    var totalVcpus = document.getElementById('total-vcpus').textContent || '0';
+    var totalMemory = document.getElementById('total-memory').textContent || '0';
+    var totalStorage = document.getElementById('total-storage').textContent || '0';
+    var perNodeCores = document.getElementById('per-node-cores').textContent || '0';
+    var perNodeMemory = document.getElementById('per-node-memory').textContent || '0';
+    var perNodeStorage = document.getElementById('per-node-storage').textContent || '0';
+    var perNodeUsable = document.getElementById('per-node-usable').textContent || '0';
+    var computePercent = document.getElementById('compute-percent').textContent || '0%';
+    var memoryPercent = document.getElementById('memory-percent').textContent || '0%';
+    var storagePercent = document.getElementById('storage-percent').textContent || '0%';
+
+    // Disk config description
+    var diskDesc = '';
+    if (hwConfig.diskConfig.isTiered) {
+        var cache = hwConfig.diskConfig.cache;
+        var cap = hwConfig.diskConfig.capacity;
+        diskDesc = 'Cache: ' + cache.count + 'x ' + formatDiskSize(cache.sizeGB) + ' (' + cache.type + ') + Capacity: ' + cap.count + 'x ' + formatDiskSize(cap.sizeGB) + ' (' + cap.type + ')';
+    } else if (hwConfig.diskConfig.capacity) {
+        var cap = hwConfig.diskConfig.capacity;
+        diskDesc = cap.count + 'x ' + formatDiskSize(cap.sizeGB) + ' (' + cap.type + ')';
+    }
+
+    // Sizing notes
+    var notesEl = document.getElementById('sizing-notes');
+    var notesHtml = '';
+    if (notesEl) {
+        var items = notesEl.querySelectorAll('li');
+        for (var i = 0; i < items.length; i++) {
+            notesHtml += '<li>' + items[i].textContent + '</li>';
+        }
+    }
+
+    var css = [
+        'body { font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 11pt; color: #111; margin: 0; padding: 0.75in; }',
+        'h1 { font-size: 22pt; color: #0078d4; margin: 0 0 4pt; }',
+        'h2 { font-size: 14pt; color: #111; border-bottom: 2px solid #0078d4; padding-bottom: 4pt; margin: 18pt 0 10pt; }',
+        'h3 { font-size: 12pt; color: #333; margin: 14pt 0 8pt; }',
+        'table { width: 100%; border-collapse: collapse; margin: 8pt 0 14pt; }',
+        'th { background: #0078d4; color: white; text-align: left; padding: 6pt 10pt; font-weight: 600; }',
+        'td { border: 1px solid #d1d5db; padding: 6pt 10pt; }',
+        'tr:nth-child(even) td { background: #f9fafb; }',
+        '.kv-table td:first-child { width: 35%; font-weight: 600; background: #f3f4f6; }',
+        '.summary-box { display: inline-block; width: 22%; text-align: center; border: 1px solid #d1d5db; border-radius: 8px; padding: 10pt; margin: 4pt 1%; vertical-align: top; }',
+        '.summary-box .val { font-size: 18pt; font-weight: 700; color: #0078d4; }',
+        '.summary-box .lbl { font-size: 9pt; color: #666; }',
+        'ul { margin: 4pt 0 8pt 18pt; }',
+        'li { margin: 0 0 3pt; }',
+        '.subtitle { color: #666; font-size: 10pt; margin: 0 0 14pt; }',
+        '.timestamp { color: #999; font-size: 9pt; }',
+        '@page { margin: 0.75in; }'
+    ].join('\n');
+
+    var html = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+        + '<head><meta charset="UTF-8"><title>ODIN Sizer Report</title><style>' + css + '</style></head><body>';
+
+    html += '<h1>ODIN Sizer Report</h1>';
+    html += '<p class="subtitle">Azure Local Instance Sizing Tool</p>';
+    html += '<p class="timestamp">Generated: ' + new Date().toLocaleString() + '</p>';
+
+    // Cluster Configuration
+    html += '<h2>Cluster Configuration</h2>';
+    html += '<table class="kv-table"><tbody>';
+    html += '<tr><td>Cluster Type</td><td>' + (clusterLabels[clusterType] || clusterType) + '</td></tr>';
+    html += '<tr><td>Node Count</td><td>' + nodeCount + '</td></tr>';
+    html += '<tr><td>Storage Resiliency</td><td>' + (resConfig.name || resiliency) + '</td></tr>';
+    html += '<tr><td>Future Growth</td><td>' + (growthLabels[futureGrowth] || futureGrowth + '%') + '</td></tr>';
+    html += '</tbody></table>';
+
+    // Hardware Configuration
+    html += '<h2>Hardware Configuration (per Node)</h2>';
+    html += '<table class="kv-table"><tbody>';
+    html += '<tr><td>CPU</td><td>' + (hwConfig.generation ? hwConfig.generation.name : 'Unknown') + '</td></tr>';
+    html += '<tr><td>Cores per Socket</td><td>' + hwConfig.coresPerSocket + '</td></tr>';
+    html += '<tr><td>CPU Sockets</td><td>' + hwConfig.sockets + '</td></tr>';
+    html += '<tr><td>Total Physical Cores</td><td>' + hwConfig.totalPhysicalCores + '</td></tr>';
+    html += '<tr><td>Memory</td><td>' + hwConfig.memoryGB + ' GB</td></tr>';
+    html += '<tr><td>Storage Configuration</td><td>' + (storageLabels[hwConfig.storageConfig] || hwConfig.storageConfig) + '</td></tr>';
+    html += '<tr><td>Disk Configuration</td><td>' + diskDesc + '</td></tr>';
+    html += '</tbody></table>';
+
+    // Requirements Summary
+    html += '<h2>Requirements Summary</h2>';
+    html += '<div>';
+    html += '<div class="summary-box"><div class="val">' + totalVcpus + '</div><div class="lbl">Total vCPUs</div></div>';
+    html += '<div class="summary-box"><div class="val">' + totalMemory + '</div><div class="lbl">Total Memory</div></div>';
+    html += '<div class="summary-box"><div class="val">' + totalStorage + '</div><div class="lbl">Total Storage</div></div>';
+    html += '<div class="summary-box"><div class="val">' + workloads.length + '</div><div class="lbl">Workloads</div></div>';
+    html += '</div>';
+
+    // Per-Node Requirements
+    html += '<h3>Per-Node Requirements (with N+1)</h3>';
+    html += '<table class="kv-table"><tbody>';
+    html += '<tr><td>Physical Cores</td><td>' + perNodeCores + '</td></tr>';
+    html += '<tr><td>Memory</td><td>' + perNodeMemory + '</td></tr>';
+    html += '<tr><td>Raw Storage</td><td>' + perNodeStorage + '</td></tr>';
+    html += '<tr><td>Usable Storage</td><td>' + perNodeUsable + '</td></tr>';
+    html += '</tbody></table>';
+
+    // Capacity Utilization
+    html += '<h3>Capacity Utilization</h3>';
+    html += '<table><thead><tr><th>Resource</th><th>Utilization</th></tr></thead><tbody>';
+    html += '<tr><td>Compute (vCPUs)</td><td>' + computePercent + '</td></tr>';
+    html += '<tr><td>Memory</td><td>' + memoryPercent + '</td></tr>';
+    html += '<tr><td>Storage</td><td>' + storagePercent + '</td></tr>';
+    html += '</tbody></table>';
+
+    // Workloads
+    if (workloads.length > 0) {
+        html += '<h2>Workloads (' + workloads.length + ')</h2>';
+        html += '<table><thead><tr><th>Name</th><th>Type</th><th>vCPUs</th><th>Memory</th><th>Storage</th></tr></thead><tbody>';
+        html += workloadRows;
+        html += '</tbody></table>';
+    }
+
+    // Sizing Notes
+    if (notesHtml) {
+        html += '<h2>Sizing Notes</h2>';
+        html += '<ul>' + notesHtml + '</ul>';
+    }
+
+    html += '</body></html>';
+
+    // Download as .doc
+    var blob = new Blob(['\ufeff' + html], { type: 'application/msword;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var ts = new Date();
+    var pad2 = function(n) { return n < 10 ? '0' + n : String(n); };
+    var fileName = 'ODIN-Sizer-Report-' + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate()) + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes()) + '.doc';
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+}
+
+function formatDiskSize(sizeGB) {
+    if (sizeGB >= 1024) return (sizeGB / 1024).toFixed(1) + ' TB';
+    return sizeGB + ' GB';
+}
+
+function escapeHtmlSizer(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function configureInDesigner() {
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = document.getElementById('node-count').value;

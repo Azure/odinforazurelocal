@@ -29,6 +29,24 @@
                 <p class="subtitle">Azure Local Instance Sizing Tool - Used to calculate hardware requirements based on your workload scenarios and their resiliency and capacity requirements.</p>
             </div>
             <div class="header-actions">
+                <button class="btn btn-secondary" onclick="window.print()" title="Save as PDF via browser print dialog">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    Save as PDF
+                </button>
+                <button class="btn btn-secondary" onclick="exportSizerWord()" title="Download as Word document">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="12" y1="18" x2="12" y2="12"/>
+                        <polyline points="9 15 12 18 15 15"/>
+                    </svg>
+                    Word
+                </button>
                 <button class="btn btn-secondary" onclick="resetScenario()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -392,6 +410,18 @@
                     </h2>
                 </div>
 
+                <!-- Configure in Designer -->
+                <div class="designer-action" id="designer-action" style="display: none;">
+                    <button class="btn btn-designer" onclick="configureInDesigner()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9"/>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                        </svg>
+                        Configure in Designer
+                    </button>
+                    <p class="designer-action-desc">Continue to add additional workloads, if required. Once complete, open the Designer wizard pre-configured with this cluster and hardware sizer settings.</p>
+                </div>
+
                 <!-- Total Requirements -->
                 <div class="requirements-grid">
                     <div class="requirement-card">
@@ -498,7 +528,7 @@
                         </div>
                         <div class="breakdown-item">
                             <div class="breakdown-header">
-                                <span>Storage</span>
+                                <span>Usable Storage</span>
                                 <span id="storage-percent">0%</span>
                             </div>
                             <div class="breakdown-bar">
@@ -518,18 +548,6 @@
                         <li>Add workloads to see sizing recommendations</li>
                     </ul>
                 </div>
-
-                <!-- Configure in Designer -->
-                <div class="designer-action" id="designer-action" style="display: none;">
-                    <button class="btn btn-designer" onclick="configureInDesigner()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 20h9"/>
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                        </svg>
-                        Configure in Designer
-                    </button>
-                    <p class="designer-action-desc">Open the Designer wizard pre-configured with your sizer cluster and hardware settings.</p>
-                </div>
             </div>
         </div>
     </main>
@@ -546,7 +564,7 @@
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="addWorkload()">Add Workload</button>
+            <button class="btn btn-primary" id="modal-submit-btn" onclick="addWorkload()">Add Workload</button>
         </div>
     </div>
 

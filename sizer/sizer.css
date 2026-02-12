@@ -243,6 +243,119 @@ body {
     background: rgba(239, 68, 68, 0.2);
 }
 
+/* ============================================
+   Print Styles
+   ============================================ */
+@media print {
+    body {
+        background: white !important;
+        color: #111 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .sizer-header .header-actions,
+    .designer-action,
+    #sizer-resume-banner,
+    .modal-overlay,
+    .modal {
+        display: none !important;
+    }
+
+    .sizer-header {
+        background: white !important;
+        border-bottom: 2px solid #0078d4 !important;
+        padding: 12px 20px !important;
+    }
+
+    .sizer-header h1 {
+        color: #111 !important;
+        font-size: 20pt !important;
+    }
+
+    .sizer-header .subtitle {
+        color: #444 !important;
+        font-size: 10pt !important;
+    }
+
+    .sizer-preview-badge {
+        background: #6d28d9 !important;
+        color: white !important;
+    }
+
+    .sizer-layout {
+        display: block !important;
+        gap: 0 !important;
+    }
+
+    .config-panel,
+    .results-panel {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        position: static !important;
+        page-break-inside: avoid;
+    }
+
+    .config-panel {
+        margin-bottom: 20px !important;
+    }
+
+    .config-section,
+    .requirements-grid,
+    .per-node-section,
+    .capacity-breakdown,
+    .notes-section {
+        background: white !important;
+        border: 1px solid #d1d5db !important;
+        color: #111 !important;
+    }
+
+    .config-section h2,
+    .results-panel h2,
+    .per-node-section h3,
+    .capacity-breakdown h3,
+    .notes-section h3 {
+        color: #111 !important;
+    }
+
+    .requirement-card {
+        background: #f9fafb !important;
+        border: 1px solid #d1d5db !important;
+    }
+
+    .req-label, .req-value,
+    .per-node-item .label,
+    .per-node-item .value,
+    .breakdown-header span,
+    .breakdown-legend {
+        color: #111 !important;
+    }
+
+    .breakdown-bar {
+        background: #e5e7eb !important;
+    }
+
+    .workload-item {
+        background: #f9fafb !important;
+        border: 1px solid #d1d5db !important;
+        color: #111 !important;
+    }
+
+    .workload-item .workload-actions {
+        display: none !important;
+    }
+
+    select, label, .config-group span {
+        color: #111 !important;
+    }
+
+    @page {
+        margin: 0.6in;
+        size: landscape;
+    }
+}
+
 /* Info Banner */
 .info-banner {
     display: flex;
@@ -460,6 +573,12 @@ body {
     background: rgba(239, 68, 68, 0.1);
     border-color: rgba(239, 68, 68, 0.3);
     color: var(--danger);
+}
+
+.workload-card-actions button.edit:hover {
+    background: rgba(0, 120, 212, 0.1);
+    border-color: rgba(0, 120, 212, 0.3);
+    color: var(--accent-blue);
 }
 
 /* Cluster Config */
@@ -833,7 +952,8 @@ body {
 
 /* Configure in Designer action */
 .designer-action {
-    margin-top: 20px;
+    margin-top: 0;
+    margin-bottom: 20px;
     padding: 20px;
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.08));
     border: 1px solid rgba(139, 92, 246, 0.25);
