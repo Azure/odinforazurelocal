@@ -1994,7 +1994,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         }
         
         // vCPU to core ratio
-        notes.push('vCPU calculations assume 4:1 overcommit ratio');
+        notes.push('vCPU calculations assume 4:1 pCPU to vCPU ratio');
         
         // Minimum requirements
         notes.push('Minimum per node: 32 GB RAM, 4 cores (Azure Local requirements)');
