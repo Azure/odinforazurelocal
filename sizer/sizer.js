@@ -262,6 +262,7 @@ function onStorageTieringChange() {
 }
 
 // Enforce 1:2 cache-to-capacity disk ratio for hybrid storage
+// 2U chassis limit: max 8 cache SSDs + 16 capacity HDDs = 24 total drive bays
 function enforceCacheToCapacityRatio() {
     const storageConfig = document.getElementById('storage-config').value;
     if (storageConfig !== 'hybrid') return;
@@ -271,8 +272,16 @@ function enforceCacheToCapacityRatio() {
     const selectedTier = options.find(o => o.id === tieringId) || options[0];
     if (!selectedTier.isTiered) return;
 
-    const capacityCount = parseInt(document.getElementById('tiered-capacity-disk-count').value) || 4;
-    const targetCacheCount = Math.ceil(capacityCount / 2);
+    // Cap capacity disks at hybrid maximum (16)
+    const capacityDiskInput = document.getElementById('tiered-capacity-disk-count');
+    let capacityCount = parseInt(capacityDiskInput.value) || 4;
+    if (capacityCount > MAX_HYBRID_CAPACITY_DISK_COUNT) {
+        capacityCount = MAX_HYBRID_CAPACITY_DISK_COUNT;
+        capacityDiskInput.value = capacityCount;
+    }
+
+    // Enforce cache = ceil(capacity / 2), capped at MAX_CACHE_DISK_COUNT (8)
+    const targetCacheCount = Math.min(Math.ceil(capacityCount / 2), MAX_CACHE_DISK_COUNT);
     const cacheDiskInput = document.getElementById('cache-disk-count');
     const currentCache = parseInt(cacheDiskInput.value) || 2;
 
@@ -432,9 +441,11 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     const vcpusPerNode = (hwConfig.totalPhysicalCores || 0) * vcpuToCore;
     const usableMemoryPerNode = Math.max((hwConfig.memoryGB || 0) - hostOverheadMemoryGB, 0);
 
-    // For storage node calculation, use MAX possible disk count (24) per node
+    // For storage node calculation, use MAX possible disk count per node
     // so we recommend fewer nodes and let autoScaleHardware increase disk count instead
-    const maxDiskCount = MAX_DISK_COUNT; // 24
+    // Hybrid: max 16 capacity disks (2U chassis limit); all-flash: max 24
+    const isHybrid = hwConfig.storageConfig === 'hybrid';
+    const maxDiskCount = isHybrid ? MAX_HYBRID_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
     let diskSizeGB = 0;
     if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
         diskSizeGB = hwConfig.diskConfig.capacity.sizeGB;
@@ -542,7 +553,8 @@ const MIN_MEMORY_GB = 64;
 
 // Max disk count per node
 const MAX_DISK_COUNT = 24;
-const MAX_CACHE_DISK_COUNT = 12;
+const MAX_CACHE_DISK_COUNT = 8;
+const MAX_HYBRID_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity = 24 total
 
 // Standard capacity disk sizes (TB) for auto-scaling — stepped in order
 const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
@@ -647,8 +659,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const diskCountInput = document.getElementById(diskCountId);
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
 
-        // Set disk count to at least the required amount, capped at MAX_DISK_COUNT
-        let targetDisks = Math.min(disksNeeded, MAX_DISK_COUNT);
+        // Set disk count to at least the required amount, capped at max for storage type
+        const maxDisksForType = (isTiered && hwConfig.storageConfig === 'hybrid') ? MAX_HYBRID_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+        let targetDisks = Math.min(disksNeeded, maxDisksForType);
         if (targetDisks > currentDiskCount) {
             diskCountInput.value = targetDisks;
             changed = true;
@@ -658,7 +671,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // If we've maxed out disk count and per-node storage is still insufficient,
         // step up to the next standard disk size (3.84 → 7.68 → 15.36 TB)
         const currentDiskCountFinal = parseInt(diskCountInput.value) || 4;
-        if (currentDiskCountFinal >= MAX_DISK_COUNT) {
+        if (currentDiskCountFinal >= maxDisksForType) {
             const currentStoragePerNodeGB = currentDiskCountFinal * diskSizeGB;
             if (currentStoragePerNodeGB < rawPerNodeNeededGB) {
                 const diskSizeInput = document.getElementById(diskSizeId);
@@ -757,7 +770,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         while (storagePct > HEADROOM_THRESHOLD && storageSafety < 30) {
             storageSafety++;
             // Try increasing disk count first
-            if (hrDiskCount < MAX_DISK_COUNT) {
+            const hrMaxDisks = (isTiered && hwConfig.storageConfig === 'hybrid') ? MAX_HYBRID_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+            if (hrDiskCount < hrMaxDisks) {
                 hrDiskCount++;
                 hrDiskCountInput.value = hrDiskCount;
                 changed = true;

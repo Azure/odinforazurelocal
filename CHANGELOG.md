@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Sizer: Free-Input Configuration, Hardware Validation & Catalog Alignment ([#119](https://github.com/Azure/odinforazurelocal/issues/119))
 
 - **Free-Input Memory Configuration**: Memory per Node converted from fixed dropdown (128/256/512/1024/1536/2048 GB) to a numeric input field accepting any value between 64–4096 GB. Users can now enter exact server memory (e.g., 786 GB)
-- **Expanded Disk Count Options**: Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity) and 2–12 (cache), instead of a limited subset (1,2,3,4,5,6,8,10,12,16,20,24)
+- **Expanded Disk Count Options**: Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity, all-flash) / 2–16 (capacity, hybrid) and 2–8 (cache), instead of a limited subset (1,2,3,4,5,6,8,10,12,16,20,24)
 - **Disk Size Auto-Scaling**: When disk count reaches the maximum (24) and storage is still insufficient, auto-scale now steps up disk size through standard capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB)
 - **Storage Headroom Scaling**: Storage capacity now participates in the 80% headroom pass — bumps disk count first, then disk size, to keep storage utilization below 80%
 - **Smarter Node Recommendation**: Node count recommendation now considers max disk size (15.36 TB) in addition to max disk count (24), favouring per-node scale-up before adding nodes
@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Intel Xeon D 27xx (Edge)**: Added Intel Xeon D-2700 (Ice Lake-D) CPU generation to `CPU_GENERATIONS` for edge/rugged deployments (4–20 cores, DDR4-3200, PCIe 4.0, FCBGA 3820 package)
 - **Minimum 2 Capacity Disks**: Capacity disk count minimum raised from 1 to 2 in HTML dropdown (both all-flash and tiered), matching Azure Local system requirements
 - **Minimum 2 Cache Disks**: Cache disk count minimum raised from 1 to 2 for hybrid configurations
+- **Hybrid Disk Chassis Limit**: Cache disks capped at 8 per node, hybrid capacity disks capped at 16 per node (8 cache + 16 capacity = 24 total drive bays in a 2U chassis). Each cache SSD is bound to 2 capacity HDDs
 - **Single-Node All-Flash Only**: `updateStorageForClusterType()` now blocks hybrid storage for single-node clusters (was only blocked for rack-aware)
 - **Cache Metadata Memory Overhead Note**: Sizing notes area displays "4 GB RAM per TB of cache" advisory when cache capacity is detected
 - **400 TB Per-Machine Storage Warning**: Sizing note warns when raw storage per machine exceeds 400 TB

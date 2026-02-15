@@ -8767,13 +8767,14 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧮 Sizer: Free-Input Configuration, Hardware Validation &amp; Catalog Alignment (<a href='https://github.com/Azure/odinforazurelocal/issues/119'>#119</a>)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Free-Input Memory:</strong> Memory per Node is now a numeric input (64–4096 GB) instead of a fixed dropdown, allowing exact server memory values (e.g., 786 GB).</li>
-                        <li><strong>Expanded Disk Count Options:</strong> Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity) and 2–12 (cache).</li>
+                        <li><strong>Expanded Disk Count Options:</strong> Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity, all-flash) / 2–16 (capacity, hybrid) and 2–8 (cache).</li>
                         <li><strong>Disk Size Auto-Scaling:</strong> When disk count reaches 24 and storage is still insufficient, auto-scale steps up disk size through standard capacities (0.96 → 1.92 → 3.84 → 7.68 → 15.36 TB).</li>
                         <li><strong>CPU Sockets Capped at 2:</strong> Removed 4-socket option — Azure Local certified hardware supports 1 or 2 sockets only.</li>
                         <li><strong>Configurable vCPU Ratio:</strong> New Advanced Settings with selectable vCPU-to-pCPU ratio (1:1, 2:1, 4:1, 5:1, 6:1) — replaces the hardcoded 4:1 assumption.</li>
                         <li><strong>GPU Model Granularity:</strong> GPU dropdown now lists individual NVIDIA models (A2, A16, L4, L40, L40S) with VRAM and TDP per model — select 0, 1, or 2 GPUs per node.</li>
                         <li><strong>Intel Xeon D 27xx (Edge):</strong> Added Intel Xeon D-2700 (Ice Lake-D) CPU generation for edge/rugged deployments.</li>
                         <li><strong>Min 2 Capacity &amp; Cache Disks:</strong> Disk count minimums raised from 1 to 2, matching Azure Local system requirements.</li>
+                        <li><strong>Hybrid Disk Chassis Limit:</strong> Cache disks capped at 8, hybrid capacity at 16 (24 total drive bays per 2U chassis, 1:2 cache-to-capacity ratio).</li>
                         <li><strong>Single-Node All-Flash Only:</strong> Single-node clusters now block hybrid storage.</li>
                         <li><strong>Storage Warnings:</strong> New sizing notes for cache metadata overhead (4 GB/TB), 400 TB per-machine limit, and 4 PB cluster cap.</li>
                         <li><strong>Infrastructure Notes:</strong> New sizing notes for RDMA/25 GbE+ networking and boot/OS drive requirements.</li>

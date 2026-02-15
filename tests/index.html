@@ -3466,7 +3466,7 @@
                 cacheStub = document.createElement('select');
                 cacheStub.id = 'cache-disk-count';
                 cacheStub.style.display = 'none';
-                for (let v = 2; v <= 12; v++) {
+                for (let v = 2; v <= 8; v++) {
                     const opt = document.createElement('option');
                     opt.value = v;
                     opt.text = v;
@@ -3480,7 +3480,7 @@
                 tieredStub = document.createElement('select');
                 tieredStub.id = 'tiered-capacity-disk-count';
                 tieredStub.style.display = 'none';
-                for (let v = 2; v <= 24; v++) {
+                for (let v = 2; v <= 16; v++) {
                     const opt = document.createElement('option');
                     opt.value = v;
                     opt.text = v;
@@ -3528,6 +3528,98 @@
                 return assert(!hasOptionOne,
                     'Cache disk dropdown does not include option for 1 disk',
                     false, hasOptionOne);
+            })()
+        ]);
+
+        // --- Hybrid disk constraints: 2U chassis limit (max 8 cache + 16 capacity = 24 total) ---
+        testSuite('Hybrid disk constraints (2U chassis limit)', 'sizer.js', [
+            (() => {
+                // MAX_CACHE_DISK_COUNT should be 8
+                return assert(MAX_CACHE_DISK_COUNT === 8,
+                    'MAX_CACHE_DISK_COUNT is 8 (2U chassis limit)',
+                    8, MAX_CACHE_DISK_COUNT);
+            })(),
+            (() => {
+                // MAX_HYBRID_CAPACITY_DISK_COUNT should be 16
+                return assert(MAX_HYBRID_CAPACITY_DISK_COUNT === 16,
+                    'MAX_HYBRID_CAPACITY_DISK_COUNT is 16 (8 cache × 2 ratio)',
+                    16, MAX_HYBRID_CAPACITY_DISK_COUNT);
+            })(),
+            (() => {
+                // Cache disk dropdown max value should be 8
+                const cacheSelect = document.getElementById('cache-disk-count');
+                const lastOption = cacheSelect.options[cacheSelect.options.length - 1];
+                return assert(parseInt(lastOption.value) === 8,
+                    'Cache disk dropdown maximum is 8',
+                    8, parseInt(lastOption.value));
+            })(),
+            (() => {
+                // Cache disk dropdown should NOT include option 9 or higher
+                const cacheSelect = document.getElementById('cache-disk-count');
+                const hasNineOrMore = Array.from(cacheSelect.options).some(o => parseInt(o.value) >= 9);
+                return assert(!hasNineOrMore,
+                    'Cache disk dropdown excludes values >= 9',
+                    false, hasNineOrMore);
+            })(),
+            (() => {
+                // Tiered capacity disk dropdown max value should be 16
+                const tieredSelect = document.getElementById('tiered-capacity-disk-count');
+                const lastOpt = tieredSelect.options[tieredSelect.options.length - 1];
+                return assert(parseInt(lastOpt.value) === 16,
+                    'Tiered capacity disk dropdown maximum is 16',
+                    16, parseInt(lastOpt.value));
+            })(),
+            (() => {
+                // Tiered capacity disk dropdown should NOT include option 17 or higher
+                const tieredSelect = document.getElementById('tiered-capacity-disk-count');
+                const hasSeventeenOrMore = Array.from(tieredSelect.options).some(o => parseInt(o.value) >= 17);
+                return assert(!hasSeventeenOrMore,
+                    'Tiered capacity disk dropdown excludes values >= 17',
+                    false, hasSeventeenOrMore);
+            })(),
+            (() => {
+                // enforceCacheToCapacityRatio: with 16 capacity, cache should be ceil(16/2)=8, capped at 8
+                // Stub storage-tiering if needed
+                let tieringStub = document.getElementById('storage-tiering');
+                if (!tieringStub) {
+                    tieringStub = document.createElement('select');
+                    tieringStub.id = 'storage-tiering';
+                    tieringStub.style.display = 'none';
+                    ['ssd-cache-hdd-capacity', 'nvme-cache-hdd-capacity'].forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v;
+                        opt.text = v;
+                        tieringStub.appendChild(opt);
+                    });
+                    document.body.appendChild(tieringStub);
+                }
+
+                const storageConfig = document.getElementById('storage-config');
+                const storageTiering = document.getElementById('storage-tiering');
+                const tieredCapacity = document.getElementById('tiered-capacity-disk-count');
+                const cacheDisk = document.getElementById('cache-disk-count');
+                const prevStorage = storageConfig.value;
+                const prevTiering = storageTiering.value;
+
+                storageConfig.value = 'hybrid';
+                storageTiering.value = 'ssd-cache-hdd-capacity';
+                tieredCapacity.value = '16';
+                cacheDisk.value = '2';
+                enforceCacheToCapacityRatio();
+                const result = parseInt(cacheDisk.value);
+
+                storageConfig.value = prevStorage;
+                storageTiering.value = prevTiering;
+                return assert(result === 8,
+                    'enforceCacheToCapacityRatio: 16 capacity → 8 cache (capped at max)',
+                    8, result);
+            })(),
+            (() => {
+                // Total hybrid disks never exceeds 24: 8 cache + 16 capacity = 24
+                const totalMax = MAX_CACHE_DISK_COUNT + MAX_HYBRID_CAPACITY_DISK_COUNT;
+                return assert(totalMax === 24,
+                    'Max total hybrid disks = 8 cache + 16 capacity = 24 (2U chassis limit)',
+                    24, totalMax);
             })()
         ]);
 
