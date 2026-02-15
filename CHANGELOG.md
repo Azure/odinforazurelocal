@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Updated Auto-Scale Logic**: Hardware auto-scaling now steps through DIMM-symmetric memory options and disk counts instead of arbitrary increments
 - **Updated Headroom Scaling**: Memory headroom steps through DIMM options instead of percentage-based jumps, with correct host overhead subtraction
 - **Cluster Size Capacity Bar**: New "Azure Local hyperconverged instance size" visual bar in Capacity Breakdown section showing physical node count out of 16 maximum, with N+1 servicing and redundancy note
+- **Rack-Aware Cluster Size Bar**: Cluster size bar dynamically adjusts maximum from 16 to 8 nodes when Rack-Aware cluster type is selected, matching the Azure Local rack-aware node limit
+- **vCPU Ratio Auto-Escalation**: When compute utilization ≥90% and CPU cores/sockets are maxed out, the vCPU overcommit ratio auto-escalates from 4:1 → 5:1 → 6:1 to accommodate the workload. A red warning (🔴) appears in sizing notes when auto-escalation is triggered, recommending additional nodes or reduced vCPU requirements
 - **Sizer-to-Report Data Flow**: vCPU ratio, GPU model, future growth percentage, and cluster type now included in the Sizer → Designer payload and rendered in the Configuration Report's Hardware Configuration section
 - **Sizer Word Export vCPU Ratio**: vCPU ratio (pCPU:vCPU) row added to the Hardware Configuration table in Word/DOCX export
 - **Updated Cache-to-Capacity Ratio**: Hybrid storage ratio enforcement works with DIMM-symmetric dropdown values

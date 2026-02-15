@@ -55,6 +55,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Network Bandwidth Note**: Sizing note recommends RDMA-capable NICs with 25 GbE+ for storage traffic
 - **Boot/OS Drive Note**: Sizing note calls out minimum 200 GB boot drive (400 GB+ for systems with >768 GB RAM)
 - **Cluster Size Capacity Bar**: New "Azure Local hyperconverged instance size" visual bar in Capacity Breakdown showing physical node count out of 16 maximum, with N+1 servicing and redundancy note
+- **Rack-Aware Cluster Size Bar**: Cluster size bar dynamically adjusts maximum from 16 to 8 nodes when Rack-Aware cluster type is selected
+- **vCPU Ratio Auto-Escalation**: When compute ≥90% and CPU cores/sockets are maxed, the overcommit ratio auto-escalates from 4:1 → 5:1 → 6:1 with a red warning in sizing notes
 - **Sizer-to-Report Data Flow**: vCPU ratio, GPU model, future growth, and cluster type now carry through from Sizer → Designer → Configuration Report
 - **Updated Auto-Scale Logic**: Hardware auto-scaling steps through DIMM-symmetric memory options and disk counts instead of arbitrary increments
 
