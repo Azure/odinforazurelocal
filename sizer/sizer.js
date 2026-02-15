@@ -2100,7 +2100,7 @@ function calculateRequirements(options) {
         const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
         document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
-        document.getElementById('nodes-effective').textContent = effectiveNodes;
+        document.getElementById('nodes-effective').textContent = nodeCount;
 
         const physicalCoresPerNode = hwConfig.totalPhysicalCores || 64;
         const memoryPerNode = hwConfig.memoryGB || 512;
