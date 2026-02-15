@@ -2095,6 +2095,13 @@ function calculateRequirements(options) {
         document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
 
         // --- Capacity bars from hardware config ---
+        // Physical Nodes bar
+        const MAX_NODES = 16;
+        const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
+        document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
+        document.getElementById('nodes-fill').style.width = nodesPercent + '%';
+        document.getElementById('nodes-effective').textContent = effectiveNodes;
+
         const physicalCoresPerNode = hwConfig.totalPhysicalCores || 64;
         const memoryPerNode = hwConfig.memoryGB || 512;
 

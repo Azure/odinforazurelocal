@@ -910,6 +910,10 @@ body {
     transition: width 0.3s ease;
 }
 
+.breakdown-fill.nodes {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
 .breakdown-fill.compute {
     background: linear-gradient(90deg, var(--accent-blue), #00a2ff);
 }
