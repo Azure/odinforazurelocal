@@ -261,32 +261,39 @@ function onStorageTieringChange() {
     onHardwareConfigChange();
 }
 
-// Enforce 1:2 cache-to-capacity disk ratio for hybrid storage
-// 2U chassis limit: max 8 cache SSDs + 16 capacity HDDs = 24 total drive bays
+// Enforce tiered disk limits: 2U chassis = max 24 total drive bays (cache + capacity)
+// Hybrid: also enforces 1:2 cache-to-capacity ratio
 function enforceCacheToCapacityRatio() {
     const storageConfig = document.getElementById('storage-config').value;
-    if (storageConfig !== 'hybrid') return;
+    if (storageConfig !== 'hybrid' && storageConfig !== 'mixed-flash') return;
 
     const tieringId = document.getElementById('storage-tiering').value;
     const options = STORAGE_TIERING_OPTIONS[storageConfig];
     const selectedTier = options.find(o => o.id === tieringId) || options[0];
     if (!selectedTier.isTiered) return;
 
-    // Cap capacity disks at hybrid maximum (16)
+    // Cap capacity disks at tiered maximum (16) — applies to both hybrid and mixed-flash
     const capacityDiskInput = document.getElementById('tiered-capacity-disk-count');
     let capacityCount = parseInt(capacityDiskInput.value) || 4;
-    if (capacityCount > MAX_HYBRID_CAPACITY_DISK_COUNT) {
-        capacityCount = MAX_HYBRID_CAPACITY_DISK_COUNT;
+    if (capacityCount > MAX_TIERED_CAPACITY_DISK_COUNT) {
+        capacityCount = MAX_TIERED_CAPACITY_DISK_COUNT;
         capacityDiskInput.value = capacityCount;
     }
 
-    // Enforce cache = ceil(capacity / 2), capped at MAX_CACHE_DISK_COUNT (8)
-    const targetCacheCount = Math.min(Math.ceil(capacityCount / 2), MAX_CACHE_DISK_COUNT);
+    // Cap cache at MAX_CACHE_DISK_COUNT (8) — applies to both hybrid and mixed-flash
     const cacheDiskInput = document.getElementById('cache-disk-count');
-    const currentCache = parseInt(cacheDiskInput.value) || 2;
+    let currentCache = parseInt(cacheDiskInput.value) || 2;
+    if (currentCache > MAX_CACHE_DISK_COUNT) {
+        currentCache = MAX_CACHE_DISK_COUNT;
+        cacheDiskInput.value = currentCache;
+    }
 
-    if (currentCache < targetCacheCount) {
-        cacheDiskInput.value = targetCacheCount;
+    // Hybrid only: enforce cache = ceil(capacity / 2)
+    if (storageConfig === 'hybrid') {
+        const targetCacheCount = Math.min(Math.ceil(capacityCount / 2), MAX_CACHE_DISK_COUNT);
+        if (currentCache < targetCacheCount) {
+            cacheDiskInput.value = targetCacheCount;
+        }
     }
 }
 
@@ -443,9 +450,9 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
 
     // For storage node calculation, use MAX possible disk count per node
     // so we recommend fewer nodes and let autoScaleHardware increase disk count instead
-    // Hybrid: max 16 capacity disks (2U chassis limit); all-flash: max 24
-    const isHybrid = hwConfig.storageConfig === 'hybrid';
-    const maxDiskCount = isHybrid ? MAX_HYBRID_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+    // Tiered (hybrid/mixed-flash): max 16 capacity disks (2U chassis limit); all-flash: max 24
+    const isTieredStorage = hwConfig.storageConfig === 'hybrid' || hwConfig.storageConfig === 'mixed-flash';
+    const maxDiskCount = isTieredStorage ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
     let diskSizeGB = 0;
     if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
         diskSizeGB = hwConfig.diskConfig.capacity.sizeGB;
@@ -554,7 +561,7 @@ const MIN_MEMORY_GB = 64;
 // Max disk count per node
 const MAX_DISK_COUNT = 24;
 const MAX_CACHE_DISK_COUNT = 8;
-const MAX_HYBRID_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity = 24 total
+const MAX_TIERED_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity = 24 total (hybrid & mixed-flash)
 
 // Standard capacity disk sizes (TB) for auto-scaling — stepped in order
 const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
@@ -646,6 +653,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     // Determine which disk count / size controls to use
     const isTiered = hwConfig.diskConfig && hwConfig.diskConfig.isTiered;
+    const isTieredCapped = isTiered && (hwConfig.storageConfig === 'hybrid' || hwConfig.storageConfig === 'mixed-flash');
     const diskCountId = isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count';
     const diskSizeId = isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size';
     const diskUnitId = isTiered ? 'tiered-capacity-disk-unit' : 'capacity-disk-unit';
@@ -660,7 +668,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
 
         // Set disk count to at least the required amount, capped at max for storage type
-        const maxDisksForType = (isTiered && hwConfig.storageConfig === 'hybrid') ? MAX_HYBRID_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+        const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
         let targetDisks = Math.min(disksNeeded, maxDisksForType);
         if (targetDisks > currentDiskCount) {
             diskCountInput.value = targetDisks;
@@ -770,7 +778,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         while (storagePct > HEADROOM_THRESHOLD && storageSafety < 30) {
             storageSafety++;
             // Try increasing disk count first
-            const hrMaxDisks = (isTiered && hwConfig.storageConfig === 'hybrid') ? MAX_HYBRID_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+            const hrMaxDisks = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
             if (hrDiskCount < hrMaxDisks) {
                 hrDiskCount++;
                 hrDiskCountInput.value = hrDiskCount;
@@ -795,7 +803,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     }
 
     // --- Enforce 1:2 cache-to-capacity ratio for hybrid storage ---
-    if (isTiered && hwConfig.storageConfig === 'hybrid') {
+    if (isTiered && (hwConfig.storageConfig === 'hybrid' || hwConfig.storageConfig === 'mixed-flash')) {
         const finalCapacityCount = parseInt(document.getElementById(diskCountId).value) || 4;
         const targetCacheCount = Math.ceil(finalCapacityCount / 2);
         const cacheDiskInput = document.getElementById('cache-disk-count');
@@ -2202,6 +2210,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             const dc = hwConfig.diskConfig;
             if (dc.isTiered) {
                 notes.push(`Storage layout: ${dc.cache.count}× ${dc.cache.type} cache + ${dc.capacity.count}× ${dc.capacity.type} capacity disks per node`);
+                // Mixed all-flash recommendation
+                if (hwConfig.storageConfig === 'mixed-flash') {
+                    notes.push('ℹ️ All-Flash (single type SSD or NVMe) configuration is recommended for increased capacity. Mixed all-flash (NVMe cache + SSD capacity) uses tiered storage which limits capacity disks to 16 per node (24 total drive bays).');
+                }
             } else {
                 notes.push(`Storage layout: ${dc.capacity.count}× ${dc.capacity.type} capacity disks per node (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
             }

@@ -3531,8 +3531,9 @@
             })()
         ]);
 
-        // --- Hybrid disk constraints: 2U chassis limit (max 8 cache + 16 capacity = 24 total) ---
-        testSuite('Hybrid disk constraints (2U chassis limit)', 'sizer.js', [
+        // --- Tiered disk constraints: 2U chassis limit (max 8 cache + 16 capacity = 24 total) ---
+        // Applies to both hybrid and mixed-flash configurations
+        testSuite('Tiered disk constraints (2U chassis limit)', 'sizer.js', [
             (() => {
                 // MAX_CACHE_DISK_COUNT should be 8
                 return assert(MAX_CACHE_DISK_COUNT === 8,
@@ -3540,10 +3541,10 @@
                     8, MAX_CACHE_DISK_COUNT);
             })(),
             (() => {
-                // MAX_HYBRID_CAPACITY_DISK_COUNT should be 16
-                return assert(MAX_HYBRID_CAPACITY_DISK_COUNT === 16,
-                    'MAX_HYBRID_CAPACITY_DISK_COUNT is 16 (8 cache × 2 ratio)',
-                    16, MAX_HYBRID_CAPACITY_DISK_COUNT);
+                // MAX_TIERED_CAPACITY_DISK_COUNT should be 16
+                return assert(MAX_TIERED_CAPACITY_DISK_COUNT === 16,
+                    'MAX_TIERED_CAPACITY_DISK_COUNT is 16 (8 cache + 16 capacity = 24)',
+                    16, MAX_TIERED_CAPACITY_DISK_COUNT);
             })(),
             (() => {
                 // Cache disk dropdown max value should be 8
@@ -3578,14 +3579,14 @@
                     false, hasSeventeenOrMore);
             })(),
             (() => {
-                // enforceCacheToCapacityRatio: with 16 capacity, cache should be ceil(16/2)=8, capped at 8
+                // enforceCacheToCapacityRatio (hybrid): with 16 capacity, cache should be ceil(16/2)=8, capped at 8
                 // Stub storage-tiering if needed
                 let tieringStub = document.getElementById('storage-tiering');
                 if (!tieringStub) {
                     tieringStub = document.createElement('select');
                     tieringStub.id = 'storage-tiering';
                     tieringStub.style.display = 'none';
-                    ['ssd-cache-hdd-capacity', 'nvme-cache-hdd-capacity'].forEach(v => {
+                    ['ssd-cache-hdd-capacity', 'nvme-cache-hdd-capacity', 'nvme-cache-ssd-capacity'].forEach(v => {
                         const opt = document.createElement('option');
                         opt.value = v;
                         opt.text = v;
@@ -3611,15 +3612,115 @@
                 storageConfig.value = prevStorage;
                 storageTiering.value = prevTiering;
                 return assert(result === 8,
-                    'enforceCacheToCapacityRatio: 16 capacity → 8 cache (capped at max)',
+                    'Hybrid: 16 capacity → cache enforced to 8 (ceil(16/2) capped at max)',
                     8, result);
             })(),
             (() => {
-                // Total hybrid disks never exceeds 24: 8 cache + 16 capacity = 24
-                const totalMax = MAX_CACHE_DISK_COUNT + MAX_HYBRID_CAPACITY_DISK_COUNT;
+                // Total tiered disks never exceeds 24: 8 cache + 16 capacity = 24
+                const totalMax = MAX_CACHE_DISK_COUNT + MAX_TIERED_CAPACITY_DISK_COUNT;
                 return assert(totalMax === 24,
-                    'Max total hybrid disks = 8 cache + 16 capacity = 24 (2U chassis limit)',
+                    'Max total tiered disks = 8 cache + 16 capacity = 24 (2U chassis)',
                     24, totalMax);
+            })(),
+            (() => {
+                // enforceCacheToCapacityRatio (mixed-flash): capacity capped at 16
+                const storageConfig = document.getElementById('storage-config');
+                const storageTiering = document.getElementById('storage-tiering');
+                const tieredCapacity = document.getElementById('tiered-capacity-disk-count');
+
+                // Add mixed-flash option to storage-config stub if not present
+                const scOpts = Array.from(storageConfig.options).map(o => o.value);
+                if (!scOpts.includes('mixed-flash')) {
+                    const mfOpt = document.createElement('option');
+                    mfOpt.value = 'mixed-flash';
+                    mfOpt.text = 'Mixed All-Flash';
+                    storageConfig.appendChild(mfOpt);
+                }
+
+                const prevStorage = storageConfig.value;
+                const prevTiering = storageTiering.value;
+                const prevCapacity = tieredCapacity.value;
+
+                // Add option value 20 temporarily to test capping
+                const opt20 = document.createElement('option');
+                opt20.value = '20';
+                opt20.text = '20';
+                tieredCapacity.appendChild(opt20);
+
+                storageConfig.value = 'mixed-flash';
+                storageTiering.value = 'nvme-cache-ssd-capacity';
+                tieredCapacity.value = '20'; // exceeds limit
+                enforceCacheToCapacityRatio();
+                const result = parseInt(tieredCapacity.value);
+
+                storageConfig.value = prevStorage;
+                storageTiering.value = prevTiering;
+                tieredCapacity.value = prevCapacity;
+                tieredCapacity.removeChild(opt20);
+                return assert(result === 16,
+                    'Mixed-flash: capacity capped at 16 (was set to 20)',
+                    16, result);
+            })(),
+            (() => {
+                // enforceCacheToCapacityRatio (mixed-flash): cache capped at 8
+                const storageConfig = document.getElementById('storage-config');
+                const storageTiering = document.getElementById('storage-tiering');
+                const cacheDisk = document.getElementById('cache-disk-count');
+                const tieredCapacity = document.getElementById('tiered-capacity-disk-count');
+
+                const prevStorage = storageConfig.value;
+                const prevTiering = storageTiering.value;
+                const prevCache = cacheDisk.value;
+                const prevCapacity = tieredCapacity.value;
+
+                // Add option value 10 to cache stub temporarily for this test
+                const opt10 = document.createElement('option');
+                opt10.value = '10';
+                opt10.text = '10';
+                cacheDisk.appendChild(opt10);
+
+                storageConfig.value = 'mixed-flash';
+                storageTiering.value = 'nvme-cache-ssd-capacity';
+                tieredCapacity.value = '8';
+                cacheDisk.value = '10'; // exceeds limit
+                enforceCacheToCapacityRatio();
+                const result = parseInt(cacheDisk.value);
+
+                storageConfig.value = prevStorage;
+                storageTiering.value = prevTiering;
+                cacheDisk.value = prevCache;
+                tieredCapacity.value = prevCapacity;
+                cacheDisk.removeChild(opt10);
+                return assert(result === 8,
+                    'Mixed-flash: cache capped at 8 (was set to 10)',
+                    8, result);
+            })(),
+            (() => {
+                // Mixed-flash does NOT enforce 1:2 ratio (only hybrid does)
+                const storageConfig = document.getElementById('storage-config');
+                const storageTiering = document.getElementById('storage-tiering');
+                const tieredCapacity = document.getElementById('tiered-capacity-disk-count');
+                const cacheDisk = document.getElementById('cache-disk-count');
+
+                const prevStorage = storageConfig.value;
+                const prevTiering = storageTiering.value;
+                const prevCapacity = tieredCapacity.value;
+                const prevCache = cacheDisk.value;
+
+                storageConfig.value = 'mixed-flash';
+                storageTiering.value = 'nvme-cache-ssd-capacity';
+                tieredCapacity.value = '16';
+                cacheDisk.value = '2'; // low but mixed-flash shouldn't force it up
+                enforceCacheToCapacityRatio();
+                const result = parseInt(cacheDisk.value);
+
+                storageConfig.value = prevStorage;
+                storageTiering.value = prevTiering;
+                tieredCapacity.value = prevCapacity;
+                cacheDisk.value = prevCache;
+                return assert(result === 2,
+                    'Mixed-flash: no 1:2 ratio enforcement (cache stays at 2)',
+                    2, result);
             })()
         ]);
 

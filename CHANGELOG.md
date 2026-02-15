@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Minimum 2 Capacity Disks**: Capacity disk count minimum raised from 1 to 2 in HTML dropdown (both all-flash and tiered), matching Azure Local system requirements
 - **Minimum 2 Cache Disks**: Cache disk count minimum raised from 1 to 2 for hybrid configurations
 - **Hybrid Disk Chassis Limit**: Cache disks capped at 8 per node, hybrid capacity disks capped at 16 per node (8 cache + 16 capacity = 24 total drive bays in a 2U chassis). Each cache SSD is bound to 2 capacity HDDs
+- **Mixed All-Flash Disk Chassis Limit**: Same 2U chassis constraint applied to mixed all-flash (NVMe cache + SSD capacity) — cache capped at 8, capacity at 16, total 24 drive bays. Sizing note recommends single-type all-flash for increased capacity
 - **Single-Node All-Flash Only**: `updateStorageForClusterType()` now blocks hybrid storage for single-node clusters (was only blocked for rack-aware)
 - **Cache Metadata Memory Overhead Note**: Sizing notes area displays "4 GB RAM per TB of cache" advisory when cache capacity is detected
 - **400 TB Per-Machine Storage Warning**: Sizing note warns when raw storage per machine exceeds 400 TB

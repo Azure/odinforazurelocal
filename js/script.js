@@ -8775,6 +8775,7 @@ function showChangelog() {
                         <li><strong>Intel Xeon D 27xx (Edge):</strong> Added Intel Xeon D-2700 (Ice Lake-D) CPU generation for edge/rugged deployments.</li>
                         <li><strong>Min 2 Capacity &amp; Cache Disks:</strong> Disk count minimums raised from 1 to 2, matching Azure Local system requirements.</li>
                         <li><strong>Hybrid Disk Chassis Limit:</strong> Cache disks capped at 8, hybrid capacity at 16 (24 total drive bays per 2U chassis, 1:2 cache-to-capacity ratio).</li>
+                        <li><strong>Mixed All-Flash Disk Limit:</strong> Same 24 drive bay constraint for mixed all-flash (NVMe cache + SSD capacity). All-flash single-type recommended for increased capacity.</li>
                         <li><strong>Single-Node All-Flash Only:</strong> Single-node clusters now block hybrid storage.</li>
                         <li><strong>Storage Warnings:</strong> New sizing notes for cache metadata overhead (4 GB/TB), 400 TB per-machine limit, and 4 PB cluster cap.</li>
                         <li><strong>Infrastructure Notes:</strong> New sizing notes for RDMA/25 GbE+ networking and boot/OS drive requirements.</li>

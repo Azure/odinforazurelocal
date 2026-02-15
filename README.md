@@ -47,6 +47,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Intel Xeon D 27xx (Edge)**: Added Intel Xeon D-2700 (Ice Lake-D) CPU generation for edge/rugged deployments (4–20 cores, DDR4-3200)
 - **Minimum 2 Capacity & Cache Disks**: Disk count minimums raised from 1 to 2, matching Azure Local system requirements
 - **Hybrid Disk Chassis Limit**: Cache disks capped at 8, hybrid capacity disks at 16 (total 24 drive bays per 2U chassis, 1:2 cache-to-capacity ratio)
+- **Mixed All-Flash Disk Chassis Limit**: Same 24 drive bay constraint for mixed all-flash (NVMe cache + SSD capacity). Sizing note recommends single-type all-flash for increased capacity
 - **Single-Node All-Flash Only**: Single-node clusters now block hybrid storage — only all-flash is supported
 - **Cache Metadata Overhead Note**: Sizing notes show 4 GB RAM per TB of cache capacity for storage metadata
 - **400 TB Per-Machine Warning**: Sizing note warns when raw storage exceeds 400 TB per machine
