@@ -2495,7 +2495,7 @@ function exportSizerWord() {
 
     // Sizing Notes
     if (notesHtml) {
-        html += '<h2>Sizing Notes</h2>';
+        html += '<h2>Azure Local Instance - Sizing Notes</h2>';
         html += '<ul>' + notesHtml + '</ul>';
     }
 
