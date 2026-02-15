@@ -2323,7 +2323,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // vCPU to core ratio
         const vcpuRatio = getVcpuRatio();
         if (_vcpuRatioAutoEscalated) {
-            notes.push(`🔴 vCPU overcommit ratio auto-escalated to ${vcpuRatio}:1 — physical CPU cores and sockets are maxed out. A ${vcpuRatio}:1 or higher overcommit ratio is required to accommodate the workload. Consider adding more nodes or reducing vCPU requirements.`);
+            notes.push(`⚠️ Warning: vCPU overcommit ratio has been auto-scaled to ${vcpuRatio}:1 — physical CPU cores and sockets are maxed out for required vCPUs. A ${vcpuRatio}:1 or higher overcommit ratio is required to accommodate the workload. Consider adding more nodes / clusters, or reducing workload vCPU requirements.`);
         } else {
             notes.push(`vCPU calculations use ${vcpuRatio}:1 pCPU to vCPU overcommit ratio`);
         }
