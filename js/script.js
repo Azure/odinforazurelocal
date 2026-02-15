@@ -8781,6 +8781,8 @@ function showChangelog() {
                         <li><strong>Infrastructure Notes:</strong> New sizing notes for RDMA/25 GbE+ networking and boot/OS drive requirements.</li>
                         <li><strong>Updated Auto-Scale Logic:</strong> Hardware auto-scaling steps through DIMM-symmetric memory options and disk counts instead of arbitrary increments.</li>
                         <li><strong>Cluster Size Bar:</strong> New capacity bar showing physical node count with N+1 servicing and redundancy note.</li>
+                        <li><strong>Rack-Aware Cluster Size:</strong> Cluster size bar adjusts maximum from 16 to 8 nodes for Rack-Aware clusters.</li>
+                        <li><strong>vCPU Ratio Auto-Escalation:</strong> When compute ≥90% and cores/sockets are maxed, auto-escalates from 4:1 → 5:1 → 6:1 with a 🔴 warning in sizing notes.</li>
                         <li><strong>Sizer-to-Report Data Flow:</strong> vCPU ratio, GPU, future growth, and cluster type now carry through to Configuration Report.</li>
                     </ul>
                 </div>

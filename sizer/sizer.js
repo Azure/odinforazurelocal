@@ -567,9 +567,13 @@ const MAX_TIERED_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity 
 // Standard capacity disk sizes (TB) for auto-scaling — stepped in order
 const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
 
+// Track whether the vCPU ratio was auto-escalated from default (4:1) during auto-scale
+let _vcpuRatioAutoEscalated = false;
+
 // Automatically increase CPU cores, memory, disk count, and disk size so capacity bars stay below 100%
 function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount, resiliencyMultiplier, hwConfig) {
-    const vcpuToCore = getVcpuRatio();
+    let vcpuToCore = getVcpuRatio();
+    _vcpuRatioAutoEscalated = false; // reset each auto-scale pass
     const hostOverheadMemoryGB = 32;
     const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
@@ -747,6 +751,24 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 }
                 cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
                 cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+            }
+
+            // vCPU ratio auto-escalation — when cores & sockets are maxed and compute ≥90%,
+            // bump the overcommit ratio (4→5→6) to reduce over-threshold pressure.
+            // Only auto-escalate from default (4) or a previously auto-escalated value (5).
+            const VCPU_ESCALATION_THRESHOLD = 90;
+            const VCPU_RATIO_STEPS = [5, 6];
+            if (cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
+                for (const nextRatio of VCPU_RATIO_STEPS) {
+                    if (nextRatio <= vcpuToCore) continue; // skip ratios we're already at or past
+                    vcpuToCore = nextRatio;
+                    document.getElementById('vcpu-ratio').value = nextRatio;
+                    changed = true;
+                    _vcpuRatioAutoEscalated = true;
+                    cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+                    cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+                    if (cpuPct < VCPU_ESCALATION_THRESHOLD) break;
+                }
             }
         }
     }
@@ -2098,7 +2120,8 @@ function calculateRequirements(options) {
 
         // --- Capacity bars from hardware config ---
         // Physical Nodes bar
-        const MAX_NODES = 16;
+        const clusterType = document.getElementById('cluster-type').value;
+        const MAX_NODES = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : 16;
         const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
         document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
@@ -2197,7 +2220,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
-                notes.push(`Rack-aware cluster: Each rack acts as a fault domain. Minimum ${config.minNodes} racks required.`);
+                notes.push('Rack-Aware Cluster (RAC): Each rack acts as a fault domain, physical nodes are split evenly between two racks, minimum 2 nodes, maximum 8 nodes.');
             }
             
             // N+1 note
@@ -2299,7 +2322,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         
         // vCPU to core ratio
         const vcpuRatio = getVcpuRatio();
-        notes.push(`vCPU calculations use ${vcpuRatio}:1 pCPU to vCPU overcommit ratio`);
+        if (_vcpuRatioAutoEscalated) {
+            notes.push(`⚠️ Warning: vCPU overcommit ratio has been auto-scaled to ${vcpuRatio}:1 — physical CPU cores and sockets are maxed out for required vCPUs. A ${vcpuRatio}:1 or higher overcommit ratio is required to accommodate the workload. Consider adding more nodes / clusters, or reducing workload vCPU requirements.`);
+        } else {
+            notes.push(`vCPU calculations use ${vcpuRatio}:1 pCPU to vCPU overcommit ratio`);
+        }
 
         // Host overhead note
         notes.push('ℹ️ Host overhead: 32 GB RAM reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
