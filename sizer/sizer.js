@@ -2306,9 +2306,6 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (hwConfig && hwConfig.memoryGB > 768) {
             notes.push('ℹ️ Boot drive: 400 GB+ OS disk recommended per node for systems with >768 GB RAM.');
         }
-        
-        // Minimum requirements
-        notes.push('Minimum per node: 32 GB RAM, 2 data drives, at least 500 GB per drive (Azure Local requirements)');
     }
     
     const notesList = document.getElementById('sizing-notes');
