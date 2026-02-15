@@ -2302,8 +2302,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Network note
         notes.push('ℹ️ Network: Azure Local requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs — plan for east-west replication bandwidth.');
 
-        // Boot/OS drive note
-        notes.push('ℹ️ Boot drive: Minimum 200 GB OS disk required per node (400 GB+ recommended for systems with >768 GB RAM).');
+        // Boot/OS drive note — only shown when memory exceeds 768 GB (larger boot drive needed)
+        if (hwConfig && hwConfig.memoryGB > 768) {
+            notes.push('ℹ️ Boot drive: 400 GB+ OS disk recommended per node for systems with >768 GB RAM.');
+        }
         
         // Minimum requirements
         notes.push('Minimum per node: 32 GB RAM, 2 data drives, at least 500 GB per drive (Azure Local requirements)');
