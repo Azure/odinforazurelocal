@@ -113,7 +113,31 @@ const CPU_GENERATIONS = {
             memoryChannels: 12,
             pcieVersion: '5.0'
         }
+    ],
+    intel_edge: [
+        {
+            id: 'xeon-d-27xx',
+            name: 'Intel® Xeon® D-2700 (Ice Lake-D)',
+            minCores: 4,
+            maxCores: 20,
+            coreOptions: [4, 8, 10, 12, 16, 20],
+            defaultCores: 8,
+            architecture: 'Sunny Cove',
+            socket: 'FCBGA 3820',
+            memoryType: 'DDR4-3200',
+            memoryChannels: 4,
+            pcieVersion: '4.0'
+        }
     ]
+};
+
+// GPU model specifications
+const GPU_MODELS = {
+    a2:  { name: 'NVIDIA A2',  vramGB: 16, tdpW: 60 },
+    a16: { name: 'NVIDIA A16', vramGB: 64, tdpW: 250 },
+    l4:  { name: 'NVIDIA L4',  vramGB: 24, tdpW: 72 },
+    l40: { name: 'NVIDIA L40', vramGB: 48, tdpW: 300 },
+    l40s:{ name: 'NVIDIA L40S', vramGB: 48, tdpW: 350 }
 };
 
 // Storage tiering configuration
@@ -237,36 +261,69 @@ function onStorageTieringChange() {
     onHardwareConfigChange();
 }
 
-// Enforce 1:2 cache-to-capacity disk ratio for hybrid storage
+// Enforce tiered disk limits: 2U chassis = max 24 total drive bays (cache + capacity)
+// Hybrid: also enforces 1:2 cache-to-capacity ratio
 function enforceCacheToCapacityRatio() {
     const storageConfig = document.getElementById('storage-config').value;
-    if (storageConfig !== 'hybrid') return;
+    if (storageConfig !== 'hybrid' && storageConfig !== 'mixed-flash') return;
 
     const tieringId = document.getElementById('storage-tiering').value;
     const options = STORAGE_TIERING_OPTIONS[storageConfig];
     const selectedTier = options.find(o => o.id === tieringId) || options[0];
     if (!selectedTier.isTiered) return;
 
-    const capacityCount = parseInt(document.getElementById('tiered-capacity-disk-count').value) || 4;
-    const targetCacheCount = Math.ceil(capacityCount / 2);
-    const cacheDiskSelect = document.getElementById('cache-disk-count');
-
-    const cacheOptions = Array.from(cacheDiskSelect.options).map(o => parseInt(o.value));
-    let bestCache = cacheOptions[cacheOptions.length - 1];
-    for (const c of cacheOptions) {
-        if (c >= targetCacheCount) {
-            bestCache = c;
-            break;
-        }
+    // Cap capacity disks at tiered maximum (16) — applies to both hybrid and mixed-flash
+    const capacityDiskInput = document.getElementById('tiered-capacity-disk-count');
+    let capacityCount = parseInt(capacityDiskInput.value) || 4;
+    if (capacityCount > MAX_TIERED_CAPACITY_DISK_COUNT) {
+        capacityCount = MAX_TIERED_CAPACITY_DISK_COUNT;
+        capacityDiskInput.value = capacityCount;
     }
 
-    cacheDiskSelect.value = bestCache;
+    // Cap cache at MAX_CACHE_DISK_COUNT (8) — applies to both hybrid and mixed-flash
+    const cacheDiskInput = document.getElementById('cache-disk-count');
+    let currentCache = parseInt(cacheDiskInput.value) || 2;
+    if (currentCache > MAX_CACHE_DISK_COUNT) {
+        currentCache = MAX_CACHE_DISK_COUNT;
+        cacheDiskInput.value = currentCache;
+    }
+
+    // Hybrid only: enforce cache = ceil(capacity / 2)
+    if (storageConfig === 'hybrid') {
+        const targetCacheCount = Math.min(Math.ceil(capacityCount / 2), MAX_CACHE_DISK_COUNT);
+        if (currentCache < targetCacheCount) {
+            cacheDiskInput.value = targetCacheCount;
+        }
+    }
 }
 
 // Generic hardware config change handler
 function onHardwareConfigChange() {
+    updateGpuTypeVisibility();
     enforceCacheToCapacityRatio();
     calculateRequirements();
+}
+
+// Show/hide GPU type dropdown based on GPU count
+function updateGpuTypeVisibility() {
+    const gpuCount = parseInt(document.getElementById('gpu-count').value) || 0;
+    const gpuTypeRow = document.getElementById('gpu-type-row');
+    if (gpuTypeRow) {
+        gpuTypeRow.style.display = gpuCount > 0 ? '' : 'none';
+    }
+}
+
+// Get the vCPU to physical core overcommit ratio from dropdown
+function getVcpuRatio() {
+    const el = document.getElementById('vcpu-ratio');
+    return el ? parseInt(el.value) || 4 : 4;
+}
+
+// Get human-readable GPU label from GPU type key
+function getGpuLabel(gpuType) {
+    const model = GPU_MODELS[gpuType];
+    if (model) return `${model.name} (${model.vramGB} GB VRAM, ${model.tdpW}W TDP)`;
+    return gpuType || 'Unknown';
 }
 
 // Get current hardware configuration
@@ -332,6 +389,8 @@ function getHardwareConfig() {
         sockets,
         totalPhysicalCores: cores * sockets,
         memoryGB: memory,
+        gpuCount: parseInt(document.getElementById('gpu-count').value) || 0,
+        gpuType: document.getElementById('gpu-type').value || 'a2',
         storageConfig,
         tieringId,
         diskConfig
@@ -350,18 +409,26 @@ function buildMaxHardwareConfig(hwConfig) {
     if (hwConfig.generation && hwConfig.generation.coreOptions && hwConfig.generation.coreOptions.length > 0) {
         maxCoresPerSocket = hwConfig.generation.coreOptions[hwConfig.generation.coreOptions.length - 1];
     }
-    // Use max 4 sockets — favour scaling sockets before adding nodes
-    const MAX_SOCKETS = 4;
+    // Use max 2 sockets — Azure Local certified hardware supports 1 or 2 sockets only
+    const MAX_SOCKETS = 2;
 
     // Preferred max memory: 1 TB — favour scaling memory before adding nodes
     const PREFERRED_MAX_MEMORY_GB = 1024;
+
+    // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
+    const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
+    let maxDiskConfig = hwConfig.diskConfig;
+    if (maxDiskConfig && maxDiskConfig.capacity) {
+        maxDiskConfig = JSON.parse(JSON.stringify(maxDiskConfig)); // deep clone
+        maxDiskConfig.capacity.sizeGB = Math.max(maxDiskConfig.capacity.sizeGB, maxDiskSizeGB);
+    }
 
     return {
         totalPhysicalCores: maxCoresPerSocket * MAX_SOCKETS,
         memoryGB: PREFERRED_MAX_MEMORY_GB,
         sockets: MAX_SOCKETS,
         coresPerSocket: maxCoresPerSocket,
-        diskConfig: hwConfig.diskConfig // disk config unchanged (getRecommendedNodeCount already uses maxDiskCount)
+        diskConfig: maxDiskConfig // disk size scaled to max for node recommendation
     };
 }
 
@@ -374,16 +441,18 @@ function getGrowthFactor() {
 
 // Calculate recommended node count based on workload demands and per-node hardware
 function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwConfig, resiliencyMultiplier, resiliency) {
-    const vcpuToCore = 4; // vCPU overcommit ratio
+    const vcpuToCore = getVcpuRatio(); // configurable overcommit ratio
     const hostOverheadMemoryGB = 32; // Azure Local host OS + management overhead
 
     // Available capacity per node from hardware config
     const vcpusPerNode = (hwConfig.totalPhysicalCores || 0) * vcpuToCore;
     const usableMemoryPerNode = Math.max((hwConfig.memoryGB || 0) - hostOverheadMemoryGB, 0);
 
-    // For storage node calculation, use MAX possible disk count (24) per node
+    // For storage node calculation, use MAX possible disk count per node
     // so we recommend fewer nodes and let autoScaleHardware increase disk count instead
-    const maxDiskCount = DISK_COUNT_OPTIONS[DISK_COUNT_OPTIONS.length - 1]; // 24
+    // Tiered (hybrid/mixed-flash): max 16 capacity disks (2U chassis limit); all-flash: max 24
+    const isTieredStorage = hwConfig.storageConfig === 'hybrid' || hwConfig.storageConfig === 'mixed-flash';
+    const maxDiskCount = isTieredStorage ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
     let diskSizeGB = 0;
     if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
         diskSizeGB = hwConfig.diskConfig.capacity.sizeGB;
@@ -485,15 +554,21 @@ function hideNodeRecommendation() {
 // Auto-Scale Per-Node Hardware
 // ============================================
 
-// Available memory options in GB (must match the <select id="node-memory"> values)
-const MEMORY_OPTIONS_GB = [128, 256, 512, 1024, 1536, 2048];
+// Max memory per node in GB
+const MAX_MEMORY_GB = 4096;
+const MIN_MEMORY_GB = 64;
 
-// Available disk count options (must match the capacity-disk-count / tiered-capacity-disk-count select values)
-const DISK_COUNT_OPTIONS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24];
+// Max disk count per node
+const MAX_DISK_COUNT = 24;
+const MAX_CACHE_DISK_COUNT = 8;
+const MAX_TIERED_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity = 24 total (hybrid & mixed-flash)
 
-// Automatically increase CPU cores, memory, and disk count dropdowns so capacity bars stay below 100%
+// Standard capacity disk sizes (TB) for auto-scaling — stepped in order
+const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
+
+// Automatically increase CPU cores, memory, disk count, and disk size so capacity bars stay below 100%
 function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount, resiliencyMultiplier, hwConfig) {
-    const vcpuToCore = 4;
+    const vcpuToCore = getVcpuRatio();
     const hostOverheadMemoryGB = 32;
     const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
@@ -503,7 +578,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     const requiredCoresPerNode = Math.ceil(totalVcpus / effectiveNodes / vcpuToCore);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
-    const SOCKET_OPTIONS = [1, 2, 4];
+    const SOCKET_OPTIONS = [1, 2];
 
     const manufacturer = document.getElementById('cpu-manufacturer').value;
     const genId = document.getElementById('cpu-generation').value;
@@ -524,7 +599,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             }
 
             // If max cores at current sockets still aren't enough, try increasing sockets
-            if (targetCores === null && sockets < 4) {
+            if (targetCores === null && sockets < 2) {
                 for (const s of SOCKET_OPTIONS) {
                     if (s <= sockets) continue;
                     // Re-check with more sockets — find smallest cores that work
@@ -544,9 +619,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             // If still no option is big enough, pick max cores and max sockets
             if (targetCores === null) {
                 targetCores = maxCoresForGen;
-                if (sockets < 4) {
-                    sockets = 4;
-                    socketsSelect.value = 4;
+                if (sockets < 2) {
+                    sockets = 2;
+                    socketsSelect.value = 2;
                     changed = true;
                 }
             }
@@ -560,21 +635,13 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     // --- Auto-scale memory ---
     const requiredMemPerNode = Math.ceil(totalMemoryGB / effectiveNodes) + hostOverheadMemoryGB;
-    const memSelect = document.getElementById('node-memory');
-    const currentMem = parseInt(memSelect.value) || 512;
+    const memInput = document.getElementById('node-memory');
+    const currentMem = parseInt(memInput.value) || 512;
 
-    let targetMem = null;
-    for (const m of MEMORY_OPTIONS_GB) {
-        if (m >= requiredMemPerNode) {
-            targetMem = m;
-            break;
-        }
-    }
-    if (targetMem === null) {
-        targetMem = MEMORY_OPTIONS_GB[MEMORY_OPTIONS_GB.length - 1];
-    }
+    // Set memory to at least the required amount, capped at MAX_MEMORY_GB
+    let targetMem = Math.min(requiredMemPerNode, MAX_MEMORY_GB);
     if (targetMem > currentMem) {
-        memSelect.value = targetMem;
+        memInput.value = targetMem;
         changed = true;
     }
 
@@ -586,6 +653,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     // Determine which disk count / size controls to use
     const isTiered = hwConfig.diskConfig && hwConfig.diskConfig.isTiered;
+    const isTieredCapped = isTiered && (hwConfig.storageConfig === 'hybrid' || hwConfig.storageConfig === 'mixed-flash');
     const diskCountId = isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count';
     const diskSizeId = isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size';
     const diskUnitId = isTiered ? 'tiered-capacity-disk-unit' : 'capacity-disk-unit';
@@ -596,23 +664,46 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     if (diskSizeGB > 0) {
         const disksNeeded = Math.ceil(rawPerNodeNeededGB / diskSizeGB);
-        const diskCountSelect = document.getElementById(diskCountId);
-        const currentDiskCount = parseInt(diskCountSelect.value) || 4;
+        const diskCountInput = document.getElementById(diskCountId);
+        const currentDiskCount = parseInt(diskCountInput.value) || 4;
 
-        // Find smallest available option >= disksNeeded
-        let targetDisks = null;
-        for (const d of DISK_COUNT_OPTIONS) {
-            if (d >= disksNeeded) {
-                targetDisks = d;
-                break;
-            }
-        }
-        if (targetDisks === null) {
-            targetDisks = DISK_COUNT_OPTIONS[DISK_COUNT_OPTIONS.length - 1]; // cap at 24
-        }
+        // Set disk count to at least the required amount, capped at max for storage type
+        const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+        let targetDisks = Math.min(disksNeeded, maxDisksForType);
         if (targetDisks > currentDiskCount) {
-            diskCountSelect.value = targetDisks;
+            diskCountInput.value = targetDisks;
             changed = true;
+        }
+
+        // --- Auto-scale disk size when disk count alone isn't enough ---
+        // If we've maxed out disk count and per-node storage is still insufficient,
+        // step up to the next standard disk size (3.84 → 7.68 → 15.36 TB)
+        const currentDiskCountFinal = parseInt(diskCountInput.value) || 4;
+        if (currentDiskCountFinal >= maxDisksForType) {
+            const currentStoragePerNodeGB = currentDiskCountFinal * diskSizeGB;
+            if (currentStoragePerNodeGB < rawPerNodeNeededGB) {
+                const diskSizeInput = document.getElementById(diskSizeId);
+                const diskUnitSelect = document.getElementById(diskUnitId);
+                // Find the smallest standard size that provides enough per-node storage
+                for (const sizeTB of DISK_SIZE_OPTIONS_TB) {
+                    const candidateGB = sizeTB * 1024;
+                    if (candidateGB > diskSizeGB && currentDiskCountFinal * candidateGB >= rawPerNodeNeededGB) {
+                        diskSizeInput.value = sizeTB;
+                        diskUnitSelect.value = 'TB';
+                        changed = true;
+                        break;
+                    }
+                }
+                // If no standard size is big enough, set to max available
+                if (!changed || (currentDiskCountFinal * (parseFloat(diskSizeInput.value) * (diskUnitSelect.value === 'TB' ? 1024 : 1))) < rawPerNodeNeededGB) {
+                    const maxSize = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1];
+                    if (maxSize * 1024 > diskSizeGB) {
+                        diskSizeInput.value = maxSize;
+                        diskUnitSelect.value = 'TB';
+                        changed = true;
+                    }
+                }
+            }
         }
     }
 
@@ -641,7 +732,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                     hrCores = gen.coreOptions[coreIdx + 1];
                     document.getElementById('cpu-cores').value = hrCores;
                     changed = true;
-                } else if (hrSockets < 4) {
+                } else if (hrSockets < 2) {
                     const nextSocket = SOCKET_OPTIONS.find(s => s > hrSockets);
                     if (nextSocket) {
                         hrSockets = nextSocket;
@@ -659,41 +750,67 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         }
     }
 
-    // Memory headroom — bump to next memory tier
+    // Memory headroom — increase memory in steps until below threshold or maxed
     let memCap = hrMemory * effectiveNodes;
     let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
-    while (memPct > HEADROOM_THRESHOLD) {
-        const memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
-        if (memIdx >= 0 && memIdx < MEMORY_OPTIONS_GB.length - 1) {
-            hrMemory = MEMORY_OPTIONS_GB[memIdx + 1];
-            document.getElementById('node-memory').value = hrMemory;
-            changed = true;
-        } else {
-            break; // at max memory
-        }
+    while (memPct > HEADROOM_THRESHOLD && hrMemory < MAX_MEMORY_GB) {
+        // Increase by ~25% or at least 64 GB, whichever is larger
+        const increment = Math.max(64, Math.ceil(hrMemory * 0.25 / 64) * 64);
+        hrMemory = Math.min(hrMemory + increment, MAX_MEMORY_GB);
+        document.getElementById('node-memory').value = hrMemory;
+        changed = true;
         memCap = hrMemory * effectiveNodes;
         memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
     }
 
+    // Storage headroom — bump disk count first, then disk size, until below threshold
+    {
+        const hrDiskCountInput = document.getElementById(diskCountId);
+        const hrDiskSizeInput = document.getElementById(diskSizeId);
+        const hrDiskUnitSelect = document.getElementById(diskUnitId);
+        let hrDiskCount = parseInt(hrDiskCountInput.value) || 4;
+        let hrDiskSizeRaw = parseFloat(hrDiskSizeInput.value) || 3.5;
+        let hrDiskUnitVal = hrDiskUnitSelect.value;
+        let hrDiskSizeGB = hrDiskUnitVal === 'TB' ? hrDiskSizeRaw * 1024 : hrDiskSizeRaw;
+        let storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
+        let storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
+        let storageSafety = 0;
+        while (storagePct > HEADROOM_THRESHOLD && storageSafety < 30) {
+            storageSafety++;
+            // Try increasing disk count first
+            const hrMaxDisks = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+            if (hrDiskCount < hrMaxDisks) {
+                hrDiskCount++;
+                hrDiskCountInput.value = hrDiskCount;
+                changed = true;
+            } else {
+                // Disk count maxed — try stepping up disk size
+                const nextSize = DISK_SIZE_OPTIONS_TB.find(s => s * 1024 > hrDiskSizeGB);
+                if (nextSize) {
+                    hrDiskSizeRaw = nextSize;
+                    hrDiskUnitVal = 'TB';
+                    hrDiskSizeGB = nextSize * 1024;
+                    hrDiskSizeInput.value = nextSize;
+                    hrDiskUnitSelect.value = 'TB';
+                    changed = true;
+                } else {
+                    break; // maxed out on both disk count and disk size
+                }
+            }
+            storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
+            storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
+        }
+    }
+
     // --- Enforce 1:2 cache-to-capacity ratio for hybrid storage ---
-    if (isTiered && hwConfig.storageConfig === 'hybrid') {
+    if (isTiered && (hwConfig.storageConfig === 'hybrid' || hwConfig.storageConfig === 'mixed-flash')) {
         const finalCapacityCount = parseInt(document.getElementById(diskCountId).value) || 4;
         const targetCacheCount = Math.ceil(finalCapacityCount / 2);
-        const cacheDiskSelect = document.getElementById('cache-disk-count');
-        const currentCacheCount = parseInt(cacheDiskSelect.value) || 2;
+        const cacheDiskInput = document.getElementById('cache-disk-count');
+        const currentCacheCount = parseInt(cacheDiskInput.value) || 2;
 
-        // Find the smallest available cache option >= target
-        const cacheOptions = Array.from(cacheDiskSelect.options).map(o => parseInt(o.value));
-        let bestCache = cacheOptions[cacheOptions.length - 1];
-        for (const c of cacheOptions) {
-            if (c >= targetCacheCount) {
-                bestCache = c;
-                break;
-            }
-        }
-
-        if (bestCache !== currentCacheCount) {
-            cacheDiskSelect.value = bestCache;
+        if (currentCacheCount < targetCacheCount) {
+            cacheDiskInput.value = Math.min(targetCacheCount, MAX_CACHE_DISK_COUNT);
             changed = true;
         }
     }
@@ -720,6 +837,9 @@ function getSizerState() {
         cpuCores: document.getElementById('cpu-cores').value,
         cpuSockets: document.getElementById('cpu-sockets').value,
         nodeMemory: document.getElementById('node-memory').value,
+        gpuCount: document.getElementById('gpu-count').value,
+        gpuType: document.getElementById('gpu-type').value,
+        vcpuRatio: document.getElementById('vcpu-ratio').value,
         storageConfig: document.getElementById('storage-config').value,
         storageTiering: document.getElementById('storage-tiering').value,
         capacityDiskCount: document.getElementById('capacity-disk-count').value,
@@ -866,6 +986,16 @@ function resumeSizerState() {
 
     document.getElementById('cpu-sockets').value = d.cpuSockets || '2';
     document.getElementById('node-memory').value = d.nodeMemory || '512';
+
+    // Restore GPU config
+    document.getElementById('gpu-count').value = d.gpuCount || '0';
+    document.getElementById('gpu-type').value = d.gpuType || 'a2';
+    updateGpuTypeVisibility();
+
+    // Restore vCPU ratio
+    if (d.vcpuRatio) {
+        document.getElementById('vcpu-ratio').value = d.vcpuRatio;
+    }
 
     // Restore storage config (must trigger change to populate tiering options)
     document.getElementById('storage-config').value = d.storageConfig || 'all-flash';
@@ -1039,12 +1169,13 @@ function onClusterTypeChange() {
     calculateRequirements();
 }
 
-// Enforce storage constraints for rack-aware clusters (All-Flash only)
+// Enforce storage constraints based on cluster type
 function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
     if (!storageSelect) return; // Guard for test harness
-    if (clusterType === 'rack-aware') {
+    if (clusterType === 'rack-aware' || clusterType === 'single') {
+        // Rack-aware and single-node require all-flash
         storageSelect.value = 'all-flash';
         storageSelect.disabled = true;
         onStorageConfigChange();
@@ -1890,8 +2021,7 @@ function calculateRequirements(options) {
                 while (nodeCount < maxNodeOption && attempts < 16) {
                     attempts++;
                     const effNodes = nodeCount > 1 ? nodeCount - 1 : 1;
-                    const vcpuToCore = 4;
-                    const physCores = hwConfig.totalPhysicalCores || 64;
+                    const vcpuToCore = getVcpuRatio();                    const physCores = hwConfig.totalPhysicalCores || 64;
                     const memPerNode = hwConfig.memoryGB || 512;
                     let rawGBPerNode = 0;
                     if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
@@ -1944,7 +2074,7 @@ function calculateRequirements(options) {
         const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
         // vCPU to physical core overcommit ratio
-        const vcpuToCore = 4;
+        const vcpuToCore = getVcpuRatio();
 
         // Per-node requirement breakdown
         const perNodeCores = Math.ceil(totalVcpus / effectiveNodes / vcpuToCore);
@@ -1965,6 +2095,12 @@ function calculateRequirements(options) {
         document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
 
         // --- Capacity bars from hardware config ---
+        // Physical Nodes bar
+        const MAX_NODES = 16;
+        const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
+        document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
+        document.getElementById('nodes-fill').style.width = nodesPercent + '%';
+
         const physicalCoresPerNode = hwConfig.totalPhysicalCores || 64;
         const memoryPerNode = hwConfig.memoryGB || 512;
 
@@ -1975,7 +2111,8 @@ function calculateRequirements(options) {
         const rawStoragePerNodeTB = rawStoragePerNodeGB / 1024 || 10;
 
         const totalAvailableVcpus = physicalCoresPerNode * effectiveNodes * vcpuToCore;
-        const totalAvailableMemory = memoryPerNode * effectiveNodes;
+        const hostOverheadGB = 32; // Azure Local host OS + management overhead per node
+        const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes;
         const totalAvailableStorage = (rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier;
 
         const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
@@ -2040,6 +2177,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Hardware config note
         if (hwConfig && hwConfig.generation) {
             notes.push(`Hardware: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB RAM per node`);
+            if (hwConfig.gpuCount > 0) {
+                const gpuLabel = getGpuLabel(hwConfig.gpuType);
+                notes.push(`GPU: ${hwConfig.gpuCount} × ${gpuLabel} per node`);
+            }
         }
         
         // Single node specific notes
@@ -2075,6 +2216,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             const dc = hwConfig.diskConfig;
             if (dc.isTiered) {
                 notes.push(`Storage layout: ${dc.cache.count}× ${dc.cache.type} cache + ${dc.capacity.count}× ${dc.capacity.type} capacity disks per node`);
+                // Mixed all-flash recommendation
+                if (hwConfig.storageConfig === 'mixed-flash') {
+                    notes.push('ℹ️ All-Flash (single type SSD or NVMe) configuration is recommended for increased capacity. Mixed all-flash (NVMe cache + SSD capacity) uses tiered storage which limits capacity disks to 16 per node (24 total drive bays).');
+                }
             } else {
                 notes.push(`Storage layout: ${dc.capacity.count}× ${dc.capacity.type} capacity disks per node (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
             }
@@ -2083,8 +2228,8 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Memory recommendation
         if (totalMemory > 0) {
             const memPerNode = Math.ceil(totalMemory / (nodeCount > 1 ? nodeCount - 1 : 1));
-            if (hwConfig && memPerNode > hwConfig.memoryGB) {
-                notes.push(`⚠️ Workload memory (${memPerNode} GB/node) exceeds configured node memory (${hwConfig.memoryGB} GB). Consider increasing memory or adding nodes.`);
+            if (hwConfig && memPerNode > hwConfig.memoryGB - 32) {
+                notes.push(`⚠️ Workload memory (${memPerNode} GB/node) exceeds usable node memory (${hwConfig.memoryGB - 32} GB after 32 GB host overhead). Consider increasing memory or adding nodes.`);
             }
             if (memPerNode > 768) {
                 notes.push('⚠️ Large memory system: Requires 400 GB+ or larger OS disks for supportability');
@@ -2093,7 +2238,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         
         // Compute check
         if (hwConfig && hwConfig.totalPhysicalCores > 0 && totalVcpus > 0) {
-            const vcpuToCore = 4;
+            const vcpuToCore = getVcpuRatio();
             const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
             const requiredCoresPerNode = Math.ceil(totalVcpus / effectiveNodes / vcpuToCore);
             if (requiredCoresPerNode > hwConfig.totalPhysicalCores) {
@@ -2114,12 +2259,59 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (currentStoragePercent >= 90) {
             notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add nodes, increase disk count/size, or reduce workloads.');
         }
+
+        // Storage metadata memory overhead note (4 GB per TB of cache drive capacity)
+        if (hwConfig && hwConfig.diskConfig) {
+            const dc = hwConfig.diskConfig;
+            let cacheTB = 0;
+            if (dc.isTiered && dc.cache) {
+                cacheTB = (dc.cache.count * dc.cache.sizeGB) / 1024;
+            }
+            if (cacheTB > 0) {
+                const metadataGB = Math.ceil(cacheTB * 4);
+                notes.push(`ℹ️ Storage Spaces Direct metadata: ~${metadataGB} GB RAM reserved per node for cache drives (4 GB per TB of cache capacity). Not included in workload memory calculations.`);
+            }
+        }
+
+        // 400 TB per-machine storage validation
+        if (hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+            const dc = hwConfig.diskConfig;
+            let rawStoragePerMachineTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
+            if (dc.isTiered && dc.cache) {
+                rawStoragePerMachineTB += (dc.cache.count * dc.cache.sizeGB) / 1024;
+            }
+            if (rawStoragePerMachineTB > 400) {
+                notes.push(`⚠️ Raw storage per machine (~${rawStoragePerMachineTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 400 TB per machine.`);
+            }
+        }
+
+        // 4 PB cluster storage validation
+        if (hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+            const dc = hwConfig.diskConfig;
+            let rawPerNodeTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
+            if (dc.isTiered && dc.cache) {
+                rawPerNodeTB += (dc.cache.count * dc.cache.sizeGB) / 1024;
+            }
+            const totalClusterRawTB = rawPerNodeTB * nodeCount;
+            if (totalClusterRawTB > 4000) {
+                notes.push(`⚠️ Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool.`);
+            }
+        }
         
         // vCPU to core ratio
-        notes.push('vCPU calculations assume 4:1 pCPU to vCPU ratio');
-        
-        // Minimum requirements
-        notes.push('Minimum per node: 32 GB RAM, 4 cores (Azure Local requirements)');
+        const vcpuRatio = getVcpuRatio();
+        notes.push(`vCPU calculations use ${vcpuRatio}:1 pCPU to vCPU overcommit ratio`);
+
+        // Host overhead note
+        notes.push('ℹ️ Host overhead: 32 GB RAM reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
+
+        // Network note
+        notes.push('ℹ️ Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
+
+        // Boot/OS drive note — only shown when memory exceeds 768 GB (larger boot drive needed)
+        if (hwConfig && hwConfig.memoryGB > 768) {
+            notes.push('ℹ️ Boot drive: 400 GB+ OS disk recommended per node for systems with >768 GB RAM.');
+        }
     }
     
     const notesList = document.getElementById('sizing-notes');
@@ -2264,7 +2456,12 @@ function exportSizerWord() {
     html += '<tr><td>Cores per Socket</td><td>' + hwConfig.coresPerSocket + '</td></tr>';
     html += '<tr><td>CPU Sockets</td><td>' + hwConfig.sockets + '</td></tr>';
     html += '<tr><td>Total Physical Cores</td><td>' + hwConfig.totalPhysicalCores + '</td></tr>';
+    html += '<tr><td>vCPU Ratio (pCPU:vCPU)</td><td>' + getVcpuRatio() + ':1</td></tr>';
     html += '<tr><td>Memory</td><td>' + hwConfig.memoryGB + ' GB</td></tr>';
+    if (hwConfig.gpuCount > 0) {
+        const gpuLabel = getGpuLabel(hwConfig.gpuType);
+        html += '<tr><td>GPU</td><td>' + hwConfig.gpuCount + ' × ' + gpuLabel + '</td></tr>';
+    }
     html += '<tr><td>Storage Configuration</td><td>' + (storageLabels[hwConfig.storageConfig] || hwConfig.storageConfig) + '</td></tr>';
     html += '<tr><td>Disk Configuration</td><td>' + diskDesc + '</td></tr>';
     html += '</tbody></table>';
@@ -2279,7 +2476,7 @@ function exportSizerWord() {
     html += '</div>';
 
     // Per-Node Requirements
-    html += '<h3>Per-Node Requirements (with N+1)</h3>';
+    html += '<h3>Workload Per-Node Requirements (with N+1)</h3>';
     html += '<table class="kv-table"><tbody>';
     html += '<tr><td>Physical Cores</td><td>' + perNodeCores + '</td></tr>';
     html += '<tr><td>Memory</td><td>' + perNodeMemory + '</td></tr>';
@@ -2305,7 +2502,7 @@ function exportSizerWord() {
 
     // Sizing Notes
     if (notesHtml) {
-        html += '<h2>Sizing Notes</h2>';
+        html += '<h2>Azure Local Instance - Sizing Notes</h2>';
         html += '<ul>' + notesHtml + '</ul>';
     }
 
@@ -2364,6 +2561,12 @@ function configureInDesigner() {
             memory: {
                 perNodeGB: hwConfig.memoryGB
             },
+            gpu: {
+                countPerNode: hwConfig.gpuCount,
+                type: hwConfig.gpuCount > 0 ? getGpuLabel(hwConfig.gpuType) : 'None'
+            },
+            vcpuRatio: getVcpuRatio(),
+            futureGrowth: document.getElementById('future-growth').value,
             storage: {
                 config: hwConfig.storageConfig,
                 tiering: hwConfig.tieringId,
@@ -2400,6 +2603,10 @@ function resetScenario() {
     initHardwareDefaults();
     document.getElementById('cpu-sockets').value = '2';
     document.getElementById('node-memory').value = '512';
+    document.getElementById('gpu-count').value = '0';
+    document.getElementById('gpu-type').value = 'a2';
+    updateGpuTypeVisibility();
+    document.getElementById('vcpu-ratio').value = '4';
     document.getElementById('storage-config').value = 'all-flash';
     document.getElementById('future-growth').value = '0';
     onStorageConfigChange();

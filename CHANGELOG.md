@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.15.95] - 2026-02-15
+
+### Changed
+
+#### Sizer: Free-Input Configuration, Hardware Validation & Catalog Alignment ([#119](https://github.com/Azure/odinforazurelocal/issues/119))
+
+- **Free-Input Memory Configuration**: Memory per Node converted from fixed dropdown (128/256/512/1024/1536/2048 GB) to a numeric input field accepting any value between 64–4096 GB. Users can now enter exact server memory (e.g., 786 GB)
+- **Expanded Disk Count Options**: Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity, all-flash) / 2–16 (capacity, hybrid) and 2–8 (cache), instead of a limited subset (1,2,3,4,5,6,8,10,12,16,20,24)
+- **Disk Size Auto-Scaling**: When disk count reaches the maximum (24) and storage is still insufficient, auto-scale now steps up disk size through standard capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB)
+- **Storage Headroom Scaling**: Storage capacity now participates in the 80% headroom pass — bumps disk count first, then disk size, to keep storage utilization below 80%
+- **Smarter Node Recommendation**: Node count recommendation now considers max disk size (15.36 TB) in addition to max disk count (24), favouring per-node scale-up before adding nodes
+- **CPU Sockets Capped at 2**: Removed 4-socket option — Azure Local OEM certified hardware supports 1 or 2 sockets only (per Azure Local Solutions Catalog)
+- **Configurable vCPU Overcommit Ratio**: New Advanced Settings section with selectable vCPU-to-pCPU ratio (1:1, 2:1, 4:1 default, 5:1, 6:1). Replaces the hardcoded 4:1 assumption across `getRecommendedNodeCount()`, `autoScaleHardware()`, `calculateRequirements()`, and `updateSizingNotes()`, allowing users to match their hypervisor density policy
+- **GPU Model Granularity**: GPU type dropdown now lists individual NVIDIA models — A2 (16 GB VRAM, 60W), A16 (64 GB, 250W), L4 (24 GB, 72W), L40 (48 GB, 300W), L40S (48 GB, 350W) — with VRAM and TDP shown in results summary, Word export, and Designer payload via new `GPU_MODELS` constant and `getGpuLabel()` helper. Select 0, 1, or 2 GPUs per node
+- **Intel Xeon D 27xx (Edge)**: Added Intel Xeon D-2700 (Ice Lake-D) CPU generation to `CPU_GENERATIONS` for edge/rugged deployments (4–20 cores, DDR4-3200, PCIe 4.0, FCBGA 3820 package)
+- **Minimum 2 Capacity Disks**: Capacity disk count minimum raised from 1 to 2 in HTML dropdown (both all-flash and tiered), matching Azure Local system requirements
+- **Minimum 2 Cache Disks**: Cache disk count minimum raised from 1 to 2 for hybrid configurations
+- **Hybrid Disk Chassis Limit**: Cache disks capped at 8 per node, hybrid capacity disks capped at 16 per node (8 cache + 16 capacity = 24 total drive bays in a 2U chassis). Each cache SSD is bound to 2 capacity HDDs
+- **Mixed All-Flash Disk Chassis Limit**: Same 2U chassis constraint applied to mixed all-flash (NVMe cache + SSD capacity) — cache capped at 8, capacity at 16, total 24 drive bays. Sizing note recommends single-type all-flash for increased capacity
+- **Single-Node All-Flash Only**: `updateStorageForClusterType()` now blocks hybrid storage for single-node clusters (was only blocked for rack-aware)
+- **Cache Metadata Memory Overhead Note**: Sizing notes area displays "4 GB RAM per TB of cache" advisory when cache capacity is detected
+- **400 TB Per-Machine Storage Warning**: Sizing note warns when raw storage per machine exceeds 400 TB
+- **4 PB Cluster Storage Cap Warning**: Sizing note warns when total cluster raw storage exceeds 4,000 TB (4 PB)
+- **Network Bandwidth Note**: Sizing note recommends RDMA-capable NICs with 25 GbE+ for storage traffic
+- **Boot/OS Drive Note**: Sizing note recommends minimum 200 GB boot drive, or 400 GB+ for systems with >768 GB RAM
+- **Updated Minimum Requirements Note**: Changed from "32 GB RAM, 4 cores" to "32 GB RAM, 2 data drives, at least 500 GB per drive"
+- **Updated Auto-Scale Logic**: Hardware auto-scaling now computes target memory and disk values directly instead of snapping to predefined option lists
+- **Updated Headroom Scaling**: Memory headroom uses incremental 25% steps instead of fixed tier jumps
+- **Updated Cache-to-Capacity Ratio**: Hybrid storage ratio enforcement works with free numeric inputs
+- **vCPU Ratio State Persistence**: New `vcpuRatio` field saved/restored in sizer state and reset to 4:1 on scenario reset
+
+---
+
 ## [0.15.01] - 2026-02-12
 
 ### Added
