@@ -2456,6 +2456,7 @@ function exportSizerWord() {
     html += '<tr><td>Cores per Socket</td><td>' + hwConfig.coresPerSocket + '</td></tr>';
     html += '<tr><td>CPU Sockets</td><td>' + hwConfig.sockets + '</td></tr>';
     html += '<tr><td>Total Physical Cores</td><td>' + hwConfig.totalPhysicalCores + '</td></tr>';
+    html += '<tr><td>vCPU Ratio (pCPU:vCPU)</td><td>' + getVcpuRatio() + ':1</td></tr>';
     html += '<tr><td>Memory</td><td>' + hwConfig.memoryGB + ' GB</td></tr>';
     if (hwConfig.gpuCount > 0) {
         const gpuLabel = getGpuLabel(hwConfig.gpuType);
@@ -2564,6 +2565,8 @@ function configureInDesigner() {
                 countPerNode: hwConfig.gpuCount,
                 type: hwConfig.gpuCount > 0 ? getGpuLabel(hwConfig.gpuType) : 'None'
             },
+            vcpuRatio: getVcpuRatio(),
+            futureGrowth: document.getElementById('future-growth').value,
             storage: {
                 config: hwConfig.storageConfig,
                 tiering: hwConfig.tieringId,

@@ -1021,6 +1021,12 @@
             if (hw.memory) {
                 md.push('| Memory per Node | ' + (hw.memory.perNodeGB || '-') + ' GB |');
             }
+            if (hw.gpu && hw.gpu.countPerNode > 0) {
+                md.push('| GPU per Node | ' + hw.gpu.countPerNode + ' × ' + (hw.gpu.type || '-') + ' |');
+            }
+            if (hw.vcpuRatio) {
+                md.push('| vCPU Ratio (pCPU:vCPU) | ' + hw.vcpuRatio + ':1 |');
+            }
             if (hw.storage) {
                 var storageLabel = hw.storage.config === 'all-flash' ? 'All-Flash' :
                                    hw.storage.config === 'mixed-flash' ? 'Mixed All-Flash (NVMe + SSD)' :
@@ -1041,6 +1047,13 @@
                                hw.resiliency === '2way' ? 'Two-way Mirror' :
                                hw.resiliency === 'simple' ? 'Simple' : (hw.resiliency || '-');
                 md.push('| Storage Resiliency | ' + resLabel + ' |');
+            }
+            if (hw.futureGrowth && hw.futureGrowth !== '0') {
+                md.push('| Future Growth | ' + hw.futureGrowth + '% |');
+            }
+            if (hw.clusterType) {
+                var ctLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
+                md.push('| Cluster Type | ' + (ctLabels[hw.clusterType] || hw.clusterType) + ' |');
             }
             if (hw.workloadSummary) {
                 var ws = hw.workloadSummary;
