@@ -2231,9 +2231,6 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             if (hwConfig && memPerNode > hwConfig.memoryGB - 32) {
                 notes.push(`⚠️ Workload memory (${memPerNode} GB/node) exceeds usable node memory (${hwConfig.memoryGB - 32} GB after 32 GB host overhead). Consider increasing memory or adding nodes.`);
             }
-            if (memPerNode > 768) {
-                notes.push('⚠️ Large memory system: Requires 400 GB+ or larger OS disks for supportability');
-            }
         }
         
         // Compute check
