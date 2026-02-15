@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.15.01 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.15.95 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,27 +37,22 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.15.01 - Latest Release
-- **ODIN Sizer (Preview)**: New hardware sizing tool to calculate cluster requirements based on workload scenarios, resiliency, and capacity needs
-- **Sizer-to-Designer Integration**: "Configure in Designer" button passes sizer hardware config (CPU, memory, storage, workloads) into the Designer wizard, auto-populating steps 01–05
-- **"Unsure? Start with Sizer" Links**: Steps 04 (Cluster Configuration) and 05 (Cluster Size) now include a styled link to launch the Sizer for users who need guidance
-- **Hardware in Configuration Report**: When imported from Sizer, the report now includes a Hardware Configuration section with CPU, memory, storage, and workload summary
-- **Sizer Session Persistence**: Sizer state auto-saves to localStorage with Resume / Start Fresh prompt on return
-- **Sizer Auto-Sizing Engine**: Intelligent node count recommendation based on compute, memory, and storage requirements — favours scaling up CPU cores, memory (up to 1 TB), and disks per node before adding nodes
-- **Capacity Utilization Guard**: Blocks configurations when Compute, Memory, or Storage utilization ≥ 90% — visual warning, red capacity bars, and disabled Designer button
-- **Hybrid Cache-to-Capacity Ratio**: Hybrid storage enforces a 1:2 cache-to-capacity disk ratio (e.g., 6 cache + 12 HDD)
-- **Export Options**: Save as PDF and Word export for sizer results
-- **Edit Workloads**: Edit existing workloads via cog icon on workload cards
-- **Official Azure Icons**: VM, AKS Arc, and AVD workload types use official Azure service icons
-- **ODIN Favicon**: ODIN logo shown as browser favicon across all pages
-- **Clean Navigation URLs**: All internal links use folder paths instead of explicit index.html references
-- **AVD Session Type**: Multi-session (shared VMs) and single-session (dedicated VM per user) sizing aligned to Microsoft session host guidelines
-- **AVD Heavy Profile**: New workload tier for engineers and content creators
-- **AVD Max Concurrency %**: Reduces compute/memory sizing for realistic peak loads (default 90%, auto-hidden for single-session)
-- **AVD FSLogix Profile Storage**: Optional per-user profile container storage (default 30 GB)
-- **AVD Knowledge Links**: Links to AVD for Azure Local architecture guide and session host sizing guidelines
-- **Resiliency Guidance**: 2-way mirror recommendation warning and 80% headroom auto-scale for CPU and memory
-- **Improved Resiliency Notes**: Clearer descriptions for 2-way, 3-way, and 4-way mirror efficiency and fault domain details
+### 🎉 Version 0.15.95 - Latest Release
+- **Free-Input Memory Configuration (#119)**: Memory per Node is now a free-text numeric input (64–4096 GB) instead of a fixed dropdown, allowing users to enter exact server memory values (e.g., 786 GB)
+- **Expanded Disk Count Options (#119)**: Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity) and 2–12 (cache), allowing any disk quantity (e.g., 9 NVMe disks)
+- **Disk Size Auto-Scaling**: When disk count reaches 24 and storage is still insufficient, auto-scale steps up disk size through standard capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB) with 80% headroom
+- **CPU Sockets Capped at 2**: Removed 4-socket option — Azure Local OEM certified hardware supports 1 or 2 sockets at this time
+- **Configurable vCPU Overcommit Ratio**: New Advanced Settings section with selectable vCPU-to-pCPU ratio (1:1, 2:1, 4:1, 5:1, 6:1) — replaces the hardcoded 4:1 assumption, allowing users to match their hypervisor density policy
+- **GPU Model Granularity**: GPU type dropdown now lists individual NVIDIA models (A2, A16, L4, L40, L40S) with VRAM and TDP per model, shown in results and export — select 0, 1, or 2 GPUs per node
+- **Intel Xeon D 27xx (Edge)**: Added Intel Xeon D-2700 (Ice Lake-D) CPU generation for edge/rugged deployments (4–20 cores, DDR4-3200)
+- **Minimum 2 Capacity & Cache Disks**: Disk count minimums raised from 1 to 2, matching Azure Local system requirements
+- **Single-Node All-Flash Only**: Single-node clusters now block hybrid storage — only all-flash is supported
+- **Cache Metadata Overhead Note**: Sizing notes show 4 GB RAM per TB of cache capacity for storage metadata
+- **400 TB Per-Machine Warning**: Sizing note warns when raw storage exceeds 400 TB per machine
+- **4 PB Cluster Cap Warning**: Sizing note warns when total cluster raw storage exceeds 4 PB (4,000 TB)
+- **Network Bandwidth Note**: Sizing note recommends RDMA-capable NICs with 25 GbE+ for storage traffic
+- **Boot/OS Drive Note**: Sizing note calls out minimum 200 GB boot drive (400 GB+ for systems with >768 GB RAM)
+- **Updated Auto-Scale Logic**: Hardware auto-scaling now works with continuous values for memory and disk count instead of snapping to predefined options
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -339,8 +334,8 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.15.01  
-**Last Updated**: February 12th 2026  
+**Version**: 0.15.95  
+**Last Updated**: June 2026  
 **Compatibility**: Azure Local 2506+
 
 ---

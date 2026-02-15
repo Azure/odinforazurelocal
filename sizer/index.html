@@ -202,6 +202,7 @@
                             <option value="" disabled>-- Select --</option>
                             <option value="intel" selected>Intel</option>
                             <option value="amd">AMD</option>
+                            <option value="intel_edge">Intel (Edge)</option>
                         </select>
                     </div>
                     <div class="config-row">
@@ -219,7 +220,6 @@
                         <select id="cpu-sockets" onchange="onHardwareConfigChange()">
                             <option value="1">1</option>
                             <option value="2" selected>2</option>
-                            <option value="4">4</option>
                         </select>
                     </div>
 
@@ -227,13 +227,43 @@
                     <h3 class="hw-subsection-title">Memory Configuration</h3>
                     <div class="config-row">
                         <label for="node-memory">Memory per Node</label>
-                        <select id="node-memory" onchange="onHardwareConfigChange()">
-                            <option value="128">128 GB</option>
-                            <option value="256">256 GB</option>
-                            <option value="512" selected>512 GB</option>
-                            <option value="1024">1 TB</option>
-                            <option value="1536">1.5 TB</option>
-                            <option value="2048">2 TB</option>
+                        <div class="input-with-unit">
+                            <input type="number" id="node-memory" value="512" min="64" max="4096" step="1" onchange="onHardwareConfigChange()" oninput="onHardwareConfigChange()" class="hw-input" title="Enter memory in GB (64–4096)">
+                            <span class="unit-label">GB</span>
+                        </div>
+                    </div>
+
+                    <!-- GPU Configuration -->
+                    <h3 class="hw-subsection-title">GPU Configuration</h3>
+                    <div class="config-row">
+                        <label for="gpu-count">GPUs per Node</label>
+                        <select id="gpu-count" onchange="onHardwareConfigChange()">
+                            <option value="0" selected>None</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                        </select>
+                    </div>
+                    <div class="config-row" id="gpu-type-row" style="display: none;">
+                        <label for="gpu-type">GPU Type</label>
+                        <select id="gpu-type" onchange="onHardwareConfigChange()">
+                            <option value="a2" selected>NVIDIA A2 (16 GB VRAM, 60W TDP)</option>
+                            <option value="a16">NVIDIA A16 (64 GB VRAM, 250W TDP)</option>
+                            <option value="l4">NVIDIA L4 (24 GB VRAM, 72W TDP)</option>
+                            <option value="l40">NVIDIA L40 (48 GB VRAM, 300W TDP)</option>
+                            <option value="l40s">NVIDIA L40S (48 GB VRAM, 350W TDP)</option>
+                        </select>
+                    </div>
+
+                    <!-- Advanced Settings -->
+                    <h3 class="hw-subsection-title">Advanced Settings</h3>
+                    <div class="config-row">
+                        <label for="vcpu-ratio">vCPU Overcommit Ratio</label>
+                        <select id="vcpu-ratio" onchange="onHardwareConfigChange()">
+                            <option value="1">1:1 (No overcommit)</option>
+                            <option value="2">2:1</option>
+                            <option value="4" selected>4:1 (Default)</option>
+                            <option value="5">5:1</option>
+                            <option value="6">6:1</option>
                         </select>
                     </div>
 
@@ -270,17 +300,28 @@
                             <div class="config-row">
                                 <label for="capacity-disk-count">Capacity Disks per Node</label>
                                 <select id="capacity-disk-count" onchange="onHardwareConfigChange()">
-                                    <option value="1">1</option>
                                     <option value="2">2</option>
                                     <option value="3">3</option>
                                     <option value="4" selected>4</option>
                                     <option value="5">5</option>
                                     <option value="6">6</option>
+                                    <option value="7">7</option>
                                     <option value="8">8</option>
+                                    <option value="9">9</option>
                                     <option value="10">10</option>
+                                    <option value="11">11</option>
                                     <option value="12">12</option>
+                                    <option value="13">13</option>
+                                    <option value="14">14</option>
+                                    <option value="15">15</option>
                                     <option value="16">16</option>
+                                    <option value="17">17</option>
+                                    <option value="18">18</option>
+                                    <option value="19">19</option>
                                     <option value="20">20</option>
+                                    <option value="21">21</option>
+                                    <option value="22">22</option>
+                                    <option value="23">23</option>
                                     <option value="24">24</option>
                                 </select>
                             </div>
@@ -309,13 +350,16 @@
                             <div class="config-row">
                                 <label for="cache-disk-count">Cache Disks per Node</label>
                                 <select id="cache-disk-count" onchange="onHardwareConfigChange()">
-                                    <option value="1">1</option>
                                     <option value="2" selected>2</option>
                                     <option value="3">3</option>
                                     <option value="4">4</option>
+                                    <option value="5">5</option>
                                     <option value="6">6</option>
+                                    <option value="7">7</option>
                                     <option value="8">8</option>
+                                    <option value="9">9</option>
                                     <option value="10">10</option>
+                                    <option value="11">11</option>
                                     <option value="12">12</option>
                                 </select>
                             </div>
@@ -341,17 +385,28 @@
                             <div class="config-row">
                                 <label for="tiered-capacity-disk-count">Capacity Disks per Node</label>
                                 <select id="tiered-capacity-disk-count" onchange="onHardwareConfigChange()">
-                                    <option value="1">1</option>
                                     <option value="2">2</option>
                                     <option value="3">3</option>
                                     <option value="4" selected>4</option>
                                     <option value="5">5</option>
                                     <option value="6">6</option>
+                                    <option value="7">7</option>
                                     <option value="8">8</option>
+                                    <option value="9">9</option>
                                     <option value="10">10</option>
+                                    <option value="11">11</option>
                                     <option value="12">12</option>
+                                    <option value="13">13</option>
+                                    <option value="14">14</option>
+                                    <option value="15">15</option>
                                     <option value="16">16</option>
+                                    <option value="17">17</option>
+                                    <option value="18">18</option>
+                                    <option value="19">19</option>
                                     <option value="20">20</option>
+                                    <option value="21">21</option>
+                                    <option value="22">22</option>
+                                    <option value="23">23</option>
                                     <option value="24">24</option>
                                 </select>
                             </div>

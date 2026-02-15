@@ -657,6 +657,17 @@ body {
     border-color: var(--accent-blue);
 }
 
+.unit-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    min-width: 30px;
+}
+
+.config-row .hw-input {
+    min-width: 120px;
+}
+
 .disk-type-info {
     margin-top: 8px;
     margin-bottom: 4px;

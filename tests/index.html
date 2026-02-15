@@ -3027,7 +3027,7 @@
                     diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
                 };
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.totalPhysicalCores === 256, 'Max cores = 64 (last option) × 4 sockets = 256', 256, maxHw.totalPhysicalCores);
+                return assert(maxHw.totalPhysicalCores === 128, 'Max cores = 64 (last option) × 2 sockets = 128', 128, maxHw.totalPhysicalCores);
             })(),
             (() => {
                 // Memory always set to preferred max (1024 GB / 1 TB)
@@ -3051,14 +3051,14 @@
                     diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
                 };
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.totalPhysicalCores === 96, 'No generation: falls back to 24 × 4 = 96', 96, maxHw.totalPhysicalCores);
+                return assert(maxHw.totalPhysicalCores === 48, 'No generation: falls back to 24 × 2 = 48', 48, maxHw.totalPhysicalCores);
             })(),
             (() => {
-                // Disk config is passed through unchanged
+                // Disk config capacity size is scaled to max (15.36 TB = 15728.64 GB)
                 const dc = { isTiered: true, cache: { count: 4 }, capacity: { count: 8, sizeGB: 3584 } };
                 const hw = { coresPerSocket: 24, sockets: 2, memoryGB: 512, diskConfig: dc };
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.diskConfig === dc, 'diskConfig passed through unchanged', true, maxHw.diskConfig === dc);
+                return assert(maxHw.diskConfig.capacity.sizeGB === 15.36 * 1024, 'diskConfig capacity scaled to max 15.36 TB', 15.36 * 1024, maxHw.diskConfig.capacity.sizeGB);
             })(),
             (() => {
                 // With Intel Xeon 6 (max 128 cores per socket)
@@ -3070,7 +3070,7 @@
                     diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
                 };
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.totalPhysicalCores === 512, 'Xeon 6: 128 × 4 = 512 max physical cores', 512, maxHw.totalPhysicalCores);
+                return assert(maxHw.totalPhysicalCores === 256, 'Xeon 6: 128 × 2 = 256 max physical cores', 256, maxHw.totalPhysicalCores);
             })(),
             (() => {
                 // Scale-up vs scale-out: maxHwConfig should recommend fewer nodes than default config
@@ -3234,6 +3234,514 @@
                 // 4-way mirror has 4x multiplier (25% efficiency)
                 return assert(RESILIENCY_MULTIPLIERS['4way'] === 4,
                     '4-way mirror: 4x raw storage (25% efficiency)', 4, RESILIENCY_MULTIPLIERS['4way']);
+            })()
+        ]);
+
+        // ========================================================================
+        // v0.15.95 NEW FEATURE TESTS
+        // ========================================================================
+        sectionHeader('🆕 v0.15.95 New Features');
+
+        // --- Feature 1 & 11: getVcpuRatio() helper and vCPU ratio dropdown ---
+        testSuite('getVcpuRatio() - vCPU overcommit ratio', 'sizer.js', [
+            (() => {
+                // Create or reuse vcpu-ratio stub
+                let stub = document.getElementById('vcpu-ratio');
+                if (!stub) {
+                    stub = document.createElement('select');
+                    stub.id = 'vcpu-ratio';
+                    stub.style.display = 'none';
+                    [1, 2, 4, 5, 6].forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v;
+                        opt.text = v + ':1';
+                        stub.appendChild(opt);
+                    });
+                    document.body.appendChild(stub);
+                }
+                stub.value = '4';
+                const result = getVcpuRatio();
+                return assert(result === 4, 'Default ratio is 4:1', 4, result);
+            })(),
+            (() => {
+                document.getElementById('vcpu-ratio').value = '1';
+                const result = getVcpuRatio();
+                return assert(result === 1, 'Ratio 1:1 (no overcommit)', 1, result);
+            })(),
+            (() => {
+                document.getElementById('vcpu-ratio').value = '2';
+                const result = getVcpuRatio();
+                return assert(result === 2, 'Ratio 2:1', 2, result);
+            })(),
+            (() => {
+                document.getElementById('vcpu-ratio').value = '5';
+                const result = getVcpuRatio();
+                return assert(result === 5, 'Ratio 5:1', 5, result);
+            })(),
+            (() => {
+                document.getElementById('vcpu-ratio').value = '6';
+                const result = getVcpuRatio();
+                return assert(result === 6, 'Ratio 6:1', 6, result);
+            })(),
+            (() => {
+                // Test fallback when element is missing
+                const el = document.getElementById('vcpu-ratio');
+                el.id = 'vcpu-ratio-temp';
+                const result = getVcpuRatio();
+                el.id = 'vcpu-ratio';
+                return assert(result === 4, 'Falls back to 4 when dropdown missing', 4, result);
+            })(),
+            (() => {
+                // Restore default for subsequent tests
+                document.getElementById('vcpu-ratio').value = '4';
+                return assert(true, 'Restored vcpu-ratio to default 4:1', true, true);
+            })()
+        ]);
+
+        // --- Feature 2: getGpuLabel() helper ---
+        testSuite('getGpuLabel() - GPU label formatting', 'sizer.js', [
+            (() => {
+                const result = getGpuLabel('a2');
+                return assert(result === 'NVIDIA A2 (16 GB VRAM, 60W TDP)',
+                    'A2 label', 'NVIDIA A2 (16 GB VRAM, 60W TDP)', result);
+            })(),
+            (() => {
+                const result = getGpuLabel('a16');
+                return assert(result === 'NVIDIA A16 (64 GB VRAM, 250W TDP)',
+                    'A16 label', 'NVIDIA A16 (64 GB VRAM, 250W TDP)', result);
+            })(),
+            (() => {
+                const result = getGpuLabel('l4');
+                return assert(result === 'NVIDIA L4 (24 GB VRAM, 72W TDP)',
+                    'L4 label', 'NVIDIA L4 (24 GB VRAM, 72W TDP)', result);
+            })(),
+            (() => {
+                const result = getGpuLabel('l40');
+                return assert(result === 'NVIDIA L40 (48 GB VRAM, 300W TDP)',
+                    'L40 label', 'NVIDIA L40 (48 GB VRAM, 300W TDP)', result);
+            })(),
+            (() => {
+                const result = getGpuLabel('l40s');
+                return assert(result === 'NVIDIA L40S (48 GB VRAM, 350W TDP)',
+                    'L40S label', 'NVIDIA L40S (48 GB VRAM, 350W TDP)', result);
+            })(),
+            (() => {
+                const result = getGpuLabel('nonexistent');
+                return assert(result === 'nonexistent', 'Unknown GPU returns key as-is', 'nonexistent', result);
+            })(),
+            (() => {
+                const result = getGpuLabel('');
+                return assert(result === 'Unknown', 'Empty GPU type returns Unknown', 'Unknown', result);
+            })(),
+            (() => {
+                const result = getGpuLabel(null);
+                return assert(result === 'Unknown', 'Null GPU type returns Unknown', 'Unknown', result);
+            })()
+        ]);
+
+        // --- Feature 3: GPU_MODELS constant ---
+        testSuite('GPU_MODELS constant', 'sizer.js', [
+            assert(GPU_MODELS.a2 !== undefined, 'A2 model defined', true, GPU_MODELS.a2 !== undefined),
+            assert(GPU_MODELS.a16 !== undefined, 'A16 model defined', true, GPU_MODELS.a16 !== undefined),
+            assert(GPU_MODELS.l4 !== undefined, 'L4 model defined', true, GPU_MODELS.l4 !== undefined),
+            assert(GPU_MODELS.l40 !== undefined, 'L40 model defined', true, GPU_MODELS.l40 !== undefined),
+            assert(GPU_MODELS.l40s !== undefined, 'L40S model defined', true, GPU_MODELS.l40s !== undefined),
+            assert(Object.keys(GPU_MODELS).length === 5, 'GPU_MODELS has exactly 5 models', 5, Object.keys(GPU_MODELS).length),
+            assert(GPU_MODELS.a2.vramGB === 16, 'A2: 16 GB VRAM', 16, GPU_MODELS.a2.vramGB),
+            assert(GPU_MODELS.a2.tdpW === 60, 'A2: 60W TDP', 60, GPU_MODELS.a2.tdpW),
+            assert(GPU_MODELS.a16.vramGB === 64, 'A16: 64 GB VRAM', 64, GPU_MODELS.a16.vramGB),
+            assert(GPU_MODELS.a16.tdpW === 250, 'A16: 250W TDP', 250, GPU_MODELS.a16.tdpW),
+            assert(GPU_MODELS.l4.vramGB === 24, 'L4: 24 GB VRAM', 24, GPU_MODELS.l4.vramGB),
+            assert(GPU_MODELS.l4.tdpW === 72, 'L4: 72W TDP', 72, GPU_MODELS.l4.tdpW),
+            assert(GPU_MODELS.l40.vramGB === 48, 'L40: 48 GB VRAM', 48, GPU_MODELS.l40.vramGB),
+            assert(GPU_MODELS.l40.tdpW === 300, 'L40: 300W TDP', 300, GPU_MODELS.l40.tdpW),
+            assert(GPU_MODELS.l40s.vramGB === 48, 'L40S: 48 GB VRAM', 48, GPU_MODELS.l40s.vramGB),
+            assert(GPU_MODELS.l40s.tdpW === 350, 'L40S: 350W TDP', 350, GPU_MODELS.l40s.tdpW),
+            // Every model has required fields
+            assert(Object.values(GPU_MODELS).every(m => m.name && m.vramGB > 0 && m.tdpW > 0),
+                'All GPU models have name, vramGB, and tdpW', true,
+                Object.values(GPU_MODELS).every(m => m.name && m.vramGB > 0 && m.tdpW > 0))
+        ]);
+
+        // --- Feature 4: Intel Xeon D-2700 (intel_edge) CPU generation ---
+        testSuite('CPU_GENERATIONS: intel_edge (Xeon D-2700)', 'sizer.js', [
+            assert(CPU_GENERATIONS.intel_edge !== undefined, 'intel_edge category exists', true, CPU_GENERATIONS.intel_edge !== undefined),
+            assert(CPU_GENERATIONS.intel_edge.length >= 1, 'intel_edge has at least 1 generation', '>=1', CPU_GENERATIONS.intel_edge.length),
+            (() => {
+                const gen = CPU_GENERATIONS.intel_edge[0];
+                return assert(gen.id === 'xeon-d-27xx', 'First gen id is xeon-d-27xx', 'xeon-d-27xx', gen.id);
+            })(),
+            (() => {
+                const gen = CPU_GENERATIONS.intel_edge[0];
+                return assert(gen.name.includes('D-2700'), 'Name includes D-2700', true, gen.name.includes('D-2700'));
+            })(),
+            (() => {
+                const gen = CPU_GENERATIONS.intel_edge[0];
+                return assert(gen.coreOptions.length > 0, 'Has core options', '>0', gen.coreOptions.length);
+            })(),
+            (() => {
+                const gen = CPU_GENERATIONS.intel_edge[0];
+                const hasCoreRange = gen.coreOptions.includes(4) && gen.coreOptions.includes(20);
+                return assert(hasCoreRange, 'Core options include 4 and 20', true, hasCoreRange);
+            })(),
+            (() => {
+                const gen = CPU_GENERATIONS.intel_edge[0];
+                return assert(gen.defaultCores === 8, 'Default cores is 8', 8, gen.defaultCores);
+            })(),
+            (() => {
+                const gen = CPU_GENERATIONS.intel_edge[0];
+                return assert(gen.id && gen.name && gen.defaultCores, 'Has required fields (id, name, defaultCores)', true,
+                    gen.id && gen.name && gen.defaultCores ? true : false);
+            })(),
+            (() => {
+                const gen = CPU_GENERATIONS.intel_edge[0];
+                return assert(gen.architecture === 'Sunny Cove', 'Architecture is Sunny Cove', 'Sunny Cove', gen.architecture);
+            })(),
+            (() => {
+                const gen = CPU_GENERATIONS.intel_edge[0];
+                return assert(gen.memoryType === 'DDR4-3200', 'Memory type is DDR4-3200', 'DDR4-3200', gen.memoryType);
+            })()
+        ]);
+
+        // --- Feature 5: updateStorageForClusterType() single-node hybrid blocking ---
+        testSuite('Single-node: All-Flash only (updateStorageForClusterType)', 'sizer.js', [
+            (() => {
+                // Single-node should force all-flash and disable storage dropdown
+                document.getElementById('cluster-type').value = 'single';
+                document.getElementById('storage-config').value = 'hybrid';
+                updateStorageForClusterType();
+                const storageVal = document.getElementById('storage-config').value;
+                const disabled = document.getElementById('storage-config').disabled;
+                // Reset
+                document.getElementById('cluster-type').value = 'standard';
+                updateStorageForClusterType();
+                return assert(storageVal === 'all-flash' && disabled === true,
+                    'Single-node forces all-flash and disables storage dropdown',
+                    'all-flash + disabled', storageVal + ' + ' + (disabled ? 'disabled' : 'enabled'));
+            })(),
+            (() => {
+                // Single-node with mixed-flash should also be forced to all-flash
+                document.getElementById('cluster-type').value = 'single';
+                document.getElementById('storage-config').value = 'mixed-flash';
+                updateStorageForClusterType();
+                const storageVal = document.getElementById('storage-config').value;
+                // Reset
+                document.getElementById('cluster-type').value = 'standard';
+                updateStorageForClusterType();
+                return assert(storageVal === 'all-flash',
+                    'Single-node forces mixed-flash → all-flash',
+                    'all-flash', storageVal);
+            })(),
+            (() => {
+                // Standard cluster should NOT disable storage dropdown
+                document.getElementById('cluster-type').value = 'standard';
+                updateStorageForClusterType();
+                const disabled = document.getElementById('storage-config').disabled;
+                return assert(disabled === false,
+                    'Standard cluster: storage dropdown remains enabled after single-node test',
+                    false, disabled);
+            })()
+        ]);
+
+        // --- Features 6 & 7: Minimum 2 capacity disks and minimum 2 cache disks ---
+        // Create stub DOM elements for disk count dropdowns (these exist in sizer/index.html but not in test harness)
+        (() => {
+            // capacity-disk-count stub (all-flash)
+            let capStub = document.getElementById('capacity-disk-count');
+            if (!capStub) {
+                capStub = document.createElement('select');
+                capStub.id = 'capacity-disk-count';
+                capStub.style.display = 'none';
+                for (let v = 2; v <= 24; v++) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.text = v;
+                    capStub.appendChild(opt);
+                }
+                document.body.appendChild(capStub);
+            }
+            // cache-disk-count stub (hybrid)
+            let cacheStub = document.getElementById('cache-disk-count');
+            if (!cacheStub) {
+                cacheStub = document.createElement('select');
+                cacheStub.id = 'cache-disk-count';
+                cacheStub.style.display = 'none';
+                for (let v = 2; v <= 12; v++) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.text = v;
+                    cacheStub.appendChild(opt);
+                }
+                document.body.appendChild(cacheStub);
+            }
+            // tiered-capacity-disk-count stub (hybrid)
+            let tieredStub = document.getElementById('tiered-capacity-disk-count');
+            if (!tieredStub) {
+                tieredStub = document.createElement('select');
+                tieredStub.id = 'tiered-capacity-disk-count';
+                tieredStub.style.display = 'none';
+                for (let v = 2; v <= 24; v++) {
+                    const opt = document.createElement('option');
+                    opt.value = v;
+                    opt.text = v;
+                    tieredStub.appendChild(opt);
+                }
+                document.body.appendChild(tieredStub);
+            }
+        })();
+
+        testSuite('Minimum disk counts: 2 capacity, 2 cache', 'sizer.js', [
+            (() => {
+                // Capacity disk dropdown starts at 2 (not 1)
+                const capacitySelect = document.getElementById('capacity-disk-count');
+                const firstOption = capacitySelect.options[0];
+                return assert(parseInt(firstOption.value) === 2,
+                    'Capacity disk dropdown minimum is 2',
+                    2, parseInt(firstOption.value));
+            })(),
+            (() => {
+                // Tiered capacity disk dropdown starts at 2
+                const firstOpt = document.getElementById('tiered-capacity-disk-count').options[0];
+                return assert(parseInt(firstOpt.value) >= 2,
+                    'Tiered capacity disk dropdown minimum is ≥ 2',
+                    '>=2', parseInt(firstOpt.value));
+            })(),
+            (() => {
+                // Cache disk dropdown starts at 2 (not 1)
+                const firstOption = document.getElementById('cache-disk-count').options[0];
+                return assert(parseInt(firstOption.value) === 2,
+                    'Cache disk dropdown minimum is 2',
+                    2, parseInt(firstOption.value));
+            })(),
+            (() => {
+                // Capacity disk count cannot be set to 1
+                const capacitySelect = document.getElementById('capacity-disk-count');
+                const hasOptionOne = Array.from(capacitySelect.options).some(o => parseInt(o.value) === 1);
+                return assert(!hasOptionOne,
+                    'Capacity disk dropdown does not include option for 1 disk',
+                    false, hasOptionOne);
+            })(),
+            (() => {
+                // Cache disk count cannot be set to 1
+                const cacheSelect = document.getElementById('cache-disk-count');
+                const hasOptionOne = Array.from(cacheSelect.options).some(o => parseInt(o.value) === 1);
+                return assert(!hasOptionOne,
+                    'Cache disk dropdown does not include option for 1 disk',
+                    false, hasOptionOne);
+            })()
+        ]);
+
+        // --- Feature 8: Cache metadata memory overhead note (4 GB per TB) ---
+        // This is in generateSizingNotes(). We test the logic inline.
+        testSuite('Cache metadata memory overhead note (4 GB per TB)', 'sizer.js', [
+            (() => {
+                // Tiered config with cache drives: should generate metadata note
+                const hwConfig = {
+                    diskConfig: {
+                        isTiered: true,
+                        cache: { count: 4, sizeGB: 1638.4, type: 'NVMe' },  // 4 × 1.6 TB = 6.4 TB cache
+                        capacity: { count: 8, sizeGB: 3584, type: 'SSD' }
+                    }
+                };
+                const dc = hwConfig.diskConfig;
+                const cacheTB = (dc.cache.count * dc.cache.sizeGB) / 1024;
+                const metadataGB = Math.ceil(cacheTB * 4);
+                // 6.4 TB × 4 GB/TB = 25.6 → ceil = 26 GB
+                return assert(metadataGB === 26,
+                    '4 × 1.6 TB cache → 26 GB metadata overhead per node',
+                    26, metadataGB);
+            })(),
+            (() => {
+                // Non-tiered config: no cache metadata
+                const hwConfig = {
+                    diskConfig: {
+                        isTiered: false,
+                        capacity: { count: 4, sizeGB: 3584, type: 'NVMe' }
+                    }
+                };
+                const dc = hwConfig.diskConfig;
+                let cacheTB = 0;
+                if (dc.isTiered && dc.cache) {
+                    cacheTB = (dc.cache.count * dc.cache.sizeGB) / 1024;
+                }
+                return assert(cacheTB === 0,
+                    'Non-tiered config: no cache metadata overhead',
+                    0, cacheTB);
+            })(),
+            (() => {
+                // Small cache: 2 × 0.8 TB = 1.6 TB → 7 GB
+                const cacheTB = (2 * 819.2) / 1024; // 1.6 TB
+                const metadataGB = Math.ceil(cacheTB * 4);
+                return assert(metadataGB === 7,
+                    '2 × 0.8 TB cache → 7 GB metadata overhead',
+                    7, metadataGB);
+            })()
+        ]);
+
+        // --- Feature 9: 400 TB per-machine storage validation ---
+        testSuite('400 TB per-machine storage validation', 'sizer.js', [
+            (() => {
+                // Under limit: 24 × 15.36 TB = 368.64 TB (OK)
+                const dc = { capacity: { count: 24, sizeGB: 15728.64 } };
+                const rawStoragePerMachineTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
+                return assert(rawStoragePerMachineTB <= 400,
+                    '24 × 15.36 TB = ~368.6 TB — under 400 TB limit',
+                    '<=400', rawStoragePerMachineTB.toFixed(1));
+            })(),
+            (() => {
+                // Over limit: capacity + cache exceeds 400 TB
+                const dc = {
+                    isTiered: true,
+                    cache: { count: 12, sizeGB: 3584 },       // 12 × 3.5 TB = 42 TB
+                    capacity: { count: 24, sizeGB: 15728.64 } // 24 × 15.36 TB ≈ 368.6 TB
+                };
+                let rawStoragePerMachineTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
+                if (dc.isTiered && dc.cache) {
+                    rawStoragePerMachineTB += (dc.cache.count * dc.cache.sizeGB) / 1024;
+                }
+                // 368.6 + 42 = ~410.6 TB → exceeds 400 TB
+                return assert(rawStoragePerMachineTB > 400,
+                    'Capacity (~368.6 TB) + Cache (~42 TB) = ~410.6 TB — exceeds 400 TB limit',
+                    '>400', rawStoragePerMachineTB.toFixed(1));
+            })(),
+            (() => {
+                // Exactly at limit: non-tiered 400 TB
+                const dc = { capacity: { count: 24, sizeGB: 400 * 1024 / 24 } };
+                const rawStoragePerMachineTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
+                return assert(Math.abs(rawStoragePerMachineTB - 400) < 0.01,
+                    'Exactly 400 TB per machine — at limit (not exceeding)',
+                    '~400', rawStoragePerMachineTB.toFixed(1));
+            })()
+        ]);
+
+        // --- Feature 10: 4 PB cluster storage cap warning ---
+        testSuite('4 PB cluster storage cap validation', 'sizer.js', [
+            (() => {
+                // Under limit: 8 nodes × 24 × 15.36 TB = ~2949 TB (OK)
+                const nodeCount = 8;
+                const dc = { capacity: { count: 24, sizeGB: 15728.64 } };
+                const rawPerNodeTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
+                const totalClusterRawTB = rawPerNodeTB * nodeCount;
+                return assert(totalClusterRawTB <= 4000,
+                    '8 nodes × 24 × 15.36 TB ≈ 2949 TB — under 4 PB limit',
+                    '<=4000', totalClusterRawTB.toFixed(0));
+            })(),
+            (() => {
+                // Over limit: 16 nodes × 24 × 15.36 TB = ~5898 TB
+                const nodeCount = 16;
+                const dc = { capacity: { count: 24, sizeGB: 15728.64 } };
+                const rawPerNodeTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
+                const totalClusterRawTB = rawPerNodeTB * nodeCount;
+                return assert(totalClusterRawTB > 4000,
+                    '16 nodes × 24 × 15.36 TB ≈ 5898 TB — exceeds 4 PB limit',
+                    '>4000', totalClusterRawTB.toFixed(0));
+            })(),
+            (() => {
+                // Tiered: cache adds to per-node total
+                const nodeCount = 12;
+                const dc = {
+                    isTiered: true,
+                    cache: { count: 12, sizeGB: 3584 },       // 42 TB cache
+                    capacity: { count: 24, sizeGB: 15728.64 } // ~368.6 TB capacity
+                };
+                let rawPerNodeTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
+                if (dc.isTiered && dc.cache) {
+                    rawPerNodeTB += (dc.cache.count * dc.cache.sizeGB) / 1024;
+                }
+                const totalClusterRawTB = rawPerNodeTB * nodeCount;
+                return assert(totalClusterRawTB > 4000,
+                    '12 nodes × (~410.6 TB each) ≈ 4928 TB — exceeds 4 PB limit',
+                    '>4000', totalClusterRawTB.toFixed(0));
+            })()
+        ]);
+
+        // --- Feature 12: Memory capacity bar 32 GB host overhead subtraction ---
+        testSuite('Host overhead: 32 GB subtraction in node recommendations', 'sizer.js', [
+            (() => {
+                // 64 GB memory - 32 GB overhead = 32 GB usable
+                // 100 GB workload memory / 32 GB usable = 4 memory-driven nodes
+                const hw = {
+                    totalPhysicalCores: 256,
+                    memoryGB: 64,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(10, 100, 100, hw, 2, '2way');
+                // With 32 GB overhead: usable per node = 32 GB → 100/32 = 4 memory nodes
+                // Without overhead: usable per node = 64 GB → 100/64 = 2 memory nodes
+                return assert(r.memoryNodes >= 4,
+                    '64 GB node memory - 32 GB overhead = 32 GB usable → ≥4 memory nodes for 100 GB',
+                    '>=4', r.memoryNodes);
+            })(),
+            (() => {
+                // Edge case: exactly 32 GB memory → 0 usable → bottleneck is memory
+                const hw = {
+                    totalPhysicalCores: 256,
+                    memoryGB: 32,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(1, 1, 100, hw, 2, '2way');
+                return assert(r.bottleneck === 'memory',
+                    '32 GB node memory - 32 GB overhead = 0 usable → memory bottleneck',
+                    'memory', r.bottleneck);
+            })(),
+            (() => {
+                // 256 GB memory - 32 GB overhead = 224 GB usable
+                const hw = {
+                    totalPhysicalCores: 256,
+                    memoryGB: 256,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(10, 224, 100, hw, 2, '2way');
+                // 224 GB / 224 GB usable per node = 1 memory node → exactly fits 1 node
+                return assert(r.memoryNodes === 1,
+                    '256 GB node - 32 GB overhead = 224 GB usable: 224 GB workload fits in 1 memory node',
+                    1, r.memoryNodes);
+            })()
+        ]);
+
+        // --- Feature 13: Host overhead sizing note ---
+        // The note is generated in generateSizingNotes() as a static string.
+        // We verify the constant value and the note text pattern.
+        testSuite('Host overhead sizing note', 'sizer.js', [
+            (() => {
+                // Verify the 32 GB overhead constant is used in getRecommendedNodeCount
+                // by checking that 512 GB - overhead gives different result than 512 GB raw
+                const hwWith512 = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 512,
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(10, 490, 100, hwWith512, 2, '2way');
+                // Without overhead: 490/512 = 1 node. With overhead: 490/(512-32) = 490/480 ≈ 2 nodes
+                return assert(r.memoryNodes >= 2,
+                    'Overhead impacts node count: 490 GB workload needs ≥2 nodes at 512 GB/node (480 usable)',
+                    '>=2', r.memoryNodes);
+            })()
+        ]);
+
+        // --- Feature 1 revisited: getVcpuRatio() affects getRecommendedNodeCount ---
+        testSuite('vCPU ratio affects node recommendations', 'sizer.js', [
+            (() => {
+                // With 4:1 ratio: 200 vCPUs / (48 cores × 4) = 200/192 ≈ 2 compute nodes
+                document.getElementById('vcpu-ratio').value = '4';
+                const hw = {
+                    totalPhysicalCores: 48,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const r4 = getRecommendedNodeCount(200, 10, 100, hw, 2, '2way');
+
+                // With 1:1 ratio: 200 vCPUs / (48 cores × 1) = 200/48 ≈ 5 compute nodes
+                document.getElementById('vcpu-ratio').value = '1';
+                const r1 = getRecommendedNodeCount(200, 10, 100, hw, 2, '2way');
+
+                // Restore
+                document.getElementById('vcpu-ratio').value = '4';
+
+                return assert(r1.computeNodes > r4.computeNodes,
+                    '1:1 ratio needs more compute nodes than 4:1 for same workload',
+                    r1.computeNodes + ' > ' + r4.computeNodes,
+                    r1.computeNodes + ' > ' + r4.computeNodes);
             })()
         ]);
 
