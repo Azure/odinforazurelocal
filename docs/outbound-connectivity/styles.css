@@ -1264,17 +1264,17 @@ p {
 
 @media (max-width: 768px) {
     .odin-tab-nav {
-        padding: 0 12px;
+        padding: 0 8px;
     }
     
     .odin-tab-container {
-        height: 48px;
         gap: 4px;
     }
     
     .odin-tab-logo {
-        padding-right: 12px;
-        margin-right: 8px;
+        padding-right: 8px;
+        margin-right: 4px;
+        gap: 6px;
     }
     
     .odin-tab-logo span {
@@ -1282,22 +1282,32 @@ p {
     }
     
     .odin-tab-btn {
-        padding: 8px 12px;
-        font-size: 12px;
+        padding: 8px 10px;
+        font-size: 0;
+        gap: 0;
     }
     
     .odin-tab-btn svg {
-        width: 16px;
-        height: 16px;
+        width: 20px;
+        height: 20px;
     }
     
     .odin-tab-badge {
         display: none;
     }
+
+    .nav-theme-toggle {
+        padding: 6px 8px;
+        font-size: 14px;
+    }
+
+    .nav-feedback-text {
+        display: none;
+    }
     
     body {
         flex-direction: column;
-        padding-top: 48px;
+        padding-top: 56px;
     }
     
     .sidebar {
