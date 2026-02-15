@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Sizer: Free-Input Configuration, Hardware Validation & Catalog Alignment ([#119](https://github.com/Azure/odinforazurelocal/issues/119))
 
-- **Free-Input Memory Configuration**: Memory per Node converted from fixed dropdown (128/256/512/1024/1536/2048 GB) to a numeric input field accepting any value between 64–4096 GB. Users can now enter exact server memory (e.g., 786 GB)
+- **DIMM-Symmetric Memory Configuration**: Memory per Node converted from fixed dropdown to DIMM-symmetric values (64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096 GB) matching realistic server DIMM populations across 24 DIMM slots
 - **Expanded Disk Count Options**: Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity, all-flash) / 2–16 (capacity, hybrid) and 2–8 (cache), instead of a limited subset (1,2,3,4,5,6,8,10,12,16,20,24)
 - **Disk Size Auto-Scaling**: When disk count reaches the maximum (24) and storage is still insufficient, auto-scale now steps up disk size through standard capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB)
 - **Storage Headroom Scaling**: Storage capacity now participates in the 80% headroom pass — bumps disk count first, then disk size, to keep storage utilization below 80%
@@ -33,9 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Network Bandwidth Note**: Sizing note recommends RDMA-capable NICs with 25 GbE+ for storage traffic
 - **Boot/OS Drive Note**: Sizing note recommends minimum 200 GB boot drive, or 400 GB+ for systems with >768 GB RAM
 - **Updated Minimum Requirements Note**: Changed from "32 GB RAM, 4 cores" to "32 GB RAM, 2 data drives, at least 500 GB per drive"
-- **Updated Auto-Scale Logic**: Hardware auto-scaling now computes target memory and disk values directly instead of snapping to predefined option lists
-- **Updated Headroom Scaling**: Memory headroom uses incremental 25% steps instead of fixed tier jumps
-- **Updated Cache-to-Capacity Ratio**: Hybrid storage ratio enforcement works with free numeric inputs
+- **Updated Auto-Scale Logic**: Hardware auto-scaling now steps through DIMM-symmetric memory options and disk counts instead of arbitrary increments
+- **Updated Headroom Scaling**: Memory headroom steps through DIMM options instead of percentage-based jumps, with correct host overhead subtraction
+- **Cluster Size Capacity Bar**: New "Azure Local hyperconverged instance size" visual bar in Capacity Breakdown section showing physical node count out of 16 maximum, with N+1 servicing and redundancy note
+- **Sizer-to-Report Data Flow**: vCPU ratio, GPU model, future growth percentage, and cluster type now included in the Sizer → Designer payload and rendered in the Configuration Report's Hardware Configuration section
+- **Sizer Word Export vCPU Ratio**: vCPU ratio (pCPU:vCPU) row added to the Hardware Configuration table in Word/DOCX export
+- **Updated Cache-to-Capacity Ratio**: Hybrid storage ratio enforcement works with DIMM-symmetric dropdown values
 - **vCPU Ratio State Persistence**: New `vcpuRatio` field saved/restored in sizer state and reset to 4:1 on scenario reset
 
 ---
