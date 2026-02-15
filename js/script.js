@@ -8766,7 +8766,7 @@ function showChangelog() {
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧮 Sizer: Free-Input Configuration, Hardware Validation &amp; Catalog Alignment (<a href='https://github.com/Azure/odinforazurelocal/issues/119'>#119</a>)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Free-Input Memory:</strong> Memory per Node is now a numeric input (64–4096 GB) instead of a fixed dropdown, allowing exact server memory values (e.g., 786 GB).</li>
+                        <li><strong>DIMM-Symmetric Memory:</strong> Memory per Node uses server-realistic DIMM-symmetric values (64–4096 GB) matching symmetric DIMM populations across 24 DIMM slots.</li>
                         <li><strong>Expanded Disk Count Options:</strong> Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity, all-flash) / 2–16 (capacity, hybrid) and 2–8 (cache).</li>
                         <li><strong>Disk Size Auto-Scaling:</strong> When disk count reaches 24 and storage is still insufficient, auto-scale steps up disk size through standard capacities (0.96 → 1.92 → 3.84 → 7.68 → 15.36 TB).</li>
                         <li><strong>CPU Sockets Capped at 2:</strong> Removed 4-socket option — Azure Local certified hardware supports 1 or 2 sockets only.</li>
@@ -8779,7 +8779,9 @@ function showChangelog() {
                         <li><strong>Single-Node All-Flash Only:</strong> Single-node clusters now block hybrid storage.</li>
                         <li><strong>Storage Warnings:</strong> New sizing notes for cache metadata overhead (4 GB/TB), 400 TB per-machine limit, and 4 PB cluster cap.</li>
                         <li><strong>Infrastructure Notes:</strong> New sizing notes for RDMA/25 GbE+ networking and boot/OS drive requirements.</li>
-                        <li><strong>Updated Auto-Scale Logic:</strong> Hardware auto-scaling now computes target values directly instead of snapping to predefined lists.</li>
+                        <li><strong>Updated Auto-Scale Logic:</strong> Hardware auto-scaling steps through DIMM-symmetric memory options and disk counts instead of arbitrary increments.</li>
+                        <li><strong>Cluster Size Bar:</strong> New capacity bar showing physical node count with N+1 servicing and redundancy note.</li>
+                        <li><strong>Sizer-to-Report Data Flow:</strong> vCPU ratio, GPU, future growth, and cluster type now carry through to Configuration Report.</li>
                     </ul>
                 </div>
 

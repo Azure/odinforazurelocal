@@ -227,10 +227,20 @@
                     <h3 class="hw-subsection-title">Memory Configuration</h3>
                     <div class="config-row">
                         <label for="node-memory">Memory per Node</label>
-                        <div class="input-with-unit">
-                            <input type="number" id="node-memory" value="512" min="64" max="4096" step="1" onchange="onHardwareConfigChange()" oninput="onHardwareConfigChange()" class="hw-input" title="Enter memory in GB (64–4096)">
-                            <span class="unit-label">GB</span>
-                        </div>
+                        <select id="node-memory" onchange="onHardwareConfigChange()">
+                            <option value="64">64 GB</option>
+                            <option value="128">128 GB</option>
+                            <option value="192">192 GB</option>
+                            <option value="256">256 GB</option>
+                            <option value="384">384 GB</option>
+                            <option value="512" selected>512 GB</option>
+                            <option value="768">768 GB</option>
+                            <option value="1024">1024 GB</option>
+                            <option value="1536">1536 GB</option>
+                            <option value="2048">2048 GB</option>
+                            <option value="3072">3072 GB</option>
+                            <option value="4096">4096 GB</option>
+                        </select>
                     </div>
 
                     <!-- GPU Configuration -->

@@ -557,6 +557,7 @@ function hideNodeRecommendation() {
 // Max memory per node in GB
 const MAX_MEMORY_GB = 4096;
 const MIN_MEMORY_GB = 64;
+const MEMORY_OPTIONS_GB = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
 
 // Max disk count per node
 const MAX_DISK_COUNT = 24;
@@ -638,8 +639,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     const memInput = document.getElementById('node-memory');
     const currentMem = parseInt(memInput.value) || 512;
 
-    // Set memory to at least the required amount, capped at MAX_MEMORY_GB
-    let targetMem = Math.min(requiredMemPerNode, MAX_MEMORY_GB);
+    // Set memory to the smallest DIMM-symmetric option that meets the requirement
+    let targetMem = MEMORY_OPTIONS_GB.find(m => m >= requiredMemPerNode) || MAX_MEMORY_GB;
     if (targetMem > currentMem) {
         memInput.value = targetMem;
         changed = true;
@@ -750,16 +751,17 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         }
     }
 
-    // Memory headroom — increase memory in steps until below threshold or maxed
-    let memCap = hrMemory * effectiveNodes;
+    // Memory headroom — step through DIMM-symmetric options until below threshold or maxed
+    let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
     let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
-    while (memPct > HEADROOM_THRESHOLD && hrMemory < MAX_MEMORY_GB) {
-        // Increase by ~25% or at least 64 GB, whichever is larger
-        const increment = Math.max(64, Math.ceil(hrMemory * 0.25 / 64) * 64);
-        hrMemory = Math.min(hrMemory + increment, MAX_MEMORY_GB);
+    let memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
+    if (memIdx < 0) memIdx = MEMORY_OPTIONS_GB.findIndex(m => m >= hrMemory);
+    while (memPct > HEADROOM_THRESHOLD && memIdx < MEMORY_OPTIONS_GB.length - 1) {
+        memIdx++;
+        hrMemory = MEMORY_OPTIONS_GB[memIdx];
         document.getElementById('node-memory').value = hrMemory;
         changed = true;
-        memCap = hrMemory * effectiveNodes;
+        memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
         memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
     }
 
@@ -2230,9 +2232,6 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             const memPerNode = Math.ceil(totalMemory / (nodeCount > 1 ? nodeCount - 1 : 1));
             if (hwConfig && memPerNode > hwConfig.memoryGB - 32) {
                 notes.push(`⚠️ Workload memory (${memPerNode} GB/node) exceeds usable node memory (${hwConfig.memoryGB - 32} GB after 32 GB host overhead). Consider increasing memory or adding nodes.`);
-            }
-            if (memPerNode > 768) {
-                notes.push('⚠️ Large memory system: Requires 400 GB+ or larger OS disks for supportability');
             }
         }
         
