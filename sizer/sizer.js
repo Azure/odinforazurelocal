@@ -2469,7 +2469,7 @@ function exportSizerWord() {
     html += '</div>';
 
     // Per-Node Requirements
-    html += '<h3>Per-Node Requirements (with N+1)</h3>';
+    html += '<h3>Workload Per-Node Requirements (with N+1)</h3>';
     html += '<table class="kv-table"><tbody>';
     html += '<tr><td>Physical Cores</td><td>' + perNodeCores + '</td></tr>';
     html += '<tr><td>Memory</td><td>' + perNodeMemory + '</td></tr>';
