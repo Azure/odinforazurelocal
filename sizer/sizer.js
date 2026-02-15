@@ -2300,7 +2300,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         notes.push('ℹ️ Host overhead: 32 GB RAM reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
 
         // Network note
-        notes.push('ℹ️ Network: Azure Local requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs — plan for east-west replication bandwidth.');
+        notes.push('ℹ️ Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
 
         // Boot/OS drive note — only shown when memory exceeds 768 GB (larger boot drive needed)
         if (hwConfig && hwConfig.memoryGB > 768) {
