@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.15.96] - 2026-02-16
+
+### Fixed
+
+#### DCB QoS System/Cluster Priority Default Correction ([#117](https://github.com/Azure/odinforazurelocal/issues/117))
+
+- **Corrected Default Cluster Priority**: Fixed the System/Cluster Priority dropdown in DCB QoS Overrides to show "Default (7)" instead of the incorrect "Default (5)". Per [Microsoft Network ATC documentation](https://learn.microsoft.com/en-us/windows-server/networking/network-atc/network-atc#default-data-center-bridging-dcb-configuration), the default Cluster Heartbeat priority is 7, not 5.
+- **Updated Historical CHANGELOG Entry**: Corrected the original DCB QoS feature entry (Issue #44) to reflect the correct default priority value.
+
+---
+
 ## [0.15.95] - 2026-02-15
 
 ### Changed
@@ -1461,7 +1472,7 @@ This ensures that when users import a previously exported ARM template, these im
 
 - **QoS Policy Customization** - Added new override options in the Network Traffic Intents section for storage intents that allow customization of Data Center Bridging (DCB) QoS policies:
   - **Storage Priority**: Choose between priority 3 (default) or 4 for SMB traffic
-  - **System/Cluster Priority**: Choose between priority 5 (default), 6, or 7 for cluster heartbeat traffic
+  - **System/Cluster Priority**: Choose between priority 7 (default), 5, or 6 for cluster heartbeat traffic
   - **Bandwidth Reservation**: Set the percentage of bandwidth reserved for storage traffic (40-70%, default 50%)
 
 - **ARM Template Support** - When QoS overrides are configured, the ARM template includes `overrideQosPolicy: true` and a `qosPolicyOverrides` object with the custom settings.
