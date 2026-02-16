@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.15.95';
+const WIZARD_VERSION = '0.15.96';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -5515,7 +5515,7 @@ function renderIntentOverrides(container) {
             <div class="config-row" style="margin-top:0.5rem;">
                 <span class="config-label">System/Cluster Priority</span>
                 <select class="speed-select" data-override-group="${g.key}" data-override-key="dcbSystemPriority">
-                    <option value="" ${!ov.dcbSystemPriority ? 'selected' : ''}>Default (5)</option>
+                    <option value="" ${!ov.dcbSystemPriority ? 'selected' : ''}>Default (7)</option>
                     <option value="5" ${ov.dcbSystemPriority === '5' ? 'selected' : ''}>5</option>
                     <option value="6" ${ov.dcbSystemPriority === '6' ? 'selected' : ''}>6</option>
                     <option value="7" ${ov.dcbSystemPriority === '7' ? 'selected' : ''}>7</option>
@@ -8759,7 +8759,19 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.15.95 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.15.96 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 16, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 DCB QoS System/Cluster Priority Default Correction (<a href='https://github.com/Azure/odinforazurelocal/issues/117'>#117</a>)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Fixed Default Cluster Priority:</strong> Corrected the System/Cluster Priority dropdown default from "5" to "7" per <a href="https://learn.microsoft.com/en-us/windows-server/networking/network-atc/network-atc#default-data-center-bridging-dcb-configuration" target="_blank">Microsoft Network ATC documentation</a>.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.15.95</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 15, 2026</div>
                 </div>
 
