@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.15.98] - 2026-02-16
+
+### Fixed
+
+#### Default Gateway Field Unclickable on Safari ([#98](https://github.com/Azure/odinforazurelocal/issues/98))
+
+- **Gateway Field Disable/Enable Consistency**: The Default Gateway input in Step 15 (Infrastructure Network) is now disabled with `opacity: 0.5` when no IP type is selected, matching the behaviour of the CIDR, Starting IP, and Ending IP fields. Previously the gateway was excluded from the `!state.ip` disable block, causing its parent `<div>` to have a different compositing state than its siblings. On Safari (macOS), this compositing mismatch could cause the browser to miscalculate hit-test regions, making the gateway field unclickable or untabbable. The DHCP/Static enable/disable logic later in `updateUI()` continues to manage the `disabled` property as before.
+
+---
+
 ## [0.15.97] - 2026-02-16
 
 ### Fixed
