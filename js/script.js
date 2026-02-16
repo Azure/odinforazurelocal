@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.15.96';
+const WIZARD_VERSION = '0.15.97';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -1390,12 +1390,17 @@ function generateArmParameters() {
                 ov = (state.intentOverrides && state.intentOverrides[alt]) ? state.intentOverrides[alt] : null;
             }
 
-            const vlan1 = ov && (ov.storageNetwork1VlanId ?? ov.storageVlanNic1);
-            const vlan2 = ov && (ov.storageNetwork2VlanId ?? ov.storageVlanNic2);
-            // Guard against empty strings: Number('') === 0 which is an invalid VLAN and would slip through
-            const v1 = (vlan1 !== '' && vlan1 !== null && vlan1 !== undefined && Number.isInteger(Number(vlan1)) && Number(vlan1) >= 1) ? Number(vlan1) : null;
-            const v2 = (vlan2 !== '' && vlan2 !== null && vlan2 !== undefined && Number.isInteger(Number(vlan2)) && Number(vlan2) >= 1) ? Number(vlan2) : null;
-            return { v1, v2 };
+            // Return an array of N VLAN values (one per storage network).
+            // Back-compat: legacy keys storageVlanNic1/storageVlanNic2 for networks 1-2.
+            const vlans = [];
+            for (let n = 1; n <= storageNetworkCount; n++) {
+                const legacyKey = n === 1 ? 'storageVlanNic1' : (n === 2 ? 'storageVlanNic2' : undefined);
+                const raw = ov && (ov[`storageNetwork${n}VlanId`] ?? (legacyKey ? ov[legacyKey] : undefined));
+                // Guard against empty strings: Number('') === 0 which is an invalid VLAN and would slip through
+                const val = (raw !== '' && raw !== null && raw !== undefined && Number.isInteger(Number(raw)) && Number(raw) >= 1) ? Number(raw) : null;
+                vlans.push(val);
+            }
+            return vlans;
         };
 
         const getStorageNicCandidates = () => {
@@ -1433,15 +1438,14 @@ function generateArmParameters() {
                 return Array.from({ length: Math.max(0, portCount - 2) }, (_, i) => i + 3);
             }
 
-            // all_traffic (fully converged): no dedicated storage adapters are collected in the wizard.
-            // Choose NICs 1-2 as a deterministic default.
-            return [1, 2].filter(n => n <= portCount);
+            // all_traffic (fully converged): all NICs carry storage traffic.
+            return Array.from({ length: portCount }, (_, i) => i + 1);
         };
 
         const storageNetworkCount = getStorageVlanOverrideNetworkCount();
         const storageCandidates = getStorageNicCandidates();
         const storageNicsForNetworks = storageCandidates.slice(0, Math.max(0, storageNetworkCount));
-        const { v1: storageVlan1, v2: storageVlan2 } = getStorageVlans();
+        const storageVlans = getStorageVlans();
 
         // Helper to get custom subnet or fall back to default
         const getCustomSubnetOrDefault = (subnetIndex, defaultSubnet) => {
@@ -1491,7 +1495,7 @@ function generateArmParameters() {
             // Use the same example subnet numbering shown in the report:
             // 1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
             if (state.storage === 'switchless' && nodeCount === 3) {
-                const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? String(storageVlan1) : 'REPLACE_WITH_STORAGE_VLAN_1';
+                const vlanId = (storageVlans[0] !== null && storageVlans[0] !== undefined) ? String(storageVlans[0]) : 'REPLACE_WITH_STORAGE_VLAN_1';
 
                 const subnetPairs = {
                     1: [1, 2],
@@ -1567,7 +1571,7 @@ function generateArmParameters() {
             // Use the same example networks shown in the report (based on Microsoft Learn guidance)
             // so the generated parameters file is complete and matches the reference pattern.
             if (state.storage === 'switchless' && nodeCount === 4) {
-                const vlanId = (storageVlan1 !== null && storageVlan1 !== undefined) ? String(storageVlan1) : 'REPLACE_WITH_STORAGE_VLAN_1';
+                const vlanId = (storageVlans[0] !== null && storageVlans[0] !== undefined) ? String(storageVlans[0]) : 'REPLACE_WITH_STORAGE_VLAN_1';
 
                 // Subnet pairs (two subnets per node pair).
                 const subnetPairs = {
@@ -1657,9 +1661,6 @@ function generateArmParameters() {
             const list = [];
             if (storageNetworkCount <= 0) return list;
 
-            const nic1 = storageNicsForNetworks[0];
-            const nic2 = storageNicsForNetworks[1];
-
             // For switched storage with Auto IP disabled, include storageAdapterIPInfo with custom or default subnets
             const includeStorageAdapterIPInfo = state.storage === 'switched' && state.storageAutoIp === 'disabled';
 
@@ -1677,26 +1678,19 @@ function generateArmParameters() {
                 return adapterInfo;
             };
 
-            const network1 = {
-                name: 'StorageNetwork1',
-                networkAdapterName: nic1 ? armAdapterNameForSmb(1, nic1 - 1) : 'REPLACE_WITH_STORAGE_ADAPTER_1',
-                vlanId: (storageVlan1 !== null && storageVlan1 !== undefined) ? String(storageVlan1) : 'REPLACE_WITH_STORAGE_VLAN_1'
-            };
-            if (includeStorageAdapterIPInfo) {
-                network1.storageAdapterIPInfo = buildStorageAdapterIPInfo(0);
-            }
-            list.push(network1);
-
-            if (storageNetworkCount >= 2) {
-                const network2 = {
-                    name: 'StorageNetwork2',
-                    networkAdapterName: nic2 ? armAdapterNameForSmb(2, nic2 - 2) : 'REPLACE_WITH_STORAGE_ADAPTER_2',
-                    vlanId: (storageVlan2 !== null && storageVlan2 !== undefined) ? String(storageVlan2) : 'REPLACE_WITH_STORAGE_VLAN_2'
+            // Build N storage networks dynamically (supports up to 8 per Network ATC)
+            for (let idx = 0; idx < storageNetworkCount; idx++) {
+                const nic = storageNicsForNetworks[idx];
+                const vlan = storageVlans[idx];
+                const network = {
+                    name: `StorageNetwork${idx + 1}`,
+                    networkAdapterName: nic ? armAdapterNameForSmb(idx + 1, nic - 1 - idx) : `REPLACE_WITH_STORAGE_ADAPTER_${idx + 1}`,
+                    vlanId: (vlan !== null && vlan !== undefined) ? String(vlan) : `REPLACE_WITH_STORAGE_VLAN_${idx + 1}`
                 };
                 if (includeStorageAdapterIPInfo) {
-                    network2.storageAdapterIPInfo = buildStorageAdapterIPInfo(1);
+                    network.storageAdapterIPInfo = buildStorageAdapterIPInfo(idx);
                 }
-                list.push(network2);
+                list.push(network);
             }
             return list;
         })();
@@ -5188,6 +5182,7 @@ function ensureDefaultOverridesForGroups(groups) {
             const ov = state.intentOverrides[g.key];
 
             // Back-compat (older key names)
+            // Back-compat (older key names)
             if ((ov.storageNetwork1VlanId === undefined || ov.storageNetwork1VlanId === null) && (ov.storageVlanNic1 !== undefined && ov.storageVlanNic1 !== null)) {
                 ov.storageNetwork1VlanId = ov.storageVlanNic1;
             }
@@ -5195,11 +5190,13 @@ function ensureDefaultOverridesForGroups(groups) {
                 ov.storageNetwork2VlanId = ov.storageVlanNic2;
             }
 
-            if (ov.storageNetwork1VlanId === undefined || ov.storageNetwork1VlanId === null || ov.storageNetwork1VlanId === '' || ov.storageNetwork1VlanId === 0) {
-                ov.storageNetwork1VlanId = 711;
-            }
-            if (ov.storageNetwork2VlanId === undefined || ov.storageNetwork2VlanId === null || ov.storageNetwork2VlanId === '' || ov.storageNetwork2VlanId === 0) {
-                ov.storageNetwork2VlanId = 712;
+            // Initialize default VLANs for N storage networks (711, 712, ... 710+N)
+            const storageNetCount = getStorageVlanOverrideNetworkCount();
+            for (let n = 1; n <= storageNetCount; n++) {
+                const vlanKey = `storageNetwork${n}VlanId`;
+                if (ov[vlanKey] === undefined || ov[vlanKey] === null || ov[vlanKey] === '' || ov[vlanKey] === 0) {
+                    ov[vlanKey] = 710 + n; // 711, 712, 713, ... 718
+                }
             }
         }
     }
@@ -5220,8 +5217,8 @@ function getRequiredStorageSubnetCount() {
     }
 
     if (state.storage === 'switched') {
-        // Switched always needs 2 storage subnets
-        return 2;
+        // Dynamic: one subnet per storage network
+        return getStorageVlanOverrideNetworkCount();
     }
 
     return 0;
@@ -5426,7 +5423,10 @@ function getStorageVlanOverrideNetworkCount() {
         return 1;
     }
     if (state.storage === 'switched') {
-        return 2;
+        // Dynamic count based on how many NICs carry storage traffic
+        const portCount = parseInt(state.ports, 10) || 0;
+        const count = getStorageNicIndicesForIntent(state.intent, portCount).length;
+        return count > 0 ? count : 2; // fallback to 2 if indeterminate
     }
     return 0;
 }
@@ -5537,18 +5537,13 @@ function renderIntentOverrides(container) {
         const storageVlanHtml = (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') ? (() => {
             if (storageVlanCount <= 0) return '';
 
-            let html = `
-                <div class="config-row" style="margin-top:0.75rem;">
-                    <span class="config-label">Storage Network 1 VLAN ID</span>
-                    <input type="number" min="1" max="4096" class="speed-select" value="${(ov.storageNetwork1VlanId !== undefined && ov.storageNetwork1VlanId !== null) ? ov.storageNetwork1VlanId : ''}" data-override-group="${g.key}" data-override-key="storageNetwork1VlanId" />
-                </div>
-            `;
-
-            if (storageVlanCount >= 2) {
+            let html = '';
+            for (let n = 1; n <= storageVlanCount; n++) {
+                const vlanKey = `storageNetwork${n}VlanId`;
                 html += `
                     <div class="config-row" style="margin-top:0.75rem;">
-                        <span class="config-label">Storage Network 2 VLAN ID</span>
-                        <input type="number" min="1" max="4096" class="speed-select" value="${(ov.storageNetwork2VlanId !== undefined && ov.storageNetwork2VlanId !== null) ? ov.storageNetwork2VlanId : ''}" data-override-group="${g.key}" data-override-key="storageNetwork2VlanId" />
+                        <span class="config-label">Storage Network ${n} VLAN ID</span>
+                        <input type="number" min="1" max="4096" class="speed-select" value="${(ov[vlanKey] !== undefined && ov[vlanKey] !== null) ? ov[vlanKey] : ''}" data-override-group="${g.key}" data-override-key="${vlanKey}" />
                     </div>
                 `;
             }
@@ -5998,20 +5993,14 @@ function updateSummary() {
 
             if (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') {
                 const count = getStorageVlanOverrideNetworkCount();
-                if (count >= 1) {
-                    const v1 = (ov.storageNetwork1VlanId !== undefined && ov.storageNetwork1VlanId !== null)
-                        ? ov.storageNetwork1VlanId
-                        : ov.storageVlanNic1;
-                    if (v1 !== undefined && v1 !== null) {
-                        hostNetworkingRows += renderRow(`Storage Network 1 VLAN ID — ${g.label}`, escapeHtml(v1), { mono: true });
-                    }
-                }
-                if (count >= 2) {
-                    const v2 = (ov.storageNetwork2VlanId !== undefined && ov.storageNetwork2VlanId !== null)
-                        ? ov.storageNetwork2VlanId
-                        : ov.storageVlanNic2;
-                    if (v2 !== undefined && v2 !== null) {
-                        hostNetworkingRows += renderRow(`Storage Network 2 VLAN ID — ${g.label}`, escapeHtml(v2), { mono: true });
+                for (let n = 1; n <= count; n++) {
+                    const vlanKey = `storageNetwork${n}VlanId`;
+                    const legacyKey = n === 1 ? 'storageVlanNic1' : (n === 2 ? 'storageVlanNic2' : undefined);
+                    const vVal = (ov[vlanKey] !== undefined && ov[vlanKey] !== null)
+                        ? ov[vlanKey]
+                        : (legacyKey ? ov[legacyKey] : undefined);
+                    if (vVal !== undefined && vVal !== null) {
+                        hostNetworkingRows += renderRow(`Storage Network ${n} VLAN ID — ${g.label}`, escapeHtml(vVal), { mono: true });
                     }
                 }
             }
@@ -7691,15 +7680,11 @@ function parseArmTemplateToState(armTemplate) {
         if (!result.intentOverrides) result.intentOverrides = {};
         if (!result.intentOverrides[vlanOverrideKey]) result.intentOverrides[vlanOverrideKey] = {};
 
-        const storageNet1 = params.storageNetworkList[0];
-        if (storageNet1 && storageNet1.vlanId) {
-            result.intentOverrides[vlanOverrideKey].storageNetwork1VlanId = Number(storageNet1.vlanId);
-        }
-
-        if (params.storageNetworkList.length >= 2) {
-            const storageNet2 = params.storageNetworkList[1];
-            if (storageNet2 && storageNet2.vlanId) {
-                result.intentOverrides[vlanOverrideKey].storageNetwork2VlanId = Number(storageNet2.vlanId);
+        // Import VLANs for all N storage networks
+        for (let i = 0; i < params.storageNetworkList.length; i++) {
+            const storageNet = params.storageNetworkList[i];
+            if (storageNet && storageNet.vlanId) {
+                result.intentOverrides[vlanOverrideKey][`storageNetwork${i + 1}VlanId`] = Number(storageNet.vlanId);
             }
         }
 
@@ -8759,7 +8744,22 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.15.96 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.15.97 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 16, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Dynamic Storage Networks for Switched Storage (<a href='https://github.com/Azure/odinforazurelocal/issues/113'>#113</a>)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Dynamic Storage Network Count:</strong> Switched storage now dynamically determines the number of storage networks based on NIC count, supporting up to 8 per Network ATC (previously hardcoded to 2).</li>
+                        <li><strong>VLAN Override UI:</strong> Step 08 Intent Overrides renders the correct number of VLAN ID fields with defaults 711–718.</li>
+                        <li><strong>ARM Template:</strong> The storageNetworkList array now includes all N storage network entries with correct adapter names and VLANs.</li>
+                        <li><strong>All Traffic Intent:</strong> Fully converged (all_traffic) with 4+ ports correctly recognises all ports as carrying storage traffic.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.15.96</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 16, 2026</div>
                 </div>
 

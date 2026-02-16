@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.15.96 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.15.97 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,7 +37,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.15.96 - Latest Release
+### 🎉 Version 0.15.97 - Latest Release
+- **Dynamic Storage Networks for Switched Storage (#113)**: Switched storage configurations with more than 2 RDMA NICs now dynamically generate the correct number of storage networks, VLANs, and ARM storageNetworkList entries (up to 8 per Network ATC). Previously hardcoded to 2 networks regardless of NIC count.
+
+### Version 0.15.96
 - **DIMM-Symmetric Memory Configuration (#119)**: Memory per Node is a dropdown with server-realistic DIMM-symmetric values (64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096 GB) matching symmetric DIMM populations across 24 DIMM slots
 - **Expanded Disk Count Options (#119)**: Capacity Disks per Node and Cache Disks per Node dropdowns now include every value from 2–24 (capacity, all-flash) / 2–16 (capacity, hybrid) and 2–8 (cache), allowing any disk quantity
 - **Disk Size Auto-Scaling**: When disk count reaches 24 and storage is still insufficient, auto-scale steps up disk size through standard capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB) with 80% headroom
@@ -340,7 +343,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.15.96  
+**Version**: 0.15.97  
 **Last Updated**: June 2026  
 **Compatibility**: Azure Local 2506+
 
