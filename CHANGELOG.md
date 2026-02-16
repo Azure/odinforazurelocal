@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.15.97] - 2026-02-16
+
+### Fixed
+
+#### Dynamic Storage Networks for Switched Storage ([#113](https://github.com/Azure/odinforazurelocal/issues/113))
+
+- **Dynamic Storage Network Count**: Switched storage configurations now dynamically determine the number of storage networks based on how many NICs carry storage traffic, instead of hardcoding to 2. Supports up to 8 storage networks per Network ATC specification.
+- **VLAN Override UI**: The Step 08 Intent Overrides panel now renders the correct number of VLAN ID input fields (one per storage network) with defaults of 711, 712, 713, ... 718.
+- **ARM Template Generation**: The `storageNetworkList` array in generated ARM parameters now includes all N storage network entries with correct adapter names, VLANs, and optional subnet/IP info.
+- **Fully Converged (All Traffic)**: When using `all_traffic` intent with 4+ ports, all ports are now correctly recognised as carrying storage traffic (previously only 2 were used).
+- **ARM Import**: Importing an ARM template with more than 2 storage networks now correctly restores all VLAN overrides.
+- **Summary Display**: The configuration summary now shows VLAN IDs for all N storage networks.
+- **Storage Subnet Count**: Custom storage subnet allocation for switched deployments now scales to match the dynamic network count.
+
+> **Note**: Switchless configurations (2-node, 3-node, 4-node) are not affected by this change — they continue to use their dedicated subnet/IP assignment logic.
+
+---
+
 ## [0.15.96] - 2026-02-16
 
 ### Fixed

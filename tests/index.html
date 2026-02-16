@@ -2037,10 +2037,14 @@
                 // Save original state
                 const origOverrides = state.intentOverrides;
                 const origIntent = state.intent;
+                const origStorage = state.storage;
+                const origPorts = state.ports;
 
                 // Test ensureDefaultOverridesForGroups sets 711/712 correctly
                 state.intentOverrides = {};
                 state.intent = 'all_traffic';
+                state.storage = 'switched';
+                state.ports = '2';
 
                 const groups = [{ key: 'all', label: 'Group All Traffic', nics: [1, 2] }];
                 ensureDefaultOverridesForGroups(groups);
@@ -2051,6 +2055,8 @@
                 // Restore
                 state.intentOverrides = origOverrides;
                 state.intent = origIntent;
+                state.storage = origStorage;
+                state.ports = origPorts;
 
                 return assert(v1 === 711 && v2 === 712,
                     'Default VLAN IDs are 711 and 712 for all_traffic intent',
@@ -2059,8 +2065,14 @@
             (function() {
                 // Test that empty string VLAN values are replaced with defaults
                 const origOverrides = state.intentOverrides;
+                const origStorage = state.storage;
+                const origPorts = state.ports;
+                const origIntent = state.intent;
 
                 state.intentOverrides = { 'all': { storageNetwork1VlanId: '', storageNetwork2VlanId: '' } };
+                state.storage = 'switched';
+                state.ports = '2';
+                state.intent = 'all_traffic';
 
                 const groups = [{ key: 'all', label: 'Group All Traffic', nics: [1, 2] }];
                 ensureDefaultOverridesForGroups(groups);
@@ -2069,6 +2081,9 @@
                 const v2 = state.intentOverrides['all'].storageNetwork2VlanId;
 
                 state.intentOverrides = origOverrides;
+                state.storage = origStorage;
+                state.ports = origPorts;
+                state.intent = origIntent;
 
                 return assert(v1 === 711 && v2 === 712,
                     'Empty string VLAN overrides are replaced with defaults (711/712)',
@@ -2077,8 +2092,14 @@
             (function() {
                 // Test that zero VLAN values are replaced with defaults
                 const origOverrides = state.intentOverrides;
+                const origStorage = state.storage;
+                const origPorts = state.ports;
+                const origIntent = state.intent;
 
                 state.intentOverrides = { 'storage': { storageNetwork1VlanId: 0, storageNetwork2VlanId: 0 } };
+                state.storage = 'switched';
+                state.ports = '4';
+                state.intent = 'mgmt_compute';
 
                 const groups = [{ key: 'storage', label: 'Storage', nics: [3, 4] }];
                 ensureDefaultOverridesForGroups(groups);
@@ -2087,6 +2108,9 @@
                 const v2 = state.intentOverrides['storage'].storageNetwork2VlanId;
 
                 state.intentOverrides = origOverrides;
+                state.storage = origStorage;
+                state.ports = origPorts;
+                state.intent = origIntent;
 
                 return assert(v1 === 711 && v2 === 712,
                     'Zero VLAN overrides are replaced with defaults (711/712)',
