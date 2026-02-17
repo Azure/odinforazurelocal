@@ -258,7 +258,12 @@ body {
     .designer-action,
     #sizer-resume-banner,
     .modal-overlay,
-    .modal {
+    .modal,
+    .config-panel,
+    .workload-card-actions,
+    .onboarding-overlay,
+    #capacity-utilization-warning,
+    #storage-limit-warning {
         display: none !important;
     }
 
@@ -288,33 +293,30 @@ body {
         gap: 0 !important;
     }
 
-    .config-panel,
     .results-panel {
         width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
         position: static !important;
-        page-break-inside: avoid;
-    }
-
-    .config-panel {
-        margin-bottom: 20px !important;
     }
 
     .config-section,
     .requirements-grid,
     .per-node-section,
     .capacity-breakdown,
+    .power-rack-estimate,
     .notes-section {
         background: white !important;
         border: 1px solid #d1d5db !important;
         color: #111 !important;
+        page-break-inside: avoid;
     }
 
     .config-section h2,
     .results-panel h2,
     .per-node-section h3,
     .capacity-breakdown h3,
+    .power-rack-estimate h3,
     .notes-section h3 {
         color: #111 !important;
     }
@@ -327,6 +329,8 @@ body {
     .req-label, .req-value,
     .per-node-item .label,
     .per-node-item .value,
+    .power-rack-item .label,
+    .power-rack-item .value,
     .breakdown-header span,
     .breakdown-legend {
         color: #111 !important;
@@ -336,14 +340,25 @@ body {
         background: #e5e7eb !important;
     }
 
-    .workload-item {
+    .workload-card {
         background: #f9fafb !important;
         border: 1px solid #d1d5db !important;
         color: #111 !important;
+        page-break-inside: avoid;
     }
 
-    .workload-item .workload-actions {
-        display: none !important;
+    .workload-card-title,
+    .workload-card-details {
+        color: #111 !important;
+    }
+
+    .power-rack-item {
+        background: #f9fafb !important;
+        border: 1px solid #d1d5db !important;
+    }
+
+    .notes-section li {
+        color: #333 !important;
     }
 
     select, label, .config-group span {
@@ -579,6 +594,12 @@ body {
     background: rgba(0, 120, 212, 0.1);
     border-color: rgba(0, 120, 212, 0.3);
     color: var(--accent-blue);
+}
+
+.workload-card-actions button.clone:hover {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.3);
+    color: #8b5cf6;
 }
 
 /* Cluster Config */
@@ -939,6 +960,51 @@ body {
 .breakdown-legend {
     font-size: 11px;
     color: var(--text-secondary);
+}
+
+/* Power & Rack Estimate */
+.power-rack-estimate {
+    padding: 20px;
+    background: var(--subtle-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.power-rack-estimate h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.power-rack-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.power-rack-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.power-rack-item .label {
+    color: var(--text-secondary);
+}
+
+.power-rack-item .value {
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 /* Notes Section */

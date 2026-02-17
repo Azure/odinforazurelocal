@@ -31,7 +31,8 @@ const CPU_GENERATIONS = {
             socket: 'LGA 4677',
             memoryType: 'DDR5-4800',
             memoryChannels: 8,
-            pcieVersion: '5.0'
+            pcieVersion: '5.0',
+            tdpPerSocketW: 350
         },
         {
             id: 'xeon-5th',
@@ -44,7 +45,8 @@ const CPU_GENERATIONS = {
             socket: 'LGA 4677',
             memoryType: 'DDR5-5600',
             memoryChannels: 8,
-            pcieVersion: '5.0'
+            pcieVersion: '5.0',
+            tdpPerSocketW: 350
         },
         {
             id: 'xeon-6',
@@ -57,7 +59,8 @@ const CPU_GENERATIONS = {
             socket: 'LGA 4710',
             memoryType: 'DDR5-6400 / MCR-8800',
             memoryChannels: 8,
-            pcieVersion: '5.0'
+            pcieVersion: '5.0',
+            tdpPerSocketW: 500
         }
     ],
     amd: [
@@ -72,7 +75,8 @@ const CPU_GENERATIONS = {
             socket: 'SP5 (LGA 6096)',
             memoryType: 'DDR5-4800',
             memoryChannels: 12,
-            pcieVersion: '5.0'
+            pcieVersion: '5.0',
+            tdpPerSocketW: 360
         },
         {
             id: 'epyc-4th-c',
@@ -85,7 +89,8 @@ const CPU_GENERATIONS = {
             socket: 'SP5 (LGA 6096)',
             memoryType: 'DDR5-4800',
             memoryChannels: 12,
-            pcieVersion: '5.0'
+            pcieVersion: '5.0',
+            tdpPerSocketW: 400
         },
         {
             id: 'epyc-5th',
@@ -98,7 +103,8 @@ const CPU_GENERATIONS = {
             socket: 'SP5 (LGA 6096)',
             memoryType: 'DDR5-6400',
             memoryChannels: 12,
-            pcieVersion: '5.0'
+            pcieVersion: '5.0',
+            tdpPerSocketW: 500
         },
         {
             id: 'epyc-5th-c',
@@ -111,7 +117,8 @@ const CPU_GENERATIONS = {
             socket: 'SP5 (LGA 6096)',
             memoryType: 'DDR5-6400',
             memoryChannels: 12,
-            pcieVersion: '5.0'
+            pcieVersion: '5.0',
+            tdpPerSocketW: 500
         }
     ],
     intel_edge: [
@@ -126,7 +133,8 @@ const CPU_GENERATIONS = {
             socket: 'FCBGA 3820',
             memoryType: 'DDR4-3200',
             memoryChannels: 4,
-            pcieVersion: '4.0'
+            pcieVersion: '4.0',
+            tdpPerSocketW: 100
         }
     ]
 };
@@ -348,35 +356,32 @@ function getHardwareConfig() {
     let diskConfig = {};
     if (selectedTier.isTiered) {
         const cacheDiskCount = parseInt(document.getElementById('cache-disk-count').value) || 2;
-        const cacheDiskSize = parseFloat(document.getElementById('cache-disk-size').value) || 1.6;
-        const cacheDiskUnit = document.getElementById('cache-disk-unit').value;
+        const cacheDiskSizeTB = parseFloat(document.getElementById('cache-disk-size').value) || 1.92;
         const capacityDiskCount = parseInt(document.getElementById('tiered-capacity-disk-count').value) || 4;
-        const capacityDiskSize = parseFloat(document.getElementById('tiered-capacity-disk-size').value) || 3.5;
-        const capacityDiskUnit = document.getElementById('tiered-capacity-disk-unit').value;
+        const capacityDiskSizeTB = parseFloat(document.getElementById('tiered-capacity-disk-size').value) || 3.84;
 
         diskConfig = {
             isTiered: true,
             cache: {
                 count: cacheDiskCount,
-                sizeGB: cacheDiskUnit === 'TB' ? cacheDiskSize * 1024 : cacheDiskSize,
+                sizeGB: cacheDiskSizeTB * 1024,
                 type: selectedTier.diskTypes.cache
             },
             capacity: {
                 count: capacityDiskCount,
-                sizeGB: capacityDiskUnit === 'TB' ? capacityDiskSize * 1024 : capacityDiskSize,
+                sizeGB: capacityDiskSizeTB * 1024,
                 type: selectedTier.diskTypes.capacity
             }
         };
     } else {
         const diskCount = parseInt(document.getElementById('capacity-disk-count').value) || 4;
-        const diskSize = parseFloat(document.getElementById('capacity-disk-size').value) || 3.5;
-        const diskUnit = document.getElementById('capacity-disk-unit').value;
+        const diskSizeTB = parseFloat(document.getElementById('capacity-disk-size').value) || 3.84;
 
         diskConfig = {
             isTiered: false,
             capacity: {
                 count: diskCount,
-                sizeGB: diskUnit === 'TB' ? diskSize * 1024 : diskSize,
+                sizeGB: diskSizeTB * 1024,
                 type: selectedTier.diskTypes.capacity
             }
         };
@@ -738,11 +743,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     const isTieredCapped = isTiered && (hwConfig.storageConfig === 'hybrid' || hwConfig.storageConfig === 'mixed-flash');
     const diskCountId = isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count';
     const diskSizeId = isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size';
-    const diskUnitId = isTiered ? 'tiered-capacity-disk-unit' : 'capacity-disk-unit';
 
-    const diskSizeRaw = parseFloat(document.getElementById(diskSizeId).value) || 3.5;
-    const diskUnit = document.getElementById(diskUnitId).value;
-    const diskSizeGB = diskUnit === 'TB' ? diskSizeRaw * 1024 : diskSizeRaw;
+    const diskSizeTB = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
+    const diskSizeGB = diskSizeTB * 1024;
 
     if (diskSizeGB > 0) {
         const disksNeeded = Math.ceil(rawPerNodeNeededGB / diskSizeGB);
@@ -761,8 +764,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // can, pick the one that saves the most bays.
         const DISK_BAY_CONSOLIDATION_THRESHOLD = 0.5; // 50% of max bays
         let consolidatedDiskSize = diskSizeGB;
-        let consolidatedDiskSizeTB = diskSizeRaw;
-        let consolidatedUnit = diskUnit;
+        let consolidatedDiskSizeTB = diskSizeTB;
         const bayThreshold = Math.ceil(maxDisksForType * DISK_BAY_CONSOLIDATION_THRESHOLD);
         if (targetDisks >= bayThreshold) {
             // Collect all standard sizes larger than current
@@ -786,7 +788,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             if (bestCandidate) {
                 _diskConsolidationInfo = {
                     originalCount: targetDisks,
-                    originalSizeTB: diskUnit === 'TB' ? diskSizeRaw : diskSizeGB / 1024,
+                    originalSizeTB: diskSizeTB,
                     newCount: bestCandidate.count,
                     newSizeTB: bestCandidate.sizeTB,
                     maxBays: maxDisksForType,
@@ -795,15 +797,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 targetDisks = bestCandidate.count;
                 consolidatedDiskSize = bestCandidate.sizeGB;
                 consolidatedDiskSizeTB = bestCandidate.sizeTB;
-                consolidatedUnit = 'TB';
-                // Update disk size controls
-                const diskSizeInput = document.getElementById(diskSizeId);
-                const diskUnitSelect = document.getElementById(diskUnitId);
-                diskSizeInput.value = bestCandidate.sizeTB;
-                diskUnitSelect.value = 'TB';
+                // Update disk size select
+                document.getElementById(diskSizeId).value = bestCandidate.sizeTB;
                 changed = true;
                 markAutoScaled(diskSizeId);
-                markAutoScaled(diskUnitId);
             }
         }
 
@@ -821,29 +818,24 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         if (currentDiskCountFinal >= maxDisksForType) {
             const currentStoragePerNodeGB = currentDiskCountFinal * currentDiskSizeGB;
             if (currentStoragePerNodeGB < rawPerNodeNeededGB) {
-                const diskSizeInput = document.getElementById(diskSizeId);
-                const diskUnitSelect = document.getElementById(diskUnitId);
+                const diskSizeSelect = document.getElementById(diskSizeId);
                 // Find the smallest standard size that provides enough per-node storage
                 for (const sizeTB of DISK_SIZE_OPTIONS_TB) {
                     const candidateGB = sizeTB * 1024;
                     if (candidateGB > currentDiskSizeGB && currentDiskCountFinal * candidateGB >= rawPerNodeNeededGB) {
-                        diskSizeInput.value = sizeTB;
-                        diskUnitSelect.value = 'TB';
+                        diskSizeSelect.value = sizeTB;
                         changed = true;
                         markAutoScaled(diskSizeId);
-                        markAutoScaled(diskUnitId);
                         break;
                     }
                 }
                 // If no standard size is big enough, set to max available
-                if (!changed || (currentDiskCountFinal * (parseFloat(document.getElementById(diskSizeId).value) * (document.getElementById(diskUnitId).value === 'TB' ? 1024 : 1))) < rawPerNodeNeededGB) {
+                if (!changed || (currentDiskCountFinal * (parseFloat(document.getElementById(diskSizeId).value) * 1024)) < rawPerNodeNeededGB) {
                     const maxSize = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1];
                     if (maxSize * 1024 > currentDiskSizeGB) {
-                        diskSizeInput.value = maxSize;
-                        diskUnitSelect.value = 'TB';
+                        diskSizeSelect.value = maxSize;
                         changed = true;
                         markAutoScaled(diskSizeId);
-                        markAutoScaled(diskUnitId);
                     }
                 }
             }
@@ -933,12 +925,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Storage headroom — bump disk count first, then disk size, until below threshold
     {
         const hrDiskCountInput = document.getElementById(diskCountId);
-        const hrDiskSizeInput = document.getElementById(diskSizeId);
-        const hrDiskUnitSelect = document.getElementById(diskUnitId);
+        const hrDiskSizeSelect = document.getElementById(diskSizeId);
         let hrDiskCount = parseInt(hrDiskCountInput.value) || 4;
-        let hrDiskSizeRaw = parseFloat(hrDiskSizeInput.value) || 3.5;
-        let hrDiskUnitVal = hrDiskUnitSelect.value;
-        let hrDiskSizeGB = hrDiskUnitVal === 'TB' ? hrDiskSizeRaw * 1024 : hrDiskSizeRaw;
+        let hrDiskSizeTB = parseFloat(hrDiskSizeSelect.value) || 3.84;
+        let hrDiskSizeGB = hrDiskSizeTB * 1024;
         let storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
         let storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
         let storageSafety = 0;
@@ -955,14 +945,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 // Disk count maxed — try stepping up disk size
                 const nextSize = DISK_SIZE_OPTIONS_TB.find(s => s * 1024 > hrDiskSizeGB);
                 if (nextSize) {
-                    hrDiskSizeRaw = nextSize;
-                    hrDiskUnitVal = 'TB';
+                    hrDiskSizeTB = nextSize;
                     hrDiskSizeGB = nextSize * 1024;
-                    hrDiskSizeInput.value = nextSize;
-                    hrDiskUnitSelect.value = 'TB';
+                    hrDiskSizeSelect.value = nextSize;
                     changed = true;
                     markAutoScaled(diskSizeId);
-                    markAutoScaled(diskUnitId);
                 } else {
                     break; // maxed out on both disk count and disk size
                 }
@@ -1015,13 +1002,10 @@ function getSizerState() {
         storageTiering: document.getElementById('storage-tiering').value,
         capacityDiskCount: document.getElementById('capacity-disk-count').value,
         capacityDiskSize: document.getElementById('capacity-disk-size').value,
-        capacityDiskUnit: document.getElementById('capacity-disk-unit').value,
         cacheDiskCount: document.getElementById('cache-disk-count').value,
         cacheDiskSize: document.getElementById('cache-disk-size').value,
-        cacheDiskUnit: document.getElementById('cache-disk-unit').value,
         tieredCapacityDiskCount: document.getElementById('tiered-capacity-disk-count').value,
         tieredCapacityDiskSize: document.getElementById('tiered-capacity-disk-size').value,
-        tieredCapacityDiskUnit: document.getElementById('tiered-capacity-disk-unit').value,
         workloads: workloads,
         workloadIdCounter: workloadIdCounter
     };
@@ -1178,14 +1162,11 @@ function resumeSizerState() {
 
     // Restore disk configs
     document.getElementById('capacity-disk-count').value = d.capacityDiskCount || '4';
-    document.getElementById('capacity-disk-size').value = d.capacityDiskSize || '3.5';
-    document.getElementById('capacity-disk-unit').value = d.capacityDiskUnit || 'TB';
+    document.getElementById('capacity-disk-size').value = d.capacityDiskSize || '3.84';
     document.getElementById('cache-disk-count').value = d.cacheDiskCount || '2';
-    document.getElementById('cache-disk-size').value = d.cacheDiskSize || '1.6';
-    document.getElementById('cache-disk-unit').value = d.cacheDiskUnit || 'TB';
+    document.getElementById('cache-disk-size').value = d.cacheDiskSize || '1.92';
     document.getElementById('tiered-capacity-disk-count').value = d.tieredCapacityDiskCount || '4';
-    document.getElementById('tiered-capacity-disk-size').value = d.tieredCapacityDiskSize || '3.5';
-    document.getElementById('tiered-capacity-disk-unit').value = d.tieredCapacityDiskUnit || 'TB';
+    document.getElementById('tiered-capacity-disk-size').value = d.tieredCapacityDiskSize || '3.84';
 
     // Restore resiliency (after node count is set so options are correct)
     updateResiliencyOptions();
@@ -1311,13 +1292,7 @@ const RESILIENCY_CONFIG = {
     '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' }
 };
 
-// Storage resiliency multipliers (for backward compatibility)
-const RESILIENCY_MULTIPLIERS = {
-    'simple': 1,    // Simple = no redundancy (1x raw storage)
-    '2way': 2,      // Two-way mirror = 2x raw storage
-    '3way': 3,      // Three-way mirror = 3x raw storage
-    '4way': 4       // Four-way mirror = 4x raw storage (rack-aware 4+ nodes)
-};
+
 
 // Current modal state
 let currentModalType = null;
@@ -1418,44 +1393,6 @@ function updateNodeOptionsForClusterType() {
             nodeSelect.value = 3;
         }
     }
-}
-
-// Update node count dropdown based on resiliency requirements (legacy - kept for compatibility)
-function updateNodeOptions() {
-    const resiliency = document.getElementById('resiliency').value;
-    const clusterType = document.getElementById('cluster-type').value;
-    const nodeSelect = document.getElementById('node-count');
-    const config = RESILIENCY_CONFIG[resiliency];
-    
-    // Minimum nodes based on resiliency (fault domains)
-    const minNodes = config.minNodes;
-    
-    // Get current selection
-    const currentValue = parseInt(nodeSelect.value) || minNodes;
-    
-    // Rebuild options starting from minimum
-    const nodeOptions = [];
-    for (let i = minNodes; i <= 16; i++) {
-        nodeOptions.push(i);
-    }
-    
-    nodeSelect.innerHTML = nodeOptions.map(n => {
-        let label = n === 1 ? '1 Node (Single)' : `${n} Nodes`;
-        if (n === minNodes && minNodes > 1) {
-            label += ` (Minimum for ${config.name})`;
-        }
-        return `<option value="${n}">${label}</option>`;
-    }).join('');
-    
-    // Set to previous value if valid, otherwise minimum
-    if (currentValue >= minNodes) {
-        nodeSelect.value = currentValue;
-    } else {
-        nodeSelect.value = minNodes;
-    }
-    
-    // Also update resiliency options based on node count
-    updateResiliencyOptions();
 }
 
 // Update resiliency options based on cluster type and node count
@@ -1582,6 +1519,11 @@ function showAddWorkloadModal(type) {
     
     modal.classList.add('active');
     overlay.classList.add('active');
+    // Focus first input for keyboard accessibility
+    requestAnimationFrame(() => {
+        const firstInput = modal.querySelector('input, select, textarea');
+        if (firstInput) firstInput.focus();
+    });
 }
 
 // Close modal
@@ -1866,6 +1808,16 @@ function addWorkload() {
                 workload.customVcpus = parseFloat(document.getElementById('avd-custom-vcpus').value) || 2;
                 workload.customMemory = parseFloat(document.getElementById('avd-custom-memory').value) || 8;
                 workload.customStorage = parseFloat(document.getElementById('avd-custom-storage').value) || 50;
+                // Validate custom profile — warn on extreme ratios
+                const memPerVcpu = workload.customMemory / workload.customVcpus;
+                if (memPerVcpu < 1) {
+                    if (!confirm('Warning: Less than 1 GB RAM per vCPU may lead to poor performance. Continue anyway?')) return;
+                } else if (memPerVcpu > 32) {
+                    if (!confirm(`Warning: ${memPerVcpu.toFixed(0)} GB RAM per vCPU is unusually high and may indicate a misconfiguration. Continue anyway?`)) return;
+                }
+                if (workload.customVcpus > 16) {
+                    if (!confirm(`Warning: ${workload.customVcpus} vCPUs per user is very high for AVD. Typical range is 1-8 vCPUs per user. Continue anyway?`)) return;
+                }
             }
             break;
     }
@@ -1951,9 +1903,25 @@ function editWorkload(id) {
 
 // Delete workload
 function deleteWorkload(id) {
+    const w = workloads.find(wl => wl.id === id);
+    const label = w ? w.name : 'this workload';
+    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
     workloads = workloads.filter(w => w.id !== id);
     renderWorkloads();
     // Reset vCPU user lock when workloads change — auto-escalation should re-evaluate
+    _vcpuRatioUserSet = false;
+    calculateRequirements();
+}
+
+// Clone workload
+function cloneWorkload(id) {
+    const original = workloads.find(w => w.id === id);
+    if (!original) return;
+    const clone = JSON.parse(JSON.stringify(original));
+    clone.id = ++workloadIdCounter;
+    clone.name = original.name + ' (copy)';
+    workloads.push(clone);
+    renderWorkloads();
     _vcpuRatioUserSet = false;
     calculateRequirements();
 }
@@ -1991,6 +1959,12 @@ function renderWorkloads() {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"/>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </button>
+                    <button class="clone" onclick="cloneWorkload(${w.id})" title="Clone">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                         </svg>
                     </button>
                     <button class="delete" onclick="deleteWorkload(${w.id})" title="Delete">
@@ -2140,7 +2114,7 @@ function calculateRequirements(options) {
 
         // Get current resiliency setting
         const resiliency = document.getElementById('resiliency').value;
-        const resiliencyMultiplier = RESILIENCY_MULTIPLIERS[resiliency];
+        const resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
 
         // Get hardware configuration (per-node specs)
         let hwConfig = getHardwareConfig();
@@ -2347,6 +2321,9 @@ function calculateRequirements(options) {
             warningBanner.style.display = anyOverThreshold ? 'flex' : 'none';
         }
 
+        // --- Power & Rack Space Estimates ---
+        updatePowerRackEstimates(nodeCount, hwConfig);
+
         // Update sizing notes
         updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig);
 
@@ -2357,6 +2334,68 @@ function calculateRequirements(options) {
     } finally {
         isCalculating = false;
     }
+}
+
+// Estimate power consumption and rack space per cluster
+function updatePowerRackEstimates(nodeCount, hwConfig) {
+    const section = document.getElementById('power-rack-section');
+    if (!section) return;
+
+    if (workloads.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    // CPU power: TDP per socket × sockets
+    const cpuTdp = (hwConfig.generation && hwConfig.generation.tdpPerSocketW) ? hwConfig.generation.tdpPerSocketW : 350;
+    const sockets = hwConfig.sockets || 2;
+    const cpuPowerW = cpuTdp * sockets;
+
+    // Memory power: ~4W per DIMM, estimate 1 DIMM per 32 GB
+    const memoryGB = hwConfig.memoryGB || 512;
+    const dimmCount = Math.ceil(memoryGB / 32);
+    const memPowerW = dimmCount * 4;
+
+    // Disk power: ~8W for NVMe/SSD, ~12W for HDD per data disk
+    let diskPowerW = 0;
+    if (hwConfig.diskConfig) {
+        if (hwConfig.diskConfig.isTiered) {
+            const cacheCount = hwConfig.diskConfig.cache ? hwConfig.diskConfig.cache.count : 0;
+            const capCount = hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.count : 0;
+            const capType = hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.type : 'SSD';
+            diskPowerW = cacheCount * 8 + capCount * (capType === 'HDD' ? 12 : 8);
+        } else {
+            const capCount = hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.count : 4;
+            diskPowerW = capCount * 8;
+        }
+    }
+    // OS boot disks: 2 × M.2/SSD per node (~8W each)
+    const osDiskPowerW = 2 * 8;
+
+    // GPU power
+    let gpuPowerW = 0;
+    if (hwConfig.gpuCount > 0 && hwConfig.gpuType) {
+        const gpuModel = GPU_MODELS[hwConfig.gpuType];
+        if (gpuModel) gpuPowerW = gpuModel.tdpW * hwConfig.gpuCount;
+    }
+
+    // Motherboard, fans, PSU efficiency loss, NICs, BMC: ~150W baseline
+    const baseOverheadW = 150;
+
+    const perNodeW = cpuPowerW + memPowerW + diskPowerW + osDiskPowerW + gpuPowerW + baseOverheadW;
+    const totalW = perNodeW * nodeCount;
+    const totalBtu = Math.round(totalW * 3.412); // 1W ≈ 3.412 BTU/hr
+
+    // Rack units: 2U per node + 2 × ToR switches (1U each) for multi-node clusters
+    const torSwitchUnits = nodeCount > 1 ? 2 : 0; // 2 × 1U ToR switches
+    const rackUnits = (nodeCount * 2) + torSwitchUnits;
+
+    // Update DOM
+    document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' W';
+    document.getElementById('power-total').textContent = totalW.toLocaleString() + ' W';
+    document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
+    document.getElementById('rack-units').textContent = rackUnits + 'U';
+    section.style.display = 'block';
 }
 
 // Update sizing notes
@@ -2465,7 +2504,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                         }
                     }
                     if (bestAmdGen && bestAmdMaxCores * 2 > hwConfig.totalPhysicalCores) {
-                        notes.push(`💡 Tip: Intel ${hwConfig.generation.name} is at maximum cores (${maxIntelCores} per socket × ${hwConfig.sockets} sockets = ${hwConfig.totalPhysicalCores} physical cores). ${bestAmdGen.name} offers up to ${bestAmdMaxCores} cores per socket (${bestAmdMaxCores * 2} with dual socket), which could provide additional compute headroom.`);
+                        notes.push(`💡 Tip: ${hwConfig.generation.name} is at maximum cores (${maxIntelCores} per socket × ${hwConfig.sockets} sockets = ${hwConfig.totalPhysicalCores} physical cores per node). ${bestAmdGen.name} offers up to ${bestAmdMaxCores} cores per socket (${bestAmdMaxCores * 2} with dual socket), which could provide additional compute headroom`);
                     }
                 }
             }
@@ -2880,14 +2919,11 @@ function resetScenario() {
     
     // Reset disk config
     document.getElementById('capacity-disk-count').value = '4';
-    document.getElementById('capacity-disk-size').value = '3.5';
-    document.getElementById('capacity-disk-unit').value = 'TB';
+    document.getElementById('capacity-disk-size').value = '3.84';
     document.getElementById('cache-disk-count').value = '2';
-    document.getElementById('cache-disk-size').value = '1.6';
-    document.getElementById('cache-disk-unit').value = 'TB';
+    document.getElementById('cache-disk-size').value = '1.92';
     document.getElementById('tiered-capacity-disk-count').value = '4';
-    document.getElementById('tiered-capacity-disk-size').value = '3.5';
-    document.getElementById('tiered-capacity-disk-unit').value = 'TB';
+    document.getElementById('tiered-capacity-disk-size').value = '3.84';
     
     // Reset cluster config
     document.getElementById('cluster-type').value = 'standard';
@@ -3078,12 +3114,40 @@ function finishSizerOnboarding() {
     document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
 }
 
-// Close onboarding overlay on Escape key
+// Close onboarding overlay or workload modal on Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
+        // Workload modal takes precedence
+        const modal = document.getElementById('add-workload-modal');
+        if (modal && modal.classList.contains('active')) {
+            closeModal();
+            return;
+        }
         const overlay = document.querySelector('.onboarding-overlay');
         if (overlay) {
             skipSizerOnboarding();
+            return;
+        }
+    }
+
+    // Focus trap inside active modal (Tab / Shift+Tab)
+    if (e.key === 'Tab') {
+        const modal = document.getElementById('add-workload-modal');
+        if (!modal || !modal.classList.contains('active')) return;
+        const focusable = modal.querySelectorAll('input, select, textarea, button, [tabindex]:not([tabindex="-1"])');
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+            if (document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else {
+            if (document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
         }
     }
 });

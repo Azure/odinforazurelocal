@@ -27,7 +27,7 @@
         <header class="sizer-header">
             <div class="header-content">
                 <h1>ODIN Sizer <span class="sizer-preview-badge">Preview</span></h1>
-                <p class="subtitle">Azure Local Instance Sizing Tool - Used to calculate hardware requirements based on your workload scenarios and their resiliency and capacity requirements.</p>
+                <p class="subtitle">Azure Local Instance Sizing Tool - Used to calculate hardware requirements based on your workload scenarios and their resiliency and capacity requirements. This tool provides example hardware configurations only. Please consult with your preferred hardware OEM partner for detailed guidance and recommendations on their Azure Local solution offerings.</p>
             </div>
             <div class="header-actions">
                 <button class="btn btn-secondary" onclick="window.print()" title="Save as PDF via browser print dialog">
@@ -155,7 +155,6 @@
                         <select id="resiliency" onchange="onResiliencyChange()">
                             <option value="2way">Two-way Mirror (min 2 nodes)</option>
                             <option value="3way" selected>Three-way Mirror (min 3 nodes)</option>
-                            <option value="parity">Dual Parity (min 4 nodes)</option>
                         </select>
                     </div>
                     <div class="config-info config-info-warning" id="resiliency-recommendation" style="display: none;">
@@ -337,13 +336,13 @@
                             </div>
                             <div class="config-row">
                                 <label for="capacity-disk-size">Capacity per Disk</label>
-                                <div class="input-with-unit">
-                                    <input type="number" id="capacity-disk-size" value="3.5" min="0.1" max="30" step="0.1" onchange="onHardwareConfigChange()" class="hw-input">
-                                    <select id="capacity-disk-unit" onchange="onHardwareConfigChange()" class="unit-select">
-                                        <option value="GB">GB</option>
-                                        <option value="TB" selected>TB</option>
-                                    </select>
-                                </div>
+                                <select id="capacity-disk-size" onchange="onHardwareConfigChange()">
+                                    <option value="0.96">960 GB (0.96 TB)</option>
+                                    <option value="1.92">1.92 TB</option>
+                                    <option value="3.84" selected>3.84 TB</option>
+                                    <option value="7.68">7.68 TB</option>
+                                    <option value="15.36">15.36 TB</option>
+                                </select>
                             </div>
                             <div class="config-info disk-type-info" id="capacity-disk-type-info">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -372,13 +371,13 @@
                             </div>
                             <div class="config-row">
                                 <label for="cache-disk-size">Capacity per Cache Disk</label>
-                                <div class="input-with-unit">
-                                    <input type="number" id="cache-disk-size" value="1.6" min="0.1" max="8" step="0.1" onchange="onHardwareConfigChange()" class="hw-input">
-                                    <select id="cache-disk-unit" onchange="onHardwareConfigChange()" class="unit-select">
-                                        <option value="GB">GB</option>
-                                        <option value="TB" selected>TB</option>
-                                    </select>
-                                </div>
+                                <select id="cache-disk-size" onchange="onHardwareConfigChange()">
+                                    <option value="0.96">960 GB (0.96 TB)</option>
+                                    <option value="1.92" selected>1.92 TB</option>
+                                    <option value="3.84">3.84 TB</option>
+                                    <option value="7.68">7.68 TB</option>
+                                    <option value="15.36">15.36 TB</option>
+                                </select>
                             </div>
                             <div class="config-info disk-type-info" id="cache-disk-type-info">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -411,13 +410,13 @@
                             </div>
                             <div class="config-row">
                                 <label for="tiered-capacity-disk-size">Capacity per Disk</label>
-                                <div class="input-with-unit">
-                                    <input type="number" id="tiered-capacity-disk-size" value="3.5" min="0.1" max="30" step="0.1" onchange="onHardwareConfigChange()" class="hw-input">
-                                    <select id="tiered-capacity-disk-unit" onchange="onHardwareConfigChange()" class="unit-select">
-                                        <option value="GB">GB</option>
-                                        <option value="TB" selected>TB</option>
-                                    </select>
-                                </div>
+                                <select id="tiered-capacity-disk-size" onchange="onHardwareConfigChange()">
+                                    <option value="0.96">960 GB (0.96 TB)</option>
+                                    <option value="1.92">1.92 TB</option>
+                                    <option value="3.84" selected>3.84 TB</option>
+                                    <option value="7.68">7.68 TB</option>
+                                    <option value="15.36">15.36 TB</option>
+                                </select>
                             </div>
                             <div class="config-info disk-type-info" id="tiered-capacity-disk-type-info">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -598,6 +597,41 @@
                 <div class="config-info config-info-warning" id="storage-limit-warning" style="display: none;">
                     <span class="info-icon">🚫</span>
                     <span id="storage-limit-warning-text">Storage configuration exceeds Azure Local supported limits. Export is blocked until the configuration is corrected.</span>
+                </div>
+
+                <!-- Power & Rack Estimate -->
+                <div class="power-rack-estimate" id="power-rack-section" style="display: none;">
+                    <h3>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                        </svg>
+                        Estimated Power & Rack Space
+                    </h3>
+                    <div class="power-rack-grid">
+                        <div class="power-rack-item">
+                            <span class="label">Per-Node Power (est.)</span>
+                            <span class="value" id="power-per-node">—</span>
+                        </div>
+                        <div class="power-rack-item">
+                            <span class="label">Total Cluster Power (est.)</span>
+                            <span class="value" id="power-total">—</span>
+                        </div>
+                        <div class="power-rack-item">
+                            <span class="label">Total BTU/hr (est.)</span>
+                            <span class="value" id="power-btu">—</span>
+                        </div>
+                        <div class="power-rack-item">
+                            <span class="label">Rack Units (est., incl. 2× ToR switches)</span>
+                            <span class="value" id="rack-units">—</span>
+                        </div>
+                    </div>
+                    <div class="config-info" style="margin-top: 8px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                        <span>Estimates based on component TDP ratings. Actual power varies by workload and OEM hardware design. <strong>Consult your preferred OEM hardware partner for accurate power and rack planning.</strong></span>
+                    </div>
                 </div>
 
                 <!-- Notes -->

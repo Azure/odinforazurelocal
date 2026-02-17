@@ -8756,13 +8756,20 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.15.99 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.16.01 - Latest Release</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 17, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧮 Sizer: Auto-Scale Enhancements, Disk Bay Optimisation &amp; Storage Limit Enforcement</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧮 Sizer: UX Improvements, Power Estimates, Auto-Scale Enhancements &amp; Storage Limit Enforcement</h4>
                     <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Standardised Disk Size Dropdown:</strong> Disk size inputs replaced with a dropdown of standard NVMe/SSD capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB), eliminating invalid free-text entries.</li>
+                        <li><strong>Delete Confirmation Dialog:</strong> Deleting a workload now requires confirmation, preventing accidental removal.</li>
+                        <li><strong>Clone Workload:</strong> New clone button on each workload card to duplicate a workload with all its settings.</li>
+                        <li><strong>Estimated Power &amp; Rack Space:</strong> New section showing per-node power (W), total cluster power, BTU/hr, and rack units (including 2× ToR switches). Estimates based on CPU TDP, memory DIMMs, data disks, OS boot disks, GPUs, and system overhead. Consult your OEM hardware partner for accurate planning.</li>
+                        <li><strong>AVD Custom Profile Validation:</strong> Custom AVD profiles now warn if RAM/vCPU or vCPUs/user values fall outside recommended ranges.</li>
+                        <li><strong>Print Stylesheet:</strong> Improved print/PDF output — hides config panel and action buttons, results go full-width, page breaks avoided inside sections.</li>
+                        <li><strong>Keyboard Accessibility:</strong> Escape closes the active modal; Tab/Shift+Tab focus is trapped inside open modals; first input auto-focused on open.</li>
                         <li><strong>vCPU Ratio Manual Override:</strong> Users can now manually set the vCPU Overcommit Ratio without auto-scaling overriding their selection. The lock resets when workloads are added or removed.</li>
                         <li><strong>AMD CPU Suggestion Tip:</strong> When Intel cores/sockets are maxed and compute ≥80% at baseline 4:1, a tip suggests AMD EPYC Turin with up to 192 cores per socket (384 dual socket).</li>
                         <li><strong>AMD EPYC Turin Core Options:</strong> Updated to include 144, 160, and 192 cores per socket, reflecting the full Turin product line.</li>
@@ -8771,6 +8778,7 @@ function showChangelog() {
                         <li><strong>Infrastructure_1 Volume:</strong> 256 GB usable capacity reserved by Storage Spaces Direct is now deducted from usable storage in all calculations.</li>
                         <li><strong>Disk Bay Consolidation:</strong> When ≥50% of disk bays would be filled, the sizer evaluates fewer larger disks to free bays for future expansion.</li>
                         <li><strong>Storage Limit Enforcement:</strong> Configurations exceeding 400 TB/machine or 4 PB/pool are flagged with 🚫 errors, a red banner, and export/Designer are blocked.</li>
+                        <li><strong>Dead Code Cleanup:</strong> Removed unused dual parity option, dead functions, and consolidated resiliency constants.</li>
                         <li><strong>Sizing Notes Consistency:</strong> Fixed edit-vs-add inconsistencies in vCPU ratio warnings and memory calculations.</li>
                     </ul>
                 </div>

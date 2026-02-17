@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.15.99 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.16.01 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,7 +37,15 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.15.99 - Latest Release
+### 🎉 Version 0.16.01 - Latest Release
+- **Sizer: Standardised Disk Size Dropdown**: All disk size inputs replaced with dropdown selects using standard NVMe/SSD capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB), eliminating invalid free-text entries
+- **Sizer: Delete Confirmation Dialog**: Deleting a workload now requires confirmation, preventing accidental removal
+- **Sizer: Clone Workload**: New clone button on each workload card to duplicate a workload with all its settings
+- **Sizer: Estimated Power & Rack Space**: New results section showing per-node power (W), total cluster power, BTU/hr, and rack units (including 2× ToR switches). Based on CPU TDP, memory DIMMs, data + OS disks, GPUs, and system overhead. Consult your OEM partner for accurate planning
+- **Sizer: AVD Custom Profile Validation**: Custom AVD profiles now warn if RAM/vCPU or vCPUs/user values fall outside recommended ranges
+- **Sizer: Print Stylesheet**: Improved print/PDF output — hides config panel and action buttons, results go full-width, page breaks avoided inside sections
+- **Sizer: Keyboard Accessibility**: Escape closes modals; Tab/Shift+Tab focus trapped inside open modals; first input auto-focused
+- **Sizer: OEM Disclaimer**: Subtitle updated to state the tool provides example hardware configurations only and users should consult their preferred OEM partner
 - **Sizer: vCPU Ratio Manual Override**: Users can now manually change the vCPU Overcommit Ratio without auto-scaling overriding their selection. Auto-escalation is locked when the user manually sets the ratio, and resets when workloads are added or removed
 - **Sizer: AMD CPU Suggestion Tip**: When Intel cores and sockets are maxed and compute utilization ≥80% (at baseline 4:1 ratio), a tip suggests AMD EPYC Turin as an alternative with higher core counts. Condition uses baseline 4:1 ratio so the tip persists even when auto-scaled to 5:1 or 6:1
 - **Sizer: AMD EPYC Turin Core Options**: Updated AMD 5th Gen EPYC Turin to include 144, 160, and 192 cores per socket (maxCores: 192), reflecting the full Turin product line
@@ -46,6 +54,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Infrastructure_1 Volume Deduction**: 256 GB usable capacity reserved by Storage Spaces Direct (Infrastructure_1 volume) is now deducted from overall usable storage in all capacity calculations, with a sizing note
 - **Sizer: Disk Bay Consolidation**: When auto-scaling would fill ≥50% of available disk bays, the sizer now evaluates larger disk sizes and selects fewer, larger disks to leave bays free for future expansion, with a sizing note explaining the optimisation
 - **Sizer: Storage Limit Enforcement**: Configurations exceeding 400 TB per machine or 4 PB per storage pool are now flagged with 🚫 errors, a red warning banner, and export/Configure in Designer are blocked until corrected
+- **Sizer: Dead Code Cleanup**: Removed unused dual parity option, dead functions, and consolidated resiliency constants
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -327,7 +336,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.15.99  
+**Version**: 0.16.01  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -341,9 +350,17 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
-### 🎉 Version 0.15.x Series (February 2026)
+### 🎉 Version 0.16.x Series (February 2026)
 
-#### 0.15.99 - Auto-Scale Enhancements, Disk Bay Optimisation & Storage Limit Enforcement
+#### 0.16.01 - UX Improvements, Power Estimates, Auto-Scale Enhancements & Storage Limit Enforcement
+- **Sizer: Standardised Disk Size Dropdown**: All disk size inputs replaced with dropdown selects using standard NVMe/SSD capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB), eliminating invalid free-text entries
+- **Sizer: Delete Confirmation Dialog**: Deleting a workload now requires confirmation, preventing accidental removal
+- **Sizer: Clone Workload**: New clone button to duplicate a workload with all its settings
+- **Sizer: Estimated Power & Rack Space**: Per-node power (W), total cluster power, BTU/hr, and rack units (including 2× ToR switches). Based on CPU TDP, memory DIMMs, data + OS disks, GPUs, and system overhead
+- **Sizer: AVD Custom Profile Validation**: Warns if custom AVD RAM/vCPU or vCPUs/user values fall outside recommended ranges
+- **Sizer: Print Stylesheet**: Improved print/PDF output — hides config panel, results full-width, page breaks avoided
+- **Sizer: Keyboard Accessibility**: Escape closes modals; Tab focus trapped inside open modals; first input auto-focused
+- **Sizer: OEM Disclaimer**: Subtitle updated to state the tool provides example hardware configurations only
 - **Sizer: vCPU Ratio Manual Override**: Users can now manually change the vCPU Overcommit Ratio without auto-scaling overriding their selection. Auto-escalation is locked when the user manually sets the ratio, and resets when workloads are added or removed
 - **Sizer: AMD CPU Suggestion Tip**: When Intel cores and sockets are maxed and compute utilization ≥80% (at baseline 4:1 ratio), a tip suggests AMD EPYC Turin as an alternative with higher core counts. Condition uses baseline 4:1 ratio so the tip persists even when auto-scaled to 5:1 or 6:1
 - **Sizer: AMD EPYC Turin Core Options**: Updated AMD 5th Gen EPYC Turin to include 144, 160, and 192 cores per socket (maxCores: 192), reflecting the full Turin product line
@@ -352,6 +369,9 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: Infrastructure_1 Volume Deduction**: 256 GB usable capacity reserved by Storage Spaces Direct (Infrastructure_1 volume) is now deducted from overall usable storage in all capacity calculations, with a sizing note
 - **Sizer: Disk Bay Consolidation**: When auto-scaling would fill ≥50% of available disk bays, the sizer now evaluates larger disk sizes and selects fewer, larger disks to leave bays free for future expansion, with a sizing note explaining the optimisation
 - **Sizer: Storage Limit Enforcement**: Configurations exceeding 400 TB per machine or 4 PB per storage pool are now flagged with 🚫 errors, a red warning banner, and export/Configure in Designer are blocked until corrected
+- **Sizer: Dead Code Cleanup**: Removed unused dual parity option, dead functions, and consolidated resiliency constants
+
+### 🎉 Version 0.15.x Series (February 2026)
 
 #### 0.15.98 - Default Gateway Field Fix for Safari
 - **Default Gateway Field Fix for Safari (#98)**: Fixed the Default Gateway input in Step 15 (Infrastructure Network) becoming unclickable on Safari. The field is now properly disabled/enabled alongside its sibling inputs, ensuring consistent compositing behaviour across all browsers.

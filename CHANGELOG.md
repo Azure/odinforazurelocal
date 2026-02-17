@@ -7,9 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.15.99] - 2026-02-17
+## [0.16.01] - 2026-02-17
 
 ### Added
+
+#### Sizer: Standardised Disk Size Dropdown
+- **Standard NVMe/SSD Capacities Only**: All three disk size inputs (capacity, cache, tiered capacity) replaced with dropdown selects using standard NVMe/SSD sizes (0.96, 1.92, 3.84, 7.68, 15.36 TB). Eliminates invalid free-text entries and ensures consistent sizing calculations.
+
+#### Sizer: Delete Confirmation Dialog
+- **Accidental Deletion Prevention**: The `deleteWorkload()` function now shows a browser `confirm()` dialog with the workload name before removing it.
+
+#### Sizer: Clone Workload
+- **Duplicate Workload Button**: A new clone button (copy icon) on each workload card deep-clones the workload with all its settings and appends " (copy)" to the name.
+
+#### Sizer: Estimated Power & Rack Space
+- **Per-Node & Cluster Power Estimates**: New results section showing per-node power (W), total cluster power (W), BTU/hr, and rack units. Calculations include CPU TDP per socket, memory (~4W per DIMM), data disks (8W NVMe/SSD, 12W HDD), 2× OS boot disks (8W each), GPU TDP, and ~150W baseline overhead (fans, PSU efficiency loss, NICs, BMC). Rack units include 2U per node plus 2× 1U ToR switches for multi-node clusters. Section hidden when no workloads are defined.
+- **OEM Caveat**: Clearly states that estimates are based on component TDP ratings and users should consult their preferred OEM hardware partner for accurate power and rack planning.
+
+#### Sizer: AVD Custom Profile Validation
+- **Range Warnings**: Custom AVD profile configurations now warn (via `confirm()`) if RAM per vCPU is below 1 GB or above 32 GB, or if vCPUs per user exceeds 16.
+
+#### Sizer: Print Stylesheet Improvements
+- **Better PDF Output**: The `@media print` stylesheet now hides the config panel, workload action buttons, onboarding overlay, and warning banners. Results panel goes full-width. `page-break-inside: avoid` applied to sections. Power & rack estimate section included in print output.
+
+#### Sizer: Keyboard Accessibility
+- **Escape Key**: Closes the active workload modal (priority) then the onboarding overlay.
+- **Focus Trap**: Tab/Shift+Tab wraps focus within open modals to prevent tabbing behind the overlay.
+- **Auto-Focus**: First input in the workload modal is automatically focused when the modal opens.
 
 #### Sizer: vCPU Ratio Manual Override
 - **User-Lockable vCPU Ratio**: When the user manually changes the vCPU Overcommit Ratio dropdown, the selection is now locked against auto-escalation. Auto-scaling will no longer override the user's manual choice. The lock resets automatically when workloads are added or removed, allowing auto-escalation to re-evaluate with the new workload profile.
@@ -32,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Sizer: Storage Limit Enforcement
 - **Hard Block on Invalid Configurations**: Configurations exceeding 400 TB raw storage per machine or 4 PB (4,000 TB) per storage pool are now flagged with 🚫 error notes (upgraded from ⚠️ warnings), a red warning banner appears, and both "Configure in Designer" and "Download Word" export are blocked until the configuration is corrected.
 
+#### Sizer: OEM Disclaimer
+- **Subtitle Updated**: Sizer subtitle now includes a disclaimer that the tool provides example hardware configurations only and users should consult their preferred hardware OEM partner for detailed guidance.
+
 ### Changed
 
 #### Sizer: AMD EPYC Turin Core Options
@@ -41,6 +68,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Sizer: Sizing Notes Consistency
 - **Consistent Edit vs Add Behaviour**: Fixed three bugs causing sizing notes (e.g., vCPU overcommit ratio warnings) to differ when editing a workload vs adding a new one: (1) `_vcpuRatioAutoEscalated` flag reset moved from per-`autoScaleHardware()` call to once per `calculateRequirements()` cycle; (2) `initialVcpuRatio` comparison added after all auto-scale passes; (3) 32 GB host overhead added to memory calculation in node-increment loop.
+
+#### Sizer: AMD Tip Text Fix
+- **Duplicate "Intel" Removed**: Fixed the AMD suggestion tip which displayed "Intel Intel® 5th Gen Xeon®..." — removed the redundant prefix. Also added "per node" clarification to physical core count and removed trailing period.
+
+### Removed
+
+#### Sizer: Dead Code Cleanup
+- **Dual Parity Option**: Removed the unused `<option value="parity">Dual Parity (min 4 nodes)</option>` from the resiliency select dropdown.
+- **`updateNodeOptions()` Function**: Removed the dead ~35-line function that was no longer called.
+- **`RESILIENCY_MULTIPLIERS` Constant**: Consolidated into `RESILIENCY_CONFIG[resiliency].multiplier`, eliminating the duplicate constant.
 
 ---
 
