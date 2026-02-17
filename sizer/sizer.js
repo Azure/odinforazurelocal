@@ -799,12 +799,15 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 consolidatedDiskSizeTB = bestCandidate.sizeTB;
                 // Update disk size select
                 document.getElementById(diskSizeId).value = bestCandidate.sizeTB;
+                // Update disk count to the consolidated (lower) value
+                diskCountInput.value = bestCandidate.count;
                 changed = true;
                 markAutoScaled(diskSizeId);
+                markAutoScaled(diskCountId);
             }
         }
 
-        if (targetDisks > currentDiskCount) {
+        if (!_diskConsolidationInfo && targetDisks > currentDiskCount) {
             diskCountInput.value = targetDisks;
             changed = true;
             markAutoScaled(diskCountId);
