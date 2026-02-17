@@ -8782,6 +8782,10 @@ function showChangelog() {
                         <li><strong>Power Estimate Core Scaling:</strong> CPU TDP now scales with selected core count (40% base + 60% proportional), so reducing cores visibly reduces estimated power.</li>
                         <li><strong>Single Node Default Resiliency:</strong> Single-node clusters now default to Two-Way Mirror instead of Simple (No Fault Tolerance).</li>
                         <li><strong>Sizing Notes Consistency:</strong> Fixed edit-vs-add inconsistencies in vCPU ratio warnings and memory calculations.</li>
+                        <li><strong>Cluster Type &amp; Nodes Label Styling:</strong> Bolder weight, larger font, and primary text colour for the Cluster Type and Number of Nodes labels.</li>
+                        <li><strong>Disk Consolidation Count Fix:</strong> Fixed consolidation only increasing disk count — now bidirectional; stale counts no longer persist after page refresh/resume.</li>
+                        <li><strong>Consolidation Note After Headroom:</strong> Fixed consolidation sizing note showing the wrong disk count when the storage headroom pass added extra disks.</li>
+                        <li><strong>HTML Validation Fix:</strong> Encoded raw &amp; as &amp;amp; in the sizer heading to resolve validation errors.</li>
                     </ul>
                 </div>
 

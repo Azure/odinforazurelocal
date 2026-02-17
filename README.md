@@ -57,6 +57,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Dead Code Cleanup**: Removed unused dual parity option, dead functions, and consolidated resiliency constants
 - **Sizer: Power Estimate Core Scaling**: CPU TDP in the power estimate now scales with the selected core count (40% base + 60% proportional), so reducing cores visibly reduces estimated power
 - **Sizer: Single Node Default Resiliency**: Single-node clusters now default to Two-Way Mirror instead of Simple (No Fault Tolerance)
+- **Sizer: Cluster Type & Nodes Label Styling**: The "Cluster Type" and "Number of Nodes" labels now use bolder weight, larger font, and primary text colour for better visibility
+- **Sizer: Disk Consolidation Count Fix**: Fixed disk bay consolidation only increasing disk count, never decreasing — consolidation now writes both count and size together, and stale counts no longer persist after page refresh/resume
+- **Sizer: Consolidation Note After Headroom**: Fixed the consolidation sizing note showing the wrong disk count when the storage headroom pass added extra disks after consolidation
+- **Sizer: HTML Validation Fix**: Encoded raw `&` as `&amp;` in the sizer heading to resolve HTML validation errors
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -374,6 +378,10 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: Dead Code Cleanup**: Removed unused dual parity option, dead functions, and consolidated resiliency constants
 - **Sizer: Power Estimate Core Scaling**: CPU TDP in the power estimate now scales with the selected core count (40% base + 60% proportional), so reducing cores visibly reduces estimated power
 - **Sizer: Single Node Default Resiliency**: Single-node clusters now default to Two-Way Mirror instead of Simple (No Fault Tolerance)
+- **Sizer: Cluster Type & Nodes Label Styling**: Bolder weight, larger font, and primary text colour for Cluster Type and Number of Nodes labels
+- **Sizer: Disk Consolidation Count Fix**: Fixed consolidation only increasing disk count — now bidirectional; stale counts no longer persist after page refresh/resume
+- **Sizer: Consolidation Note After Headroom**: Fixed consolidation sizing note showing wrong disk count when headroom pass added extra disks
+- **Sizer: HTML Validation Fix**: Encoded raw `&` as `&amp;` in the sizer heading
 
 ### 🎉 Version 0.15.x Series (February 2026)
 

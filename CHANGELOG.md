@@ -64,6 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Sizer: AMD EPYC Turin Core Options
 - **Expanded Core Options**: Updated AMD 5th Gen EPYC Turin to include 144, 160, and 192 cores per socket (maxCores: 192), reflecting the full Turin product line. Previously capped at 128.
 
+#### Sizer: Cluster Type & Number of Nodes Label Styling
+- **Bolder Labels**: The "Cluster Type" and "Number of Nodes" labels now use a bolder weight (600), slightly larger font (15px), and the primary text colour, making them stand out from other configuration options.
+
 ### Fixed
 
 #### Sizer: Sizing Notes Consistency
@@ -77,6 +80,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Sizer: Single Node Default Resiliency
 - **Two-Way Mirror Default**: When "Single Node" cluster type is selected, the resiliency now defaults to Two-Way Mirror instead of Simple (No Fault Tolerance), providing single fault tolerance out of the box.
+
+#### Sizer: Disk Bay Consolidation Count
+- **Bidirectional Disk Count Update**: Fixed disk bay consolidation only increasing disk count, never decreasing it. When consolidation selects fewer, larger disks, both the disk count and disk size are now written together. Also fixed stale disk counts persisting after page refresh/resume by making auto-scale unconditionally write the target count (bidirectional) and resetting consolidation info at the start of each calculation cycle.
+
+#### Sizer: Consolidation Note After Storage Headroom
+- **Accurate Sizing Note**: Fixed the disk bay consolidation sizing note displaying the pre-headroom disk count when the 80% storage headroom pass added extra disks after consolidation. The consolidation info (disk count and bays freed) is now updated after the headroom loop completes.
+
+#### Sizer: HTML Validation Fix
+- **Encoded Ampersand**: Fixed a raw `&` character in the "Estimated Power & Rack Space" heading in `sizer/index.html` to `&amp;`, resolving an HTML validation error.
 
 ### Removed
 
