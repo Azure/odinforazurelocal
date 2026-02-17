@@ -2154,6 +2154,23 @@ function calculateRequirements(options) {
         const initialVcpuRatio = getVcpuRatio();
         _vcpuRatioAutoEscalated = false;
 
+        // Reset auto-scaled fields to defaults BEFORE clearing highlights.
+        // This ensures each calculation starts fresh — if the user reduced a
+        // workload, disk count / size won't be stuck at the old higher value.
+        // Only reset fields that were auto-scaled (preserves user manual edits).
+        const DISK_FIELD_DEFAULTS = {
+            'capacity-disk-count': '4',
+            'tiered-capacity-disk-count': '4',
+            'capacity-disk-size': '3.84',
+            'tiered-capacity-disk-size': '3.84'
+        };
+        for (const id of _autoScaledFields) {
+            if (DISK_FIELD_DEFAULTS[id] !== undefined) {
+                const el = document.getElementById(id);
+                if (el) el.value = DISK_FIELD_DEFAULTS[id];
+            }
+        }
+
         // Clear previous auto-scaled highlights before re-running auto-scale
         clearAutoScaledHighlights();
         _diskConsolidationInfo = null;
