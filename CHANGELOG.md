@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Sizer: AMD Tip Text Fix
 - **Duplicate "Intel" Removed**: Fixed the AMD suggestion tip which displayed "Intel Intel® 5th Gen Xeon®..." — removed the redundant prefix. Also added "per node" clarification to physical core count and removed trailing period.
 
+#### Sizer: Power Estimate Core Scaling
+- **CPU TDP Scales with Core Count**: The per-node power estimate now scales CPU TDP based on the selected core count relative to the generation's maximum. Uses a 40% base (uncore/IO) + 60% proportional model, so reducing cores visibly reduces the estimated power draw.
+
+#### Sizer: Single Node Default Resiliency
+- **Two-Way Mirror Default**: When "Single Node" cluster type is selected, the resiliency now defaults to Two-Way Mirror instead of Simple (No Fault Tolerance), providing single fault tolerance out of the box.
+
 ### Removed
 
 #### Sizer: Dead Code Cleanup

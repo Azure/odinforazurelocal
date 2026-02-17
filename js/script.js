@@ -8779,6 +8779,8 @@ function showChangelog() {
                         <li><strong>Disk Bay Consolidation:</strong> When ≥50% of disk bays would be filled, the sizer evaluates fewer larger disks to free bays for future expansion.</li>
                         <li><strong>Storage Limit Enforcement:</strong> Configurations exceeding 400 TB/machine or 4 PB/pool are flagged with 🚫 errors, a red banner, and export/Designer are blocked.</li>
                         <li><strong>Dead Code Cleanup:</strong> Removed unused dual parity option, dead functions, and consolidated resiliency constants.</li>
+                        <li><strong>Power Estimate Core Scaling:</strong> CPU TDP now scales with selected core count (40% base + 60% proportional), so reducing cores visibly reduces estimated power.</li>
+                        <li><strong>Single Node Default Resiliency:</strong> Single-node clusters now default to Two-Way Mirror instead of Simple (No Fault Tolerance).</li>
                         <li><strong>Sizing Notes Consistency:</strong> Fixed edit-vs-add inconsistencies in vCPU ratio warnings and memory calculations.</li>
                     </ul>
                 </div>

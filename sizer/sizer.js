@@ -1447,7 +1447,10 @@ function updateResiliencyOptions() {
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
     if (clusterType === 'rack-aware') {
         // Rack-aware has only one option per node count — already selected
-    } else if (validOptions.includes('3way') && clusterType !== 'single') {
+    } else if (clusterType === 'single') {
+        // Single node: default to 2-way mirror for fault tolerance
+        resiliencySelect.value = '2way';
+    } else if (validOptions.includes('3way')) {
         resiliencySelect.value = '3way';
     } else if (validOptions.includes(currentResiliency)) {
         resiliencySelect.value = currentResiliency;
@@ -2346,9 +2349,17 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         return;
     }
 
-    // CPU power: TDP per socket × sockets
-    const cpuTdp = (hwConfig.generation && hwConfig.generation.tdpPerSocketW) ? hwConfig.generation.tdpPerSocketW : 350;
+    // CPU power: Scale TDP by selected core count relative to max cores for the generation.
+    // Lower core-count SKUs have proportionally lower TDP, but there is a base power floor
+    // (~40% of max TDP) for uncore, memory controller, PCIe, etc.
+    const maxTdp = (hwConfig.generation && hwConfig.generation.tdpPerSocketW) ? hwConfig.generation.tdpPerSocketW : 350;
     const sockets = hwConfig.sockets || 2;
+    let cpuTdp = maxTdp;
+    if (hwConfig.generation && hwConfig.generation.maxCores && hwConfig.coresPerSocket) {
+        const coreRatio = hwConfig.coresPerSocket / hwConfig.generation.maxCores;
+        // TDP scales: 40% base (uncore/IO) + 60% proportional to cores
+        cpuTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
+    }
     const cpuPowerW = cpuTdp * sockets;
 
     // Memory power: ~4W per DIMM, estimate 1 DIMM per 32 GB

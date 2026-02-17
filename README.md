@@ -55,6 +55,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Disk Bay Consolidation**: When auto-scaling would fill ≥50% of available disk bays, the sizer now evaluates larger disk sizes and selects fewer, larger disks to leave bays free for future expansion, with a sizing note explaining the optimisation
 - **Sizer: Storage Limit Enforcement**: Configurations exceeding 400 TB per machine or 4 PB per storage pool are now flagged with 🚫 errors, a red warning banner, and export/Configure in Designer are blocked until corrected
 - **Sizer: Dead Code Cleanup**: Removed unused dual parity option, dead functions, and consolidated resiliency constants
+- **Sizer: Power Estimate Core Scaling**: CPU TDP in the power estimate now scales with the selected core count (40% base + 60% proportional), so reducing cores visibly reduces estimated power
+- **Sizer: Single Node Default Resiliency**: Single-node clusters now default to Two-Way Mirror instead of Simple (No Fault Tolerance)
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -370,6 +372,8 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: Disk Bay Consolidation**: When auto-scaling would fill ≥50% of available disk bays, the sizer now evaluates larger disk sizes and selects fewer, larger disks to leave bays free for future expansion, with a sizing note explaining the optimisation
 - **Sizer: Storage Limit Enforcement**: Configurations exceeding 400 TB per machine or 4 PB per storage pool are now flagged with 🚫 errors, a red warning banner, and export/Configure in Designer are blocked until corrected
 - **Sizer: Dead Code Cleanup**: Removed unused dual parity option, dead functions, and consolidated resiliency constants
+- **Sizer: Power Estimate Core Scaling**: CPU TDP in the power estimate now scales with the selected core count (40% base + 60% proportional), so reducing cores visibly reduces estimated power
+- **Sizer: Single Node Default Resiliency**: Single-node clusters now default to Two-Way Mirror instead of Simple (No Fault Tolerance)
 
 ### 🎉 Version 0.15.x Series (February 2026)
 
