@@ -318,6 +318,12 @@ function onVcpuRatioChange() {
     onHardwareConfigChange();
 }
 
+// Dedicated handler for capacity disk dropdowns — locks disk config against auto-scaling
+function onDiskConfigChange() {
+    _diskConfigUserSet = true;
+    onHardwareConfigChange();
+}
+
 // Show/hide GPU type dropdown based on GPU count
 function updateGpuTypeVisibility() {
     const gpuCount = parseInt(document.getElementById('gpu-count').value) || 0;
@@ -586,6 +592,9 @@ let _vcpuRatioAutoEscalated = false;
 // Track whether the user manually set the vCPU ratio (prevents auto-escalation from overriding)
 let _vcpuRatioUserSet = false;
 
+// Track whether the user manually set disk count/size (prevents disk auto-scaling from overriding)
+let _diskConfigUserSet = false;
+
 // Track disk bay consolidation details for sizing notes
 let _diskConsolidationInfo = null;
 
@@ -747,7 +756,12 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     const diskSizeTB = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
     const diskSizeGB = diskSizeTB * 1024;
 
-    if (diskSizeGB > 0) {
+    // Always reset consolidation info — even when user locked disk config
+    _diskConsolidationInfo = null;
+
+    // Skip disk count/size auto-scaling when the user has manually set the disk configuration.
+    // The user can still see capacity bars and warnings; we just don't override their choice.
+    if (diskSizeGB > 0 && !_diskConfigUserSet) {
         const disksNeeded = Math.ceil(rawPerNodeNeededGB / diskSizeGB);
         const diskCountInput = document.getElementById(diskCountId);
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
@@ -755,10 +769,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // Set disk count to the required amount, capped at max for storage type
         const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
         let targetDisks = Math.min(disksNeeded, maxDisksForType);
-
-        // Reset consolidation info for this call — critical when autoScaleHardware
-        // is called multiple times in the node-increment loop.
-        _diskConsolidationInfo = null;
 
         // --- Disk bay consolidation ---
         // When the required disk count reaches ≥50% of max bays, check if fewer
@@ -933,7 +943,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     }
 
     // Storage headroom — bump disk count first, then disk size, until below threshold
-    {
+    // Skip when the user has manually set disk config (respect user override).
+    if (!_diskConfigUserSet) {
         const hrDiskCountInput = document.getElementById(diskCountId);
         const hrDiskSizeSelect = document.getElementById(diskSizeId);
         let hrDiskCount = parseInt(hrDiskCountInput.value) || 4;
@@ -1853,8 +1864,9 @@ function addWorkload() {
     }
     closeModal();
     renderWorkloads();
-    // Reset vCPU user lock when workloads change — auto-escalation should re-evaluate
+    // Reset user locks when workloads change — auto-scaling should re-evaluate
     _vcpuRatioUserSet = false;
+    _diskConfigUserSet = false;
     calculateRequirements();
 }
 
@@ -1929,8 +1941,9 @@ function deleteWorkload(id) {
     if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
     workloads = workloads.filter(w => w.id !== id);
     renderWorkloads();
-    // Reset vCPU user lock when workloads change — auto-escalation should re-evaluate
+    // Reset user locks when workloads change — auto-scaling should re-evaluate
     _vcpuRatioUserSet = false;
+    _diskConfigUserSet = false;
     calculateRequirements();
 }
 
@@ -1944,6 +1957,7 @@ function cloneWorkload(id) {
     workloads.push(clone);
     renderWorkloads();
     _vcpuRatioUserSet = false;
+    _diskConfigUserSet = false;
     calculateRequirements();
 }
 
