@@ -752,9 +752,13 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const diskCountInput = document.getElementById(diskCountId);
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
 
-        // Set disk count to at least the required amount, capped at max for storage type
+        // Set disk count to the required amount, capped at max for storage type
         const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
         let targetDisks = Math.min(disksNeeded, maxDisksForType);
+
+        // Reset consolidation info for this call — critical when autoScaleHardware
+        // is called multiple times in the node-increment loop.
+        _diskConsolidationInfo = null;
 
         // --- Disk bay consolidation ---
         // When the required disk count reaches ≥50% of max bays, check if fewer
@@ -807,7 +811,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             }
         }
 
-        if (!_diskConsolidationInfo && targetDisks > currentDiskCount) {
+        // Always set disk count to the computed value (bidirectional).
+        // Previous code only increased, which caused stale counts to persist
+        // after auto-save/restore or workload reduction.
+        if (!_diskConsolidationInfo && targetDisks !== currentDiskCount) {
             diskCountInput.value = targetDisks;
             changed = true;
             markAutoScaled(diskCountId);
@@ -2153,23 +2160,6 @@ function calculateRequirements(options) {
         // when autoScaleHardware is called multiple times (e.g. in the node loop).
         const initialVcpuRatio = getVcpuRatio();
         _vcpuRatioAutoEscalated = false;
-
-        // Reset auto-scaled fields to defaults BEFORE clearing highlights.
-        // This ensures each calculation starts fresh — if the user reduced a
-        // workload, disk count / size won't be stuck at the old higher value.
-        // Only reset fields that were auto-scaled (preserves user manual edits).
-        const DISK_FIELD_DEFAULTS = {
-            'capacity-disk-count': '4',
-            'tiered-capacity-disk-count': '4',
-            'capacity-disk-size': '3.84',
-            'tiered-capacity-disk-size': '3.84'
-        };
-        for (const id of _autoScaledFields) {
-            if (DISK_FIELD_DEFAULTS[id] !== undefined) {
-                const el = document.getElementById(id);
-                if (el) el.value = DISK_FIELD_DEFAULTS[id];
-            }
-        }
 
         // Clear previous auto-scaled highlights before re-running auto-scale
         clearAutoScaledHighlights();
