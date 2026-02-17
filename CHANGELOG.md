@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.15.99] - 2026-02-17
+
+### Added
+
+#### Sizer: vCPU Ratio Manual Override
+- **User-Lockable vCPU Ratio**: When the user manually changes the vCPU Overcommit Ratio dropdown, the selection is now locked against auto-escalation. Auto-scaling will no longer override the user's manual choice. The lock resets automatically when workloads are added or removed, allowing auto-escalation to re-evaluate with the new workload profile.
+
+#### Sizer: AMD CPU Suggestion Tip
+- **AMD Alternative Recommendation**: When Intel cores and sockets are both at maximum and compute utilization is ≥80% at the baseline 4:1 ratio, a 💡 tip suggests AMD EPYC Turin as an alternative with higher core counts. The check uses the 4:1 baseline so the tip persists even when the ratio has been auto-scaled to 5:1 or 6:1.
+
+#### Sizer: Auto-Scaled Field Visual Indicators
+- **Purple Glow + AUTO Badge**: Hardware configuration fields that are auto-scaled now display a purple border glow animation and an "AUTO" badge on their labels, giving users clear visual feedback on which settings were automatically adjusted. Highlights clear and refresh on each calculation cycle.
+
+#### Sizer: Capacity Label Renames
+- **Clarity Improvements**: "Capacity Breakdown" renamed to "Capacity Usage for Workload". Compute, Memory, and Storage sub-labels now include a "- Consumed" suffix for clarity.
+
+#### Sizer: Infrastructure_1 Volume Deduction
+- **256 GB Reserved Storage**: The Infrastructure_1 volume (256 GB usable) reserved by Storage Spaces Direct is now deducted from overall usable storage in all capacity calculations — node recommendation, auto-scaling, capacity bars, and node increment loop. A sizing note explains the deduction. Raw cost scales with resiliency multiplier (e.g., 1024 GB raw for 4-way mirror).
+
+#### Sizer: Disk Bay Consolidation
+- **Fewer Larger Disks**: When auto-scaling would fill ≥50% of available disk bays (12 of 24 for all-flash, 8 of 16 for hybrid/mixed-flash), the sizer now evaluates all larger standard disk sizes and selects the smallest one that brings disk count below the 50% threshold. If none can, it picks the size that saves the most bays. A sizing note explains the optimisation and informs users they can manually revert to more smaller disks if preferred. Cache-to-capacity disk symmetry (1:2 ratio) is preserved for hybrid and mixed-flash configurations.
+
+#### Sizer: Storage Limit Enforcement
+- **Hard Block on Invalid Configurations**: Configurations exceeding 400 TB raw storage per machine or 4 PB (4,000 TB) per storage pool are now flagged with 🚫 error notes (upgraded from ⚠️ warnings), a red warning banner appears, and both "Configure in Designer" and "Download Word" export are blocked until the configuration is corrected.
+
+### Changed
+
+#### Sizer: AMD EPYC Turin Core Options
+- **Expanded Core Options**: Updated AMD 5th Gen EPYC Turin to include 144, 160, and 192 cores per socket (maxCores: 192), reflecting the full Turin product line. Previously capped at 128.
+
+### Fixed
+
+#### Sizer: Sizing Notes Consistency
+- **Consistent Edit vs Add Behaviour**: Fixed three bugs causing sizing notes (e.g., vCPU overcommit ratio warnings) to differ when editing a workload vs adding a new one: (1) `_vcpuRatioAutoEscalated` flag reset moved from per-`autoScaleHardware()` call to once per `calculateRequirements()` cycle; (2) `initialVcpuRatio` comparison added after all auto-scale passes; (3) 32 GB host overhead added to memory calculation in node-increment loop.
+
+---
+
 ## [0.15.98] - 2026-02-16
 
 ### Fixed

@@ -268,7 +268,7 @@
                     <h3 class="hw-subsection-title">Advanced Settings</h3>
                     <div class="config-row">
                         <label for="vcpu-ratio">vCPU Overcommit Ratio</label>
-                        <select id="vcpu-ratio" onchange="onHardwareConfigChange()">
+                        <select id="vcpu-ratio" onchange="onVcpuRatioChange()">
                             <option value="1">1:1 (No overcommit)</option>
                             <option value="2">2:1</option>
                             <option value="4" selected>4:1 (Default)</option>
@@ -533,9 +533,9 @@
                     </div>
                 </div>
 
-                <!-- Capacity Breakdown -->
+                <!-- Capacity Usage for Workload -->
                 <div class="capacity-breakdown">
-                    <h3>Capacity Breakdown</h3>
+                    <h3>Capacity Usage for Workload</h3>
                     <div class="breakdown-bars">
                         <div class="breakdown-item">
                             <div class="breakdown-header">
@@ -551,7 +551,7 @@
                         </div>
                         <div class="breakdown-item">
                             <div class="breakdown-header">
-                                <span>Compute (vCPUs)</span>
+                                <span>Compute (vCPUs) - Consumed</span>
                                 <span id="compute-percent">0%</span>
                             </div>
                             <div class="breakdown-bar">
@@ -563,7 +563,7 @@
                         </div>
                         <div class="breakdown-item">
                             <div class="breakdown-header">
-                                <span>Memory</span>
+                                <span>Memory - Consumed</span>
                                 <span id="memory-percent">0%</span>
                             </div>
                             <div class="breakdown-bar">
@@ -575,7 +575,7 @@
                         </div>
                         <div class="breakdown-item">
                             <div class="breakdown-header">
-                                <span>Usable Storage</span>
+                                <span>Usable Storage - Consumed</span>
                                 <span id="storage-percent">0%</span>
                             </div>
                             <div class="breakdown-bar">
@@ -592,6 +592,12 @@
                 <div class="config-info config-info-warning" id="capacity-utilization-warning" style="display: none;">
                     <span class="info-icon">🚫</span>
                     <span>One or more resources (Compute, Memory, or Storage) are at or above 90% utilization. This is not a recommended configuration — increase per-node hardware specs, add more nodes, or reduce workloads before proceeding to the Designer.</span>
+                </div>
+
+                <!-- Storage Limit Exceeded Warning -->
+                <div class="config-info config-info-warning" id="storage-limit-warning" style="display: none;">
+                    <span class="info-icon">🚫</span>
+                    <span id="storage-limit-warning-text">Storage configuration exceeds Azure Local supported limits. Export is blocked until the configuration is corrected.</span>
                 </div>
 
                 <!-- Notes -->

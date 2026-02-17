@@ -91,8 +91,8 @@ const CPU_GENERATIONS = {
             id: 'epyc-5th',
             name: 'AMD 5th Gen EPYC™ (Turin)',
             minCores: 8,
-            maxCores: 128,
-            coreOptions: [8, 16, 24, 32, 36, 48, 64, 72, 96, 128],
+            maxCores: 192,
+            coreOptions: [8, 16, 24, 32, 36, 48, 64, 72, 96, 128, 144, 160, 192],
             defaultCores: 32,
             architecture: 'Zen 5',
             socket: 'SP5 (LGA 6096)',
@@ -304,6 +304,12 @@ function onHardwareConfigChange() {
     calculateRequirements();
 }
 
+// Dedicated handler for vCPU ratio dropdown — locks the ratio against auto-escalation
+function onVcpuRatioChange() {
+    _vcpuRatioUserSet = true;
+    onHardwareConfigChange();
+}
+
 // Show/hide GPU type dropdown based on GPU count
 function updateGpuTypeVisibility() {
     const gpuCount = parseInt(document.getElementById('gpu-count').value) || 0;
@@ -459,8 +465,10 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     }
     const maxRawStoragePerNodeGB = maxDiskCount * diskSizeGB;
 
-    // Total raw storage needed = usable * resiliency multiplier
-    const totalRawStorageNeededGB = totalStorageGB * resiliencyMultiplier;
+    // Total raw storage needed = (usable + Infrastructure_1 volume) * resiliency multiplier
+    // Infrastructure_1 volume: 256 GB usable, reserved by Storage Spaces Direct
+    const infraVolumeRawGB = 256 * resiliencyMultiplier;
+    const totalRawStorageNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB;
 
     // Minimum working nodes for each resource dimension
     let computeNodes = vcpusPerNode > 0 ? Math.ceil(totalVcpus / vcpusPerNode) : 1;
@@ -570,10 +578,72 @@ const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
 // Track whether the vCPU ratio was auto-escalated from default (4:1) during auto-scale
 let _vcpuRatioAutoEscalated = false;
 
+// Track whether the user manually set the vCPU ratio (prevents auto-escalation from overriding)
+let _vcpuRatioUserSet = false;
+
+// Track disk bay consolidation details for sizing notes
+let _diskConsolidationInfo = null;
+
+// Track whether storage limits are exceeded (blocks export)
+let _storageLimitExceeded = false;
+
+// Track which hardware fields were auto-scaled so we can highlight them
+let _autoScaledFields = new Set();
+
+// Mark a field element as auto-scaled (add visual highlight + badge)
+function markAutoScaled(elementId) {
+    _autoScaledFields.add(elementId);
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.add('auto-scaled');
+    // Add "auto" badge to the label if not already present
+    // For both direct config-row children and input-with-unit nested elements
+    const configRow = el.closest('.config-row');
+    if (configRow) {
+        const label = configRow.querySelector('label');
+        if (label && !label.querySelector('.auto-scaled-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'auto-scaled-badge';
+            badge.textContent = 'auto';
+            badge.title = 'This value was automatically adjusted to fit workload requirements';
+            label.appendChild(badge);
+        }
+    }
+    // Remove highlight when user manually interacts with the field
+    const clearHandler = () => {
+        el.classList.remove('auto-scaled');
+        _autoScaledFields.delete(elementId);
+        const row = el.closest('.config-row');
+        if (row) {
+            const badge = row.querySelector('.auto-scaled-badge');
+            if (badge) badge.remove();
+        }
+        el.removeEventListener('change', clearHandler);
+        el.removeEventListener('input', clearHandler);
+    };
+    el.addEventListener('change', clearHandler, { once: true });
+    el.addEventListener('input', clearHandler, { once: true });
+}
+
+// Clear all auto-scaled highlights (called at start of each auto-scale cycle)
+function clearAutoScaledHighlights() {
+    for (const id of _autoScaledFields) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('auto-scaled');
+        const row = el?.closest('.config-row');
+        if (row) {
+            const badge = row.querySelector('.auto-scaled-badge');
+            if (badge) badge.remove();
+        }
+    }
+    _autoScaledFields.clear();
+}
+
 // Automatically increase CPU cores, memory, disk count, and disk size so capacity bars stay below 100%
 function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount, resiliencyMultiplier, hwConfig) {
     let vcpuToCore = getVcpuRatio();
-    _vcpuRatioAutoEscalated = false; // reset each auto-scale pass
+    // Note: _vcpuRatioAutoEscalated is reset once per calculateRequirements() call,
+    // NOT per autoScaleHardware() call, so the flag survives multiple auto-scale passes.
     const hostOverheadMemoryGB = 32;
     const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
@@ -614,6 +684,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                             sockets = s;
                             socketsSelect.value = s;
                             changed = true;
+                            markAutoScaled('cpu-sockets');
                             break;
                         }
                     }
@@ -628,12 +699,14 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                     sockets = 2;
                     socketsSelect.value = 2;
                     changed = true;
+                    markAutoScaled('cpu-sockets');
                 }
             }
 
             if (targetCores > currentCores) {
                 coresSelect.value = targetCores;
                 changed = true;
+                markAutoScaled('cpu-cores');
             }
         }
     }
@@ -648,11 +721,15 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     if (targetMem > currentMem) {
         memInput.value = targetMem;
         changed = true;
+        markAutoScaled('node-memory');
     }
 
     // --- Auto-scale disk count (capacity disks) ---
-    // Total raw storage needed across all nodes = usable * resiliency multiplier
-    const totalRawNeededGB = totalStorageGB * resiliencyMultiplier;
+    // Infrastructure_1 volume: 256 GB usable, consumes raw storage based on resiliency
+    const infraVolumeUsableGB = 256;
+    const infraVolumeRawGB = infraVolumeUsableGB * resiliencyMultiplier;
+    // Total raw storage needed across all nodes = (usable + Infrastructure_1) * resiliency multiplier
+    const totalRawNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB;
     // Raw storage each node must provide
     const rawPerNodeNeededGB = totalRawNeededGB / nodeCount;
 
@@ -675,37 +752,98 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // Set disk count to at least the required amount, capped at max for storage type
         const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
         let targetDisks = Math.min(disksNeeded, maxDisksForType);
+
+        // --- Disk bay consolidation ---
+        // When the required disk count reaches ≥50% of max bays, check if fewer
+        // larger capacity disks could meet the requirement while leaving more bays
+        // free for future expansion. Evaluate all larger standard sizes and pick
+        // the smallest one that brings disk count below the 50% threshold; if none
+        // can, pick the one that saves the most bays.
+        const DISK_BAY_CONSOLIDATION_THRESHOLD = 0.5; // 50% of max bays
+        let consolidatedDiskSize = diskSizeGB;
+        let consolidatedDiskSizeTB = diskSizeRaw;
+        let consolidatedUnit = diskUnit;
+        const bayThreshold = Math.ceil(maxDisksForType * DISK_BAY_CONSOLIDATION_THRESHOLD);
+        if (targetDisks >= bayThreshold) {
+            // Collect all standard sizes larger than current
+            const largerSizes = DISK_SIZE_OPTIONS_TB.filter(s => s * 1024 > diskSizeGB);
+            let bestCandidate = null;
+            for (const candidateTB of largerSizes) {
+                const candidateGB = candidateTB * 1024;
+                const fewerDisks = Math.ceil(rawPerNodeNeededGB / candidateGB);
+                if (fewerDisks < targetDisks && fewerDisks <= maxDisksForType) {
+                    // First size that brings count below threshold wins
+                    if (fewerDisks < bayThreshold) {
+                        bestCandidate = { sizeTB: candidateTB, sizeGB: candidateGB, count: fewerDisks };
+                        break; // smallest size that meets target — ideal
+                    }
+                    // Otherwise track the best bay savings so far
+                    if (!bestCandidate || fewerDisks < bestCandidate.count) {
+                        bestCandidate = { sizeTB: candidateTB, sizeGB: candidateGB, count: fewerDisks };
+                    }
+                }
+            }
+            if (bestCandidate) {
+                _diskConsolidationInfo = {
+                    originalCount: targetDisks,
+                    originalSizeTB: diskUnit === 'TB' ? diskSizeRaw : diskSizeGB / 1024,
+                    newCount: bestCandidate.count,
+                    newSizeTB: bestCandidate.sizeTB,
+                    maxBays: maxDisksForType,
+                    baysFreed: targetDisks - bestCandidate.count
+                };
+                targetDisks = bestCandidate.count;
+                consolidatedDiskSize = bestCandidate.sizeGB;
+                consolidatedDiskSizeTB = bestCandidate.sizeTB;
+                consolidatedUnit = 'TB';
+                // Update disk size controls
+                const diskSizeInput = document.getElementById(diskSizeId);
+                const diskUnitSelect = document.getElementById(diskUnitId);
+                diskSizeInput.value = bestCandidate.sizeTB;
+                diskUnitSelect.value = 'TB';
+                changed = true;
+                markAutoScaled(diskSizeId);
+                markAutoScaled(diskUnitId);
+            }
+        }
+
         if (targetDisks > currentDiskCount) {
             diskCountInput.value = targetDisks;
             changed = true;
+            markAutoScaled(diskCountId);
         }
 
         // --- Auto-scale disk size when disk count alone isn't enough ---
         // If we've maxed out disk count and per-node storage is still insufficient,
         // step up to the next standard disk size (3.84 → 7.68 → 15.36 TB)
         const currentDiskCountFinal = parseInt(diskCountInput.value) || 4;
+        const currentDiskSizeGB = consolidatedDiskSize;
         if (currentDiskCountFinal >= maxDisksForType) {
-            const currentStoragePerNodeGB = currentDiskCountFinal * diskSizeGB;
+            const currentStoragePerNodeGB = currentDiskCountFinal * currentDiskSizeGB;
             if (currentStoragePerNodeGB < rawPerNodeNeededGB) {
                 const diskSizeInput = document.getElementById(diskSizeId);
                 const diskUnitSelect = document.getElementById(diskUnitId);
                 // Find the smallest standard size that provides enough per-node storage
                 for (const sizeTB of DISK_SIZE_OPTIONS_TB) {
                     const candidateGB = sizeTB * 1024;
-                    if (candidateGB > diskSizeGB && currentDiskCountFinal * candidateGB >= rawPerNodeNeededGB) {
+                    if (candidateGB > currentDiskSizeGB && currentDiskCountFinal * candidateGB >= rawPerNodeNeededGB) {
                         diskSizeInput.value = sizeTB;
                         diskUnitSelect.value = 'TB';
                         changed = true;
+                        markAutoScaled(diskSizeId);
+                        markAutoScaled(diskUnitId);
                         break;
                     }
                 }
                 // If no standard size is big enough, set to max available
-                if (!changed || (currentDiskCountFinal * (parseFloat(diskSizeInput.value) * (diskUnitSelect.value === 'TB' ? 1024 : 1))) < rawPerNodeNeededGB) {
+                if (!changed || (currentDiskCountFinal * (parseFloat(document.getElementById(diskSizeId).value) * (document.getElementById(diskUnitId).value === 'TB' ? 1024 : 1))) < rawPerNodeNeededGB) {
                     const maxSize = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1];
-                    if (maxSize * 1024 > diskSizeGB) {
+                    if (maxSize * 1024 > currentDiskSizeGB) {
                         diskSizeInput.value = maxSize;
                         diskUnitSelect.value = 'TB';
                         changed = true;
+                        markAutoScaled(diskSizeId);
+                        markAutoScaled(diskUnitId);
                     }
                 }
             }
@@ -714,7 +852,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     // --- Headroom pass: nudge cores / memory up if capacity bars > 80% ---
     // The initial auto-scale above ensures resources fit (< 100%). This pass
-    // provides additional headroom so the Capacity Breakdown stays ≤ 80%
+    // provides additional headroom so the Capacity Usage stays ≤ 80%
     // wherever a larger per-node option is available.
     const HEADROOM_THRESHOLD = 80;
 
@@ -737,12 +875,14 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                     hrCores = gen.coreOptions[coreIdx + 1];
                     document.getElementById('cpu-cores').value = hrCores;
                     changed = true;
+                    markAutoScaled('cpu-cores');
                 } else if (hrSockets < 2) {
                     const nextSocket = SOCKET_OPTIONS.find(s => s > hrSockets);
                     if (nextSocket) {
                         hrSockets = nextSocket;
                         document.getElementById('cpu-sockets').value = hrSockets;
                         changed = true;
+                        markAutoScaled('cpu-sockets');
                     } else {
                         break;
                     }
@@ -756,14 +896,16 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             // vCPU ratio auto-escalation — when cores & sockets are maxed and compute ≥90%,
             // bump the overcommit ratio (4→5→6) to reduce over-threshold pressure.
             // Only auto-escalate from default (4) or a previously auto-escalated value (5).
+            // Skip if the user has manually set the ratio (respect user override).
             const VCPU_ESCALATION_THRESHOLD = 90;
             const VCPU_RATIO_STEPS = [5, 6];
-            if (cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
+            if (!_vcpuRatioUserSet && cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
                 for (const nextRatio of VCPU_RATIO_STEPS) {
                     if (nextRatio <= vcpuToCore) continue; // skip ratios we're already at or past
                     vcpuToCore = nextRatio;
                     document.getElementById('vcpu-ratio').value = nextRatio;
                     changed = true;
+                    markAutoScaled('vcpu-ratio');
                     _vcpuRatioAutoEscalated = true;
                     cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
                     cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
@@ -783,6 +925,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         hrMemory = MEMORY_OPTIONS_GB[memIdx];
         document.getElementById('node-memory').value = hrMemory;
         changed = true;
+        markAutoScaled('node-memory');
         memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
         memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
     }
@@ -807,6 +950,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 hrDiskCount++;
                 hrDiskCountInput.value = hrDiskCount;
                 changed = true;
+                markAutoScaled(diskCountId);
             } else {
                 // Disk count maxed — try stepping up disk size
                 const nextSize = DISK_SIZE_OPTIONS_TB.find(s => s * 1024 > hrDiskSizeGB);
@@ -817,6 +961,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                     hrDiskSizeInput.value = nextSize;
                     hrDiskUnitSelect.value = 'TB';
                     changed = true;
+                    markAutoScaled(diskSizeId);
+                    markAutoScaled(diskUnitId);
                 } else {
                     break; // maxed out on both disk count and disk size
                 }
@@ -836,6 +982,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         if (currentCacheCount < targetCacheCount) {
             cacheDiskInput.value = Math.min(targetCacheCount, MAX_CACHE_DISK_COUNT);
             changed = true;
+            markAutoScaled('cache-disk-count');
         }
     }
 
@@ -1733,6 +1880,8 @@ function addWorkload() {
     }
     closeModal();
     renderWorkloads();
+    // Reset vCPU user lock when workloads change — auto-escalation should re-evaluate
+    _vcpuRatioUserSet = false;
     calculateRequirements();
 }
 
@@ -1804,6 +1953,8 @@ function editWorkload(id) {
 function deleteWorkload(id) {
     workloads = workloads.filter(w => w.id !== id);
     renderWorkloads();
+    // Reset vCPU user lock when workloads change — auto-escalation should re-evaluate
+    _vcpuRatioUserSet = false;
     calculateRequirements();
 }
 
@@ -2016,6 +2167,17 @@ function calculateRequirements(options) {
         // Read (possibly updated) node count
         let nodeCount = parseInt(document.getElementById('node-count').value) || 3;
 
+        // Reset vCPU auto-escalation flag once per calculation cycle.
+        // Capture the initial ratio so we can detect if any autoScaleHardware()
+        // call within this cycle bumped it — this avoids the flag being lost
+        // when autoScaleHardware is called multiple times (e.g. in the node loop).
+        const initialVcpuRatio = getVcpuRatio();
+        _vcpuRatioAutoEscalated = false;
+
+        // Clear previous auto-scaled highlights before re-running auto-scale
+        clearAutoScaledHighlights();
+        _diskConsolidationInfo = null;
+
         // --- Auto-scale CPU cores, memory & disk count to avoid >100% capacity ---
         if (workloads.length > 0) {
             const hwChanged = autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig);
@@ -2054,8 +2216,10 @@ function calculateRequirements(options) {
                     const rawTBPerNode = rawGBPerNode / 1024 || 10;
 
                     const availVcpus = physCores * effNodes * vcpuToCore;
-                    const availMem = memPerNode * effNodes;
-                    const availStorage = (rawTBPerNode * nodeCount) / resiliencyMultiplier;
+                    const hostOverheadMemoryGBLoop = 32; // match host overhead used in capacity bars
+                    const availMem = Math.max(memPerNode - hostOverheadMemoryGBLoop, 0) * effNodes;
+                    // Subtract Infrastructure_1 volume (256 GB usable) from available storage
+                    const availStorage = Math.max((rawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25, 0);
 
                     const cpuPct = availVcpus > 0 ? Math.round((totalVcpus / availVcpus) * 100) : 0;
                     const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
@@ -2091,6 +2255,15 @@ function calculateRequirements(options) {
                     finalRec.recommended = nodeCount;
                     updateNodeRecommendation(finalRec);
                 }
+            }
+
+            // If the vCPU ratio changed from its value at the start of this
+            // calculation cycle, ensure the auto-escalation flag is set so the
+            // sizing notes show the appropriate warning — even if the flag was
+            // not explicitly set during one of the autoScaleHardware passes
+            // (e.g. ratio was bumped in pass 1, then pass 2 reset the flag).
+            if (getVcpuRatio() !== initialVcpuRatio) {
+                _vcpuRatioAutoEscalated = true;
             }
         }
 
@@ -2138,7 +2311,9 @@ function calculateRequirements(options) {
         const totalAvailableVcpus = physicalCoresPerNode * effectiveNodes * vcpuToCore;
         const hostOverheadGB = 32; // Azure Local host OS + management overhead per node
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes;
-        const totalAvailableStorage = (rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier;
+        // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
+        const infraVolumeUsableTB = 0.25; // 256 GB
+        const totalAvailableStorage = Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB, 0);
 
         const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
         const memoryPercent = Math.min(100, Math.round((totalMemory / totalAvailableMemory) * 100)) || 0;
@@ -2266,6 +2441,34 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             if (requiredCoresPerNode > hwConfig.totalPhysicalCores) {
                 notes.push(`⚠️ Required cores per node (${requiredCoresPerNode}) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional nodes.`);
             }
+
+            // AMD suggestion when Intel cores are maxed out and compute ≥80% at 4:1.
+            // Use the baseline 4:1 ratio for the check so the tip still shows even
+            // when the ratio has been auto-scaled to 5:1 or 6:1 (which artificially
+            // lowers the displayed compute %).
+            if (hwConfig.manufacturer === 'intel' && hwConfig.generation) {
+                const maxIntelCores = hwConfig.generation.coreOptions[hwConfig.generation.coreOptions.length - 1];
+                const isMaxCores = hwConfig.coresPerSocket >= maxIntelCores;
+                const isMaxSockets = hwConfig.sockets >= 2;
+                const baselineRatio = 4; // default overcommit ratio
+                const baselineVcpuCap = hwConfig.totalPhysicalCores * effectiveNodes * baselineRatio;
+                const computePctAtBaseline = baselineVcpuCap > 0 ? Math.min(100, Math.round((totalVcpus / baselineVcpuCap) * 100)) : 0;
+                if (isMaxCores && isMaxSockets && computePctAtBaseline >= 80) {
+                    // Find the AMD generation with the most cores
+                    let bestAmdGen = null;
+                    let bestAmdMaxCores = 0;
+                    for (const gen of CPU_GENERATIONS.amd) {
+                        const genMax = gen.coreOptions[gen.coreOptions.length - 1];
+                        if (genMax > bestAmdMaxCores) {
+                            bestAmdMaxCores = genMax;
+                            bestAmdGen = gen;
+                        }
+                    }
+                    if (bestAmdGen && bestAmdMaxCores * 2 > hwConfig.totalPhysicalCores) {
+                        notes.push(`💡 Tip: Intel ${hwConfig.generation.name} is at maximum cores (${maxIntelCores} per socket × ${hwConfig.sockets} sockets = ${hwConfig.totalPhysicalCores} physical cores). ${bestAmdGen.name} offers up to ${bestAmdMaxCores} cores per socket (${bestAmdMaxCores * 2} with dual socket), which could provide additional compute headroom.`);
+                    }
+                }
+            }
         }
 
         // Utilization threshold checks (compute, memory, storage)
@@ -2296,6 +2499,8 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         }
 
         // 400 TB per-machine storage validation
+        let storageLimitExceeded = false;
+        let storageLimitMessages = [];
         if (hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
             const dc = hwConfig.diskConfig;
             let rawStoragePerMachineTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
@@ -2303,7 +2508,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 rawStoragePerMachineTB += (dc.cache.count * dc.cache.sizeGB) / 1024;
             }
             if (rawStoragePerMachineTB > 400) {
-                notes.push(`⚠️ Raw storage per machine (~${rawStoragePerMachineTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 400 TB per machine.`);
+                notes.push(`🚫 Raw storage per machine (~${rawStoragePerMachineTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 400 TB per machine. Reduce disk count or disk size.`);
+                storageLimitExceeded = true;
+                storageLimitMessages.push(`Raw storage per machine (~${rawStoragePerMachineTB.toFixed(0)} TB) exceeds 400 TB max`);
             }
         }
 
@@ -2316,7 +2523,20 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
             const totalClusterRawTB = rawPerNodeTB * nodeCount;
             if (totalClusterRawTB > 4000) {
-                notes.push(`⚠️ Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool.`);
+                notes.push(`🚫 Total cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds the Azure Local supported maximum of 4 PB (4,000 TB) per storage pool. Reduce nodes, disk count, or disk size.`);
+                storageLimitExceeded = true;
+                storageLimitMessages.push(`Cluster raw storage (~${totalClusterRawTB.toFixed(0)} TB) exceeds 4 PB (4,000 TB) max`);
+            }
+        }
+
+        // Update storage limit banner and global flag
+        _storageLimitExceeded = storageLimitExceeded;
+        const storageLimitBanner = document.getElementById('storage-limit-warning');
+        const storageLimitText = document.getElementById('storage-limit-warning-text');
+        if (storageLimitBanner) {
+            storageLimitBanner.style.display = storageLimitExceeded ? 'flex' : 'none';
+            if (storageLimitExceeded && storageLimitText) {
+                storageLimitText.textContent = storageLimitMessages.join('. ') + '. This is an unsupported configuration — export is blocked until corrected.';
             }
         }
         
@@ -2326,6 +2546,15 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`⚠️ Warning: vCPU overcommit ratio has been auto-scaled to ${vcpuRatio}:1 — physical CPU cores and sockets are maxed out for required vCPUs. A ${vcpuRatio}:1 or higher overcommit ratio is required to accommodate the workload. Consider adding more nodes / clusters, or reducing workload vCPU requirements.`);
         } else {
             notes.push(`vCPU calculations use ${vcpuRatio}:1 pCPU to vCPU overcommit ratio`);
+        }
+
+        // Infrastructure_1 volume note
+        notes.push('ℹ️ Infrastructure_1 volume: 256 GB usable capacity reserved by Storage Spaces Direct has been deducted from the overall usable storage.');
+
+        // Disk bay consolidation note
+        if (_diskConsolidationInfo) {
+            const info = _diskConsolidationInfo;
+            notes.push(`💡 Disk bay optimization: ${info.originalCount} × ${info.originalSizeTB} TB capacity disks would use ${Math.round(info.originalCount / info.maxBays * 100)}% of available disk bays (${info.maxBays} max). Auto-scaled to ${info.newCount} × ${info.newSizeTB} TB disks instead, freeing ${info.baysFreed} bay${info.baysFreed > 1 ? 's' : ''} per node for future expansion. Note: Disk size and number can be edited, if you prefer a larger number of smaller capacity disks.`);
         }
 
         // Host overhead note
@@ -2387,6 +2616,12 @@ function mapSizerToDesignerScale(clusterType) {
 // ============================================
 
 function exportSizerWord() {
+    // Block export if storage limits are exceeded
+    if (_storageLimitExceeded) {
+        alert('Export blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or node count before exporting.');
+        return;
+    }
+
     var hwConfig = getHardwareConfig();
     var clusterType = document.getElementById('cluster-type').value;
     var nodeCount = document.getElementById('node-count').value;
@@ -2513,9 +2748,9 @@ function exportSizerWord() {
     // Capacity Utilization
     html += '<h3>Capacity Utilization</h3>';
     html += '<table><thead><tr><th>Resource</th><th>Utilization</th></tr></thead><tbody>';
-    html += '<tr><td>Compute (vCPUs)</td><td>' + computePercent + '</td></tr>';
-    html += '<tr><td>Memory</td><td>' + memoryPercent + '</td></tr>';
-    html += '<tr><td>Storage</td><td>' + storagePercent + '</td></tr>';
+    html += '<tr><td>Compute (vCPUs) - Consumed</td><td>' + computePercent + '</td></tr>';
+    html += '<tr><td>Memory - Consumed</td><td>' + memoryPercent + '</td></tr>';
+    html += '<tr><td>Usable Storage - Consumed</td><td>' + storagePercent + '</td></tr>';
     html += '</tbody></table>';
 
     // Workloads
@@ -2560,6 +2795,12 @@ function escapeHtmlSizer(str) {
 }
 
 function configureInDesigner() {
+    // Block if storage limits are exceeded
+    if (_storageLimitExceeded) {
+        alert('Configure in Designer blocked: The current storage configuration exceeds Azure Local supported limits (400 TB per machine or 4 PB per storage pool). Please reduce disk count, disk size, or node count before proceeding.');
+        return;
+    }
+
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = document.getElementById('node-count').value;
     const resiliency = document.getElementById('resiliency').value;

@@ -8756,7 +8756,27 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.15.98 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.15.99 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 17, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧮 Sizer: Auto-Scale Enhancements, Disk Bay Optimisation &amp; Storage Limit Enforcement</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>vCPU Ratio Manual Override:</strong> Users can now manually set the vCPU Overcommit Ratio without auto-scaling overriding their selection. The lock resets when workloads are added or removed.</li>
+                        <li><strong>AMD CPU Suggestion Tip:</strong> When Intel cores/sockets are maxed and compute ≥80% at baseline 4:1, a tip suggests AMD EPYC Turin with up to 192 cores per socket (384 dual socket).</li>
+                        <li><strong>AMD EPYC Turin Core Options:</strong> Updated to include 144, 160, and 192 cores per socket, reflecting the full Turin product line.</li>
+                        <li><strong>Auto-Scaled Field Indicators:</strong> Auto-scaled hardware fields now show a purple glow animation and "AUTO" badge for clear visual feedback.</li>
+                        <li><strong>Capacity Label Clarity:</strong> "Capacity Breakdown" → "Capacity Usage for Workload"; sub-labels now include "- Consumed" suffix.</li>
+                        <li><strong>Infrastructure_1 Volume:</strong> 256 GB usable capacity reserved by Storage Spaces Direct is now deducted from usable storage in all calculations.</li>
+                        <li><strong>Disk Bay Consolidation:</strong> When ≥50% of disk bays would be filled, the sizer evaluates fewer larger disks to free bays for future expansion.</li>
+                        <li><strong>Storage Limit Enforcement:</strong> Configurations exceeding 400 TB/machine or 4 PB/pool are flagged with 🚫 errors, a red banner, and export/Designer are blocked.</li>
+                        <li><strong>Sizing Notes Consistency:</strong> Fixed edit-vs-add inconsistencies in vCPU ratio warnings and memory calculations.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.15.98</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 16, 2026</div>
                 </div>
 
