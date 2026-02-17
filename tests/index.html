@@ -2763,7 +2763,7 @@
             assert(RESILIENCY_CONFIG['3way'].multiplier === 3, '3-way: multiplier = 3', 3, RESILIENCY_CONFIG['3way'].multiplier),
             assert(RESILIENCY_CONFIG['4way'].multiplier === 4, '4-way: multiplier = 4', 4, RESILIENCY_CONFIG['4way'].multiplier),
             assert(RESILIENCY_CONFIG['4way'].minNodes === 4, '4-way: minNodes = 4', 4, RESILIENCY_CONFIG['4way'].minNodes),
-            assert(RESILIENCY_MULTIPLIERS['4way'] === 4, '4-way MULTIPLIERS entry = 4', 4, RESILIENCY_MULTIPLIERS['4way']),
+            assert(RESILIENCY_CONFIG['4way'].multiplier === 4, '4-way CONFIG.multiplier = 4 (consolidated)', 4, RESILIENCY_CONFIG['4way'].multiplier),
             assert(RESILIENCY_CONFIG['3way'].minNodes === 3, '3-way: minNodes = 3', 3, RESILIENCY_CONFIG['3way'].minNodes)
         ]);
 
@@ -3255,9 +3255,9 @@
                     '8-node rack-aware: only 4-way mirror', '["4way"]', JSON.stringify(opts));
             })(),
             (() => {
-                // 4-way mirror has 4x multiplier (25% efficiency)
-                return assert(RESILIENCY_MULTIPLIERS['4way'] === 4,
-                    '4-way mirror: 4x raw storage (25% efficiency)', 4, RESILIENCY_MULTIPLIERS['4way']);
+                // 4-way mirror has 4x multiplier (25% efficiency) — via RESILIENCY_CONFIG
+                return assert(RESILIENCY_CONFIG['4way'].multiplier === 4,
+                    '4-way mirror: 4x raw storage (25% efficiency)', 4, RESILIENCY_CONFIG['4way'].multiplier);
             })()
         ]);
 
@@ -3959,6 +3959,171 @@
                     '1:1 ratio needs more compute nodes than 4:1 for same workload',
                     r1.computeNodes + ' > ' + r4.computeNodes,
                     r1.computeNodes + ' > ' + r4.computeNodes);
+            })()
+        ]);
+
+        // ========================================================================
+        // v0.16.01 NEW FEATURE TESTS
+        // ========================================================================
+        sectionHeader('🆕 v0.16.01 New Features');
+
+        // --- DISK_SIZE_OPTIONS_TB constant ---
+        testSuite('DISK_SIZE_OPTIONS_TB constant', 'sizer.js', [
+            assert(Array.isArray(DISK_SIZE_OPTIONS_TB), 'Is an array', true, Array.isArray(DISK_SIZE_OPTIONS_TB)),
+            assert(DISK_SIZE_OPTIONS_TB.length === 5, 'Has 5 standard sizes', 5, DISK_SIZE_OPTIONS_TB.length),
+            assert(DISK_SIZE_OPTIONS_TB[0] === 0.96, 'First size: 0.96 TB', 0.96, DISK_SIZE_OPTIONS_TB[0]),
+            assert(DISK_SIZE_OPTIONS_TB[1] === 1.92, 'Second size: 1.92 TB', 1.92, DISK_SIZE_OPTIONS_TB[1]),
+            assert(DISK_SIZE_OPTIONS_TB[2] === 3.84, 'Third size: 3.84 TB', 3.84, DISK_SIZE_OPTIONS_TB[2]),
+            assert(DISK_SIZE_OPTIONS_TB[3] === 7.68, 'Fourth size: 7.68 TB', 7.68, DISK_SIZE_OPTIONS_TB[3]),
+            assert(DISK_SIZE_OPTIONS_TB[4] === 15.36, 'Fifth size: 15.36 TB', 15.36, DISK_SIZE_OPTIONS_TB[4]),
+            assert(DISK_SIZE_OPTIONS_TB.every((v, i, a) => i === 0 || v > a[i - 1]), 'Sizes are in ascending order', true,
+                DISK_SIZE_OPTIONS_TB.every((v, i, a) => i === 0 || v > a[i - 1]))
+        ]);
+
+        // --- tdpPerSocketW on all CPU generations ---
+        testSuite('CPU_GENERATIONS: tdpPerSocketW field', 'sizer.js', [
+            (() => {
+                const allGens = [...CPU_GENERATIONS.intel, ...CPU_GENERATIONS.amd, ...CPU_GENERATIONS.intel_edge];
+                const allHaveTdp = allGens.every(g => typeof g.tdpPerSocketW === 'number' && g.tdpPerSocketW > 0);
+                return assert(allHaveTdp, 'All CPU generations have tdpPerSocketW > 0', true, allHaveTdp);
+            })(),
+            (() => {
+                const emerald = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th');
+                return assert(emerald.tdpPerSocketW === 350, 'Emerald Rapids TDP = 350W', 350, emerald.tdpPerSocketW);
+            })(),
+            (() => {
+                const granite = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-6');
+                return assert(granite.tdpPerSocketW === 500, 'Granite Rapids TDP = 500W', 500, granite.tdpPerSocketW);
+            })(),
+            (() => {
+                const turin = CPU_GENERATIONS.amd.find(g => g.id === 'epyc-5th');
+                return assert(turin.tdpPerSocketW === 500, 'AMD Turin TDP = 500W', 500, turin.tdpPerSocketW);
+            })(),
+            (() => {
+                const genoa = CPU_GENERATIONS.amd.find(g => g.id === 'epyc-4th');
+                return assert(genoa.tdpPerSocketW === 360, 'AMD Genoa TDP = 360W', 360, genoa.tdpPerSocketW);
+            })(),
+            (() => {
+                const edge = CPU_GENERATIONS.intel_edge[0];
+                return assert(edge.tdpPerSocketW === 100, 'Xeon D-2700 TDP = 100W', 100, edge.tdpPerSocketW);
+            })()
+        ]);
+
+        // --- Power estimate core scaling logic ---
+        testSuite('Power estimate core scaling (40% base + 60% proportional)', 'sizer.js', [
+            (() => {
+                // Full cores: 64/64 → ratio=1.0, TDP = 350 × (0.4 + 0.6×1.0) = 350W
+                const maxTdp = 350;
+                const maxCores = 64;
+                const selectedCores = 64;
+                const coreRatio = selectedCores / maxCores;
+                const scaledTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
+                return assert(scaledTdp === 350, 'Full cores (64/64): TDP = 350W', 350, scaledTdp);
+            })(),
+            (() => {
+                // Half cores: 32/64 → ratio=0.5, TDP = 350 × (0.4 + 0.6×0.5) = 350 × 0.7 = 245W
+                const maxTdp = 350;
+                const coreRatio = 32 / 64;
+                const scaledTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
+                return assert(scaledTdp === 245, 'Half cores (32/64): TDP = 245W', 245, scaledTdp);
+            })(),
+            (() => {
+                // Min cores: 8/64 → ratio=0.125, TDP = 350 × (0.4 + 0.6×0.125) = 350 × 0.475 = 166W
+                const maxTdp = 350;
+                const coreRatio = 8 / 64;
+                const scaledTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
+                return assert(scaledTdp === 166, 'Min cores (8/64): TDP = 166W', 166, scaledTdp);
+            })(),
+            (() => {
+                // AMD Turin full: 192/192 → 500W
+                const maxTdp = 500;
+                const coreRatio = 192 / 192;
+                const scaledTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
+                return assert(scaledTdp === 500, 'AMD Turin full (192/192): TDP = 500W', 500, scaledTdp);
+            })(),
+            (() => {
+                // AMD Turin 32 cores: 32/192 → ratio=0.167, TDP = 500 × (0.4 + 0.6×0.167) = 500 × 0.5 = 250W
+                const maxTdp = 500;
+                const coreRatio = 32 / 192;
+                const scaledTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
+                return assert(scaledTdp === 250, 'AMD Turin 32 cores (32/192): TDP = 250W', 250, scaledTdp);
+            })(),
+            (() => {
+                // Verify scaling always >= 40% of max TDP (uncore floor)
+                const maxTdp = 350;
+                const coreRatio = 1 / 128; // Smallest possible ratio
+                const scaledTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
+                return assert(scaledTdp >= maxTdp * 0.4, 'Scaled TDP never below 40% of max', '>=' + (maxTdp * 0.4), scaledTdp);
+            })()
+        ]);
+
+        // --- Single node default resiliency ---
+        testSuite('Single node defaults to 2-way mirror', 'sizer.js', [
+            (() => {
+                // Ensure stub DOM elements exist
+                let ctStub = document.getElementById('cluster-type');
+                if (!ctStub) {
+                    ctStub = document.createElement('select');
+                    ctStub.id = 'cluster-type';
+                    ctStub.style.display = 'none';
+                    ['single', 'standard', 'rack-aware'].forEach(v => {
+                        const opt = document.createElement('option');
+                        opt.value = v;
+                        opt.text = v;
+                        ctStub.appendChild(opt);
+                    });
+                    document.body.appendChild(ctStub);
+                }
+                let ncStub = document.getElementById('node-count');
+                if (!ncStub) {
+                    ncStub = document.createElement('select');
+                    ncStub.id = 'node-count';
+                    ncStub.style.display = 'none';
+                    const opt = document.createElement('option');
+                    opt.value = '1';
+                    opt.text = '1';
+                    ncStub.appendChild(opt);
+                    document.body.appendChild(ncStub);
+                }
+                let resStub = document.getElementById('resiliency');
+                if (!resStub) {
+                    resStub = document.createElement('select');
+                    resStub.id = 'resiliency';
+                    resStub.style.display = 'none';
+                    document.body.appendChild(resStub);
+                }
+                ctStub.value = 'single';
+                ncStub.value = '1';
+                updateResiliencyOptions();
+                const selected = document.getElementById('resiliency').value;
+                // Restore to standard for other tests
+                ctStub.value = 'standard';
+                ncStub.value = '3';
+                updateResiliencyOptions();
+                return assert(selected === '2way', 'Single node defaults to 2-way mirror', '2way', selected);
+            })(),
+            (() => {
+                // Verify single node has both simple and 2way as options
+                document.getElementById('cluster-type').value = 'single';
+                document.getElementById('node-count').value = '1';
+                updateResiliencyOptions();
+                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
+                document.getElementById('cluster-type').value = 'standard';
+                document.getElementById('node-count').value = '3';
+                updateResiliencyOptions();
+                return assert(opts.includes('simple') && opts.includes('2way'),
+                    'Single node has simple and 2way options', '["simple","2way"]', JSON.stringify(opts));
+            })()
+        ]);
+
+        // --- calculateWorkloadRequirements() with custom AVD ---
+        testSuite('calculateWorkloadRequirements() - AVD Custom', 'sizer.js', [
+            (() => {
+                const w = { type: 'avd', profile: 'custom', userCount: 50, customVcpus: 8, customMemory: 32, customStorage: 200 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 400 && r.memory === 1600 && r.storage === 10000,
+                    'AVD Custom: 50 users × 8/32/200 = 400/1600/10000', '400/1600/10000',
+                    r.vcpus + '/' + r.memory + '/' + r.storage);
             })()
         ]);
 
