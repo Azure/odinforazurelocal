@@ -724,6 +724,13 @@ body {
     color: var(--text-secondary);
 }
 
+.config-row.cluster-setting label {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+}
+
 .config-row select {
     padding: 8px 12px;
     background: var(--select-bg, #1a1a1a);

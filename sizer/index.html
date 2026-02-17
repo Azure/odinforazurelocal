@@ -111,7 +111,7 @@
                         <span>Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local clusters, to enable workload HA/DR capabilities between two locations.</span>
                     </div>
 
-                    <div class="config-row">
+                    <div class="config-row cluster-setting">
                         <label for="cluster-type">Cluster Type</label>
                         <select id="cluster-type" onchange="onClusterTypeChange()">
                             <option value="single">Single Node</option>
@@ -119,7 +119,7 @@
                             <option value="rack-aware">Rack-Aware Cluster</option>
                         </select>
                     </div>
-                    <div class="config-row">
+                    <div class="config-row cluster-setting">
                         <label for="node-count">Number of Nodes</label>
                         <select id="node-count" onchange="onNodeCountChange()">
                             <option value="2">2 Nodes</option>
