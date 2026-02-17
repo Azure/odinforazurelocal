@@ -941,6 +941,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         let hrDiskSizeGB = hrDiskSizeTB * 1024;
         let storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
         let storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
+        const diskCountBeforeHeadroom = hrDiskCount;
         let storageSafety = 0;
         while (storagePct > HEADROOM_THRESHOLD && storageSafety < 30) {
             storageSafety++;
@@ -966,6 +967,13 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             }
             storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
             storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
+        }
+
+        // If storage headroom bumped disk count after consolidation, update the
+        // consolidation info so the sizing note reflects the actual final count.
+        if (_diskConsolidationInfo && hrDiskCount !== diskCountBeforeHeadroom) {
+            _diskConsolidationInfo.newCount = hrDiskCount;
+            _diskConsolidationInfo.baysFreed = _diskConsolidationInfo.originalCount - hrDiskCount;
         }
     }
 
