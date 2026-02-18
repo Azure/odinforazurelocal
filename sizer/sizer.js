@@ -537,6 +537,9 @@ function updateNodeRecommendation(recommendation) {
         nodeSelect.value = snapped;
     }
 
+    // Mark the node-count field as auto-scaled (purple glow + AUTO badge)
+    markAutoScaled('node-count');
+
     // Update dependent UI (without triggering calculateRequirements)
     updateResiliencyOptions();
     updateClusterInfo();
@@ -578,7 +581,8 @@ const MAX_MEMORY_GB = 4096;
 const MIN_MEMORY_GB = 64;
 const MEMORY_OPTIONS_GB = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
 
-// Max disk count per node
+// Disk count per node
+const MIN_DISK_COUNT = 2; // Azure Local minimum; matches dropdown minimum
 const MAX_DISK_COUNT = 24;
 const MAX_CACHE_DISK_COUNT = 8;
 const MAX_TIERED_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity = 24 total (hybrid & mixed-flash)
@@ -766,9 +770,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const diskCountInput = document.getElementById(diskCountId);
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
 
-        // Set disk count to the required amount, capped at max for storage type
+        // Set disk count to the required amount, clamped between min (2) and max for storage type
         const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
-        let targetDisks = Math.min(disksNeeded, maxDisksForType);
+        let targetDisks = Math.max(MIN_DISK_COUNT, Math.min(disksNeeded, maxDisksForType));
 
         // --- Disk bay consolidation ---
         // When the required disk count reaches ≥50% of max bays, check if fewer
