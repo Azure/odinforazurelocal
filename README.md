@@ -61,6 +61,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Disk Consolidation Count Fix**: Fixed disk bay consolidation only increasing disk count, never decreasing — consolidation now writes both count and size together, and stale counts no longer persist after page refresh/resume
 - **Sizer: Consolidation Note After Headroom**: Fixed the consolidation sizing note showing the wrong disk count when the storage headroom pass added extra disks after consolidation
 - **Sizer: HTML Validation Fix**: Encoded raw `&` as `&amp;` in the sizer heading to resolve HTML validation errors
+- **Sizer: AUTO Badge Persistence Fix**: Fixed AUTO badges disappearing from CPU Cores per Socket and Memory per Node fields when adding workloads that increase node count without changing per-node hardware values
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -382,6 +383,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: Disk Consolidation Count Fix**: Fixed consolidation only increasing disk count — now bidirectional; stale counts no longer persist after page refresh/resume
 - **Sizer: Consolidation Note After Headroom**: Fixed consolidation sizing note showing wrong disk count when headroom pass added extra disks
 - **Sizer: HTML Validation Fix**: Encoded raw `&` as `&amp;` in the sizer heading
+- **Sizer: AUTO Badge Persistence Fix**: Fixed AUTO badges disappearing from CPU Cores and Memory fields when adding workloads that scale nodes without changing per-node values
 
 ### 🎉 Version 0.15.x Series (February 2026)
 

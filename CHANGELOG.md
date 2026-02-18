@@ -90,6 +90,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Sizer: HTML Validation Fix
 - **Encoded Ampersand**: Fixed a raw `&` character in the "Estimated Power & Rack Space" heading in `sizer/index.html` to `&amp;`, resolving an HTML validation error.
 
+#### Sizer: AUTO Badge Persistence
+- **Re-apply AUTO Badges Across Cycles**: Fixed AUTO badges (purple glow + "AUTO" label) disappearing from the CPU Cores per Socket and Memory per Node fields when adding workloads that increase the node count without changing per-node hardware values. The `autoScaleHardware()` function only marked fields when increasing their value; if the value was already adequate from a prior auto-scale cycle, the badge was cleared but never re-applied. The fix saves previously auto-scaled field IDs before clearing highlights, and re-applies badges to fields whose values remain at their auto-scaled level.
+
 ### Removed
 
 #### Sizer: Dead Code Cleanup
