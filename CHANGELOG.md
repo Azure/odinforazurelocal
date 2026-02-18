@@ -64,8 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Sizer: AMD EPYC Turin Core Options
 - **Expanded Core Options**: Updated AMD 5th Gen EPYC Turin to include 144, 160, and 192 cores per socket (maxCores: 192), reflecting the full Turin product line. Previously capped at 128.
 
-#### Sizer: Cluster Type & Number of Nodes Label Styling
-- **Bolder Labels**: The "Cluster Type" and "Number of Nodes" labels now use a bolder weight (600), slightly larger font (15px), and the primary text colour, making them stand out from other configuration options.
+#### Sizer: Cluster Type & Number of Physical Nodes Label Styling
+- **Bolder Labels**: The "Cluster Type" and "Number of Physical Nodes" labels now use a bolder weight (600), slightly larger font (15px), and the primary text colour, making them stand out from other configuration options.
 
 ### Fixed
 
