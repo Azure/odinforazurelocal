@@ -8786,6 +8786,7 @@ function showChangelog() {
                         <li><strong>Disk Consolidation Count Fix:</strong> Fixed consolidation only increasing disk count — now bidirectional; stale counts no longer persist after page refresh/resume.</li>
                         <li><strong>Consolidation Note After Headroom:</strong> Fixed consolidation sizing note showing the wrong disk count when the storage headroom pass added extra disks.</li>
                         <li><strong>HTML Validation Fix:</strong> Encoded raw &amp; as &amp;amp; in the sizer heading to resolve validation errors.</li>
+                        <li><strong>AUTO Badge Persistence Fix:</strong> Fixed AUTO badges disappearing from CPU Cores per Socket and Memory per Node when adding workloads that scale nodes without changing per-node hardware values.</li>
                     </ul>
                 </div>
 

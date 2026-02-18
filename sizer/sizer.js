@@ -658,7 +658,9 @@ function clearAutoScaledHighlights() {
 }
 
 // Automatically increase CPU cores, memory, disk count, and disk size so capacity bars stay below 100%
-function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount, resiliencyMultiplier, hwConfig) {
+// previouslyAutoScaled: Set of field IDs that were auto-scaled in the prior calculation cycle,
+// used to re-apply AUTO badges when values haven't changed (still at auto-scaled levels).
+function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled) {
     let vcpuToCore = getVcpuRatio();
     // Note: _vcpuRatioAutoEscalated is reset once per calculateRequirements() call,
     // NOT per autoScaleHardware() call, so the flag survives multiple auto-scale passes.
@@ -725,6 +727,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 coresSelect.value = targetCores;
                 changed = true;
                 markAutoScaled('cpu-cores');
+            } else if (previouslyAutoScaled && previouslyAutoScaled.has('cpu-cores')) {
+                // Value was set by auto-scale in a prior cycle and is still adequate — re-apply badge
+                markAutoScaled('cpu-cores');
             }
         }
     }
@@ -739,6 +744,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     if (targetMem > currentMem) {
         memInput.value = targetMem;
         changed = true;
+        markAutoScaled('node-memory');
+    } else if (previouslyAutoScaled && previouslyAutoScaled.has('node-memory')) {
+        // Value was set by auto-scale in a prior cycle and is still adequate — re-apply badge
         markAutoScaled('node-memory');
     }
 
@@ -2187,13 +2195,17 @@ function calculateRequirements(options) {
         const initialVcpuRatio = getVcpuRatio();
         _vcpuRatioAutoEscalated = false;
 
+        // Save which fields were previously auto-scaled so we can re-apply badges
+        // for values that remain at their auto-scaled level (unchanged across cycles)
+        const previouslyAutoScaled = new Set(_autoScaledFields);
+
         // Clear previous auto-scaled highlights before re-running auto-scale
         clearAutoScaledHighlights();
         _diskConsolidationInfo = null;
 
         // --- Auto-scale CPU cores, memory & disk count to avoid >100% capacity ---
         if (workloads.length > 0) {
-            const hwChanged = autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig);
+            const hwChanged = autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled);
             if (hwChanged) {
                 // Re-read hardware config with the updated dropdown values
                 hwConfig = getHardwareConfig();
@@ -2254,7 +2266,7 @@ function calculateRequirements(options) {
                     updateClusterInfo();
 
                     // Re-run autoScale with the new node count
-                    autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig);
+                    autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled);
                     hwConfig = getHardwareConfig();
                 }
 
