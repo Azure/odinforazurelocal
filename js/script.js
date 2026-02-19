@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.15.98';
+const WIZARD_VERSION = '0.16.02';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -1343,7 +1343,7 @@ function generateArmParameters() {
 
         const trafficTypeForGroupBaseKey = (baseKey) => {
             if (baseKey === 'mgmt') return ['Management'];
-            if (baseKey === 'compute') return ['Compute'];
+            if (baseKey === 'compute' || baseKey === 'compute_1' || baseKey === 'compute_2') return ['Compute'];
             if (baseKey === 'storage') return ['Storage'];
             if (baseKey === 'mgmt_compute') return ['Management', 'Compute'];
             if (baseKey === 'compute_storage') return ['Compute', 'Storage'];
@@ -1802,7 +1802,9 @@ function generateArmParameters() {
                         baseKey === 'compute_storage' ? 'ComputeStorage' :
                             baseKey === 'mgmt' ? 'Management' :
                                 baseKey === 'compute' ? 'Compute' :
-                                    baseKey === 'all' ? 'AllTraffic' : String(baseKey || 'Intent');
+                                    baseKey === 'compute_1' ? 'Compute' :
+                                        baseKey === 'compute_2' ? 'Compute' :
+                                            baseKey === 'all' ? 'AllTraffic' : String(baseKey || 'Intent');
 
                 let name = sanitizeIntentName(niceName);
                 if (usedNames.has(name)) name = name + '_' + (idx + 1);
@@ -5130,6 +5132,8 @@ function getIntentNicGroups(intent, portCount) {
         const trafficNames = {
             'mgmt': 'Management',
             'compute': 'Compute',
+            'compute_1': 'Compute 1',
+            'compute_2': 'Compute 2',
             'storage': 'Storage',
             'mgmt_compute': 'Management + Compute',
             'compute_storage': 'Compute + Storage',
@@ -5138,7 +5142,7 @@ function getIntentNicGroups(intent, portCount) {
         };
 
         // Define consistent display order for override cards
-        const displayOrder = ['mgmt_compute', 'mgmt', 'compute', 'compute_storage', 'storage', 'all'];
+        const displayOrder = ['mgmt_compute', 'mgmt', 'compute', 'compute_1', 'compute_2', 'compute_storage', 'storage', 'all'];
 
         const buckets = new Map();
         for (let i = 1; i <= p; i++) {
@@ -5686,6 +5690,8 @@ function getNicMapping(intent, portCount, isSwitchless) {
             'compute_storage': 'Compute + Storage',
             'mgmt': 'Management',
             'compute': 'Compute',
+            'compute_1': 'Compute 1',
+            'compute_2': 'Compute 2',
             'all': 'All Traffic'
         };
         for (let i = 1; i <= portCount; i++) {
@@ -5729,6 +5735,8 @@ function getCustomNicMapping(customIntents, portCount) {
     const trafficNames = {
         'mgmt': 'Management',
         'compute': 'Compute',
+        'compute_1': 'Compute 1',
+        'compute_2': 'Compute 2',
         'storage': 'Storage',
         'mgmt_compute': 'Management + Compute',
         'compute_storage': 'Compute + Storage',
@@ -8756,7 +8764,20 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.16.01 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.16.02 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 19, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Custom Intent 8-Port Compute Intent Fix (<a href='https://github.com/Azure/odinforazurelocal/issues/130'>#130</a>)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Separate Compute Intents:</strong> With 8 ports and custom intent, the wizard now offers two distinct compute zones (Compute 1 and Compute 2) instead of a single shared compute bucket. This allows users to create two independent compute intents as required by the Azure Local Network ATC specification.</li>
+                        <li><strong>Report &amp; ARM Alignment:</strong> The Configuration Report diagram and ARM template output correctly reflect the user's custom intent assignment with separate compute intents.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.16.01</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 17, 2026</div>
                 </div>
 
@@ -10982,6 +11003,8 @@ function getIntentZonesForIntent(intent) {
             requiresRdma: true
         });
     } else if (intent === 'custom') {
+        const portCount = parseInt(state.ports) || 0;
+        const has8Ports = portCount >= 8;
         zones.push({
             key: 'mgmt',
             title: 'Management',
@@ -10992,16 +11015,40 @@ function getIntentZonesForIntent(intent) {
             minAdapters: 0,
             requiresRdma: false
         });
-        zones.push({
-            key: 'compute',
-            title: 'Compute',
-            titleClass: 'compute',
-            description: 'Compute traffic only.',
-            badge: 'Optional',
-            badgeClass: 'optional',
-            minAdapters: 0,
-            requiresRdma: false
-        });
+        if (has8Ports) {
+            // With 8+ ports, offer two separate compute zones for independent compute intents
+            zones.push({
+                key: 'compute_1',
+                title: 'Compute 1',
+                titleClass: 'compute',
+                description: 'First compute traffic intent.',
+                badge: 'Optional',
+                badgeClass: 'optional',
+                minAdapters: 0,
+                requiresRdma: false
+            });
+            zones.push({
+                key: 'compute_2',
+                title: 'Compute 2',
+                titleClass: 'compute',
+                description: 'Second compute traffic intent.',
+                badge: 'Optional',
+                badgeClass: 'optional',
+                minAdapters: 0,
+                requiresRdma: false
+            });
+        } else {
+            zones.push({
+                key: 'compute',
+                title: 'Compute',
+                titleClass: 'compute',
+                description: 'Compute traffic only.',
+                badge: 'Optional',
+                badgeClass: 'optional',
+                minAdapters: 0,
+                requiresRdma: false
+            });
+        }
         // Storage zone is available for all node counts (including single-node)
         zones.push({
             key: 'storage',
