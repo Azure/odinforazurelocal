@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.16.02';
+const WIZARD_VERSION = '0.16.03';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -8764,7 +8764,20 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.16.02 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.16.03 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 19, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Custom Intent 8-Port Zone Restrictions (<a href='https://github.com/Azure/odinforazurelocal/issues/130'>#130</a> follow-up)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Restricted Zones:</strong> For 8-port custom intent, the wizard now only shows the 4 valid zones: Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Management, Compute + Storage, and Group All Traffic zones are hidden.</li>
+                        <li><strong>Smart Defaults:</strong> The default adapter mapping pre-assigns the first 2 non-RDMA ports to Management + Compute and the last 2 RDMA ports to Storage.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.16.02</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 19, 2026</div>
                 </div>
 
@@ -11005,18 +11018,19 @@ function getIntentZonesForIntent(intent) {
     } else if (intent === 'custom') {
         const portCount = parseInt(state.ports) || 0;
         const has8Ports = portCount >= 8;
-        zones.push({
-            key: 'mgmt',
-            title: 'Management',
-            titleClass: 'mgmt',
-            description: 'Management traffic only.',
-            badge: 'Optional',
-            badgeClass: 'optional',
-            minAdapters: 0,
-            requiresRdma: false
-        });
         if (has8Ports) {
-            // With 8+ ports, offer two separate compute zones for independent compute intents
+            // 8+ ports: Fixed structure — Mgmt+Compute (required), Compute 1 & 2 (optional), Storage (required)
+            // Management, Compute+Storage, and Group All Traffic are NOT available
+            zones.push({
+                key: 'mgmt_compute',
+                title: 'Management + Compute',
+                titleClass: 'mgmt',
+                description: 'Shared management and compute.',
+                badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters',
+                badgeClass: 'required',
+                minAdapters: isLowCapacity ? minLowCap : minStandard,
+                requiresRdma: false
+            });
             zones.push({
                 key: 'compute_1',
                 title: 'Compute 1',
@@ -11037,7 +11051,28 @@ function getIntentZonesForIntent(intent) {
                 minAdapters: 0,
                 requiresRdma: false
             });
+            zones.push({
+                key: 'storage',
+                title: 'Storage',
+                titleClass: 'storage',
+                description: 'Storage traffic (SMB Direct).',
+                badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters (RDMA)',
+                badgeClass: isLowCapacity ? 'required' : 'rdma-required',
+                minAdapters: isLowCapacity ? minLowCap : minStandard,
+                requiresRdma: !isLowCapacity
+            });
         } else {
+            // < 8 ports: All zones available, all optional
+            zones.push({
+                key: 'mgmt',
+                title: 'Management',
+                titleClass: 'mgmt',
+                description: 'Management traffic only.',
+                badge: 'Optional',
+                badgeClass: 'optional',
+                minAdapters: 0,
+                requiresRdma: false
+            });
             zones.push({
                 key: 'compute',
                 title: 'Compute',
@@ -11048,50 +11083,50 @@ function getIntentZonesForIntent(intent) {
                 minAdapters: 0,
                 requiresRdma: false
             });
+            // Storage zone is available for all node counts (including single-node)
+            zones.push({
+                key: 'storage',
+                title: 'Storage',
+                titleClass: 'storage',
+                description: 'Storage traffic (SMB Direct).',
+                badge: isLowCapacity ? 'Optional' : 'RDMA Required',
+                badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
+                minAdapters: 0,
+                requiresRdma: !isLowCapacity
+            });
+            zones.push({
+                key: 'mgmt_compute',
+                title: 'Management + Compute',
+                titleClass: 'mgmt',
+                description: 'Shared management and compute.',
+                badge: 'Optional',
+                badgeClass: 'optional',
+                minAdapters: 0,
+                requiresRdma: false
+            });
+            // Compute + Storage zone is available for all node counts (including single-node)
+            zones.push({
+                key: 'compute_storage',
+                title: 'Compute + Storage',
+                titleClass: 'storage',
+                description: 'Shared compute and storage.',
+                badge: isLowCapacity ? 'Optional' : 'RDMA Required',
+                badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
+                minAdapters: 0,
+                requiresRdma: !isLowCapacity
+            });
+            // Group All Traffic zone
+            zones.push({
+                key: 'all',
+                title: 'Group All Traffic',
+                titleClass: '',
+                description: 'All traffic types combined.',
+                badge: isLowCapacity ? 'Optional' : 'RDMA Required',
+                badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
+                minAdapters: 0,
+                requiresRdma: !isLowCapacity
+            });
         }
-        // Storage zone is available for all node counts (including single-node)
-        zones.push({
-            key: 'storage',
-            title: 'Storage',
-            titleClass: 'storage',
-            description: 'Storage traffic (SMB Direct).',
-            badge: isLowCapacity ? 'Optional' : 'RDMA Required',
-            badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
-            minAdapters: 0,
-            requiresRdma: !isLowCapacity
-        });
-        zones.push({
-            key: 'mgmt_compute',
-            title: 'Management + Compute',
-            titleClass: 'mgmt',
-            description: 'Shared management and compute.',
-            badge: 'Optional',
-            badgeClass: 'optional',
-            minAdapters: 0,
-            requiresRdma: false
-        });
-        // Compute + Storage zone is available for all node counts (including single-node)
-        zones.push({
-            key: 'compute_storage',
-            title: 'Compute + Storage',
-            titleClass: 'storage',
-            description: 'Shared compute and storage.',
-            badge: isLowCapacity ? 'Optional' : 'RDMA Required',
-            badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
-            minAdapters: 0,
-            requiresRdma: !isLowCapacity
-        });
-        // Group All Traffic zone
-        zones.push({
-            key: 'all',
-            title: 'Group All Traffic',
-            titleClass: '',
-            description: 'All traffic types combined.',
-            badge: isLowCapacity ? 'Optional' : 'RDMA Required',
-            badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
-            minAdapters: 0,
-            requiresRdma: !isLowCapacity
-        });
     }
 
     return zones;
@@ -11149,9 +11184,35 @@ function getDefaultAdapterMapping(intent, portCount) {
             mapping[i] = 'compute_storage';
         }
     } else if (intent === 'custom') {
-        // All start in pool (unassigned)
-        for (let i = 1; i <= portCount; i++) {
-            mapping[i] = 'pool';
+        const has8Ports = portCount >= 8;
+        if (has8Ports) {
+            // 8-port custom: Mgmt+Compute and Storage are mandatory
+            // Default: first 2 non-RDMA (or first 2) → mgmt_compute, last 2 RDMA → storage, rest → pool
+            if (nonRdmaPorts.length >= 2) {
+                mapping[nonRdmaPorts[0]] = 'mgmt_compute';
+                mapping[nonRdmaPorts[1]] = 'mgmt_compute';
+            } else {
+                mapping[1] = 'mgmt_compute';
+                mapping[2] = 'mgmt_compute';
+            }
+            // Assign last 2 RDMA ports to storage (or last 2 ports if no RDMA distinction)
+            const storageSource = rdmaPorts.length >= 2 ? rdmaPorts : [];
+            if (storageSource.length >= 2) {
+                mapping[storageSource[storageSource.length - 2]] = 'storage';
+                mapping[storageSource[storageSource.length - 1]] = 'storage';
+            } else {
+                mapping[portCount - 1] = 'storage';
+                mapping[portCount] = 'storage';
+            }
+            // Remaining ports go to pool
+            for (let i = 1; i <= portCount; i++) {
+                if (!mapping[i]) mapping[i] = 'pool';
+            }
+        } else {
+            // All start in pool (unassigned)
+            for (let i = 1; i <= portCount; i++) {
+                mapping[i] = 'pool';
+            }
         }
     }
 
