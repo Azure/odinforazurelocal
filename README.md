@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.16.01 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.16.02 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
 
@@ -37,7 +37,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.16.01 - Latest Release
+### 🎉 Version 0.16.02 - Latest Release
+- **Custom Intent 8-Port Compute Intent Fix (#130)**: With 8 ports and custom intent, the wizard now offers two distinct compute zones (Compute 1 and Compute 2) instead of merging all compute ports into a single intent group. The Configuration Report diagram and ARM template correctly reflect the separate compute intents.
+
+### Version 0.16.01
 - **Sizer: Standardised Disk Size Dropdown**: All disk size inputs replaced with dropdown selects using standard NVMe/SSD capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB), eliminating invalid free-text entries
 - **Sizer: Delete Confirmation Dialog**: Deleting a workload now requires confirmation, preventing accidental removal
 - **Sizer: Clone Workload**: New clone button on each workload card to duplicate a workload with all its settings
@@ -343,7 +346,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.16.01  
+**Version**: 0.16.02  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 

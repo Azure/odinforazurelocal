@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.16.02] - 2026-02-19
+
+### Fixed
+
+#### Custom Intent 8-Port Compute Intent Fix ([#130](https://github.com/Azure/odinforazurelocal/issues/130))
+
+- **Separate Compute Zones for 8-Port Custom Intent**: When using custom intent with 8 ports, the wizard now offers two distinct compute zones (`Compute 1` and `Compute 2`) instead of a single `Compute` zone. Previously, all ports assigned to compute merged into one intent group, making it impossible to create two separate compute intents as required for 8-port configurations.
+- **Expected 8-Port Layout**: 1 Management + Compute intent (mandatory), 2 independent Compute intents (optional), and 1 Storage intent (mandatory).
+- **ARM Template Alignment**: The ARM template output now generates separate intent entries for each compute zone (`Compute` and `Compute_2`) with `trafficType: ['Compute']`, matching Azure Local Network ATC requirements.
+- **Report Diagram Alignment**: The Configuration Report SVG diagram and Draw.io export correctly render separate compute intent groups with distinct labels and green color coding.
+- **Affected Files**: `js/script.js` (zone definitions, grouping logic, traffic type mapping, NIC mapping display, ARM intent naming), `report/report.js` (custom intent groups, adapter mapping groups, diagram coloring, draw.io export).
+
+---
+
 ## [0.16.01] - 2026-02-17
 
 ### Added

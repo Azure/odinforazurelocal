@@ -1638,7 +1638,7 @@
             if (hasAdapterMapping && s.adapterMapping[nic]) {
                 var m = s.adapterMapping[nic];
                 if (m === 'mgmt') return ['m', 'c'];
-                if (m === 'compute') return ['c'];
+                if (m === 'compute' || m === 'compute_1' || m === 'compute_2') return ['c'];
                 if (m === 'storage') return ['s'];
                 if (m === 'mgmt_compute') return ['m', 'c'];
                 if (m === 'compute_storage') return ['c', 's'];
@@ -1657,7 +1657,7 @@
             if (intent === 'custom') {
                 var val = (s.customIntents && s.customIntents[nic]) || 'unused';
                 if (val === 'mgmt') return ['m'];
-                if (val === 'compute') return ['c'];
+                if (val === 'compute' || val === 'compute_1' || val === 'compute_2') return ['c'];
                 if (val === 'storage') return ['s'];
                 if (val === 'mgmt_compute') return ['m', 'c'];
                 if (val === 'compute_storage') return ['c', 's'];
@@ -2478,6 +2478,8 @@
                 var trafficNames = {
                     mgmt: 'Management',
                     compute: 'Compute',
+                    compute_1: 'Compute 1',
+                    compute_2: 'Compute 2',
                     storage: 'Storage',
                     mgmt_compute: 'Management + Compute',
                     compute_storage: 'Compute + Storage',
@@ -2495,7 +2497,7 @@
                 }
 
                 // Always show Mgmt + Compute first when present.
-                var order = ['mgmt_compute', 'mgmt', 'compute', 'compute_storage', 'storage', 'all'];
+                var order = ['mgmt_compute', 'mgmt', 'compute', 'compute_1', 'compute_2', 'compute_storage', 'storage', 'all'];
                 var groups = [];
                 for (var oi = 0; oi < order.length; oi++) {
                     var key = order[oi];
@@ -2524,6 +2526,9 @@
 
                 var trafficNames = {
                     mgmt: 'Management + Compute',
+                    compute: 'Compute',
+                    compute_1: 'Compute 1',
+                    compute_2: 'Compute 2',
                     storage: 'Storage',
                     compute_storage: 'Compute + Storage',
                     all: 'All Traffic',
@@ -2539,7 +2544,7 @@
                     buckets[assignment].push(i);
                 }
 
-                var order = ['mgmt', 'storage', 'compute_storage', 'all'];
+                var order = ['mgmt', 'compute', 'compute_1', 'compute_2', 'storage', 'compute_storage', 'all'];
                 var groups = [];
                 for (var oi = 0; oi < order.length; oi++) {
                     var key = order[oi];
@@ -2823,7 +2828,7 @@
                     
                     // Color based on intent type
                     var isStorageLike = grp.isStorageLike;
-                    var isCompute = (grp.key === 'compute');
+                    var isCompute = (grp.key === 'compute' || grp.key === 'compute_1' || grp.key === 'compute_2');
                     var boxFill, boxStroke;
                     if (isStorageLike) {
                         boxFill = 'rgba(139,92,246,0.07)';
