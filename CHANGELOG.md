@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.16.03] - 2026-02-19
+
+### Fixed
+
+#### Custom Intent 8-Port Zone Restrictions ([#130](https://github.com/Azure/odinforazurelocal/issues/130) follow-up)
+
+- **Restricted Zone Visibility for 8-Port Custom Intent**: When using custom intent with 8 ports, the wizard now only shows the 4 valid zones: Management + Compute, Compute 1, Compute 2, and Storage. Previously, all 7 zones (including Management, Compute + Storage, and Group All Traffic) were displayed, which are not valid for 8-port configurations.
+- **Mandatory Zones Enforced**: Management + Compute and Storage are now marked as required (Min 2 Adapters) instead of optional. Only Compute 1 and Compute 2 remain optional.
+- **Smart Default Mapping**: The default adapter mapping for 8-port custom now pre-assigns the first 2 non-RDMA ports to Management + Compute and the last 2 RDMA ports to Storage, with remaining ports in the unassigned pool.
+- **Affected Files**: `js/script.js` (zone definitions in `getIntentZonesForIntent()`, default mapping in `getDefaultAdapterMapping()`).
+
+---
+
 ## [0.16.02] - 2026-02-19
 
 ### Fixed
