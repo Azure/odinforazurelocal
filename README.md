@@ -2,7 +2,7 @@
 
 ## Version 0.16.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
-A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer (preview) and be used tp provides example hardware sizing based on workload requirements.
+A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer (preview) tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
 > **Disclaimer:** This tool is provided as-is without Microsoft support. This is an experimental project to help customers accelerate their skills ramp up for Azure Local, while helping IT architects to validate desired configurations.
 
