@@ -29,16 +29,11 @@
                 <h1>ODIN Sizer <span class="sizer-preview-badge">Preview</span></h1>
                 <p class="subtitle">Azure Local Instance Sizing Tool - Used to calculate hardware requirements based on your workload scenarios and their resiliency and capacity requirements. This tool provides example hardware configurations only. Please consult with your preferred hardware OEM partner for detailed guidance and recommendations on their Azure Local solution offerings.</p>
             </div>
-            <div class="header-actions">
-                <button class="btn btn-secondary" onclick="window.print()" title="Save as PDF via browser print dialog">
-                    💾 Save as PDF
-                </button>
-                <button class="btn btn-secondary" onclick="exportSizerWord()" title="Download as Word document">
-                    📄 Download Word
-                </button>
-                <button class="btn btn-secondary" onclick="resetScenario()">
-                    🔄 Reset
-                </button>
+            <div class="header-logo-wrapper">
+                <img src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
+                <div class="header-version">
+                    Version 0.16.04 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+                </div>
             </div>
         </header>
 
@@ -49,12 +44,17 @@
             <div class="config-panel">
                 <!-- Workload Scenario - FIRST -->
                 <div class="panel-section">
-                    <h2>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                        </svg>
-                        Workload Scenario
-                    </h2>
+                    <div class="section-header-row">
+                        <h2>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            </svg>
+                            Workload Scenario
+                        </h2>
+                        <button class="btn btn-secondary btn-sm" onclick="resetScenario()" title="Reset all workloads and settings">
+                            🔄 Reset
+                        </button>
+                    </div>
                     <p class="section-desc">Add workloads to calculate your Azure Local cluster requirements.</p>
                 </div>
 
@@ -641,6 +641,16 @@
                         <li>Add workloads to see sizing recommendations</li>
                     </ul>
                 </div>
+
+                <!-- Export Actions -->
+                <div class="export-actions">
+                    <button class="btn btn-secondary" onclick="window.print()" title="Save as PDF via browser print dialog">
+                        💾 Save as PDF
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportSizerWord()" title="Download as Word document">
+                        📄 Download Word
+                    </button>
+                </div>
             </div>
         </div>
     </main>
@@ -663,6 +673,7 @@
 
     <!-- Analytics -->
     <script src="../js/analytics.js"></script>
+    <script src="../js/changelog.js"></script>
     <script src="sizer.js"></script>
 </body>
 </html>

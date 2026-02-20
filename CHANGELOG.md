@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.16.04] - 2026-02-20
+
+### Changed
+
+#### Sizer UI Layout Improvements
+
+- **ODIN Logo & What's New in Sizer Header**: Added the ODIN logo and version/What's New link to the Sizer page header, matching the Designer page branding
+- **Reset Button Repositioned**: Moved the Reset button from the Sizer header into the Workload Scenarios section header with a confirmation prompt when workloads exist
+- **Export Buttons Below Sizing Notes**: Moved Save as PDF and Download Word buttons from the Sizer header to below the Sizing Notes section for better workflow placement
+- **Shared Changelog Module**: Extracted the `showChangelog()` function into a shared `js/changelog.js` file, reused by both the Designer and Sizer pages
+
+### Fixed
+
+#### Sizer Bug Fixes
+
+- **vCPU Ratio AUTO Badge Persistence**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field when auto-scaling adjusts the ratio
+- **vCPU Ratio Label Correction**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes output
+
+---
+
 ## [0.16.03] - 2026-02-19
 
 ### Fixed

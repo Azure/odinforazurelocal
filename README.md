@@ -1,8 +1,8 @@
 # Odin for Azure Local
 
-## Version 0.16.03 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.16.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
-A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) network architecture. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts.
+A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer (preview) and be used tp provides example hardware sizing based on workload requirements.
 
 > **Disclaimer:** This tool is provided as-is without Microsoft support. This is an experimental project to help customers accelerate their skills ramp up for Azure Local, while helping IT architects to validate desired configurations.
 
@@ -29,6 +29,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ### ✨ Core Functionality
 - **Step-by-Step Wizard**: Guided decision flow for Azure Local network configuration
 - **Multiple Deployment Scenarios**: Hyperconverged, Multi-Rack, Disconnected, and M365 Local
+- **Hardware Sizer (Preview)**: Workload-based hardware sizing for VMs, AKS, and AVD — calculates CPU, memory, storage, GPU, and node requirements with auto-scaling and power/rack-space estimates
+- **Sizer-to-Designer Integration**: Size your hardware first, then transfer the configuration directly into the Designer wizard with one click
 - **Cloud Witness Configuration**: Automatic witness type selection based on cluster topology
 - **Storage Pool Management**: Configure storage pool deployment mode (Express, InfraOnly, KeepStorage)
 - **Security Configuration**: Configure security controls with recommended or customized settings
@@ -37,7 +39,13 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.16.03 - Latest Release
+### 🎉 Version 0.16.04 - Latest Release
+- **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
+- **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
+- **Sizer: vCPU Ratio AUTO Badge Fix**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling
+- **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
+
+### Version 0.16.03
 - **Custom Intent 8-Port Zone Restrictions (#130 follow-up)**: For 8-port custom intent, the wizard now only shows the relevant zones — Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Removed Management, Compute + Storage, and Group All Traffic zones which are not valid for 8-port configurations.
 
 ### Version 0.16.02
@@ -81,12 +89,18 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
    - Open in a modern web browser, navigate to ODIN online version: https://aka.ms/ODIN-for-AzureLocal
    - For offline or local access, download the source code of this repo, to run a local web server: `PowerShell.exe -ExecutionPolicy Bypass -file .\tests\serve.ps1` (then open address http://localhost:5500 using browser)
 
-2. **Follow the wizard**:
+2. **Unsure about hardware? Start with the Sizer**:
+   - Open the **ODIN Sizer** from the main page or navigate to `sizer/index.html`
+   - Add your workloads (VMs, AKS, AVD) and configure cluster type, resiliency, and growth headroom
+   - Review the recommended hardware (CPU, memory, storage, GPUs, power, and rack space)
+   - Click **Configure in Designer** to transfer the sizing results into the Designer wizard automatically
+
+3. **Follow the wizard**:
    - Answer questions about your deployment scenario
    - Configure network settings, storage, and identity options
    - Review the configuration summary in real-time
 
-3. **Export your configuration**:
+4. **Export your configuration**:
    - Generate ARM parameters JSON
    - Export full configuration for sharing or backup
    - Download configuration reports
@@ -349,7 +363,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.16.03  
+**Version**: 0.16.04  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
