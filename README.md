@@ -2,7 +2,7 @@
 
 ## Version 0.16.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
-A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer (preview) tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
+A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
 > **Disclaimer:** This tool is provided as-is without Microsoft support. This is an experimental project to help customers accelerate their skills ramp up for Azure Local, while helping IT architects to validate desired configurations.
 
@@ -44,38 +44,6 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
 - **Sizer: vCPU Ratio AUTO Badge Fix**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling
 - **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
-
-### Version 0.16.03
-- **Custom Intent 8-Port Zone Restrictions (#130 follow-up)**: For 8-port custom intent, the wizard now only shows the relevant zones — Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Removed Management, Compute + Storage, and Group All Traffic zones which are not valid for 8-port configurations.
-
-### Version 0.16.02
-- **Custom Intent 8-Port Compute Intent Fix (#130)**: With 8 ports and custom intent, the wizard now offers two distinct compute zones (Compute 1 and Compute 2) instead of merging all compute ports into a single intent group. The Configuration Report diagram and ARM template correctly reflect the separate compute intents.
-
-### Version 0.16.01
-- **Sizer: Standardised Disk Size Dropdown**: All disk size inputs replaced with dropdown selects using standard NVMe/SSD capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB), eliminating invalid free-text entries
-- **Sizer: Delete Confirmation Dialog**: Deleting a workload now requires confirmation, preventing accidental removal
-- **Sizer: Clone Workload**: New clone button on each workload card to duplicate a workload with all its settings
-- **Sizer: Estimated Power & Rack Space**: New results section showing per-node power (W), total cluster power, BTU/hr, and rack units (including 2× ToR switches). Based on CPU TDP, memory DIMMs, data + OS disks, GPUs, and system overhead. Consult your OEM partner for accurate planning
-- **Sizer: AVD Custom Profile Validation**: Custom AVD profiles now warn if RAM/vCPU or vCPUs/user values fall outside recommended ranges
-- **Sizer: Print Stylesheet**: Improved print/PDF output — hides config panel and action buttons, results go full-width, page breaks avoided inside sections
-- **Sizer: Keyboard Accessibility**: Escape closes modals; Tab/Shift+Tab focus trapped inside open modals; first input auto-focused
-- **Sizer: OEM Disclaimer**: Subtitle updated to state the tool provides example hardware configurations only and users should consult their preferred OEM partner
-- **Sizer: vCPU Ratio Manual Override**: Users can now manually change the vCPU Overcommit Ratio without auto-scaling overriding their selection. Auto-escalation is locked when the user manually sets the ratio, and resets when workloads are added or removed
-- **Sizer: AMD CPU Suggestion Tip**: When Intel cores and sockets are maxed and compute utilization ≥80% (at baseline 4:1 ratio), a tip suggests AMD EPYC Turin as an alternative with higher core counts. Condition uses baseline 4:1 ratio so the tip persists even when auto-scaled to 5:1 or 6:1
-- **Sizer: AMD EPYC Turin Core Options**: Updated AMD 5th Gen EPYC Turin to include 144, 160, and 192 cores per socket (maxCores: 192), reflecting the full Turin product line
-- **Sizer: Auto-Scaled Field Visual Indicators**: Hardware fields that are auto-scaled now show a purple border glow animation and an "AUTO" badge on their labels, providing clear visual feedback on which settings were automatically adjusted
-- **Sizer: Capacity Label Renames**: "Capacity Breakdown" renamed to "Capacity Usage for Workload"; sub-labels now include "- Consumed" suffix for clarity
-- **Sizer: Infrastructure_1 Volume Deduction**: 256 GB usable capacity reserved by Storage Spaces Direct (Infrastructure_1 volume) is now deducted from overall usable storage in all capacity calculations, with a sizing note
-- **Sizer: Disk Bay Consolidation**: When auto-scaling would fill ≥50% of available disk bays, the sizer now evaluates larger disk sizes and selects fewer, larger disks to leave bays free for future expansion, with a sizing note explaining the optimisation
-- **Sizer: Storage Limit Enforcement**: Configurations exceeding 400 TB per machine or 4 PB per storage pool are now flagged with 🚫 errors, a red warning banner, and export/Configure in Designer are blocked until corrected
-- **Sizer: Dead Code Cleanup**: Removed unused dual parity option, dead functions, and consolidated resiliency constants
-- **Sizer: Power Estimate Core Scaling**: CPU TDP in the power estimate now scales with the selected core count (40% base + 60% proportional), so reducing cores visibly reduces estimated power
-- **Sizer: Single Node Default Resiliency**: Single-node clusters now default to Two-Way Mirror instead of Simple (No Fault Tolerance)
-- **Sizer: Cluster Type & Nodes Label Styling**: The "Cluster Type" and "Number of Physical Nodes" labels now use bolder weight, larger font, and primary text colour for better visibility
-- **Sizer: Disk Consolidation Count Fix**: Fixed disk bay consolidation only increasing disk count, never decreasing — consolidation now writes both count and size together, and stale counts no longer persist after page refresh/resume
-- **Sizer: Consolidation Note After Headroom**: Fixed the consolidation sizing note showing the wrong disk count when the storage headroom pass added extra disks after consolidation
-- **Sizer: HTML Validation Fix**: Encoded raw `&` as `&amp;` in the sizer heading to resolve HTML validation errors
-- **Sizer: AUTO Badge Persistence Fix**: Fixed AUTO badges disappearing from CPU Cores per Socket and Memory per Node fields when adding workloads that increase node count without changing per-node hardware values
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -378,6 +346,18 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.16.x Series (February 2026)
+
+#### 0.16.04 - Sizer UI Layout Improvements, Shared Changelog & Bug Fixes
+- **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
+- **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
+- **Sizer: vCPU Ratio AUTO Badge Fix**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling
+- **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
+
+#### 0.16.03 - Custom Intent 8-Port Zone Restrictions
+- **Custom Intent 8-Port Zone Restrictions (#130 follow-up)**: For 8-port custom intent, the wizard now only shows the relevant zones — Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Removed Management, Compute + Storage, and Group All Traffic zones which are not valid for 8-port configurations.
+
+#### 0.16.02 - Custom Intent 8-Port Compute Intent Fix
+- **Custom Intent 8-Port Compute Intent Fix (#130)**: With 8 ports and custom intent, the wizard now offers two distinct compute zones (Compute 1 and Compute 2) instead of merging all compute ports into a single intent group. The Configuration Report diagram and ARM template correctly reflect the separate compute intents.
 
 #### 0.16.01 - UX Improvements, Power Estimates, Auto-Scale Enhancements & Storage Limit Enforcement
 - **Sizer: Standardised Disk Size Dropdown**: All disk size inputs replaced with dropdown selects using standard NVMe/SSD capacities (0.96, 1.92, 3.84, 7.68, 15.36 TB), eliminating invalid free-text entries
