@@ -935,6 +935,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                     cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
                     if (cpuPct < VCPU_ESCALATION_THRESHOLD) break;
                 }
+            } else if (previouslyAutoScaled && previouslyAutoScaled.has('vcpu-ratio')) {
+                // Ratio was auto-escalated in a prior cycle and is still adequate — re-apply badge
+                markAutoScaled('vcpu-ratio');
+                _vcpuRatioAutoEscalated = true;
             }
         }
     }
@@ -2643,7 +2647,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (_vcpuRatioAutoEscalated) {
             notes.push(`⚠️ Warning: vCPU overcommit ratio has been auto-scaled to ${vcpuRatio}:1 — physical CPU cores and sockets are maxed out for required vCPUs. A ${vcpuRatio}:1 or higher overcommit ratio is required to accommodate the workload. Consider adding more nodes / clusters, or reducing workload vCPU requirements.`);
         } else {
-            notes.push(`vCPU calculations use ${vcpuRatio}:1 pCPU to vCPU overcommit ratio`);
+            notes.push(`vCPU calculations use ${vcpuRatio}:1 vCPU to pCPU overcommit ratio`);
         }
 
         // Infrastructure_1 volume note
@@ -2959,6 +2963,12 @@ function configureInDesigner() {
 
 // Reset scenario
 function resetScenario() {
+    // Confirm if there are workloads added
+    if (workloads.length > 0) {
+        if (!confirm('Are you sure you want to reset? This will remove all workloads and restore default settings.')) {
+            return;
+        }
+    }
     clearSizerState();
     workloads = [];
     workloadIdCounter = 0;
