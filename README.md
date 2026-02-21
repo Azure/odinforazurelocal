@@ -54,6 +54,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Memory Headroom Threshold**: Raised memory headroom from 80% to 85% to avoid unnecessary DIMM tier jumps when utilisation is comfortably within range
 - **Sizer: Bidirectional Memory & CPU Auto-Scaling**: Memory and CPU cores now scale down when more nodes reduce per-node requirements, keeping hardware at the smallest sufficient option
 - **Sizer: Sizing Notes Reorder**: Cluster size + N+1 note is now the first item; hardware note updated to "Per node hardware configuration" format
+- **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via Firebase analytics, displayed as "Sizes Calculated" on the main page stats bar
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -372,6 +373,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: Memory Headroom Threshold**: Raised memory headroom from 80% to 85% to avoid unnecessary DIMM tier jumps when utilisation is comfortably within range
 - **Sizer: Bidirectional Memory & CPU Auto-Scaling**: Memory and CPU cores now scale down when more nodes reduce per-node requirements, keeping hardware at the smallest sufficient option
 - **Sizer: Sizing Notes Reorder**: Cluster size + N+1 note is now the first item; hardware note updated to "Per node hardware configuration" format
+- **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via Firebase analytics, displayed as "Sizes Calculated" on the main page stats bar
 
 #### 0.16.03 - Custom Intent 8-Port Zone Restrictions
 - **Custom Intent 8-Port Zone Restrictions (#130 follow-up)**: For 8-port custom intent, the wizard now only shows the relevant zones — Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Removed Management, Compute + Storage, and Group All Traffic zones which are not valid for 8-port configurations.
