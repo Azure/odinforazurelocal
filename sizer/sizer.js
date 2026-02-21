@@ -1979,6 +1979,10 @@ function addWorkload() {
         editingWorkloadId = null;
     } else {
         workloads.push(workload);
+        // Track new workload addition for analytics
+        if (typeof trackFormCompletion === 'function') {
+            trackFormCompletion('sizerCalculation');
+        }
     }
     closeModal();
     renderWorkloads();

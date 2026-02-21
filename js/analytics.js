@@ -23,6 +23,11 @@
 //           ".read": false,
 //           ".write": true,
 //           ".validate": "newData.isNumber() && newData.val() >= data.val()"
+//         },
+//         "sizerCalculation": {
+//           ".read": false,
+//           ".write": true,
+//           ".validate": "newData.isNumber() && newData.val() >= data.val()"
 //         }
 //       }
 //     }
@@ -117,7 +122,7 @@ function trackFormCompletion(eventType) {
         return;
     }
 
-    const validEvents = ['designDocument', 'armDeployment'];
+    const validEvents = ['designDocument', 'armDeployment', 'sizerCalculation'];
     if (!validEvents.includes(eventType)) {
         console.warn('Analytics: Invalid event type:', eventType);
         return;
@@ -173,6 +178,13 @@ function fetchAndDisplayStats() {
                 if (armDeploymentsEl) {
                     const formCompletions = data.formCompletions || {};
                     armDeploymentsEl.textContent = formatNumber(formCompletions.armDeployment || 0);
+                }
+
+                // Update sizer calculations
+                const sizerCalcsEl = document.getElementById('stat-sizer-calcs');
+                if (sizerCalcsEl) {
+                    const formCompletions = data.formCompletions || {};
+                    sizerCalcsEl.textContent = formatNumber(formCompletions.sizerCalculation || 0);
                 }
 
                 console.log('Analytics: Stats displayed');
