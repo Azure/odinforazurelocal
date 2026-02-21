@@ -42,8 +42,13 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ### 🎉 Version 0.16.04 - Latest Release
 - **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
 - **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
+- **Sizer: S2D Resiliency Repair Storage Reservation**: 1 × capacity disk per node (up to 4 × capacity disks max) of raw pool space is now reserved for Storage Spaces Direct repair jobs, reducing reported usable storage accordingly
+- **Sizer: Per-Node Scaling Weight**: Node count recommendations now weights toward fewer, larger nodes — e.g. 12 × 64 cores × 2 TB memory, preferred over 16 × 48 cores × 1.5 TB memory
 - **Sizer: vCPU Ratio AUTO Badge Fix**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling
 - **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
+- **Sizer: Node Recommendation Memory Cap Fix**: Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling
+- **Sizer: Stale Node Recommendation Message Fix**: Node recommendation message now recalculates when manually changing node count, instead of showing stale guidance from a previous cycle
+- **Sizer: Manual Hardware Override Fix**: Memory, CPU cores, and CPU sockets manual changes are now respected by auto-scaling instead of being overridden
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -350,8 +355,13 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 #### 0.16.04 - Sizer UI Layout Improvements, Shared Changelog & Bug Fixes
 - **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
 - **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
+- **Sizer: S2D Resiliency Repair Storage Reservation**: 1 × capacity disk per node (up to 4 × capacity disks max) of raw pool space is now reserved for Storage Spaces Direct repair jobs, reducing reported usable storage accordingly
+- **Sizer: Per-Node Scaling Weight**: Node recommendation now weights toward fewer, beefier nodes — e.g. 12 × 64 cores × 2 TB preferred over 16 × 48 cores × 1.5 TB
 - **Sizer: vCPU Ratio AUTO Badge Fix**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling
 - **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
+- **Sizer: Node Recommendation Memory Cap Fix**: Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling
+- **Sizer: Stale Node Recommendation Message Fix**: Node recommendation message now recalculates when manually changing node count, instead of showing stale guidance from a previous cycle
+- **Sizer: Manual Hardware Override Fix**: Memory, CPU cores, and CPU sockets manual changes are now respected by auto-scaling instead of being overridden
 
 #### 0.16.03 - Custom Intent 8-Port Zone Restrictions
 - **Custom Intent 8-Port Zone Restrictions (#130 follow-up)**: For 8-port custom intent, the wizard now only shows the relevant zones — Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Removed Management, Compute + Storage, and Group All Traffic zones which are not valid for 8-port configurations.

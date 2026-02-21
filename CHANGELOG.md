@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Reset Button Repositioned**: Moved the Reset button from the Sizer header into the Workload Scenarios section header with a confirmation prompt when workloads exist
 - **Export Buttons Below Sizing Notes**: Moved Save as PDF and Download Word buttons from the Sizer header to below the Sizing Notes section for better workflow placement
 - **Shared Changelog Module**: Extracted the `showChangelog()` function into a shared `js/changelog.js` file, reused by both the Designer and Sizer pages
+- **S2D Resiliency Repair Storage Reservation**: The sizer now reserves 1 × capacity disk per node of raw pool space for Storage Spaces Direct repair jobs, up to a maximum of 4 × capacity disks. This deduction is applied before volume creation and reduces reported usable storage accordingly, with a sizing note explaining the reservation
+- **Per-Node Scaling Weight for Node Recommendations**: Node recommendation now assumes the highest available per-node memory (matching the existing approach for CPU cores and disk size), weighting toward fewer, beefier nodes over more, smaller ones. For example, 12 nodes × 64 cores × 2 TB is now preferred over 16 nodes × 48 cores × 1.5 TB when both satisfy the workload
 
 ### Fixed
 
@@ -24,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **vCPU Ratio AUTO Badge Persistence**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field when auto-scaling adjusts the ratio
 - **vCPU Ratio Label Correction**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes output
+- **Node Recommendation Memory Cap Fix**: Fixed `buildMaxHardwareConfig` capping memory at 1 TB when calculating node recommendations, even when the user or auto-scale had set memory higher. The recommendation now uses the greater of 1 TB or the current per-node memory, preventing the sizer from recommending more nodes than needed when running large workloads with high-memory configurations
+- **Stale Node Recommendation Message Fix**: Fixed the node recommendation message persisting from a previous calculation cycle when the user manually changed the node count. The message now always recalculates with current hardware specs to show accurate guidance
+- **Manual Hardware Override Fix**: Fixed memory, CPU cores, and CPU sockets dropdowns being overridden by auto-scaling when the user manually changed them. Manual changes are now respected (matching the existing behaviour for vCPU ratio and disk config), with locks reset when workloads are added, removed, or cloned
 
 ---
 
