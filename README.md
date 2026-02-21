@@ -49,6 +49,11 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Node Recommendation Memory Cap Fix**: Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling
 - **Sizer: Stale Node Recommendation Message Fix**: Node recommendation message now recalculates when manually changing node count, instead of showing stale guidance from a previous cycle
 - **Sizer: Manual Hardware Override Fix**: Memory, CPU cores, and CPU sockets manual changes are now respected by auto-scaling instead of being overridden
+- **Sizer: Node Count Manual Increase Fix**: Fixed node count resetting to the auto-recommended value when manually increased (e.g. 5 → 6)
+- **Sizer: 1.5 TB Memory Threshold**: For small clusters (< 10 nodes), per-node memory is capped at 1.5 TB in both node recommendations and memory headroom auto-scaling, preferring to add a node over jumping to expensive 2 TB+ DIMMs
+- **Sizer: Memory Headroom Threshold**: Raised memory headroom from 80% to 85% to avoid unnecessary DIMM tier jumps when utilisation is comfortably within range
+- **Sizer: Bidirectional Memory & CPU Auto-Scaling**: Memory and CPU cores now scale down when more nodes reduce per-node requirements, keeping hardware at the smallest sufficient option
+- **Sizer: Sizing Notes Reorder**: Cluster size + N+1 note is now the first item; hardware note updated to "Per node hardware configuration" format
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -362,6 +367,11 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: Node Recommendation Memory Cap Fix**: Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling
 - **Sizer: Stale Node Recommendation Message Fix**: Node recommendation message now recalculates when manually changing node count, instead of showing stale guidance from a previous cycle
 - **Sizer: Manual Hardware Override Fix**: Memory, CPU cores, and CPU sockets manual changes are now respected by auto-scaling instead of being overridden
+- **Sizer: Node Count Manual Increase Fix**: Fixed node count resetting to the auto-recommended value when manually increased (e.g. 5 → 6)
+- **Sizer: 1.5 TB Memory Weighting**: For small clusters (< 10 nodes), per-node memory is weighted towards a max of 1.5 TB in both node recommendations and memory headroom auto-scaling, preferring to add a node over jumping to more expensive 2 TB+ (larger memory DIMM) configurations
+- **Sizer: Memory Headroom Threshold**: Raised memory headroom from 80% to 85% to avoid unnecessary DIMM tier jumps when utilisation is comfortably within range
+- **Sizer: Bidirectional Memory & CPU Auto-Scaling**: Memory and CPU cores now scale down when more nodes reduce per-node requirements, keeping hardware at the smallest sufficient option
+- **Sizer: Sizing Notes Reorder**: Cluster size + N+1 note is now the first item; hardware note updated to "Per node hardware configuration" format
 
 #### 0.16.03 - Custom Intent 8-Port Zone Restrictions
 - **Custom Intent 8-Port Zone Restrictions (#130 follow-up)**: For 8-port custom intent, the wizard now only shows the relevant zones — Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Removed Management, Compute + Storage, and Group All Traffic zones which are not valid for 8-port configurations.

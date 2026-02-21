@@ -3055,7 +3055,8 @@
                 return assert(maxHw.totalPhysicalCores === 128, 'Max cores = 64 (last option) × 2 sockets = 128', 128, maxHw.totalPhysicalCores);
             })(),
             (() => {
-                // Memory set to per-node scaling weight (NODE_WEIGHT_PREFERRED_MEMORY_GB = max DIMM option = 4096 GB)
+                // Memory capped at 1.5 TB (NODE_WEIGHT_PREFERRED_MEMORY_GB = 1536 GB) for small clusters
+                // When node count < 10 and memory is not user-set, cap applies
                 const hw = {
                     coresPerSocket: 24,
                     sockets: 2,
@@ -3063,8 +3064,24 @@
                     generation: { coreOptions: [8, 24] },
                     diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
                 };
+                // Ensure node-count stub exists and is small (< 10), memory not user-set
+                let ncStub = document.getElementById('node-count');
+                const createdNc = !ncStub;
+                if (createdNc) {
+                    ncStub = document.createElement('select');
+                    ncStub.id = 'node-count';
+                    ncStub.style.display = 'none';
+                    document.body.appendChild(ncStub);
+                }
+                const savedNodeVal = ncStub.value;
+                ncStub.value = '3';
+                const savedMemFlag = _memoryUserSet;
+                _memoryUserSet = false;
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.memoryGB === 4096, 'Preferred max memory is 4096 GB (per-node scaling weight)', 4096, maxHw.memoryGB);
+                _memoryUserSet = savedMemFlag;
+                ncStub.value = savedNodeVal;
+                if (createdNc) ncStub.remove();
+                return assert(maxHw.memoryGB === 1536, 'Preferred max memory is 1536 GB (1.5 TB cap for small clusters)', 1536, maxHw.memoryGB);
             })(),
             (() => {
                 // Without generation info: falls back to current coresPerSocket

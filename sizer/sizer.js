@@ -441,10 +441,18 @@ function buildMaxHardwareConfig(hwConfig) {
     // Use max 2 sockets — Azure Local certified hardware supports 1 or 2 sockets only
     const MAX_SOCKETS = 2;
 
-    // Use the highest available per-node memory for node estimation — consistent
-    // with using max cores and max disk size above. This weights the recommendation
-    // toward fewer, beefier nodes; autoScaleHardware then picks the actual memory tier.
-    const PREFERRED_MAX_MEMORY_GB = Math.max(NODE_WEIGHT_PREFERRED_MEMORY_GB, hwConfig.memoryGB || 0);
+    // Use a per-node memory cap for node estimation. For small clusters (< 10 nodes),
+    // cap at 1.5 TB to prefer adding nodes over expensive high-capacity DIMMs (2 TB+).
+    // For larger clusters (10+ nodes), allow the full memory range.
+    // Only override the cap with the current hardware setting when the user manually
+    // set memory — otherwise a prior auto-scale result could defeat the cap.
+    const currentNodeCount = parseInt(document.getElementById('node-count')?.value) || 3;
+    const memWeightCap = currentNodeCount >= NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
+        ? NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB
+        : NODE_WEIGHT_PREFERRED_MEMORY_GB;
+    const PREFERRED_MAX_MEMORY_GB = _memoryUserSet
+        ? Math.max(memWeightCap, hwConfig.memoryGB || 0)
+        : memWeightCap;
 
     // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
     const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
@@ -624,9 +632,13 @@ const MEMORY_OPTIONS_GB = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3
 // Per-node efficiency weight for node recommendations.
 // buildMaxHardwareConfig assumes up to this much memory per node when estimating
 // minimum nodes, weighting toward fewer, larger nodes over more, smaller ones.
-// Set to the highest DIMM-symmetric option for consistency with how CPU cores
-// (max for generation) and disk size (15.36 TB) are similarly maximised.
-const NODE_WEIGHT_PREFERRED_MEMORY_GB = MEMORY_OPTIONS_GB[MEMORY_OPTIONS_GB.length - 1];
+// Capped at 1.5 TB for small clusters (< 10 nodes) because the cost of DIMMs
+// above 1.5 TB per node (e.g. 2 TB, 3 TB) is significantly higher than adding
+// an additional node. For 10+ node clusters, allow full memory range.
+const NODE_WEIGHT_PREFERRED_MEMORY_GB = 1536;
+const NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB = MEMORY_OPTIONS_GB[MEMORY_OPTIONS_GB.length - 1];
+// Threshold above which we switch to the large-cluster memory weight
+const NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD = 10;
 
 // Disk count per node
 const MIN_DISK_COUNT = 2; // Azure Local minimum; matches dropdown minimum
@@ -788,7 +800,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 }
             }
 
-            if (targetCores > currentCores) {
+            if (targetCores !== currentCores) {
                 coresSelect.value = targetCores;
                 changed = true;
                 markAutoScaled('cpu-cores');
@@ -806,9 +818,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     const currentMem = parseInt(memInput.value) || 512;
 
     if (!_memoryUserSet) {
-        // Set memory to the smallest DIMM-symmetric option that meets the requirement
+        // Set memory to the smallest DIMM-symmetric option that meets the requirement.
+        // This also scales DOWN from a prior auto-scaled value when more nodes are
+        // available (e.g. after node count increased), keeping per-node memory minimal.
         let targetMem = MEMORY_OPTIONS_GB.find(m => m >= requiredMemPerNode) || MAX_MEMORY_GB;
-        if (targetMem > currentMem) {
+        if (targetMem !== currentMem) {
             memInput.value = targetMem;
             changed = true;
             markAutoScaled('node-memory');
@@ -946,11 +960,14 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         }
     }
 
-    // --- Headroom pass: nudge cores / memory up if capacity bars > 80% ---
+    // --- Headroom pass: nudge cores / memory / storage up if capacity bars exceed threshold ---
     // The initial auto-scale above ensures resources fit (< 100%). This pass
-    // provides additional headroom so the Capacity Usage stays ≤ 80%
-    // wherever a larger per-node option is available.
+    // provides additional headroom wherever a larger per-node option is available.
+    // CPU & storage use 80%; memory uses a higher 85% threshold because the cost
+    // jump between DIMM tiers (e.g. 1 TB → 1.5 TB) is significant, so we accept
+    // slightly higher utilisation rather than over-provisioning expensive DIMMs.
     const HEADROOM_THRESHOLD = 80;
+    const MEMORY_HEADROOM_THRESHOLD = 85;
 
     // Re-read current hardware after initial auto-scale
     let hrCores = parseInt(document.getElementById('cpu-cores').value) || 0;
@@ -1016,16 +1033,25 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         }
     }
 
-    // Memory headroom — step through DIMM-symmetric options until below threshold or maxed
+    // Memory headroom — step through DIMM-symmetric options until below threshold or maxed.
+    // Uses higher threshold (85%) than CPU/storage to avoid expensive DIMM tier jumps.
+    // For small clusters (< 10 nodes), cap memory at the preferred threshold (1.5 TB)
+    // and let the auto-increment node loop add a node instead of jumping to 2 TB+ DIMMs.
     // Skip when the user has manually set memory (respect user override).
     if (!_memoryUserSet) {
+        const memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
+            ? NODE_WEIGHT_PREFERRED_MEMORY_GB
+            : MAX_MEMORY_GB;
         let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
         let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
         let memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
         if (memIdx < 0) memIdx = MEMORY_OPTIONS_GB.findIndex(m => m >= hrMemory);
-        while (memPct > HEADROOM_THRESHOLD && memIdx < MEMORY_OPTIONS_GB.length - 1) {
+        while (memPct > MEMORY_HEADROOM_THRESHOLD && memIdx < MEMORY_OPTIONS_GB.length - 1) {
+            const nextMem = MEMORY_OPTIONS_GB[memIdx + 1];
+            // For small clusters, don't exceed the preferred memory cap — let node scaling handle it
+            if (nextMem > memCapLimit) break;
             memIdx++;
-            hrMemory = MEMORY_OPTIONS_GB[memIdx];
+            hrMemory = nextMem;
             document.getElementById('node-memory').value = hrMemory;
             changed = true;
             markAutoScaled('node-memory');
@@ -2317,7 +2343,12 @@ function calculateRequirements(options) {
                     maxHwConfig, resiliencyMultiplier, resiliency
                 );
                 if (updatedRec) {
-                    updateNodeRecommendation(updatedRec);
+                    if (!skipAutoNodeRecommend) {
+                        updateNodeRecommendation(updatedRec);
+                    } else {
+                        // User manually set node count — show info but don't override their selection
+                        updateNodeRecommendationInfo(updatedRec, nodeCount);
+                    }
                 }
             }
 
@@ -2571,24 +2602,30 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     if (workloads.length === 0) {
         notes.push('Add workloads to see sizing recommendations');
     } else {
-        // Growth buffer note
-        const growthFactor = getGrowthFactor();
-        if (growthFactor > 1) {
-            notes.push(`Growth buffer: ${Math.round((growthFactor - 1) * 100)}% — all requirements include future growth headroom`);
+        // Cluster size + N+1 note — always first
+        if (clusterType === 'single') {
+            notes.push('1 x Node Cluster — Single node deployment: No node fault tolerance or maintenance capacity');
+        } else {
+            notes.push(`${nodeCount} x Node Cluster - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} nodes available during servicing / maintenance`);
         }
 
-        // Hardware config note
+        // Per node hardware config note — always second
         if (hwConfig && hwConfig.generation) {
-            notes.push(`Hardware: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB RAM per node`);
+            notes.push(`Per node hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB RAM`);
             if (hwConfig.gpuCount > 0) {
                 const gpuLabel = getGpuLabel(hwConfig.gpuType);
                 notes.push(`GPU: ${hwConfig.gpuCount} × ${gpuLabel} per node`);
             }
         }
+
+        // Growth buffer note
+        const growthFactor = getGrowthFactor();
+        if (growthFactor > 1) {
+            notes.push(`Growth buffer: ${Math.round((growthFactor - 1) * 100)}% — all requirements include future growth headroom`);
+        }
         
-        // Single node specific notes
+        // Single node specific notes (cluster size + N+1 already shown above)
         if (clusterType === 'single') {
-            notes.push('⚠️ Single node deployment: No node fault tolerance or maintenance capacity');
             if (resiliency === 'simple') {
                 notes.push('Simple resiliency: No drive fault tolerance. Single drive failure causes data loss.');
             } else {
@@ -2600,9 +2637,6 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             if (clusterType === 'rack-aware') {
                 notes.push('Rack-Aware Cluster (RAC): Each rack acts as a fault domain, physical nodes are split evenly between two racks, minimum 2 nodes, maximum 8 nodes.');
             }
-            
-            // N+1 note
-            notes.push(`N+1 capacity: Requirements calculated assuming ${nodeCount - 1} nodes available during maintenance`);
         }
         
         // Resiliency note
