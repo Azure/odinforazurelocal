@@ -54,7 +54,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Memory Headroom Threshold**: Raised memory headroom from 80% to 85% to avoid unnecessary DIMM tier jumps when utilisation is comfortably within range
 - **Sizer: Bidirectional Memory & CPU Auto-Scaling**: Memory and CPU cores now scale down when more nodes reduce per-node requirements, keeping hardware at the smallest sufficient option
 - **Sizer: Sizing Notes Reorder**: Cluster size + N+1 note is now the first item; hardware note updated to "Per node hardware configuration" format
-- **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via Firebase analytics, displayed as "Sizes Calculated" on the main page stats bar
+- **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via tracking analytics, to display the "Sizes Calculated" on the main page stats bar
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
