@@ -42,6 +42,13 @@ function showChangelog() {
                         <li><strong>Per-Node Scaling Weight:</strong> Node recommendation now weights toward fewer, beefier nodes — e.g. 12 × 64 cores × 2 TB preferred over 16 × 48 cores × 1.5 TB.</li>
                         <li><strong>Workload Analytics Tracking:</strong> Each new workload added (VM, AKS, or AVD) is now tracked via Firebase analytics, displayed as "Sizes Calculated" on the main page stats bar.</li>
                     </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🎨 Mobile & UI Polish</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Designer: Mobile stats bar 2×2:</strong> Page analytics bar displays as a 2×2 grid on mobile devices instead of a single row of 4.</li>
+                        <li><strong>Sizer: "Estimated Power, Heat & Rack Space":</strong> Updated heading to include "Heat" since BTU/hr values are displayed; power units expanded to "Watts"; BTU is now a Wikipedia hyperlink.</li>
+                        <li><strong>Sizer: Mobile header logo:</strong> ODIN logo and What's New text now visible on mobile, centered alongside header text.</li>
+                        <li><strong>Security: Removed invalid meta tags:</strong> Removed X-Frame-Options and X-XSS-Protection meta tags (HTTP-header-only, caused console warnings).</li>
+                    </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Sizer Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>vCPU Ratio AUTO Badge:</strong> Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling.</li>

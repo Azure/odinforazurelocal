@@ -1344,13 +1344,29 @@ body {
     }
     
     .sizer-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 16px;
+        flex-direction: row;
+        align-items: center;
+        gap: 24px;
+    }
+
+    .sizer-header .header-content {
+        flex: 1;
+        min-width: 0;
+        padding-right: 4px;
     }
 
     .sizer-header .header-logo-wrapper {
-        display: none;
+        display: flex;
+        flex-shrink: 0;
+    }
+
+    .sizer-header .header-logo-wrapper img {
+        max-height: 68px;
+    }
+
+    .sizer-header .header-version {
+        font-size: 11px;
+        white-space: nowrap;
     }
     
     .sizer-header h1 {
