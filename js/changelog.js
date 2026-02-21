@@ -39,6 +39,7 @@ function showChangelog() {
                         <li><strong>Export Buttons Below Notes:</strong> Save as PDF and Download Word buttons relocated below the Sizing Notes section.</li>
                         <li><strong>Shared Changelog Module:</strong> Extracted What's New into a shared JavaScript module used by both Designer and Sizer.</li>
                         <li><strong>S2D Resiliency Repair Storage Reservation:</strong> 1 × capacity disk per node (up to 4 × max) of raw pool space is now reserved for S2D repair jobs, reducing reported usable storage.</li>
+                        <li><strong>Per-Node Scaling Weight:</strong> Node recommendation now weights toward fewer, beefier nodes — e.g. 12 × 64 cores × 2 TB preferred over 16 × 48 cores × 1.5 TB.</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Sizer Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">

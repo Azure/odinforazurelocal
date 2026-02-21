@@ -43,6 +43,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
 - **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
 - **Sizer: S2D Resiliency Repair Storage Reservation**: 1 × capacity disk per node (up to 4 × capacity disks max) of raw pool space is now reserved for Storage Spaces Direct repair jobs, reducing reported usable storage accordingly
+- **Sizer: Per-Node Scaling Weight**: Node count recommendations now weights toward fewer, larger nodes — e.g. 12 × 64 cores × 2 TB memory, preferred over 16 × 48 cores × 1.5 TB memory
 - **Sizer: vCPU Ratio AUTO Badge Fix**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling
 - **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
 - **Sizer: Node Recommendation Memory Cap Fix**: Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling
@@ -354,6 +355,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
 - **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
 - **Sizer: S2D Resiliency Repair Storage Reservation**: 1 × capacity disk per node (up to 4 × capacity disks max) of raw pool space is now reserved for Storage Spaces Direct repair jobs, reducing reported usable storage accordingly
+- **Sizer: Per-Node Scaling Weight**: Node recommendation now weights toward fewer, beefier nodes — e.g. 12 × 64 cores × 2 TB preferred over 16 × 48 cores × 1.5 TB
 - **Sizer: vCPU Ratio AUTO Badge Fix**: Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling
 - **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
 - **Sizer: Node Recommendation Memory Cap Fix**: Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling

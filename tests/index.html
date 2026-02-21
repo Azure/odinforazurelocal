@@ -3055,7 +3055,7 @@
                 return assert(maxHw.totalPhysicalCores === 128, 'Max cores = 64 (last option) × 2 sockets = 128', 128, maxHw.totalPhysicalCores);
             })(),
             (() => {
-                // Memory always set to preferred max (1024 GB / 1 TB)
+                // Memory set to per-node scaling weight (NODE_WEIGHT_PREFERRED_MEMORY_GB = max DIMM option = 4096 GB)
                 const hw = {
                     coresPerSocket: 24,
                     sockets: 2,
@@ -3064,7 +3064,7 @@
                     diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
                 };
                 const maxHw = buildMaxHardwareConfig(hw);
-                return assert(maxHw.memoryGB === 1024, 'Preferred max memory is 1024 GB (1 TB)', 1024, maxHw.memoryGB);
+                return assert(maxHw.memoryGB === 4096, 'Preferred max memory is 4096 GB (per-node scaling weight)', 4096, maxHw.memoryGB);
             })(),
             (() => {
                 // Without generation info: falls back to current coresPerSocket

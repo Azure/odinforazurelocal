@@ -429,9 +429,10 @@ function buildMaxHardwareConfig(hwConfig) {
     // Use max 2 sockets — Azure Local certified hardware supports 1 or 2 sockets only
     const MAX_SOCKETS = 2;
 
-    // Preferred max memory: 1 TB — favour scaling memory before adding nodes
-    // If the user or auto-scale has already set memory higher, use that instead
-    const PREFERRED_MAX_MEMORY_GB = Math.max(1024, hwConfig.memoryGB || 0);
+    // Use the highest available per-node memory for node estimation — consistent
+    // with using max cores and max disk size above. This weights the recommendation
+    // toward fewer, beefier nodes; autoScaleHardware then picks the actual memory tier.
+    const PREFERRED_MAX_MEMORY_GB = Math.max(NODE_WEIGHT_PREFERRED_MEMORY_GB, hwConfig.memoryGB || 0);
 
     // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
     const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
@@ -607,6 +608,13 @@ function hideNodeRecommendation() {
 const MAX_MEMORY_GB = 4096;
 const MIN_MEMORY_GB = 64;
 const MEMORY_OPTIONS_GB = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
+
+// Per-node efficiency weight for node recommendations.
+// buildMaxHardwareConfig assumes up to this much memory per node when estimating
+// minimum nodes, weighting toward fewer, larger nodes over more, smaller ones.
+// Set to the highest DIMM-symmetric option for consistency with how CPU cores
+// (max for generation) and disk size (15.36 TB) are similarly maximised.
+const NODE_WEIGHT_PREFERRED_MEMORY_GB = MEMORY_OPTIONS_GB[MEMORY_OPTIONS_GB.length - 1];
 
 // Disk count per node
 const MIN_DISK_COUNT = 2; // Azure Local minimum; matches dropdown minimum
