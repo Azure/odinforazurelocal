@@ -38,11 +38,14 @@ function showChangelog() {
                         <li><strong>Reset Button Repositioned:</strong> Moved Reset into the Workload Scenarios section with a confirmation prompt when workloads exist.</li>
                         <li><strong>Export Buttons Below Notes:</strong> Save as PDF and Download Word buttons relocated below the Sizing Notes section.</li>
                         <li><strong>Shared Changelog Module:</strong> Extracted What's New into a shared JavaScript module used by both Designer and Sizer.</li>
+                        <li><strong>S2D Resiliency Repair Storage Reservation:</strong> 1 × capacity disk per node (up to 4 × max) of raw pool space is now reserved for S2D repair jobs, reducing reported usable storage.</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Sizer Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>vCPU Ratio AUTO Badge:</strong> Fixed AUTO badge not persisting on the vCPU Overcommit Ratio field after auto-scaling.</li>
                         <li><strong>vCPU Ratio Label:</strong> Corrected "pCPU to vCPU" to "vCPU to pCPU" overcommit ratio in sizing notes.</li>
+                        <li><strong>Node Recommendation Memory Cap:</strong> Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling.</li>
+                        <li><strong>Stale Node Recommendation:</strong> Node recommendation message now recalculates when manually changing node count, showing accurate guidance.</li>
                     </ul>
                 </div>
 

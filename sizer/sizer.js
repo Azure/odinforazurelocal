@@ -430,7 +430,8 @@ function buildMaxHardwareConfig(hwConfig) {
     const MAX_SOCKETS = 2;
 
     // Preferred max memory: 1 TB — favour scaling memory before adding nodes
-    const PREFERRED_MAX_MEMORY_GB = 1024;
+    // If the user or auto-scale has already set memory higher, use that instead
+    const PREFERRED_MAX_MEMORY_GB = Math.max(1024, hwConfig.memoryGB || 0);
 
     // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
     const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
@@ -479,7 +480,10 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     // Total raw storage needed = (usable + Infrastructure_1 volume) * resiliency multiplier
     // Infrastructure_1 volume: 256 GB usable, reserved by Storage Spaces Direct
     const infraVolumeRawGB = 256 * resiliencyMultiplier;
-    const totalRawStorageNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB;
+    // S2D repair reservation: reserve min(nodeCount, 4) capacity disks of raw pool space
+    // Use a conservative estimate based on the current disk size for node recommendation
+    const s2dRepairRawGB = getS2dRepairReservedGB(1, diskSizeGB); // assume at least 1 node for recommendation
+    const totalRawStorageNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB + s2dRepairRawGB;
 
     // Minimum working nodes for each resource dimension
     let computeNodes = vcpusPerNode > 0 ? Math.ceil(totalVcpus / vcpusPerNode) : 1;
@@ -566,6 +570,29 @@ function updateNodeRecommendation(recommendation) {
     }
 }
 
+// Show node recommendation info without changing the dropdown (for manual node changes)
+function updateNodeRecommendationInfo(recommendation, currentNodeCount) {
+    const recDiv = document.getElementById('node-recommendation');
+    const recText = document.getElementById('node-recommendation-text');
+    if (!recDiv || !recText) return;
+
+    const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage' };
+    const driver = bottleneckLabels[recommendation.bottleneck];
+    const snapped = snapToAvailableNodeCount(recommendation.recommended);
+
+    let msg = '';
+    if (recommendation.recommended > 16) {
+        msg = `⚠️ Workload requires ~${recommendation.recommended} nodes (${driver} bottleneck) which exceeds max 16. Consider increasing per-node hardware capacity (CPU cores, memory, or disk size).`;
+    } else if (snapped > currentNodeCount) {
+        msg = `ℹ️ Workload recommends ${snapped} node(s) based on ${driver} requirements. Current selection: ${currentNodeCount} node(s).`;
+    } else {
+        msg = `✅ Current ${currentNodeCount} node(s) meets workload requirements (${driver} driven, ${snapped} recommended).`;
+    }
+
+    recText.textContent = msg;
+    recDiv.style.display = 'flex';
+}
+
 // Hide node recommendation info
 function hideNodeRecommendation() {
     const recDiv = document.getElementById('node-recommendation');
@@ -589,6 +616,17 @@ const MAX_TIERED_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity 
 
 // Standard capacity disk sizes (TB) for auto-scaling — stepped in order
 const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
+
+// S2D resiliency repair: reserve 1 capacity disk per node (up to 4 max) from the storage pool
+const S2D_REPAIR_MAX_RESERVED_DISKS = 4;
+
+// Calculate S2D repair reserved raw space (GB) for a given node count and disk size
+// 1 node: reserve 1 capacity disk. 2+ nodes: reserve min(nodeCount, 4) capacity disks.
+function getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) {
+    if (nodeCount <= 0) return 0;
+    const reservedDisks = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
+    return reservedDisks * capacityDiskSizeGB;
+}
 
 // Track whether the vCPU ratio was auto-escalated from default (4:1) during auto-scale
 let _vcpuRatioAutoEscalated = false;
@@ -754,16 +792,20 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Infrastructure_1 volume: 256 GB usable, consumes raw storage based on resiliency
     const infraVolumeUsableGB = 256;
     const infraVolumeRawGB = infraVolumeUsableGB * resiliencyMultiplier;
-    // Total raw storage needed across all nodes = (usable + Infrastructure_1) * resiliency multiplier
-    const totalRawNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB;
-    // Raw storage each node must provide
-    const rawPerNodeNeededGB = totalRawNeededGB / nodeCount;
 
     // Determine which disk count / size controls to use
     const isTiered = hwConfig.diskConfig && hwConfig.diskConfig.isTiered;
     const isTieredCapped = isTiered && (hwConfig.storageConfig === 'hybrid' || hwConfig.storageConfig === 'mixed-flash');
     const diskCountId = isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count';
     const diskSizeId = isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size';
+
+    // S2D repair reservation: min(nodeCount, 4) capacity disks of raw pool space reserved for repair jobs
+    const diskSizeTBForRepair = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
+    const s2dRepairRawGB = getS2dRepairReservedGB(nodeCount, diskSizeTBForRepair * 1024);
+    // Total raw storage needed across all nodes = (usable + Infrastructure_1) * resiliency multiplier + S2D repair
+    const totalRawNeededGB = totalStorageGB * resiliencyMultiplier + infraVolumeRawGB + s2dRepairRawGB;
+    // Raw storage each node must provide
+    const rawPerNodeNeededGB = totalRawNeededGB / nodeCount;
 
     const diskSizeTB = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
     const diskSizeGB = diskSizeTB * 1024;
@@ -2174,8 +2216,8 @@ function calculateRequirements(options) {
         const maxHwConfig = buildMaxHardwareConfig(hwConfig);
 
         // --- Auto-recommend node count based on max hardware potential ---
-        // Skip when user manually changed node count to respect their selection
         if (!skipAutoNodeRecommend) {
+            // Auto-set node count from workload demands
             if (workloads.length > 0) {
                 const recommendation = getRecommendedNodeCount(
                     totalVcpus, totalMemory, totalStorage,
@@ -2183,6 +2225,21 @@ function calculateRequirements(options) {
                 );
                 if (recommendation) {
                     updateNodeRecommendation(recommendation);
+                }
+            } else {
+                hideNodeRecommendation();
+            }
+        } else {
+            // User manually changed node count — recalculate recommendation with
+            // current ACTUAL hardware so the message reflects reality, but don't
+            // auto-set the dropdown.
+            if (workloads.length > 0) {
+                const infoRec = getRecommendedNodeCount(
+                    totalVcpus, totalMemory, totalStorage,
+                    maxHwConfig, resiliencyMultiplier, resiliency
+                );
+                if (infoRec) {
+                    updateNodeRecommendationInfo(infoRec, parseInt(document.getElementById('node-count').value) || 3);
                 }
             } else {
                 hideNodeRecommendation();
@@ -2247,8 +2304,9 @@ function calculateRequirements(options) {
                     const availVcpus = physCores * effNodes * vcpuToCore;
                     const hostOverheadMemoryGBLoop = 32; // match host overhead used in capacity bars
                     const availMem = Math.max(memPerNode - hostOverheadMemoryGBLoop, 0) * effNodes;
-                    // Subtract Infrastructure_1 volume (256 GB usable) from available storage
-                    const availStorage = Math.max((rawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25, 0);
+                    // Subtract Infrastructure_1 volume (256 GB usable) and S2D repair reservation from available storage
+                    const s2dRepairTB = getS2dRepairReservedGB(nodeCount, rawGBPerNode > 0 ? (rawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
+                    const availStorage = Math.max((rawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - s2dRepairTB / resiliencyMultiplier, 0);
 
                     const cpuPct = availVcpus > 0 ? Math.round((totalVcpus / availVcpus) * 100) : 0;
                     const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
@@ -2342,7 +2400,10 @@ function calculateRequirements(options) {
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes;
         // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
         const infraVolumeUsableTB = 0.25; // 256 GB
-        const totalAvailableStorage = Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB, 0);
+        // S2D repair reservation: min(nodeCount, 4) capacity disks reserved from pool raw space
+        const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
+        const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
+        const totalAvailableStorage = Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
 
         const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
         const memoryPercent = Math.min(100, Math.round((totalMemory / totalAvailableMemory) * 100)) || 0;
@@ -2652,6 +2713,15 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
         // Infrastructure_1 volume note
         notes.push('ℹ️ Infrastructure_1 volume: 256 GB usable capacity reserved by Storage Spaces Direct has been deducted from the overall usable storage.');
+
+        // S2D Resiliency Repair note
+        if (nodeCount >= 1 && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+            const reservedDisks = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
+            const reservedDiskSizeGB = hwConfig.diskConfig.capacity.sizeGB;
+            const reservedTotalGB = reservedDisks * reservedDiskSizeGB;
+            const reservedTotalTB = (reservedTotalGB / 1024).toFixed(2);
+            notes.push('ℹ️ S2D Resiliency Repair: ' + reservedDisks + ' × capacity disk (' + (reservedDiskSizeGB / 1024).toFixed(2) + ' TB each = ' + reservedTotalTB + ' TB total) free space reserved in the storage pool for Storage Spaces Direct repair jobs, up to a maximum of ' + S2D_REPAIR_MAX_RESERVED_DISKS + ' × capacity disks. This raw capacity has been deducted from the available usable storage.');
+        }
 
         // Disk bay consolidation note
         if (_diskConsolidationInfo) {
