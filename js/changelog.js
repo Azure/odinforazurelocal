@@ -48,6 +48,11 @@ function showChangelog() {
                         <li><strong>Node Recommendation Memory Cap:</strong> Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling.</li>
                         <li><strong>Stale Node Recommendation:</strong> Node recommendation message now recalculates when manually changing node count, showing accurate guidance.</li>
                         <li><strong>Manual Hardware Override:</strong> Memory, CPU cores, and CPU sockets manual changes are now respected by auto-scaling instead of being overridden.</li>
+                        <li><strong>Node Count Manual Increase:</strong> Fixed node count resetting to the auto-recommended value when manually increased (e.g. 5 → 6).</li>
+                        <li><strong>1.5 TB Memory Threshold:</strong> For small clusters (&lt; 10 nodes), per-node memory is capped at 1.5 TB in both node recommendations and memory headroom auto-scaling, preferring to add a node over jumping to expensive 2 TB+ DIMMs.</li>
+                        <li><strong>Memory Headroom Threshold:</strong> Raised memory headroom from 80% to 85% to avoid unnecessary DIMM tier jumps when utilisation is within range.</li>
+                        <li><strong>Bidirectional Memory &amp; CPU Auto-Scaling:</strong> Memory and CPU cores now scale down when more nodes reduce per-node requirements, keeping hardware at the smallest sufficient option.</li>
+                        <li><strong>Sizing Notes Reorder:</strong> Cluster size + N+1 note is now the first item (e.g. "5 x Node Cluster - N+1 capacity"); hardware note updated to "Per node hardware configuration" format.</li>
                     </ul>
                 </div>
 
