@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **vCPU Ratio Label Correction**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes output
 - **Node Recommendation Memory Cap Fix**: Fixed `buildMaxHardwareConfig` capping memory at 1 TB when calculating node recommendations, even when the user or auto-scale had set memory higher. The recommendation now uses the greater of 1 TB or the current per-node memory, preventing the sizer from recommending more nodes than needed when running large workloads with high-memory configurations
 - **Stale Node Recommendation Message Fix**: Fixed the node recommendation message persisting from a previous calculation cycle when the user manually changed the node count. The message now always recalculates with current hardware specs to show accurate guidance
+- **Manual Hardware Override Fix**: Fixed memory, CPU cores, and CPU sockets dropdowns being overridden by auto-scaling when the user manually changed them. Manual changes are now respected (matching the existing behaviour for vCPU ratio and disk config), with locks reset when workloads are added, removed, or cloned
 
 ---
 

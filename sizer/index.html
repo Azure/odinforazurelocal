@@ -211,12 +211,12 @@
                     </div>
                     <div class="config-row">
                         <label for="cpu-cores">CPU Cores per Socket</label>
-                        <select id="cpu-cores" onchange="onHardwareConfigChange()">
+                        <select id="cpu-cores" onchange="onCpuConfigChange()">
                         </select>
                     </div>
                     <div class="config-row">
                         <label for="cpu-sockets">CPU Sockets</label>
-                        <select id="cpu-sockets" onchange="onHardwareConfigChange()">
+                        <select id="cpu-sockets" onchange="onCpuConfigChange()">
                             <option value="1">1</option>
                             <option value="2" selected>2</option>
                         </select>
@@ -226,7 +226,7 @@
                     <h3 class="hw-subsection-title">Memory Configuration</h3>
                     <div class="config-row">
                         <label for="node-memory">Memory per Node</label>
-                        <select id="node-memory" onchange="onHardwareConfigChange()">
+                        <select id="node-memory" onchange="onMemoryChange()">
                             <option value="64">64 GB</option>
                             <option value="128">128 GB</option>
                             <option value="192">192 GB</option>

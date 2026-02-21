@@ -318,6 +318,18 @@ function onVcpuRatioChange() {
     onHardwareConfigChange();
 }
 
+// Dedicated handler for memory dropdown — locks memory against auto-scaling
+function onMemoryChange() {
+    _memoryUserSet = true;
+    onHardwareConfigChange();
+}
+
+// Dedicated handler for CPU cores/sockets dropdowns — locks CPU config against auto-scaling
+function onCpuConfigChange() {
+    _cpuConfigUserSet = true;
+    onHardwareConfigChange();
+}
+
 // Dedicated handler for capacity disk dropdowns — locks disk config against auto-scaling
 function onDiskConfigChange() {
     _diskConfigUserSet = true;
@@ -642,6 +654,12 @@ let _vcpuRatioAutoEscalated = false;
 // Track whether the user manually set the vCPU ratio (prevents auto-escalation from overriding)
 let _vcpuRatioUserSet = false;
 
+// Track whether the user manually set memory (prevents memory auto-scaling from overriding)
+let _memoryUserSet = false;
+
+// Track whether the user manually set CPU cores or sockets (prevents CPU auto-scaling from overriding)
+let _cpuConfigUserSet = false;
+
 // Track whether the user manually set disk count/size (prevents disk auto-scaling from overriding)
 let _diskConfigUserSet = false;
 
@@ -716,6 +734,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     let changed = false;
 
     // --- Auto-scale CPU cores (and sockets if needed) ---
+    // Skip when the user has manually set CPU cores/sockets (respect user override).
     const requiredCoresPerNode = Math.ceil(totalVcpus / effectiveNodes / vcpuToCore);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
@@ -723,7 +742,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     const manufacturer = document.getElementById('cpu-manufacturer').value;
     const genId = document.getElementById('cpu-generation').value;
-    if (manufacturer && genId) {
+    if (manufacturer && genId && !_cpuConfigUserSet) {
         const generation = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
         if (generation) {
             const coresSelect = document.getElementById('cpu-cores');
@@ -781,19 +800,22 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     }
 
     // --- Auto-scale memory ---
+    // Skip when the user has manually set memory (respect user override).
     const requiredMemPerNode = Math.ceil(totalMemoryGB / effectiveNodes) + hostOverheadMemoryGB;
     const memInput = document.getElementById('node-memory');
     const currentMem = parseInt(memInput.value) || 512;
 
-    // Set memory to the smallest DIMM-symmetric option that meets the requirement
-    let targetMem = MEMORY_OPTIONS_GB.find(m => m >= requiredMemPerNode) || MAX_MEMORY_GB;
-    if (targetMem > currentMem) {
-        memInput.value = targetMem;
-        changed = true;
-        markAutoScaled('node-memory');
-    } else if (previouslyAutoScaled && previouslyAutoScaled.has('node-memory')) {
-        // Value was set by auto-scale in a prior cycle and is still adequate — re-apply badge
-        markAutoScaled('node-memory');
+    if (!_memoryUserSet) {
+        // Set memory to the smallest DIMM-symmetric option that meets the requirement
+        let targetMem = MEMORY_OPTIONS_GB.find(m => m >= requiredMemPerNode) || MAX_MEMORY_GB;
+        if (targetMem > currentMem) {
+            memInput.value = targetMem;
+            changed = true;
+            markAutoScaled('node-memory');
+        } else if (previouslyAutoScaled && previouslyAutoScaled.has('node-memory')) {
+            // Value was set by auto-scale in a prior cycle and is still adequate — re-apply badge
+            markAutoScaled('node-memory');
+        }
     }
 
     // --- Auto-scale disk count (capacity disks) ---
@@ -936,7 +958,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     let hrMemory = parseInt(document.getElementById('node-memory').value) || 512;
 
     // CPU headroom — bump cores first, then sockets
-    if (manufacturer && genId) {
+    // Skip when the user has manually set CPU config (respect user override).
+    if (manufacturer && genId && !_cpuConfigUserSet) {
         const gen = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
         if (gen) {
             let cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
@@ -994,18 +1017,21 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     }
 
     // Memory headroom — step through DIMM-symmetric options until below threshold or maxed
-    let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
-    let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
-    let memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
-    if (memIdx < 0) memIdx = MEMORY_OPTIONS_GB.findIndex(m => m >= hrMemory);
-    while (memPct > HEADROOM_THRESHOLD && memIdx < MEMORY_OPTIONS_GB.length - 1) {
-        memIdx++;
-        hrMemory = MEMORY_OPTIONS_GB[memIdx];
-        document.getElementById('node-memory').value = hrMemory;
-        changed = true;
-        markAutoScaled('node-memory');
-        memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
-        memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
+    // Skip when the user has manually set memory (respect user override).
+    if (!_memoryUserSet) {
+        let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
+        let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
+        let memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
+        if (memIdx < 0) memIdx = MEMORY_OPTIONS_GB.findIndex(m => m >= hrMemory);
+        while (memPct > HEADROOM_THRESHOLD && memIdx < MEMORY_OPTIONS_GB.length - 1) {
+            memIdx++;
+            hrMemory = MEMORY_OPTIONS_GB[memIdx];
+            document.getElementById('node-memory').value = hrMemory;
+            changed = true;
+            markAutoScaled('node-memory');
+            memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
+            memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
+        }
     }
 
     // Storage headroom — bump disk count first, then disk size, until below threshold
@@ -1932,6 +1958,8 @@ function addWorkload() {
     renderWorkloads();
     // Reset user locks when workloads change — auto-scaling should re-evaluate
     _vcpuRatioUserSet = false;
+    _memoryUserSet = false;
+    _cpuConfigUserSet = false;
     _diskConfigUserSet = false;
     calculateRequirements();
 }
@@ -2009,6 +2037,8 @@ function deleteWorkload(id) {
     renderWorkloads();
     // Reset user locks when workloads change — auto-scaling should re-evaluate
     _vcpuRatioUserSet = false;
+    _memoryUserSet = false;
+    _cpuConfigUserSet = false;
     _diskConfigUserSet = false;
     calculateRequirements();
 }
@@ -2023,6 +2053,8 @@ function cloneWorkload(id) {
     workloads.push(clone);
     renderWorkloads();
     _vcpuRatioUserSet = false;
+    _memoryUserSet = false;
+    _cpuConfigUserSet = false;
     _diskConfigUserSet = false;
     calculateRequirements();
 }
@@ -3050,6 +3082,10 @@ function resetScenario() {
     clearSizerState();
     workloads = [];
     workloadIdCounter = 0;
+    _vcpuRatioUserSet = false;
+    _memoryUserSet = false;
+    _cpuConfigUserSet = false;
+    _diskConfigUserSet = false;
     
     // Reset hardware config
     document.getElementById('cpu-manufacturer').value = 'intel';

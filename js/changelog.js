@@ -47,6 +47,7 @@ function showChangelog() {
                         <li><strong>vCPU Ratio Label:</strong> Corrected "pCPU to vCPU" to "vCPU to pCPU" overcommit ratio in sizing notes.</li>
                         <li><strong>Node Recommendation Memory Cap:</strong> Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling.</li>
                         <li><strong>Stale Node Recommendation:</strong> Node recommendation message now recalculates when manually changing node count, showing accurate guidance.</li>
+                        <li><strong>Manual Hardware Override:</strong> Memory, CPU cores, and CPU sockets manual changes are now respected by auto-scaling instead of being overridden.</li>
                     </ul>
                 </div>
 

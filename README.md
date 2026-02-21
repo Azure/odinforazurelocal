@@ -48,6 +48,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
 - **Sizer: Node Recommendation Memory Cap Fix**: Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling
 - **Sizer: Stale Node Recommendation Message Fix**: Node recommendation message now recalculates when manually changing node count, instead of showing stale guidance from a previous cycle
+- **Sizer: Manual Hardware Override Fix**: Memory, CPU cores, and CPU sockets manual changes are now respected by auto-scaling instead of being overridden
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -360,6 +361,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: vCPU Ratio Label Fix**: Corrected "pCPU to vCPU overcommit ratio" to "vCPU to pCPU overcommit ratio" in sizing notes
 - **Sizer: Node Recommendation Memory Cap Fix**: Fixed node recommendation underestimating per-node capacity when memory exceeds 1 TB, preventing unnecessary node scaling
 - **Sizer: Stale Node Recommendation Message Fix**: Node recommendation message now recalculates when manually changing node count, instead of showing stale guidance from a previous cycle
+- **Sizer: Manual Hardware Override Fix**: Memory, CPU cores, and CPU sockets manual changes are now respected by auto-scaling instead of being overridden
 
 #### 0.16.03 - Custom Intent 8-Port Zone Restrictions
 - **Custom Intent 8-Port Zone Restrictions (#130 follow-up)**: For 8-port custom intent, the wizard now only shows the relevant zones — Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Removed Management, Compute + Storage, and Group All Traffic zones which are not valid for 8-port configurations.
