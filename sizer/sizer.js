@@ -2590,8 +2590,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     const rackUnits = (nodeCount * 2) + torSwitchUnits;
 
     // Update DOM
-    document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' W';
-    document.getElementById('power-total').textContent = totalW.toLocaleString() + ' W';
+    document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' Watts';
+    document.getElementById('power-total').textContent = totalW.toLocaleString() + ' Watts';
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
     document.getElementById('rack-units').textContent = rackUnits + 'U';
     section.style.display = 'block';

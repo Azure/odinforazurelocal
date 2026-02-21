@@ -21,6 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Per-Node Scaling Weight for Node Recommendations**: Node recommendation now assumes the highest available per-node memory (matching the existing approach for CPU cores and disk size), weighting toward fewer, beefier nodes over more, smaller ones. For example, 12 nodes × 64 cores × 2 TB is now preferred over 16 nodes × 48 cores × 1.5 TB when both satisfy the workload
 - **Sizer Workload Analytics Tracking**: Added Firebase analytics tracking for sizer workload additions. Each new workload added (VM, AKS, or AVD) increments a `sizerCalculation` counter, displayed as "Sizes Calculated" on the main page stats bar alongside Page Views, Designs Generated, and ARM Deployments
 
+#### Mobile & UI Polish
+
+- **Designer: Mobile stats bar 2×2 layout**: The page analytics bar on the Designer home page now displays as a 2×2 grid on mobile devices instead of a single row of 4 items
+- **Sizer: "Estimated Power, Heat & Rack Space"**: Updated the results box heading to include "Heat" since the section displays BTU/hr values
+- **Sizer: Power units expanded to "Watts"**: Power values now display as "Watts" instead of "W" for improved readability
+- **Sizer: BTU Wikipedia link**: "BTU" in the Total BTU/hr label is now a hyperlink to the Wikipedia article for readers unfamiliar with the unit
+- **Sizer: Mobile header logo & What's New**: The ODIN logo and version/What's New text are now visible on mobile devices, centered alongside the header text with appropriate sizing
+
+#### Security Meta Tag Cleanup
+
+- **Removed invalid `X-Frame-Options` meta tag**: This HTTP-header-only directive was incorrectly set as a `<meta>` tag, causing a browser console warning. Removed from Designer, Sizer, Report, and ARM pages
+- **Removed deprecated `X-XSS-Protection` meta tag**: This deprecated header (ignored by all modern browsers) was also set as a meta tag. Removed from all pages
+
 ### Fixed
 
 #### Sizer Bug Fixes

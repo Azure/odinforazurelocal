@@ -2747,3 +2747,13 @@ header .header-description {
         background: rgba(255, 255, 255, 0.1);
     }
 }
+
+/* Stats bar mobile - 2x2 grid (must be after base .stats-container) */
+@media (max-width: 768px) {
+    .stats-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 16px;
+        padding: 10px 16px;
+    }
+}
