@@ -2508,14 +2508,6 @@ header .header-description {
     .switchless-diagram__legend-grid {
         grid-template-columns: 1fr;
     }
-
-    /* Stats bar mobile - 2x2 grid */
-    .stats-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px 16px;
-        padding: 10px 16px;
-    }
 }
 
 /* Small mobile devices (max-width: 480px) */
@@ -2753,5 +2745,15 @@ header .header-description {
 
     .breadcrumb-item:active {
         background: rgba(255, 255, 255, 0.1);
+    }
+}
+
+/* Stats bar mobile - 2x2 grid (must be after base .stats-container) */
+@media (max-width: 768px) {
+    .stats-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px 16px;
+        padding: 10px 16px;
     }
 }
