@@ -441,18 +441,18 @@ function buildMaxHardwareConfig(hwConfig) {
     // Use max 2 sockets — Azure Local certified hardware supports 1 or 2 sockets only
     const MAX_SOCKETS = 2;
 
-    // Use a per-node memory cap for node estimation. For small clusters (< 10 nodes),
-    // cap at 1.5 TB to prefer adding nodes over expensive high-capacity DIMMs (2 TB+).
-    // For larger clusters (10+ nodes), allow the full memory range.
+    // Use a fixed per-node memory cap (1.5 TB) for node estimation to prefer adding
+    // nodes over expensive high-capacity DIMMs. This cap must NOT depend on the current
+    // node count displayed in the DOM, because that value is stale from the previous
+    // calculation and creates path-dependent results (e.g. adding growth could reduce
+    // the recommended node count instead of increasing it).
+    // The actual per-node memory is scaled by autoScaleHardware() and its headroom
+    // logic, which correctly uses the real node count at the time of scaling.
     // Only override the cap with the current hardware setting when the user manually
     // set memory — otherwise a prior auto-scale result could defeat the cap.
-    const currentNodeCount = parseInt(document.getElementById('node-count')?.value) || 3;
-    const memWeightCap = currentNodeCount >= NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
-        ? NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB
-        : NODE_WEIGHT_PREFERRED_MEMORY_GB;
     const PREFERRED_MAX_MEMORY_GB = _memoryUserSet
-        ? Math.max(memWeightCap, hwConfig.memoryGB || 0)
-        : memWeightCap;
+        ? Math.max(NODE_WEIGHT_PREFERRED_MEMORY_GB, hwConfig.memoryGB || 0)
+        : NODE_WEIGHT_PREFERRED_MEMORY_GB;
 
     // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
     const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
@@ -630,15 +630,16 @@ const MIN_MEMORY_GB = 64;
 const MEMORY_OPTIONS_GB = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
 
 // Per-node efficiency weight for node recommendations.
-// buildMaxHardwareConfig assumes up to this much memory per node when estimating
-// minimum nodes, weighting toward fewer, larger nodes over more, smaller ones.
-// Capped at 1.5 TB for small clusters (< 10 nodes) because the cost of DIMMs
-// above 1.5 TB per node (e.g. 2 TB, 3 TB) is significantly higher than adding
-// an additional node. For 10+ node clusters, allow up to 2 TB, preferring
-// additional nodes over expensive 3 TB+ DIMM configurations.
+// buildMaxHardwareConfig uses NODE_WEIGHT_PREFERRED_MEMORY_GB as a fixed cap when
+// estimating minimum nodes, always preferring additional nodes over expensive
+// high-capacity DIMMs (2 TB+). This cap is intentionally NOT dependent on the
+// current node count to ensure deterministic results (see buildMaxHardwareConfig).
+// The large-cluster constants are used by autoScaleHardware's memory headroom
+// logic: for clusters with 10+ nodes, headroom can escalate to 2 TB; for smaller
+// clusters, headroom is capped at 1.5 TB to let the node loop add nodes instead.
 const NODE_WEIGHT_PREFERRED_MEMORY_GB = 1536;
 const NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB = 2048;
-// Threshold above which we switch to the large-cluster memory weight
+// Threshold above which autoScaleHardware allows higher memory headroom
 const NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD = 10;
 
 // Disk count per node

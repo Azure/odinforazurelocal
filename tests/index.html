@@ -3995,10 +3995,14 @@
                 'Large cluster threshold = 10 nodes', 10, NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD)
         ]);
 
-        // --- buildMaxHardwareConfig: large cluster memory cap at 2 TB ---
-        testSuite('buildMaxHardwareConfig() - large cluster memory cap', 'sizer.js', [
+        // --- buildMaxHardwareConfig: deterministic memory cap (always 1.5 TB) ---
+        // buildMaxHardwareConfig no longer reads the current node count from the DOM
+        // to determine the memory cap. It always uses NODE_WEIGHT_PREFERRED_MEMORY_GB
+        // (1536 GB) to ensure deterministic results regardless of previous state.
+        // This prevents adding growth from reducing the recommended node count.
+        testSuite('buildMaxHardwareConfig() - deterministic memory cap', 'sizer.js', [
             (() => {
-                // For large clusters (>= 10 nodes), memory should cap at 2 TB (2048 GB)
+                // Even with 12 nodes displayed, memory cap should be 1536 (not 2048)
                 const hw = {
                     coresPerSocket: 24,
                     sockets: 2,
@@ -4022,11 +4026,11 @@
                 _memoryUserSet = savedMemFlag;
                 ncStub.value = savedNodeVal;
                 if (createdNc) ncStub.remove();
-                return assert(maxHw.memoryGB === 2048,
-                    'Large cluster (12 nodes): preferred max memory is 2048 GB (2 TB cap)', 2048, maxHw.memoryGB);
+                return assert(maxHw.memoryGB === 1536,
+                    'Large cluster (12 nodes): memory cap is 1536 GB (deterministic)', 1536, maxHw.memoryGB);
             })(),
             (() => {
-                // At exactly 10 nodes (threshold), should use the large-cluster cap
+                // At threshold (10 nodes), memory cap should still be 1536
                 const hw = {
                     coresPerSocket: 24,
                     sockets: 2,
@@ -4050,11 +4054,11 @@
                 _memoryUserSet = savedMemFlag;
                 ncStub.value = savedNodeVal;
                 if (createdNc) ncStub.remove();
-                return assert(maxHw.memoryGB === 2048,
-                    'At threshold (10 nodes): preferred max memory is 2048 GB', 2048, maxHw.memoryGB);
+                return assert(maxHw.memoryGB === 1536,
+                    'At threshold (10 nodes): memory cap is 1536 GB (deterministic)', 1536, maxHw.memoryGB);
             })(),
             (() => {
-                // Below threshold (9 nodes), should use smaller cap (1.5 TB)
+                // Below threshold (9 nodes), memory cap is also 1536 (same for all)
                 const hw = {
                     coresPerSocket: 24,
                     sockets: 2,
@@ -4079,7 +4083,7 @@
                 ncStub.value = savedNodeVal;
                 if (createdNc) ncStub.remove();
                 return assert(maxHw.memoryGB === 1536,
-                    'Below threshold (9 nodes): preferred max memory is 1536 GB', 1536, maxHw.memoryGB);
+                    'Below threshold (9 nodes): memory cap is 1536 GB (deterministic)', 1536, maxHw.memoryGB);
             })()
         ]);
 
@@ -4361,8 +4365,8 @@
                     r2tb.recommended + ' > ' + r4tb.recommended);
             })(),
             (() => {
-                // Verify the 2TB cap is used in buildMaxHardwareConfig for large clusters
-                // This ensures the full pipeline prefers nodes
+                // Verify buildMaxHardwareConfig always uses 1.5 TB cap (deterministic)
+                // regardless of current node count — prevents growth from reducing nodes
                 let ncStub = document.getElementById('node-count');
                 const savedNodeVal = ncStub.value;
                 ncStub.value = '14';
@@ -4379,9 +4383,9 @@
                 const maxHw = buildMaxHardwareConfig(hw);
                 _memoryUserSet = savedMemFlag;
                 ncStub.value = savedNodeVal;
-                // maxHwConfig should use 2 TB cap, not 4 TB
-                return assert(maxHw.memoryGB === 2048,
-                    'buildMaxHardwareConfig uses 2 TB cap for 14-node cluster', 2048, maxHw.memoryGB);
+                // maxHwConfig should use 1.5 TB cap always (deterministic)
+                return assert(maxHw.memoryGB === 1536,
+                    'buildMaxHardwareConfig uses 1.5 TB cap for 14-node cluster (deterministic)', 1536, maxHw.memoryGB);
             })()
         ]);
 
