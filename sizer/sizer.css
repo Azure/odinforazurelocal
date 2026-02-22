@@ -1344,29 +1344,33 @@ body {
     }
     
     .sizer-header {
-        flex-direction: row;
+        flex-direction: column;
         align-items: center;
-        gap: 24px;
+        text-align: center;
+        gap: 1rem;
+    }
+
+    .sizer-header .header-logo-wrapper {
+        order: -1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .sizer-header .header-logo-wrapper img {
+        max-height: 80px;
+    }
+
+    .sizer-header .header-version {
+        font-size: 11px;
+        white-space: normal;
+        text-align: center;
     }
 
     .sizer-header .header-content {
         flex: 1;
         min-width: 0;
-        padding-right: 4px;
-    }
-
-    .sizer-header .header-logo-wrapper {
-        display: flex;
-        flex-shrink: 0;
-    }
-
-    .sizer-header .header-logo-wrapper img {
-        max-height: 68px;
-    }
-
-    .sizer-header .header-version {
-        font-size: 11px;
-        white-space: nowrap;
     }
     
     .sizer-header h1 {

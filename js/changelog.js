@@ -47,6 +47,8 @@ function showChangelog() {
                         <li><strong>Designer: Mobile stats bar 2×2:</strong> Page analytics bar displays as a 2×2 grid on mobile devices instead of a single row of 4.</li>
                         <li><strong>Sizer: "Estimated Power, Heat & Rack Space":</strong> Updated heading to include "Heat" since BTU/hr values are displayed; power units expanded to "Watts"; BTU is now a Wikipedia hyperlink.</li>
                         <li><strong>Sizer: Mobile header logo:</strong> ODIN logo and What's New text now visible on mobile, centered alongside header text.</li>
+                        <li><strong>Sizer: Mobile layout consistency:</strong> On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below.</li>
+                        <li><strong>Sizer: Default 2 Node cluster:</strong> Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the starting hardware cost. Three-Way Mirror is auto-selected when 3+ nodes are configured.</li>
                         <li><strong>Security: Removed invalid meta tags:</strong> Removed X-Frame-Options and X-XSS-Protection meta tags (HTTP-header-only, caused console warnings).</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Sizer Bug Fixes</h4>

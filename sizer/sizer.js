@@ -1537,7 +1537,7 @@ function updateNodeOptionsForClusterType() {
         if (nodeOptions.includes(currentValue)) {
             nodeSelect.value = currentValue;
         } else {
-            nodeSelect.value = 3;
+            nodeSelect.value = 2;
         }
     }
 }
@@ -3150,9 +3150,9 @@ function resetScenario() {
     document.getElementById('cluster-type').value = 'standard';
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
-    document.getElementById('node-count').value = '3';
+    document.getElementById('node-count').value = '2';
     updateResiliencyOptions();
-    document.getElementById('resiliency').value = '3way';
+    document.getElementById('resiliency').value = '2way';
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
