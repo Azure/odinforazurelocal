@@ -1344,28 +1344,45 @@ body {
     }
     
     .sizer-header {
+        display: -webkit-flex;
+        display: flex;
+        -webkit-flex-direction: column;
         flex-direction: column;
+        -webkit-align-items: center;
         align-items: center;
+        -webkit-justify-content: center;
+        justify-content: center;
         text-align: center;
         gap: 1rem;
     }
 
     .sizer-header .header-logo-wrapper {
         order: -1;
+        display: -webkit-flex;
         display: flex;
+        -webkit-flex-direction: column;
         flex-direction: column;
+        -webkit-align-items: center;
         align-items: center;
+        -webkit-justify-content: center;
+        justify-content: center;
+        width: 100%;
         margin-bottom: 0.5rem;
     }
 
     .sizer-header .header-logo-wrapper img {
         max-height: 100px;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .sizer-header .header-version {
         font-size: 13px;
         white-space: normal;
         text-align: center;
+        width: 100%;
+        display: block;
     }
 
     .sizer-header .header-content {
@@ -1376,6 +1393,8 @@ body {
     .sizer-header h1 {
         font-size: 24px;
         text-align: center;
+        display: block;
+        width: 100%;
     }
     
     .sizer-header .subtitle {
