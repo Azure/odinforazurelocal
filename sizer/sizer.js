@@ -2381,6 +2381,7 @@ function calculateRequirements(options) {
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
                 let attempts = 0;
+                let conservativeSuccess = false;
 
                 while (nodeCount < maxNodeOption && attempts < 16) {
                     attempts++;
@@ -2404,7 +2405,10 @@ function calculateRequirements(options) {
                     const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
                     const stoPct = availStorage > 0 ? Math.round(((totalStorage / 1000) / availStorage) * 100) : 0;
 
-                    if (cpuPct < UTIL_THRESHOLD && memPct < UTIL_THRESHOLD && stoPct < UTIL_THRESHOLD) break;
+                    if (cpuPct < UTIL_THRESHOLD && memPct < UTIL_THRESHOLD && stoPct < UTIL_THRESHOLD) {
+                        conservativeSuccess = true;
+                        break;
+                    }
 
                     // Bump to next available node option
                     let nextNode = null;
@@ -2436,9 +2440,11 @@ function calculateRequirements(options) {
                 }
 
                 // --- Final aggressive pass: allow ratio escalation and high memory ---
-                // Now that we've maximised node count via the loop above, allow
-                // vCPU ratio > 4:1 and memory > 2 TB as a last resort for workloads
-                // that still exceed capacity at max nodes.
+                // Only run when the conservative node loop could NOT get all utilisation
+                // below the 90% threshold (e.g. hit max nodes with util still over 90%).
+                // When conservative scaling succeeded, skip this pass to avoid unnecessary
+                // memory/ratio escalation (e.g. bumping from 2 TB to 3 TB for headroom).
+                if (!conservativeSuccess) {
                 const aggressiveChanged = autoScaleHardware(
                     totalVcpus, totalMemory, totalStorage, nodeCount,
                     resiliencyMultiplier, hwConfig, previouslyAutoScaled,
@@ -2533,6 +2539,7 @@ function calculateRequirements(options) {
                     );
                     hwConfig = getHardwareConfig();
                 }
+                } // end if (!conservativeSuccess)
 
                 // Update recommendation to reflect final node count after all passes
                 const postAggressiveRec = getRecommendedNodeCount(
