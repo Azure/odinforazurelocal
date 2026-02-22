@@ -56,13 +56,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Mobile Logo & Text Size**: Increased logo max-height from 80 px to 100 px and version/What's New font-size from 11 px to 13 px on mobile for improved readability
 - **Node Preference over Ratio/Memory Escalation**: The sizer now prefers adding additional nodes before escalating the vCPU-to-pCPU ratio above 4:1 or bumping per-node memory above 2 TB. Auto-scaling operates in a conservative mode that caps memory at 2 TB and holds ratio at 4:1; an aggressive pass runs only when conservative scaling cannot fit workloads at the current node count
 - **Auto-Down-Scaling after Aggressive Pass**: After the aggressive pass bumps memory or ratio above conservative limits, a node-reduction loop steps the node count back down while keeping utilization under 90 %, re-running conservative auto-scale at each step and reverting if any dimension exceeds the threshold
+- **Resiliency Sync after Node Recommendation**: Fixed sizing notes and capacity calculations showing "Two-way mirror" while the dropdown displayed "Three-Way" for large clusters. `updateNodeRecommendation()` internally calls `updateResiliencyOptions()` which changes the dropdown, but the local resiliency variables were not re-read afterwards — all downstream calculations (auto-scale, capacity bars, sizing notes) used stale 2-way values
+- **Deterministic Node Estimation**: Fixed adding future growth (e.g. 10%) paradoxically reducing the recommended node count. `buildMaxHardwareConfig()` was reading the stale node count from the DOM to determine the memory cap — with 12 nodes displayed it used a 2 TB cap, making each node appear more capable and recommending fewer nodes despite higher requirements. Now always uses a fixed 1.5 TB cap for deterministic results
 
 ### Added
 
 #### Tests: Large Cluster & Scaling Test Suites
 
 - **NODE_WEIGHT constant tests**: Validates `NODE_WEIGHT_PREFERRED_MEMORY_GB` (1536), `NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB` (2048), and `NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD` (10)
-- **buildMaxHardwareConfig large-cluster memory cap tests**: Verifies the 2 TB cap applies at ≥ 10 nodes and the 1.5 TB cap applies below 10 nodes
+- **buildMaxHardwareConfig deterministic memory cap tests**: Verifies the fixed 1.5 TB cap applies regardless of current node count, ensuring deterministic results
 - **autoScaleHardware conservative mode tests**: Confirms memory is capped at 2 TB and vCPU ratio stays at 4:1 in the default conservative path
 - **autoScaleHardware aggressive mode tests**: Confirms memory can exceed 2 TB and vCPU ratio can escalate when aggressive options are enabled
 - **Large cluster node recommendation tests**: Validates node counts for compute-driven, memory-heavy, storage-heavy, and future-growth scenarios

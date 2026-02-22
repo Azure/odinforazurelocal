@@ -68,10 +68,12 @@ function showChangelog() {
                         <li><strong>Memory Headroom Threshold:</strong> Raised memory headroom from 80% to 85% to avoid unnecessary DIMM tier jumps when utilisation is within range.</li>
                         <li><strong>Bidirectional Memory &amp; CPU Auto-Scaling:</strong> Memory and CPU cores now scale down when more nodes reduce per-node requirements, keeping hardware at the smallest sufficient option.</li>
                         <li><strong>Sizing Notes Reorder:</strong> Cluster size + N+1 note is now the first item (e.g. "5 x Node Cluster - N+1 capacity"); hardware note updated to "Per node hardware configuration" format.</li>
+                        <li><strong>Resiliency Sync:</strong> Fixed sizing notes showing "Two-way mirror" while the dropdown displayed "Three-Way" for large clusters — resiliency variables are now re-read after node recommendation changes the dropdown.</li>
+                        <li><strong>Deterministic Node Estimation:</strong> Fixed adding future growth (e.g. 10%) reducing the recommended node count — node estimation now uses a fixed memory cap instead of reading stale DOM state.</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🧪 Tests: Large Cluster & Scaling</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>New Test Suites:</strong> Added tests for node-weight constants, large-cluster memory cap (2 TB at ≥ 10 nodes), conservative/aggressive auto-scale modes, large cluster node recommendations, and node preference verification.</li>
+                        <li><strong>New Test Suites:</strong> Added tests for node-weight constants, deterministic memory cap, conservative/aggressive auto-scale modes, large cluster node recommendations, and node preference verification.</li>
                     </ul>
                 </div>
 
