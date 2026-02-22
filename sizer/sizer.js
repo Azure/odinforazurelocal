@@ -741,6 +741,95 @@ function clearAutoScaledHighlights() {
 // options.allowRatioEscalation: when true, allow vCPU ratio to escalate beyond 4:1 (default: false)
 // options.allowHighMemory: when true, allow memory above 2 TB per node (default: false)
 // The default conservative mode prefers adding nodes over escalating ratio or memory.
+
+// --- AMD core upgrade helper ---
+// Before escalating the vCPU ratio from 5:1 to 6:1, check if switching to an AMD
+// generation with more physical cores would resolve compute pressure at the current
+// ratio. Returns { manufacturer, genId, cores, sockets, genName } if a switch is
+// beneficial, otherwise null. Applies the switch to the DOM (manufacturer, generation,
+// cores, sockets) and marks affected fields as auto-scaled.
+function _tryAmdCoreUpgrade(totalVcpus, effectiveNodes, currentRatio, currentCores, currentSockets, threshold) {
+    const currentPhysCores = currentCores * currentSockets;
+    const currentManufacturer = document.getElementById('cpu-manufacturer').value;
+
+    // Find the best AMD generation whose max dual-socket cores exceeds current config
+    let bestGen = null;
+    let bestCores = 0;
+    let bestMaxCores = 0;
+    for (const gen of CPU_GENERATIONS.amd) {
+        const genMaxCores = gen.coreOptions[gen.coreOptions.length - 1];
+        const genMaxPhys = genMaxCores * 2; // dual socket
+        if (genMaxPhys <= currentPhysCores) continue; // no improvement possible
+        if (genMaxCores > bestMaxCores) {
+            bestMaxCores = genMaxCores;
+            bestGen = gen;
+        }
+    }
+    if (!bestGen) return null; // no AMD gen offers more cores
+
+    // Find the smallest core option in the best AMD gen that resolves pressure
+    const MAX_SOCKETS = 2;
+    let targetCores = null;
+    for (const c of bestGen.coreOptions) {
+        if (c * MAX_SOCKETS <= currentPhysCores) continue; // must exceed current config
+        const candidateCap = c * MAX_SOCKETS * effectiveNodes * currentRatio;
+        const candidatePct = candidateCap > 0 ? Math.round(totalVcpus / candidateCap * 100) : 100;
+        if (candidatePct < threshold) {
+            targetCores = c;
+            break;
+        }
+    }
+    // If no single option resolves it, use max cores (still better than 6:1)
+    if (!targetCores) {
+        const maxCoresOption = bestGen.coreOptions[bestGen.coreOptions.length - 1];
+        const maxCap = maxCoresOption * MAX_SOCKETS * effectiveNodes * currentRatio;
+        const maxPct = maxCap > 0 ? Math.round(totalVcpus / maxCap * 100) : 100;
+        if (maxPct >= threshold) return null; // even max AMD cores won't help at this ratio
+        targetCores = maxCoresOption;
+    }
+
+    // Apply the switch to the DOM
+    const mfgSelect = document.getElementById('cpu-manufacturer');
+    const genSelect = document.getElementById('cpu-generation');
+    const coresSelect = document.getElementById('cpu-cores');
+    const socketsSelect = document.getElementById('cpu-sockets');
+
+    // Switch manufacturer to AMD if not already
+    if (currentManufacturer !== 'amd') {
+        mfgSelect.value = 'amd';
+        // Repopulate generation dropdown for AMD
+        genSelect.innerHTML = CPU_GENERATIONS.amd.map(g =>
+            `<option value="${g.id}">${g.name}</option>`
+        ).join('');
+        genSelect.disabled = false;
+        markAutoScaled('cpu-manufacturer');
+    }
+
+    // Set generation
+    genSelect.value = bestGen.id;
+    markAutoScaled('cpu-generation');
+
+    // Populate core options for the selected generation and set target
+    coresSelect.innerHTML = bestGen.coreOptions.map(c =>
+        `<option value="${c}">${c} cores</option>`
+    ).join('');
+    coresSelect.disabled = false;
+    coresSelect.value = targetCores;
+    markAutoScaled('cpu-cores');
+
+    // Ensure dual socket
+    socketsSelect.value = MAX_SOCKETS;
+    markAutoScaled('cpu-sockets');
+
+    return {
+        manufacturer: 'amd',
+        genId: bestGen.id,
+        genName: bestGen.name,
+        cores: targetCores,
+        sockets: MAX_SOCKETS
+    };
+}
+
 function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled, options) {
     const allowRatioEscalation = options && options.allowRatioEscalation;
     const allowHighMemory = options && options.allowHighMemory;
@@ -761,8 +850,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     const socketsSelect = document.getElementById('cpu-sockets');
     const SOCKET_OPTIONS = [1, 2];
 
-    const manufacturer = document.getElementById('cpu-manufacturer').value;
-    const genId = document.getElementById('cpu-generation').value;
+    let manufacturer = document.getElementById('cpu-manufacturer').value;
+    let genId = document.getElementById('cpu-generation').value;
     if (manufacturer && genId && !_cpuConfigUserSet) {
         const generation = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
         if (generation) {
@@ -989,6 +1078,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     // CPU headroom — bump cores first, then sockets
     // Skip when the user has manually set CPU config (respect user override).
+    // Re-read manufacturer/genId in case AMD auto-switch changed them
+    manufacturer = document.getElementById('cpu-manufacturer').value;
+    genId = document.getElementById('cpu-generation').value;
     if (manufacturer && genId && !_cpuConfigUserSet) {
         const gen = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
         if (gen) {
@@ -1026,11 +1118,36 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             // Skip if the user has manually set the ratio (respect user override).
             // In conservative mode (default), skip ratio escalation entirely — prefer adding
             // nodes first. Only allow escalation in the final aggressive pass when nodes are maxed.
+            //
+            // Before escalating from 5→6, try switching to an AMD generation with more
+            // physical cores (e.g. AMD Turin with 192 cores/socket = 384 cores dual-socket).
+            // This keeps the overcommit ratio lower (5:1) by adding real physical cores.
             const VCPU_ESCALATION_THRESHOLD = 90;
             const VCPU_RATIO_STEPS = [5, 6];
             if (allowRatioEscalation && !_vcpuRatioUserSet && cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
                 for (const nextRatio of VCPU_RATIO_STEPS) {
                     if (nextRatio <= vcpuToCore) continue; // skip ratios we're already at or past
+
+                    // Before jumping to 6:1, try switching to AMD with higher core counts
+                    // at the current ratio. Only attempt when currently on Intel or an AMD
+                    // generation whose max cores are lower than what's available in other
+                    // AMD generations.
+                    if (nextRatio === 6) {
+                        const amdSwitch = _tryAmdCoreUpgrade(
+                            totalVcpus, effectiveNodes, vcpuToCore,
+                            hrCores, hrSockets, VCPU_ESCALATION_THRESHOLD
+                        );
+                        if (amdSwitch) {
+                            // AMD switch resolved compute pressure — apply the change
+                            hrCores = amdSwitch.cores;
+                            hrSockets = amdSwitch.sockets;
+                            changed = true;
+                            cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+                            cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+                            if (cpuPct < VCPU_ESCALATION_THRESHOLD) break; // resolved, skip 6:1
+                        }
+                    }
+
                     vcpuToCore = nextRatio;
                     document.getElementById('vcpu-ratio').value = nextRatio;
                     changed = true;

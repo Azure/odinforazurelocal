@@ -4251,16 +4251,24 @@
                 const savedRatioFlag = _vcpuRatioUserSet;
                 const savedCpuFlag = _cpuConfigUserSet;
                 const savedDiskFlag = _diskConfigUserSet;
+                const savedGenHtml2 = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml2 = document.getElementById('cpu-cores').innerHTML;
+                const savedMfg2 = document.getElementById('cpu-manufacturer').value;
+                const savedGen2 = document.getElementById('cpu-generation').value;
+                const savedCores2 = document.getElementById('cpu-cores').value;
+                const savedSockets2 = document.getElementById('cpu-sockets').value;
                 _memoryUserSet = true;
                 _vcpuRatioUserSet = false;
                 _cpuConfigUserSet = false;
                 _diskConfigUserSet = true;
                 _vcpuRatioAutoEscalated = false;
                 document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
                 document.getElementById('cpu-cores').value = '64';
                 document.getElementById('cpu-sockets').value = '2';
-                document.getElementById('cpu-manufacturer').value = 'intel';
-                document.getElementById('cpu-generation').value = 'xeon-5th';
                 const nodeCount = 10;
                 const hwConfig = {
                     totalPhysicalCores: 128,
@@ -4274,12 +4282,196 @@
                 autoScaleHardware(10000, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
                     { allowRatioEscalation: true, allowHighMemory: true });
                 const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml2;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml2;
+                document.getElementById('cpu-manufacturer').value = savedMfg2;
+                document.getElementById('cpu-generation').value = savedGen2;
+                document.getElementById('cpu-cores').value = savedCores2;
+                document.getElementById('cpu-sockets').value = savedSockets2;
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
                 _diskConfigUserSet = savedDiskFlag;
                 return assert(resultRatio > 4,
                     'Aggressive mode escalates vCPU ratio above 4:1', '> 4', resultRatio);
+            })()
+        ]);
+
+        // --- _tryAmdCoreUpgrade: AMD auto-switch before 6:1 ---
+        testSuite('_tryAmdCoreUpgrade() - AMD auto-switch before 6:1 ratio', 'sizer.js', [
+            (() => {
+                // When Intel is maxed at 128 cores (64×2) and compute is still hot at 5:1,
+                // switching to AMD Turin (192 cores/socket = 384 dual) should resolve it
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+
+                // 5000 vCPUs, 9 effective nodes, ratio 5:1
+                // Intel: 64×2×9×5 = 5760 → 87% OK but just under
+                // Need something where Intel is just not enough:
+                // 6000 vCPUs at 5:1 with 10 eff nodes: need 6000/(10×5) = 120 cores/node
+                // Intel maxed at 128 → 128×10×5 = 6400 → 94% ≥ 90%
+                // AMD Turin 128 cores: 128×2×10×5 = 12800 → 47% < 90% ✓
+                const result = _tryAmdCoreUpgrade(6000, 10, 5, 64, 2, 90);
+
+                const resultMfg = document.getElementById('cpu-manufacturer').value;
+                const resultGen = document.getElementById('cpu-generation').value;
+                const resultCores = parseInt(document.getElementById('cpu-cores').value);
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+
+                return assert(result !== null && resultMfg === 'amd',
+                    'Switches to AMD when Intel cores maxed and compute hot at 5:1',
+                    'amd', resultMfg);
+            })(),
+            (() => {
+                // Should pick smallest AMD core count that resolves pressure
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+
+                // 6000 vCPUs, 10 eff nodes, 5:1 ratio
+                // Need per-node > 120 phys cores
+                // AMD Turin 64 cores: 64×2=128 → 128×10×5=6400 → 94% ≥ 90%
+                // AMD Turin 72 cores: 72×2=144 → 144×10×5=7200 → 83% < 90% ✓
+                const result = _tryAmdCoreUpgrade(6000, 10, 5, 64, 2, 90);
+
+                const resultCores = result ? result.cores : null;
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+
+                return assert(result !== null && resultCores > 64,
+                    'Picks AMD generation with cores > current Intel max',
+                    '> 64', resultCores);
+            })(),
+            (() => {
+                // Should return null when already on AMD with max cores
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                document.getElementById('cpu-manufacturer').value = 'amd';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.amd.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'epyc-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.amd.find(g => g.id === 'epyc-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '192';
+                document.getElementById('cpu-sockets').value = '2';
+
+                // 50000 vCPUs — even AMD Turin max (384 cores) can't help at 5:1
+                // 384×10×5 = 19200, 50000/19200 = 260% — way over
+                const result = _tryAmdCoreUpgrade(50000, 10, 5, 192, 2, 90);
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+
+                return assert(result === null,
+                    'Returns null when AMD max cores cannot resolve pressure',
+                    null, result);
+            })(),
+            (() => {
+                // Integration: aggressive auto-scale should switch to AMD before going to 6:1
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskFlag = _diskConfigUserSet;
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedRatio = document.getElementById('vcpu-ratio').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                _memoryUserSet = true;
+                _vcpuRatioUserSet = false;
+                _cpuConfigUserSet = false;
+                _diskConfigUserSet = true;
+                _vcpuRatioAutoEscalated = false;
+
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+
+                const nodeCount = 10;
+                const hwConfig = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    sockets: 2,
+                    coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // 6000 vCPUs: at 4:1 → 128×9×4 = 4608 → 130% (maxed at 4), → 5:1 → 128×9×5 = 5760 → 104%
+                // Still ≥90% at 5:1, so should try AMD before going to 6:1
+                // AMD Turin 72×2=144 → 144×9×5 = 6480 → 93% still ≥90
+                // AMD Turin 96×2=192 → 192×9×5 = 8640 → 69% < 90% ✓ → switch!
+                autoScaleHardware(6000, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
+                    { allowRatioEscalation: true, allowHighMemory: true });
+
+                const resultMfg = document.getElementById('cpu-manufacturer').value;
+                const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+                document.getElementById('vcpu-ratio').value = savedRatio;
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskConfigUserSet = savedDiskFlag;
+
+                // Should have switched to AMD and kept ratio at 5:1 (not 6:1)
+                return assert(resultMfg === 'amd' && resultRatio === 5,
+                    'Aggressive mode switches to AMD at 5:1 instead of going to 6:1',
+                    'amd @ 5:1', resultMfg + ' @ ' + resultRatio + ':1');
             })()
         ]);
 
