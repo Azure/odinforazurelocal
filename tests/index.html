@@ -4448,6 +4448,7 @@
                 // 6000 vCPUs: at 4:1 → 128×9×4 = 4608 → 130% (maxed at 4), → 5:1 → 128×9×5 = 5760 → 104%
                 // Still ≥90% at 5:1, so should try AMD before going to 6:1
                 // AMD Turin Dense 96×2=192 → 192×9×5 = 8640 → 69% < 90% ✓ → switch!
+                // Then re-check at 4:1: 192×9×4 = 6912 → 87% < 90% ✓ → step ratio back to 4:1
                 autoScaleHardware(6000, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
                     { allowRatioEscalation: true, allowHighMemory: true });
 
@@ -4467,10 +4468,73 @@
                 _cpuConfigUserSet = savedCpuFlag;
                 _diskConfigUserSet = savedDiskFlag;
 
-                // Should have switched to AMD and kept ratio at 5:1 (not 6:1)
-                return assert(resultMfg === 'amd' && resultRatio === 5,
-                    'Aggressive mode switches to AMD at 5:1 instead of going to 6:1',
-                    'amd @ 5:1', resultMfg + ' @ ' + resultRatio + ':1');
+                // Should have switched to AMD and stepped ratio back to 4:1
+                return assert(resultMfg === 'amd' && resultRatio === 4,
+                    'AMD switch allows ratio to step back from 5:1 to 4:1',
+                    'amd @ 4:1', resultMfg + ' @ ' + resultRatio + ':1');
+            })(),
+            (() => {
+                // Integration: AMD switch keeps 5:1 when 4:1 would still exceed threshold
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskFlag = _diskConfigUserSet;
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedRatio = document.getElementById('vcpu-ratio').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                _memoryUserSet = true;
+                _vcpuRatioUserSet = false;
+                _cpuConfigUserSet = false;
+                _diskConfigUserSet = true;
+                _vcpuRatioAutoEscalated = false;
+
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+
+                const nodeCount2 = 10;
+                const hwConfig2 = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    sockets: 2,
+                    coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // 6500 vCPUs: at 5:1, AMD 96×2=192 → 192×9×5 = 8640 → 75% < 90% ✓
+                // Re-check at 4:1: 192×9×4 = 6912 → 94% ≥ 90% → stays at 5:1
+                autoScaleHardware(6500, 1000, 10000, nodeCount2, 2, hwConfig2, new Set(),
+                    { allowRatioEscalation: true, allowHighMemory: true });
+
+                const resultMfg2 = document.getElementById('cpu-manufacturer').value;
+                const resultRatio2 = parseInt(document.getElementById('vcpu-ratio').value);
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+                document.getElementById('vcpu-ratio').value = savedRatio;
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskConfigUserSet = savedDiskFlag;
+
+                // Should have switched to AMD but kept ratio at 5:1 (4:1 would be ≥90%)
+                return assert(resultMfg2 === 'amd' && resultRatio2 === 5,
+                    'AMD switch keeps 5:1 when 4:1 would exceed threshold',
+                    'amd @ 5:1', resultMfg2 + ' @ ' + resultRatio2 + ':1');
             })()
         ]);
 

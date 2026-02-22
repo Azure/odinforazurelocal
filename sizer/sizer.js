@@ -1144,7 +1144,18 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                             changed = true;
                             cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
                             cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
-                            if (cpuPct < VCPU_ESCALATION_THRESHOLD) break; // resolved, skip 6:1
+                            if (cpuPct < VCPU_ESCALATION_THRESHOLD) {
+                                // AMD cores resolved pressure at 5:1 — check if we can
+                                // step back to 4:1 and still stay under threshold
+                                const pctAt4 = Math.round(totalVcpus / (hrCores * hrSockets * effectiveNodes * 4) * 100);
+                                if (pctAt4 < VCPU_ESCALATION_THRESHOLD) {
+                                    vcpuToCore = 4;
+                                    document.getElementById('vcpu-ratio').value = 4;
+                                    // Ratio back at default — no auto-escalation badge needed
+                                    _vcpuRatioAutoEscalated = false;
+                                }
+                                break; // resolved, skip 6:1
+                            }
                         }
                     }
 
