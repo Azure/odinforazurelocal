@@ -2922,7 +2922,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Growth buffer note
         const growthFactor = getGrowthFactor();
         if (growthFactor > 1) {
-            notes.push(`Growth buffer: ${Math.round((growthFactor - 1) * 100)}% — all requirements include future growth headroom`);
+            notes.push(`Future growth buffer: ${Math.round((growthFactor - 1) * 100)}% \u2014 hardware configuration allows for workload future growth headroom`);
         }
         
         // Single node specific notes (cluster size + N+1 already shown above)
