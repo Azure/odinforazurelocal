@@ -13,6 +13,7 @@
     "firebase": "readonly",
     "saveStateToLocalStorage": "readonly",
     "updateSummary": "readonly",
+    "updateUI": "readonly",
     "ipToLong": "readonly",
     "longToIp": "readonly",
     "escapeHtml": "readonly",
