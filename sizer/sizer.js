@@ -2337,6 +2337,12 @@ function calculateRequirements(options) {
         // Read (possibly updated) node count
         let nodeCount = parseInt(document.getElementById('node-count').value) || 3;
 
+        // Re-read resiliency after node recommendation may have changed it
+        // (e.g. updateNodeRecommendation → updateResiliencyOptions changes
+        // 2-way → 3-way when node count jumps from 2 to 3+)
+        resiliency = document.getElementById('resiliency').value;
+        resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
+
         // Reset vCPU auto-escalation flag once per calculation cycle.
         // Capture the initial ratio so we can detect if any autoScaleHardware()
         // call within this cycle bumped it — this avoids the flag being lost
