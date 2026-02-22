@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.16.04';
+const WIZARD_VERSION = '0.17.00';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -88,6 +88,7 @@ const state = {
     rackAwareTorArchitecture: null,
     intent: null,
     customIntentConfirmed: false,
+    fqdnConfirmed: false,
     outbound: null,
     arc: null,
     proxy: null,
@@ -322,6 +323,7 @@ const missingSectionToStep = {
     'SDN Enabled/Disabled': 'step-14',
     'SDN Features': 'step-14',
     'SDN Management': 'step-14',
+    'Confirm Autonomous Cloud FQDN': 'step-fqdn',
     'Confirm adapter mapping for Custom intent': 'step-6',
     'RDMA: At least': 'step-5',
     'Duplicate adapter names': 'step-5',
@@ -426,6 +428,12 @@ function getReportReadiness() {
     }
 
     if (!state.scenario) missing.push('Deployment Type');
+
+    // Disconnected: require confirmed Autonomous Cloud FQDN
+    if (state.scenario === 'disconnected' && state.clusterRole && !state.fqdnConfirmed) {
+        missing.push('Confirm Autonomous Cloud FQDN');
+    }
+
     if (!state.region) missing.push('Azure Cloud');
     if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
     if (!state.scale) missing.push('Scale');
@@ -2387,11 +2395,9 @@ function selectOption(category, value) {
         // Update UI labels for Arc Gateway and Proxy based on outbound selection
         updateConnectivityLabels(value);
     } else if (category === 'arc') {
-        state.proxy = null; state.privateEndpoints = null; state.privateEndpointsList = []; state.ip = null; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
-        state.nodeSettings = [];
+        state.proxy = null; state.privateEndpoints = null; state.privateEndpointsList = [];
     } else if (category === 'proxy') {
-        state.privateEndpoints = null; state.privateEndpointsList = []; state.ip = null; state.infra = null; state.infraCidr = null; state.infraCidrAuto = true; state.infraGateway = null; state.infraGatewayManual = false; state.storageAutoIp = null; state.infraVlan = null; state.infraVlanId = null;
-        state.nodeSettings = [];
+        state.privateEndpoints = null; state.privateEndpointsList = [];
         // Reset PE checkboxes UI
         document.querySelectorAll('input[name="pe-service"]').forEach(cb => cb.checked = false);
     } else if (category === 'ip') {
@@ -3244,7 +3250,7 @@ function updateUI() {
         } else if (state.scenario === 'disconnected') {
             if (scenarioExp) {
                 scenarioExp.innerHTML = `<strong style="color: #ef4444;">Disconnected Mode</strong>
-        No Internet connection required. Updates must be applied manually. Arc Gateway and Remote Management features are unavailable. Only supports "Standard" scale deployment (3-16 nodes).`;
+        No Internet connection required. Arc Gateway and private endpoint features are unavailable. Management clusters are fixed at 3 nodes; workload clusters support 1–16 nodes. Selection between Air-Gapped or limited connectivity options for Azure Local disconnected operations will be requested during the wizard.`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
         } else if (state.scenario === 'm365local') {
@@ -3397,11 +3403,10 @@ function updateUI() {
                 if (!['2', '4', '6', '8'].includes(valueStr)) isDisabled = true;
             }
             if (state.scenario === 'disconnected') {
-                // Disconnected forces Standard (Medium) scale usually?
-                // If user somehow is in Disconnected + Low Capacity (should be blocked),
-                // we still apply Disconnected Node Rules: Min 3.
-                if (state.scale === 'medium') {
-                    if (valueStr === '1' || valueStr === '2') isDisabled = true;
+                // Management cluster: fixed at 3 nodes only
+                // Workload cluster: allows 1-16 nodes (standard medium scale range)
+                if (state.clusterRole === 'management') {
+                    if (valueStr !== '3') isDisabled = true;
                 }
             }
             if (state.scenario === 'm365local') {
@@ -3587,6 +3592,12 @@ function updateUI() {
     if (state.scenario === 'disconnected') {
         // Only allow Medium (Standard)
         if (cards.scale.low_capacity) cards.scale.low_capacity.classList.add('disabled');
+
+        // Management cluster: fixed at 3 nodes — rack_aware requires 2/4/6/8, so disable it
+        if (state.clusterRole === 'management') {
+            if (cards.scale.rack_aware) cards.scale.rack_aware.classList.add('disabled');
+            if (state.scale === 'rack_aware') state.scale = null;
+        }
 
         // Disconnected does not support Azure China cloud
         if (cards.region && cards.region.azure_china) {
@@ -5918,8 +5929,14 @@ function updateSummary() {
     // Step 01–05: Scenario and Scale
     let scenarioScaleRows = '';
     if (state.scenario) scenarioScaleRows += renderRow('Scenario', escapeHtml(formatScenario(state.scenario)));
-    if (state.region) scenarioScaleRows += renderRow('Azure Cloud', escapeHtml(formatRegion(state.region)));
-    if (state.localInstanceRegion) scenarioScaleRows += renderRow('Azure Local Instance Region', escapeHtml(formatLocalInstanceRegion(state.localInstanceRegion)));
+    if (state.scenario === 'disconnected' && state.clusterRole) {
+        scenarioScaleRows += renderRow('Cluster Role', escapeHtml(state.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'));
+        var _fqdn = state.autonomousCloudFqdn || '(not set)';
+        scenarioScaleRows += renderRow('Autonomous Cloud FQDN', escapeHtml(_fqdn), { mono: true });
+    } else {
+        if (state.region) scenarioScaleRows += renderRow('Azure Cloud', escapeHtml(formatRegion(state.region)));
+        if (state.localInstanceRegion) scenarioScaleRows += renderRow('Azure Local Instance Region', escapeHtml(formatLocalInstanceRegion(state.localInstanceRegion)));
+    }
     if (state.scale) scenarioScaleRows += renderRow('Scale', escapeHtml(formatScale(state.scale)));
     if (state.nodes) scenarioScaleRows += renderRow('Nodes', escapeHtml(state.nodes), { mono: true });
     if (state.witnessType) scenarioScaleRows += renderRow('Cloud Witness Type', escapeHtml(state.witnessType));
@@ -7102,7 +7119,7 @@ function resetAll() {
 
     renderDnsServers();
 
-    const ids = ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success', 'china-warning', 'disconnected-region-info', 'proxy-warning', 'dhcp-warning', 'ip-subnet-warning', 'multirack-message'];
+    const ids = ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success', 'china-warning', 'disconnected-region-info', 'disconnected-cloud-context', 'proxy-warning', 'dhcp-warning', 'ip-subnet-warning', 'multirack-message'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -8783,7 +8800,23 @@ function showComparison(category) {
                 }
             ]
         },
-        'outbound': {
+        'outbound': state.scenario === 'disconnected' ? {
+            title: 'Disconnected Outbound Connectivity Comparison',
+            options: [
+                {
+                    name: '🚫 Air Gapped',
+                    pros: ['Complete network isolation from the internet', 'Highest security posture for sensitive environments', 'No risk of external data exfiltration', 'Meets strictest regulatory and compliance requirements'],
+                    useCases: ['Classified or top-secret environments', 'Critical infrastructure with strict isolation mandates', 'Regulatory requirements prohibiting any internet connectivity', 'Environments where zero external communication is required'],
+                    recommended: 'For environments requiring complete network isolation'
+                },
+                {
+                    name: 'ℹ️ Limited Connectivity',
+                    pros: ['Restricted internet access with controlled endpoints', 'Enables telemetry and remote diagnostics', 'Balances security with operational flexibility'],
+                    useCases: ['Government and regulated industries with controlled egress', 'Environments allowing limited, approved internet access', 'Organizations needing remote management capabilities', 'Deployments requiring periodic cloud sync for updates'],
+                    recommended: 'For disconnected environments that allow restricted internet access'
+                }
+            ]
+        } : {
             title: 'Outbound Connectivity Comparison',
             options: [
                 {
@@ -8856,12 +8889,12 @@ function showComparison(category) {
                     </ul>
                 </div>
 
-                <div style="margin-bottom: 12px;">
+                ${option.cons && option.cons.length ? `<div style="margin-bottom: 12px;">
                     <strong style="color: #ef4444;">✗ Cons:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.cons.map(con => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(con)}</li>`).join('')}
                     </ul>
-                </div>
+                </div>` : ''}
 
                 <div style="margin-bottom: 12px;">
                     <strong style="color: var(--accent-blue);">📌 Use Cases:</strong>
@@ -9618,6 +9651,12 @@ function exportToPDF() {
             activeDirectory: { azure_ad: 'Active Directory', local_identity: 'Local Identity (AD-Less)' },
             securityConfiguration: { recommended: 'Recommended Security', customized: 'Customized Security' }
         };
+        // For disconnected scenario, include the outbound connectivity type
+        if (key === 'scenario' && value === 'disconnected') {
+            if (state.outbound === 'limited') return 'Disconnected (Limited Connectivity)';
+            if (state.outbound === 'air_gapped') return 'Disconnected (Air Gapped)';
+            return 'Disconnected';
+        }
         if (displayNames[key] && displayNames[key][value]) return displayNames[key][value];
         return value || 'Not configured';
     };
@@ -9663,8 +9702,13 @@ function exportToPDF() {
         <div class="section-title">🏢 Deployment Configuration</div>
         <div class="grid">
             <div class="item"><div class="item-label">Deployment Type</div><div class="item-value">${getDisplayName('scenario', state.scenario)}</div></div>
+            ${state.scenario === 'disconnected' && state.clusterRole ? `
+            <div class="item"><div class="item-label">Cluster Role</div><div class="item-value">${state.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'}</div></div>
+            <div class="item"><div class="item-label">Autonomous Cloud FQDN</div><div class="item-value">${state.autonomousCloudFqdn || 'Not configured'}</div></div>
+            ` : `
             <div class="item"><div class="item-label">Azure Cloud</div><div class="item-value">${getDisplayName('region', state.region)}</div></div>
             <div class="item"><div class="item-label">Azure Region</div><div class="item-value">${state.localInstanceRegion?.replace(/_/g, ' ') || 'Not configured'}</div></div>
+            `}
             <div class="item"><div class="item-label">Scale</div><div class="item-value">${getDisplayName('scale', state.scale)}</div></div>
         </div>
     </div>

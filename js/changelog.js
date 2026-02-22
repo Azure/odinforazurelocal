@@ -27,7 +27,33 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.16.04 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.00 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 23, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 Disconnected Operations Wizard</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Cluster Role Selection:</strong> New D1 wizard step — choose Management Cluster (fixed 3 nodes, hosts the disconnected operations appliance VM) or Workload Cluster (1–16 nodes, connects via Autonomous Cloud FQDN).</li>
+                        <li><strong>Autonomous Cloud FQDN Endpoint:</strong> New D2 step with real-time FQDN validation and confirm/edit gate — all subsequent wizard steps are hidden until the FQDN is confirmed.</li>
+                        <li><strong>Context Banner:</strong> "Why Azure Cloud & Region are still required" info banner displayed for management clusters alongside the FQDN step.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">📊 Disconnected Network Diagrams</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>26 Network Topology Diagrams:</strong> Complete set covering all intent configurations (fully converged, disaggregated, mgmt+compute, compute+storage, 4-intent, 4-storage, switchless 2/3/4-node, single-node workload variants) × 2 outbound modes (Limited Connectivity + Air-Gapped).</li>
+                        <li><strong>Intelligent Diagram Routing:</strong> Automatic diagram selection based on cluster role, node count, intent type, storage topology, port count, and custom NIC assignments.</li>
+                        <li><strong>Single-Node Workload Variants:</strong> Dedicated diagrams for single-node workload clusters in fully converged (1 intent), mgmt+compute/storage (2 intent), and disaggregated (3 intent) configurations.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">⚙️ Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>DNS Validation:</strong> DNS servers are now validated against node IPs and default gateway to prevent IP conflicts.</li>
+                        <li><strong>Scenario Description:</strong> Updated disconnected mode description with accurate feature availability information.</li>
+                        <li><strong>Outbound Comparison:</strong> Removed cons section from Air-Gapped and Limited Connectivity comparison cards for cleaner presentation.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--text-secondary); margin: 0 0 8px 0;">Version 0.16.04</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 20, 2026</div>
                 </div>
 

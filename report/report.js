@@ -6,6 +6,8 @@
     window.downloadHostNetworkingDiagramSvg = downloadHostNetworkingDiagramSvg;
     window.downloadOutboundConnectivityDiagramSvg = downloadOutboundConnectivityDiagramSvg;
     window.downloadHostNetworkingDrawio = downloadHostNetworkingDrawio;
+    window.downloadOutboundConnectivityDrawio = downloadOutboundConnectivityDrawio;
+    window.openDiagramZoom = openDiagramZoom;
     window.togglePrintFriendly = togglePrintFriendly;
 
     var CURRENT_REPORT_STATE = null;
@@ -20,12 +22,144 @@
         'public_no_proxy_arc': '../docs/outbound-connectivity/images/public-path-no-proxy-with-arc-gateway.svg',
         'public_proxy_arc': '../docs/outbound-connectivity/images/public-path-with-proxy-and-arc-gateway.svg',
         // Private Path diagram
-        'private': '../docs/outbound-connectivity/images/private-path-explicit-proxy-and-arc-gateway.svg'
+        'private': '../docs/outbound-connectivity/images/private-path-explicit-proxy-and-arc-gateway.svg',
+        // Disconnected Operations diagrams
+        'disconnected_fullyconverged_limited': '../docs/disconnected-operations/aldo-fullyconverged-limited-connectivity.svg',
+        'disconnected_fullyconverged_airgapped': '../docs/disconnected-operations/aldo-fullyconverged-air-gapped.svg',
+        'disconnected_disaggregated_limited': '../docs/disconnected-operations/aldo-dissaggregated-limited-connectivity.svg',
+        'disconnected_disaggregated_airgapped': '../docs/disconnected-operations/aldo-dissaggregated-air-gapped.svg',
+        'disconnected_compute_storage_limited': '../docs/disconnected-operations/aldo-compute-storage-limited-connectivity.svg',
+        'disconnected_compute_storage_airgapped': '../docs/disconnected-operations/aldo-compute-storage-air-gapped.svg',
+        'disconnected_4intent_limited': '../docs/disconnected-operations/aldo-4intent-limited-connectivity.svg',
+        'disconnected_4intent_airgapped': '../docs/disconnected-operations/aldo-4intent-air-gapped.svg',
+        'disconnected_mgmt_compute_limited': '../docs/disconnected-operations/aldo-mgmt-compute-limited-connectivity.svg',
+        'disconnected_mgmt_compute_airgapped': '../docs/disconnected-operations/aldo-mgmt-compute-air-gapped.svg',
+        // Mgmt+Compute with 1 workload cluster (default for config reports)
+        'disconnected_mgmt_compute_1wl_limited': '../docs/disconnected-operations/aldo-mgmt-compute-1wl-limited-connectivity.svg',
+        'disconnected_mgmt_compute_1wl_airgapped': '../docs/disconnected-operations/aldo-mgmt-compute-1wl-air-gapped.svg',
+        // Mgmt+Compute with 4 storage ports (6+ port switched config)
+        'disconnected_mgmt_compute_4storage_limited': '../docs/disconnected-operations/aldo-mgmt-compute-4storage-limited-connectivity.svg',
+        'disconnected_mgmt_compute_4storage_airgapped': '../docs/disconnected-operations/aldo-mgmt-compute-4storage-air-gapped.svg',
+        // Switchless variants (mgmt+compute intent, 2/3/4 node)
+        'disconnected_mgmt_compute_2node_switchless_limited': '../docs/disconnected-operations/aldo-mgmt-compute-2node-switchless-limited-connectivity.svg',
+        'disconnected_mgmt_compute_2node_switchless_airgapped': '../docs/disconnected-operations/aldo-mgmt-compute-2node-switchless-air-gapped.svg',
+        'disconnected_mgmt_compute_3node_switchless_limited': '../docs/disconnected-operations/aldo-mgmt-compute-3node-switchless-limited-connectivity.svg',
+        'disconnected_mgmt_compute_3node_switchless_airgapped': '../docs/disconnected-operations/aldo-mgmt-compute-3node-switchless-air-gapped.svg',
+        'disconnected_mgmt_compute_4node_switchless_limited': '../docs/disconnected-operations/aldo-mgmt-compute-4node-switchless-limited-connectivity.svg',
+        'disconnected_mgmt_compute_4node_switchless_airgapped': '../docs/disconnected-operations/aldo-mgmt-compute-4node-switchless-air-gapped.svg',
+        // Single-node workload cluster
+        'disconnected_single_node_wl_limited': '../docs/disconnected-operations/aldo-single-node-wl-limited-connectivity.svg',
+        'disconnected_single_node_wl_airgapped': '../docs/disconnected-operations/aldo-single-node-wl-air-gapped.svg',
+        // Single-node workload cluster: fully converged (1 intent)
+        'disconnected_single_node_wl_fullyconverged_limited': '../docs/disconnected-operations/aldo-single-node-wl-fullyconverged-limited-connectivity.svg',
+        'disconnected_single_node_wl_fullyconverged_airgapped': '../docs/disconnected-operations/aldo-single-node-wl-fullyconverged-air-gapped.svg',
+        // Single-node workload cluster: disaggregated (3 intents)
+        'disconnected_single_node_wl_disaggregated_limited': '../docs/disconnected-operations/aldo-single-node-wl-disaggregated-limited-connectivity.svg',
+        'disconnected_single_node_wl_disaggregated_airgapped': '../docs/disconnected-operations/aldo-single-node-wl-disaggregated-air-gapped.svg'
+    };
+
+    // Disconnected Operations draw.io source files for editable diagram export
+    var OUTBOUND_DRAWIO = {
+        'disconnected_fullyconverged_limited': '../docs/disconnected-operations/ALDO-fullyconverged-Limited-Connectivity.drawio',
+        'disconnected_fullyconverged_airgapped': '../docs/disconnected-operations/ALDO-fullyconverged-Air-Gapped.drawio',
+        'disconnected_disaggregated_limited': '../docs/disconnected-operations/ALDO-dissaggregated-Limited-Connectivity.drawio',
+        'disconnected_disaggregated_airgapped': '../docs/disconnected-operations/ALDO-dissaggregated-Air-Gapped.drawio',
+        'disconnected_compute_storage_limited': '../docs/disconnected-operations/ALDO-compute-storage-Limited-Connectivity.drawio',
+        'disconnected_compute_storage_airgapped': '../docs/disconnected-operations/ALDO-compute-storage-Air-Gapped.drawio',
+        'disconnected_4intent_limited': '../docs/disconnected-operations/ALDO-4intent-Limited-Connectivity.drawio',
+        'disconnected_4intent_airgapped': '../docs/disconnected-operations/ALDO-4intent-Air-Gapped.drawio',
+        'disconnected_mgmt_compute_limited': '../docs/disconnected-operations/ALDO-mgmt-compute-Limited-Connectivity.drawio',
+        'disconnected_mgmt_compute_airgapped': '../docs/disconnected-operations/ALDO-mgmt-compute-Air-Gapped.drawio',
+        'disconnected_mgmt_compute_1wl_limited': '../docs/disconnected-operations/ALDO-mgmt-compute-1wl-Limited-Connectivity.drawio',
+        'disconnected_mgmt_compute_1wl_airgapped': '../docs/disconnected-operations/ALDO-mgmt-compute-1wl-Air-Gapped.drawio',
+        'disconnected_mgmt_compute_4storage_limited': '../docs/disconnected-operations/ALDO-mgmt-compute-4storage-Limited-Connectivity.drawio',
+        'disconnected_mgmt_compute_4storage_airgapped': '../docs/disconnected-operations/ALDO-mgmt-compute-4storage-Air-Gapped.drawio',
+        'disconnected_mgmt_compute_2node_switchless_limited': '../docs/disconnected-operations/ALDO-mgmt-compute-2node-switchless-Limited-Connectivity.drawio',
+        'disconnected_mgmt_compute_2node_switchless_airgapped': '../docs/disconnected-operations/ALDO-mgmt-compute-2node-switchless-Air-Gapped.drawio',
+        'disconnected_mgmt_compute_3node_switchless_limited': '../docs/disconnected-operations/ALDO-mgmt-compute-3node-switchless-Limited-Connectivity.drawio',
+        'disconnected_mgmt_compute_3node_switchless_airgapped': '../docs/disconnected-operations/ALDO-mgmt-compute-3node-switchless-Air-Gapped.drawio',
+        'disconnected_mgmt_compute_4node_switchless_limited': '../docs/disconnected-operations/ALDO-mgmt-compute-4node-switchless-Limited-Connectivity.drawio',
+        'disconnected_mgmt_compute_4node_switchless_airgapped': '../docs/disconnected-operations/ALDO-mgmt-compute-4node-switchless-Air-Gapped.drawio',
+        'disconnected_single_node_wl_limited': '../docs/disconnected-operations/ALDO-single-node-wl-Limited-Connectivity.drawio',
+        'disconnected_single_node_wl_airgapped': '../docs/disconnected-operations/ALDO-single-node-wl-Air-Gapped.drawio',
+        'disconnected_single_node_wl_fullyconverged_limited': '../docs/disconnected-operations/ALDO-single-node-wl-fullyconverged-Limited-Connectivity.drawio',
+        'disconnected_single_node_wl_fullyconverged_airgapped': '../docs/disconnected-operations/ALDO-single-node-wl-fullyconverged-Air-Gapped.drawio',
+        'disconnected_single_node_wl_disaggregated_limited': '../docs/disconnected-operations/ALDO-single-node-wl-disaggregated-Limited-Connectivity.drawio',
+        'disconnected_single_node_wl_disaggregated_airgapped': '../docs/disconnected-operations/ALDO-single-node-wl-disaggregated-Air-Gapped.drawio'
     };
 
     // Get the appropriate outbound diagram based on state
     function getOutboundDiagramKey(s) {
         if (!s) return null;
+
+        // Disconnected Operations - select diagram by intent, storage, node count, and cluster role
+        if (s.scenario === 'disconnected') {
+            var isAirGapped = s.outbound === 'air_gapped';
+            var suffix = isAirGapped ? 'airgapped' : 'limited';
+            var intent = s.intent;
+            var nodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
+            var isSwitchless = s.storage === 'switchless';
+            var portCount = parseInt(s.ports, 10) || 4;
+
+            // Single-node workload cluster → dedicated diagram (check before intent type)
+            if (nodeCount === 1 && s.clusterRole === 'workload') {
+                if (intent === 'all_traffic') return 'disconnected_single_node_wl_fullyconverged_' + suffix;
+                if (intent === 'compute_storage') return 'disconnected_single_node_wl_disaggregated_' + suffix;
+                // Custom intent: analyse actual NIC assignments for single-node
+                if (intent === 'custom') {
+                    var ci_sn = s.customIntents || {};
+                    var vals_sn = Object.values(ci_sn);
+                    if (vals_sn.length > 0 && vals_sn.every(function(v) { return v === 'all'; })) {
+                        return 'disconnected_single_node_wl_fullyconverged_' + suffix;
+                    }
+                    var hasCS_sn = vals_sn.some(function(v) { return v === 'compute_storage'; });
+                    var hasCmp_sn = vals_sn.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
+                    var hasStg_sn = vals_sn.some(function(v) { return v === 'storage'; });
+                    if (hasCS_sn || (hasCmp_sn && hasStg_sn)) {
+                        return 'disconnected_single_node_wl_disaggregated_' + suffix;
+                    }
+                }
+                return 'disconnected_single_node_wl_' + suffix;
+            }
+
+            if (intent === 'all_traffic') return 'disconnected_fullyconverged_' + suffix;
+            if (intent === 'compute_storage') return 'disconnected_disaggregated_' + suffix;
+
+            // Switchless variants (mgmt+compute intent, 2/3/4 node)
+            if (isSwitchless && nodeCount >= 2 && nodeCount <= 4) {
+                return 'disconnected_mgmt_compute_' + nodeCount + 'node_switchless_' + suffix;
+            }
+
+            // Custom intent: analyse actual NIC assignments to pick best diagram
+            if (intent === 'custom') {
+                var ci = s.customIntents || {};
+                var vals = Object.values(ci);
+                // All NICs carry all traffic → fully converged
+                if (vals.length > 0 && vals.every(function(v) { return v === 'all'; })) {
+                    return 'disconnected_fullyconverged_' + suffix;
+                }
+                // compute_storage combined, or separate compute + storage NICs → disaggregated
+                var hasComputeStorage = vals.some(function(v) { return v === 'compute_storage'; });
+                var hasCompute = vals.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
+                var hasStorage = vals.some(function(v) { return v === 'storage'; });
+                if (hasComputeStorage || (hasCompute && hasStorage)) {
+                    return 'disconnected_disaggregated_' + suffix;
+                }
+                // mgmt_compute-style custom: check storage NIC count for 4-storage variant
+                var storageNics = vals.filter(function(v) { return v === 'storage'; }).length;
+                if (storageNics >= 2) {
+                    return 'disconnected_mgmt_compute_4storage_' + suffix;
+                }
+                return 'disconnected_mgmt_compute_1wl_' + suffix;
+            }
+
+            // Switched with 4+ storage ports (6+ total ports, mgmt+compute intent)
+            if (!isSwitchless && portCount >= 6) return 'disconnected_mgmt_compute_4storage_' + suffix;
+
+            // Default: mgmt+compute with 1 workload cluster
+            return 'disconnected_mgmt_compute_1wl_' + suffix;
+        }
+
         if (s.outbound === 'private') {
             return 'private';
         }
@@ -41,6 +175,59 @@
     // Get diagram title based on configuration
     function getOutboundDiagramTitle(s) {
         if (!s) return 'Outbound Connectivity Architecture';
+
+        // Disconnected Operations diagram titles
+        if (s.scenario === 'disconnected') {
+            var connType = s.outbound === 'air_gapped' ? 'Air Gapped' : 'Limited Connectivity';
+            var intent = s.intent;
+            var nodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 1;
+            var isSwitchless = s.storage === 'switchless';
+            var portCount = parseInt(s.ports, 10) || 4;
+            // Single-node workload cluster titles (check before intent type)
+            if (nodeCount === 1 && s.clusterRole === 'workload') {
+                if (intent === 'all_traffic') return 'Disconnected Operations: Single Node Fully Converged Workload (' + connType + ')';
+                if (intent === 'compute_storage') return 'Disconnected Operations: Single Node Disaggregated Workload (' + connType + ')';
+                if (intent === 'custom') {
+                    var ci_snt = s.customIntents || {};
+                    var vals_snt = Object.values(ci_snt);
+                    if (vals_snt.length > 0 && vals_snt.every(function(v) { return v === 'all'; })) {
+                        return 'Disconnected Operations: Single Node Fully Converged Workload (' + connType + ')';
+                    }
+                    var hasCS_snt = vals_snt.some(function(v) { return v === 'compute_storage'; });
+                    var hasCmp_snt = vals_snt.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
+                    var hasStg_snt = vals_snt.some(function(v) { return v === 'storage'; });
+                    if (hasCS_snt || (hasCmp_snt && hasStg_snt)) {
+                        return 'Disconnected Operations: Single Node Disaggregated Workload (' + connType + ')';
+                    }
+                }
+                return 'Disconnected Operations: Single Node Workload (' + connType + ')';
+            }
+            if (intent === 'all_traffic') return 'Disconnected Operations: Fully Converged (' + connType + ')';
+            if (intent === 'compute_storage') return 'Disconnected Operations: Disaggregated (' + connType + ')';
+            if (isSwitchless && nodeCount >= 2 && nodeCount <= 4) return 'Disconnected Operations: Management & Compute ' + nodeCount + '-Node Switchless (' + connType + ')';
+            // Custom intent: derive title from actual NIC assignments
+            if (intent === 'custom') {
+                var ci = s.customIntents || {};
+                var vals = Object.values(ci);
+                if (vals.length > 0 && vals.every(function(v) { return v === 'all'; })) {
+                    return 'Disconnected Operations: Fully Converged (' + connType + ')';
+                }
+                var hasComputeStorage = vals.some(function(v) { return v === 'compute_storage'; });
+                var hasCompute = vals.some(function(v) { return v === 'compute' || v === 'compute_1' || v === 'compute_2'; });
+                var hasStorage = vals.some(function(v) { return v === 'storage'; });
+                if (hasComputeStorage || (hasCompute && hasStorage)) {
+                    return 'Disconnected Operations: Disaggregated (' + connType + ')';
+                }
+                var storageNics = vals.filter(function(v) { return v === 'storage'; }).length;
+                if (storageNics >= 2) {
+                    return 'Disconnected Operations: Management & Compute 4-Storage (' + connType + ')';
+                }
+                return 'Disconnected Operations: Management & Compute (' + connType + ')';
+            }
+            if (!isSwitchless && portCount >= 6) return 'Disconnected Operations: Management & Compute 4-Storage (' + connType + ')';
+            return 'Disconnected Operations: Management & Compute (' + connType + ')';
+        }
+
         if (s.outbound === 'private') {
             return 'Private Path: Azure Firewall Explicit Proxy + Arc Gateway';
         }
@@ -862,7 +1049,12 @@
                     prefetch = fetch(diagramUrl)
                         .then(function(resp) { return resp.text(); })
                         .then(function(svg) {
-                            diagramHost.innerHTML = svg;
+                            var containerEl = diagramHost.querySelector('#outbound-diagram-container');
+                            if (containerEl) {
+                                containerEl.innerHTML = svg;
+                            } else {
+                                diagramHost.innerHTML = svg;
+                            }
                         });
                 }
             }
@@ -890,6 +1082,28 @@
                                 })
                         );
                     })(svgs[s]);
+                }
+
+                // Also convert the outbound connectivity diagram SVG to PNG for Word
+                var outboundContainer = clone.querySelector('#outbound-diagram-container');
+                if (outboundContainer) {
+                    var outboundSvg = outboundContainer.querySelector('svg');
+                    if (outboundSvg) {
+                        conversions.push(
+                            svgElementToPngDataUrl(outboundSvg, { theme: 'dark', background: '#000000', scale: 2 })
+                                .then(function (pngDataUrl) {
+                                    if (!pngDataUrl) return;
+                                    var img = document.createElement('img');
+                                    img.alt = 'Outbound connectivity diagram';
+                                    img.src = pngDataUrl;
+                                    img.style.width = '100%';
+                                    img.style.height = 'auto';
+                                    if (outboundSvg.parentNode) {
+                                        outboundSvg.parentNode.replaceChild(img, outboundSvg);
+                                    }
+                                })
+                        );
+                    }
                 }
 
                 return Promise.all(conversions);
@@ -989,7 +1203,7 @@
         md.push('| Field | Value |');
         md.push('|-------|-------|');
         md.push('| Generated | ' + (new Date().toLocaleString()) + ' |');
-        md.push('| Scenario | ' + (formatScenario(s.scenario) || '-') + ' |');
+        md.push('| Scenario | ' + (formatScenario(s.scenario, s) || '-') + ' |');
         md.push('');
 
         // Scenario & Scale
@@ -997,9 +1211,20 @@
         md.push('');
         md.push('| Setting | Value |');
         md.push('|---------|-------|');
-        if (s.scenario) md.push('| Scenario | ' + formatScenario(s.scenario) + ' |');
-        if (s.region) md.push('| Azure Cloud | ' + formatCloud(s.region) + ' |');
-        if (s.localInstanceRegion) md.push('| Azure Local Instance Region | ' + formatLocalInstanceRegion(s.localInstanceRegion) + ' |');
+        if (s.scenario) md.push('| Scenario | ' + formatScenario(s.scenario, s) + ' |');
+        if (s.scenario === 'disconnected' && s.clusterRole) {
+            md.push('| Cluster Role | ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster') + ' |');
+            md.push('| Autonomous Cloud FQDN | ' + (s.autonomousCloudFqdn || 'Not configured') + ' |');
+            if (s.clusterRole === 'management' && (s.applianceIp1 || s.applianceIp2)) {
+                var ipParts = [];
+                if (s.applianceIp1) ipParts.push('Ingress vNIC: ' + s.applianceIp1);
+                if (s.applianceIp2) ipParts.push('Mgmt vNIC: ' + s.applianceIp2);
+                md.push('| Appliance IPs | `' + ipParts.join(' · ') + '` |');
+            }
+        } else {
+            if (s.region) md.push('| Azure Cloud | ' + formatCloud(s.region) + ' |');
+            if (s.localInstanceRegion) md.push('| Azure Local Instance Region | ' + formatLocalInstanceRegion(s.localInstanceRegion) + ' |');
+        }
         if (s.scale) md.push('| Scale | ' + formatScale(s.scale) + ' |');
         if (s.nodes) md.push('| Nodes | ' + s.nodes + ' |');
         if (s.witnessType) md.push('| Cloud Witness | ' + (s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness') + ' |');
@@ -1153,6 +1378,12 @@
         if (s.infraCidr) md.push('| Infrastructure CIDR | `' + s.infraCidr + '` |');
         if (s.infra && s.infra.start && s.infra.end) md.push('| IP Pool Range | `' + s.infra.start + ' - ' + s.infra.end + '` |');
         if (s.infraGateway) md.push('| Default Gateway | `' + s.infraGateway + '` |');
+        if (s.scenario === 'disconnected' && (s.applianceIp1 || s.applianceIp2)) {
+            var ipPartsInfra = [];
+            if (s.applianceIp1) ipPartsInfra.push('Ingress vNIC: ' + s.applianceIp1);
+            if (s.applianceIp2) ipPartsInfra.push('Mgmt vNIC: ' + s.applianceIp2);
+            md.push('| Appliance IPs | `' + ipPartsInfra.join(' · ') + '` |');
+        }
         md.push('');
 
         // Node Settings
@@ -1251,7 +1482,7 @@
         // Deployment Scenario
         md.push('### Deployment Scenario');
         md.push('');
-        md.push('**Selected:** ' + formatScenario(s.scenario));
+        md.push('**Selected:** ' + formatScenario(s.scenario, s));
         if (s.scenario === 'hyperconverged') {
             md.push('');
             md.push('**Why it matters:** Single-rack, consolidated compute/storage. Enables Low Capacity or Standard flows.');
@@ -1268,22 +1499,40 @@
         }
         md.push('');
 
-        // Azure Cloud & Region
-        md.push('### Azure Cloud & Azure Local Region');
-        md.push('');
-        md.push('**Azure Cloud:** ' + formatCloud(s.region));
-        md.push('');
-        md.push('**Azure Local Instance Region:** ' + formatLocalInstanceRegion(s.localInstanceRegion));
-        md.push('');
-        var cloudNotes = [];
-        cloudNotes.push('Your Azure cloud selection determines which endpoints, compliance boundaries, and region catalogs apply.');
-        if (s.region === 'azure_commercial') {
-            cloudNotes.push('Azure Local supported regions for Azure Public include: East US, South Central US, West Europe, Australia East, Southeast Asia, India Central, Canada Central, Japan East.');
-        } else if (s.region === 'azure_government') {
-            cloudNotes.push('Azure Local supported regions for Azure Government include: US Gov Virginia.');
+        // Azure Cloud & Region (or Autonomous Cloud for disconnected)
+        if (s.scenario === 'disconnected' && s.clusterRole) {
+            md.push('### Autonomous Cloud');
+            md.push('');
+            md.push('**Cluster Role:** ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'));
+            md.push('');
+            md.push('**Autonomous Cloud FQDN:** ' + (s.autonomousCloudFqdn || 'Not configured'));
+            md.push('');
+            if (s.clusterRole === 'management' && (s.applianceIp1 || s.applianceIp2)) {
+                var ipPartsRationale = [];
+                if (s.applianceIp1) ipPartsRationale.push('Ingress vNIC: ' + s.applianceIp1);
+                if (s.applianceIp2) ipPartsRationale.push('Mgmt vNIC: ' + s.applianceIp2);
+                md.push('**Appliance IPs:** ' + ipPartsRationale.join(' · '));
+                md.push('');
+            }
+            md.push('- Disconnected operations use an Autonomous Cloud FQDN instead of a public Azure cloud endpoint.');
+            md.push('');
+        } else {
+            md.push('### Azure Cloud & Azure Local Region');
+            md.push('');
+            md.push('**Azure Cloud:** ' + formatCloud(s.region));
+            md.push('');
+            md.push('**Azure Local Instance Region:** ' + formatLocalInstanceRegion(s.localInstanceRegion));
+            md.push('');
+            var cloudNotes = [];
+            cloudNotes.push('Your Azure cloud selection determines which endpoints, compliance boundaries, and region catalogs apply.');
+            if (s.region === 'azure_commercial') {
+                cloudNotes.push('Azure Local supported regions for Azure Public include: East US, South Central US, West Europe, Australia East, Southeast Asia, India Central, Canada Central, Japan East.');
+            } else if (s.region === 'azure_government') {
+                cloudNotes.push('Azure Local supported regions for Azure Government include: US Gov Virginia.');
+            }
+            cloudNotes.forEach(function (n) { md.push('- ' + n); });
+            md.push('');
         }
-        cloudNotes.forEach(function (n) { md.push('- ' + n); });
-        md.push('');
 
         // Scale & Nodes
         md.push('### Scale & Nodes');
@@ -2308,6 +2557,423 @@
         }
     }
 
+    /**
+     * Download the outbound connectivity diagram as a .drawio file (disconnected diagrams only).
+     */
+    function downloadOutboundConnectivityDrawio() {
+        try {
+            var diagKey = getOutboundDiagramKey(CURRENT_REPORT_STATE);
+            if (!diagKey || !OUTBOUND_DRAWIO[diagKey]) return;
+
+            var drawioUrl = OUTBOUND_DRAWIO[diagKey];
+            fetch(drawioUrl)
+                .then(function (resp) { return resp.text(); })
+                .then(function (drawioXml) {
+                    var blob = new Blob([drawioXml], { type: 'application/xml' });
+                    var url = URL.createObjectURL(blob);
+
+                    var ts = new Date();
+                    var pad2 = function (n) { return String(n).padStart(2, '0'); };
+                    var fileName = 'disconnected-operations-'
+                        + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
+                        + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes())
+                        + '.drawio';
+
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+                })
+                .catch(function (err) {
+                    console.warn('Failed to download drawio file:', err);
+                });
+        } catch (e) {
+            console.warn('Error in downloadOutboundConnectivityDrawio:', e);
+        }
+    }
+
+    /**
+     * Highlight the relevant cluster area in an inline SVG for disconnected operations.
+     * Uses data-cell-id attributes preserved from draw.io SVG export.
+     * @param {SVGElement} svgEl - The inline SVG element
+     * @param {string} clusterRole - 'management' or 'workload'
+     */
+    function highlightClusterInSvg(svgEl, clusterRole) {
+        // Grey container cell IDs (consistent across all disconnected diagram variants).
+        // The SVG structure is flat: each cell has its own <g data-cell-id="..."> as siblings
+        // under <g data-cell-id="1">.  So we read geometry from the container rects and
+        // append overlay rects at the end of the main group (drawn on top of everything).
+        var MGMT_CONTAINER  = 'JwsQfcPdxONgqVIScywy-218';   // management cluster grey area (left)
+        var WL_CONTAINER_1  = 'JwsQfcPdxONgqVIScywy-182';   // workload cluster 1 grey area (middle)
+        var WL_CONTAINER_2  = 'JwsQfcPdxONgqVIScywy-186';   // workload cluster 2 grey area (right, only in non-switchless SVGs)
+
+        // Determine which containers to dim and which to highlight
+        var activeIds, dimIds;
+        if (clusterRole === 'management') {
+            activeIds = [MGMT_CONTAINER];
+            // Dim both workload clusters (if the second one exists in this SVG)
+            dimIds = [WL_CONTAINER_1];
+            if (svgEl.querySelector('[data-cell-id="' + WL_CONTAINER_2 + '"]')) {
+                dimIds.push(WL_CONTAINER_2);
+            }
+        } else {
+            // Workload role: highlight both workload clusters, dim management
+            activeIds = [WL_CONTAINER_1];
+            if (svgEl.querySelector('[data-cell-id="' + WL_CONTAINER_2 + '"]')) {
+                activeIds.push(WL_CONTAINER_2);
+            }
+            dimIds = [MGMT_CONTAINER];
+        }
+
+        // Find the main content group where all cells are rendered
+        var mainGroup = svgEl.querySelector('[data-cell-id="1"]');
+        if (!mainGroup) return;
+
+        // Helper: read rect geometry from a container cell group (accounts for translate)
+        function getRectGeometry(cellId) {
+            var g = svgEl.querySelector('[data-cell-id="' + cellId + '"]');
+            if (!g) return null;
+            var rect = g.querySelector('rect');
+            if (!rect) return null;
+            var x = parseFloat(rect.getAttribute('x')) || 0;
+            var y = parseFloat(rect.getAttribute('y')) || 0;
+            var w = parseFloat(rect.getAttribute('width')) || 0;
+            var h = parseFloat(rect.getAttribute('height')) || 0;
+            var rx = parseFloat(rect.getAttribute('rx')) || 0;
+            var ry = parseFloat(rect.getAttribute('ry')) || 0;
+            // Account for any translate transform on parent <g>
+            var transformG = rect.parentNode;
+            if (transformG) {
+                var tf = (transformG.getAttribute('transform') || '').match(/translate\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
+                if (tf) { x += parseFloat(tf[1]); y += parseFloat(tf[2]); }
+            }
+            return { x: x, y: y, w: w, h: h, rx: rx, ry: ry };
+        }
+
+        // Helper: expand a geometry rect to include any switchless note labels below a cluster.
+        // The switchless labels (data-cell-id starting with "switchless-") can sit just below the
+        // cluster container rect.  We find those whose horizontal mid-point falls within the
+        // container's x-range and extend the height to cover them.
+        function expandGeoForSwitchlessLabels(geo) {
+            if (!geo) return geo;
+            var labels = svgEl.querySelectorAll('[data-cell-id^="switchless-"]');
+            if (!labels.length) return geo;
+            var bottom = geo.y + geo.h;
+            for (var i = 0; i < labels.length; i++) {
+                var r = labels[i].querySelector('rect');
+                if (!r) continue;
+                var lx = parseFloat(r.getAttribute('x')) || 0;
+                var ly = parseFloat(r.getAttribute('y')) || 0;
+                var lw = parseFloat(r.getAttribute('width')) || 0;
+                var lh = parseFloat(r.getAttribute('height')) || 0;
+                // Account for translate on parent <g>
+                var tg = r.parentNode;
+                if (tg) {
+                    var tf2 = (tg.getAttribute('transform') || '').match(/translate\(\s*([\d.]+)\s*,\s*([\d.]+)\s*\)/);
+                    if (tf2) { lx += parseFloat(tf2[1]); ly += parseFloat(tf2[2]); }
+                }
+                var labelMidX = lx + lw / 2;
+                // Check if the label's horizontal centre is within the container's x-range
+                if (labelMidX >= geo.x && labelMidX <= geo.x + geo.w) {
+                    var labelBottom = ly + lh;
+                    if (labelBottom > bottom) bottom = labelBottom;
+                }
+            }
+            if (bottom > geo.y + geo.h) {
+                geo.h = bottom - geo.y + 6; // +6px padding below labels
+            }
+            return geo;
+        }
+
+        // ── Defs: glow filter + pulse animation ──
+        var defs = svgEl.querySelector('defs');
+        if (!defs) {
+            defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            svgEl.insertBefore(defs, svgEl.firstChild);
+        }
+        var filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+        filter.setAttribute('id', 'cluster-highlight-glow');
+        filter.setAttribute('x', '-20%');  filter.setAttribute('y', '-20%');
+        filter.setAttribute('width', '140%'); filter.setAttribute('height', '140%');
+        var feGaussian = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        feGaussian.setAttribute('stdDeviation', '4');
+        feGaussian.setAttribute('result', 'glow');
+        filter.appendChild(feGaussian);
+        var feMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        var fm1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        fm1.setAttribute('in', 'glow');  feMerge.appendChild(fm1);
+        var fm2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+        fm2.setAttribute('in', 'SourceGraphic'); feMerge.appendChild(fm2);
+        filter.appendChild(feMerge);
+        defs.appendChild(filter);
+        var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+        styleEl.textContent = '@keyframes cluster-pulse { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.4; } }';
+        defs.appendChild(styleEl);
+
+        // ── Dim overlays: semi-transparent dark rects over the non-active clusters ──
+        dimIds.forEach(function (dimId) {
+            var dimGeo = expandGeoForSwitchlessLabels(getRectGeometry(dimId));
+            if (dimGeo) {
+                var dimOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                dimOverlay.setAttribute('x', String(dimGeo.x));
+                dimOverlay.setAttribute('y', String(dimGeo.y));
+                dimOverlay.setAttribute('width', String(dimGeo.w));
+                dimOverlay.setAttribute('height', String(dimGeo.h));
+                dimOverlay.setAttribute('rx', String(dimGeo.rx));
+                dimOverlay.setAttribute('ry', String(dimGeo.ry));
+                dimOverlay.setAttribute('fill', '#000000');
+                dimOverlay.setAttribute('opacity', '0.55');
+                dimOverlay.setAttribute('pointer-events', 'none');
+                mainGroup.appendChild(dimOverlay);
+            }
+        });
+
+        // ── Highlight borders: glowing animated stroke around the active clusters ──
+        var highlightColor = clusterRole === 'management' ? '#10b981' : '#3b82f6';
+        activeIds.forEach(function (activeId) {
+            var activeGeo = expandGeoForSwitchlessLabels(getRectGeometry(activeId));
+            if (activeGeo) {
+                var highlight = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                highlight.setAttribute('x', String(activeGeo.x - 2));
+                highlight.setAttribute('y', String(activeGeo.y - 2));
+                highlight.setAttribute('width', String(activeGeo.w + 4));
+                highlight.setAttribute('height', String(activeGeo.h + 4));
+                highlight.setAttribute('rx', String(activeGeo.rx));
+                highlight.setAttribute('ry', String(activeGeo.ry));
+                highlight.setAttribute('fill', 'none');
+                highlight.setAttribute('stroke', highlightColor);
+                highlight.setAttribute('stroke-width', '3');
+                highlight.setAttribute('filter', 'url(#cluster-highlight-glow)');
+                highlight.setAttribute('style', 'animation: cluster-pulse 2s ease-in-out infinite;');
+                highlight.setAttribute('pointer-events', 'none');
+                mainGroup.appendChild(highlight);
+            }
+        });
+    }
+
+    /**
+     * Fetch the outbound connectivity diagram SVG, inline it, and apply cluster highlighting
+     * for disconnected operations diagrams.
+     */
+    function loadAndHighlightOutboundDiagram() {
+        var container = document.getElementById('outbound-diagram-container');
+        if (!container) return;
+
+        var diagramUrl = container.getAttribute('data-diagram-url');
+        var clusterRole = container.getAttribute('data-cluster-role');
+        if (!diagramUrl) return;
+
+        fetch(diagramUrl)
+            .then(function (resp) { return resp.text(); })
+            .then(function (svgText) {
+                if (!svgText || svgText.indexOf('<svg') === -1) {
+                    container.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available</div>';
+                    return;
+                }
+                var parser = new DOMParser();
+                var doc = parser.parseFromString(svgText, 'image/svg+xml');
+                var svgEl = doc.querySelector('svg');
+                if (!svgEl) {
+                    container.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available</div>';
+                    return;
+                }
+
+                // Make SVG responsive
+                svgEl.setAttribute('width', '100%');
+                svgEl.removeAttribute('height');
+                svgEl.style.display = 'block';
+                svgEl.style.margin = '0 auto';
+
+                // Apply cluster highlighting for disconnected diagrams
+                if (clusterRole) {
+                    highlightClusterInSvg(svgEl, clusterRole);
+                }
+
+                // Replace loading placeholder with inline SVG
+                container.innerHTML = '';
+                container.appendChild(document.adoptNode(svgEl));
+            })
+            .catch(function (err) {
+                console.warn('Failed to load outbound diagram:', err);
+                container.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available</div>';
+            });
+    }
+
+    /**
+     * Open the outbound connectivity diagram in a full-screen modal with pan & zoom.
+     */
+    function openDiagramZoom() {
+        var container = document.getElementById('outbound-diagram-container');
+        if (!container) return;
+        var srcSvg = container.querySelector('svg');
+        if (!srcSvg) return;
+
+        // Clone the SVG so the original stays untouched
+        var svgClone = srcSvg.cloneNode(true);
+        // Restore intrinsic dimensions for the modal viewport
+        var vb = (svgClone.getAttribute('viewBox') || '').trim();
+        var vbParts = vb.split(/\s+/).map(Number);
+        var intrinsicW = (vbParts.length === 4 && vbParts[2]) ? vbParts[2] : 1431;
+        var intrinsicH = (vbParts.length === 4 && vbParts[3]) ? vbParts[3] : 480;
+        svgClone.setAttribute('width', String(intrinsicW));
+        svgClone.setAttribute('height', String(intrinsicH));
+        svgClone.style.width = '';
+        svgClone.style.margin = '';
+        svgClone.style.display = 'block';
+
+        // Build modal DOM
+        var backdrop = document.createElement('div');
+        backdrop.className = 'diagram-modal-backdrop';
+
+        var toolbar = document.createElement('div');
+        toolbar.className = 'diagram-modal-toolbar';
+
+        var titleEl = document.createElement('span');
+        titleEl.className = 'diagram-modal-title';
+        var diagramTitle = '';
+        var h4 = document.querySelector('#outbound-connectivity-diagram h4');
+        if (h4) diagramTitle = h4.textContent || '';
+        titleEl.textContent = diagramTitle || 'Disconnected Operations Diagram';
+
+        var controls = document.createElement('span');
+        controls.className = 'diagram-modal-controls';
+
+        var btnZoomIn = document.createElement('button');
+        btnZoomIn.className = 'diagram-modal-btn';
+        btnZoomIn.textContent = '+';
+        btnZoomIn.title = 'Zoom in';
+
+        var btnZoomOut = document.createElement('button');
+        btnZoomOut.className = 'diagram-modal-btn';
+        btnZoomOut.textContent = '\u2013'; // en-dash
+        btnZoomOut.title = 'Zoom out';
+
+        var btnReset = document.createElement('button');
+        btnReset.className = 'diagram-modal-btn';
+        btnReset.textContent = 'Fit';
+        btnReset.title = 'Reset zoom to fit';
+
+        var zoomLabel = document.createElement('span');
+        zoomLabel.className = 'diagram-modal-zoom-label';
+
+        var btnClose = document.createElement('button');
+        btnClose.className = 'diagram-modal-btn';
+        btnClose.textContent = '\u2715'; // X
+        btnClose.title = 'Close (Esc)';
+        btnClose.style.marginLeft = '0.5rem';
+
+        controls.appendChild(btnZoomOut);
+        controls.appendChild(zoomLabel);
+        controls.appendChild(btnZoomIn);
+        controls.appendChild(btnReset);
+        controls.appendChild(btnClose);
+        toolbar.appendChild(titleEl);
+        toolbar.appendChild(controls);
+
+        var viewport = document.createElement('div');
+        viewport.className = 'diagram-modal-viewport';
+        viewport.appendChild(svgClone);
+
+        var hint = document.createElement('div');
+        hint.className = 'diagram-modal-hint';
+        hint.textContent = 'Scroll to zoom \u00B7 Drag to pan \u00B7 Esc to close';
+
+        backdrop.appendChild(toolbar);
+        backdrop.appendChild(viewport);
+        backdrop.appendChild(hint);
+        document.body.appendChild(backdrop);
+
+        // ── Zoom / pan state ──
+        var scale = 1;
+        var panX = 0;
+        var panY = 0;
+        var MIN_SCALE = 0.25;
+        var MAX_SCALE = 5;
+
+        function fitToViewport() {
+            var vw = viewport.clientWidth * 0.92;
+            var vh = viewport.clientHeight * 0.92;
+            scale = Math.min(vw / intrinsicW, vh / intrinsicH, 2);
+            panX = (viewport.clientWidth - intrinsicW * scale) / 2;
+            panY = (viewport.clientHeight - intrinsicW * scale * (intrinsicH / intrinsicW)) / 2;
+            applyTransform();
+        }
+
+        function applyTransform() {
+            svgClone.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')';
+            zoomLabel.textContent = Math.round(scale * 100) + '%';
+        }
+
+        function zoomBy(delta, cx, cy) {
+            var prev = scale;
+            scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale * delta));
+            // Adjust pan so the zoom centres on (cx, cy)
+            panX = cx - (cx - panX) * (scale / prev);
+            panY = cy - (cy - panY) * (scale / prev);
+            applyTransform();
+        }
+
+        // Initial fit
+        requestAnimationFrame(fitToViewport);
+
+        // Button handlers
+        btnZoomIn.addEventListener('click', function (e) { e.stopPropagation(); zoomBy(1.3, viewport.clientWidth / 2, viewport.clientHeight / 2); });
+        btnZoomOut.addEventListener('click', function (e) { e.stopPropagation(); zoomBy(1 / 1.3, viewport.clientWidth / 2, viewport.clientHeight / 2); });
+        btnReset.addEventListener('click', function (e) { e.stopPropagation(); fitToViewport(); });
+
+        // Scroll-to-zoom
+        viewport.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            var rect = viewport.getBoundingClientRect();
+            var cx = e.clientX - rect.left;
+            var cy = e.clientY - rect.top;
+            var factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+            zoomBy(factor, cx, cy);
+        }, { passive: false });
+
+        // Drag-to-pan
+        var dragging = false;
+        var dragStartX = 0;
+        var dragStartY = 0;
+        viewport.addEventListener('mousedown', function (e) {
+            if (e.button !== 0) return;
+            dragging = true;
+            dragStartX = e.clientX - panX;
+            dragStartY = e.clientY - panY;
+            e.preventDefault();
+        });
+        function onMove(e) {
+            if (!dragging) return;
+            panX = e.clientX - dragStartX;
+            panY = e.clientY - dragStartY;
+            applyTransform();
+        }
+        function onUp() {
+            dragging = false;
+        }
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+
+        // Close handlers
+        function onKey(e) {
+            if (e.key === 'Escape') closeModal();
+        }
+        function closeModal() {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            document.removeEventListener('keydown', onKey);
+            if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
+        }
+        document.addEventListener('keydown', onKey);
+        btnClose.addEventListener('click', function (e) { e.stopPropagation(); closeModal(); });
+        backdrop.addEventListener('click', function (e) {
+            if (e.target === backdrop) closeModal();
+        });
+    }
+
     function tryParsePayload() {
         // 1) URL hash payload (preferred for file:// reliability)
         try {
@@ -2334,11 +3000,15 @@
         return null;
     }
 
-    function formatScenario(val) {
+    function formatScenario(val, s) {
         if (!val) return '-';
         if (val === 'hyperconverged') return 'Hyperconverged';
         if (val === 'multirack') return 'Multi-Rack';
-        if (val === 'disconnected') return 'Disconnected';
+        if (val === 'disconnected') {
+            if (s && s.outbound === 'limited') return 'Disconnected (Limited Connectivity)';
+            if (s && s.outbound === 'air_gapped') return 'Disconnected (Air Gapped)';
+            return 'Disconnected';
+        }
         if (val === 'm365local') return 'M365 Local';
         return val;
     }
@@ -4942,59 +5612,77 @@
         // Scenario
         if (s.scenario === 'hyperconverged') {
             sections.push(block('Deployment Scenario',
-                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario))
+                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario, s))
                 + '<br><strong>Why it matters:</strong> Single-rack, consolidated compute/storage. Enables Low Capacity or Standard flows in this wizard.'
                 + renderValidationInline(validations.byArea.Scenario)
             ));
         } else if (s.scenario === 'disconnected') {
             sections.push(block('Deployment Scenario',
-                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario))
+                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario, s))
                 + '<br><strong>Why it matters:</strong> Air-gapped deployments constrain outbound connectivity and management options.'
                 + '<br><strong>Wizard logic:</strong> Disconnected mode disables cloud-specific selections that require internet access and restricts some scale choices.'
                 + renderValidationInline(validations.byArea.Scenario)
             ));
         } else if (s.scenario === 'm365local') {
             sections.push(block('Deployment Scenario',
-                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario))
+                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario, s))
                 + '<br><strong>Why it matters:</strong> M365 Local deployments are optimized for Microsoft 365 workloads with high availability requirements.'
                 + '<br><strong>Wizard logic:</strong> M365 Local requires a minimum of 9 physical nodes. Supports Standard scale configuration only.'
                 + renderValidationInline(validations.byArea.Scenario)
             ));
         } else if (s.scenario === 'multirack') {
             sections.push(block('Deployment Scenario',
-                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario))
+                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario, s))
                 + '<br><strong>Why it matters:</strong> Multi-rack architectures have additional design requirements.'
                 + '<br><strong>Wizard logic:</strong> The wizard stops and directs you to contact Microsoft for multi-rack requirements.'
                 + renderValidationInline(validations.byArea.Scenario)
             ));
         } else {
             sections.push(block('Deployment Scenario',
-                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario))
+                '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario, s))
                 + renderValidationInline(validations.byArea.Scenario)
             ));
         }
 
-        // Azure Cloud + Local Instance Region
-        var cloudNotes = [];
-        cloudNotes.push('Your Azure cloud selection determines which endpoints, compliance boundaries, and region catalogs apply.');
-        if (s.region === 'azure_commercial') {
-            cloudNotes.push('Azure Local supported regions for Azure Public (per Microsoft) include: East US, South Central US, West Europe, Australia East, Southeast Asia, India Central, Canada Central, Japan East.');
-            cloudNotes.push('The wizard limits Azure Local region choices to that supported catalog for your cloud selection.');
-        } else if (s.region === 'azure_government') {
-            cloudNotes.push('Azure Local supported regions for Azure Government (per Microsoft) include: US Gov Virginia.');
-            cloudNotes.push('The wizard limits Azure Local region choices to that supported catalog for your cloud selection.');
-        } else if (s.region === 'azure_china') {
-            cloudNotes.push('Azure China support is not covered by the Azure Public/Government region lists referenced in this report; consult the latest Azure Local system requirements for your sovereign cloud guidance.');
+        // Azure Cloud + Local Instance Region (or Autonomous Cloud FQDN for disconnected)
+        if (s.scenario === 'disconnected' && s.clusterRole) {
+            var disconnectedNotes = [];
+            disconnectedNotes.push('Disconnected operations use an Autonomous Cloud FQDN instead of a public Azure cloud endpoint.');
+            disconnectedNotes.push('Cluster Role: ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'));
+            if (s.autonomousCloudFqdn) {
+                disconnectedNotes.push('Autonomous Cloud FQDN: ' + s.autonomousCloudFqdn);
+            }
+            sections.push(block('Autonomous Cloud',
+                '<strong>Cluster Role:</strong> ' + escapeHtml(s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster')
+                + '<br><strong>Autonomous Cloud FQDN:</strong> ' + escapeHtml(s.autonomousCloudFqdn || 'Not configured')
+                + (s.clusterRole === 'management' && (s.applianceIp1 || s.applianceIp2)
+                    ? '<br><strong>Appliance IPs:</strong> '
+                      + (s.applianceIp1 ? 'Ingress vNIC: ' + escapeHtml(s.applianceIp1) : '')
+                      + (s.applianceIp1 && s.applianceIp2 ? ' &middot; ' : '')
+                      + (s.applianceIp2 ? 'Mgmt vNIC: ' + escapeHtml(s.applianceIp2) : '')
+                    : '')
+                + list(disconnectedNotes)
+                + renderValidationInline(validations.byArea.Cloud)
+            ));
+        } else {
+            var cloudNotes = [];
+            cloudNotes.push('Your Azure cloud selection determines which endpoints, compliance boundaries, and region catalogs apply.');
+            if (s.region === 'azure_commercial') {
+                cloudNotes.push('Azure Local supported regions for Azure Public (per Microsoft) include: East US, South Central US, West Europe, Australia East, Southeast Asia, India Central, Canada Central, Japan East.');
+                cloudNotes.push('The wizard limits Azure Local region choices to that supported catalog for your cloud selection.');
+            } else if (s.region === 'azure_government') {
+                cloudNotes.push('Azure Local supported regions for Azure Government (per Microsoft) include: US Gov Virginia.');
+                cloudNotes.push('The wizard limits Azure Local region choices to that supported catalog for your cloud selection.');
+            } else if (s.region === 'azure_china') {
+                cloudNotes.push('Azure China support is not covered by the Azure Public/Government region lists referenced in this report; consult the latest Azure Local system requirements for your sovereign cloud guidance.');
+            }
+            sections.push(block('Azure Cloud & Azure Local Region',
+                '<strong>Azure Cloud:</strong> ' + escapeHtml(formatCloud(s.region))
+                + '<br><strong>Azure Local Instance Region:</strong> ' + escapeHtml(formatLocalInstanceRegion(s.localInstanceRegion))
+                + list(cloudNotes)
+                + renderValidationInline(validations.byArea.Cloud)
+            ));
         }
-        if (s.scenario === 'disconnected' && s.region === 'azure_china') {
-            cloudNotes.push('Disconnected mode typically requires manual update workflows; Azure China may be blocked by the wizard when disconnected.');
-        }
-        sections.push(block('Azure Cloud & Azure Local Region',
-            '<strong>Azure Cloud:</strong> ' + escapeHtml(formatCloud(s.region))
-            + '<br><strong>Azure Local Instance Region:</strong> ' + escapeHtml(formatLocalInstanceRegion(s.localInstanceRegion))
-            + list(cloudNotes)
-            + renderValidationInline(validations.byArea.Cloud)
-        ));
 
         // Scale + Nodes
         var scaleNotes = [];
@@ -5422,7 +6110,7 @@
         }
 
         // Scenario
-        add('Scenario', 'Scenario selected', !!s.scenario, s.scenario ? ('Selected: ' + formatScenario(s.scenario)) : '');
+        add('Scenario', 'Scenario selected', !!s.scenario, s.scenario ? ('Selected: ' + formatScenario(s.scenario, s)) : '');
         add('Scenario', 'Multi-Rack is a stop-flow', s.scenario !== 'multirack', s.scenario === 'multirack' ? 'The wizard intentionally stops for Multi-Rack and routes to Microsoft for requirements.' : '', [REF_AZLOC_MULTIRACK]);
 
         // Cloud + local region
@@ -5462,8 +6150,8 @@
 
         if (s.scenario === 'disconnected') {
             add('ScaleNodes', 'Disconnected only allows Standard scale', s.scale === 'medium' || !s.scale, 'Disconnected deployments restrict options for operational/supportability reasons in this wizard.', [REF_AZLOC_PREREQS]);
-            if (s.scale === 'medium') {
-                add('ScaleNodes', 'Disconnected + Standard requires >= 3 nodes', (s.nodes !== '1' && s.nodes !== '2'), 'Wizard disables 1–2 nodes for Disconnected Standard.');
+            if (s.clusterRole === 'management') {
+                add('ScaleNodes', 'Management cluster requires exactly 3 nodes', s.nodes === '3', 'Management cluster is fixed at 3 nodes for disconnected operations.');
             }
         }
 
@@ -5900,9 +6588,14 @@
 
         // Step 01–05: Scenario & Scale
         var scenarioScaleRows = '';
-        if (s.scenario) scenarioScaleRows += row('Scenario', formatScenario(s.scenario));
-        if (s.region) scenarioScaleRows += row('Azure Cloud', formatCloud(s.region));
-        if (s.localInstanceRegion) scenarioScaleRows += row('Azure Local Instance Region', formatLocalInstanceRegion(s.localInstanceRegion));
+        if (s.scenario) scenarioScaleRows += row('Scenario', formatScenario(s.scenario, s));
+        if (s.scenario === 'disconnected' && s.clusterRole) {
+            scenarioScaleRows += row('Cluster Role', s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster');
+            scenarioScaleRows += row('Autonomous Cloud FQDN', s.autonomousCloudFqdn || 'Not configured');
+        } else {
+            if (s.region) scenarioScaleRows += row('Azure Cloud', formatCloud(s.region));
+            if (s.localInstanceRegion) scenarioScaleRows += row('Azure Local Instance Region', formatLocalInstanceRegion(s.localInstanceRegion));
+        }
         if (s.scale) scenarioScaleRows += row('Scale', formatScale(s.scale));
         if (s.nodes) scenarioScaleRows += row('Nodes', s.nodes, true);
         if (s.witnessType) scenarioScaleRows += row('Cloud Witness', s.witnessType === 'Cloud' ? 'Cloud' : 'No Witness');
@@ -6061,19 +6754,31 @@
         if (diagramKey && OUTBOUND_DIAGRAMS[diagramKey]) {
             var diagramUrl = OUTBOUND_DIAGRAMS[diagramKey];
             var diagramTitle = getOutboundDiagramTitle(s);
+            var isDisconnected = s.scenario === 'disconnected';
+            var hasDrawio = isDisconnected && OUTBOUND_DRAWIO[diagramKey];
+            var clusterRoleAttr = (isDisconnected && s.clusterRole) ? ' data-cluster-role="' + escapeHtml(s.clusterRole) + '"' : '';
             connectivityExtra = '<div id="outbound-connectivity-diagram" style="margin-top:1.5rem;">'
                 + '<h4 style="margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">' + escapeHtml(diagramTitle) + '</h4>'
                 + '<div style="border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; background: rgba(0,0,0,0.15);">'
-                + '<img id="outbound-diagram-img" src="' + escapeHtml(diagramUrl) + '" alt="' + escapeHtml(diagramTitle) + '" style="width: 100%; height: auto; display: block; margin: 0 auto;" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\';">'
-                + '<div style="display: none; padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available</div>'
+                + '<div id="outbound-diagram-container" data-diagram-url="' + escapeHtml(diagramUrl) + '"' + clusterRoleAttr + '>'
+                + '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Loading diagram...</div>'
                 + '</div>'
-                + '<div class="no-print" style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">'
+                + '</div>'
+                + '<div class="no-print" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">'
                 + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'light\')">Download SVG (Light)</button>'
                 + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'dark\')">Download SVG (Dark)</button>'
+                + (hasDrawio ? '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDrawio()">Download .drawio</button>' : '')
+                + (isDisconnected ? '<button type="button" class="report-action-button" onclick="window.openDiagramZoom()" title="View diagram in full-screen zoom window">&#x1F50D; Expand</button>' : '')
                 + '</div>'
-                + '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
+                + (isDisconnected && s.clusterRole
+                    ? '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
+                    + '<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ' + (s.clusterRole === 'management' ? '#10b981' : '#3b82f6') + '; margin-right: 4px; vertical-align: middle;"></span>'
+                    + 'Highlighted: <strong>' + (s.clusterRole === 'management' ? 'Management' : 'Workload') + ' Cluster</strong> (your configured cluster role)'
+                    + '</p>'
+                    : '')
+                + (isDisconnected ? '' : '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
                 + '<a href="../docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
-                + '</p>'
+                + '</p>')
                 + '</div>';
         }
 
@@ -6085,6 +6790,14 @@
         if (s.infraCidr) infraNetworkRows += row('Infra Network', s.infraCidr, true);
         if (s.infra && s.infra.start && s.infra.end) infraNetworkRows += row('Infra Range', s.infra.start + ' - ' + s.infra.end, true);
         if (s.infraGateway) infraNetworkRows += row('Default Gateway', s.infraGateway, true);
+        // Display appliance IPs for disconnected management cluster
+        if (s.scenario === 'disconnected' && (s.applianceIp1 || s.applianceIp2)) {
+            var ipLabel = '';
+            if (s.applianceIp1) ipLabel += 'Ingress vNIC: ' + s.applianceIp1;
+            if (s.applianceIp1 && s.applianceIp2) ipLabel += ' · ';
+            if (s.applianceIp2) ipLabel += 'Mgmt vNIC: ' + s.applianceIp2;
+            infraNetworkRows += row('Appliance IPs', ipLabel, true);
+        }
         // Display node IP addresses for ARM template (always shown when nodeSettings is populated)
         if (Array.isArray(s.nodeSettings) && s.nodeSettings.length > 0) {
             var nodeIpList = s.nodeSettings
@@ -6180,15 +6893,14 @@
             metaEl.innerHTML = '<strong>Generated</strong><br>'
                 + escapeHtml(payload.generatedAt || '-')
                 + '<br><strong>Scenario</strong><br>'
-                + escapeHtml(formatScenario(s.scenario));
+                + escapeHtml(formatScenario(s.scenario, s));
         }
 
         if (sumEl) {
             sumEl.innerHTML = renderSummaryCards(s);
+            // Fetch the outbound diagram SVG inline and apply cluster highlighting
+            loadAndHighlightOutboundDiagram();
         }
-
-        // Note: The outbound connectivity diagram is loaded via <img> tag in renderSummaryCards,
-        // so no additional fetch is needed here.
 
         if (valEl) {
             var validations = computeValidations(s);
@@ -6310,3 +7022,4 @@
 
     init();
 })();
+
