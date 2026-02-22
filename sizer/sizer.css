@@ -1359,22 +1359,27 @@ body {
     }
 
     .sizer-header .header-logo-wrapper img {
-        max-height: 80px;
+        max-height: 100px;
     }
 
     .sizer-header .header-version {
-        font-size: 11px;
+        font-size: 13px;
         white-space: normal;
         text-align: center;
     }
 
     .sizer-header .header-content {
-        flex: 1;
-        min-width: 0;
+        width: 100%;
+        text-align: center;
     }
     
     .sizer-header h1 {
         font-size: 24px;
+        text-align: center;
+    }
+    
+    .sizer-header .subtitle {
+        text-align: center;
     }
     
     .workload-types {

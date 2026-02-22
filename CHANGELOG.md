@@ -18,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Export Buttons Below Sizing Notes**: Moved Save as PDF and Download Word buttons from the Sizer header to below the Sizing Notes section for better workflow placement
 - **Shared Changelog Module**: Extracted the `showChangelog()` function into a shared `js/changelog.js` file, reused by both the Designer and Sizer pages
 - **S2D Resiliency Repair Storage Reservation**: The sizer now reserves 1 × capacity disk per node of raw pool space for Storage Spaces Direct repair jobs, up to a maximum of 4 × capacity disks. This deduction is applied before volume creation and reduces reported usable storage accordingly, with a sizing note explaining the reservation
-- **Per-Node Scaling Weight for Node Recommendations**: Node recommendation now assumes the highest available per-node memory (matching the existing approach for CPU cores and disk size), weighting toward fewer, beefier nodes over more, smaller ones. For example, 12 nodes × 64 cores × 2 TB is now preferred over 16 nodes × 48 cores × 1.5 TB when both satisfy the workload
 - **Sizer Workload Analytics Tracking**: Added Firebase analytics tracking for sizer workload additions. Each new workload added (VM, AKS, or AVD) increments a `sizerCalculation` counter, displayed as "Sizes Calculated" on the main page stats bar alongside Page Views, Designs Generated, and ARM Deployments
 
 #### Mobile & UI Polish
@@ -27,8 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sizer: "Estimated Power, Heat & Rack Space"**: Updated the results box heading to include "Heat" since the section displays BTU/hr values
 - **Sizer: Power units expanded to "Watts"**: Power values now display as "Watts" instead of "W" for improved readability
 - **Sizer: BTU Wikipedia link**: "BTU" in the Total BTU/hr label is now a hyperlink to the Wikipedia article for readers unfamiliar with the unit
-- **Sizer: Mobile header logo & What's New**: The ODIN logo and version/What's New text are now visible on mobile devices, centered alongside the header text with appropriate sizing
-- **Sizer: Mobile layout consistency**: On mobile devices, the Sizer header now matches the Designer page — the ODIN logo and What's New link appear centered at the top with the title and subtitle text immediately below, instead of side-by-side
+- **Sizer: Mobile layout consistency**: On mobile devices, the Sizer header now matches the Designer page — ODIN logo and What's New link appear centered at the top with the title and subtitle text immediately below, instead of side-by-side
 
 #### Sizer Defaults
 
@@ -54,6 +52,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Memory Headroom Threshold**: Raised the memory headroom threshold from 80% to 85% to avoid expensive DIMM tier jumps (e.g. 1 TB → 1.5 TB) when utilisation is comfortably below 85%. CPU and storage headroom remain at 80%
 - **Bidirectional Memory & CPU Auto-Scaling**: Memory and CPU core auto-scaling now reduce per-node values when more nodes are available (e.g. after a node count increase or manual memory reduction), instead of only ever increasing. This keeps per-node memory at the smallest sufficient DIMM option and CPU cores at the smallest sufficient core count for the workload
 - **Sizing Notes Reorder & Updates**: Cluster size and N+1 capacity note is now the first sizing note (e.g. "5 x Node Cluster - N+1 capacity: hardware requirements calculated assuming 4 nodes available during servicing / maintenance"). Hardware note updated to "Per node hardware configuration" format
+- **iOS Safari Mobile Centering**: Fixed centering of logo, What's New link, and title/subtitle text on iOS Safari mobile devices by using explicit width and text-align properties instead of flex shorthand
+- **Mobile Logo & Text Size**: Increased logo max-height from 80 px to 100 px and version/What's New font-size from 11 px to 13 px on mobile for improved readability
+- **Node Preference over Ratio/Memory Escalation**: The sizer now prefers adding additional nodes before escalating the vCPU-to-pCPU ratio above 4:1 or bumping per-node memory above 2 TB. Auto-scaling operates in a conservative mode that caps memory at 2 TB and holds ratio at 4:1; an aggressive pass runs only when conservative scaling cannot fit workloads at the current node count
+- **Auto-Down-Scaling after Aggressive Pass**: After the aggressive pass bumps memory or ratio above conservative limits, a node-reduction loop steps the node count back down while keeping utilization under 90 %, re-running conservative auto-scale at each step and reverting if any dimension exceeds the threshold
+- **Resiliency Sync after Node Recommendation**: Fixed sizing notes and capacity calculations showing "Two-way mirror" while the dropdown displayed "Three-Way" for large clusters. `updateNodeRecommendation()` internally calls `updateResiliencyOptions()` which changes the dropdown, but the local resiliency variables were not re-read afterwards — all downstream calculations (auto-scale, capacity bars, sizing notes) used stale 2-way values
+- **Deterministic Node Estimation**: Fixed adding future growth (e.g. 10%) paradoxically reducing the recommended node count. `buildMaxHardwareConfig()` was reading the stale node count from the DOM to determine the memory cap — with 12 nodes displayed it used a 2 TB cap, making each node appear more capable and recommending fewer nodes despite higher requirements. Now always uses a fixed 1.5 TB cap for deterministic results
+- **AMD Auto-Switch before 6:1 Ratio**: Before escalating the vCPU-to-pCPU ratio from 5:1 to 6:1, the sizer now checks if switching to an AMD CPU generation with more physical cores (e.g. AMD Turin with up to 192 cores/socket = 384 dual-socket) would resolve compute pressure at the current 5:1 ratio. This keeps the overcommit ratio lower by adding real physical cores instead of increasing virtualisation density
+
+### Added
+
+#### Tests: Large Cluster & Scaling Test Suites
+
+- **NODE_WEIGHT constant tests**: Validates `NODE_WEIGHT_PREFERRED_MEMORY_GB` (1536), `NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB` (2048), and `NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD` (10)
+- **buildMaxHardwareConfig deterministic memory cap tests**: Verifies the fixed 1.5 TB cap applies regardless of current node count, ensuring deterministic results
+- **autoScaleHardware conservative mode tests**: Confirms memory is capped at 2 TB and vCPU ratio stays at 4:1 in the default conservative path
+- **autoScaleHardware aggressive mode tests**: Confirms memory can exceed 2 TB and vCPU ratio can escalate when aggressive options are enabled
+- **AMD auto-switch tests**: Unit tests for `_tryAmdCoreUpgrade()` helper (switches to AMD, picks smallest sufficient core count, returns null when AMD can't help) and integration test verifying aggressive auto-scale switches to AMD at 5:1 instead of escalating to 6:1
+- **Large cluster node recommendation tests**: Validates node counts for compute-driven, memory-heavy, storage-heavy, and future-growth scenarios
+- **Node preference verification test**: Asserts that a 2 TB memory cap recommends more nodes than a 4 TB cap, confirming the preference for nodes over expensive hardware
 
 ---
 

@@ -3192,7 +3192,7 @@
                 nodeStub = document.createElement('select');
                 nodeStub.id = 'node-count';
                 nodeStub.style.display = 'none';
-                [1,2,3,4,5,6,7,8].forEach(v => {
+                [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16].forEach(v => {
                     const opt = document.createElement('option');
                     opt.value = v;
                     opt.text = v;
@@ -3981,6 +3981,670 @@
         ]);
 
         // ========================================================================
+        // NODE-PREFERENCE SCALING TESTS
+        // ========================================================================
+        sectionHeader('🔄 Sizer: Node-Preference Scaling (prefer nodes over ratio/memory)');
+
+        // --- Constants validation ---
+        testSuite('NODE_WEIGHT_PREFERRED_MEMORY constants', 'sizer.js', [
+            assert(NODE_WEIGHT_PREFERRED_MEMORY_GB === 1536,
+                'Small cluster memory cap = 1536 GB (1.5 TB)', 1536, NODE_WEIGHT_PREFERRED_MEMORY_GB),
+            assert(NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB === 2048,
+                'Large cluster memory cap = 2048 GB (2 TB)', 2048, NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB),
+            assert(NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD === 10,
+                'Large cluster threshold = 10 nodes', 10, NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD)
+        ]);
+
+        // --- buildMaxHardwareConfig: deterministic memory cap (always 1.5 TB) ---
+        // buildMaxHardwareConfig no longer reads the current node count from the DOM
+        // to determine the memory cap. It always uses NODE_WEIGHT_PREFERRED_MEMORY_GB
+        // (1536 GB) to ensure deterministic results regardless of previous state.
+        // This prevents adding growth from reducing the recommended node count.
+        testSuite('buildMaxHardwareConfig() - deterministic memory cap', 'sizer.js', [
+            (() => {
+                // Even with 12 nodes displayed, memory cap should be 1536 (not 2048)
+                const hw = {
+                    coresPerSocket: 24,
+                    sockets: 2,
+                    memoryGB: 256,
+                    generation: { coreOptions: [8, 24] },
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                let ncStub = document.getElementById('node-count');
+                const createdNc = !ncStub;
+                if (createdNc) {
+                    ncStub = document.createElement('select');
+                    ncStub.id = 'node-count';
+                    ncStub.style.display = 'none';
+                    document.body.appendChild(ncStub);
+                }
+                const savedNodeVal = ncStub.value;
+                ncStub.value = '12';
+                const savedMemFlag = _memoryUserSet;
+                _memoryUserSet = false;
+                const maxHw = buildMaxHardwareConfig(hw);
+                _memoryUserSet = savedMemFlag;
+                ncStub.value = savedNodeVal;
+                if (createdNc) ncStub.remove();
+                return assert(maxHw.memoryGB === 1536,
+                    'Large cluster (12 nodes): memory cap is 1536 GB (deterministic)', 1536, maxHw.memoryGB);
+            })(),
+            (() => {
+                // At threshold (10 nodes), memory cap should still be 1536
+                const hw = {
+                    coresPerSocket: 24,
+                    sockets: 2,
+                    memoryGB: 256,
+                    generation: { coreOptions: [8, 24] },
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                let ncStub = document.getElementById('node-count');
+                const createdNc = !ncStub;
+                if (createdNc) {
+                    ncStub = document.createElement('select');
+                    ncStub.id = 'node-count';
+                    ncStub.style.display = 'none';
+                    document.body.appendChild(ncStub);
+                }
+                const savedNodeVal = ncStub.value;
+                ncStub.value = '10';
+                const savedMemFlag = _memoryUserSet;
+                _memoryUserSet = false;
+                const maxHw = buildMaxHardwareConfig(hw);
+                _memoryUserSet = savedMemFlag;
+                ncStub.value = savedNodeVal;
+                if (createdNc) ncStub.remove();
+                return assert(maxHw.memoryGB === 1536,
+                    'At threshold (10 nodes): memory cap is 1536 GB (deterministic)', 1536, maxHw.memoryGB);
+            })(),
+            (() => {
+                // Below threshold (9 nodes), memory cap is also 1536 (same for all)
+                const hw = {
+                    coresPerSocket: 24,
+                    sockets: 2,
+                    memoryGB: 256,
+                    generation: { coreOptions: [8, 24] },
+                    diskConfig: { isTiered: false, capacity: { count: 4, sizeGB: 3584, type: 'NVMe' } }
+                };
+                let ncStub = document.getElementById('node-count');
+                const createdNc = !ncStub;
+                if (createdNc) {
+                    ncStub = document.createElement('select');
+                    ncStub.id = 'node-count';
+                    ncStub.style.display = 'none';
+                    document.body.appendChild(ncStub);
+                }
+                const savedNodeVal = ncStub.value;
+                ncStub.value = '9';
+                const savedMemFlag = _memoryUserSet;
+                _memoryUserSet = false;
+                const maxHw = buildMaxHardwareConfig(hw);
+                _memoryUserSet = savedMemFlag;
+                ncStub.value = savedNodeVal;
+                if (createdNc) ncStub.remove();
+                return assert(maxHw.memoryGB === 1536,
+                    'Below threshold (9 nodes): memory cap is 1536 GB (deterministic)', 1536, maxHw.memoryGB);
+            })()
+        ]);
+
+        // --- autoScaleHardware: conservative mode caps ---
+        // Create all required DOM stubs for autoScaleHardware tests
+        (() => {
+            const stubConfigs = [
+                { id: 'vcpu-ratio', tag: 'select', values: ['1','2','3','4','5','6','8'], defaultVal: '4' },
+                { id: 'node-memory', tag: 'select', values: MEMORY_OPTIONS_GB.map(String), defaultVal: '512' },
+                { id: 'cpu-manufacturer', tag: 'select', values: ['intel','amd'], defaultVal: 'intel' },
+                { id: 'cpu-generation', tag: 'select', values: ['xeon-5th'], defaultVal: 'xeon-5th' },
+                { id: 'cpu-cores', tag: 'select', values: ['8','16','24','32','48','64'], defaultVal: '24' },
+                { id: 'cpu-sockets', tag: 'select', values: ['1','2'], defaultVal: '2' },
+                { id: 'capacity-disk-count', tag: 'input', defaultVal: '4' },
+                { id: 'capacity-disk-size', tag: 'select', values: DISK_SIZE_OPTIONS_TB.map(String), defaultVal: '3.84' },
+                { id: 'node-count', tag: 'select', values: ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'], defaultVal: '3' },
+                { id: 'cluster-type', tag: 'select', values: ['single','standard','rack-aware'], defaultVal: 'standard' },
+                { id: 'future-growth', tag: 'select', values: ['0','10','20','30','40','50'], defaultVal: '0' },
+                { id: 'resiliency', tag: 'select', values: ['simple','2way','3way','4way'], defaultVal: '2way' },
+                { id: 'node-recommendation', tag: 'div', defaultVal: '' },
+                { id: 'node-recommendation-text', tag: 'span', defaultVal: '' },
+                { id: 'storage-config', tag: 'select', values: ['all-flash','mixed-flash','hybrid'], defaultVal: 'all-flash' }
+            ];
+            stubConfigs.forEach(cfg => {
+                let el = document.getElementById(cfg.id);
+                if (!el) {
+                    el = document.createElement(cfg.tag);
+                    el.id = cfg.id;
+                    el.style.display = 'none';
+                    if (cfg.values) {
+                        cfg.values.forEach(v => {
+                            const opt = document.createElement('option');
+                            opt.value = v;
+                            opt.text = v;
+                            el.appendChild(opt);
+                        });
+                    }
+                    document.body.appendChild(el);
+                }
+                if (cfg.defaultVal) el.value = cfg.defaultVal;
+            });
+            // Ensure node-recommendation div exists
+            if (!document.getElementById('node-recommendation')) {
+                const recDiv = document.createElement('div');
+                recDiv.id = 'node-recommendation';
+                recDiv.style.display = 'none';
+                document.body.appendChild(recDiv);
+            }
+            if (!document.getElementById('node-recommendation-text')) {
+                const recText = document.createElement('span');
+                recText.id = 'node-recommendation-text';
+                recText.style.display = 'none';
+                document.body.appendChild(recText);
+            }
+        })();
+
+        testSuite('autoScaleHardware() - conservative mode (default)', 'sizer.js', [
+            (() => {
+                // Conservative mode should cap memory at 2 TB even when workload needs more
+                // Setup: 16 nodes, huge memory requirement that would need 3 TB per node
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskFlag = _diskConfigUserSet;
+                _memoryUserSet = false;
+                _vcpuRatioUserSet = false;
+                _cpuConfigUserSet = true; // lock CPU so test focuses on memory
+                _diskConfigUserSet = true; // lock disk so test focuses on memory
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('node-memory').value = '512';
+                const nodeCount = 12;
+                const hwConfig = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 512,
+                    sockets: 2,
+                    coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // ~30,000 GB total memory across 11 effective nodes = ~2727 GB per node needed
+                autoScaleHardware(1000, 30000, 10000, nodeCount, 2, hwConfig, new Set());
+                const resultMem = parseInt(document.getElementById('node-memory').value);
+                const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
+                // Restore
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskConfigUserSet = savedDiskFlag;
+                return assert(resultMem <= 2048,
+                    'Conservative mode caps memory at 2048 GB (2 TB)', '≤ 2048', resultMem);
+            })(),
+            (() => {
+                // Conservative mode should NOT escalate vCPU ratio beyond 4:1
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskFlag = _diskConfigUserSet;
+                _memoryUserSet = true; // lock memory
+                _vcpuRatioUserSet = false;
+                _cpuConfigUserSet = false;
+                _diskConfigUserSet = true;
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                const nodeCount = 10;
+                const hwConfig = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    sockets: 2,
+                    coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // Huge vCPU demand: 10000 vCPUs across 9 effective nodes at 4:1 = need 278 cores/node
+                // With 128 cores, CPU at ~86%. Should NOT bump to 5:1 in conservative mode.
+                autoScaleHardware(10000, 1000, 10000, nodeCount, 2, hwConfig, new Set());
+                const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskConfigUserSet = savedDiskFlag;
+                return assert(resultRatio === 4,
+                    'Conservative mode keeps vCPU ratio at 4:1', 4, resultRatio);
+            })()
+        ]);
+
+        testSuite('autoScaleHardware() - aggressive mode (allowRatioEscalation + allowHighMemory)', 'sizer.js', [
+            (() => {
+                // Aggressive mode should allow memory above 2 TB
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskFlag = _diskConfigUserSet;
+                _memoryUserSet = false;
+                _vcpuRatioUserSet = false;
+                _cpuConfigUserSet = true;
+                _diskConfigUserSet = true;
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('node-memory').value = '512';
+                const nodeCount = 12;
+                const hwConfig = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 512,
+                    sockets: 2,
+                    coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // ~30,000 GB total memory, 11 effective nodes = ~2727 GB per node needed
+                autoScaleHardware(1000, 30000, 10000, nodeCount, 2, hwConfig, new Set(),
+                    { allowRatioEscalation: true, allowHighMemory: true });
+                const resultMem = parseInt(document.getElementById('node-memory').value);
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskConfigUserSet = savedDiskFlag;
+                return assert(resultMem > 2048,
+                    'Aggressive mode allows memory above 2 TB', '> 2048', resultMem);
+            })(),
+            (() => {
+                // Aggressive mode should allow vCPU ratio escalation (4→5 or 5→6)
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskFlag = _diskConfigUserSet;
+                const savedGenHtml2 = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml2 = document.getElementById('cpu-cores').innerHTML;
+                const savedMfg2 = document.getElementById('cpu-manufacturer').value;
+                const savedGen2 = document.getElementById('cpu-generation').value;
+                const savedCores2 = document.getElementById('cpu-cores').value;
+                const savedSockets2 = document.getElementById('cpu-sockets').value;
+                _memoryUserSet = true;
+                _vcpuRatioUserSet = false;
+                _cpuConfigUserSet = false;
+                _diskConfigUserSet = true;
+                _vcpuRatioAutoEscalated = false;
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+                const nodeCount = 10;
+                const hwConfig = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    sockets: 2,
+                    coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // Huge vCPU demand that exceeds capacity at 4:1
+                autoScaleHardware(10000, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
+                    { allowRatioEscalation: true, allowHighMemory: true });
+                const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml2;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml2;
+                document.getElementById('cpu-manufacturer').value = savedMfg2;
+                document.getElementById('cpu-generation').value = savedGen2;
+                document.getElementById('cpu-cores').value = savedCores2;
+                document.getElementById('cpu-sockets').value = savedSockets2;
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskConfigUserSet = savedDiskFlag;
+                return assert(resultRatio > 4,
+                    'Aggressive mode escalates vCPU ratio above 4:1', '> 4', resultRatio);
+            })()
+        ]);
+
+        // --- _tryAmdCoreUpgrade: AMD auto-switch before 6:1 ---
+        testSuite('_tryAmdCoreUpgrade() - AMD auto-switch before 6:1 ratio', 'sizer.js', [
+            (() => {
+                // When Intel is maxed at 128 cores (64×2) and compute is still hot at 5:1,
+                // switching to AMD Turin Dense (192 cores/socket = 384 dual) should resolve it
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+
+                // 5000 vCPUs, 9 effective nodes, ratio 5:1
+                // Intel: 64×2×9×5 = 5760 → 87% OK but just under
+                // Need something where Intel is just not enough:
+                // 6000 vCPUs at 5:1 with 10 eff nodes: need 6000/(10×5) = 120 cores/node
+                // Intel maxed at 128 → 128×10×5 = 6400 → 94% ≥ 90%
+                // AMD Turin 128 cores: 128×2×10×5 = 12800 → 47% < 90% ✓
+                const result = _tryAmdCoreUpgrade(6000, 10, 5, 64, 2, 90);
+
+                const resultMfg = document.getElementById('cpu-manufacturer').value;
+                const resultGen = document.getElementById('cpu-generation').value;
+                const resultCores = parseInt(document.getElementById('cpu-cores').value);
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+
+                return assert(result !== null && resultMfg === 'amd',
+                    'Switches to AMD when Intel cores maxed and compute hot at 5:1',
+                    'amd', resultMfg);
+            })(),
+            (() => {
+                // Should pick smallest AMD core count that resolves pressure
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+
+                // 6000 vCPUs, 10 eff nodes, 5:1 ratio
+                // Need per-node > 120 phys cores
+                // AMD Turin Dense 96 cores: 96×2=192 → 192×10×5=9600 → 63% < 90% ✓
+                // (picks smallest Turin Dense option that resolves pressure)
+                const result = _tryAmdCoreUpgrade(6000, 10, 5, 64, 2, 90);
+
+                const resultCores = result ? result.cores : null;
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+
+                return assert(result !== null && resultCores > 64,
+                    'Picks AMD generation with cores > current Intel max',
+                    '> 64', resultCores);
+            })(),
+            (() => {
+                // Should return null when already on AMD with max cores
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                document.getElementById('cpu-manufacturer').value = 'amd';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.amd.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'epyc-5th-c';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.amd.find(g => g.id === 'epyc-5th-c').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '192';
+                document.getElementById('cpu-sockets').value = '2';
+
+                // 50000 vCPUs — even AMD Turin Dense max (384 cores) can't help at 5:1
+                // 384×10×5 = 19200, 50000/19200 = 260% — way over
+                const result = _tryAmdCoreUpgrade(50000, 10, 5, 192, 2, 90);
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+
+                return assert(result === null,
+                    'Returns null when AMD max cores cannot resolve pressure',
+                    null, result);
+            })(),
+            (() => {
+                // Integration: aggressive auto-scale should switch to AMD before going to 6:1
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskFlag = _diskConfigUserSet;
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedRatio = document.getElementById('vcpu-ratio').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                _memoryUserSet = true;
+                _vcpuRatioUserSet = false;
+                _cpuConfigUserSet = false;
+                _diskConfigUserSet = true;
+                _vcpuRatioAutoEscalated = false;
+
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+
+                const nodeCount = 10;
+                const hwConfig = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    sockets: 2,
+                    coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // 6000 vCPUs: at 4:1 → 128×9×4 = 4608 → 130% (maxed at 4), → 5:1 → 128×9×5 = 5760 → 104%
+                // Still ≥90% at 5:1, so should try AMD before going to 6:1
+                // AMD Turin Dense 96×2=192 → 192×9×5 = 8640 → 69% < 90% ✓ → switch!
+                // Then re-check at 4:1: 192×9×4 = 6912 → 87% < 90% ✓ → step ratio back to 4:1
+                autoScaleHardware(6000, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
+                    { allowRatioEscalation: true, allowHighMemory: true });
+
+                const resultMfg = document.getElementById('cpu-manufacturer').value;
+                const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+                document.getElementById('vcpu-ratio').value = savedRatio;
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskConfigUserSet = savedDiskFlag;
+
+                // Should have switched to AMD and stepped ratio back to 4:1
+                return assert(resultMfg === 'amd' && resultRatio === 4,
+                    'AMD switch allows ratio to step back from 5:1 to 4:1',
+                    'amd @ 4:1', resultMfg + ' @ ' + resultRatio + ':1');
+            })(),
+            (() => {
+                // Integration: AMD switch keeps 5:1 when 4:1 would still exceed threshold
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskFlag = _diskConfigUserSet;
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedRatio = document.getElementById('vcpu-ratio').value;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+
+                _memoryUserSet = true;
+                _vcpuRatioUserSet = false;
+                _cpuConfigUserSet = false;
+                _diskConfigUserSet = true;
+                _vcpuRatioAutoEscalated = false;
+
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-sockets').value = '2';
+
+                const nodeCount2 = 10;
+                const hwConfig2 = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    sockets: 2,
+                    coresPerSocket: 64,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // 6500 vCPUs: at 5:1, AMD 96×2=192 → 192×9×5 = 8640 → 75% < 90% ✓
+                // Re-check at 4:1: 192×9×4 = 6912 → 94% ≥ 90% → stays at 5:1
+                autoScaleHardware(6500, 1000, 10000, nodeCount2, 2, hwConfig2, new Set(),
+                    { allowRatioEscalation: true, allowHighMemory: true });
+
+                const resultMfg2 = document.getElementById('cpu-manufacturer').value;
+                const resultRatio2 = parseInt(document.getElementById('vcpu-ratio').value);
+
+                // Restore
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+                document.getElementById('vcpu-ratio').value = savedRatio;
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskConfigUserSet = savedDiskFlag;
+
+                // Should have switched to AMD but kept ratio at 5:1 (4:1 would be ≥90%)
+                return assert(resultMfg2 === 'amd' && resultRatio2 === 5,
+                    'AMD switch keeps 5:1 when 4:1 would exceed threshold',
+                    'amd @ 5:1', resultMfg2 + ' @ ' + resultRatio2 + ':1');
+            })()
+        ]);
+
+        // --- getRecommendedNodeCount: large cluster scenarios ---
+        testSuite('getRecommendedNodeCount() - large cluster scenarios', 'sizer.js', [
+            (() => {
+                // 1000 VMs × 4 vCPUs = 4000 vCPUs, × 16 GB = 16000 GB
+                // With max hw: 128 cores × 4:1 = 512 vCPUs/node → 4000/512 = 8 compute nodes + N+1 = 9
+                document.getElementById('vcpu-ratio').value = '4';
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 15728.64, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(4000, 16000, 128000, hw, 2, '2way');
+                return assert(r.recommended >= 9 && r.recommended <= 16,
+                    '1000 VMs: recommends 9-16 nodes (compute-driven)',
+                    '9-16', r.recommended);
+            })(),
+            (() => {
+                // Memory-heavy: 500 VMs × 64 GB = 32000 GB memory
+                // With 2 TB per node: 32000 / (2048-32) = 16 nodes needed for memory
+                document.getElementById('vcpu-ratio').value = '4';
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 15728.64, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(2000, 32000, 50000, hw, 2, '2way');
+                return assert(r.bottleneck === 'memory',
+                    '500 VMs × 64 GB: memory is the bottleneck', 'memory', r.bottleneck);
+            })(),
+            (() => {
+                // Storage-heavy: 100 VMs × 10 TB = 1,000,000 GB storage
+                document.getElementById('vcpu-ratio').value = '4';
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 15728.64, type: 'NVMe' } }
+                };
+                const r = getRecommendedNodeCount(400, 1600, 1000000, hw, 2, '2way');
+                return assert(r.bottleneck === 'storage',
+                    '100 VMs × 10 TB: storage is the bottleneck', 'storage', r.bottleneck);
+            })(),
+            (() => {
+                // 2-way mirror with growth: total needs N+1 for compute/memory
+                document.getElementById('vcpu-ratio').value = '4';
+                const hw = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 15728.64, type: 'NVMe' } }
+                };
+                // After 10% growth: 4400 vCPUs, 17600 GB memory
+                const r = getRecommendedNodeCount(4400, 17600, 140800, hw, 2, '2way');
+                // compute: 4400/(128*4)=8.6 → 9 nodes + N+1 = 10
+                return assert(r.recommended >= 10,
+                    'With 10% growth: recommends >= 10 nodes', '>= 10', r.recommended);
+            })()
+        ]);
+
+        // --- Node preference: nodes over ratio/memory scaling ---
+        testSuite('Node preference: nodes preferred over ratio escalation', 'sizer.js', [
+            (() => {
+                // The node recommendation with 2 TB memory cap should recommend MORE
+                // nodes than with 4 TB memory cap for the same workload
+                document.getElementById('vcpu-ratio').value = '4';
+                const hw2tb = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 2048,  // 2 TB cap
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 15728.64, type: 'NVMe' } }
+                };
+                const hw4tb = {
+                    totalPhysicalCores: 128,
+                    memoryGB: 4096,  // 4 TB cap
+                    diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 15728.64, type: 'NVMe' } }
+                };
+                // 20000 GB memory / (2048-32) = 10 mem nodes at 2TB vs 20000/(4096-32)=5 at 4TB
+                const r2tb = getRecommendedNodeCount(2000, 20000, 50000, hw2tb, 2, '2way');
+                const r4tb = getRecommendedNodeCount(2000, 20000, 50000, hw4tb, 2, '2way');
+                return assert(r2tb.recommended > r4tb.recommended,
+                    '2 TB cap recommends more nodes than 4 TB cap',
+                    r2tb.recommended + ' > ' + r4tb.recommended,
+                    r2tb.recommended + ' > ' + r4tb.recommended);
+            })(),
+            (() => {
+                // Verify buildMaxHardwareConfig always uses 1.5 TB cap (deterministic)
+                // regardless of current node count — prevents growth from reducing nodes
+                let ncStub = document.getElementById('node-count');
+                const savedNodeVal = ncStub.value;
+                ncStub.value = '14';
+                const savedMemFlag = _memoryUserSet;
+                _memoryUserSet = false;
+                document.getElementById('vcpu-ratio').value = '4';
+                const hw = {
+                    coresPerSocket: 64,
+                    sockets: 2,
+                    memoryGB: 512,
+                    generation: { coreOptions: [8, 16, 24, 32, 48, 64] },
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                _memoryUserSet = savedMemFlag;
+                ncStub.value = savedNodeVal;
+                // maxHwConfig should use 1.5 TB cap always (deterministic)
+                return assert(maxHw.memoryGB === 1536,
+                    'buildMaxHardwareConfig uses 1.5 TB cap for 14-node cluster (deterministic)', 1536, maxHw.memoryGB);
+            })()
+        ]);
+
+        // ========================================================================
         // v0.16.01 NEW FEATURE TESTS
         // ========================================================================
         sectionHeader('🆕 v0.16.01 New Features');
@@ -4053,18 +4717,18 @@
                 return assert(scaledTdp === 166, 'Min cores (8/64): TDP = 166W', 166, scaledTdp);
             })(),
             (() => {
-                // AMD Turin full: 192/192 → 500W
+                // AMD Turin Dense full: 192/192 → 500W
                 const maxTdp = 500;
                 const coreRatio = 192 / 192;
                 const scaledTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
-                return assert(scaledTdp === 500, 'AMD Turin full (192/192): TDP = 500W', 500, scaledTdp);
+                return assert(scaledTdp === 500, 'AMD Turin Dense full (192/192): TDP = 500W', 500, scaledTdp);
             })(),
             (() => {
-                // AMD Turin 32 cores: 32/192 → ratio=0.167, TDP = 500 × (0.4 + 0.6×0.167) = 500 × 0.5 = 250W
+                // AMD Turin Dense 32 cores: 32/192 → ratio=0.167, TDP = 500 × (0.4 + 0.6×0.167) = 500 × 0.5 = 250W
                 const maxTdp = 500;
                 const coreRatio = 32 / 192;
                 const scaledTdp = Math.round(maxTdp * (0.4 + 0.6 * coreRatio));
-                return assert(scaledTdp === 250, 'AMD Turin 32 cores (32/192): TDP = 250W', 250, scaledTdp);
+                return assert(scaledTdp === 250, 'AMD Turin Dense 32 cores (32/192): TDP = 250W', 250, scaledTdp);
             })(),
             (() => {
                 // Verify scaling always >= 40% of max TDP (uncore floor)
