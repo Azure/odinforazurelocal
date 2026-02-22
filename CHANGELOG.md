@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.00] - 2026-02-23
+
+### Added
+
+#### Disconnected Operations Wizard
+- **Cluster Role Selection (D1 Step)**: New wizard step for selecting Management Cluster (fixed 3 nodes, hosts disconnected operations appliance VM providing local Azure Portal and CLI control plane) or Workload Cluster (1–16 nodes, connects to management cluster via Autonomous Cloud FQDN)
+- **Autonomous Cloud FQDN Endpoint (D2 Step)**: FQDN input with real-time validation and confirm/edit gate — all subsequent wizard steps are hidden until FQDN is confirmed
+- **Disconnected Context Banner**: "Why Azure Cloud & Region are still required" info banner displayed for management clusters as soon as the FQDN step is visible
+- **Disconnected Operations Module**: New `js/disconnected.js` module encapsulating all disconnected wizard logic, UI management, FQDN validation, and cluster role constraints
+
+#### Disconnected Network Diagrams
+- **26 Draw.io Diagrams**: Complete set of network topology diagrams covering all intent configurations × 2 outbound modes (Limited Connectivity + Air-Gapped):
+  - Fully converged (1 intent), Disaggregated (3 intents), Mgmt+Compute (2 intents)
+  - Compute+Storage, 4-intent, 4-storage port configurations
+  - Switchless 2/3/4-node variants
+  - Single-node workload cluster with fully converged, mgmt+compute/storage, and disaggregated intent variants
+  - 1-workload-cluster management cluster variants
+- **Intelligent Diagram Routing**: Automatic diagram selection in reports based on cluster role, node count, intent type, storage topology (switched/switchless), port count, and custom NIC assignments
+
+### Changed
+- **Disconnected Scenario Description**: Updated to "No Internet connection required. Arc Gateway and private endpoint features are unavailable. Management clusters are fixed at 3 nodes; workload clusters support 1–16 nodes. Selection between Air-Gapped or limited connectivity options for Azure Local disconnected operations will be requested during the wizard."
+- **Management Cluster Description**: Updated to "This cluster hosts the disconnected operations appliance VM that provides the local Azure Portal and CLI control plane. The management cluster is fixed at 3 nodes."
+- **Disconnected Outbound Comparison**: Removed cons section from Air-Gapped and Limited Connectivity comparison cards; removed "Supports essential cloud management and updates" from Limited Connectivity pros
+- **DNS Validation**: DNS servers are now validated against node IPs and default gateway to prevent IP conflicts
+- **Scenario Formatting**: `formatScenario()` now distinguishes between Air-Gapped and Limited Connectivity for disconnected scenarios
+
+---
+
 ## [0.16.04] - 2026-02-20
 
 ### Changed

@@ -54,7 +54,10 @@ function formatScenario(val) {
     if (!val) return '';
     if (val === 'hyperconverged') return 'Hyperconverged';
     if (val === 'multirack') return 'Multi-Rack';
-    if (val === 'disconnected') return 'Disconnected (Air Gapped)';
+    if (val === 'disconnected') {
+        if (typeof state !== 'undefined' && state.outbound === 'limited') return 'Disconnected (Limited Connectivity)';
+        return 'Disconnected (Air Gapped)';
+    }
     if (val === 'm365local') return 'M365 Local';
     return capitalize(val);
 }

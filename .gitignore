@@ -34,3 +34,11 @@ test-results/
 *.tmp
 *.temp
 .cache/
+
+# Draw.io editor backups
+*.bkp
+
+# Diagram analysis/debug artifacts
+scripts/*.txt
+docs/drawio-structure-analysis.txt
+docs/disconnected-operations/*.json

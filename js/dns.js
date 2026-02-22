@@ -232,6 +232,58 @@ function validateAllDnsServers() {
         }
     }
 
+    // Check conflict with node IPs
+    if (state.nodeSettings && state.nodeSettings.length > 0) {
+        for (const server of validServers) {
+            for (let i = 0; i < state.nodeSettings.length; i++) {
+                const node = state.nodeSettings[i];
+                if (node && node.ipCidr) {
+                    const nodeIp = node.ipCidr.split('/')[0];
+                    if (server === nodeIp) {
+                        if (err) {
+                            err.innerText = `DNS server ${server} conflicts with Node ${i + 1} IP (${nodeIp}).`;
+                            err.classList.remove('hidden');
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    // Check conflict with default gateway
+    if (state.infraGateway) {
+        for (const server of validServers) {
+            if (server === state.infraGateway) {
+                if (err) {
+                    err.innerText = `DNS server ${server} conflicts with the default gateway (${state.infraGateway}).`;
+                    err.classList.remove('hidden');
+                }
+                return;
+            }
+        }
+    }
+
+    // Check conflict with appliance IPs (disconnected management cluster)
+    if (state.applianceIp1 || state.applianceIp2) {
+        for (const server of validServers) {
+            if (state.applianceIp1 && server === state.applianceIp1) {
+                if (err) {
+                    err.innerText = `DNS server ${server} conflicts with Appliance IP 1 (Ingress vNIC).`;
+                    err.classList.remove('hidden');
+                }
+                return;
+            }
+            if (state.applianceIp2 && server === state.applianceIp2) {
+                if (err) {
+                    err.innerText = `DNS server ${server} conflicts with Appliance IP 2 (Mgmt vNIC).`;
+                    err.classList.remove('hidden');
+                }
+                return;
+            }
+        }
+    }
+
     // Valid
     if (succ) {
         succ.innerText = `✓ ${validServers.length} DNS server(s) configured`;
