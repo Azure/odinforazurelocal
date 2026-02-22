@@ -96,8 +96,8 @@ const CPU_GENERATIONS = {
             id: 'epyc-5th',
             name: 'AMD 5th Gen EPYC™ (Turin)',
             minCores: 8,
-            maxCores: 192,
-            coreOptions: [8, 16, 24, 32, 36, 48, 64, 72, 96, 128, 144, 160, 192],
+            maxCores: 128,
+            coreOptions: [8, 16, 24, 32, 36, 48, 64, 72, 96, 128],
             defaultCores: 32,
             architecture: 'Zen 5',
             socket: 'SP5 (LGA 6096)',
@@ -1120,7 +1120,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             // nodes first. Only allow escalation in the final aggressive pass when nodes are maxed.
             //
             // Before escalating from 5→6, try switching to an AMD generation with more
-            // physical cores (e.g. AMD Turin with 192 cores/socket = 384 cores dual-socket).
+            // physical cores (e.g. AMD Turin Dense with 192 cores/socket = 384 cores dual-socket).
             // This keeps the overcommit ratio lower (5:1) by adding real physical cores.
             const VCPU_ESCALATION_THRESHOLD = 90;
             const VCPU_RATIO_STEPS = [5, 6];
