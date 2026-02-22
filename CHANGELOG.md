@@ -18,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Export Buttons Below Sizing Notes**: Moved Save as PDF and Download Word buttons from the Sizer header to below the Sizing Notes section for better workflow placement
 - **Shared Changelog Module**: Extracted the `showChangelog()` function into a shared `js/changelog.js` file, reused by both the Designer and Sizer pages
 - **S2D Resiliency Repair Storage Reservation**: The sizer now reserves 1 × capacity disk per node of raw pool space for Storage Spaces Direct repair jobs, up to a maximum of 4 × capacity disks. This deduction is applied before volume creation and reduces reported usable storage accordingly, with a sizing note explaining the reservation
-- **Per-Node Scaling Weight for Node Recommendations**: Node recommendation now assumes the highest available per-node memory (matching the existing approach for CPU cores and disk size), weighting toward fewer, beefier nodes over more, smaller ones. For example, 12 nodes × 64 cores × 2 TB is now preferred over 16 nodes × 48 cores × 1.5 TB when both satisfy the workload
 - **Sizer Workload Analytics Tracking**: Added Firebase analytics tracking for sizer workload additions. Each new workload added (VM, AKS, or AVD) increments a `sizerCalculation` counter, displayed as "Sizes Calculated" on the main page stats bar alongside Page Views, Designs Generated, and ARM Deployments
 
 #### Mobile & UI Polish
@@ -27,8 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sizer: "Estimated Power, Heat & Rack Space"**: Updated the results box heading to include "Heat" since the section displays BTU/hr values
 - **Sizer: Power units expanded to "Watts"**: Power values now display as "Watts" instead of "W" for improved readability
 - **Sizer: BTU Wikipedia link**: "BTU" in the Total BTU/hr label is now a hyperlink to the Wikipedia article for readers unfamiliar with the unit
-- **Sizer: Mobile header logo & What's New**: The ODIN logo and version/What's New text are now visible on mobile devices, centered alongside the header text with appropriate sizing
-- **Sizer: Mobile layout consistency**: On mobile devices, the Sizer header now matches the Designer page — the ODIN logo and What's New link appear centered at the top with the title and subtitle text immediately below, instead of side-by-side
+- **Sizer: Mobile layout consistency**: On mobile devices, the Sizer header now matches the Designer page — ODIN logo and What's New link appear centered at the top with the title and subtitle text immediately below, instead of side-by-side
 
 #### Sizer Defaults
 

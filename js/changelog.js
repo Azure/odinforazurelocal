@@ -39,15 +39,13 @@ function showChangelog() {
                         <li><strong>Export Buttons Below Notes:</strong> Save as PDF and Download Word buttons relocated below the Sizing Notes section.</li>
                         <li><strong>Shared Changelog Module:</strong> Extracted What's New into a shared JavaScript module used by both Designer and Sizer.</li>
                         <li><strong>S2D Resiliency Repair Storage Reservation:</strong> 1 × capacity disk per node (up to 4 × max) of raw pool space is now reserved for S2D repair jobs, reducing reported usable storage.</li>
-                        <li><strong>Per-Node Scaling Weight:</strong> Node recommendation now weights toward fewer, beefier nodes — e.g. 12 × 64 cores × 2 TB preferred over 16 × 48 cores × 1.5 TB.</li>
                         <li><strong>Workload Analytics Tracking:</strong> Each new workload added (VM, AKS, or AVD) is now tracked via Firebase analytics, displayed as "Sizes Calculated" on the main page stats bar.</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🎨 Mobile & UI Polish</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Designer: Mobile stats bar 2×2:</strong> Page analytics bar displays as a 2×2 grid on mobile devices instead of a single row of 4.</li>
                         <li><strong>Sizer: "Estimated Power, Heat & Rack Space":</strong> Updated heading to include "Heat" since BTU/hr values are displayed; power units expanded to "Watts"; BTU is now a Wikipedia hyperlink.</li>
-                        <li><strong>Sizer: Mobile header logo:</strong> ODIN logo and What's New text now visible on mobile, centered alongside header text.</li>
-                        <li><strong>Sizer: Mobile layout consistency:</strong> On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below.</li>
+                        <li><strong>Sizer: Mobile layout consistency:</strong> On mobile, the Sizer header now matches the Designer page — ODIN logo and What's New centered at top, title and subtitle below.</li>
                         <li><strong>Sizer: iOS Safari Mobile Centering:</strong> Fixed centering of logo, What's New, and title text on iOS Safari mobile devices.</li>
                         <li><strong>Sizer: Mobile Logo & Text Size:</strong> Increased logo and What's New text size on mobile for improved readability.</li>
                         <li><strong>Sizer: Default 2 Node cluster:</strong> Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the starting hardware cost. Three-Way Mirror is auto-selected when 3+ nodes are configured.</li>

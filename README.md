@@ -43,11 +43,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
 - **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
 - **Sizer: S2D Resiliency Repair Storage Reservation**: 1 × capacity disk per node (up to 4 × capacity disks max) of raw pool space is now reserved for Storage Spaces Direct repair jobs, reducing reported usable storage accordingly
-- **Sizer: Per-Node Scaling Weight**: Node count recommendations now weights toward fewer, larger nodes — e.g. 12 × 64 cores × 2 TB memory, preferred over 16 × 48 cores × 1.5 TB memory
 - **Designer: Mobile stats bar 2×2 layout**: Page analytics bar displays as a 2×2 grid on mobile devices
 - **Sizer: "Estimated Power, Heat & Rack Space"**: Updated heading to include "Heat" since BTU/hr values are shown; power units expanded from "W" to "Watts"; BTU is now a Wikipedia hyperlink
-- **Sizer: Mobile header logo**: ODIN logo and What's New text now visible on mobile devices
-- **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below
+- **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — ODIN logo and What's New centered at top, title and subtitle below
 - **Sizer: iOS Safari Mobile Centering**: Fixed centering of logo, What's New, and title text on iOS Safari mobile devices
 - **Sizer: Mobile Logo & Text Size**: Increased logo and What's New text size on mobile for improved readability
 - **Sizer: Default 2 Node cluster**: Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the default starting hardware cost
@@ -364,11 +362,9 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
 - **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
 - **Sizer: S2D Resiliency Repair Storage Reservation**: 1 × capacity disk per node (up to 4 × capacity disks max) of raw pool space is now reserved for Storage Spaces Direct repair jobs, reducing reported usable storage accordingly
-- **Sizer: Per-Node Scaling Weight**: Node recommendation now weights toward fewer, beefier nodes — e.g. 12 × 64 cores × 2 TB preferred over 16 × 48 cores × 1.5 TB
 - **Designer: Mobile stats bar 2×2 layout**: Page analytics bar on the Designer home page now displays as a 2×2 grid on mobile devices instead of a single row of 4 items
 - **Sizer: "Estimated Power, Heat & Rack Space"**: Updated heading to include "Heat" since the section displays BTU/hr values; power units expanded from "W" to "Watts"; BTU is now a Wikipedia hyperlink
-- **Sizer: Mobile header logo & What's New**: ODIN logo and version/What's New text now visible on mobile devices, centered alongside header text
-- **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below
+- **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — ODIN logo and What's New centered at top, title and subtitle below
 - **Sizer: iOS Safari Mobile Centering**: Fixed centering of logo, What's New, and title text on iOS Safari mobile devices
 - **Sizer: Mobile Logo & Text Size**: Increased logo and What's New text size on mobile for improved readability
 - **Sizer: Default 2 Node cluster**: Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the default starting hardware cost. Three-Way Mirror is automatically selected when 3+ nodes are configured
