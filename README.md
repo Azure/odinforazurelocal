@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.16.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.17.00 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -39,23 +39,16 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.16.04 - Latest Release
-- **Sizer: UI Layout Improvements**: ODIN logo and What's New link added to the Sizer header; Reset button moved into the Workload Scenarios section with a confirmation prompt; Save as PDF and Download Word buttons relocated below the Sizing Notes section
-- **Sizer: Shared Changelog Module**: Extracted the What's New changelog into a shared JavaScript module used by both Designer and Sizer pages
-- **Sizer: S2D Resiliency Repair Storage Reservation**: 1 × capacity disk per node (up to 4 × capacity disks max) of raw pool space is now reserved for Storage Spaces Direct repair jobs, reducing reported usable storage accordingly
-- **Designer: Mobile stats bar 2×2 layout**: Page analytics bar displays as a 2×2 grid on mobile devices
-- **Sizer: "Estimated Power, Heat & Rack Space"**: Updated heading to include "Heat" since BTU/hr values are shown; power units expanded from "W" to "Watts"; BTU is now a Wikipedia hyperlink
-- **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — ODIN logo and What's New centered at top, title and subtitle below
-- **Sizer: iOS Safari Mobile Centering**: Fixed centering of logo, What's New, and title text on iOS Safari mobile devices
-- **Sizer: Mobile Logo & Text Size**: Increased logo and What's New text size on mobile for improved readability
-- **Sizer: Default 2 Node cluster**: Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the default starting hardware cost
-- **Security: Removed invalid meta tags**: Removed `X-Frame-Options` and `X-XSS-Protection` meta tags (HTTP-header-only directives, ineffective in `<meta>` tags)
-- **Sizer: Node Preference over Ratio/Memory Escalation**: The sizer now prefers adding additional nodes before escalating the vCPU-to-pCPU ratio above 4:1 or bumping per-node memory above 2 TB — conservative auto-scaling caps memory at 2 TB and holds ratio at 4:1, with an aggressive pass only when conservative scaling cannot fit workloads
-- **Sizer: Auto-Down-Scaling after Aggressive Pass**: After the aggressive pass bumps memory or ratio, a node-reduction loop steps the node count back down while keeping utilization under 90%, re-running conservative auto-scale at each step
-- **Sizer: Bug Fixes**: vCPU ratio AUTO badge, label correction, node recommendation memory cap, stale recommendation, manual hardware override, node count reset, 1.5 TB memory threshold, memory headroom, bidirectional auto-scaling, sizing notes reorder, resiliency sync after node recommendation, deterministic node estimation
-- **Sizer: AMD Auto-Switch before 6:1 Ratio**: Before escalating from 5:1 to 6:1, the sizer now tries switching to AMD CPUs with more physical cores (e.g. AMD Turin 192 cores/socket) to resolve compute pressure at 5:1, keeping the overcommit ratio lower
-- **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via tracking analytics, to display the "Sizes Calculated" on the main page stats bar
-- **Tests: Large Cluster & Scaling Tests**: Added comprehensive test suites for node-weight constants, deterministic memory cap, conservative/aggressive auto-scale modes, large cluster node recommendations, node preference verification, and AMD auto-switch before 6:1 ratio
+### 🎉 Version 0.17.00 - Latest Release
+- **Disconnected Operations Wizard**: Full guided wizard for Azure Local disconnected operations — select Management or Workload cluster role, enter Autonomous Cloud FQDN with validation and confirmation gate, choose Air-Gapped or Limited Connectivity outbound mode
+- **Disconnected Cluster Role Selection**: New D1 step for selecting Management Cluster (fixed 3 nodes, hosts disconnected operations appliance VM) or Workload Cluster (1–16 nodes, connects to management cluster via Autonomous Cloud FQDN)
+- **Autonomous Cloud FQDN Endpoint**: New D2 step with FQDN input, real-time validation, and confirm/edit gate — all subsequent wizard steps are hidden until FQDN is confirmed
+- **Disconnected Context Banner**: "Why Azure Cloud & Region are still required" info banner shown for management clusters during and after FQDN confirmation
+- **Disconnected Network Diagrams**: 26 draw.io diagrams covering all intent configurations (fully converged, disaggregated, mgmt+compute, compute+storage, 4-intent, 4-storage, switchless 2/3/4-node, single-node workload with all intent variants) × 2 outbound modes (Limited Connectivity + Air-Gapped)
+- **Single-Node Workload Diagrams**: Dedicated diagrams for single-node workload clusters in fully converged (1 intent), mgmt+compute/storage (2 intent), and disaggregated (3 intent) configurations
+- **Diagram Routing by Intent**: Automatic diagram selection based on cluster role, node count, intent type, storage configuration, port count, and custom NIC assignments
+- **DNS Validation Improvements**: DNS servers are now validated against node IPs and default gateway to prevent conflicts
+- **Disconnected Scenario Description**: Updated scenario description with accurate feature availability information
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -343,7 +336,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.16.04  
+**Version**: 0.17.00  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -356,6 +349,19 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 ## Appendix A - Version History
 
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
+
+### 🎉 Version 0.17.x Series (February 2026)
+
+#### 0.17.00 - Disconnected Operations Wizard & Network Diagrams
+- **Disconnected Operations Wizard**: Full guided wizard for Azure Local disconnected operations — select Management or Workload cluster role, enter Autonomous Cloud FQDN with validation and confirmation gate, choose Air-Gapped or Limited Connectivity outbound mode
+- **Disconnected Cluster Role Selection**: New D1 step for selecting Management Cluster (fixed 3 nodes, hosts disconnected operations appliance VM) or Workload Cluster (1–16 nodes, connects to management cluster via Autonomous Cloud FQDN)
+- **Autonomous Cloud FQDN Endpoint**: New D2 step with FQDN input, real-time validation, and confirm/edit gate — all subsequent wizard steps are hidden until FQDN is confirmed
+- **Disconnected Context Banner**: "Why Azure Cloud & Region are still required" info banner shown for management clusters during and after FQDN confirmation
+- **Disconnected Network Diagrams**: 26 draw.io diagrams covering all intent configurations (fully converged, disaggregated, mgmt+compute, compute+storage, 4-intent, 4-storage, switchless 2/3/4-node, single-node workload with all intent variants) × 2 outbound modes (Limited Connectivity + Air-Gapped)
+- **Single-Node Workload Diagrams**: Dedicated diagrams for single-node workload clusters in fully converged (1 intent), mgmt+compute/storage (2 intent), and disaggregated (3 intent) configurations
+- **Diagram Routing by Intent**: Automatic diagram selection based on cluster role, node count, intent type, storage configuration, port count, and custom NIC assignments
+- **DNS Validation Improvements**: DNS servers are now validated against node IPs and default gateway to prevent conflicts
+- **Disconnected Scenario Description**: Updated scenario description with accurate feature availability information
 
 ### 🎉 Version 0.16.x Series (February 2026)
 

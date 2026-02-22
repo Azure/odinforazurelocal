@@ -364,7 +364,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.16.04 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+                        Version 0.17.00 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
                     </div>
                 </div>
             </div>
@@ -509,6 +509,93 @@
                         </p>
                     </div>
                 </section>
+
+                <!-- ============================================================ -->
+                <!-- DISCONNECTED OPERATIONS: Cluster Role (hidden unless disconnected) -->
+                <!-- ============================================================ -->
+
+                <!-- D1: Cluster Role -->
+                <section class="step hidden" id="step-d1">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #ef4444, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">D1</span>
+                        <h2>Cluster Role</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        What role will this cluster serve in the disconnected environment?
+                    </p>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="management" onclick="selectDisconnectedOption('clusterRole', 'management')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(239, 68, 68, 0.08)"/>
+                                    <circle cx="12" cy="10" r="3"/>
+                                    <path d="M12 13v3"/>
+                                </svg>
+                            </div>
+                            <h3>Management Cluster</h3>
+                            <p>Hosts the disconnected operations appliance VM, DNS, PKI, Active Directory, ADFS, and local management services. Fixed at 3 nodes.</p>
+                        </div>
+                        <div class="option-card" data-value="workload" onclick="selectDisconnectedOption('clusterRole', 'workload')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                                    <line x1="2" y1="12" x2="22" y2="12"/>
+                                    <circle cx="7" cy="8" r="1.5" fill="currentColor"/>
+                                    <circle cx="7" cy="16" r="1.5" fill="currentColor"/>
+                                </svg>
+                            </div>
+                            <h3>Workload Cluster</h3>
+                            <p>Runs tenant workloads. Connects to an existing management cluster via the Autonomous Cloud FQDN endpoint.</p>
+                        </div>
+                    </div>
+                    <div id="d1-explanation" class="info-box hidden"></div>
+                </section>
+
+                <!-- Workload Cluster: Autonomous Cloud FQDN -->
+                <section class="step hidden" id="step-fqdn">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #ef4444, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">D2</span>
+                        <h2>Autonomous Cloud Endpoint</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Enter the Autonomous Cloud FQDN — this is the disconnected operations appliance endpoint that workload clusters will use as the Cloud endpoint connection.
+                    </p>
+                    <div style="max-width: 600px;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600;">Autonomous Cloud FQDN</label>
+                        <input type="text" id="autonomous-cloud-fqdn" placeholder="e.g. azlocal-mgmt.contoso.local"
+                            style="width: 100%; padding: 0.75rem; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.95rem;"
+                            oninput="updateAutonomousCloudFqdn(this.value)">
+                        <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">
+                            This is the FQDN of the disconnected operations appliance endpoint that workload clusters will use as the Cloud endpoint connection.
+                        </p>
+                        <div id="fqdn-error" class="hidden" style="margin-top: 0.75rem; color: #ef4444; font-size: 0.85rem; background: rgba(239,68,68,0.1); padding: 0.75rem; border-radius: 4px; border: 1px solid rgba(239,68,68,0.2);"></div>
+                        <div id="fqdn-success" class="hidden" style="margin-top: 0.75rem; color: var(--success); font-size: 0.85rem;">&#10003; Valid FQDN</div>
+                        <!-- Confirm / Confirmed UI -->
+                        <div id="fqdn-confirm-container" style="margin-top: 1.25rem;">
+                            <button id="fqdn-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmFqdn()" disabled>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                Confirm Autonomous Cloud FQDN
+                            </button>
+                            <p id="fqdn-confirm-hint" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Enter a valid FQDN and confirm before proceeding.</p>
+                        </div>
+                        <div id="fqdn-confirmed-msg" class="hidden" style="margin-top: 1rem;">
+                            <span style="color: var(--accent-green); font-weight: 600;">&#10003; Autonomous Cloud FQDN confirmed</span>
+                            <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editFqdn()">Edit</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Disconnected Management Cluster: context banner for Azure Cloud & Region -->
+                <div id="disconnected-cloud-context" class="info-box hidden" style="margin: 1.5rem 0; border-left-color: #f97316; background: rgba(249, 115, 22, 0.08);">
+                    <strong style="color: #f97316;">⚡ Why Azure Cloud & Region are still required</strong>
+                    <p style="margin: 0.5rem 0 0.75rem 0;">Although this management cluster uses the <strong>Autonomous Cloud</strong> for day-to-day operations, an Azure Cloud and Region must still be selected for:</p>
+                    <ul style="margin: 0 0 0.75rem 1.25rem; padding: 0; line-height: 1.7;">
+                        <li>Licensing &amp; billing</li>
+                        <li>Log collection from the disconnected operations appliance <span style="color: var(--text-secondary);">(limited connectivity only — not available in air-gapped deployments)</span></li>
+                    </ul>
+                    <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">Select the Azure Cloud and Region below that will be used for these purposes.</p>
+                </div>
+
                 <section class="step" id="step-cloud">
                     <div class="step-header">
                         <span class="step-number">02</span>
@@ -623,7 +710,7 @@
                     </div>
                     <div id="disconnected-region-info" class="info-box hidden" style="margin-top:1rem;">
                         <strong style="color:var(--accent-blue)">ℹ️ Azure Region for Disconnected</strong>
-                        <p>Required to download the control plane appliance image, updates and licensing.</p>
+                        <p>Required for billing and log collection. Log collection from the disconnected operations appliance is only available with <strong>limited connectivity</strong> — not in air-gapped deployments.</p>
                     </div>
                 </section>
 
@@ -1700,6 +1787,40 @@
                         </div>
                         <div id="infra-gateway-success" class="hidden"
                             style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ Valid Default Gateway</div>
+
+                        <!-- Appliance VM IPs (Disconnected Operations - Management Cluster only) -->
+                        <div id="appliance-ip-section" class="hidden" style="margin-top: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(56, 189, 248, 0.06), rgba(45, 212, 191, 0.06)); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                <h4 style="margin: 0; color: #38bdf8; font-size: 1rem;">Disconnected Operations Appliance VM — Dedicated IPs</h4>
+                            </div>
+                            <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.85rem;">
+                                The disconnected operations appliance requires two dedicated IPs on the infrastructure subnet for the ingress vNIC (portal / CLI access) and the management vNIC. These must be within the infrastructure CIDR but outside the node IPs and the infrastructure IP pool.
+                            </p>
+                            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                                <div style="flex: 1; min-width: 200px;">
+                                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Appliance IP 1 <span style="color: var(--text-secondary); font-size: 0.8rem;">(Ingress vNIC)</span></label>
+                                    <input type="text" id="appliance-ip-1" placeholder="e.g. 192.168.1.5"
+                                        pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                        title="Enter a valid IPv4 address"
+                                        style="width: 100%; padding: 0.75rem; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px;"
+                                        onchange="updateApplianceIps()">
+                                </div>
+                                <div style="flex: 1; min-width: 200px;">
+                                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Appliance IP 2 <span style="color: var(--text-secondary); font-size: 0.8rem;">(Mgmt vNIC)</span></label>
+                                    <input type="text" id="appliance-ip-2" placeholder="e.g. 192.168.1.6"
+                                        pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+                                        title="Enter a valid IPv4 address"
+                                        style="width: 100%; padding: 0.75rem; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px;"
+                                        onchange="updateApplianceIps()">
+                                </div>
+                            </div>
+                            <div id="appliance-ip-error" class="hidden"
+                                style="margin-top: 0.75rem; color: #ef4444; font-size: 0.85rem; background: rgba(239,68,68,0.1); padding: 0.75rem; border-radius: 4px; border: 1px solid rgba(239,68,68,0.2);">
+                            </div>
+                            <div id="appliance-ip-success" class="hidden"
+                                style="margin-top: 0.75rem; color: var(--success); font-size: 0.85rem;">&#10003; Valid Appliance IPs — within infrastructure subnet, no conflicts with node IPs or gateway</div>
+                        </div>
                     </div>
                 </section>
 
@@ -2228,6 +2349,7 @@
     <script src="js/dns.js"></script>
     <script src="js/changelog.js"></script>
     <script src="js/script.js"></script>
+    <script src="js/disconnected.js"></script>
 </body>
 
 </html>
