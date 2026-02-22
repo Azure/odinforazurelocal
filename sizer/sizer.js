@@ -1607,17 +1607,20 @@ function updateResiliencyOptions() {
     
     resiliencySelect.innerHTML = options;
     
-    // Default to best option: rack-aware auto-selects, standard defaults to 3-way when available
+    // Default selection: preserve current resiliency if it's still valid,
+    // otherwise pick the best available option for the cluster type
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
-    if (clusterType === 'rack-aware') {
+    if (validOptions.includes(currentResiliency)) {
+        // Current selection is still valid — keep it (don't force 3-way on node count changes)
+        resiliencySelect.value = currentResiliency;
+    } else if (clusterType === 'rack-aware') {
         // Rack-aware has only one option per node count — already selected
     } else if (clusterType === 'single') {
         // Single node: default to 2-way mirror for fault tolerance
         resiliencySelect.value = '2way';
     } else if (validOptions.includes('3way')) {
         resiliencySelect.value = '3way';
-    } else if (validOptions.includes(currentResiliency)) {
-        resiliencySelect.value = currentResiliency;
+    } else {
     }
 }
 
