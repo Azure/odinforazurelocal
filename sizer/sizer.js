@@ -1607,20 +1607,18 @@ function updateResiliencyOptions() {
     
     resiliencySelect.innerHTML = options;
     
-    // Default selection: preserve current resiliency if it's still valid,
-    // otherwise pick the best available option for the cluster type
+    // Default selection: for standard clusters with 3+ nodes, prefer 3-way mirror;
+    // otherwise keep current selection if still valid
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
-    if (validOptions.includes(currentResiliency)) {
-        // Current selection is still valid — keep it (don't force 3-way on node count changes)
-        resiliencySelect.value = currentResiliency;
-    } else if (clusterType === 'rack-aware') {
+    if (clusterType === 'rack-aware') {
         // Rack-aware has only one option per node count — already selected
     } else if (clusterType === 'single') {
         // Single node: default to 2-way mirror for fault tolerance
         resiliencySelect.value = '2way';
     } else if (validOptions.includes('3way')) {
         resiliencySelect.value = '3way';
-    } else {
+    } else if (validOptions.includes(currentResiliency)) {
+        resiliencySelect.value = currentResiliency;
     }
 }
 
@@ -2296,8 +2294,8 @@ function calculateRequirements(options) {
         totalStorage = Math.ceil(totalStorage * growthFactor);
 
         // Get current resiliency setting
-        const resiliency = document.getElementById('resiliency').value;
-        const resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
+        let resiliency = document.getElementById('resiliency').value;
+        let resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
 
         // Get hardware configuration (per-node specs)
         let hwConfig = getHardwareConfig();
@@ -2426,7 +2424,12 @@ function calculateRequirements(options) {
                     updateResiliencyOptions();
                     updateClusterInfo();
 
-                    // Re-run autoScale with the new node count
+                    // Re-read resiliency after updateResiliencyOptions() may have changed it
+                    // (e.g. 2-way → 3-way when going from 2 to 3+ nodes)
+                    resiliency = document.getElementById('resiliency').value;
+                    resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
+
+                    // Re-run autoScale with the new node count and updated resiliency
                     autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled);
                     hwConfig = getHardwareConfig();
                 }
@@ -2483,6 +2486,8 @@ function calculateRequirements(options) {
                         const savedHwConfig = hwConfig;
                         const savedRatio = getVcpuRatio();
                         const savedMem = parseInt(document.getElementById('node-memory').value) || 512;
+                        const savedResiliency = resiliency;
+                        const savedResiliencyMultiplier = resiliencyMultiplier;
 
                         nodeCount = prevNode;
                         document.getElementById('node-count').value = nodeCount;
@@ -2525,11 +2530,18 @@ function calculateRequirements(options) {
                             }
                             document.getElementById('node-memory').value = savedMem;
                             hwConfig = savedHwConfig;
+                            resiliency = savedResiliency;
+                            resiliencyMultiplier = savedResiliencyMultiplier;
+                            // Restore resiliency dropdown
+                            updateResiliencyOptions();
+                            document.getElementById('resiliency').value = savedResiliency;
                             break;
                         }
                         // Successfully reduced — update UI and continue trying
                         updateResiliencyOptions();
                         updateClusterInfo();
+                        resiliency = document.getElementById('resiliency').value;
+                        resiliencyMultiplier = RESILIENCY_CONFIG[resiliency].multiplier;
                         markAutoScaled('node-count');
                     }
 
