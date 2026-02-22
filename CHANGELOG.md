@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sizer: Power units expanded to "Watts"**: Power values now display as "Watts" instead of "W" for improved readability
 - **Sizer: BTU Wikipedia link**: "BTU" in the Total BTU/hr label is now a hyperlink to the Wikipedia article for readers unfamiliar with the unit
 - **Sizer: Mobile header logo & What's New**: The ODIN logo and version/What's New text are now visible on mobile devices, centered alongside the header text with appropriate sizing
+- **Sizer: Mobile layout consistency**: On mobile devices, the Sizer header now matches the Designer page — the ODIN logo and What's New link appear centered at the top with the title and subtitle text immediately below, instead of side-by-side
+
+#### Sizer Defaults
+
+- **Sizer: Default cluster changed to Standard 2 Node**: The default cluster configuration is now a Standard 2 Node cluster (previously 3 Nodes), reducing the default starting hardware cost for sizing scenarios
+- **Sizer: Default resiliency changed to Two-Way Mirror**: The default storage resiliency is now Two-Way Mirror (previously Three-Way Mirror), consistent with the 2-node minimum. Three-Way Mirror remains available and is automatically selected when 3+ nodes are configured
 
 #### Security Meta Tag Cleanup
 

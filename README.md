@@ -47,6 +47,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Designer: Mobile stats bar 2×2 layout**: Page analytics bar displays as a 2×2 grid on mobile devices
 - **Sizer: "Estimated Power, Heat & Rack Space"**: Updated heading to include "Heat" since BTU/hr values are shown; power units expanded from "W" to "Watts"; BTU is now a Wikipedia hyperlink
 - **Sizer: Mobile header logo**: ODIN logo and What's New text now visible on mobile devices
+- **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below
+- **Sizer: Default 2 Node cluster**: Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the default starting hardware cost
 - **Security: Removed invalid meta tags**: Removed `X-Frame-Options` and `X-XSS-Protection` meta tags (HTTP-header-only directives, ineffective in `<meta>` tags)
 - **Sizer: Bug Fixes**: vCPU ratio AUTO badge, label correction, node recommendation memory cap, stale recommendation, manual hardware override, node count reset, 1.5 TB memory threshold, memory headroom, bidirectional auto-scaling, sizing notes reorder
 - **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via tracking analytics, to display the "Sizes Calculated" on the main page stats bar
@@ -361,6 +363,8 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Designer: Mobile stats bar 2×2 layout**: Page analytics bar on the Designer home page now displays as a 2×2 grid on mobile devices instead of a single row of 4 items
 - **Sizer: "Estimated Power, Heat & Rack Space"**: Updated heading to include "Heat" since the section displays BTU/hr values; power units expanded from "W" to "Watts"; BTU is now a Wikipedia hyperlink
 - **Sizer: Mobile header logo & What's New**: ODIN logo and version/What's New text now visible on mobile devices, centered alongside header text
+- **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below
+- **Sizer: Default 2 Node cluster**: Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the default starting hardware cost. Three-Way Mirror is automatically selected when 3+ nodes are configured
 - **Security: Removed invalid meta tags**: Removed `X-Frame-Options` and `X-XSS-Protection` meta tags from all pages (HTTP-header-only directives that are ineffective in `<meta>` tags; `X-Frame-Options` caused a console warning)
 - **Sizer: Bug Fixes**: vCPU ratio AUTO badge persistence, label correction, node recommendation memory cap, stale recommendation message, manual hardware override, node count reset, 1.5 TB memory threshold, memory headroom threshold (80%→85%), bidirectional memory & CPU auto-scaling, sizing notes reorder
 - **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via tracking analytics, to display the "Sizes Calculated" on the main page stats bar
