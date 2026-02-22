@@ -54,6 +54,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Memory Headroom Threshold**: Raised the memory headroom threshold from 80% to 85% to avoid expensive DIMM tier jumps (e.g. 1 TB → 1.5 TB) when utilisation is comfortably below 85%. CPU and storage headroom remain at 80%
 - **Bidirectional Memory & CPU Auto-Scaling**: Memory and CPU core auto-scaling now reduce per-node values when more nodes are available (e.g. after a node count increase or manual memory reduction), instead of only ever increasing. This keeps per-node memory at the smallest sufficient DIMM option and CPU cores at the smallest sufficient core count for the workload
 - **Sizing Notes Reorder & Updates**: Cluster size and N+1 capacity note is now the first sizing note (e.g. "5 x Node Cluster - N+1 capacity: hardware requirements calculated assuming 4 nodes available during servicing / maintenance"). Hardware note updated to "Per node hardware configuration" format
+- **iOS Safari Mobile Centering**: Fixed centering of logo, What's New link, and title/subtitle text on iOS Safari mobile devices by using explicit width and text-align properties instead of flex shorthand
+- **Mobile Logo & Text Size**: Increased logo max-height from 80 px to 100 px and version/What's New font-size from 11 px to 13 px on mobile for improved readability
+- **Node Preference over Ratio/Memory Escalation**: The sizer now prefers adding additional nodes before escalating the vCPU-to-pCPU ratio above 4:1 or bumping per-node memory above 2 TB. Auto-scaling operates in a conservative mode that caps memory at 2 TB and holds ratio at 4:1; an aggressive pass runs only when conservative scaling cannot fit workloads at the current node count
+- **Auto-Down-Scaling after Aggressive Pass**: After the aggressive pass bumps memory or ratio above conservative limits, a node-reduction loop steps the node count back down while keeping utilization under 90 %, re-running conservative auto-scale at each step and reverting if any dimension exceeds the threshold
+
+### Added
+
+#### Tests: Large Cluster & Scaling Test Suites
+
+- **NODE_WEIGHT constant tests**: Validates `NODE_WEIGHT_PREFERRED_MEMORY_GB` (1536), `NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB` (2048), and `NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD` (10)
+- **buildMaxHardwareConfig large-cluster memory cap tests**: Verifies the 2 TB cap applies at ≥ 10 nodes and the 1.5 TB cap applies below 10 nodes
+- **autoScaleHardware conservative mode tests**: Confirms memory is capped at 2 TB and vCPU ratio stays at 4:1 in the default conservative path
+- **autoScaleHardware aggressive mode tests**: Confirms memory can exceed 2 TB and vCPU ratio can escalate when aggressive options are enabled
+- **Large cluster node recommendation tests**: Validates node counts for compute-driven, memory-heavy, storage-heavy, and future-growth scenarios
+- **Node preference verification test**: Asserts that a 2 TB memory cap recommends more nodes than a 4 TB cap, confirming the preference for nodes over expensive hardware
 
 ---
 

@@ -48,8 +48,15 @@ function showChangelog() {
                         <li><strong>Sizer: "Estimated Power, Heat & Rack Space":</strong> Updated heading to include "Heat" since BTU/hr values are displayed; power units expanded to "Watts"; BTU is now a Wikipedia hyperlink.</li>
                         <li><strong>Sizer: Mobile header logo:</strong> ODIN logo and What's New text now visible on mobile, centered alongside header text.</li>
                         <li><strong>Sizer: Mobile layout consistency:</strong> On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below.</li>
+                        <li><strong>Sizer: iOS Safari Mobile Centering:</strong> Fixed centering of logo, What's New, and title text on iOS Safari mobile devices.</li>
+                        <li><strong>Sizer: Mobile Logo & Text Size:</strong> Increased logo and What's New text size on mobile for improved readability.</li>
                         <li><strong>Sizer: Default 2 Node cluster:</strong> Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the starting hardware cost. Three-Way Mirror is auto-selected when 3+ nodes are configured.</li>
                         <li><strong>Security: Removed invalid meta tags:</strong> Removed X-Frame-Options and X-XSS-Protection meta tags (HTTP-header-only, caused console warnings).</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">⚙️ Sizer Scaling Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Node Preference over Ratio/Memory:</strong> The sizer now prefers adding additional nodes before escalating the vCPU ratio above 4:1 or bumping memory above 2 TB — conservative auto-scaling caps memory at 2 TB and holds ratio at 4:1, with an aggressive pass only when needed.</li>
+                        <li><strong>Auto-Down-Scaling after Aggressive Pass:</strong> After the aggressive pass bumps memory or ratio, a node-reduction loop steps the node count back down while keeping utilization under 90%, re-running conservative auto-scale at each step.</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Sizer Bug Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
@@ -63,6 +70,10 @@ function showChangelog() {
                         <li><strong>Memory Headroom Threshold:</strong> Raised memory headroom from 80% to 85% to avoid unnecessary DIMM tier jumps when utilisation is within range.</li>
                         <li><strong>Bidirectional Memory &amp; CPU Auto-Scaling:</strong> Memory and CPU cores now scale down when more nodes reduce per-node requirements, keeping hardware at the smallest sufficient option.</li>
                         <li><strong>Sizing Notes Reorder:</strong> Cluster size + N+1 note is now the first item (e.g. "5 x Node Cluster - N+1 capacity"); hardware note updated to "Per node hardware configuration" format.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🧪 Tests: Large Cluster & Scaling</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New Test Suites:</strong> Added tests for node-weight constants, large-cluster memory cap (2 TB at ≥ 10 nodes), conservative/aggressive auto-scale modes, large cluster node recommendations, and node preference verification.</li>
                     </ul>
                 </div>
 

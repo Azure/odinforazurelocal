@@ -48,10 +48,15 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: "Estimated Power, Heat & Rack Space"**: Updated heading to include "Heat" since BTU/hr values are shown; power units expanded from "W" to "Watts"; BTU is now a Wikipedia hyperlink
 - **Sizer: Mobile header logo**: ODIN logo and What's New text now visible on mobile devices
 - **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below
+- **Sizer: iOS Safari Mobile Centering**: Fixed centering of logo, What's New, and title text on iOS Safari mobile devices
+- **Sizer: Mobile Logo & Text Size**: Increased logo and What's New text size on mobile for improved readability
 - **Sizer: Default 2 Node cluster**: Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the default starting hardware cost
 - **Security: Removed invalid meta tags**: Removed `X-Frame-Options` and `X-XSS-Protection` meta tags (HTTP-header-only directives, ineffective in `<meta>` tags)
+- **Sizer: Node Preference over Ratio/Memory Escalation**: The sizer now prefers adding additional nodes before escalating the vCPU-to-pCPU ratio above 4:1 or bumping per-node memory above 2 TB — conservative auto-scaling caps memory at 2 TB and holds ratio at 4:1, with an aggressive pass only when conservative scaling cannot fit workloads
+- **Sizer: Auto-Down-Scaling after Aggressive Pass**: After the aggressive pass bumps memory or ratio, a node-reduction loop steps the node count back down while keeping utilization under 90%, re-running conservative auto-scale at each step
 - **Sizer: Bug Fixes**: vCPU ratio AUTO badge, label correction, node recommendation memory cap, stale recommendation, manual hardware override, node count reset, 1.5 TB memory threshold, memory headroom, bidirectional auto-scaling, sizing notes reorder
 - **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via tracking analytics, to display the "Sizes Calculated" on the main page stats bar
+- **Tests: Large Cluster & Scaling Tests**: Added comprehensive test suites for node-weight constants, large-cluster memory cap, conservative/aggressive auto-scale modes, large cluster node recommendations, and node preference verification
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -364,10 +369,15 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: "Estimated Power, Heat & Rack Space"**: Updated heading to include "Heat" since the section displays BTU/hr values; power units expanded from "W" to "Watts"; BTU is now a Wikipedia hyperlink
 - **Sizer: Mobile header logo & What's New**: ODIN logo and version/What's New text now visible on mobile devices, centered alongside header text
 - **Sizer: Mobile layout consistency**: On mobile, the Sizer header now matches the Designer page — logo and What's New centered at top, title and subtitle below
+- **Sizer: iOS Safari Mobile Centering**: Fixed centering of logo, What's New, and title text on iOS Safari mobile devices
+- **Sizer: Mobile Logo & Text Size**: Increased logo and What's New text size on mobile for improved readability
 - **Sizer: Default 2 Node cluster**: Default cluster changed from 3 Node / Three-Way Mirror to 2 Node / Two-Way Mirror, reducing the default starting hardware cost. Three-Way Mirror is automatically selected when 3+ nodes are configured
 - **Security: Removed invalid meta tags**: Removed `X-Frame-Options` and `X-XSS-Protection` meta tags from all pages (HTTP-header-only directives that are ineffective in `<meta>` tags; `X-Frame-Options` caused a console warning)
+- **Sizer: Node Preference over Ratio/Memory Escalation**: The sizer now prefers adding additional nodes before escalating the vCPU-to-pCPU ratio above 4:1 or bumping per-node memory above 2 TB — conservative auto-scaling caps memory at 2 TB and holds ratio at 4:1, with an aggressive pass only when conservative scaling cannot fit workloads
+- **Sizer: Auto-Down-Scaling after Aggressive Pass**: After the aggressive pass bumps memory or ratio, a node-reduction loop steps the node count back down while keeping utilization under 90%, re-running conservative auto-scale at each step
 - **Sizer: Bug Fixes**: vCPU ratio AUTO badge persistence, label correction, node recommendation memory cap, stale recommendation message, manual hardware override, node count reset, 1.5 TB memory threshold, memory headroom threshold (80%→85%), bidirectional memory & CPU auto-scaling, sizing notes reorder
 - **Sizer: Workload Analytics Tracking**: Each new workload added in the Sizer (VM, AKS, or AVD) is now tracked via tracking analytics, to display the "Sizes Calculated" on the main page stats bar
+- **Tests: Large Cluster & Scaling Tests**: Added comprehensive test suites for node-weight constants, large-cluster memory cap, conservative/aggressive auto-scale modes, large cluster node recommendations, and node preference verification
 
 #### 0.16.03 - Custom Intent 8-Port Zone Restrictions
 - **Custom Intent 8-Port Zone Restrictions (#130 follow-up)**: For 8-port custom intent, the wizard now only shows the relevant zones — Management + Compute (required), Compute 1 (optional), Compute 2 (optional), and Storage (required). Removed Management, Compute + Storage, and Group All Traffic zones which are not valid for 8-port configurations.

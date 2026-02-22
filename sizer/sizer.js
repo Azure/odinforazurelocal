@@ -634,9 +634,10 @@ const MEMORY_OPTIONS_GB = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3
 // minimum nodes, weighting toward fewer, larger nodes over more, smaller ones.
 // Capped at 1.5 TB for small clusters (< 10 nodes) because the cost of DIMMs
 // above 1.5 TB per node (e.g. 2 TB, 3 TB) is significantly higher than adding
-// an additional node. For 10+ node clusters, allow full memory range.
+// an additional node. For 10+ node clusters, allow up to 2 TB, preferring
+// additional nodes over expensive 3 TB+ DIMM configurations.
 const NODE_WEIGHT_PREFERRED_MEMORY_GB = 1536;
-const NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB = MEMORY_OPTIONS_GB[MEMORY_OPTIONS_GB.length - 1];
+const NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB = 2048;
 // Threshold above which we switch to the large-cluster memory weight
 const NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD = 10;
 
@@ -736,7 +737,14 @@ function clearAutoScaledHighlights() {
 // Automatically increase CPU cores, memory, disk count, and disk size so capacity bars stay below 100%
 // previouslyAutoScaled: Set of field IDs that were auto-scaled in the prior calculation cycle,
 // used to re-apply AUTO badges when values haven't changed (still at auto-scaled levels).
-function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled) {
+// options.allowRatioEscalation: when true, allow vCPU ratio to escalate beyond 4:1 (default: false)
+// options.allowHighMemory: when true, allow memory above 2 TB per node (default: false)
+// The default conservative mode prefers adding nodes over escalating ratio or memory.
+function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled, options) {
+    const allowRatioEscalation = options && options.allowRatioEscalation;
+    const allowHighMemory = options && options.allowHighMemory;
+    // Preferred memory cap: 2 TB unless allowHighMemory permits the full range
+    const PREFERRED_MEM_CAP_GB = 2048;
     let vcpuToCore = getVcpuRatio();
     // Note: _vcpuRatioAutoEscalated is reset once per calculateRequirements() call,
     // NOT per autoScaleHardware() call, so the flag survives multiple auto-scale passes.
@@ -821,7 +829,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // Set memory to the smallest DIMM-symmetric option that meets the requirement.
         // This also scales DOWN from a prior auto-scaled value when more nodes are
         // available (e.g. after node count increased), keeping per-node memory minimal.
+        // In conservative mode (default), cap at 2 TB and let node scaling add nodes instead.
         let targetMem = MEMORY_OPTIONS_GB.find(m => m >= requiredMemPerNode) || MAX_MEMORY_GB;
+        if (!allowHighMemory && targetMem > PREFERRED_MEM_CAP_GB) {
+            targetMem = PREFERRED_MEM_CAP_GB;
+        }
         if (targetMem !== currentMem) {
             memInput.value = targetMem;
             changed = true;
@@ -1011,9 +1023,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             // bump the overcommit ratio (4→5→6) to reduce over-threshold pressure.
             // Only auto-escalate from default (4) or a previously auto-escalated value (5).
             // Skip if the user has manually set the ratio (respect user override).
+            // In conservative mode (default), skip ratio escalation entirely — prefer adding
+            // nodes first. Only allow escalation in the final aggressive pass when nodes are maxed.
             const VCPU_ESCALATION_THRESHOLD = 90;
             const VCPU_RATIO_STEPS = [5, 6];
-            if (!_vcpuRatioUserSet && cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
+            if (allowRatioEscalation && !_vcpuRatioUserSet && cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
                 for (const nextRatio of VCPU_RATIO_STEPS) {
                     if (nextRatio <= vcpuToCore) continue; // skip ratios we're already at or past
                     vcpuToCore = nextRatio;
@@ -1035,13 +1049,16 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     // Memory headroom — step through DIMM-symmetric options until below threshold or maxed.
     // Uses higher threshold (85%) than CPU/storage to avoid expensive DIMM tier jumps.
-    // For small clusters (< 10 nodes), cap memory at the preferred threshold (1.5 TB)
-    // and let the auto-increment node loop add a node instead of jumping to 2 TB+ DIMMs.
+    // Prefer adding nodes over expensive high-capacity DIMMs:
+    //   - Small clusters (< 10 nodes): cap at 1.5 TB
+    //   - Default (conservative) mode: cap at 2 TB
+    //   - Aggressive mode (allowHighMemory): full range up to 4 TB
     // Skip when the user has manually set memory (respect user override).
     if (!_memoryUserSet) {
+        const baseMemCap = allowHighMemory ? MAX_MEMORY_GB : PREFERRED_MEM_CAP_GB;
         const memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
-            ? NODE_WEIGHT_PREFERRED_MEMORY_GB
-            : MAX_MEMORY_GB;
+            ? Math.min(NODE_WEIGHT_PREFERRED_MEMORY_GB, baseMemCap)
+            : baseMemCap;
         let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes;
         let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
         let memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
@@ -2416,6 +2433,129 @@ function calculateRequirements(options) {
                     // Override recommended with actual final node count so message matches dropdown
                     finalRec.recommended = nodeCount;
                     updateNodeRecommendation(finalRec);
+                }
+
+                // --- Final aggressive pass: allow ratio escalation and high memory ---
+                // Now that we've maximised node count via the loop above, allow
+                // vCPU ratio > 4:1 and memory > 2 TB as a last resort for workloads
+                // that still exceed capacity at max nodes.
+                const aggressiveChanged = autoScaleHardware(
+                    totalVcpus, totalMemory, totalStorage, nodeCount,
+                    resiliencyMultiplier, hwConfig, previouslyAutoScaled,
+                    { allowRatioEscalation: true, allowHighMemory: true }
+                );
+                if (aggressiveChanged) {
+                    hwConfig = getHardwareConfig();
+
+                    // --- Node-reduction pass after aggressive scale-up ---
+                    // The aggressive pass may have bumped memory or ratio high enough
+                    // that fewer nodes are now sufficient. Try stepping node count back
+                    // down while all utilisation stays under the threshold ( < 90% ).
+                    // At each candidate node count, re-run conservative auto-scale so
+                    // per-node hardware (memory, ratio) scales down to preferred levels.
+                    const DOWN_UTIL_THRESHOLD = UTIL_THRESHOLD;
+                    const minNodeOption = nodeOptions[0]; // enforce cluster minimum (e.g. 2)
+                    const resiliencyMin = (RESILIENCY_CONFIG[resiliency] && RESILIENCY_CONFIG[resiliency].minNodes) || 2;
+                    const absoluteMin = Math.max(minNodeOption, resiliencyMin);
+                    let downAttempts = 0;
+
+                    while (nodeCount > absoluteMin && downAttempts < 16) {
+                        downAttempts++;
+                        // Find the next lower node option
+                        let prevNode = null;
+                        for (let i = nodeOptions.length - 1; i >= 0; i--) {
+                            if (nodeOptions[i] < nodeCount) { prevNode = nodeOptions[i]; break; }
+                        }
+                        if (!prevNode || prevNode < absoluteMin) break;
+
+                        // Tentatively reduce node count and re-run conservative auto-scale
+                        // Save current state so we can revert if utilisation is too high
+                        const savedNodeCount = nodeCount;
+                        const savedHwConfig = hwConfig;
+                        const savedRatio = getVcpuRatio();
+                        const savedMem = parseInt(document.getElementById('node-memory').value) || 512;
+
+                        nodeCount = prevNode;
+                        document.getElementById('node-count').value = nodeCount;
+
+                        // Reset ratio back to 4:1 (prefer nodes over ratio) if not user-set
+                        if (!_vcpuRatioUserSet && savedRatio > 4) {
+                            document.getElementById('vcpu-ratio').value = 4;
+                        }
+
+                        // Re-run conservative auto-scale at the lower node count
+                        autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled);
+                        hwConfig = getHardwareConfig();
+
+                        // Check utilisation at the reduced node count
+                        const dEffNodes = nodeCount > 1 ? nodeCount - 1 : 1;
+                        const dVcpuToCore = getVcpuRatio();
+                        const dPhysCores = hwConfig.totalPhysicalCores || 64;
+                        const dMemPerNode = hwConfig.memoryGB || 512;
+                        let dRawGBPerNode = 0;
+                        if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+                            dRawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
+                        }
+                        const dRawTBPerNode = dRawGBPerNode / 1024 || 10;
+
+                        const dAvailVcpus = dPhysCores * dEffNodes * dVcpuToCore;
+                        const dAvailMem = Math.max(dMemPerNode - 32, 0) * dEffNodes;
+                        const dS2dRepairTB = getS2dRepairReservedGB(nodeCount, dRawGBPerNode > 0 ? (dRawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
+                        const dAvailStorage = Math.max((dRawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - dS2dRepairTB / resiliencyMultiplier, 0);
+
+                        const dCpuPct = dAvailVcpus > 0 ? Math.round((totalVcpus / dAvailVcpus) * 100) : 0;
+                        const dMemPct = dAvailMem > 0 ? Math.round((totalMemory / dAvailMem) * 100) : 0;
+                        const dStoPct = dAvailStorage > 0 ? Math.round(((totalStorage / 1000) / dAvailStorage) * 100) : 0;
+
+                        if (dCpuPct >= DOWN_UTIL_THRESHOLD || dMemPct >= DOWN_UTIL_THRESHOLD || dStoPct >= DOWN_UTIL_THRESHOLD) {
+                            // Can't reduce further — revert to the previous node count
+                            nodeCount = savedNodeCount;
+                            document.getElementById('node-count').value = savedNodeCount;
+                            if (!_vcpuRatioUserSet && savedRatio > 4) {
+                                document.getElementById('vcpu-ratio').value = savedRatio;
+                            }
+                            document.getElementById('node-memory').value = savedMem;
+                            hwConfig = savedHwConfig;
+                            break;
+                        }
+                        // Successfully reduced — update UI and continue trying
+                        updateResiliencyOptions();
+                        updateClusterInfo();
+                        markAutoScaled('node-count');
+                    }
+
+                    // After node reduction, do one final aggressive pass in case we
+                    // reduced nodes and now need ratio/memory to creep up slightly
+                    autoScaleHardware(
+                        totalVcpus, totalMemory, totalStorage, nodeCount,
+                        resiliencyMultiplier, hwConfig, previouslyAutoScaled,
+                        { allowRatioEscalation: true, allowHighMemory: true }
+                    );
+                    hwConfig = getHardwareConfig();
+                }
+
+                // Update recommendation to reflect final node count after all passes
+                const postAggressiveRec = getRecommendedNodeCount(
+                    totalVcpus, totalMemory, totalStorage,
+                    hwConfig, resiliencyMultiplier, resiliency
+                );
+                if (postAggressiveRec) {
+                    postAggressiveRec.recommended = nodeCount;
+                    updateNodeRecommendation(postAggressiveRec);
+                }
+            }
+
+            // --- Aggressive pass for single-node / manual-node-count paths ---
+            // When auto-node-recommendation is skipped (user manually set node count)
+            // or single-node cluster, still allow ratio/memory escalation as last resort.
+            if (clusterType === 'single' || skipAutoNodeRecommend) {
+                const aggressiveFallback = autoScaleHardware(
+                    totalVcpus, totalMemory, totalStorage, nodeCount,
+                    resiliencyMultiplier, hwConfig, previouslyAutoScaled,
+                    { allowRatioEscalation: true, allowHighMemory: true }
+                );
+                if (aggressiveFallback) {
+                    hwConfig = getHardwareConfig();
                 }
             }
 
