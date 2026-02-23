@@ -9152,13 +9152,14 @@ function showTemplates() {
                 outbound: 'public',
                 arc: 'arc_gateway',
                 proxy: 'no_proxy',
-                ip: 'dhcp',
+                ip: 'static',
                 infraCidr: '192.168.100.0/24',
                 infra: { start: '192.168.100.50', end: '192.168.100.60' },
                 nodeSettings: [
                     { name: 'edge1', ipCidr: '192.168.100.11/24' },
                     { name: 'edge2', ipCidr: '192.168.100.12/24' }
                 ],
+                infraGateway: '192.168.100.1',
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'edge.contoso.com',
