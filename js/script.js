@@ -8957,7 +8957,7 @@ function showTemplates() {
                 intent: 'compute_storage',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
-                arc: 'yes',
+                arc: 'arc_gateway',
                 proxy: 'no_proxy',
                 ip: 'static',
                 infraCidr: '192.168.1.0/24',
@@ -8970,6 +8970,7 @@ function showTemplates() {
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'contoso.local',
+                adOuPath: 'OU=AzureLocal,DC=contoso,DC=local',
                 dnsServers: ['192.168.1.1'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
@@ -8998,7 +8999,7 @@ function showTemplates() {
                 intent: 'compute_storage',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
-                arc: 'yes',
+                arc: 'arc_gateway',
                 proxy: 'no_proxy',
                 ip: 'static',
                 infraCidr: '10.0.1.0/24',
@@ -9013,6 +9014,7 @@ function showTemplates() {
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'corp.contoso.com',
+                adOuPath: 'OU=AzureLocal,DC=corp,DC=contoso,DC=com',
                 dnsServers: ['10.0.1.1', '10.0.1.2'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
@@ -9037,8 +9039,8 @@ function showTemplates() {
                     nodeCount: 8
                 },
                 rackAwareZonesConfirmed: true,
-                rackAwareTorsPerRoom: 'single',
-                rackAwareTorArchitecture: 'separate',
+                rackAwareTorsPerRoom: '2',
+                rackAwareTorArchitecture: 'option_a',
                 witnessType: 'Cloud',
                 ports: '4',
                 portConfig: [
@@ -9052,7 +9054,7 @@ function showTemplates() {
                 intent: 'mgmt_compute',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
-                arc: 'yes',
+                arc: 'arc_gateway',
                 proxy: 'no_proxy',
                 privateEndpoints: 'pe_disabled',
                 ip: 'static',
@@ -9072,20 +9074,24 @@ function showTemplates() {
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'datacenter.local',
+                adOuPath: 'OU=AzureLocal,DC=datacenter,DC=local',
                 dnsServers: ['172.16.0.1', '172.16.0.2'],
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'no'
             }
         },
         {
-            name: 'Disconnected 2-Node',
-            description: 'Air-gapped deployment with local identity for secure environments',
+            name: 'Disconnected - Management Cluster 3-Node',
+            description: 'Air-gapped management cluster (3 nodes) with Autonomous Cloud endpoint for disconnected operations',
             config: {
                 scenario: 'disconnected',
+                clusterRole: 'management',
+                autonomousCloudFqdn: 'azurelocal.airgap.contoso.com',
+                fqdnConfirmed: true,
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
-                nodes: '2',
+                nodes: '3',
                 witnessType: 'NoWitness',
                 ports: '4',
                 portConfig: [
@@ -9106,12 +9112,15 @@ function showTemplates() {
                 infra: { start: '10.10.10.50', end: '10.10.10.60' },
                 nodeSettings: [
                     { name: 'secnode1', ipCidr: '10.10.10.11/24' },
-                    { name: 'secnode2', ipCidr: '10.10.10.12/24' }
+                    { name: 'secnode2', ipCidr: '10.10.10.12/24' },
+                    { name: 'secnode3', ipCidr: '10.10.10.13/24' }
                 ],
                 infraGateway: '10.10.10.1',
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'airgap.contoso.com',
+                adOuPath: 'OU=AzureLocal,DC=airgap,DC=contoso,DC=com',
+                adfsServerName: 'adfs.airgap.contoso.com',
                 localDnsZone: 'airgap.local',
                 dnsServers: ['10.10.10.1'],
                 privateEndpoints: 'pe_disabled',
@@ -9129,18 +9138,19 @@ function showTemplates() {
                 scale: 'low_capacity',
                 nodes: '2',
                 witnessType: 'Cloud',
-                ports: '2',
+                ports: '4',
                 portConfig: [
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
                     { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
                     { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true }
                 ],
                 storage: 'switchless',
-                switchlessLinkMode: 'full_mesh',
                 storagePoolConfiguration: 'Express',
-                intent: 'all_traffic',
+                intent: 'mgmt_compute',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
-                arc: 'yes',
+                arc: 'arc_gateway',
                 proxy: 'no_proxy',
                 ip: 'dhcp',
                 infraCidr: '192.168.100.0/24',
@@ -9152,6 +9162,7 @@ function showTemplates() {
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'edge.contoso.com',
+                adOuPath: 'OU=AzureLocal,DC=edge,DC=contoso,DC=com',
                 dnsServers: ['192.168.100.1'],
                 privateEndpoints: 'pe_disabled',
                 securityConfiguration: 'recommended',
@@ -9233,6 +9244,23 @@ function loadTemplate(templateIndex) {
 
     // Trigger UI updates for each selection in logical step order
     if (config.scenario) selectOption('scenario', config.scenario);
+
+    // Disconnected operations: set cluster role and Autonomous Cloud FQDN
+    if (config.scenario === 'disconnected' && config.clusterRole) {
+        if (typeof selectDisconnectedOption === 'function') {
+            selectDisconnectedOption('clusterRole', config.clusterRole);
+        } else {
+            state.clusterRole = config.clusterRole;
+        }
+        // Restore FQDN + confirmed state AFTER selectDisconnectedOption (which resets them)
+        if (config.autonomousCloudFqdn) {
+            state.autonomousCloudFqdn = config.autonomousCloudFqdn;
+        }
+        if (config.fqdnConfirmed !== undefined) {
+            state.fqdnConfirmed = config.fqdnConfirmed;
+        }
+    }
+
     if (config.region) selectOption('region', config.region);
     if (config.localInstanceRegion) selectOption('localInstanceRegion', config.localInstanceRegion);
     if (config.scale) selectOption('scale', config.scale);
@@ -9283,14 +9311,46 @@ function loadTemplate(templateIndex) {
     if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
 
     // Apply AD-related settings
+    // These must be re-applied after selectOption('activeDirectory') which resets them
     if (config.adDomain) {
         state.adDomain = config.adDomain;
+    }
+    if (config.adOuPath) {
+        state.adOuPath = config.adOuPath;
+    }
+    if (config.adfsServerName) {
+        state.adfsServerName = config.adfsServerName;
     }
     if (config.localDnsZone) {
         state.localDnsZone = config.localDnsZone;
     }
     if (config.dnsServers && Array.isArray(config.dnsServers)) {
         state.dnsServers = config.dnsServers;
+    }
+
+    // Render DNS server inputs from restored state (selectOption('activeDirectory') renders empty ones)
+    if (state.dnsServers && state.dnsServers.length > 0) {
+        renderDnsServers();
+    }
+    // Restore AD domain input value (selectOption('activeDirectory') clears it)
+    var adDomainInputEl = document.getElementById('ad-domain');
+    if (adDomainInputEl && state.adDomain) {
+        adDomainInputEl.value = state.adDomain;
+    }
+    // Restore AD OU Path input value
+    var adOuPathInputEl = document.getElementById('ad-ou-path');
+    if (adOuPathInputEl && state.adOuPath) {
+        adOuPathInputEl.value = state.adOuPath;
+    }
+    // Restore ADFS Server Name input value
+    var adfsServerInputEl = document.getElementById('adfs-server-name');
+    if (adfsServerInputEl && state.adfsServerName) {
+        adfsServerInputEl.value = state.adfsServerName;
+    }
+    // Restore local DNS zone input value
+    var localDnsZoneInputEl = document.getElementById('local-dns-zone-input');
+    if (localDnsZoneInputEl && state.localDnsZone) {
+        localDnsZoneInputEl.value = state.localDnsZone;
     }
 
     // Apply rack-aware settings
@@ -9313,8 +9373,26 @@ function loadTemplate(templateIndex) {
     if (config.sdnEnabled) selectOption('sdnEnabled', config.sdnEnabled);
     if (config.sdnFeatures && Array.isArray(config.sdnFeatures)) {
         state.sdnFeatures = config.sdnFeatures;
+        // Check SDN feature checkboxes in the DOM
+        state.sdnFeatures.forEach(function(feature) {
+            var checkbox = document.querySelector('.sdn-feature-card[data-feature="' + feature + '"] input[type="checkbox"]');
+            if (checkbox) checkbox.checked = true;
+        });
+        // Show management section and enable correct cards based on selected features
+        updateSdnManagementOptions();
     }
-    if (config.sdnManagement) selectOption('sdnManagement', config.sdnManagement);
+    if (config.sdnManagement) {
+        state.sdnManagement = config.sdnManagement;
+        // Select the correct SDN management card in the DOM
+        var arcCard = document.getElementById('sdn-arc-card');
+        var onpremCard = document.getElementById('sdn-onprem-card');
+        if (arcCard) arcCard.classList.remove('selected');
+        if (onpremCard) onpremCard.classList.remove('selected');
+        var sdnMgmtCard = document.getElementById(config.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
+        if (sdnMgmtCard && !sdnMgmtCard.classList.contains('disabled')) {
+            sdnMgmtCard.classList.add('selected');
+        }
+    }
 
     // Re-enable updateUI and run it once to apply all visual updates,
     // disabled states, and auto-defaults from the final state

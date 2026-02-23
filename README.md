@@ -40,11 +40,12 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 ### 🎉 Version 0.17.04 - Latest Release
-- **Example Template Fix (#140)**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–71%) instead of 100% — all five templates now load fully complete
+- **Example Template Fix (#140)**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–76%) instead of 100% — all five templates now load fully complete
 - **Template Loading Race Condition**: Suppressed `updateUI()` during template loading to prevent cascading auto-defaults (intent, storageAutoIp) and disabled card recalculation between `selectOption()` calls
-- **Template Data Fixes**: Added missing `privateEndpoints` field to all five templates; fixed Rack Aware template intent and zone nodeCount; fixed Disconnected template identity configuration
-- **Template Loading Order Fix**: Corrected `storageAutoIp` ordering in `loadTemplate()` to run after outbound selection (which resets it), and set `portConfigConfirmed` flag when restoring port configuration
-- **Template Regression Tests**: Added 18 new CI tests validating template data completeness, 100% progress achievement, correct check counts, rack-aware zone configuration, and disconnected constraint compliance
+- **Template Data Fixes**: Corrected `ports`, `intent`, `arc`, `rackAwareTorsPerRoom`, `rackAwareTorArchitecture` values across all templates; added missing `privateEndpoints`, `adOuPath`, `adfsServerName`, disconnected fields; removed invalid `switchlessLinkMode` from Edge template
+- **Template DOM Restoration**: Fixed AD domain/DNS/OU Path inputs, SDN feature checkboxes, and management card selections not populating after template load due to `selectOption()` cascade resets
+- **Edge 2-Node Switchless**: Fixed ports `'2'`→`'4'`, intent `'all_traffic'`→`'mgmt_compute'`, 4-entry portConfig (mandatory for low_capacity + switchless + 2-node); the `updateUI()` HARD BLOCK was wiping all downstream state
+- **Template Regression Tests**: Added 46 new CI tests — 5 progress tests, 5 check-count tests, 3 rack-aware zone tests, 5 disconnected template tests, 3 data completeness tests, and 25 updateUI() constraint validation tests
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -349,11 +350,12 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 ### 🎉 Version 0.17.x Series (February 2026)
 
 #### 0.17.04 - Example Template Fix & Regression Tests
-- **Example Template Fix (#140)**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–71%) instead of 100% — all five templates now load fully complete
+- **Example Template Fix (#140)**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–76%) instead of 100% — all five templates now load fully complete
 - **Template Loading Race Condition**: Suppressed `updateUI()` during template loading to prevent cascading auto-defaults (intent, storageAutoIp) and disabled card recalculation between `selectOption()` calls
-- **Template Data Fixes**: Added missing `privateEndpoints` field to all five templates; fixed Rack Aware template intent and zone nodeCount; fixed Disconnected template identity configuration
-- **Template Loading Order Fix**: Corrected `storageAutoIp` ordering in `loadTemplate()` to run after outbound selection (which resets it), and set `portConfigConfirmed` flag when restoring port configuration
-- **Template Regression Tests**: Added 18 new CI tests validating template data completeness, 100% progress achievement, correct check counts, rack-aware zone configuration, and disconnected constraint compliance
+- **Template Data Fixes**: Corrected `ports`, `intent`, `arc`, `rackAwareTorsPerRoom`, `rackAwareTorArchitecture` values across all templates; added missing `privateEndpoints`, `adOuPath`, `adfsServerName`, disconnected fields; removed invalid `switchlessLinkMode` from Edge template
+- **Template DOM Restoration**: Fixed AD domain/DNS/OU Path inputs, SDN feature checkboxes, and management card selections not populating after template load due to `selectOption()` cascade resets
+- **Edge 2-Node Switchless**: Fixed ports `'2'`→`'4'`, intent `'all_traffic'`→`'mgmt_compute'`, 4-entry portConfig (mandatory for low_capacity + switchless + 2-node); the `updateUI()` HARD BLOCK was wiping all downstream state
+- **Template Regression Tests**: Added 46 new CI tests — 5 progress tests, 5 check-count tests, 3 rack-aware zone tests, 5 disconnected template tests, 3 data completeness tests, and 25 updateUI() constraint validation tests
 
 #### 0.17.00 - Disconnected Operations Wizard & Network Diagrams
 - **Disconnected Operations Wizard**: Full guided wizard for Azure Local disconnected operations — select Management or Workload cluster role, enter Autonomous Cloud FQDN with validation and confirmation gate, choose Air-Gapped or Limited Connectivity outbound mode

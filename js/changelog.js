@@ -34,14 +34,15 @@ function showChangelog() {
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Example Template Fix (#140)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Template Completeness:</strong> Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–71%) instead of 100% — all five templates now load fully complete.</li>
+                        <li><strong>Template Completeness:</strong> Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–76%) instead of 100% — all five templates now load fully complete.</li>
                         <li><strong>Template Loading Race Condition:</strong> Suppressed <code>updateUI()</code> during template loading to prevent cascading auto-defaults and disabled card recalculation between <code>selectOption()</code> calls.</li>
-                        <li><strong>Template Data Fixes:</strong> Added missing <code>privateEndpoints</code> field to all five templates; fixed Rack Aware template intent and zone configuration; fixed Disconnected template identity settings.</li>
-                        <li><strong>Loading Order Fix:</strong> Corrected <code>storageAutoIp</code> ordering and set <code>portConfigConfirmed</code> flag when restoring port configuration from templates.</li>
+                        <li><strong>Template Data Fixes:</strong> Corrected <code>ports</code>, <code>intent</code>, <code>arc</code>, <code>rackAwareTorsPerRoom</code>, <code>rackAwareTorArchitecture</code> values; added missing <code>privateEndpoints</code>, <code>adOuPath</code>, disconnected fields; removed invalid <code>switchlessLinkMode</code> from Edge template.</li>
+                        <li><strong>Template DOM Restoration:</strong> Fixed AD domain/DNS/OU Path inputs, SDN feature checkboxes, and management card not populating after template load due to <code>selectOption()</code> cascade resets.</li>
+                        <li><strong>Edge 2-Node Switchless:</strong> Fixed ports <code>'2'→'4'</code>, intent <code>'all_traffic'→'mgmt_compute'</code>, 4-entry portConfig (mandatory for low_capacity + switchless + 2-node topology).</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🧪 Template Regression Tests</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>18 New CI Tests:</strong> Validating template data completeness, 100% progress achievement, correct check counts, rack-aware zone configuration, and disconnected constraint compliance.</li>
+                        <li><strong>46 New CI Tests:</strong> Progress validation, check counts, rack-aware zones, disconnected constraints, data completeness, and updateUI() constraint validation tests to prevent future template/designer mismatches.</li>
                     </ul>
                 </div>
 
@@ -1091,7 +1092,7 @@ function showChangelog() {
                         <li>2-Node Standard Cluster (small production with cloud witness)</li>
                         <li>4-Node High Performance (medium cluster with dedicated storage)</li>
                         <li>8-Node Rack Aware (large rack-aware production cluster)</li>
-                        <li>Disconnected 2-Node (air-gapped with Active Directory)</li>
+                        <li>Disconnected - Management Cluster 3-Node (air-gapped with Autonomous Cloud endpoint)</li>
                         <li>Edge 2-Node Switchless (cost-optimized edge deployment)</li>
                     </ul>
                 </div>

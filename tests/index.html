@@ -5015,8 +5015,196 @@
                 return assert(disconnected.config.arc === 'no_arc',
                     'Disconnected uses no_arc (arc gateway unavailable)',
                     'no_arc', disconnected.config.arc);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // Management cluster must have clusterRole set
+                return assert(disconnected.config.clusterRole === 'management',
+                    'Disconnected template has clusterRole = management',
+                    'management', disconnected.config.clusterRole);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // Management cluster is fixed at 3 nodes
+                return assert(disconnected.config.nodes === '3',
+                    'Disconnected management cluster has 3 nodes',
+                    '3', disconnected.config.nodes);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // Autonomous Cloud FQDN must be set
+                return assert(typeof disconnected.config.autonomousCloudFqdn === 'string' && disconnected.config.autonomousCloudFqdn.length > 0,
+                    'Disconnected template has autonomousCloudFqdn set',
+                    'non-empty string', disconnected.config.autonomousCloudFqdn || '(empty)');
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // fqdnConfirmed must be true for template completeness
+                return assert(disconnected.config.fqdnConfirmed === true,
+                    'Disconnected template has fqdnConfirmed = true',
+                    true, disconnected.config.fqdnConfirmed);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // nodeSettings count must match nodes
+                const expectedNodes = parseInt(disconnected.config.nodes, 10);
+                const actualNodes = disconnected.config.nodeSettings ? disconnected.config.nodeSettings.length : 0;
+                return assert(actualNodes === expectedNodes,
+                    'Disconnected template nodeSettings count matches nodes',
+                    expectedNodes, actualNodes);
             })()
         ]);
+
+        // ========================================================================
+        // TEMPLATE updateUI() CONSTRAINT VALIDATION
+        // Tests that template config values conform to the constraints enforced by
+        // updateUI(), which modifies state after loadTemplate. The test environment
+        // bypasses updateUI (pathname check), so these tests validate the config
+        // data directly against the same rules updateUI applies.
+        // ========================================================================
+        sectionHeader('📋 Template updateUI() Constraint Validation');
+
+        testSuite('Template configs pass updateUI() state constraints', 'script.js', (() => {
+            const templates = window.configTemplates || [];
+            const results = [];
+
+            templates.forEach((template) => {
+                const c = template.config;
+                const name = template.name;
+
+                // 1. portConfig length must match ports
+                if (c.ports && c.portConfig) {
+                    const expectedLen = parseInt(c.ports, 10);
+                    results.push(assert(c.portConfig.length === expectedLen,
+                        '"' + name + '" portConfig length matches ports',
+                        expectedLen, c.portConfig.length));
+                }
+
+                // 2. Switchless + low_capacity + 2-node → ports must be '4'
+                if (c.storage === 'switchless' && c.scale === 'low_capacity' && c.nodes === '2') {
+                    results.push(assert(c.ports === '4',
+                        '"' + name + '" switchless+low_cap+2node requires 4 ports',
+                        '4', c.ports));
+                }
+
+                // 3. Switchless + low_capacity + 3-node (dual_link) → ports must be '6'
+                if (c.storage === 'switchless' && c.scale === 'low_capacity' && c.nodes === '3' &&
+                    c.switchlessLinkMode === 'dual_link') {
+                    results.push(assert(c.ports === '6',
+                        '"' + name + '" switchless+low_cap+3node+dual_link requires 6 ports',
+                        '6', c.ports));
+                }
+
+                // 4. Switchless + low_capacity + 3-node (single_link) → ports must be '4'
+                if (c.storage === 'switchless' && c.scale === 'low_capacity' && c.nodes === '3' &&
+                    c.switchlessLinkMode === 'single_link') {
+                    results.push(assert(c.ports === '4',
+                        '"' + name + '" switchless+low_cap+3node+single_link requires 4 ports',
+                        '4', c.ports));
+                }
+
+                // 5. Low Capacity + 2 ports → intent must be 'mgmt_compute'
+                if (c.scale === 'low_capacity' && c.ports === '2') {
+                    results.push(assert(c.intent === 'mgmt_compute',
+                        '"' + name + '" low_cap+2ports requires mgmt_compute intent',
+                        'mgmt_compute', c.intent));
+                }
+
+                // 6. Low Capacity + 4 ports → intent must be 'mgmt_compute'
+                if (c.scale === 'low_capacity' && c.ports === '4') {
+                    results.push(assert(c.intent === 'mgmt_compute',
+                        '"' + name + '" low_cap+4ports requires mgmt_compute intent',
+                        'mgmt_compute', c.intent));
+                }
+
+                // 7. Rack Aware → storage must be 'switched'
+                if (c.scale === 'rack_aware') {
+                    results.push(assert(c.storage === 'switched',
+                        '"' + name + '" rack_aware requires switched storage',
+                        'switched', c.storage));
+                }
+
+                // 8. Rack Aware → intent must be 'mgmt_compute'
+                if (c.scale === 'rack_aware') {
+                    results.push(assert(c.intent === 'mgmt_compute',
+                        '"' + name + '" rack_aware requires mgmt_compute intent',
+                        'mgmt_compute', c.intent));
+                }
+
+                // 9. Rack Aware → ports must be '4'
+                if (c.scale === 'rack_aware') {
+                    results.push(assert(c.ports === '4',
+                        '"' + name + '" rack_aware requires 4 ports',
+                        '4', c.ports));
+                }
+
+                // 10. Disconnected → arc must be 'no_arc'
+                if (c.scenario === 'disconnected') {
+                    results.push(assert(c.arc === 'no_arc',
+                        '"' + name + '" disconnected requires no_arc',
+                        'no_arc', c.arc));
+                }
+
+                // 11. azure_government → arc cannot be 'arc_gateway'
+                if (c.region === 'azure_government') {
+                    results.push(assert(c.arc !== 'arc_gateway',
+                        '"' + name + '" azure_government cannot use arc_gateway',
+                        'not arc_gateway', c.arc));
+                }
+
+                // 12. Non-low_capacity RDMA requirement: at least 2 ports must have rdma: true
+                if (c.scale !== 'low_capacity' && c.portConfig) {
+                    const rdmaCount = c.portConfig.filter(p => p && p.rdma === true).length;
+                    results.push(assert(rdmaCount >= 2,
+                        '"' + name + '" non-low_cap requires >= 2 RDMA ports',
+                        '>=2', rdmaCount));
+                }
+
+                // 13. Switchless link mode only valid for 3-node low_capacity switchless
+                if (c.switchlessLinkMode) {
+                    const validCombo = c.nodes === '3' && c.scale === 'low_capacity' && c.storage === 'switchless';
+                    results.push(assert(validCombo,
+                        '"' + name + '" switchlessLinkMode only valid for 3-node low_cap switchless',
+                        true, validCombo));
+                }
+
+                // 14. Card data-value validation: arc must be 'arc_gateway' or 'no_arc'
+                if (c.arc) {
+                    results.push(assert(['arc_gateway', 'no_arc'].includes(c.arc),
+                        '"' + name + '" arc value is valid card data-value',
+                        'arc_gateway|no_arc', c.arc));
+                }
+
+                // 15. Card data-value validation: outbound must be valid
+                if (c.outbound) {
+                    results.push(assert(['public', 'private', 'air_gapped', 'limited'].includes(c.outbound),
+                        '"' + name + '" outbound value is valid card data-value',
+                        'public|private|air_gapped|limited', c.outbound));
+                }
+            });
+
+            return results;
+        })());
 
         // ========================================================================
         // FINAL SUMMARY
