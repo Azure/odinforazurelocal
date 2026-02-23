@@ -9231,172 +9231,172 @@ function loadTemplate(templateIndex) {
 
     try {
 
-    // Remove disabled from all option cards and node chips so selectOption calls
-    // won't be blocked by disabled states from the initial page load or previous state
-    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('disabled'));
-    document.querySelectorAll('.node-chip').forEach(c => c.classList.remove('disabled'));
+        // Remove disabled from all option cards and node chips so selectOption calls
+        // won't be blocked by disabled states from the initial page load or previous state
+        document.querySelectorAll('.option-card').forEach(c => c.classList.remove('disabled'));
+        document.querySelectorAll('.node-chip').forEach(c => c.classList.remove('disabled'));
 
-    // Apply configuration
-    Object.keys(config).forEach(key => {
-        if (Object.prototype.hasOwnProperty.call(state, key)) {
-            state[key] = config[key];
-        }
-    });
-
-    // Trigger UI updates for each selection in logical step order
-    if (config.scenario) selectOption('scenario', config.scenario);
-
-    // Disconnected operations: set cluster role and Autonomous Cloud FQDN
-    if (config.scenario === 'disconnected' && config.clusterRole) {
-        if (typeof selectDisconnectedOption === 'function') {
-            selectDisconnectedOption('clusterRole', config.clusterRole);
-        } else {
-            state.clusterRole = config.clusterRole;
-        }
-        // Restore FQDN + confirmed state AFTER selectDisconnectedOption (which resets them)
-        if (config.autonomousCloudFqdn) {
-            state.autonomousCloudFqdn = config.autonomousCloudFqdn;
-        }
-        if (config.fqdnConfirmed !== undefined) {
-            state.fqdnConfirmed = config.fqdnConfirmed;
-        }
-    }
-
-    if (config.region) selectOption('region', config.region);
-    if (config.localInstanceRegion) selectOption('localInstanceRegion', config.localInstanceRegion);
-    if (config.scale) selectOption('scale', config.scale);
-    if (config.nodes) selectOption('nodes', config.nodes);
-    if (config.witnessType) selectOption('witnessType', config.witnessType);
-
-    // Storage must be set BEFORE ports, because selectOption('storage') resets ports
-    if (config.storage) selectOption('storage', config.storage);
-    if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
-
-    // Now set ports (after storage, so it won't be reset)
-    if (config.ports) selectOption('ports', config.ports);
-
-    // Apply portConfig after ports selection (since selectOption may reset it)
-    if (config.portConfig && Array.isArray(config.portConfig)) {
-        state.portConfig = config.portConfig;
-        state.portConfigConfirmed = true;
-    }
-
-    if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
-    if (config.intent) selectOption('intent', config.intent);
-    // storageAutoIp must come AFTER outbound (outbound handler resets storageAutoIp to null)
-    if (config.outbound) selectOption('outbound', config.outbound);
-    if (config.arc) selectOption('arc', config.arc);
-    if (config.proxy) selectOption('proxy', config.proxy);
-    if (config.privateEndpoints) selectOption('privateEndpoints', config.privateEndpoints);
-    if (config.ip) selectOption('ip', config.ip);
-    if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
-
-    // Apply infrastructure settings
-    if (config.infraCidr) {
-        state.infraCidr = config.infraCidr;
-    }
-    if (config.infra) {
-        state.infra = config.infra;
-    }
-
-    // Apply nodeSettings and infraGateway after ip selection (since selectOption may reset them)
-    if (config.nodeSettings && Array.isArray(config.nodeSettings)) {
-        state.nodeSettings = config.nodeSettings;
-    }
-    if (config.infraGateway) {
-        state.infraGateway = config.infraGateway;
-        state.infraGatewayManual = true;
-    }
-
-    if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
-    if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
-
-    // Apply AD-related settings
-    // These must be re-applied after selectOption('activeDirectory') which resets them
-    if (config.adDomain) {
-        state.adDomain = config.adDomain;
-    }
-    if (config.adOuPath) {
-        state.adOuPath = config.adOuPath;
-    }
-    if (config.adfsServerName) {
-        state.adfsServerName = config.adfsServerName;
-    }
-    if (config.localDnsZone) {
-        state.localDnsZone = config.localDnsZone;
-    }
-    if (config.dnsServers && Array.isArray(config.dnsServers)) {
-        state.dnsServers = config.dnsServers;
-    }
-
-    // Render DNS server inputs from restored state (selectOption('activeDirectory') renders empty ones)
-    if (state.dnsServers && state.dnsServers.length > 0) {
-        renderDnsServers();
-    }
-    // Restore AD domain input value (selectOption('activeDirectory') clears it)
-    var adDomainInputEl = document.getElementById('ad-domain');
-    if (adDomainInputEl && state.adDomain) {
-        adDomainInputEl.value = state.adDomain;
-    }
-    // Restore AD OU Path input value
-    var adOuPathInputEl = document.getElementById('ad-ou-path');
-    if (adOuPathInputEl && state.adOuPath) {
-        adOuPathInputEl.value = state.adOuPath;
-    }
-    // Restore ADFS Server Name input value
-    var adfsServerInputEl = document.getElementById('adfs-server-name');
-    if (adfsServerInputEl && state.adfsServerName) {
-        adfsServerInputEl.value = state.adfsServerName;
-    }
-    // Restore local DNS zone input value
-    var localDnsZoneInputEl = document.getElementById('local-dns-zone-input');
-    if (localDnsZoneInputEl && state.localDnsZone) {
-        localDnsZoneInputEl.value = state.localDnsZone;
-    }
-
-    // Apply rack-aware settings
-    if (config.rackAwareZones) {
-        state.rackAwareZones = config.rackAwareZones;
-    }
-    if (config.rackAwareZonesConfirmed !== undefined) {
-        state.rackAwareZonesConfirmed = config.rackAwareZonesConfirmed;
-    }
-    if (config.rackAwareTorsPerRoom) {
-        state.rackAwareTorsPerRoom = config.rackAwareTorsPerRoom;
-    }
-    if (config.rackAwareTorArchitecture) {
-        state.rackAwareTorArchitecture = config.rackAwareTorArchitecture;
-    }
-
-    if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
-
-    // Apply SDN settings
-    if (config.sdnEnabled) selectOption('sdnEnabled', config.sdnEnabled);
-    if (config.sdnFeatures && Array.isArray(config.sdnFeatures)) {
-        state.sdnFeatures = config.sdnFeatures;
-        // Check SDN feature checkboxes in the DOM
-        state.sdnFeatures.forEach(function(feature) {
-            var checkbox = document.querySelector('.sdn-feature-card[data-feature="' + feature + '"] input[type="checkbox"]');
-            if (checkbox) checkbox.checked = true;
+        // Apply configuration
+        Object.keys(config).forEach(key => {
+            if (Object.prototype.hasOwnProperty.call(state, key)) {
+                state[key] = config[key];
+            }
         });
-        // Show management section and enable correct cards based on selected features
-        updateSdnManagementOptions();
-    }
-    if (config.sdnManagement) {
-        state.sdnManagement = config.sdnManagement;
-        // Select the correct SDN management card in the DOM
-        var arcCard = document.getElementById('sdn-arc-card');
-        var onpremCard = document.getElementById('sdn-onprem-card');
-        if (arcCard) arcCard.classList.remove('selected');
-        if (onpremCard) onpremCard.classList.remove('selected');
-        var sdnMgmtCard = document.getElementById(config.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
-        if (sdnMgmtCard && !sdnMgmtCard.classList.contains('disabled')) {
-            sdnMgmtCard.classList.add('selected');
-        }
-    }
 
-    // Re-enable updateUI and run it once to apply all visual updates,
-    // disabled states, and auto-defaults from the final state
+        // Trigger UI updates for each selection in logical step order
+        if (config.scenario) selectOption('scenario', config.scenario);
+
+        // Disconnected operations: set cluster role and Autonomous Cloud FQDN
+        if (config.scenario === 'disconnected' && config.clusterRole) {
+            if (typeof selectDisconnectedOption === 'function') {
+                selectDisconnectedOption('clusterRole', config.clusterRole);
+            } else {
+                state.clusterRole = config.clusterRole;
+            }
+            // Restore FQDN + confirmed state AFTER selectDisconnectedOption (which resets them)
+            if (config.autonomousCloudFqdn) {
+                state.autonomousCloudFqdn = config.autonomousCloudFqdn;
+            }
+            if (config.fqdnConfirmed !== undefined) {
+                state.fqdnConfirmed = config.fqdnConfirmed;
+            }
+        }
+
+        if (config.region) selectOption('region', config.region);
+        if (config.localInstanceRegion) selectOption('localInstanceRegion', config.localInstanceRegion);
+        if (config.scale) selectOption('scale', config.scale);
+        if (config.nodes) selectOption('nodes', config.nodes);
+        if (config.witnessType) selectOption('witnessType', config.witnessType);
+
+        // Storage must be set BEFORE ports, because selectOption('storage') resets ports
+        if (config.storage) selectOption('storage', config.storage);
+        if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
+
+        // Now set ports (after storage, so it won't be reset)
+        if (config.ports) selectOption('ports', config.ports);
+
+        // Apply portConfig after ports selection (since selectOption may reset it)
+        if (config.portConfig && Array.isArray(config.portConfig)) {
+            state.portConfig = config.portConfig;
+            state.portConfigConfirmed = true;
+        }
+
+        if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
+        if (config.intent) selectOption('intent', config.intent);
+        // storageAutoIp must come AFTER outbound (outbound handler resets storageAutoIp to null)
+        if (config.outbound) selectOption('outbound', config.outbound);
+        if (config.arc) selectOption('arc', config.arc);
+        if (config.proxy) selectOption('proxy', config.proxy);
+        if (config.privateEndpoints) selectOption('privateEndpoints', config.privateEndpoints);
+        if (config.ip) selectOption('ip', config.ip);
+        if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
+
+        // Apply infrastructure settings
+        if (config.infraCidr) {
+            state.infraCidr = config.infraCidr;
+        }
+        if (config.infra) {
+            state.infra = config.infra;
+        }
+
+        // Apply nodeSettings and infraGateway after ip selection (since selectOption may reset them)
+        if (config.nodeSettings && Array.isArray(config.nodeSettings)) {
+            state.nodeSettings = config.nodeSettings;
+        }
+        if (config.infraGateway) {
+            state.infraGateway = config.infraGateway;
+            state.infraGatewayManual = true;
+        }
+
+        if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
+        if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
+
+        // Apply AD-related settings
+        // These must be re-applied after selectOption('activeDirectory') which resets them
+        if (config.adDomain) {
+            state.adDomain = config.adDomain;
+        }
+        if (config.adOuPath) {
+            state.adOuPath = config.adOuPath;
+        }
+        if (config.adfsServerName) {
+            state.adfsServerName = config.adfsServerName;
+        }
+        if (config.localDnsZone) {
+            state.localDnsZone = config.localDnsZone;
+        }
+        if (config.dnsServers && Array.isArray(config.dnsServers)) {
+            state.dnsServers = config.dnsServers;
+        }
+
+        // Render DNS server inputs from restored state (selectOption('activeDirectory') renders empty ones)
+        if (state.dnsServers && state.dnsServers.length > 0) {
+            renderDnsServers();
+        }
+        // Restore AD domain input value (selectOption('activeDirectory') clears it)
+        const adDomainInputEl = document.getElementById('ad-domain');
+        if (adDomainInputEl && state.adDomain) {
+            adDomainInputEl.value = state.adDomain;
+        }
+        // Restore AD OU Path input value
+        const adOuPathInputEl = document.getElementById('ad-ou-path');
+        if (adOuPathInputEl && state.adOuPath) {
+            adOuPathInputEl.value = state.adOuPath;
+        }
+        // Restore ADFS Server Name input value
+        const adfsServerInputEl = document.getElementById('adfs-server-name');
+        if (adfsServerInputEl && state.adfsServerName) {
+            adfsServerInputEl.value = state.adfsServerName;
+        }
+        // Restore local DNS zone input value
+        const localDnsZoneInputEl = document.getElementById('local-dns-zone-input');
+        if (localDnsZoneInputEl && state.localDnsZone) {
+            localDnsZoneInputEl.value = state.localDnsZone;
+        }
+
+        // Apply rack-aware settings
+        if (config.rackAwareZones) {
+            state.rackAwareZones = config.rackAwareZones;
+        }
+        if (config.rackAwareZonesConfirmed !== undefined) {
+            state.rackAwareZonesConfirmed = config.rackAwareZonesConfirmed;
+        }
+        if (config.rackAwareTorsPerRoom) {
+            state.rackAwareTorsPerRoom = config.rackAwareTorsPerRoom;
+        }
+        if (config.rackAwareTorArchitecture) {
+            state.rackAwareTorArchitecture = config.rackAwareTorArchitecture;
+        }
+
+        if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
+
+        // Apply SDN settings
+        if (config.sdnEnabled) selectOption('sdnEnabled', config.sdnEnabled);
+        if (config.sdnFeatures && Array.isArray(config.sdnFeatures)) {
+            state.sdnFeatures = config.sdnFeatures;
+            // Check SDN feature checkboxes in the DOM
+            state.sdnFeatures.forEach(function(feature) {
+                const checkbox = document.querySelector('.sdn-feature-card[data-feature="' + feature + '"] input[type="checkbox"]');
+                if (checkbox) checkbox.checked = true;
+            });
+            // Show management section and enable correct cards based on selected features
+            updateSdnManagementOptions();
+        }
+        if (config.sdnManagement) {
+            state.sdnManagement = config.sdnManagement;
+            // Select the correct SDN management card in the DOM
+            const arcCard = document.getElementById('sdn-arc-card');
+            const onpremCard = document.getElementById('sdn-onprem-card');
+            if (arcCard) arcCard.classList.remove('selected');
+            if (onpremCard) onpremCard.classList.remove('selected');
+            const sdnMgmtCard = document.getElementById(config.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
+            if (sdnMgmtCard && !sdnMgmtCard.classList.contains('disabled')) {
+                sdnMgmtCard.classList.add('selected');
+            }
+        }
+
+        // Re-enable updateUI and run it once to apply all visual updates,
+        // disabled states, and auto-defaults from the final state
     } finally {
         window.__loadingTemplate = false;
     }
