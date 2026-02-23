@@ -1795,9 +1795,37 @@
                                 <h4 style="margin: 0; color: #38bdf8; font-size: 1rem;">Disconnected Operations Appliance VM — Dedicated IPs</h4>
                             </div>
                             <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.85rem;">
-                                The disconnected operations appliance requires two dedicated IPs on the infrastructure subnet for the ingress vNIC (portal / CLI access) and the management vNIC. These must be within the infrastructure CIDR but outside the node IPs and the infrastructure IP pool.
+                                The disconnected operations appliance requires two dedicated IPs for the ingress vNIC (portal / CLI access) and the management vNIC.
                             </p>
-                            <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <div>
+                                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Will the appliance VM use the same VLAN ID as the infrastructure network?</label>
+                                <div class="options-grid" style="margin-top:0.25rem;">
+                                    <div class="option-card" data-value="same" onclick="selectDisconnectedOption('applianceVlanMode', 'same')">
+                                        <div class="icon">✅</div>
+                                        <h3>Yes — Same VLAN</h3>
+                                        <p>Use the infrastructure VLAN and subnet.</p>
+                                    </div>
+                                    <div class="option-card" data-value="different" onclick="selectDisconnectedOption('applianceVlanMode', 'different')">
+                                        <div class="icon">🔀</div>
+                                        <h3>No — Different VLAN</h3>
+                                        <p>Provide appliance VLAN ID and dedicated subnet IPs.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="appliance-vlan-id-section" class="hidden" style="margin-top:1rem;">
+                                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Appliance VM VLAN ID</label>
+                                <input type="number" id="appliance-vlan-id" min="1" max="4094" placeholder="e.g. 210"
+                                    style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
+                                    onchange="updateApplianceVlanId(this.value)">
+                                <div id="appliance-vlan-error" class="hidden"
+                                    style="margin-top:0.75rem; color:#ef4444; font-size:0.85rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
+                                </div>
+                                <div id="appliance-vlan-success" class="hidden"
+                                    style="margin-top:0.75rem; color:var(--success); font-size:0.85rem;">&#10003; Valid appliance VLAN ID</div>
+                            </div>
+
+                            <div id="appliance-ip-inputs" class="hidden" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;">
                                 <div style="flex: 1; min-width: 200px;">
                                     <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem;">Appliance IP 1 <span style="color: var(--text-secondary); font-size: 0.8rem;">(Ingress vNIC)</span></label>
                                     <input type="text" id="appliance-ip-1" placeholder="e.g. 192.168.1.5"
@@ -1819,7 +1847,7 @@
                                 style="margin-top: 0.75rem; color: #ef4444; font-size: 0.85rem; background: rgba(239,68,68,0.1); padding: 0.75rem; border-radius: 4px; border: 1px solid rgba(239,68,68,0.2);">
                             </div>
                             <div id="appliance-ip-success" class="hidden"
-                                style="margin-top: 0.75rem; color: var(--success); font-size: 0.85rem;">&#10003; Valid Appliance IPs — within infrastructure subnet, no conflicts with node IPs or gateway</div>
+                                style="margin-top: 0.75rem; color: var(--success); font-size: 0.85rem;">&#10003; Valid Appliance IPs — no conflicts with node IPs or gateway</div>
                         </div>
                     </div>
                 </section>

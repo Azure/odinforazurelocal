@@ -14,6 +14,8 @@
 //   state.autonomousCloudFqdn – string | null   (both cluster roles)
 //   state.applianceIp1        – string | null   (mgmt cluster only)
 //   state.applianceIp2        – string | null   (mgmt cluster only)
+//   state.applianceVlanMode    – 'same' | 'different' | null
+//   state.applianceVlanId      – number | null
 // ============================================================================
 
 (function () {
@@ -30,6 +32,8 @@
         if (!('fqdnConfirmed' in state)) state.fqdnConfirmed = false;
         if (!('applianceIp1' in state)) state.applianceIp1 = null;
         if (!('applianceIp2' in state)) state.applianceIp2 = null;
+        if (!('applianceVlanMode' in state)) state.applianceVlanMode = null;
+        if (!('applianceVlanId' in state)) state.applianceVlanId = null;
     }
 
     // ========================================================================
@@ -57,6 +61,23 @@
             if (value === 'workload') {
                 state.applianceIp1 = null;
                 state.applianceIp2 = null;
+                state.applianceVlanMode = null;
+                state.applianceVlanId = null;
+            }
+        }
+
+        if (category === 'applianceVlanMode') {
+            state.applianceVlanMode = value;
+
+            if (value === 'same') {
+                state.applianceVlanId = null;
+            } else if (value === 'different') {
+                state.applianceIp1 = null;
+                state.applianceIp2 = null;
+                var apIp1 = document.getElementById('appliance-ip-1');
+                var apIp2 = document.getElementById('appliance-ip-2');
+                if (apIp1) apIp1.value = '';
+                if (apIp2) apIp2.value = '';
             }
         }
 
@@ -198,6 +219,90 @@
     // APPLIANCE IP VALIDATION  (management cluster)
     // ========================================================================
 
+    function isValidVlanId(vlanId) {
+        var value = parseInt(vlanId, 10);
+        return !isNaN(value) && value >= 1 && value <= 4094;
+    }
+
+    function updateApplianceVlanUI() {
+        var mode = state.applianceVlanMode;
+        var section = document.getElementById('appliance-ip-section');
+        var vlanIdSection = document.getElementById('appliance-vlan-id-section');
+        var ipInputs = document.getElementById('appliance-ip-inputs');
+        var vlanInput = document.getElementById('appliance-vlan-id');
+
+        if (!section) return;
+
+        section.querySelectorAll('.option-card[onclick*="applianceVlanMode"]').forEach(function (card) {
+            var val = card.getAttribute('data-value');
+            card.classList.toggle('selected', val === mode);
+        });
+
+        if (!mode) {
+            if (vlanIdSection) vlanIdSection.classList.add('hidden');
+            if (ipInputs) ipInputs.classList.add('hidden');
+            return;
+        }
+
+        if (mode === 'same') {
+            if (vlanIdSection) vlanIdSection.classList.add('hidden');
+            if (ipInputs) ipInputs.classList.remove('hidden');
+            return;
+        }
+
+        if (mode === 'different') {
+            if (vlanIdSection) vlanIdSection.classList.remove('hidden');
+
+            if (vlanInput && state.applianceVlanId && !vlanInput.value) {
+                vlanInput.value = String(state.applianceVlanId);
+            }
+
+            if (ipInputs) {
+                if (isValidVlanId(state.applianceVlanId)) ipInputs.classList.remove('hidden');
+                else ipInputs.classList.add('hidden');
+            }
+
+            window.updateApplianceVlanId(vlanInput ? vlanInput.value : state.applianceVlanId);
+        }
+    }
+
+    window.updateApplianceVlanId = function (value) {
+        var vlanValue = parseInt(String(value || '').trim(), 10);
+        var errEl = document.getElementById('appliance-vlan-error');
+        var succEl = document.getElementById('appliance-vlan-success');
+        var ipInputs = document.getElementById('appliance-ip-inputs');
+
+        if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('visible'); }
+        if (succEl) { succEl.classList.add('hidden'); succEl.classList.remove('visible'); }
+
+        if (isNaN(vlanValue)) {
+            state.applianceVlanId = null;
+            if (ipInputs) ipInputs.classList.add('hidden');
+            if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+            return;
+        }
+
+        if (!isValidVlanId(vlanValue)) {
+            state.applianceVlanId = null;
+            if (errEl) {
+                errEl.textContent = '\u26A0 Appliance VLAN ID must be an integer between 1 and 4094.';
+                errEl.classList.remove('hidden');
+                errEl.classList.add('visible');
+            }
+            if (ipInputs) ipInputs.classList.add('hidden');
+            if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+            return;
+        }
+
+        state.applianceVlanId = vlanValue;
+        if (succEl) {
+            succEl.classList.remove('hidden');
+            succEl.classList.add('visible');
+        }
+        if (ipInputs) ipInputs.classList.remove('hidden');
+        if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+    };
+
     window.updateApplianceIps = function () {
         var ip1Input = document.getElementById('appliance-ip-1');
         var ip2Input = document.getElementById('appliance-ip-2');
@@ -216,7 +321,8 @@
 
         if (!ip1 && !ip2) return;
 
-        var errors = validateApplianceIps(ip1, ip2);
+        var requireInfraSubnet = state.applianceVlanMode !== 'different';
+        var errors = validateApplianceIps(ip1, ip2, requireInfraSubnet);
         if (errors.length > 0) {
             if (errEl) {
                 errEl.innerHTML = errors.map(function (e) { return '\u26A0 ' + e; }).join('<br>');
@@ -225,6 +331,9 @@
             }
         } else if (ip1 && ip2) {
             if (succEl) {
+                succEl.textContent = requireInfraSubnet
+                    ? '✓ Valid Appliance IPs — within infrastructure subnet, no conflicts with node IPs or gateway'
+                    : '✓ Valid Appliance IPs — no conflicts with node IPs or gateway';
                 succEl.classList.remove('hidden');
                 succEl.classList.add('visible');
             }
@@ -233,7 +342,7 @@
         if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
     };
 
-    function validateApplianceIps(ip1, ip2) {
+    function validateApplianceIps(ip1, ip2, requireInfraSubnet) {
         var errors = [];
         var ipRegex = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
 
@@ -243,7 +352,9 @@
 
         if (ip1 && ip2 && ip1 === ip2) errors.push('Appliance IP 1 and IP 2 must be different.');
 
-        // Check within infra CIDR
+        // Check infra CIDR relationship based on VLAN mode:
+        // - same VLAN: appliance IPs must be within infra CIDR
+        // - different VLAN: appliance IPs must NOT be within infra CIDR
         if (state.infraCidr) {
             var cidrParts = state.infraCidr.split('/');
             if (cidrParts.length === 2) {
@@ -256,14 +367,22 @@
 
                 if (ip1) {
                     var ip1Long = ipToLong(ip1);
-                    if (ip1Long <= netStart || ip1Long >= netEnd) {
+                    var ip1InInfraSubnet = ip1Long > netStart && ip1Long < netEnd;
+                    if (requireInfraSubnet && !ip1InInfraSubnet) {
                         errors.push('Appliance IP 1 (' + ip1 + ') is outside the infrastructure CIDR ' + state.infraCidr + '.');
+                    }
+                    if (!requireInfraSubnet && ip1InInfraSubnet) {
+                        errors.push('Appliance IP 1 (' + ip1 + ') must not be in the infrastructure CIDR ' + state.infraCidr + ' when appliance VLAN is different.');
                     }
                 }
                 if (ip2) {
                     var ip2Long = ipToLong(ip2);
-                    if (ip2Long <= netStart || ip2Long >= netEnd) {
+                    var ip2InInfraSubnet = ip2Long > netStart && ip2Long < netEnd;
+                    if (requireInfraSubnet && !ip2InInfraSubnet) {
                         errors.push('Appliance IP 2 (' + ip2 + ') is outside the infrastructure CIDR ' + state.infraCidr + '.');
+                    }
+                    if (!requireInfraSubnet && ip2InInfraSubnet) {
+                        errors.push('Appliance IP 2 (' + ip2 + ') must not be in the infrastructure CIDR ' + state.infraCidr + ' when appliance VLAN is different.');
                     }
                 }
             }
@@ -315,6 +434,8 @@
                 state.fqdnConfirmed = false;
                 state.applianceIp1 = null;
                 state.applianceIp2 = null;
+                state.applianceVlanMode = null;
+                state.applianceVlanId = null;
             }
             if (applianceSection) applianceSection.classList.add('hidden');
             hideWorkloadTwoNodeBanner();
@@ -402,8 +523,11 @@
                     // Restore input values
                     var ip1 = document.getElementById('appliance-ip-1');
                     var ip2 = document.getElementById('appliance-ip-2');
+                    var vlanIdInput = document.getElementById('appliance-vlan-id');
                     if (ip1 && state.applianceIp1 && !ip1.value) ip1.value = state.applianceIp1;
                     if (ip2 && state.applianceIp2 && !ip2.value) ip2.value = state.applianceIp2;
+                    if (vlanIdInput && state.applianceVlanId && !vlanIdInput.value) vlanIdInput.value = String(state.applianceVlanId);
+                    updateApplianceVlanUI();
                 } else {
                     applianceSection.classList.add('hidden');
                 }
@@ -652,6 +776,8 @@
             state.fqdnConfirmed = false;
             state.applianceIp1 = null;
             state.applianceIp2 = null;
+            state.applianceVlanMode = null;
+            state.applianceVlanId = null;
 
             // Clear FQDN input
             var fqdnInput = document.getElementById('autonomous-cloud-fqdn');
@@ -660,8 +786,10 @@
             // Clear appliance inputs
             var ip1 = document.getElementById('appliance-ip-1');
             var ip2 = document.getElementById('appliance-ip-2');
+            var applianceVlanId = document.getElementById('appliance-vlan-id');
             if (ip1) ip1.value = '';
             if (ip2) ip2.value = '';
+            if (applianceVlanId) applianceVlanId.value = '';
 
             // Hide banners
             hideMgmtBanner();
@@ -681,6 +809,8 @@
                 state.fqdnConfirmed = false;
                 state.applianceIp1 = null;
                 state.applianceIp2 = null;
+                state.applianceVlanMode = null;
+                state.applianceVlanId = null;
                 hideMgmtBanner();
                 hideWorkloadTwoNodeBanner();
             }
@@ -692,6 +822,8 @@
                 state.fqdnConfirmed = false;
                 state.applianceIp1 = null;
                 state.applianceIp2 = null;
+                state.applianceVlanMode = null;
+                state.applianceVlanId = null;
                 hideWorkloadTwoNodeBanner();
             }
 
