@@ -3998,7 +3998,7 @@ function updateUI() {
     // ADFS Server section visibility
     const adfsSection = document.getElementById('adfs-server-section');
     if (adfsSection) {
-        if (state.scenario === 'disconnected' && state.activeDirectory === 'azure_ad') {
+        if (state.scenario === 'disconnected' && state.activeDirectory === 'azure_ad' && state.clusterRole === 'management') {
             adfsSection.classList.remove('hidden');
         } else {
             adfsSection.classList.add('hidden');
