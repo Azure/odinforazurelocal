@@ -82,7 +82,17 @@
     function isValidFqdn(fqdn) {
         if (!fqdn) return false;
         var fqdnRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)+$/;
-        return fqdnRegex.test(fqdn);
+        if (!fqdnRegex.test(fqdn)) return false;
+
+        var labels = fqdn.toLowerCase().split('.');
+
+        // Reject apex/root domains like contoso.com (must be a host FQDN)
+        if (labels.length < 3) return false;
+
+        // Azure Local disconnected operations endpoint must not use .local
+        if (labels[labels.length - 1] === 'local') return false;
+
+        return true;
     }
 
     // Helper: update the confirm button enabled/disabled state
@@ -133,7 +143,7 @@
         // Basic FQDN validation: at least one dot, no spaces, valid chars
         if (!isValidFqdn(fqdn)) {
             if (errEl) {
-                errEl.textContent = '\u26A0 Invalid FQDN format. Expected something like azlocal-mgmt.contoso.local';
+                errEl.textContent = '\u26A0 Invalid endpoint FQDN. Use a host FQDN (for example: mgmt.contoso.com). Root domains (contoso.com) and .local domains are not supported.';
                 errEl.classList.remove('hidden');
                 errEl.classList.add('visible');
             }
