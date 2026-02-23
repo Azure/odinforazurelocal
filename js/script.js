@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.17.00';
+const WIZARD_VERSION = '0.17.04';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -3186,7 +3186,10 @@ function getPrivateEndpointInfo(serviceKey) {
 
 function updateUI() {
     // Skip UI updates on test page (no wizard DOM elements)
-    if (window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
+    // Also skip during template loading to prevent cascading auto-defaults
+    // (each selectOption call triggers updateUI, which can auto-set intent/storageAutoIp
+    // and recalculate disabled states between calls, breaking the template sequence)
+    if (window.__loadingTemplate || window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
         return;
     }
 
@@ -8968,7 +8971,9 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'contoso.local',
                 dnsServers: ['192.168.1.1'],
-                securityConfiguration: 'recommended'
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'no'
             }
         },
         {
@@ -9009,7 +9014,11 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'corp.contoso.com',
                 dnsServers: ['10.0.1.1', '10.0.1.2'],
-                securityConfiguration: 'recommended'
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'yes',
+                sdnFeatures: ['lnet', 'nsg'],
+                sdnManagement: 'arc_managed'
             }
         },
         {
@@ -9024,7 +9033,8 @@ function showTemplates() {
                 rackAwareZones: {
                     zone1Name: 'RackA',
                     zone2Name: 'RackB',
-                    assignments: { '1': 1, '2': 1, '3': 1, '4': 1, '5': 2, '6': 2, '7': 2, '8': 2 }
+                    assignments: { '1': 1, '2': 1, '3': 1, '4': 1, '5': 2, '6': 2, '7': 2, '8': 2 },
+                    nodeCount: 8
                 },
                 rackAwareZonesConfirmed: true,
                 rackAwareTorsPerRoom: 'single',
@@ -9039,11 +9049,12 @@ function showTemplates() {
                 ],
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
-                intent: 'compute_storage',
+                intent: 'mgmt_compute',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'yes',
                 proxy: 'no_proxy',
+                privateEndpoints: 'pe_disabled',
                 ip: 'static',
                 infraCidr: '172.16.0.0/24',
                 infra: { start: '172.16.0.100', end: '172.16.0.120' },
@@ -9062,7 +9073,8 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'datacenter.local',
                 dnsServers: ['172.16.0.1', '172.16.0.2'],
-                securityConfiguration: 'recommended'
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'no'
             }
         },
         {
@@ -9098,10 +9110,13 @@ function showTemplates() {
                 ],
                 infraGateway: '10.10.10.1',
                 infraVlan: 'default',
-                activeDirectory: 'local_identity',
+                activeDirectory: 'azure_ad',
+                adDomain: 'airgap.contoso.com',
                 localDnsZone: 'airgap.local',
                 dnsServers: ['10.10.10.1'],
-                securityConfiguration: 'recommended'
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'no'
             }
         },
         {
@@ -9138,7 +9153,9 @@ function showTemplates() {
                 activeDirectory: 'azure_ad',
                 adDomain: 'edge.contoso.com',
                 dnsServers: ['192.168.100.1'],
-                securityConfiguration: 'recommended'
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'no'
             }
         }
     ];
@@ -9191,6 +9208,22 @@ function loadTemplate(templateIndex) {
     const template = window.configTemplates[templateIndex];
     const config = template.config;
 
+    // Suppress updateUI() during template loading.
+    // Without this, each selectOption() call triggers updateUI(), which:
+    // 1. Auto-defaults intent to 'mgmt_compute' when ports are set but intent is null
+    // 2. Auto-defaults storageAutoIp based on transient state
+    // 3. Recalculates disabled card states between calls, potentially blocking later selections
+    // By suppressing updateUI during loading and calling it once at the end, the template
+    // loading sequence works identically to how the CI tests operate.
+    window.__loadingTemplate = true;
+
+    try {
+
+    // Remove disabled from all option cards and node chips so selectOption calls
+    // won't be blocked by disabled states from the initial page load or previous state
+    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('disabled'));
+    document.querySelectorAll('.node-chip').forEach(c => c.classList.remove('disabled'));
+
     // Apply configuration
     Object.keys(config).forEach(key => {
         if (Object.prototype.hasOwnProperty.call(state, key)) {
@@ -9216,15 +9249,18 @@ function loadTemplate(templateIndex) {
     // Apply portConfig after ports selection (since selectOption may reset it)
     if (config.portConfig && Array.isArray(config.portConfig)) {
         state.portConfig = config.portConfig;
+        state.portConfigConfirmed = true;
     }
 
     if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
     if (config.intent) selectOption('intent', config.intent);
-    if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
+    // storageAutoIp must come AFTER outbound (outbound handler resets storageAutoIp to null)
     if (config.outbound) selectOption('outbound', config.outbound);
     if (config.arc) selectOption('arc', config.arc);
     if (config.proxy) selectOption('proxy', config.proxy);
+    if (config.privateEndpoints) selectOption('privateEndpoints', config.privateEndpoints);
     if (config.ip) selectOption('ip', config.ip);
+    if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
 
     // Apply infrastructure settings
     if (config.infraCidr) {
@@ -9272,6 +9308,19 @@ function loadTemplate(templateIndex) {
     }
 
     if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
+
+    // Apply SDN settings
+    if (config.sdnEnabled) selectOption('sdnEnabled', config.sdnEnabled);
+    if (config.sdnFeatures && Array.isArray(config.sdnFeatures)) {
+        state.sdnFeatures = config.sdnFeatures;
+    }
+    if (config.sdnManagement) selectOption('sdnManagement', config.sdnManagement);
+
+    // Re-enable updateUI and run it once to apply all visual updates,
+    // disabled states, and auto-defaults from the final state
+    } finally {
+        window.__loadingTemplate = false;
+    }
 
     // Final UI update to reflect all state changes
     updateUI();

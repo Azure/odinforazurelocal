@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.04] - 2026-02-23
+
+### Fixed
+
+#### Example Template Loading (#140)
+- **Template Completeness**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–71%) instead of 100% — all five templates now load fully complete
+- **Template Loading Race Condition**: Suppressed `updateUI()` during template loading to prevent cascading auto-defaults (`intent`, `storageAutoIp`) and disabled card recalculation between sequential `selectOption()` calls. Each `selectOption()` triggered a full `updateUI()` pass which auto-defaulted transient state and recalculated disabled cards, breaking subsequent selections in the cascade
+- **Missing Template Data**: Added `privateEndpoints: 'pe_disabled'` to all five template configurations — the missing field caused IP Assignment cards to be disabled, blocking all downstream selections
+- **Rack Aware Template**: Fixed intent from `compute_storage` to `mgmt_compute` (the only allowed intent for rack-aware scale); added `nodeCount: 8` to `rackAwareZones` to prevent `ensureRackAwareZonesInitialized()` from resetting zone confirmation
+- **Disconnected Template**: Fixed `activeDirectory` from `local_identity` to `azure_ad` (disconnected scenarios enforce `azure_ad` via constraints)
+- **Template Loading Order**: Moved `storageAutoIp` selection after `outbound`/`arc`/`proxy`/`privateEndpoints`/`ip` in `loadTemplate()` — the `outbound` handler resets `storageAutoIp` to `null`, so it must be set afterwards
+- **Port Config Confirmation**: Set `portConfigConfirmed = true` when restoring `portConfig` from template data, so the "Confirm Port Selection" step shows as complete
+
+### Added
+
+#### Template Regression Tests
+- **Template Data Completeness Tests**: 3 tests verifying all templates include required fields (`privateEndpoints`, `securityConfiguration`, `portConfig`)
+- **Template Progress Tests**: 5 tests (one per template) verifying `computeWizardProgress()` returns 100% after `loadTemplate()`
+- **Template Check Count Tests**: 5 tests validating the exact number of progress checks per template (accounting for conditional checks like static IP gateway and AD domain)
+- **Rack Aware Zone Tests**: 3 tests verifying zone names, node assignments, and `nodeCount` match the template's node count
+- **Disconnected Constraint Tests**: 2 tests verifying disconnected templates use `azure_ad` identity and `air_gapped` outbound
+
+---
+
 ## [0.17.00] - 2026-02-23
 
 ### Added
