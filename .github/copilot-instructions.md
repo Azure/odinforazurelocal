@@ -8,3 +8,4 @@
 - When updating the version number, ensure that it is updated in all relevant files, such as the `README.md`, `CHANGELOG.md`, and the index.html and What's New section in the java script code.
 - When making updates use the Release Branch and create a pull request to merge it into the main branch. Do not commit directly to the main branch. Try to avoid creating additional branches, to prevent merge conflicts and maintain a clean commit history.
 - When creating a pull request, ensure that it includes a clear description of the changes made and the reason for the changes. This will help reviewers understand the context of the changes and provide feedback more effectively.
+- Before starting new work, always pull the latest changes from the main branch into Release Branch to ensure that you are working with the most up-to-date codebase, fast-forward merge. This will help prevent merge conflicts and ensure that your changes are based on the latest version of the code.
