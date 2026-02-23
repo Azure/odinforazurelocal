@@ -307,6 +307,7 @@
                 state.applianceIp2 = null;
             }
             if (applianceSection) applianceSection.classList.add('hidden');
+            hideWorkloadTwoNodeBanner();
             var ctxBanner = document.getElementById('disconnected-cloud-context');
             if (ctxBanner) { ctxBanner.classList.add('hidden'); ctxBanner.classList.remove('visible'); }
             return;
@@ -321,6 +322,7 @@
         if (!state.clusterRole) {
             hideRegularSteps();
             if (applianceSection) applianceSection.classList.add('hidden');
+            hideWorkloadTwoNodeBanner();
             var ctxBanner2 = document.getElementById('disconnected-cloud-context');
             if (ctxBanner2) { ctxBanner2.classList.add('hidden'); ctxBanner2.classList.remove('visible'); }
             return;
@@ -371,6 +373,9 @@
 
             // Hide appliance IP section (workload clusters don't have an appliance)
             if (applianceSection) applianceSection.classList.add('hidden');
+
+            // Show node constraint note for disconnected workload clusters
+            showWorkloadTwoNodeBanner();
         }
 
         // === MANAGEMENT CLUSTER FLOW ===
@@ -396,6 +401,7 @@
 
             // Lock node count to 3 for management cluster
             applyMgmtClusterConstraints();
+            hideWorkloadTwoNodeBanner();
         }
 
         // === BOTH FLOWS: Disable Private Endpoints (not supported for disconnected) ===
@@ -551,6 +557,39 @@
         if (banner) banner.classList.add('hidden');
     }
 
+    function showWorkloadTwoNodeBanner() {
+        if (state.scenario !== 'disconnected' || state.clusterRole !== 'workload') {
+            hideWorkloadTwoNodeBanner();
+            return;
+        }
+
+        var nodesStep = document.getElementById('step-3');
+        if (!nodesStep) return;
+
+        var banner = document.getElementById('workload-two-node-info');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'workload-two-node-info';
+            banner.className = 'info-box warning visible';
+            banner.style.marginBottom = '1rem';
+            banner.innerHTML = '<strong style="color: #ef4444;">⚠️ Disconnected Workload Cluster Constraint</strong>' +
+                '<p style="margin:0.25rem 0 0;">Azure Local disconnected operations does not support cloud witness and 2 nodes deployment is not supported.</p>';
+            var header = nodesStep.querySelector('.step-header');
+            if (header && header.nextElementSibling) {
+                header.parentNode.insertBefore(banner, header.nextElementSibling);
+            } else if (header) {
+                nodesStep.appendChild(banner);
+            }
+        }
+
+        banner.classList.remove('hidden');
+    }
+
+    function hideWorkloadTwoNodeBanner() {
+        var banner = document.getElementById('workload-two-node-info');
+        if (banner) banner.classList.add('hidden');
+    }
+
     // ========================================================================
     // WORKLOAD CLUSTER — auto-set defaults when FQDN provided
     // ========================================================================
@@ -616,6 +655,7 @@
 
             // Hide banners
             hideMgmtBanner();
+            hideWorkloadTwoNodeBanner();
 
             _originalResetAll.apply(this, arguments);
         };
@@ -632,6 +672,7 @@
                 state.applianceIp1 = null;
                 state.applianceIp2 = null;
                 hideMgmtBanner();
+                hideWorkloadTwoNodeBanner();
             }
 
             // When scenario changes to disconnected, reset the sub-state
@@ -641,6 +682,7 @@
                 state.fqdnConfirmed = false;
                 state.applianceIp1 = null;
                 state.applianceIp2 = null;
+                hideWorkloadTwoNodeBanner();
             }
 
             _originalSelectOption.apply(this, arguments);

@@ -3410,6 +3410,8 @@ function updateUI() {
                 // Workload cluster: allows 1-16 nodes (standard medium scale range)
                 if (state.clusterRole === 'management') {
                     if (valueStr !== '3') isDisabled = true;
+                } else if (state.clusterRole === 'workload') {
+                    if (valueStr === '2') isDisabled = true;
                 }
             }
             if (state.scenario === 'm365local') {
@@ -8814,7 +8816,7 @@ function showComparison(category) {
                 },
                 {
                     name: 'ℹ️ Limited Connectivity',
-                    pros: ['Restricted internet access with controlled endpoints', 'Enables telemetry and remote diagnostics', 'Balances security with operational flexibility'],
+                    pros: ['Restricted internet access with controlled endpoints', 'Enables log collection from disconnected operations appliance', 'Balances security with operational flexibility'],
                     useCases: ['Government and regulated industries with controlled egress', 'Environments allowing limited, approved internet access', 'Organizations needing remote management capabilities', 'Deployments requiring periodic cloud sync for updates'],
                     recommended: 'For disconnected environments that allow restricted internet access'
                 }
