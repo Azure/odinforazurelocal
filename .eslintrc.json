@@ -65,7 +65,8 @@
     "updateLocalDnsZone": "readonly",
     "isRfc1918Ip": "readonly",
     "isNetworkOrBroadcastAddress": "readonly",
-    "isLastOctetNetworkOrBroadcast": "readonly"
+    "isLastOctetNetworkOrBroadcast": "readonly",
+    "selectDisconnectedOption": "readonly"
   },
   "rules": {
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],

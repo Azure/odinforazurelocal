@@ -63,13 +63,15 @@
         if (typeof updateUI === 'function') updateUI();
         if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 
-        // Auto-scroll to next step
-        setTimeout(function () {
-            if (category === 'clusterRole') {
-                var fqdnStep = document.getElementById('step-fqdn');
-                if (fqdnStep) fqdnStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 200);
+        // Auto-scroll to next step (skip during template/import loading)
+        if (!window.__loadingTemplate) {
+            setTimeout(function () {
+                if (category === 'clusterRole') {
+                    var fqdnStep = document.getElementById('step-fqdn');
+                    if (fqdnStep) fqdnStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 200);
+        }
     };
 
     // ========================================================================
@@ -157,15 +159,17 @@
         if (typeof updateUI === 'function') updateUI();
         if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 
-        // Scroll to the next visible step so the user sees the wizard progress
-        setTimeout(function () {
-            // Management sees cloud step next; workload skips to step-2 (scale)
-            var nextStepId = state.clusterRole === 'workload' ? 'step-2' : 'step-cloud';
-            var nextStep = document.getElementById(nextStepId);
-            if (nextStep && !nextStep.classList.contains('hidden')) {
-                nextStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 250);
+        // Scroll to the next visible step so the user sees the wizard progress (skip during template/import loading)
+        if (!window.__loadingTemplate) {
+            setTimeout(function () {
+                // Management sees cloud step next; workload skips to step-2 (scale)
+                var nextStepId = state.clusterRole === 'workload' ? 'step-2' : 'step-cloud';
+                var nextStep = document.getElementById(nextStepId);
+                if (nextStep && !nextStep.classList.contains('hidden')) {
+                    nextStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 250);
+        }
     };
 
     // Edit FQDN (unlock for editing)

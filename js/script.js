@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.17.00';
+const WIZARD_VERSION = '0.17.04';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -3186,7 +3186,10 @@ function getPrivateEndpointInfo(serviceKey) {
 
 function updateUI() {
     // Skip UI updates on test page (no wizard DOM elements)
-    if (window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
+    // Also skip during template loading to prevent cascading auto-defaults
+    // (each selectOption call triggers updateUI, which can auto-set intent/storageAutoIp
+    // and recalculate disabled states between calls, breaking the template sequence)
+    if (window.__loadingTemplate || window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
         return;
     }
 
@@ -8954,7 +8957,7 @@ function showTemplates() {
                 intent: 'compute_storage',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
-                arc: 'yes',
+                arc: 'arc_gateway',
                 proxy: 'no_proxy',
                 ip: 'static',
                 infraCidr: '192.168.1.0/24',
@@ -8967,8 +8970,11 @@ function showTemplates() {
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'contoso.local',
+                adOuPath: 'OU=AzureLocal,DC=contoso,DC=local',
                 dnsServers: ['192.168.1.1'],
-                securityConfiguration: 'recommended'
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'no'
             }
         },
         {
@@ -8993,7 +8999,7 @@ function showTemplates() {
                 intent: 'compute_storage',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
-                arc: 'yes',
+                arc: 'arc_gateway',
                 proxy: 'no_proxy',
                 ip: 'static',
                 infraCidr: '10.0.1.0/24',
@@ -9008,8 +9014,13 @@ function showTemplates() {
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'corp.contoso.com',
+                adOuPath: 'OU=AzureLocal,DC=corp,DC=contoso,DC=com',
                 dnsServers: ['10.0.1.1', '10.0.1.2'],
-                securityConfiguration: 'recommended'
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'yes',
+                sdnFeatures: ['lnet', 'nsg'],
+                sdnManagement: 'arc_managed'
             }
         },
         {
@@ -9024,11 +9035,12 @@ function showTemplates() {
                 rackAwareZones: {
                     zone1Name: 'RackA',
                     zone2Name: 'RackB',
-                    assignments: { '1': 1, '2': 1, '3': 1, '4': 1, '5': 2, '6': 2, '7': 2, '8': 2 }
+                    assignments: { '1': 1, '2': 1, '3': 1, '4': 1, '5': 2, '6': 2, '7': 2, '8': 2 },
+                    nodeCount: 8
                 },
                 rackAwareZonesConfirmed: true,
-                rackAwareTorsPerRoom: 'single',
-                rackAwareTorArchitecture: 'separate',
+                rackAwareTorsPerRoom: '2',
+                rackAwareTorArchitecture: 'option_a',
                 witnessType: 'Cloud',
                 ports: '4',
                 portConfig: [
@@ -9039,11 +9051,12 @@ function showTemplates() {
                 ],
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
-                intent: 'compute_storage',
+                intent: 'mgmt_compute',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
-                arc: 'yes',
+                arc: 'arc_gateway',
                 proxy: 'no_proxy',
+                privateEndpoints: 'pe_disabled',
                 ip: 'static',
                 infraCidr: '172.16.0.0/24',
                 infra: { start: '172.16.0.100', end: '172.16.0.120' },
@@ -9061,19 +9074,24 @@ function showTemplates() {
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'datacenter.local',
+                adOuPath: 'OU=AzureLocal,DC=datacenter,DC=local',
                 dnsServers: ['172.16.0.1', '172.16.0.2'],
-                securityConfiguration: 'recommended'
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'no'
             }
         },
         {
-            name: 'Disconnected 2-Node',
-            description: 'Air-gapped deployment with local identity for secure environments',
+            name: 'Disconnected - Management Cluster 3-Node',
+            description: 'Air-gapped management cluster (3 nodes) with Autonomous Cloud endpoint for disconnected operations',
             config: {
                 scenario: 'disconnected',
+                clusterRole: 'management',
+                autonomousCloudFqdn: 'azurelocal.airgap.contoso.com',
+                fqdnConfirmed: true,
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
-                nodes: '2',
+                nodes: '3',
                 witnessType: 'NoWitness',
                 ports: '4',
                 portConfig: [
@@ -9094,14 +9112,20 @@ function showTemplates() {
                 infra: { start: '10.10.10.50', end: '10.10.10.60' },
                 nodeSettings: [
                     { name: 'secnode1', ipCidr: '10.10.10.11/24' },
-                    { name: 'secnode2', ipCidr: '10.10.10.12/24' }
+                    { name: 'secnode2', ipCidr: '10.10.10.12/24' },
+                    { name: 'secnode3', ipCidr: '10.10.10.13/24' }
                 ],
                 infraGateway: '10.10.10.1',
                 infraVlan: 'default',
-                activeDirectory: 'local_identity',
+                activeDirectory: 'azure_ad',
+                adDomain: 'airgap.contoso.com',
+                adOuPath: 'OU=AzureLocal,DC=airgap,DC=contoso,DC=com',
+                adfsServerName: 'adfs.airgap.contoso.com',
                 localDnsZone: 'airgap.local',
                 dnsServers: ['10.10.10.1'],
-                securityConfiguration: 'recommended'
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'no'
             }
         },
         {
@@ -9114,31 +9138,36 @@ function showTemplates() {
                 scale: 'low_capacity',
                 nodes: '2',
                 witnessType: 'Cloud',
-                ports: '2',
+                ports: '4',
                 portConfig: [
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
+                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
                     { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
                     { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true }
                 ],
                 storage: 'switchless',
-                switchlessLinkMode: 'full_mesh',
                 storagePoolConfiguration: 'Express',
-                intent: 'all_traffic',
+                intent: 'mgmt_compute',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
-                arc: 'yes',
+                arc: 'arc_gateway',
                 proxy: 'no_proxy',
-                ip: 'dhcp',
+                ip: 'static',
                 infraCidr: '192.168.100.0/24',
                 infra: { start: '192.168.100.50', end: '192.168.100.60' },
                 nodeSettings: [
                     { name: 'edge1', ipCidr: '192.168.100.11/24' },
                     { name: 'edge2', ipCidr: '192.168.100.12/24' }
                 ],
+                infraGateway: '192.168.100.1',
                 infraVlan: 'default',
                 activeDirectory: 'azure_ad',
                 adDomain: 'edge.contoso.com',
+                adOuPath: 'OU=AzureLocal,DC=edge,DC=contoso,DC=com',
                 dnsServers: ['192.168.100.1'],
-                securityConfiguration: 'recommended'
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                sdnEnabled: 'no'
             }
         }
     ];
@@ -9191,87 +9220,186 @@ function loadTemplate(templateIndex) {
     const template = window.configTemplates[templateIndex];
     const config = template.config;
 
-    // Apply configuration
-    Object.keys(config).forEach(key => {
-        if (Object.prototype.hasOwnProperty.call(state, key)) {
-            state[key] = config[key];
+    // Suppress updateUI() during template loading.
+    // Without this, each selectOption() call triggers updateUI(), which:
+    // 1. Auto-defaults intent to 'mgmt_compute' when ports are set but intent is null
+    // 2. Auto-defaults storageAutoIp based on transient state
+    // 3. Recalculates disabled card states between calls, potentially blocking later selections
+    // By suppressing updateUI during loading and calling it once at the end, the template
+    // loading sequence works identically to how the CI tests operate.
+    window.__loadingTemplate = true;
+
+    try {
+
+        // Remove disabled from all option cards and node chips so selectOption calls
+        // won't be blocked by disabled states from the initial page load or previous state
+        document.querySelectorAll('.option-card').forEach(c => c.classList.remove('disabled'));
+        document.querySelectorAll('.node-chip').forEach(c => c.classList.remove('disabled'));
+
+        // Apply configuration
+        Object.keys(config).forEach(key => {
+            if (Object.prototype.hasOwnProperty.call(state, key)) {
+                state[key] = config[key];
+            }
+        });
+
+        // Trigger UI updates for each selection in logical step order
+        if (config.scenario) selectOption('scenario', config.scenario);
+
+        // Disconnected operations: set cluster role and Autonomous Cloud FQDN
+        if (config.scenario === 'disconnected' && config.clusterRole) {
+            if (typeof selectDisconnectedOption === 'function') {
+                selectDisconnectedOption('clusterRole', config.clusterRole);
+            } else {
+                state.clusterRole = config.clusterRole;
+            }
+            // Restore FQDN + confirmed state AFTER selectDisconnectedOption (which resets them)
+            if (config.autonomousCloudFqdn) {
+                state.autonomousCloudFqdn = config.autonomousCloudFqdn;
+            }
+            if (config.fqdnConfirmed !== undefined) {
+                state.fqdnConfirmed = config.fqdnConfirmed;
+            }
         }
-    });
 
-    // Trigger UI updates for each selection in logical step order
-    if (config.scenario) selectOption('scenario', config.scenario);
-    if (config.region) selectOption('region', config.region);
-    if (config.localInstanceRegion) selectOption('localInstanceRegion', config.localInstanceRegion);
-    if (config.scale) selectOption('scale', config.scale);
-    if (config.nodes) selectOption('nodes', config.nodes);
-    if (config.witnessType) selectOption('witnessType', config.witnessType);
+        if (config.region) selectOption('region', config.region);
+        if (config.localInstanceRegion) selectOption('localInstanceRegion', config.localInstanceRegion);
+        if (config.scale) selectOption('scale', config.scale);
+        if (config.nodes) selectOption('nodes', config.nodes);
+        if (config.witnessType) selectOption('witnessType', config.witnessType);
 
-    // Storage must be set BEFORE ports, because selectOption('storage') resets ports
-    if (config.storage) selectOption('storage', config.storage);
-    if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
+        // Storage must be set BEFORE ports, because selectOption('storage') resets ports
+        if (config.storage) selectOption('storage', config.storage);
+        if (config.switchlessLinkMode) selectOption('switchlessLinkMode', config.switchlessLinkMode);
 
-    // Now set ports (after storage, so it won't be reset)
-    if (config.ports) selectOption('ports', config.ports);
+        // Now set ports (after storage, so it won't be reset)
+        if (config.ports) selectOption('ports', config.ports);
 
-    // Apply portConfig after ports selection (since selectOption may reset it)
-    if (config.portConfig && Array.isArray(config.portConfig)) {
-        state.portConfig = config.portConfig;
-    }
+        // Apply portConfig after ports selection (since selectOption may reset it)
+        if (config.portConfig && Array.isArray(config.portConfig)) {
+            state.portConfig = config.portConfig;
+            state.portConfigConfirmed = true;
+        }
 
-    if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
-    if (config.intent) selectOption('intent', config.intent);
-    if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
-    if (config.outbound) selectOption('outbound', config.outbound);
-    if (config.arc) selectOption('arc', config.arc);
-    if (config.proxy) selectOption('proxy', config.proxy);
-    if (config.ip) selectOption('ip', config.ip);
+        if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
+        if (config.intent) selectOption('intent', config.intent);
+        // storageAutoIp must come AFTER outbound (outbound handler resets storageAutoIp to null)
+        if (config.outbound) selectOption('outbound', config.outbound);
+        if (config.arc) selectOption('arc', config.arc);
+        if (config.proxy) selectOption('proxy', config.proxy);
+        if (config.privateEndpoints) selectOption('privateEndpoints', config.privateEndpoints);
+        if (config.ip) selectOption('ip', config.ip);
+        if (config.storageAutoIp) selectOption('storageAutoIp', config.storageAutoIp);
 
-    // Apply infrastructure settings
-    if (config.infraCidr) {
-        state.infraCidr = config.infraCidr;
-    }
-    if (config.infra) {
-        state.infra = config.infra;
-    }
+        // Apply infrastructure settings
+        if (config.infraCidr) {
+            state.infraCidr = config.infraCidr;
+        }
+        if (config.infra) {
+            state.infra = config.infra;
+        }
 
-    // Apply nodeSettings and infraGateway after ip selection (since selectOption may reset them)
-    if (config.nodeSettings && Array.isArray(config.nodeSettings)) {
-        state.nodeSettings = config.nodeSettings;
-    }
-    if (config.infraGateway) {
-        state.infraGateway = config.infraGateway;
-        state.infraGatewayManual = true;
-    }
+        // Apply nodeSettings and infraGateway after ip selection (since selectOption may reset them)
+        if (config.nodeSettings && Array.isArray(config.nodeSettings)) {
+            state.nodeSettings = config.nodeSettings;
+        }
+        if (config.infraGateway) {
+            state.infraGateway = config.infraGateway;
+            state.infraGatewayManual = true;
+        }
 
-    if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
-    if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
+        if (config.infraVlan) selectOption('infraVlan', config.infraVlan);
+        if (config.activeDirectory) selectOption('activeDirectory', config.activeDirectory);
 
-    // Apply AD-related settings
-    if (config.adDomain) {
-        state.adDomain = config.adDomain;
-    }
-    if (config.localDnsZone) {
-        state.localDnsZone = config.localDnsZone;
-    }
-    if (config.dnsServers && Array.isArray(config.dnsServers)) {
-        state.dnsServers = config.dnsServers;
-    }
+        // Apply AD-related settings
+        // These must be re-applied after selectOption('activeDirectory') which resets them
+        if (config.adDomain) {
+            state.adDomain = config.adDomain;
+        }
+        if (config.adOuPath) {
+            state.adOuPath = config.adOuPath;
+        }
+        if (config.adfsServerName) {
+            state.adfsServerName = config.adfsServerName;
+        }
+        if (config.localDnsZone) {
+            state.localDnsZone = config.localDnsZone;
+        }
+        if (config.dnsServers && Array.isArray(config.dnsServers)) {
+            state.dnsServers = config.dnsServers;
+        }
 
-    // Apply rack-aware settings
-    if (config.rackAwareZones) {
-        state.rackAwareZones = config.rackAwareZones;
-    }
-    if (config.rackAwareZonesConfirmed !== undefined) {
-        state.rackAwareZonesConfirmed = config.rackAwareZonesConfirmed;
-    }
-    if (config.rackAwareTorsPerRoom) {
-        state.rackAwareTorsPerRoom = config.rackAwareTorsPerRoom;
-    }
-    if (config.rackAwareTorArchitecture) {
-        state.rackAwareTorArchitecture = config.rackAwareTorArchitecture;
-    }
+        // Render DNS server inputs from restored state (selectOption('activeDirectory') renders empty ones)
+        if (state.dnsServers && state.dnsServers.length > 0) {
+            renderDnsServers();
+        }
+        // Restore AD domain input value (selectOption('activeDirectory') clears it)
+        const adDomainInputEl = document.getElementById('ad-domain');
+        if (adDomainInputEl && state.adDomain) {
+            adDomainInputEl.value = state.adDomain;
+        }
+        // Restore AD OU Path input value
+        const adOuPathInputEl = document.getElementById('ad-ou-path');
+        if (adOuPathInputEl && state.adOuPath) {
+            adOuPathInputEl.value = state.adOuPath;
+        }
+        // Restore ADFS Server Name input value
+        const adfsServerInputEl = document.getElementById('adfs-server-name');
+        if (adfsServerInputEl && state.adfsServerName) {
+            adfsServerInputEl.value = state.adfsServerName;
+        }
+        // Restore local DNS zone input value
+        const localDnsZoneInputEl = document.getElementById('local-dns-zone-input');
+        if (localDnsZoneInputEl && state.localDnsZone) {
+            localDnsZoneInputEl.value = state.localDnsZone;
+        }
 
-    if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
+        // Apply rack-aware settings
+        if (config.rackAwareZones) {
+            state.rackAwareZones = config.rackAwareZones;
+        }
+        if (config.rackAwareZonesConfirmed !== undefined) {
+            state.rackAwareZonesConfirmed = config.rackAwareZonesConfirmed;
+        }
+        if (config.rackAwareTorsPerRoom) {
+            state.rackAwareTorsPerRoom = config.rackAwareTorsPerRoom;
+        }
+        if (config.rackAwareTorArchitecture) {
+            state.rackAwareTorArchitecture = config.rackAwareTorArchitecture;
+        }
+
+        if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
+
+        // Apply SDN settings
+        if (config.sdnEnabled) selectOption('sdnEnabled', config.sdnEnabled);
+        if (config.sdnFeatures && Array.isArray(config.sdnFeatures)) {
+            state.sdnFeatures = config.sdnFeatures;
+            // Check SDN feature checkboxes in the DOM
+            state.sdnFeatures.forEach(function(feature) {
+                const checkbox = document.querySelector('.sdn-feature-card[data-feature="' + feature + '"] input[type="checkbox"]');
+                if (checkbox) checkbox.checked = true;
+            });
+            // Show management section and enable correct cards based on selected features
+            updateSdnManagementOptions();
+        }
+        if (config.sdnManagement) {
+            state.sdnManagement = config.sdnManagement;
+            // Select the correct SDN management card in the DOM
+            const arcCard = document.getElementById('sdn-arc-card');
+            const onpremCard = document.getElementById('sdn-onprem-card');
+            if (arcCard) arcCard.classList.remove('selected');
+            if (onpremCard) onpremCard.classList.remove('selected');
+            const sdnMgmtCard = document.getElementById(config.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
+            if (sdnMgmtCard && !sdnMgmtCard.classList.contains('disabled')) {
+                sdnMgmtCard.classList.add('selected');
+            }
+        }
+
+        // Re-enable updateUI and run it once to apply all visual updates,
+        // disabled states, and auto-defaults from the final state
+    } finally {
+        window.__loadingTemplate = false;
+    }
 
     // Final UI update to reflect all state changes
     updateUI();

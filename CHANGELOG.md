@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.04] - 2026-02-23
+
+### Fixed
+
+#### Example Template Loading (#140)
+- **Template Completeness**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–76%) instead of 100% — all five templates now load fully complete
+- **Template Loading Race Condition**: Suppressed `updateUI()` during template loading to prevent cascading auto-defaults (`intent`, `storageAutoIp`) and disabled card recalculation between sequential `selectOption()` calls. Each `selectOption()` triggered a full `updateUI()` pass which auto-defaulted transient state and recalculated disabled cards, breaking subsequent selections in the cascade
+- **Missing Template Data**: Added `privateEndpoints: 'pe_disabled'` to all five template configurations — the missing field caused IP Assignment cards to be disabled, blocking all downstream selections
+- **Rack Aware Template**: Fixed intent from `compute_storage` to `mgmt_compute` (the only allowed intent for rack-aware scale); added `nodeCount: 8` to `rackAwareZones` to prevent `ensureRackAwareZonesInitialized()` from resetting zone confirmation; fixed `rackAwareTorsPerRoom` and `rackAwareTorArchitecture` to use valid card `data-value` attributes (`'2'`/`'option_a'` instead of `'single'`/`'separate'`)
+- **Disconnected Template**: Fixed `activeDirectory` from `local_identity` to `azure_ad` (disconnected scenarios enforce `azure_ad` via constraints); added `clusterRole`, `autonomousCloudFqdn`, `fqdnConfirmed`, `adOuPath`, `adfsServerName` fields; fixed `loadTemplate()` to call `selectDisconnectedOption()` and restore FQDN state
+- **AD Domain/DNS/OU Path Restoration**: Fixed `selectOption('activeDirectory')` resetting `adDomain`, `adOuPath`, `adfsServerName`, `dnsServers`, and `localDnsZone` — `loadTemplate()` now re-applies these values and restores DOM inputs after the reset
+- **SDN Features DOM Restoration**: Fixed SDN feature checkboxes and management card not being visually selected after template loading — `loadTemplate()` now checks DOM checkboxes, calls `updateSdnManagementOptions()`, and selects the correct management card
+- **Arc Gateway Values**: Fixed all non-disconnected templates from `arc: 'yes'` to `arc: 'arc_gateway'` — cards use `data-value="arc_gateway"` not `"yes"`
+- **Edge 2-Node Switchless Template**: Fixed ports from `'2'` to `'4'` (mandatory for low_capacity + switchless + 2-node), intent from `'all_traffic'` to `'mgmt_compute'`, removed invalid `switchlessLinkMode: 'full_mesh'` (only valid for 3-node), expanded `portConfig` to 4 entries — the `updateUI()` HARD BLOCK was clearing all downstream state because `portConfigConfirmed` was reset when port count changed
+- **Template Loading Order**: Moved `storageAutoIp` selection after `outbound`/`arc`/`proxy`/`privateEndpoints`/`ip` in `loadTemplate()` — the `outbound` handler resets `storageAutoIp` to `null`, so it must be set afterwards
+- **Port Config Confirmation**: Set `portConfigConfirmed = true` when restoring `portConfig` from template data, so the "Confirm Port Selection" step shows as complete
+- **Auto-Scroll During Loading**: Added `!window.__loadingTemplate` guards to `selectDisconnectedOption()` scroll calls to prevent the page from scrolling to the FQDN step during template loading
+- **AD OU Path Consistency**: Added `adOuPath` to all five templates for consistent Active Directory configuration
+- **Autonomous Cloud FQDN**: Updated disconnected template FQDN from `azurelocal.private` to `azurelocal.airgap.contoso.com`
+
+### Added
+
+#### Template Regression Tests
+- **Template Data Completeness Tests**: 3 tests verifying all templates include required fields (`privateEndpoints`, `securityConfiguration`, `portConfig`)
+- **Template Progress Tests**: 5 tests (one per template) verifying `computeWizardProgress()` returns 100% after `loadTemplate()`
+- **Template Check Count Tests**: 5 tests validating the exact number of progress checks per template (accounting for conditional checks like static IP gateway and AD domain)
+- **Rack Aware Zone Tests**: 3 tests verifying zone names, node assignments, and `nodeCount` match the template's node count
+- **Disconnected Constraint Tests**: 5 tests verifying disconnected templates use `azure_ad` identity, `air_gapped` outbound, FQDN, and node settings
+- **updateUI() Constraint Validation Tests**: 25 tests validating all template configs against the same constraints enforced by `updateUI()` — port counts for switchless topologies, intent rules for low_capacity/rack_aware, RDMA port requirements, valid card `data-value` attributes for arc/outbound, `switchlessLinkMode` validity, and disconnected arc constraints
+
+---
+
 ## [0.17.00] - 2026-02-23
 
 ### Added
@@ -2144,7 +2176,7 @@ This ensures that when users import a previously exported ARM template, these im
     - 2-Node Standard Cluster (small production with cloud witness)
     - 4-Node High Performance (medium cluster with dedicated storage)
     - 8-Node Rack Aware (large rack-aware production cluster)
-    - Disconnected 2-Node (air-gapped with Active Directory)
+    - Disconnected - Management Cluster 3-Node (air-gapped with Autonomous Cloud endpoint)
     - Edge 2-Node Switchless (cost-optimized edge deployment)
   - **One-Click Loading** - Apply complete configurations instantly
   - **Template Browser** - Modal dialog with template descriptions and tags

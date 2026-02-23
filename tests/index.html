@@ -4813,6 +4813,400 @@
         ]);
 
         // ========================================================================
+        // EXAMPLE TEMPLATE COMPLETION TESTS (Issue #140)
+        // ========================================================================
+        sectionHeader('📋 Example Template Completion Tests (Issue #140)');
+
+        // Populate window.configTemplates by calling showTemplates(), then clean up overlay
+        (function() {
+            showTemplates();
+            // Remove the overlay showTemplates() appended to body
+            document.querySelectorAll('div').forEach(el => {
+                if (el.style.position === 'fixed' && el.style.zIndex === '10000') {
+                    el.remove();
+                }
+            });
+        })();
+
+        // Test: Verify all template configs have the required fields for 100% progress
+        testSuite('Template Data Completeness', 'script.js', [
+            (() => {
+                const templates = window.configTemplates || [];
+                return assert(templates.length === 5, 'showTemplates() provides exactly 5 templates', 5, templates.length);
+            })(),
+            (() => {
+                const requiredFields = [
+                    'scenario', 'region', 'localInstanceRegion', 'scale', 'nodes',
+                    'ports', 'storage', 'storagePoolConfiguration', 'intent', 'outbound',
+                    'arc', 'proxy', 'privateEndpoints', 'ip', 'infraCidr',
+                    'infraVlan', 'activeDirectory', 'dnsServers', 'securityConfiguration'
+                ];
+                const templates = window.configTemplates || [];
+                const missing = [];
+                templates.forEach((t, i) => {
+                    requiredFields.forEach(f => {
+                        if (t.config[f] === undefined || t.config[f] === null) {
+                            missing.push(t.name + ': ' + f);
+                        }
+                    });
+                });
+                return assert(missing.length === 0,
+                    'All templates have all required base fields',
+                    '0 missing', missing.length + ' missing' + (missing.length ? ': ' + missing.join(', ') : ''));
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const missing = [];
+                templates.forEach((t, i) => {
+                    if (t.config.ip === 'static' && !t.config.infraGateway) {
+                        missing.push(t.name + ': infraGateway');
+                    }
+                    if (t.config.activeDirectory === 'azure_ad' && !t.config.adDomain) {
+                        missing.push(t.name + ': adDomain');
+                    }
+                    if (t.config.activeDirectory === 'local_identity' && !t.config.localDnsZone) {
+                        missing.push(t.name + ': localDnsZone');
+                    }
+                    if (t.config.nodes && t.config.nodes !== '16+' && !t.config.nodeSettings) {
+                        missing.push(t.name + ': nodeSettings');
+                    }
+                    if (t.config.scale === 'rack_aware') {
+                        if (!t.config.rackAwareZones) missing.push(t.name + ': rackAwareZones');
+                        if (!t.config.rackAwareTorsPerRoom) missing.push(t.name + ': rackAwareTorsPerRoom');
+                        if (!t.config.rackAwareTorArchitecture) missing.push(t.name + ': rackAwareTorArchitecture');
+                    }
+                });
+                return assert(missing.length === 0,
+                    'All templates have conditional fields matching their config',
+                    '0 missing', missing.length + ' missing' + (missing.length ? ': ' + missing.join(', ') : ''));
+            })()
+        ]);
+
+        // Test: Each template achieves 100% wizard progress when loaded via loadTemplate()
+        // This tests the full cascade: selectOption resets, state re-application, and progress computation
+        testSuite('Template loadTemplate() → 100% Progress', 'script.js', (() => {
+            const templates = window.configTemplates || [];
+            const results = [];
+
+            templates.forEach((template, index) => {
+                results.push((() => {
+                    const origState = JSON.parse(JSON.stringify(state));
+                    try {
+                        loadTemplate(index);
+                        const progress = computeWizardProgress();
+                        const failedChecks = progress.checks
+                            .filter(c => !c.done)
+                            .map(c => c.label);
+                        Object.assign(state, origState);
+                        return assert(progress.percent === 100,
+                            'Template "' + template.name + '" loads to 100%',
+                            '100%', progress.percent + '%' +
+                            (failedChecks.length ? ' (missing: ' + failedChecks.join(', ') + ')' : ''));
+                    } catch (e) {
+                        Object.assign(state, origState);
+                        return assert(false,
+                            'Template "' + template.name + '" loads without error',
+                            'no error', e.message);
+                    }
+                })());
+            });
+
+            return results;
+        })());
+
+        // Test: Each template's computed progress has the correct total number of checks
+        testSuite('Template Progress Check Counts', 'script.js', (() => {
+            const templates = window.configTemplates || [];
+            const results = [];
+
+            templates.forEach((template, index) => {
+                results.push((() => {
+                    const origState = JSON.parse(JSON.stringify(state));
+                    try {
+                        loadTemplate(index);
+                        const progress = computeWizardProgress();
+                        Object.assign(state, origState);
+
+                        // Expected check counts:
+                        // Base: 19 (scenario, region, localInstanceRegion, scale, nodes, ports,
+                        //        storage, storagePoolConfiguration, intent, outbound, arc, proxy,
+                        //        privateEndpoints, ip, infraVlan, infraCidr, infraIPPool,
+                        //        identity, dnsServers, securityConfiguration)
+                        // Actually 20 base + conditional adds:
+                        //   +Node Names/IPs (if nodes set and not 16+ and ip set)
+                        //   +Default Gateway (if static IP)
+                        //   +AD Domain (if azure_ad)
+                        //   +Local DNS Zone (if local_identity)
+                        //   +Local availability zones (if rack_aware)
+                        //   +TOR switch architecture (if rack_aware)
+                        const minChecks = 20; // Minimum base checks
+                        return assert(progress.total >= minChecks,
+                            'Template "' + template.name + '" has >= ' + minChecks + ' progress checks',
+                            '>=' + minChecks, progress.total);
+                    } catch (e) {
+                        Object.assign(state, origState);
+                        return assert(false,
+                            'Template "' + template.name + '" check count without error',
+                            'no error', e.message);
+                    }
+                })());
+            });
+
+            return results;
+        })());
+
+        // Test: Verify rack-aware template has confirmed zones with nodeCount
+        testSuite('Rack Aware Template Zone Validation', 'script.js', [
+            (() => {
+                const templates = window.configTemplates || [];
+                const rackAware = templates.find(t => t.config.scale === 'rack_aware');
+                if (!rackAware) {
+                    return assert(false, 'Rack Aware template exists', 'found', 'not found');
+                }
+                const zones = rackAware.config.rackAwareZones;
+                const hasNodeCount = zones && zones.nodeCount === parseInt(rackAware.config.nodes, 10);
+                return assert(hasNodeCount,
+                    'Rack Aware zones include nodeCount matching nodes',
+                    rackAware.config.nodes, zones ? String(zones.nodeCount) : 'undefined');
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const rackAware = templates.find(t => t.config.scale === 'rack_aware');
+                if (!rackAware) {
+                    return assert(false, 'Rack Aware template exists', 'found', 'not found');
+                }
+                return assert(rackAware.config.rackAwareZonesConfirmed === true,
+                    'Rack Aware zones are confirmed',
+                    true, rackAware.config.rackAwareZonesConfirmed);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const rackAware = templates.find(t => t.config.scale === 'rack_aware');
+                if (!rackAware) {
+                    return assert(false, 'Rack Aware template exists', 'found', 'not found');
+                }
+                // Rack aware only supports mgmt_compute intent
+                return assert(rackAware.config.intent === 'mgmt_compute',
+                    'Rack Aware intent is mgmt_compute (only allowed)',
+                    'mgmt_compute', rackAware.config.intent);
+            })()
+        ]);
+
+        // Test: Disconnected template constraints are valid
+        testSuite('Disconnected Template Constraint Validation', 'script.js', [
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // Disconnected scenario requires azure_ad (local_identity is disallowed by updateUI)
+                return assert(disconnected.config.activeDirectory === 'azure_ad',
+                    'Disconnected uses azure_ad (local_identity disallowed)',
+                    'azure_ad', disconnected.config.activeDirectory);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // Arc must be no_arc for disconnected
+                return assert(disconnected.config.arc === 'no_arc',
+                    'Disconnected uses no_arc (arc gateway unavailable)',
+                    'no_arc', disconnected.config.arc);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // Management cluster must have clusterRole set
+                return assert(disconnected.config.clusterRole === 'management',
+                    'Disconnected template has clusterRole = management',
+                    'management', disconnected.config.clusterRole);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // Management cluster is fixed at 3 nodes
+                return assert(disconnected.config.nodes === '3',
+                    'Disconnected management cluster has 3 nodes',
+                    '3', disconnected.config.nodes);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // Autonomous Cloud FQDN must be set
+                return assert(typeof disconnected.config.autonomousCloudFqdn === 'string' && disconnected.config.autonomousCloudFqdn.length > 0,
+                    'Disconnected template has autonomousCloudFqdn set',
+                    'non-empty string', disconnected.config.autonomousCloudFqdn || '(empty)');
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // fqdnConfirmed must be true for template completeness
+                return assert(disconnected.config.fqdnConfirmed === true,
+                    'Disconnected template has fqdnConfirmed = true',
+                    true, disconnected.config.fqdnConfirmed);
+            })(),
+            (() => {
+                const templates = window.configTemplates || [];
+                const disconnected = templates.find(t => t.config.scenario === 'disconnected');
+                if (!disconnected) {
+                    return assert(false, 'Disconnected template exists', 'found', 'not found');
+                }
+                // nodeSettings count must match nodes
+                const expectedNodes = parseInt(disconnected.config.nodes, 10);
+                const actualNodes = disconnected.config.nodeSettings ? disconnected.config.nodeSettings.length : 0;
+                return assert(actualNodes === expectedNodes,
+                    'Disconnected template nodeSettings count matches nodes',
+                    expectedNodes, actualNodes);
+            })()
+        ]);
+
+        // ========================================================================
+        // TEMPLATE updateUI() CONSTRAINT VALIDATION
+        // Tests that template config values conform to the constraints enforced by
+        // updateUI(), which modifies state after loadTemplate. The test environment
+        // bypasses updateUI (pathname check), so these tests validate the config
+        // data directly against the same rules updateUI applies.
+        // ========================================================================
+        sectionHeader('📋 Template updateUI() Constraint Validation');
+
+        testSuite('Template configs pass updateUI() state constraints', 'script.js', (() => {
+            const templates = window.configTemplates || [];
+            const results = [];
+
+            templates.forEach((template) => {
+                const c = template.config;
+                const name = template.name;
+
+                // 1. portConfig length must match ports
+                if (c.ports && c.portConfig) {
+                    const expectedLen = parseInt(c.ports, 10);
+                    results.push(assert(c.portConfig.length === expectedLen,
+                        '"' + name + '" portConfig length matches ports',
+                        expectedLen, c.portConfig.length));
+                }
+
+                // 2. Switchless + low_capacity + 2-node → ports must be '4'
+                if (c.storage === 'switchless' && c.scale === 'low_capacity' && c.nodes === '2') {
+                    results.push(assert(c.ports === '4',
+                        '"' + name + '" switchless+low_cap+2node requires 4 ports',
+                        '4', c.ports));
+                }
+
+                // 3. Switchless + low_capacity + 3-node (dual_link) → ports must be '6'
+                if (c.storage === 'switchless' && c.scale === 'low_capacity' && c.nodes === '3' &&
+                    c.switchlessLinkMode === 'dual_link') {
+                    results.push(assert(c.ports === '6',
+                        '"' + name + '" switchless+low_cap+3node+dual_link requires 6 ports',
+                        '6', c.ports));
+                }
+
+                // 4. Switchless + low_capacity + 3-node (single_link) → ports must be '4'
+                if (c.storage === 'switchless' && c.scale === 'low_capacity' && c.nodes === '3' &&
+                    c.switchlessLinkMode === 'single_link') {
+                    results.push(assert(c.ports === '4',
+                        '"' + name + '" switchless+low_cap+3node+single_link requires 4 ports',
+                        '4', c.ports));
+                }
+
+                // 5. Low Capacity + 2 ports → intent must be 'mgmt_compute'
+                if (c.scale === 'low_capacity' && c.ports === '2') {
+                    results.push(assert(c.intent === 'mgmt_compute',
+                        '"' + name + '" low_cap+2ports requires mgmt_compute intent',
+                        'mgmt_compute', c.intent));
+                }
+
+                // 6. Low Capacity + 4 ports → intent must be 'mgmt_compute'
+                if (c.scale === 'low_capacity' && c.ports === '4') {
+                    results.push(assert(c.intent === 'mgmt_compute',
+                        '"' + name + '" low_cap+4ports requires mgmt_compute intent',
+                        'mgmt_compute', c.intent));
+                }
+
+                // 7. Rack Aware → storage must be 'switched'
+                if (c.scale === 'rack_aware') {
+                    results.push(assert(c.storage === 'switched',
+                        '"' + name + '" rack_aware requires switched storage',
+                        'switched', c.storage));
+                }
+
+                // 8. Rack Aware → intent must be 'mgmt_compute'
+                if (c.scale === 'rack_aware') {
+                    results.push(assert(c.intent === 'mgmt_compute',
+                        '"' + name + '" rack_aware requires mgmt_compute intent',
+                        'mgmt_compute', c.intent));
+                }
+
+                // 9. Rack Aware → ports must be '4'
+                if (c.scale === 'rack_aware') {
+                    results.push(assert(c.ports === '4',
+                        '"' + name + '" rack_aware requires 4 ports',
+                        '4', c.ports));
+                }
+
+                // 10. Disconnected → arc must be 'no_arc'
+                if (c.scenario === 'disconnected') {
+                    results.push(assert(c.arc === 'no_arc',
+                        '"' + name + '" disconnected requires no_arc',
+                        'no_arc', c.arc));
+                }
+
+                // 11. azure_government → arc cannot be 'arc_gateway'
+                if (c.region === 'azure_government') {
+                    results.push(assert(c.arc !== 'arc_gateway',
+                        '"' + name + '" azure_government cannot use arc_gateway',
+                        'not arc_gateway', c.arc));
+                }
+
+                // 12. Non-low_capacity RDMA requirement: at least 2 ports must have rdma: true
+                if (c.scale !== 'low_capacity' && c.portConfig) {
+                    const rdmaCount = c.portConfig.filter(p => p && p.rdma === true).length;
+                    results.push(assert(rdmaCount >= 2,
+                        '"' + name + '" non-low_cap requires >= 2 RDMA ports',
+                        '>=2', rdmaCount));
+                }
+
+                // 13. Switchless link mode only valid for 3-node low_capacity switchless
+                if (c.switchlessLinkMode) {
+                    const validCombo = c.nodes === '3' && c.scale === 'low_capacity' && c.storage === 'switchless';
+                    results.push(assert(validCombo,
+                        '"' + name + '" switchlessLinkMode only valid for 3-node low_cap switchless',
+                        true, validCombo));
+                }
+
+                // 14. Card data-value validation: arc must be 'arc_gateway' or 'no_arc'
+                if (c.arc) {
+                    results.push(assert(['arc_gateway', 'no_arc'].includes(c.arc),
+                        '"' + name + '" arc value is valid card data-value',
+                        'arc_gateway|no_arc', c.arc));
+                }
+
+                // 15. Card data-value validation: outbound must be valid
+                if (c.outbound) {
+                    results.push(assert(['public', 'private', 'air_gapped', 'limited'].includes(c.outbound),
+                        '"' + name + '" outbound value is valid card data-value',
+                        'public|private|air_gapped|limited', c.outbound));
+                }
+            });
+
+            return results;
+        })());
+
+        // ========================================================================
         // FINAL SUMMARY
         // ========================================================================
         updateTestSummary();
