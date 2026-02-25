@@ -3212,7 +3212,6 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         } else if (clusterType === 'aldo-mgmt') {
             notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management.');
             notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure`);
-            notes.push(`ALDO appliance reservation: ${ALDO_APPLIANCE_OVERHEAD_GB} GB memory per node (${ALDO_APPLIANCE_OVERHEAD_GB * 3} GB total) reserved for the disconnected operations appliance VM — this overhead is deducted from available workload memory`);
             notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
             notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
         } else {
