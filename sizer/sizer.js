@@ -780,6 +780,54 @@ function clearAllManualOverrides() {
     calculateRequirements();
 }
 
+// Human-readable names for manually-set hardware fields
+const _MANUAL_FIELD_LABELS = {
+    'vcpu-ratio': 'vCPU Ratio',
+    'node-memory': 'Memory',
+    'cpu-cores': 'CPU Cores',
+    'cpu-sockets': 'CPU Sockets',
+    'cpu-manufacturer': 'CPU Manufacturer',
+    'cpu-generation': 'CPU Generation',
+    'capacity-disk-size': 'Capacity Disk Size',
+    'capacity-disk-count': 'Capacity Disk Count',
+    'tiered-capacity-disk-size': 'Capacity Disk Size',
+    'tiered-capacity-disk-count': 'Capacity Disk Count'
+};
+
+// Show or hide the manual-override capacity warning based on current utilization
+// and active manual overrides. Called after capacity bars are updated.
+function updateManualOverrideWarning(computePercent, memoryPercent, storagePercent) {
+    const warningEl = document.getElementById('manual-override-warning');
+    const warningText = document.getElementById('manual-override-warning-text');
+    if (!warningEl || !warningText) return;
+
+    const THRESHOLD = 90;
+    const anyOver = (computePercent >= THRESHOLD || memoryPercent >= THRESHOLD || storagePercent >= THRESHOLD);
+
+    if (!anyOver || _manualFields.size === 0 || workloads.length === 0) {
+        warningEl.style.display = 'none';
+        return;
+    }
+
+    // Build list of which resources are over threshold
+    const overResources = [];
+    if (computePercent >= THRESHOLD) overResources.push('Compute');
+    if (memoryPercent >= THRESHOLD) overResources.push('Memory');
+    if (storagePercent >= THRESHOLD) overResources.push('Storage');
+
+    // Build list of active manual override labels
+    const overrideLabels = [];
+    for (const fieldId of _manualFields) {
+        const label = _MANUAL_FIELD_LABELS[fieldId] || fieldId;
+        if (!overrideLabels.includes(label)) overrideLabels.push(label);
+    }
+
+    const resourceStr = overResources.join(', ');
+    const overrideStr = overrideLabels.join(', ');
+    warningText.textContent = `${resourceStr} capacity cannot be auto-scaled because of MANUAL override${overrideLabels.length > 1 ? 's' : ''} on: ${overrideStr}. Remove manual overrides or adjust the locked values to accommodate the workload.`;
+    warningEl.style.display = 'flex';
+}
+
 // Mark a field element as auto-scaled (add visual highlight + badge)
 function markAutoScaled(elementId) {
     _autoScaledFields.add(elementId);
@@ -2316,13 +2364,6 @@ function addWorkload() {
     }
     closeModal();
     renderWorkloads();
-    // Reset user locks when workloads change — auto-scaling should re-evaluate
-    _vcpuRatioUserSet = false;
-    _memoryUserSet = false;
-    _cpuConfigUserSet = false;
-    _diskSizeUserSet = false;
-    _diskCountUserSet = false;
-    clearManualBadges();
     calculateRequirements();
 }
 
@@ -2397,13 +2438,6 @@ function deleteWorkload(id) {
     if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
     workloads = workloads.filter(w => w.id !== id);
     renderWorkloads();
-    // Reset user locks when workloads change — auto-scaling should re-evaluate
-    _vcpuRatioUserSet = false;
-    _memoryUserSet = false;
-    _cpuConfigUserSet = false;
-    _diskSizeUserSet = false;
-    _diskCountUserSet = false;
-    clearManualBadges();
     calculateRequirements();
 }
 
@@ -2416,12 +2450,6 @@ function cloneWorkload(id) {
     clone.name = original.name + ' (copy)';
     workloads.push(clone);
     renderWorkloads();
-    _vcpuRatioUserSet = false;
-    _memoryUserSet = false;
-    _cpuConfigUserSet = false;
-    _diskSizeUserSet = false;
-    _diskCountUserSet = false;
-    clearManualBadges();
     calculateRequirements();
 }
 
@@ -2997,6 +3025,9 @@ function calculateRequirements(options) {
         if (warningBanner) {
             warningBanner.style.display = anyOverThreshold ? 'flex' : 'none';
         }
+
+        // Show/hide manual-override capacity warning
+        updateManualOverrideWarning(computePercent, memoryPercent, storagePercent);
 
         // --- Power & Rack Space Estimates ---
         updatePowerRackEstimates(nodeCount, hwConfig);

@@ -829,6 +829,12 @@ body {
     color: #ef4444;
 }
 
+.config-info-warning.manual-override-warning {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
 /* Requirements Grid */
 .requirements-grid {
     display: grid;

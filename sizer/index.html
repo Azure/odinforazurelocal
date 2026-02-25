@@ -603,6 +603,12 @@
                     <span>One or more resources (Compute, Memory, or Storage) are at or above 90% utilization. This is not a recommended configuration — increase per-node hardware specs, add more nodes, or reduce workloads before proceeding to the Designer.</span>
                 </div>
 
+                <!-- Manual Override Capacity Warning -->
+                <div class="config-info config-info-warning manual-override-warning" id="manual-override-warning" style="display: none;">
+                    <span class="info-icon">⚠️</span>
+                    <span id="manual-override-warning-text"></span>
+                </div>
+
                 <!-- Storage Limit Exceeded Warning -->
                 <div class="config-info config-info-warning" id="storage-limit-warning" style="display: none;">
                     <span class="info-icon">🚫</span>
