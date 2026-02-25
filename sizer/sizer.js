@@ -643,6 +643,13 @@ const NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB = 2048;
 // Threshold above which autoScaleHardware allows higher memory headroom
 const NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD = 10;
 
+// ALDO Management Cluster minimum hardware requirements
+// Source: https://learn.microsoft.com/en-us/azure/azure-local/manage/disconnected-operations-overview#eligibility-criteria
+const ALDO_MIN_MEMORY_GB = 96;          // Minimum 96 GB memory per node
+const ALDO_MIN_CORES_PER_NODE = 24;     // Minimum 24 physical cores per node
+const ALDO_MIN_STORAGE_PER_NODE_TB = 2; // Minimum 2 TB SSD/NVMe storage per node
+const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM reservation per node
+
 // Disk count per node
 const MIN_DISK_COUNT = 2; // Azure Local minimum; matches dropdown minimum
 const MAX_DISK_COUNT = 24;
@@ -839,7 +846,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     let vcpuToCore = getVcpuRatio();
     // Note: _vcpuRatioAutoEscalated is reset once per calculateRequirements() call,
     // NOT per autoScaleHardware() call, so the flag survives multiple auto-scale passes.
-    const hostOverheadMemoryGB = 32;
+    const clusterTypeForOverhead = document.getElementById('cluster-type').value;
+    const hostOverheadMemoryGB = 32 + (clusterTypeForOverhead === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
     const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
     let changed = false;
@@ -921,7 +929,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // This also scales DOWN from a prior auto-scaled value when more nodes are
         // available (e.g. after node count increased), keeping per-node memory minimal.
         // In conservative mode (default), cap at 2 TB and let node scaling add nodes instead.
-        let targetMem = MEMORY_OPTIONS_GB.find(m => m >= requiredMemPerNode) || MAX_MEMORY_GB;
+        // For ALDO management clusters, enforce minimum 96 GB per node
+        const aldoMinMem = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_MEMORY_GB : 0;
+        const effectiveMinMem = Math.max(requiredMemPerNode, aldoMinMem);
+        let targetMem = MEMORY_OPTIONS_GB.find(m => m >= effectiveMinMem) || MAX_MEMORY_GB;
         if (!allowHighMemory && targetMem > PREFERRED_MEM_CAP_GB) {
             targetMem = PREFERRED_MEM_CAP_GB;
         }
@@ -1606,7 +1617,72 @@ function onClusterTypeChange() {
     updateResiliencyOptions();
     updateResiliencyRecommendation();
     updateClusterInfo();
+    enforceAldoMinimums();
     calculateRequirements();
+}
+
+// Enforce ALDO Management Cluster minimum hardware requirements
+// Sets memory, CPU cores, and storage to documented minimums when below threshold
+function enforceAldoMinimums() {
+    const clusterType = document.getElementById('cluster-type').value;
+    if (clusterType !== 'aldo-mgmt') return;
+
+    // Enforce minimum memory: 96 GB per node
+    const memInput = document.getElementById('node-memory');
+    if (memInput) {
+        const currentMem = parseInt(memInput.value) || 0;
+        if (currentMem < ALDO_MIN_MEMORY_GB) {
+            const minOption = MEMORY_OPTIONS_GB.find(m => m >= ALDO_MIN_MEMORY_GB) || ALDO_MIN_MEMORY_GB;
+            memInput.value = minOption;
+        }
+    }
+
+    // Enforce minimum cores: 24 physical cores per node (cores × sockets ≥ 24)
+    const coresSelect = document.getElementById('cpu-cores');
+    const socketsSelect = document.getElementById('cpu-sockets');
+    if (coresSelect && socketsSelect) {
+        const cores = parseInt(coresSelect.value) || 0;
+        const sockets = parseInt(socketsSelect.value) || 2;
+        if (cores * sockets < ALDO_MIN_CORES_PER_NODE) {
+            // Try to meet requirement by increasing cores first
+            const manufacturer = document.getElementById('cpu-manufacturer').value;
+            const genId = document.getElementById('cpu-generation').value;
+            if (manufacturer && genId) {
+                const generation = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
+                if (generation) {
+                    const targetCores = generation.coreOptions.find(c => c * sockets >= ALDO_MIN_CORES_PER_NODE);
+                    if (targetCores) {
+                        coresSelect.value = targetCores;
+                    } else if (sockets < 2) {
+                        // Increase sockets if needed
+                        socketsSelect.value = 2;
+                        const targetCores2 = generation.coreOptions.find(c => c * 2 >= ALDO_MIN_CORES_PER_NODE);
+                        if (targetCores2) coresSelect.value = targetCores2;
+                    }
+                }
+            }
+        }
+    }
+
+    // Enforce minimum storage: 2 TB per node
+    const diskSizeSelect = document.getElementById('capacity-disk-size');
+    const diskCountInput = document.getElementById('capacity-disk-count');
+    if (diskSizeSelect && diskCountInput) {
+        const diskSizeTB = parseFloat(diskSizeSelect.value) || 0;
+        const diskCount = parseInt(diskCountInput.value) || 0;
+        const totalPerNodeTB = diskSizeTB * diskCount;
+        if (totalPerNodeTB < ALDO_MIN_STORAGE_PER_NODE_TB) {
+            // Prefer increasing disk size first, then count
+            const minSize = DISK_SIZE_OPTIONS_TB.find(s => s * diskCount >= ALDO_MIN_STORAGE_PER_NODE_TB);
+            if (minSize) {
+                diskSizeSelect.value = minSize;
+            } else {
+                // Increase disk count at current size
+                const minCount = Math.ceil(ALDO_MIN_STORAGE_PER_NODE_TB / diskSizeTB);
+                diskCountInput.value = Math.min(minCount, MAX_DISK_COUNT);
+            }
+        }
+    }
 }
 
 // Enforce storage constraints based on cluster type
@@ -2540,7 +2616,7 @@ function calculateRequirements(options) {
                     const rawTBPerNode = rawGBPerNode / 1024 || 10;
 
                     const availVcpus = physCores * effNodes * vcpuToCore;
-                    const hostOverheadMemoryGBLoop = 32; // match host overhead used in capacity bars
+                    const hostOverheadMemoryGBLoop = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
                     const availMem = Math.max(memPerNode - hostOverheadMemoryGBLoop, 0) * effNodes;
                     // Subtract Infrastructure_1 volume (256 GB usable) and S2D repair reservation from available storage
                     const s2dRepairTB = getS2dRepairReservedGB(nodeCount, rawGBPerNode > 0 ? (rawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
@@ -2777,7 +2853,7 @@ function calculateRequirements(options) {
         const rawStoragePerNodeTB = rawStoragePerNodeGB / 1024 || 10;
 
         const totalAvailableVcpus = physicalCoresPerNode * effectiveNodes * vcpuToCore;
-        const hostOverheadGB = 32; // Azure Local host OS + management overhead per node
+        const hostOverheadGB = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0); // Azure Local host OS + management overhead per node (+ ALDO appliance)
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes;
         // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
         const infraVolumeUsableTB = 0.25; // 256 GB
@@ -2944,6 +3020,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push('Single node requires minimum 2 capacity drives (NVMe or SSD) of the same type');
         } else if (clusterType === 'aldo-mgmt') {
             notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management. Nodes are fixed and cannot be scaled.');
+            notes.push(`ALDO minimum hardware per node: ${ALDO_MIN_CORES_PER_NODE} physical cores, ${ALDO_MIN_MEMORY_GB} GB memory, ${ALDO_MIN_STORAGE_PER_NODE_TB} TB SSD/NVMe storage`);
+            notes.push(`ALDO appliance reservation: ${ALDO_APPLIANCE_OVERHEAD_GB} GB memory per node (${ALDO_APPLIANCE_OVERHEAD_GB * 3} GB total) reserved for the disconnected operations appliance VM — this overhead is deducted from available workload memory`);
+            notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
