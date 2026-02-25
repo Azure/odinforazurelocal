@@ -1642,3 +1642,48 @@ body {
     vertical-align: middle;
     animation: auto-scaled-pulse 1.8s ease-out;
 }
+
+/* ============================================
+   Manual-Set Field Highlight
+   ============================================ */
+
+/* Brief glow animation when a field is manually set */
+@keyframes manual-set-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+    50%  { box-shadow: 0 0 8px 2px rgba(16, 185, 129, 0.35); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.config-row select.manual-set,
+.config-row input.manual-set,
+.input-with-unit .hw-input.manual-set,
+.unit-select.manual-set {
+    border-color: var(--accent-green);
+    animation: manual-set-pulse 1.8s ease-out;
+    transition: border-color 0.3s ease;
+}
+
+/* Subtle persistent indicator for manually set fields */
+.config-row select.manual-set:not(:focus),
+.config-row input.manual-set:not(:focus),
+.input-with-unit .hw-input.manual-set:not(:focus),
+.unit-select.manual-set:not(:focus) {
+    border-color: rgba(16, 185, 129, 0.45);
+}
+
+/* Small "manual" badge on the label when its field was manually set */
+.config-row label .manual-set-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-green);
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    vertical-align: middle;
+    animation: manual-set-pulse 1.8s ease-out;
+}

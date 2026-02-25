@@ -190,6 +190,8 @@ function onCpuManufacturerChange() {
     coresSelect.innerHTML = '<option value="" disabled selected>-- Select generation first --</option>';
     coresSelect.disabled = true;
 
+    _cpuConfigUserSet = true;
+    markManualSet('cpu-manufacturer');
     onHardwareConfigChange();
 }
 
@@ -214,6 +216,8 @@ function onCpuGenerationChange() {
     ).join('');
     coresSelect.disabled = false;
 
+    _cpuConfigUserSet = true;
+    markManualSet('cpu-generation');
     onHardwareConfigChange();
 }
 
@@ -315,28 +319,39 @@ function onHardwareConfigChange() {
 // Dedicated handler for vCPU ratio dropdown — locks the ratio against auto-escalation
 function onVcpuRatioChange() {
     _vcpuRatioUserSet = true;
+    markManualSet('vcpu-ratio');
     onHardwareConfigChange();
 }
 
 // Dedicated handler for memory dropdown — locks memory against auto-scaling
 function onMemoryChange() {
     _memoryUserSet = true;
+    markManualSet('node-memory');
     onHardwareConfigChange();
 }
 
 // Dedicated handler for CPU cores/sockets dropdowns — locks CPU config against auto-scaling
 function onCpuConfigChange() {
     _cpuConfigUserSet = true;
+    markManualSet('cpu-cores');
+    markManualSet('cpu-sockets');
     onHardwareConfigChange();
 }
 
 // Dedicated handlers for capacity disk dropdowns — lock only the specific field against auto-scaling
 function onDiskSizeChange() {
     _diskSizeUserSet = true;
+    // Mark whichever disk size dropdown is currently visible
+    const tiering = document.getElementById('storage-tiering');
+    const isTiered = tiering && tiering.value && tiering.value !== 'none';
+    markManualSet(isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size');
     onHardwareConfigChange();
 }
 function onDiskCountChange() {
     _diskCountUserSet = true;
+    const tiering = document.getElementById('storage-tiering');
+    const isTiered = tiering && tiering.value && tiering.value !== 'none';
+    markManualSet(isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count');
     onHardwareConfigChange();
 }
 
@@ -700,23 +715,68 @@ let _storageLimitExceeded = false;
 // Track which hardware fields were auto-scaled so we can highlight them
 let _autoScaledFields = new Set();
 
+// Track which hardware fields were manually set by the user
+let _manualFields = new Set();
+
+// Mark a field element as manually set by the user (add green highlight + MANUAL badge)
+function markManualSet(elementId) {
+    _manualFields.add(elementId);
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.add('manual-set');
+    // Remove any existing auto-scaled badge first
+    const configRow = el.closest('.config-row');
+    if (configRow) {
+        const label = configRow.querySelector('label');
+        if (label) {
+            const autoBadge = label.querySelector('.auto-scaled-badge');
+            if (autoBadge) autoBadge.remove();
+            if (!label.querySelector('.manual-set-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'manual-set-badge';
+                badge.textContent = 'manual';
+                badge.title = 'This value was manually set and will not be changed by auto-scaling';
+                label.appendChild(badge);
+            }
+        }
+    }
+}
+
+// Clear all manual-set highlights and badges
+function clearManualBadges() {
+    for (const id of _manualFields) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('manual-set');
+        const row = el?.closest('.config-row');
+        if (row) {
+            const badge = row.querySelector('.manual-set-badge');
+            if (badge) badge.remove();
+        }
+    }
+    _manualFields.clear();
+}
+
 // Mark a field element as auto-scaled (add visual highlight + badge)
 function markAutoScaled(elementId) {
     _autoScaledFields.add(elementId);
     const el = document.getElementById(elementId);
     if (!el) return;
     el.classList.add('auto-scaled');
-    // Add "auto" badge to the label if not already present
-    // For both direct config-row children and input-with-unit nested elements
+    el.classList.remove('manual-set');
+    // Remove any manual badge first, then add auto badge
     const configRow = el.closest('.config-row');
     if (configRow) {
         const label = configRow.querySelector('label');
-        if (label && !label.querySelector('.auto-scaled-badge')) {
-            const badge = document.createElement('span');
-            badge.className = 'auto-scaled-badge';
-            badge.textContent = 'auto';
-            badge.title = 'This value was automatically adjusted to fit workload requirements';
-            label.appendChild(badge);
+        if (label) {
+            const manualBadge = label.querySelector('.manual-set-badge');
+            if (manualBadge) manualBadge.remove();
+            if (!label.querySelector('.auto-scaled-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'auto-scaled-badge';
+                badge.textContent = 'auto';
+                badge.title = 'This value was automatically adjusted to fit workload requirements';
+                label.appendChild(badge);
+            }
         }
     }
     // Remove highlight when user manually interacts with the field
@@ -2238,6 +2298,7 @@ function addWorkload() {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    clearManualBadges();
     calculateRequirements();
 }
 
@@ -2318,6 +2379,7 @@ function deleteWorkload(id) {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    clearManualBadges();
     calculateRequirements();
 }
 
@@ -2335,6 +2397,7 @@ function cloneWorkload(id) {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    clearManualBadges();
     calculateRequirements();
 }
 
@@ -3014,7 +3077,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
         // Per node hardware config note — always second
         if (hwConfig && hwConfig.generation) {
-            notes.push(`Per node hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB RAM`);
+            notes.push(`Per node hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB memory`);
             if (hwConfig.gpuCount > 0) {
                 const gpuLabel = getGpuLabel(hwConfig.gpuType);
                 notes.push(`GPU: ${hwConfig.gpuCount} × ${gpuLabel} per node`);
@@ -3140,7 +3203,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
             if (cacheTB > 0) {
                 const metadataGB = Math.ceil(cacheTB * 4);
-                notes.push(`ℹ️ Storage Spaces Direct metadata: ~${metadataGB} GB RAM reserved per node for cache drives (4 GB per TB of cache capacity). Not included in workload memory calculations.`);
+                notes.push(`ℹ️ Storage Spaces Direct metadata: ~${metadataGB} GB memory reserved per node for cache drives (4 GB per TB of cache capacity). Not included in workload memory calculations.`);
             }
         }
 
@@ -3213,14 +3276,14 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         }
 
         // Host overhead note
-        notes.push('ℹ️ Host overhead: 32 GB RAM reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
+        notes.push('ℹ️ Host overhead: 32 GB memory reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
 
         // Network note
         notes.push('ℹ️ Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
 
         // Boot/OS drive note — only shown when memory exceeds 768 GB (larger boot drive needed)
         if (hwConfig && hwConfig.memoryGB > 768) {
-            notes.push('ℹ️ Boot drive: 400 GB+ OS disk recommended per node for systems with >768 GB RAM.');
+            notes.push('ℹ️ Boot drive: minimum 400 GB OS disks recommended for systems with >768 GB memory.');
         }
     }
     
@@ -3531,6 +3594,7 @@ function resetScenario() {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    clearManualBadges();
     
     // Reset hardware config
     document.getElementById('cpu-manufacturer').value = 'intel';
