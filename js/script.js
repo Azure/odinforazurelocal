@@ -133,7 +133,8 @@ const state = {
     rdmaGuardMessage: null,
     privateEndpoints: null, // 'pe_enabled' or 'pe_disabled'
     privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
-    sizerHardware: null // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
+    sizerHardware: null, // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
+    sizerWorkloads: null // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
 };
 
 // Auto-save state to localStorage
@@ -8309,6 +8310,11 @@ function checkForSizerImport() {
         // Store hardware details as hidden state property
         if (payload.sizerHardware) {
             state.sizerHardware = payload.sizerHardware;
+        }
+
+        // Store individual workload details (transparent pass-through to Report)
+        if (payload.sizerWorkloads) {
+            state.sizerWorkloads = payload.sizerWorkloads;
         }
 
         // Step 01: Always select Hyperconverged

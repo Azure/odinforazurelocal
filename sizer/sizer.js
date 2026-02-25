@@ -3656,7 +3656,51 @@ function selectRegionAndConfigure(region, cloud) {
                 totalMemoryGB: parseInt(document.getElementById('total-memory').textContent) || 0,
                 totalStorageTB: parseFloat(document.getElementById('total-storage').textContent) || 0
             }
-        }
+        },
+        // Individual workload details (transparent pass-through to Report)
+        sizerWorkloads: workloads.map(function(w) {
+            var req = calculateWorkloadRequirements(w);
+            var entry = {
+                type: w.type,
+                name: w.name,
+                totalVcpus: req.vcpus,
+                totalMemoryGB: req.memory,
+                totalStorageGB: req.storage
+            };
+            // Type-specific details for the report
+            switch (w.type) {
+                case 'vm':
+                    entry.vcpusPerVm = w.vcpus;
+                    entry.memoryPerVmGB = w.memory;
+                    entry.storagePerVmGB = w.storage;
+                    entry.count = w.count;
+                    break;
+                case 'aks':
+                    entry.clusterCount = w.clusterCount;
+                    entry.controlPlaneNodes = w.controlPlaneNodes;
+                    entry.controlPlaneVcpus = w.controlPlaneVcpus;
+                    entry.controlPlaneMemory = w.controlPlaneMemory;
+                    entry.workerNodes = w.workerNodes;
+                    entry.workerVcpus = w.workerVcpus;
+                    entry.workerMemory = w.workerMemory;
+                    entry.workerStorage = w.workerStorage;
+                    break;
+                case 'avd':
+                    entry.profile = w.profile;
+                    entry.userCount = w.userCount;
+                    entry.sessionType = w.sessionType;
+                    entry.concurrency = w.concurrency;
+                    entry.fslogix = w.fslogix;
+                    entry.fslogixSize = w.fslogixSize;
+                    if (w.profile === 'custom') {
+                        entry.customVcpus = w.customVcpus;
+                        entry.customMemory = w.customMemory;
+                        entry.customStorage = w.customStorage;
+                    }
+                    break;
+            }
+            return entry;
+        })
     };
 
     // Store in localStorage for the Designer to pick up

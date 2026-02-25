@@ -1326,6 +1326,47 @@
             md.push('');
         }
 
+        // Sizer Workloads (individual workload details from Sizer)
+        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop' };
+            var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            md.push('## Workloads (from Sizer)');
+            md.push('');
+            for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
+                var wl = s.sizerWorkloads[wi];
+                var wlLabel = wl.name || typeLabels[wl.type] || wl.type;
+                md.push('### ' + wlLabel + ' (' + (typeLabels[wl.type] || wl.type) + ')');
+                md.push('');
+                md.push('| Setting | Value |');
+                md.push('|---------|-------|');
+                if (wl.type === 'vm') {
+                    md.push('| VM Count | ' + (wl.count || 0) + ' |');
+                    md.push('| vCPUs per VM | ' + (wl.vcpusPerVm || 0) + ' |');
+                    md.push('| Memory per VM | ' + (wl.memoryPerVmGB || 0) + ' GB |');
+                    md.push('| Storage per VM | ' + (wl.storagePerVmGB || 0) + ' GB |');
+                } else if (wl.type === 'aks') {
+                    md.push('| Clusters | ' + (wl.clusterCount || 0) + ' |');
+                    md.push('| Control Plane | ' + (wl.controlPlaneNodes || 0) + ' nodes × ' + (wl.controlPlaneVcpus || 0) + ' vCPU / ' + (wl.controlPlaneMemory || 0) + ' GB |');
+                    md.push('| Workers | ' + (wl.workerNodes || 0) + ' nodes × ' + (wl.workerVcpus || 0) + ' vCPU / ' + (wl.workerMemory || 0) + ' GB / ' + (wl.workerStorage || 0) + ' GB |');
+                } else if (wl.type === 'avd') {
+                    md.push('| Users | ' + (wl.userCount || 0) + ' |');
+                    md.push('| Profile | ' + (avdProfileLabels[wl.profile] || wl.profile || '-') + ' |');
+                    md.push('| Session Type | ' + (wl.sessionType === 'single' ? 'Single-session' : 'Multi-session') + ' |');
+                    if (wl.sessionType !== 'single') {
+                        md.push('| Concurrency | ' + (wl.concurrency || 100) + '% |');
+                    }
+                    if (wl.fslogix) {
+                        md.push('| FSLogix | ' + (wl.fslogixSize || 30) + ' GB per user |');
+                    }
+                    if (wl.profile === 'custom') {
+                        md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user |');
+                    }
+                }
+                md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
+                md.push('');
+            }
+        }
+
         // Host Networking
         md.push('## Host Networking');
         md.push('');
@@ -1392,7 +1433,9 @@
         if (s.privateEndpoints) {
             md.push('| Private Endpoints | ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled') + ' |');
         }
-        if (s.scenario !== 'disconnected' && (s.arc || s.localInstanceRegion)) {
+        if (s.scenario === 'disconnected') {
+            md.push('| Network Requirements | [Plan your network for disconnected operations](https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network) |');
+        } else if (s.arc || s.localInstanceRegion) {
             var fwInfoMd = getFirewallEndpointInfo(s);
             md.push('| Firewall Allow List Endpoint Requirements | [' + fwInfoMd.label + '](' + fwInfoMd.url + ') |');
         }
@@ -1634,7 +1677,10 @@
         md.push('');
         md.push('**Private Endpoints:** ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-')));
         md.push('');
-        if (s.scenario !== 'disconnected' && (s.arc || s.localInstanceRegion)) {
+        if (s.scenario === 'disconnected') {
+            md.push('**Network Requirements:** [Plan your network for disconnected operations](https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network)');
+            md.push('');
+        } else if (s.arc || s.localInstanceRegion) {
             var fwInfoRat = getFirewallEndpointInfo(s);
             md.push('**Firewall Allow List Endpoint Requirements:** [' + fwInfoRat.label + '](' + fwInfoRat.url + ')');
             md.push('');
@@ -5995,7 +6041,10 @@
             + '<br><strong>Proxy:</strong> ' + escapeHtml(s.proxy === 'no_proxy' ? 'Disabled' : (s.proxy ? 'Enabled' : '-'))
             + '<br><strong>Private Endpoints:</strong> ' + escapeHtml(s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-'))
             + (function () {
-                if (s.scenario === 'disconnected' || (!s.arc && !s.localInstanceRegion)) return '';
+                if (s.scenario === 'disconnected') {
+                    return '<br><strong>Network Requirements:</strong> <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">Plan your network for disconnected operations</a>';
+                }
+                if (!s.arc && !s.localInstanceRegion) return '';
                 var fwInfoHtml = getFirewallEndpointInfo(s);
                 return '<br><strong>Firewall Allow List Endpoint Requirements:</strong> <a href="' + escapeHtml(fwInfoHtml.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">' + escapeHtml(fwInfoHtml.label) + '</a>';
             })()
@@ -6798,8 +6847,13 @@
         }
         if (s.privateEndpoints) connectivityRows += row('Private Endpoints', s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled');
 
-        // Firewall Allow List Endpoint Requirements (link depends on Arc Gateway + region)
-        if (s.scenario !== 'disconnected' && (s.arc || s.localInstanceRegion)) {
+        // Firewall / Network Requirements link (varies by deployment type)
+        if (s.scenario === 'disconnected') {
+            connectivityRows += '<div class="summary-row">'
+                + '<div class="summary-label">' + escapeHtml('Network Requirements') + '</div>'
+                + '<div class="summary-value"><a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">Plan your network for disconnected operations</a></div>'
+                + '</div>';
+        } else if (s.arc || s.localInstanceRegion) {
             var fwInfo = getFirewallEndpointInfo(s);
             connectivityRows += '<div class="summary-row">'
                 + '<div class="summary-label">' + escapeHtml('Firewall Allow List Endpoint Requirements') + '</div>'
@@ -6922,7 +6976,107 @@
                 + '</div>';
         }
 
+        // Sizer Hardware Configuration (only present when imported from Sizer)
+        var sizerHardwareRows = '';
+        if (s.sizerHardware) {
+            var hw = s.sizerHardware;
+            if (hw.cpu) {
+                sizerHardwareRows += row('CPU', hw.cpu.generation || '-');
+                sizerHardwareRows += row('Cores per Socket', String(hw.cpu.coresPerSocket || '-'));
+                sizerHardwareRows += row('CPU Sockets', String(hw.cpu.sockets || '-'));
+                sizerHardwareRows += row('Total Physical Cores per Node', String(hw.cpu.totalCores || '-'));
+            }
+            if (hw.memory) {
+                sizerHardwareRows += row('Memory per Node', (hw.memory.perNodeGB || '-') + ' GB');
+            }
+            if (hw.gpu && hw.gpu.countPerNode > 0) {
+                sizerHardwareRows += row('GPU per Node', hw.gpu.countPerNode + ' × ' + (hw.gpu.type || '-'));
+            }
+            if (hw.vcpuRatio) {
+                sizerHardwareRows += row('vCPU Ratio (pCPU:vCPU)', hw.vcpuRatio + ':1');
+            }
+            if (hw.storage) {
+                var storageLabel = hw.storage.config === 'all-flash' ? 'All-Flash' :
+                                   hw.storage.config === 'mixed-flash' ? 'Mixed All-Flash (NVMe + SSD)' :
+                                   hw.storage.config === 'hybrid' ? 'Hybrid (SSD/NVMe + HDD)' : (hw.storage.config || '-');
+                sizerHardwareRows += row('Storage Configuration', storageLabel);
+                if (hw.storage.diskConfig) {
+                    var dc = hw.storage.diskConfig;
+                    if (dc.isTiered && dc.cache && dc.capacity) {
+                        sizerHardwareRows += row('Cache Disks', dc.cache.count + '× ' + (dc.cache.sizeGB >= 1024 ? (dc.cache.sizeGB / 1024).toFixed(1) + ' TB' : dc.cache.sizeGB + ' GB') + ' (' + (dc.cache.type || '') + ')');
+                        sizerHardwareRows += row('Capacity Disks', dc.capacity.count + '× ' + (dc.capacity.sizeGB >= 1024 ? (dc.capacity.sizeGB / 1024).toFixed(1) + ' TB' : dc.capacity.sizeGB + ' GB') + ' (' + (dc.capacity.type || '') + ')');
+                    } else if (dc.capacity) {
+                        sizerHardwareRows += row('Capacity Disks', dc.capacity.count + '× ' + (dc.capacity.sizeGB >= 1024 ? (dc.capacity.sizeGB / 1024).toFixed(1) + ' TB' : dc.capacity.sizeGB + ' GB') + ' (' + (dc.capacity.type || '') + ')');
+                    }
+                }
+            }
+            if (hw.resiliency) {
+                var resLabel = hw.resiliency === '3way' ? 'Three-way Mirror' :
+                               hw.resiliency === '2way' ? 'Two-way Mirror' :
+                               hw.resiliency === 'simple' ? 'Simple' : (hw.resiliency || '-');
+                sizerHardwareRows += row('Storage Resiliency', resLabel);
+            }
+            if (hw.futureGrowth && hw.futureGrowth !== '0') {
+                sizerHardwareRows += row('Future Growth', hw.futureGrowth + '%');
+            }
+            if (hw.clusterType) {
+                var ctLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
+                sizerHardwareRows += row('Cluster Type', ctLabels[hw.clusterType] || hw.clusterType);
+            }
+            if (hw.workloadSummary) {
+                var ws = hw.workloadSummary;
+                sizerHardwareRows += row('Workloads', String(ws.count || 0));
+                sizerHardwareRows += row('Total vCPUs Required', String(ws.totalVcpus || 0));
+                sizerHardwareRows += row('Total Memory Required', (ws.totalMemoryGB || 0) + ' GB');
+                sizerHardwareRows += row('Total Storage Required', (ws.totalStorageTB || 0) + ' TB');
+            }
+        }
+
+        // Sizer Workloads (individual workload details from Sizer)
+        var sizerWorkloadsRows = '';
+        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop' };
+            var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
+                var wl = s.sizerWorkloads[wi];
+                var wlLabel = wl.name || typeLabels[wl.type] || wl.type;
+                // Workload summary row
+                sizerWorkloadsRows += '<div class="summary-row" style="border-top: 1px solid var(--glass-border); margin-top: 0.5rem; padding-top: 0.5rem;">'
+                    + '<div class="summary-label" style="font-weight: 600;">' + escapeHtml(wlLabel) + '</div>'
+                    + '<div class="summary-value" style="font-weight: 600;">' + escapeHtml(typeLabels[wl.type] || wl.type) + '</div>'
+                    + '</div>';
+                // Type-specific details
+                if (wl.type === 'vm') {
+                    sizerWorkloadsRows += row('VM Count', String(wl.count || 0));
+                    sizerWorkloadsRows += row('vCPUs per VM', String(wl.vcpusPerVm || 0));
+                    sizerWorkloadsRows += row('Memory per VM', (wl.memoryPerVmGB || 0) + ' GB');
+                    sizerWorkloadsRows += row('Storage per VM', (wl.storagePerVmGB || 0) + ' GB');
+                } else if (wl.type === 'aks') {
+                    sizerWorkloadsRows += row('Clusters', String(wl.clusterCount || 0));
+                    sizerWorkloadsRows += row('Control Plane', (wl.controlPlaneNodes || 0) + ' nodes × ' + (wl.controlPlaneVcpus || 0) + ' vCPU / ' + (wl.controlPlaneMemory || 0) + ' GB');
+                    sizerWorkloadsRows += row('Workers', (wl.workerNodes || 0) + ' nodes × ' + (wl.workerVcpus || 0) + ' vCPU / ' + (wl.workerMemory || 0) + ' GB / ' + (wl.workerStorage || 0) + ' GB');
+                } else if (wl.type === 'avd') {
+                    sizerWorkloadsRows += row('Users', String(wl.userCount || 0));
+                    sizerWorkloadsRows += row('Profile', avdProfileLabels[wl.profile] || wl.profile || '-');
+                    sizerWorkloadsRows += row('Session Type', (wl.sessionType === 'single' ? 'Single-session' : 'Multi-session'));
+                    if (wl.sessionType !== 'single') {
+                        sizerWorkloadsRows += row('Concurrency', (wl.concurrency || 100) + '%');
+                    }
+                    if (wl.fslogix) {
+                        sizerWorkloadsRows += row('FSLogix', (wl.fslogixSize || 30) + ' GB per user');
+                    }
+                    if (wl.profile === 'custom') {
+                        sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user');
+                    }
+                }
+                // Totals for this workload
+                sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');
+            }
+        }
+
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
+            + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')
+            + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking')
             + sectionWithExtra('Connectivity', 'summary-section-title--mgmt', connectivityRows, connectivityExtra, 'connectivity')
             + section('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows, 'infrastructure-network')
