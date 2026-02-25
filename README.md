@@ -42,8 +42,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ### 🎉 Version 0.17.10 - Latest Release
 - **Sizer: ALDO Management Cluster**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios with enforced minimum hardware (96 GB memory, 24 cores, 2 TB storage per node) and 64 GB/node appliance VM overhead
 - **Sizer: MANUAL Override Badges**: Green "MANUAL" badge on any user-edited hardware dropdown — persists across workload changes with amber capacity warning when overrides prevent auto-scaling
-- **Sizer: Independent Disk Locks**: Disk size and disk count can be independently locked — manually setting one still allows auto-scaling on the other
-- **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only (two-way mirror option removed)
+- **Sizer: Region Picker**: Region selection modal before navigating to Designer — prevents cascade reset that wiped imported configuration when changing region
+- **Report: Sizer Hardware & Workloads**: Full hardware specs and individual workload details now shown in the HTML report (VM, AKS, AVD with per-workload subtotals)
+- **Report: AKS Arc Network Requirements**: Port/VLAN requirements table (ports 22, 6443, 55000, 65000) shown when AKS workloads are configured
+- **Report: Disconnected Network Link**: "Plan your network for disconnected operations" link in Connectivity section for disconnected deployments
 - **Report: Firewall Allow List**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
 - **Designer: Edge Gateway Fix**: Fixed Default Gateway field being empty/disabled on Edge 2-Node Switchless template — changed IP assignment from DHCP to static with gateway `192.168.100.1`
 
@@ -354,8 +356,12 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: ALDO Minimum Hardware Enforcement**: Automatically enforces documented ALDO minimums — 96 GB memory, 24 physical cores, and 2 TB SSD/NVMe storage per node; 64 GB/node (192 GB total) reserved for the disconnected operations appliance VM and deducted from workload capacity; 960 GB boot disk recommended in sizing notes
 - **Sizer: MANUAL Override Badges**: Green "MANUAL" badge on any user-edited hardware dropdown — persists across workload add/edit/delete/clone with amber capacity warning when overrides prevent auto-scaling; "Remove MANUAL overrides" button to clear all locks
 - **Sizer: Independent Disk Locks**: Disk size and disk count are independently lockable — manually setting one still allows auto-scaling on the other
+- **Sizer: Region Picker**: Region selection modal in Sizer before navigating to Designer — Azure Commercial (8 regions) and Azure Government (1 region) toggle; prevents cascade reset that wiped imported cluster configuration
 - **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only — two-way mirror option removed for 3+ node configurations
 - **Sizer: Sizing Notes**: Replaced "RAM" with "memory", updated boot drive text, added spacing around × in storage layout notes, added ALDO knowledge link
+- **Report: Sizer Hardware & Workloads**: Full "Hardware Configuration (from Sizer)" section now rendered in the HTML report; new "Workloads (from Sizer)" section shows per-workload details (VM, AKS, AVD) with subtotals; individual workloads transparently passed through Sizer → Designer → Report
+- **Report: AKS Arc Network Requirements**: Port/VLAN requirements table (ports 22, 6443, 55000, 65000) shown when AKS workloads are configured, with link to MS Learn documentation
+- **Report: Disconnected Network Link**: "Plan your network for disconnected operations" link shown in Connectivity section for disconnected deployment types
 - **Report: Firewall Allow List**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
 - **Designer: Edge 2-Node Switchless Default Gateway**: Fixed the Default Gateway field being empty and disabled — template was using DHCP which caused the gateway field to be disabled; changed to static IP with gateway `192.168.100.1`
 - **Sizer: Tiered Storage Fix**: Fixed MANUAL badge not appearing on disk size for all-flash configurations — replaced incorrect tiered detection with `_isTieredStorage()` helper

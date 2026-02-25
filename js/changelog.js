@@ -57,6 +57,24 @@ function showChangelog() {
                         <li><strong>Text:</strong> Replaced "RAM" with "memory", updated boot drive text, added spacing around × in storage layout notes.</li>
                         <li><strong>ALDO Link:</strong> Sizing notes include a link to the disconnected operations overview documentation.</li>
                     </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🌍 Sizer: Region Picker</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Region Selection Modal:</strong> Select your Azure region in the Sizer before navigating to Designer — prevents the cascade reset that wiped imported cluster configuration.</li>
+                        <li><strong>Cloud Toggle:</strong> Radio toggle between Azure Commercial (8 regions) and Azure Government (1 region).</li>
+                        <li><strong>Region in Banner:</strong> Import confirmation banner shows the selected region (e.g. "📍 Azure region: West Europe").</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">📋 Report: Sizer Hardware & Workloads</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Hardware in Report:</strong> Full "Hardware Configuration (from Sizer)" section now rendered in the HTML report — CPU, memory, GPU, disks, resiliency, growth, and workload totals.</li>
+                        <li><strong>Individual Workloads:</strong> New "Workloads (from Sizer)" section shows per-workload details — VM count/specs, AKS cluster config, AVD users/profile — with subtotals.</li>
+                        <li><strong>Transparent Pass-Through:</strong> Individual workload details are passed from Sizer → Designer → Report automatically (not visible in Designer UI).</li>
+                        <li><strong>Disconnected Network Link:</strong> "Plan your network for disconnected operations" link in Connectivity for disconnected deployments.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">📋 Report: AKS Arc Network Requirements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Port/VLAN Table:</strong> When AKS workloads are configured, the report shows network port requirements (22, 6443, 55000, 65000) with cross-VLAN notes.</li>
+                        <li><strong>Documentation Link:</strong> Links to AKS Arc network system requirements on MS Learn.</li>
+                    </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">📋 Report: Firewall Allow List</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Endpoint Requirements:</strong> Added Firewall Allow List Endpoint Requirements row to the report Connectivity section.</li>

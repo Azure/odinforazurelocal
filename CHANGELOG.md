@@ -29,6 +29,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Capacity Warning**: Amber warning banner appears when any capacity bar reaches ≥90% utilization while MANUAL overrides are active — identifies which specific overrides are preventing auto-scaling (e.g. "Memory capacity cannot be auto-scaled because of MANUAL override on: Memory")
 - **Independent Disk Locks**: Disk size and disk count are independently lockable — manually setting disk size still allows disk count to auto-scale, and vice versa
 
+#### Sizer: Region Picker for Designer Transfer
+- **Region Selection Modal**: When clicking "Configure in Designer", users now select their Azure region in a modal before navigating — prevents the cascade reset that previously wiped imported cluster configuration and size when changing region in the Designer
+- **Cloud Toggle**: Radio toggle between Azure Commercial (8 regions) and Azure Government (1 region) with a clean grid layout
+- **Region in Banner**: Import confirmation banner now shows the selected region (e.g. "📍 Azure region: West Europe") instead of defaulting to East US
+
+#### Report: Sizer Hardware & Workloads Pass-Through
+- **Hardware Configuration Section**: The HTML report now renders the full "Hardware Configuration (from Sizer)" section — CPU, memory, GPU, disks, resiliency, growth factor, cluster type, and workload summary totals (was previously only in the Markdown export)
+- **Individual Workloads Section**: New "Workloads (from Sizer)" section in the report showing per-workload details — VM count/specs, AKS cluster/control-plane/worker configuration, AVD users/profile/session type — with subtotals per workload
+- **Transparent Workload Pass-Through**: Individual workload details (not just summary totals) are now passed from Sizer → Designer → Report automatically without being visible in the Designer UI
+- **Disconnected Network Link**: Connectivity section now shows "Plan your network for disconnected operations" with a link to MS Learn documentation when Disconnected deployment type is selected (previously blank)
+
+#### Report: AKS Arc Network Requirements
+- **Network Port Table**: When AKS workloads are configured, the report shows an "AKS Arc Network Requirements" section with the port/VLAN requirements table (ports 22, 6443, 55000, 65000) and cross-VLAN notes
+- **Documentation Link**: Links to the AKS Arc network system requirements documentation on MS Learn
+
 #### Report: Firewall Allow List
 - **Endpoint Requirements**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
 
