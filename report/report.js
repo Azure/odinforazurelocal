@@ -1450,6 +1450,23 @@
             md.push('');
         }
 
+        // AKS Arc Network Requirements (shown when AKS workloads are configured)
+        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks'; })) {
+            md.push('## AKS Arc Network Requirements');
+            md.push('');
+            md.push('[AKS Arc network & port requirements documentation](https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements)');
+            md.push('');
+            md.push('| Source | Destination | Port | Description |');
+            md.push('|--------|-------------|------|-------------|');
+            md.push('| Management network IPs | AKS Arc VM logical network | 22 | Log collection for troubleshooting |');
+            md.push('| Management network IPs | AKS Arc VM logical network | 6443 | Kubernetes API communication |');
+            md.push('| AKS Arc VM logical network | Cluster IP address | 55000 | Cloud Agent gRPC server |');
+            md.push('| AKS Arc VM logical network | Cluster IP address | 65000 | Cloud Agent gRPC authentication |');
+            md.push('');
+            md.push('> If using separate VLANs, bi-directional cross-VLAN connectivity is required between management network and AKS Arc VM logical network for all ports above.');
+            md.push('');
+        }
+
         // Infrastructure Network
         md.push('## Infrastructure Network');
         md.push('');
@@ -7074,11 +7091,33 @@
             }
         }
 
+        // AKS Arc Network Requirements (shown when AKS workloads are configured)
+        var aksNetworkRows = '';
+        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks'; })) {
+            aksNetworkRows += '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">'
+                + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">AKS Arc network &amp; port requirements documentation</a>'
+                + '</div>'
+                + '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 0.5rem;">'
+                + '<thead><tr style="border-bottom: 2px solid var(--glass-border); text-align: left;">'
+                + '<th style="padding: 6px 8px;">Source</th>'
+                + '<th style="padding: 6px 8px;">Destination</th>'
+                + '<th style="padding: 6px 8px;">Port</th>'
+                + '<th style="padding: 6px 8px;">Description</th>'
+                + '</tr></thead><tbody>'
+                + '<tr style="border-bottom: 1px solid var(--glass-border);"><td style="padding: 6px 8px;">Management network IPs</td><td style="padding: 6px 8px;">AKS Arc VM logical network</td><td style="padding: 6px 8px; font-family: monospace;">22</td><td style="padding: 6px 8px;">Log collection for troubleshooting</td></tr>'
+                + '<tr style="border-bottom: 1px solid var(--glass-border);"><td style="padding: 6px 8px;">Management network IPs</td><td style="padding: 6px 8px;">AKS Arc VM logical network</td><td style="padding: 6px 8px; font-family: monospace;">6443</td><td style="padding: 6px 8px;">Kubernetes API communication</td></tr>'
+                + '<tr style="border-bottom: 1px solid var(--glass-border);"><td style="padding: 6px 8px;">AKS Arc VM logical network</td><td style="padding: 6px 8px;">Cluster IP address</td><td style="padding: 6px 8px; font-family: monospace;">55000</td><td style="padding: 6px 8px;">Cloud Agent gRPC server</td></tr>'
+                + '<tr style="border-bottom: 1px solid var(--glass-border);"><td style="padding: 6px 8px;">AKS Arc VM logical network</td><td style="padding: 6px 8px;">Cluster IP address</td><td style="padding: 6px 8px; font-family: monospace;">65000</td><td style="padding: 6px 8px;">Cloud Agent gRPC authentication</td></tr>'
+                + '</tbody></table>'
+                + '<div style="font-size: 0.8rem; color: var(--text-secondary); font-style: italic;">If using separate VLANs, bi-directional cross-VLAN connectivity is required between management network and AKS Arc VM logical network for all ports above.</div>';
+        }
+
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
             + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')
             + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking')
             + sectionWithExtra('Connectivity', 'summary-section-title--mgmt', connectivityRows, connectivityExtra, 'connectivity')
+            + sectionWithExtra('AKS Arc Network Requirements', 'summary-section-title--net', aksNetworkRows, '', 'aks-network')
             + section('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows, 'infrastructure-network')
             + section('Active Directory', 'summary-section-title--mgmt', activeDirectoryRows, 'active-directory')
             + section('Security Configuration', 'summary-section-title--mgmt', securityRows, 'security')
