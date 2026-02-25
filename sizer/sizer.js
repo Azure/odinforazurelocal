@@ -1711,10 +1711,9 @@ function updateResiliencyOptions() {
             <option value="2way">Two-way Mirror (2+ drives, single fault tolerance)</option>
         `;
     } else if (clusterType === 'aldo-mgmt') {
-        // ALDO Management: 3 nodes, 2-way or 3-way mirror
+        // ALDO Management: fixed 3 nodes, three-way mirror only
         options = `
-            <option value="2way">Two-way Mirror (min 2 nodes)</option>
-            <option value="3way">Three-way Mirror (min 3 nodes)</option>
+            <option value="3way">Three-way Mirror (33% efficiency)</option>
         `;
     } else if (clusterType === 'rack-aware') {
         // Rack-aware: 2-node = 2-way mirror only; 4/6/8-node = 4-way mirror only
@@ -1732,17 +1731,10 @@ function updateResiliencyOptions() {
         options = `
             <option value="2way">Two-way Mirror (min 2 nodes)</option>
         `;
-    } else if (nodeCount === 3) {
-        // 3 nodes: 2-way or 3-way mirror
-        options = `
-            <option value="2way">Two-way Mirror (min 2 nodes)</option>
-            <option value="3way">Three-way Mirror (min 3 nodes)</option>
-        `;
     } else {
-        // 4+ nodes: 2-way or 3-way mirror
+        // 3+ nodes: three-way mirror only
         options = `
-            <option value="2way">Two-way Mirror (min 2 nodes)</option>
-            <option value="3way">Three-way Mirror (min 3 nodes)</option>
+            <option value="3way">Three-way Mirror (33% efficiency)</option>
         `;
     }
     

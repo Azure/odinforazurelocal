@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.10] - 2026-02-24
+
+### Added
+
+#### Sizer: ALDO Management Cluster Type
+- **New Cluster Type**: Added "ALDO Management Cluster" option to the Sizer cluster type dropdown — a fixed 3-node, all-flash configuration with three-way mirror resiliency
+- **Fixed Node Count**: ALDO Management Cluster is locked to exactly 3 nodes with the node count dropdown disabled
+- **All-Flash Storage**: Storage type is automatically set to all-flash when ALDO Management Cluster is selected
+- **Three-Way Mirror Only**: Resiliency is locked to three-way mirror for ALDO Management Cluster (two-way mirror option removed)
+- **Custom Sizing Notes**: Custom sizing note explaining the ALDO Management Cluster fixed infrastructure requirements
+
+### Changed
+
+#### Sizer: Three-Way Mirror for 3+ Node Standard Clusters
+- **Resiliency Lock**: Standard clusters with 3 or more nodes are now locked to three-way mirror only — the two-way mirror option is removed for 3+ node configurations
+
+### Fixed
+
+#### Designer: Edge 2-Node Switchless Default Gateway
+- **Gateway Field Fix**: Fixed the Default Gateway field being empty and disabled on the Edge 2-Node Switchless template — the template was using `ip: 'dhcp'` which caused `updateInfraNetwork()` to disable and clear the gateway field; changed to `ip: 'static'` with `infraGateway: '192.168.100.1'`
+
+#### CI: ESLint Fixes
+- **Global Declaration**: Added `selectDisconnectedOption` to ESLint globals to resolve `no-undef` error in CI
+- **Indentation Fix**: Re-indented `loadTemplate()` try-block from 4-space to 8-space to match surrounding code style
+- **Variable Declarations**: Changed `var` to `const` in `loadTemplate()` for ESLint `no-var` compliance
+
+---
+
 ## [0.17.04] - 2026-02-23
 
 ### Fixed

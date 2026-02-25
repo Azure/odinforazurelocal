@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.17.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.17.10 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -39,13 +39,12 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.17.04 - Latest Release
+### 🎉 Version 0.17.10 - Latest Release
+- **Sizer: ALDO Management Cluster**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios
+- **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only (two-way mirror option removed)
+- **Designer: Edge Gateway Fix**: Fixed Default Gateway field being empty/disabled on Edge 2-Node Switchless template — changed IP assignment from DHCP to static with gateway `192.168.100.1`
+- **CI: ESLint Fixes**: Added `selectDisconnectedOption` global, fixed `loadTemplate()` indentation and `var`→`const` declarations
 - **Example Template Fix (#140)**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–76%) instead of 100% — all five templates now load fully complete
-- **Template Loading Race Condition**: Suppressed `updateUI()` during template loading to prevent cascading auto-defaults (intent, storageAutoIp) and disabled card recalculation between `selectOption()` calls
-- **Template Data Fixes**: Corrected `ports`, `intent`, `arc`, `rackAwareTorsPerRoom`, `rackAwareTorArchitecture` values across all templates; added missing `privateEndpoints`, `adOuPath`, `adfsServerName`, disconnected fields; removed invalid `switchlessLinkMode` from Edge template
-- **Template DOM Restoration**: Fixed AD domain/DNS/OU Path inputs, SDN feature checkboxes, and management card selections not populating after template load due to `selectOption()` cascade resets
-- **Edge 2-Node Switchless**: Fixed ports `'2'`→`'4'`, intent `'all_traffic'`→`'mgmt_compute'`, 4-entry portConfig (mandatory for low_capacity + switchless + 2-node); the `updateUI()` HARD BLOCK was wiping all downstream state
-- **Template Regression Tests**: Added 46 new CI tests — 5 progress tests, 5 check-count tests, 3 rack-aware zone tests, 5 disconnected template tests, 3 data completeness tests, and 25 updateUI() constraint validation tests
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -333,7 +332,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.17.04  
+**Version**: 0.17.10  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -348,6 +347,12 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February 2026)
+
+#### 0.17.10 - ALDO Management Cluster, Three-Way Mirror & Edge Gateway Fix
+- **Sizer: ALDO Management Cluster Type**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios; node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror
+- **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only — two-way mirror option removed for 3+ node configurations
+- **Designer: Edge 2-Node Switchless Default Gateway**: Fixed the Default Gateway field being empty and disabled — template was using DHCP which caused the gateway field to be disabled; changed to static IP with gateway `192.168.100.1`
+- **CI: ESLint Fixes**: Added `selectDisconnectedOption` to ESLint globals, fixed `loadTemplate()` try-block indentation (4-space → 8-space), changed `var` to `const` declarations
 
 #### 0.17.04 - Example Template Fix & Regression Tests
 - **Example Template Fix (#140)**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–76%) instead of 100% — all five templates now load fully complete
