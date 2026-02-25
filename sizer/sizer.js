@@ -544,6 +544,7 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
 function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'single') return 1;
+    if (clusterType === 'aldo-mgmt') return 3;
     const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     for (const opt of options) {
         if (opt >= recommended) return opt;
@@ -1351,7 +1352,7 @@ function checkForSavedSizerState() {
     // Only show if there are workloads or non-default settings
     const d = saved.data;
     const hasWorkloads = d.workloads && d.workloads.length > 0;
-    const hasNonDefaults = d.clusterType !== 'standard' || d.nodeCount !== '3' ||
+    const hasNonDefaults = (d.clusterType !== 'standard' && d.clusterType !== 'aldo-mgmt') || d.nodeCount !== '3' ||
         d.resiliency !== '3way' || d.futureGrowth !== '0';
     if (!hasWorkloads && !hasNonDefaults) return;
 
@@ -1613,8 +1614,8 @@ function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
     if (!storageSelect) return; // Guard for test harness
-    if (clusterType === 'rack-aware' || clusterType === 'single') {
-        // Rack-aware and single-node require all-flash
+    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt') {
+        // Rack-aware, single-node, and ALDO management require all-flash
         storageSelect.value = 'all-flash';
         storageSelect.disabled = true;
         onStorageConfigChange();
@@ -1651,6 +1652,11 @@ function updateNodeOptionsForClusterType() {
         // Single node: fixed at 1, disable dropdown
         nodeSelect.innerHTML = '<option value="1">1 Node</option>';
         nodeSelect.value = 1;
+        nodeSelect.disabled = true;
+    } else if (clusterType === 'aldo-mgmt') {
+        // ALDO Management Cluster: fixed at 3 nodes
+        nodeSelect.innerHTML = '<option value="3">3 Nodes (ALDO Management)</option>';
+        nodeSelect.value = 3;
         nodeSelect.disabled = true;
     } else if (clusterType === 'rack-aware') {
         // Rack-aware: only 2, 4, 6, 8 nodes (even numbers for balanced rack distribution)
@@ -1704,6 +1710,12 @@ function updateResiliencyOptions() {
             <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
             <option value="2way">Two-way Mirror (2+ drives, single fault tolerance)</option>
         `;
+    } else if (clusterType === 'aldo-mgmt') {
+        // ALDO Management: 3 nodes, 2-way or 3-way mirror
+        options = `
+            <option value="2way">Two-way Mirror (min 2 nodes)</option>
+            <option value="3way">Three-way Mirror (min 3 nodes)</option>
+        `;
     } else if (clusterType === 'rack-aware') {
         // Rack-aware: 2-node = 2-way mirror only; 4/6/8-node = 4-way mirror only
         if (nodeCount <= 2) {
@@ -1744,6 +1756,9 @@ function updateResiliencyOptions() {
     } else if (clusterType === 'single') {
         // Single node: default to 2-way mirror for fault tolerance
         resiliencySelect.value = '2way';
+    } else if (clusterType === 'aldo-mgmt') {
+        // ALDO Management: default to 3-way mirror
+        resiliencySelect.value = '3way';
     } else if (validOptions.includes('3way')) {
         resiliencySelect.value = '3way';
     } else if (validOptions.includes(currentResiliency)) {
@@ -1764,7 +1779,7 @@ function updateClusterInfo() {
     let showWarning = false;
     let message = '';
     
-    if (clusterType !== 'single' && clusterType !== 'rack-aware' && resiliency === '3way' && nodeCount < config.minNodes) {
+    if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
         message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
     }
@@ -1784,6 +1799,8 @@ function updateNodeTip() {
     
     if (clusterType === 'single') {
         tipText.textContent = 'Tip: Single node clusters will always incur workload downtime during updates. No N+1 capacity is available.';
+    } else if (clusterType === 'aldo-mgmt') {
+        tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
     } else {
         tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.';
     }
@@ -2512,7 +2529,7 @@ function calculateRequirements(options) {
             // --- Auto-increment node count if any resource is still >= 90% after hw scale-up ---
             // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
-            if (clusterType !== 'single' && !skipAutoNodeRecommend) {
+            if (clusterType !== 'single' && clusterType !== 'aldo-mgmt' && !skipAutoNodeRecommend) {
                 const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
@@ -2705,7 +2722,7 @@ function calculateRequirements(options) {
             // --- Aggressive pass for single-node / manual-node-count paths ---
             // When auto-node-recommendation is skipped (user manually set node count)
             // or single-node cluster, still allow ratio/memory escalation as last resort.
-            if (clusterType === 'single' || skipAutoNodeRecommend) {
+            if (clusterType === 'single' || clusterType === 'aldo-mgmt' || skipAutoNodeRecommend) {
                 const aggressiveFallback = autoScaleHardware(
                     totalVcpus, totalMemory, totalStorage, nodeCount,
                     resiliencyMultiplier, hwConfig, previouslyAutoScaled,
@@ -2753,7 +2770,7 @@ function calculateRequirements(options) {
         // --- Capacity bars from hardware config ---
         // Physical Nodes bar
         const clusterType = document.getElementById('cluster-type').value;
-        const MAX_NODES = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : 16;
+        const MAX_NODES = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : clusterType === 'aldo-mgmt' ? 3 : 16;
         const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
         document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
@@ -2933,6 +2950,8 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push('Two-way mirror: Provides drive fault tolerance. Requires minimum 2 capacity drives.');
             }
             notes.push('Single node requires minimum 2 capacity drives (NVMe or SSD) of the same type');
+        } else if (clusterType === 'aldo-mgmt') {
+            notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management. Nodes are fixed and cannot be scaled.');
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
@@ -3153,6 +3172,7 @@ function updateDesignerActionVisibility() {
 // Map sizer cluster type to Designer scale value
 function mapSizerToDesignerScale(clusterType) {
     if (clusterType === 'rack-aware') return 'rack_aware';
+    if (clusterType === 'aldo-mgmt') return 'medium';
     // Both 'single' and 'standard' map to 'medium' (Hyperconverged)
     return 'medium';
 }
