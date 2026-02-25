@@ -12,6 +12,42 @@
 
     var CURRENT_REPORT_STATE = null;
     var ARC_GATEWAY_VM_DIAGRAM_URL = 'https://raw.githubusercontent.com/Azure/AzureLocal-Supportability/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/images/AzureLocalPublicPathFlowsFinal-1Node-Step6-VMFlows.dark.svg';
+
+    // Firewall allow-list endpoint URLs per region (consolidated lists from GitHub)
+    var FIREWALL_ENDPOINT_URLS = {
+        east_us: { label: 'East US', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/EastUSendpoints/eastus-hci-endpoints.md' },
+        south_central_us: { label: 'South Central US', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/SouthCentralUSEndpoints/southcentralus-hci-endpoints.md' },
+        west_europe: { label: 'West Europe', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/WestEuropeendpoints/westeurope-hci-endpoints.md' },
+        australia_east: { label: 'Australia East', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/AustraliaEastendpoints/AustraliaEast-hci-endpoints.md' },
+        southeast_asia: { label: 'Southeast Asia', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/SouthEastAsiaEndpoints/southeastasia-hci-endpoints.md' },
+        india_central: { label: 'Central India', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/IndiaCentralEndpoints/IndiaCentral-hci-endpoints.md' },
+        canada_central: { label: 'Canada Central', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/CanadaCentralEndpoints/canadacentral-hci-endpoints.md' },
+        japan_east: { label: 'Japan East', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/JapanEastEndpoints/japaneast-hci-endpoints.md' },
+        us_gov_virginia: { label: 'US Gov Virginia', url: 'https://github.com/CristianEdwards/AzureStack-Tools/blob/master/HCI/usgovvirginia-hci-endpoints/usgovvirginia-hci-endpoints.md' }
+    };
+    var ARC_GATEWAY_ENDPOINTS_URL = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-azure-arc-gateway-overview?tabs=portal#azure-local-endpoints-not-redirected';
+
+    // Returns { label, url } for the firewall allow-list link based on Arc Gateway and region
+    function getFirewallEndpointInfo(s) {
+        if (s.arc === 'arc_gateway') {
+            return {
+                label: 'Azure Local endpoints not redirected via Arc Gateway',
+                url: ARC_GATEWAY_ENDPOINTS_URL
+            };
+        }
+        var regionInfo = FIREWALL_ENDPOINT_URLS[s.localInstanceRegion];
+        if (regionInfo) {
+            return {
+                label: 'Consolidated endpoint list for ' + regionInfo.label + ' (Azure Local, Arc-enabled servers, ARB, AKS)',
+                url: regionInfo.url
+            };
+        }
+        // Fallback to the general firewall requirements page
+        return {
+            label: 'Azure Local firewall requirements',
+            url: 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements'
+        };
+    }
     var isPrintFriendly = false;
 
     // Outbound connectivity diagram URLs - use local files from docs folder
@@ -1356,6 +1392,10 @@
         if (s.privateEndpoints) {
             md.push('| Private Endpoints | ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled') + ' |');
         }
+        if (s.scenario !== 'disconnected' && (s.arc || s.localInstanceRegion)) {
+            var fwInfoMd = getFirewallEndpointInfo(s);
+            md.push('| Firewall Allow List Endpoint Requirements | [' + fwInfoMd.label + '](' + fwInfoMd.url + ') |');
+        }
         md.push('');
 
         // Outbound Connectivity Diagram
@@ -1594,6 +1634,11 @@
         md.push('');
         md.push('**Private Endpoints:** ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-')));
         md.push('');
+        if (s.scenario !== 'disconnected' && (s.arc || s.localInstanceRegion)) {
+            var fwInfoRat = getFirewallEndpointInfo(s);
+            md.push('**Firewall Allow List Endpoint Requirements:** [' + fwInfoRat.label + '](' + fwInfoRat.url + ')');
+            md.push('');
+        }
         var outboundNotes = [];
         if (s.outbound === 'private') {
             outboundNotes.push('Private outbound assumes controlled egress via firewall/proxy; the wizard forces Arc Gateway + explicit proxy behavior.');
@@ -5949,6 +5994,11 @@
             + '<br><strong>Arc Gateway:</strong> ' + escapeHtml(s.arc === 'arc_gateway' ? 'Enabled (Recommended)' : (s.arc === 'no_arc' ? 'Disabled' : '-'))
             + '<br><strong>Proxy:</strong> ' + escapeHtml(s.proxy === 'no_proxy' ? 'Disabled' : (s.proxy ? 'Enabled' : '-'))
             + '<br><strong>Private Endpoints:</strong> ' + escapeHtml(s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-'))
+            + (function () {
+                if (s.scenario === 'disconnected' || (!s.arc && !s.localInstanceRegion)) return '';
+                var fwInfoHtml = getFirewallEndpointInfo(s);
+                return '<br><strong>Firewall Allow List Endpoint Requirements:</strong> <a href="' + escapeHtml(fwInfoHtml.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">' + escapeHtml(fwInfoHtml.label) + '</a>';
+            })()
             + (outboundNotes.length ? list(outboundNotes) : '')
             + proxyBypassHtml
             + outboundDiagramHtml
@@ -6747,7 +6797,16 @@
             connectivityRows += row('Proxy', proxyText);
         }
         if (s.privateEndpoints) connectivityRows += row('Private Endpoints', s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled');
-        
+
+        // Firewall Allow List Endpoint Requirements (link depends on Arc Gateway + region)
+        if (s.scenario !== 'disconnected' && (s.arc || s.localInstanceRegion)) {
+            var fwInfo = getFirewallEndpointInfo(s);
+            connectivityRows += '<div class="summary-row">'
+                + '<div class="summary-label">' + escapeHtml('Firewall Allow List Endpoint Requirements') + '</div>'
+                + '<div class="summary-value"><a href="' + escapeHtml(fwInfo.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">' + escapeHtml(fwInfo.label) + '</a></div>'
+                + '</div>';
+        }
+
         // Generate connectivity diagram based on outbound/arc/proxy selection
         var connectivityExtra = '';
         var diagramKey = getOutboundDiagramKey(s);
