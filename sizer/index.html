@@ -687,6 +687,42 @@
         </div>
     </div>
 
+    <!-- Region Picker Modal (shown before navigating to Designer) -->
+    <div class="modal-overlay" id="region-modal-overlay" onclick="closeRegionModal()"></div>
+    <div class="modal region-picker-modal" id="region-picker-modal">
+        <div class="modal-header">
+            <h3>Select Azure Region</h3>
+            <button class="modal-close" onclick="closeRegionModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="region-picker-desc">Choose the Azure region for your Azure Local deployment. This will be set in the Designer wizard.</p>
+            <div class="region-picker-cloud">
+                <label class="region-cloud-label">
+                    <input type="radio" name="region-cloud" value="azure_commercial" checked onchange="updateRegionOptions()">
+                    Azure Commercial
+                </label>
+                <label class="region-cloud-label">
+                    <input type="radio" name="region-cloud" value="azure_government" onchange="updateRegionOptions()">
+                    Azure Government
+                </label>
+            </div>
+            <div class="region-grid" id="region-grid">
+                <button class="region-btn" data-region="east_us" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('east_us', 'azure_commercial')">East US</button>
+                <button class="region-btn" data-region="west_europe" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('west_europe', 'azure_commercial')">West Europe</button>
+                <button class="region-btn" data-region="australia_east" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('australia_east', 'azure_commercial')">Australia East</button>
+                <button class="region-btn" data-region="canada_central" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('canada_central', 'azure_commercial')">Canada Central</button>
+                <button class="region-btn" data-region="india_central" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('india_central', 'azure_commercial')">India Central</button>
+                <button class="region-btn" data-region="japan_east" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('japan_east', 'azure_commercial')">Japan East</button>
+                <button class="region-btn" data-region="south_central_us" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('south_central_us', 'azure_commercial')">South Central US</button>
+                <button class="region-btn" data-region="southeast_asia" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('southeast_asia', 'azure_commercial')">Southeast Asia</button>
+                <button class="region-btn" data-region="us_gov_virginia" data-cloud="azure_government" onclick="selectRegionAndConfigure('us_gov_virginia', 'azure_government')">US Gov Virginia</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeRegionModal()">Cancel</button>
+        </div>
+    </div>
+
     <!-- Analytics -->
     <script src="../js/analytics.js"></script>
     <script src="../js/changelog.js"></script>

@@ -3575,6 +3575,40 @@ function configureInDesigner() {
         return;
     }
 
+    // Show region picker modal — the user selects a region, then we navigate
+    const modal = document.getElementById('region-picker-modal');
+    const overlay = document.getElementById('region-modal-overlay');
+    if (modal && overlay) {
+        // Reset to Azure Commercial and show its regions
+        const commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
+        if (commercialRadio) commercialRadio.checked = true;
+        updateRegionOptions();
+        modal.classList.add('active');
+        overlay.classList.add('active');
+    }
+}
+
+// Update visible region buttons based on selected cloud type
+function updateRegionOptions() {
+    const selectedCloud = document.querySelector('input[name="region-cloud"]:checked')?.value || 'azure_commercial';
+    const buttons = document.querySelectorAll('#region-grid .region-btn');
+    buttons.forEach(btn => {
+        btn.style.display = btn.getAttribute('data-cloud') === selectedCloud ? '' : 'none';
+    });
+}
+
+// Close the region picker modal
+function closeRegionModal() {
+    const modal = document.getElementById('region-picker-modal');
+    const overlay = document.getElementById('region-modal-overlay');
+    if (modal) modal.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+}
+
+// User selected a region — build payload and navigate to Designer
+function selectRegionAndConfigure(region, cloud) {
+    closeRegionModal();
+
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = document.getElementById('node-count').value;
     const resiliency = document.getElementById('resiliency').value;
@@ -3584,6 +3618,9 @@ function configureInDesigner() {
     const sizerPayload = {
         source: 'sizer',
         timestamp: new Date().toISOString(),
+        // Region selected by user
+        cloud: cloud,
+        region: region,
         // Designer-compatible fields
         scale: mapSizerToDesignerScale(clusterType),
         nodes: nodeCount,
