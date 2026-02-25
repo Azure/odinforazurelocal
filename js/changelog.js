@@ -1,6 +1,6 @@
 ﻿// Shared changelog modal - loaded by both Designer and Sizer pages
 // Show changelog/what's new
-function showChangelog() {
+function showChangelog() { // eslint-disable-line no-unused-vars
     const overlay = document.createElement('div');
     overlay.style.cssText = `
         position: fixed;
