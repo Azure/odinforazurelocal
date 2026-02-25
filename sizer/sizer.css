@@ -829,6 +829,12 @@ body {
     color: #ef4444;
 }
 
+.config-info-warning.manual-override-warning {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
 /* Requirements Grid */
 .requirements-grid {
     display: grid;
@@ -1227,6 +1233,58 @@ body {
     gap: 12px;
     padding: 20px 24px;
     border-top: 1px solid var(--glass-border);
+}
+
+/* Region Picker Modal */
+.region-picker-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 16px 0;
+}
+
+.region-picker-cloud {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.region-cloud-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.region-cloud-label input[type="radio"] {
+    accent-color: var(--accent-blue);
+}
+
+.region-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.region-btn {
+    padding: 12px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    background: var(--subtle-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+}
+
+.region-btn:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
 }
 
 /* Form Elements */
@@ -1641,4 +1699,81 @@ body {
     margin-left: 6px;
     vertical-align: middle;
     animation: auto-scaled-pulse 1.8s ease-out;
+}
+
+/* ============================================
+   Manual-Set Field Highlight
+   ============================================ */
+
+/* Brief glow animation when a field is manually set */
+@keyframes manual-set-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+    50%  { box-shadow: 0 0 8px 2px rgba(16, 185, 129, 0.35); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.config-row select.manual-set,
+.config-row input.manual-set,
+.input-with-unit .hw-input.manual-set,
+.unit-select.manual-set {
+    border-color: var(--accent-green);
+    animation: manual-set-pulse 1.8s ease-out;
+    transition: border-color 0.3s ease;
+}
+
+/* Subtle persistent indicator for manually set fields */
+.config-row select.manual-set:not(:focus),
+.config-row input.manual-set:not(:focus),
+.input-with-unit .hw-input.manual-set:not(:focus),
+.unit-select.manual-set:not(:focus) {
+    border-color: rgba(16, 185, 129, 0.45);
+}
+
+/* Small "manual" badge on the label when its field was manually set */
+.config-row label .manual-set-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-green);
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    vertical-align: middle;
+    animation: manual-set-pulse 1.8s ease-out;
+}
+/* "Remove MANUAL overrides" button container */
+.clear-manual-overrides {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.btn-clear-manual {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-green);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-clear-manual:hover {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.btn-clear-manual svg {
+    width: 14px;
+    height: 14px;
+    stroke: var(--accent-green);
+    flex-shrink: 0;
 }

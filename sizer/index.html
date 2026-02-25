@@ -30,7 +30,7 @@
             <div class="header-logo-wrapper">
                 <img src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                 <div class="header-version">
-                    Version 0.17.04 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+                    Version 0.17.10 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
                 </div>
             </div>
         </header>
@@ -115,6 +115,7 @@
                             <option value="single">Single Node</option>
                             <option value="standard" selected>Standard Cluster</option>
                             <option value="rack-aware">Rack-Aware Cluster</option>
+                            <option value="aldo-mgmt">ALDO Management Cluster</option>
                         </select>
                     </div>
                     <div class="config-row cluster-setting">
@@ -306,7 +307,7 @@
                             <h3 class="hw-subsection-title">Disk Configuration (Capacity)</h3>
                             <div class="config-row">
                                 <label for="capacity-disk-count">Capacity Disks per Node</label>
-                                <select id="capacity-disk-count" onchange="onDiskConfigChange()">
+                                <select id="capacity-disk-count" onchange="onDiskCountChange()">
                                     <option value="2">2</option>
                                     <option value="3">3</option>
                                     <option value="4" selected>4</option>
@@ -334,7 +335,7 @@
                             </div>
                             <div class="config-row">
                                 <label for="capacity-disk-size">Capacity per Disk</label>
-                                <select id="capacity-disk-size" onchange="onDiskConfigChange()">
+                                <select id="capacity-disk-size" onchange="onDiskSizeChange()">
                                     <option value="0.96">960 GB (0.96 TB)</option>
                                     <option value="1.92">1.92 TB</option>
                                     <option value="3.84" selected>3.84 TB</option>
@@ -388,7 +389,7 @@
                             <h3 class="hw-subsection-title">Capacity Disks</h3>
                             <div class="config-row">
                                 <label for="tiered-capacity-disk-count">Capacity Disks per Node</label>
-                                <select id="tiered-capacity-disk-count" onchange="onDiskConfigChange()">
+                                <select id="tiered-capacity-disk-count" onchange="onDiskCountChange()">
                                     <option value="2">2</option>
                                     <option value="3">3</option>
                                     <option value="4" selected>4</option>
@@ -408,7 +409,7 @@
                             </div>
                             <div class="config-row">
                                 <label for="tiered-capacity-disk-size">Capacity per Disk</label>
-                                <select id="tiered-capacity-disk-size" onchange="onDiskConfigChange()">
+                                <select id="tiered-capacity-disk-size" onchange="onDiskSizeChange()">
                                     <option value="0.96">960 GB (0.96 TB)</option>
                                     <option value="1.92">1.92 TB</option>
                                     <option value="3.84" selected>3.84 TB</option>
@@ -424,6 +425,17 @@
                                 <span>Capacity disk type: <strong id="capacity-disk-type-label">SSD</strong></span>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Remove Manual Overrides button (hidden by default) -->
+                    <div id="clear-manual-overrides" class="clear-manual-overrides" style="display: none;">
+                        <button class="btn btn-clear-manual" onclick="clearAllManualOverrides()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                            Remove MANUAL overrides
+                        </button>
                     </div>
                 </div>
             </div>
@@ -591,6 +603,12 @@
                     <span>One or more resources (Compute, Memory, or Storage) are at or above 90% utilization. This is not a recommended configuration — increase per-node hardware specs, add more nodes, or reduce workloads before proceeding to the Designer.</span>
                 </div>
 
+                <!-- Manual Override Capacity Warning -->
+                <div class="config-info config-info-warning manual-override-warning" id="manual-override-warning" style="display: none;">
+                    <span class="info-icon">⚠️</span>
+                    <span id="manual-override-warning-text"></span>
+                </div>
+
                 <!-- Storage Limit Exceeded Warning -->
                 <div class="config-info config-info-warning" id="storage-limit-warning" style="display: none;">
                     <span class="info-icon">🚫</span>
@@ -666,6 +684,42 @@
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
             <button class="btn btn-primary" id="modal-submit-btn" onclick="addWorkload()">Add Workload</button>
+        </div>
+    </div>
+
+    <!-- Region Picker Modal (shown before navigating to Designer) -->
+    <div class="modal-overlay" id="region-modal-overlay" onclick="closeRegionModal()"></div>
+    <div class="modal region-picker-modal" id="region-picker-modal">
+        <div class="modal-header">
+            <h3>Select Azure Region</h3>
+            <button class="modal-close" onclick="closeRegionModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="region-picker-desc">Choose the Azure region for your Azure Local deployment. This will be set in the Designer wizard.</p>
+            <div class="region-picker-cloud">
+                <label class="region-cloud-label">
+                    <input type="radio" name="region-cloud" value="azure_commercial" checked onchange="updateRegionOptions()">
+                    Azure Commercial
+                </label>
+                <label class="region-cloud-label">
+                    <input type="radio" name="region-cloud" value="azure_government" onchange="updateRegionOptions()">
+                    Azure Government
+                </label>
+            </div>
+            <div class="region-grid" id="region-grid">
+                <button class="region-btn" data-region="east_us" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('east_us', 'azure_commercial')">East US</button>
+                <button class="region-btn" data-region="west_europe" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('west_europe', 'azure_commercial')">West Europe</button>
+                <button class="region-btn" data-region="australia_east" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('australia_east', 'azure_commercial')">Australia East</button>
+                <button class="region-btn" data-region="canada_central" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('canada_central', 'azure_commercial')">Canada Central</button>
+                <button class="region-btn" data-region="india_central" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('india_central', 'azure_commercial')">India Central</button>
+                <button class="region-btn" data-region="japan_east" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('japan_east', 'azure_commercial')">Japan East</button>
+                <button class="region-btn" data-region="south_central_us" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('south_central_us', 'azure_commercial')">South Central US</button>
+                <button class="region-btn" data-region="southeast_asia" data-cloud="azure_commercial" onclick="selectRegionAndConfigure('southeast_asia', 'azure_commercial')">Southeast Asia</button>
+                <button class="region-btn" data-region="us_gov_virginia" data-cloud="azure_government" onclick="selectRegionAndConfigure('us_gov_virginia', 'azure_government')">US Gov Virginia</button>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeRegionModal()">Cancel</button>
         </div>
     </div>
 

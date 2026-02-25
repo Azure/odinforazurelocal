@@ -27,7 +27,75 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.04 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.10 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 25, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📐 Sizer: ALDO Management Cluster</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New Cluster Type:</strong> Added "ALDO Management Cluster" to the Sizer — a fixed 3-node, all-flash configuration with three-way mirror resiliency.</li>
+                        <li><strong>Fixed Infrastructure:</strong> Node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror only.</li>
+                        <li><strong>Minimum Hardware:</strong> Automatically enforces ALDO minimums — 96 GB memory, 24 physical cores, and 2 TB SSD/NVMe storage per node.</li>
+                        <li><strong>Appliance Overhead:</strong> Reserves 64 GB memory per node (192 GB total) for the disconnected operations appliance VM — deducted from available workload capacity.</li>
+                        <li><strong>Boot Disk:</strong> Sizing notes recommend 960 GB SSD/NVMe boot disk per node.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🏷️ Sizer: MANUAL Override Badges</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>MANUAL Badge:</strong> Green "MANUAL" badge appears on any hardware dropdown when a user manually edits the value — visually distinguishes user choices from auto-scaled values.</li>
+                        <li><strong>Override Persistence:</strong> MANUAL overrides persist across workload add, edit, delete, and clone — only the explicit button or full reset clears them.</li>
+                        <li><strong>Remove Overrides:</strong> "Remove MANUAL overrides" button appears when any override is active — clears all user locks and re-runs auto-scaling.</li>
+                        <li><strong>Capacity Warning:</strong> Amber warning when capacity ≥90% while MANUAL overrides are active — identifies which overrides prevent auto-scaling.</li>
+                        <li><strong>Independent Disk Locks:</strong> Disk size and disk count are independently lockable — manually setting one still allows auto-scaling on the other.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🔒 Sizer: Three-Way Mirror for 3+ Nodes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Resiliency Lock:</strong> Standard clusters with 3 or more nodes are now locked to three-way mirror only — two-way mirror option removed for 3+ node configurations.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">📝 Sizer: Sizing Notes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Text:</strong> Replaced "RAM" with "memory", updated boot drive text, added spacing around × in storage layout notes.</li>
+                        <li><strong>ALDO Link:</strong> Sizing notes include a link to the disconnected operations overview documentation.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🌍 Sizer: Region Picker</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Region Selection Modal:</strong> Select your Azure region in the Sizer before navigating to Designer — prevents the cascade reset that wiped imported cluster configuration.</li>
+                        <li><strong>Cloud Toggle:</strong> Radio toggle between Azure Commercial (8 regions) and Azure Government (1 region).</li>
+                        <li><strong>Region in Banner:</strong> Import confirmation banner shows the selected region (e.g. "📍 Azure region: West Europe").</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">📋 Report: Sizer Hardware & Workloads</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Hardware in Report:</strong> Full "Hardware Configuration (from Sizer)" section now rendered in the HTML report — CPU, memory, GPU, disks, resiliency, growth, and workload totals.</li>
+                        <li><strong>Individual Workloads:</strong> New "Workloads (from Sizer)" section shows per-workload details — VM count/specs, AKS cluster config, AVD users/profile — with subtotals.</li>
+                        <li><strong>Transparent Pass-Through:</strong> Individual workload details are passed from Sizer → Designer → Report automatically (not visible in Designer UI).</li>
+                        <li><strong>Disconnected Network Link:</strong> "Plan your network for disconnected operations" link in Connectivity for disconnected deployments.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">📋 Report: AKS Arc Network Requirements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Port/VLAN Table:</strong> When AKS workloads are configured, the report shows network port requirements (22, 6443, 55000, 65000) with cross-VLAN notes.</li>
+                        <li><strong>Documentation Link:</strong> Links to AKS Arc network system requirements on MS Learn.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">📋 Report: Firewall Allow List</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Endpoint Requirements:</strong> Added Firewall Allow List Endpoint Requirements row to the report Connectivity section.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Designer: Edge Gateway Fix</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Default Gateway:</strong> Fixed the Default Gateway field being empty and disabled on the Edge 2-Node Switchless template — changed IP assignment from DHCP to static with gateway <code>192.168.100.1</code>.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Sizer: Tiered Storage Fix</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Disk Size Badge:</strong> Fixed MANUAL badge not appearing on disk size for all-flash configurations — replaced incorrect tiered detection with <code>_isTieredStorage()</code> helper.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🔧 CI: ESLint Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Global Declaration:</strong> Added <code>selectDisconnectedOption</code> to ESLint globals to resolve CI errors.</li>
+                        <li><strong>Code Style:</strong> Fixed <code>loadTemplate()</code> try-block indentation and <code>var</code>→<code>const</code> declarations.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--text-secondary); margin: 0 0 8px 0;">Version 0.17.04</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 23, 2026</div>
                 </div>
 

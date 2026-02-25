@@ -190,6 +190,8 @@ function onCpuManufacturerChange() {
     coresSelect.innerHTML = '<option value="" disabled selected>-- Select generation first --</option>';
     coresSelect.disabled = true;
 
+    _cpuConfigUserSet = true;
+    markManualSet('cpu-manufacturer');
     onHardwareConfigChange();
 }
 
@@ -214,6 +216,8 @@ function onCpuGenerationChange() {
     ).join('');
     coresSelect.disabled = false;
 
+    _cpuConfigUserSet = true;
+    markManualSet('cpu-generation');
     onHardwareConfigChange();
 }
 
@@ -315,25 +319,47 @@ function onHardwareConfigChange() {
 // Dedicated handler for vCPU ratio dropdown — locks the ratio against auto-escalation
 function onVcpuRatioChange() {
     _vcpuRatioUserSet = true;
+    markManualSet('vcpu-ratio');
     onHardwareConfigChange();
 }
 
 // Dedicated handler for memory dropdown — locks memory against auto-scaling
 function onMemoryChange() {
     _memoryUserSet = true;
+    markManualSet('node-memory');
     onHardwareConfigChange();
 }
 
 // Dedicated handler for CPU cores/sockets dropdowns — locks CPU config against auto-scaling
 function onCpuConfigChange() {
     _cpuConfigUserSet = true;
+    markManualSet('cpu-cores');
+    markManualSet('cpu-sockets');
     onHardwareConfigChange();
 }
 
-// Dedicated handler for capacity disk dropdowns — locks disk config against auto-scaling
-function onDiskConfigChange() {
-    _diskConfigUserSet = true;
+// Dedicated handlers for capacity disk dropdowns — lock only the specific field against auto-scaling
+function onDiskSizeChange() {
+    _diskSizeUserSet = true;
+    const isTiered = _isTieredStorage();
+    markManualSet(isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size');
     onHardwareConfigChange();
+}
+function onDiskCountChange() {
+    _diskCountUserSet = true;
+    const isTiered = _isTieredStorage();
+    markManualSet(isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count');
+    onHardwareConfigChange();
+}
+
+// Check if current storage tiering is a two-tier (cache + capacity) configuration
+function _isTieredStorage() {
+    const storageConfig = document.getElementById('storage-config').value;
+    const tieringId = document.getElementById('storage-tiering').value;
+    const options = STORAGE_TIERING_OPTIONS[storageConfig];
+    if (!options) return false;
+    const selectedTier = options.find(o => o.id === tieringId) || options[0];
+    return selectedTier.isTiered;
 }
 
 // Show/hide GPU type dropdown based on GPU count
@@ -544,6 +570,7 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
 function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'single') return 1;
+    if (clusterType === 'aldo-mgmt') return 3;
     const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     for (const opt of options) {
         if (opt >= recommended) return opt;
@@ -642,6 +669,13 @@ const NODE_WEIGHT_PREFERRED_MEMORY_LARGE_CLUSTER_GB = 2048;
 // Threshold above which autoScaleHardware allows higher memory headroom
 const NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD = 10;
 
+// ALDO Management Cluster minimum hardware requirements
+// Source: https://learn.microsoft.com/en-us/azure/azure-local/manage/disconnected-operations-overview#eligibility-criteria
+const ALDO_MIN_MEMORY_GB = 96;          // Minimum 96 GB memory per node
+const ALDO_MIN_CORES_PER_NODE = 24;     // Minimum 24 physical cores per node
+const ALDO_MIN_STORAGE_PER_NODE_TB = 2; // Minimum 2 TB SSD/NVMe storage per node
+const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM reservation per node
+
 // Disk count per node
 const MIN_DISK_COUNT = 2; // Azure Local minimum; matches dropdown minimum
 const MAX_DISK_COUNT = 24;
@@ -674,8 +708,10 @@ let _memoryUserSet = false;
 // Track whether the user manually set CPU cores or sockets (prevents CPU auto-scaling from overriding)
 let _cpuConfigUserSet = false;
 
-// Track whether the user manually set disk count/size (prevents disk auto-scaling from overriding)
-let _diskConfigUserSet = false;
+// Track whether the user manually set disk size or disk count (independently)
+// Only the specific field the user touched is locked; the other remains auto-scalable.
+let _diskSizeUserSet = false;
+let _diskCountUserSet = false;
 
 // Track disk bay consolidation details for sizing notes
 let _diskConsolidationInfo = null;
@@ -686,23 +722,133 @@ let _storageLimitExceeded = false;
 // Track which hardware fields were auto-scaled so we can highlight them
 let _autoScaledFields = new Set();
 
+// Track which hardware fields were manually set by the user
+let _manualFields = new Set();
+
+// Mark a field element as manually set by the user (add green highlight + MANUAL badge)
+function markManualSet(elementId) {
+    _manualFields.add(elementId);
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.classList.add('manual-set');
+    // Remove any existing auto-scaled badge first
+    const configRow = el.closest('.config-row');
+    if (configRow) {
+        const label = configRow.querySelector('label');
+        if (label) {
+            const autoBadge = label.querySelector('.auto-scaled-badge');
+            if (autoBadge) autoBadge.remove();
+            if (!label.querySelector('.manual-set-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'manual-set-badge';
+                badge.textContent = 'manual';
+                badge.title = 'This value was manually set and will not be changed by auto-scaling';
+                label.appendChild(badge);
+            }
+        }
+    }
+    // Show the "Remove MANUAL overrides" button
+    const clearBtn = document.getElementById('clear-manual-overrides');
+    if (clearBtn) clearBtn.style.display = 'block';
+}
+
+// Clear all manual-set highlights and badges
+function clearManualBadges() {
+    for (const id of _manualFields) {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('manual-set');
+        const row = el?.closest('.config-row');
+        if (row) {
+            const badge = row.querySelector('.manual-set-badge');
+            if (badge) badge.remove();
+        }
+    }
+    _manualFields.clear();
+    // Hide the "Remove MANUAL overrides" button
+    const clearBtn = document.getElementById('clear-manual-overrides');
+    if (clearBtn) clearBtn.style.display = 'none';
+}
+
+// Remove all manual overrides — resets user locks and re-runs auto-scaling
+function clearAllManualOverrides() {
+    _vcpuRatioUserSet = false;
+    _memoryUserSet = false;
+    _cpuConfigUserSet = false;
+    _diskSizeUserSet = false;
+    _diskCountUserSet = false;
+    clearManualBadges();
+    calculateRequirements();
+}
+
+// Human-readable names for manually-set hardware fields
+const _MANUAL_FIELD_LABELS = {
+    'vcpu-ratio': 'vCPU Ratio',
+    'node-memory': 'Memory',
+    'cpu-cores': 'CPU Cores',
+    'cpu-sockets': 'CPU Sockets',
+    'cpu-manufacturer': 'CPU Manufacturer',
+    'cpu-generation': 'CPU Generation',
+    'capacity-disk-size': 'Capacity Disk Size',
+    'capacity-disk-count': 'Capacity Disk Count',
+    'tiered-capacity-disk-size': 'Capacity Disk Size',
+    'tiered-capacity-disk-count': 'Capacity Disk Count'
+};
+
+// Show or hide the manual-override capacity warning based on current utilization
+// and active manual overrides. Called after capacity bars are updated.
+function updateManualOverrideWarning(computePercent, memoryPercent, storagePercent) {
+    const warningEl = document.getElementById('manual-override-warning');
+    const warningText = document.getElementById('manual-override-warning-text');
+    if (!warningEl || !warningText) return;
+
+    const THRESHOLD = 90;
+    const anyOver = (computePercent >= THRESHOLD || memoryPercent >= THRESHOLD || storagePercent >= THRESHOLD);
+
+    if (!anyOver || _manualFields.size === 0 || workloads.length === 0) {
+        warningEl.style.display = 'none';
+        return;
+    }
+
+    // Build list of which resources are over threshold
+    const overResources = [];
+    if (computePercent >= THRESHOLD) overResources.push('Compute');
+    if (memoryPercent >= THRESHOLD) overResources.push('Memory');
+    if (storagePercent >= THRESHOLD) overResources.push('Storage');
+
+    // Build list of active manual override labels
+    const overrideLabels = [];
+    for (const fieldId of _manualFields) {
+        const label = _MANUAL_FIELD_LABELS[fieldId] || fieldId;
+        if (!overrideLabels.includes(label)) overrideLabels.push(label);
+    }
+
+    const resourceStr = overResources.join(', ');
+    const overrideStr = overrideLabels.join(', ');
+    warningText.textContent = `${resourceStr} capacity cannot be auto-scaled because of MANUAL override${overrideLabels.length > 1 ? 's' : ''} on: ${overrideStr}. Remove manual overrides or adjust the locked values to accommodate the workload.`;
+    warningEl.style.display = 'flex';
+}
+
 // Mark a field element as auto-scaled (add visual highlight + badge)
 function markAutoScaled(elementId) {
     _autoScaledFields.add(elementId);
     const el = document.getElementById(elementId);
     if (!el) return;
     el.classList.add('auto-scaled');
-    // Add "auto" badge to the label if not already present
-    // For both direct config-row children and input-with-unit nested elements
+    el.classList.remove('manual-set');
+    // Remove any manual badge first, then add auto badge
     const configRow = el.closest('.config-row');
     if (configRow) {
         const label = configRow.querySelector('label');
-        if (label && !label.querySelector('.auto-scaled-badge')) {
-            const badge = document.createElement('span');
-            badge.className = 'auto-scaled-badge';
-            badge.textContent = 'auto';
-            badge.title = 'This value was automatically adjusted to fit workload requirements';
-            label.appendChild(badge);
+        if (label) {
+            const manualBadge = label.querySelector('.manual-set-badge');
+            if (manualBadge) manualBadge.remove();
+            if (!label.querySelector('.auto-scaled-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'auto-scaled-badge';
+                badge.textContent = 'auto';
+                badge.title = 'This value was automatically adjusted to fit workload requirements';
+                label.appendChild(badge);
+            }
         }
     }
     // Remove highlight when user manually interacts with the field
@@ -838,7 +984,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     let vcpuToCore = getVcpuRatio();
     // Note: _vcpuRatioAutoEscalated is reset once per calculateRequirements() call,
     // NOT per autoScaleHardware() call, so the flag survives multiple auto-scale passes.
-    const hostOverheadMemoryGB = 32;
+    const clusterTypeForOverhead = document.getElementById('cluster-type').value;
+    const hostOverheadMemoryGB = 32 + (clusterTypeForOverhead === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
     const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
     let changed = false;
@@ -920,7 +1067,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // This also scales DOWN from a prior auto-scaled value when more nodes are
         // available (e.g. after node count increased), keeping per-node memory minimal.
         // In conservative mode (default), cap at 2 TB and let node scaling add nodes instead.
-        let targetMem = MEMORY_OPTIONS_GB.find(m => m >= requiredMemPerNode) || MAX_MEMORY_GB;
+        // For ALDO management clusters, enforce minimum 96 GB per node
+        const aldoMinMem = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_MEMORY_GB : 0;
+        const effectiveMinMem = Math.max(requiredMemPerNode, aldoMinMem);
+        let targetMem = MEMORY_OPTIONS_GB.find(m => m >= effectiveMinMem) || MAX_MEMORY_GB;
         if (!allowHighMemory && targetMem > PREFERRED_MEM_CAP_GB) {
             targetMem = PREFERRED_MEM_CAP_GB;
         }
@@ -959,9 +1109,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Always reset consolidation info — even when user locked disk config
     _diskConsolidationInfo = null;
 
-    // Skip disk count/size auto-scaling when the user has manually set the disk configuration.
-    // The user can still see capacity bars and warnings; we just don't override their choice.
-    if (diskSizeGB > 0 && !_diskConfigUserSet) {
+    // Disk auto-scaling: size and count are independently lockable.
+    // When user manually sets disk size, count can still be auto-scaled (and vice versa).
+    // Disk bay consolidation (changes both) only runs when neither is locked.
+    if (diskSizeGB > 0 && (!_diskSizeUserSet || !_diskCountUserSet)) {
         const disksNeeded = Math.ceil(rawPerNodeNeededGB / diskSizeGB);
         const diskCountInput = document.getElementById(diskCountId);
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
@@ -976,11 +1127,12 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // free for future expansion. Evaluate all larger standard sizes and pick
         // the smallest one that brings disk count below the 50% threshold; if none
         // can, pick the one that saves the most bays.
+        // Only runs when BOTH size and count are auto-managed (consolidation changes both).
         const DISK_BAY_CONSOLIDATION_THRESHOLD = 0.5; // 50% of max bays
         let consolidatedDiskSize = diskSizeGB;
         let consolidatedDiskSizeTB = diskSizeTB;
         const bayThreshold = Math.ceil(maxDisksForType * DISK_BAY_CONSOLIDATION_THRESHOLD);
-        if (targetDisks >= bayThreshold) {
+        if (!_diskSizeUserSet && !_diskCountUserSet && targetDisks >= bayThreshold) {
             // Collect all standard sizes larger than current
             const largerSizes = DISK_SIZE_OPTIONS_TB.filter(s => s * 1024 > diskSizeGB);
             let bestCandidate = null;
@@ -1021,41 +1173,45 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             }
         }
 
-        // Always set disk count to the computed value (bidirectional).
-        // Previous code only increased, which caused stale counts to persist
-        // after auto-save/restore or workload reduction.
-        if (!_diskConsolidationInfo && targetDisks !== currentDiskCount) {
+        // Auto-scale disk count (when count is not user-locked).
+        // Recalculates based on current disk size — including when user increased size manually.
+        if (!_diskCountUserSet && !_diskConsolidationInfo && targetDisks !== currentDiskCount) {
             diskCountInput.value = targetDisks;
             changed = true;
+            markAutoScaled(diskCountId);
+        } else if (!_diskCountUserSet && previouslyAutoScaled && previouslyAutoScaled.has(diskCountId)) {
             markAutoScaled(diskCountId);
         }
 
         // --- Auto-scale disk size when disk count alone isn't enough ---
         // If we've maxed out disk count and per-node storage is still insufficient,
         // step up to the next standard disk size (3.84 → 7.68 → 15.36 TB)
-        const currentDiskCountFinal = parseInt(diskCountInput.value) || 4;
-        const currentDiskSizeGB = consolidatedDiskSize;
-        if (currentDiskCountFinal >= maxDisksForType) {
-            const currentStoragePerNodeGB = currentDiskCountFinal * currentDiskSizeGB;
-            if (currentStoragePerNodeGB < rawPerNodeNeededGB) {
-                const diskSizeSelect = document.getElementById(diskSizeId);
-                // Find the smallest standard size that provides enough per-node storage
-                for (const sizeTB of DISK_SIZE_OPTIONS_TB) {
-                    const candidateGB = sizeTB * 1024;
-                    if (candidateGB > currentDiskSizeGB && currentDiskCountFinal * candidateGB >= rawPerNodeNeededGB) {
-                        diskSizeSelect.value = sizeTB;
-                        changed = true;
-                        markAutoScaled(diskSizeId);
-                        break;
+        // Only when disk size is not user-locked.
+        if (!_diskSizeUserSet) {
+            const currentDiskCountFinal = parseInt(diskCountInput.value) || 4;
+            const currentDiskSizeGB = consolidatedDiskSize;
+            if (currentDiskCountFinal >= maxDisksForType) {
+                const currentStoragePerNodeGB = currentDiskCountFinal * currentDiskSizeGB;
+                if (currentStoragePerNodeGB < rawPerNodeNeededGB) {
+                    const diskSizeSelect = document.getElementById(diskSizeId);
+                    // Find the smallest standard size that provides enough per-node storage
+                    for (const sizeTB of DISK_SIZE_OPTIONS_TB) {
+                        const candidateGB = sizeTB * 1024;
+                        if (candidateGB > currentDiskSizeGB && currentDiskCountFinal * candidateGB >= rawPerNodeNeededGB) {
+                            diskSizeSelect.value = sizeTB;
+                            changed = true;
+                            markAutoScaled(diskSizeId);
+                            break;
+                        }
                     }
-                }
-                // If no standard size is big enough, set to max available
-                if (!changed || (currentDiskCountFinal * (parseFloat(document.getElementById(diskSizeId).value) * 1024)) < rawPerNodeNeededGB) {
-                    const maxSize = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1];
-                    if (maxSize * 1024 > currentDiskSizeGB) {
-                        diskSizeSelect.value = maxSize;
-                        changed = true;
-                        markAutoScaled(diskSizeId);
+                    // If no standard size is big enough, set to max available
+                    if (!changed || (currentDiskCountFinal * (parseFloat(document.getElementById(diskSizeId).value) * 1024)) < rawPerNodeNeededGB) {
+                        const maxSize = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1];
+                        if (maxSize * 1024 > currentDiskSizeGB) {
+                            diskSizeSelect.value = maxSize;
+                            changed = true;
+                            markAutoScaled(diskSizeId);
+                        }
                     }
                 }
             }
@@ -1207,8 +1363,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     }
 
     // Storage headroom — bump disk count first, then disk size, until below threshold
-    // Skip when the user has manually set disk config (respect user override).
-    if (!_diskConfigUserSet) {
+    // Each action respects its own user-lock flag independently.
+    if (!_diskCountUserSet || !_diskSizeUserSet) {
         const hrDiskCountInput = document.getElementById(diskCountId);
         const hrDiskSizeSelect = document.getElementById(diskSizeId);
         let hrDiskCount = parseInt(hrDiskCountInput.value) || 4;
@@ -1220,15 +1376,15 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         let storageSafety = 0;
         while (storagePct > HEADROOM_THRESHOLD && storageSafety < 30) {
             storageSafety++;
-            // Try increasing disk count first
+            // Try increasing disk count first (if not user-locked)
             const hrMaxDisks = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
-            if (hrDiskCount < hrMaxDisks) {
+            if (!_diskCountUserSet && hrDiskCount < hrMaxDisks) {
                 hrDiskCount++;
                 hrDiskCountInput.value = hrDiskCount;
                 changed = true;
                 markAutoScaled(diskCountId);
-            } else {
-                // Disk count maxed — try stepping up disk size
+            } else if (!_diskSizeUserSet) {
+                // Disk count maxed or user-locked — try stepping up disk size
                 const nextSize = DISK_SIZE_OPTIONS_TB.find(s => s * 1024 > hrDiskSizeGB);
                 if (nextSize) {
                     hrDiskSizeTB = nextSize;
@@ -1237,8 +1393,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                     changed = true;
                     markAutoScaled(diskSizeId);
                 } else {
-                    break; // maxed out on both disk count and disk size
+                    break; // maxed out on available disk size options
                 }
+            } else {
+                break; // both dimensions are user-locked or maxed
             }
             storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
             storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
@@ -1351,7 +1509,7 @@ function checkForSavedSizerState() {
     // Only show if there are workloads or non-default settings
     const d = saved.data;
     const hasWorkloads = d.workloads && d.workloads.length > 0;
-    const hasNonDefaults = d.clusterType !== 'standard' || d.nodeCount !== '3' ||
+    const hasNonDefaults = (d.clusterType !== 'standard' && d.clusterType !== 'aldo-mgmt') || d.nodeCount !== '3' ||
         d.resiliency !== '3way' || d.futureGrowth !== '0';
     if (!hasWorkloads && !hasNonDefaults) return;
 
@@ -1605,7 +1763,72 @@ function onClusterTypeChange() {
     updateResiliencyOptions();
     updateResiliencyRecommendation();
     updateClusterInfo();
+    enforceAldoMinimums();
     calculateRequirements();
+}
+
+// Enforce ALDO Management Cluster minimum hardware requirements
+// Sets memory, CPU cores, and storage to documented minimums when below threshold
+function enforceAldoMinimums() {
+    const clusterType = document.getElementById('cluster-type').value;
+    if (clusterType !== 'aldo-mgmt') return;
+
+    // Enforce minimum memory: 96 GB per node
+    const memInput = document.getElementById('node-memory');
+    if (memInput) {
+        const currentMem = parseInt(memInput.value) || 0;
+        if (currentMem < ALDO_MIN_MEMORY_GB) {
+            const minOption = MEMORY_OPTIONS_GB.find(m => m >= ALDO_MIN_MEMORY_GB) || ALDO_MIN_MEMORY_GB;
+            memInput.value = minOption;
+        }
+    }
+
+    // Enforce minimum cores: 24 physical cores per node (cores × sockets ≥ 24)
+    const coresSelect = document.getElementById('cpu-cores');
+    const socketsSelect = document.getElementById('cpu-sockets');
+    if (coresSelect && socketsSelect) {
+        const cores = parseInt(coresSelect.value) || 0;
+        const sockets = parseInt(socketsSelect.value) || 2;
+        if (cores * sockets < ALDO_MIN_CORES_PER_NODE) {
+            // Try to meet requirement by increasing cores first
+            const manufacturer = document.getElementById('cpu-manufacturer').value;
+            const genId = document.getElementById('cpu-generation').value;
+            if (manufacturer && genId) {
+                const generation = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
+                if (generation) {
+                    const targetCores = generation.coreOptions.find(c => c * sockets >= ALDO_MIN_CORES_PER_NODE);
+                    if (targetCores) {
+                        coresSelect.value = targetCores;
+                    } else if (sockets < 2) {
+                        // Increase sockets if needed
+                        socketsSelect.value = 2;
+                        const targetCores2 = generation.coreOptions.find(c => c * 2 >= ALDO_MIN_CORES_PER_NODE);
+                        if (targetCores2) coresSelect.value = targetCores2;
+                    }
+                }
+            }
+        }
+    }
+
+    // Enforce minimum storage: 2 TB per node
+    const diskSizeSelect = document.getElementById('capacity-disk-size');
+    const diskCountInput = document.getElementById('capacity-disk-count');
+    if (diskSizeSelect && diskCountInput) {
+        const diskSizeTB = parseFloat(diskSizeSelect.value) || 0;
+        const diskCount = parseInt(diskCountInput.value) || 0;
+        const totalPerNodeTB = diskSizeTB * diskCount;
+        if (totalPerNodeTB < ALDO_MIN_STORAGE_PER_NODE_TB) {
+            // Prefer increasing disk size first, then count
+            const minSize = DISK_SIZE_OPTIONS_TB.find(s => s * diskCount >= ALDO_MIN_STORAGE_PER_NODE_TB);
+            if (minSize) {
+                diskSizeSelect.value = minSize;
+            } else {
+                // Increase disk count at current size
+                const minCount = Math.ceil(ALDO_MIN_STORAGE_PER_NODE_TB / diskSizeTB);
+                diskCountInput.value = Math.min(minCount, MAX_DISK_COUNT);
+            }
+        }
+    }
 }
 
 // Enforce storage constraints based on cluster type
@@ -1613,8 +1836,8 @@ function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
     if (!storageSelect) return; // Guard for test harness
-    if (clusterType === 'rack-aware' || clusterType === 'single') {
-        // Rack-aware and single-node require all-flash
+    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt') {
+        // Rack-aware, single-node, and ALDO management require all-flash
         storageSelect.value = 'all-flash';
         storageSelect.disabled = true;
         onStorageConfigChange();
@@ -1651,6 +1874,11 @@ function updateNodeOptionsForClusterType() {
         // Single node: fixed at 1, disable dropdown
         nodeSelect.innerHTML = '<option value="1">1 Node</option>';
         nodeSelect.value = 1;
+        nodeSelect.disabled = true;
+    } else if (clusterType === 'aldo-mgmt') {
+        // ALDO Management Cluster: fixed at 3 nodes
+        nodeSelect.innerHTML = '<option value="3">3 Nodes (ALDO Management)</option>';
+        nodeSelect.value = 3;
         nodeSelect.disabled = true;
     } else if (clusterType === 'rack-aware') {
         // Rack-aware: only 2, 4, 6, 8 nodes (even numbers for balanced rack distribution)
@@ -1704,6 +1932,11 @@ function updateResiliencyOptions() {
             <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
             <option value="2way">Two-way Mirror (2+ drives, single fault tolerance)</option>
         `;
+    } else if (clusterType === 'aldo-mgmt') {
+        // ALDO Management: fixed 3 nodes, three-way mirror only
+        options = `
+            <option value="3way">Three-way Mirror (33% efficiency)</option>
+        `;
     } else if (clusterType === 'rack-aware') {
         // Rack-aware: 2-node = 2-way mirror only; 4/6/8-node = 4-way mirror only
         if (nodeCount <= 2) {
@@ -1720,17 +1953,10 @@ function updateResiliencyOptions() {
         options = `
             <option value="2way">Two-way Mirror (min 2 nodes)</option>
         `;
-    } else if (nodeCount === 3) {
-        // 3 nodes: 2-way or 3-way mirror
-        options = `
-            <option value="2way">Two-way Mirror (min 2 nodes)</option>
-            <option value="3way">Three-way Mirror (min 3 nodes)</option>
-        `;
     } else {
-        // 4+ nodes: 2-way or 3-way mirror
+        // 3+ nodes: three-way mirror only
         options = `
-            <option value="2way">Two-way Mirror (min 2 nodes)</option>
-            <option value="3way">Three-way Mirror (min 3 nodes)</option>
+            <option value="3way">Three-way Mirror (33% efficiency)</option>
         `;
     }
     
@@ -1744,6 +1970,9 @@ function updateResiliencyOptions() {
     } else if (clusterType === 'single') {
         // Single node: default to 2-way mirror for fault tolerance
         resiliencySelect.value = '2way';
+    } else if (clusterType === 'aldo-mgmt') {
+        // ALDO Management: default to 3-way mirror
+        resiliencySelect.value = '3way';
     } else if (validOptions.includes('3way')) {
         resiliencySelect.value = '3way';
     } else if (validOptions.includes(currentResiliency)) {
@@ -1764,7 +1993,7 @@ function updateClusterInfo() {
     let showWarning = false;
     let message = '';
     
-    if (clusterType !== 'single' && clusterType !== 'rack-aware' && resiliency === '3way' && nodeCount < config.minNodes) {
+    if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
         message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
     }
@@ -1784,6 +2013,8 @@ function updateNodeTip() {
     
     if (clusterType === 'single') {
         tipText.textContent = 'Tip: Single node clusters will always incur workload downtime during updates. No N+1 capacity is available.';
+    } else if (clusterType === 'aldo-mgmt') {
+        tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
     } else {
         tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.';
     }
@@ -2133,11 +2364,6 @@ function addWorkload() {
     }
     closeModal();
     renderWorkloads();
-    // Reset user locks when workloads change — auto-scaling should re-evaluate
-    _vcpuRatioUserSet = false;
-    _memoryUserSet = false;
-    _cpuConfigUserSet = false;
-    _diskConfigUserSet = false;
     calculateRequirements();
 }
 
@@ -2212,11 +2438,6 @@ function deleteWorkload(id) {
     if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
     workloads = workloads.filter(w => w.id !== id);
     renderWorkloads();
-    // Reset user locks when workloads change — auto-scaling should re-evaluate
-    _vcpuRatioUserSet = false;
-    _memoryUserSet = false;
-    _cpuConfigUserSet = false;
-    _diskConfigUserSet = false;
     calculateRequirements();
 }
 
@@ -2229,10 +2450,6 @@ function cloneWorkload(id) {
     clone.name = original.name + ' (copy)';
     workloads.push(clone);
     renderWorkloads();
-    _vcpuRatioUserSet = false;
-    _memoryUserSet = false;
-    _cpuConfigUserSet = false;
-    _diskConfigUserSet = false;
     calculateRequirements();
 }
 
@@ -2512,7 +2729,7 @@ function calculateRequirements(options) {
             // --- Auto-increment node count if any resource is still >= 90% after hw scale-up ---
             // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
-            if (clusterType !== 'single' && !skipAutoNodeRecommend) {
+            if (clusterType !== 'single' && clusterType !== 'aldo-mgmt' && !skipAutoNodeRecommend) {
                 const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
@@ -2531,7 +2748,7 @@ function calculateRequirements(options) {
                     const rawTBPerNode = rawGBPerNode / 1024 || 10;
 
                     const availVcpus = physCores * effNodes * vcpuToCore;
-                    const hostOverheadMemoryGBLoop = 32; // match host overhead used in capacity bars
+                    const hostOverheadMemoryGBLoop = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
                     const availMem = Math.max(memPerNode - hostOverheadMemoryGBLoop, 0) * effNodes;
                     // Subtract Infrastructure_1 volume (256 GB usable) and S2D repair reservation from available storage
                     const s2dRepairTB = getS2dRepairReservedGB(nodeCount, rawGBPerNode > 0 ? (rawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
@@ -2705,7 +2922,7 @@ function calculateRequirements(options) {
             // --- Aggressive pass for single-node / manual-node-count paths ---
             // When auto-node-recommendation is skipped (user manually set node count)
             // or single-node cluster, still allow ratio/memory escalation as last resort.
-            if (clusterType === 'single' || skipAutoNodeRecommend) {
+            if (clusterType === 'single' || clusterType === 'aldo-mgmt' || skipAutoNodeRecommend) {
                 const aggressiveFallback = autoScaleHardware(
                     totalVcpus, totalMemory, totalStorage, nodeCount,
                     resiliencyMultiplier, hwConfig, previouslyAutoScaled,
@@ -2753,7 +2970,7 @@ function calculateRequirements(options) {
         // --- Capacity bars from hardware config ---
         // Physical Nodes bar
         const clusterType = document.getElementById('cluster-type').value;
-        const MAX_NODES = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : 16;
+        const MAX_NODES = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : clusterType === 'aldo-mgmt' ? 3 : 16;
         const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
         document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
@@ -2768,7 +2985,7 @@ function calculateRequirements(options) {
         const rawStoragePerNodeTB = rawStoragePerNodeGB / 1024 || 10;
 
         const totalAvailableVcpus = physicalCoresPerNode * effectiveNodes * vcpuToCore;
-        const hostOverheadGB = 32; // Azure Local host OS + management overhead per node
+        const hostOverheadGB = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0); // Azure Local host OS + management overhead per node (+ ALDO appliance)
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes;
         // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
         const infraVolumeUsableTB = 0.25; // 256 GB
@@ -2808,6 +3025,9 @@ function calculateRequirements(options) {
         if (warningBanner) {
             warningBanner.style.display = anyOverThreshold ? 'flex' : 'none';
         }
+
+        // Show/hide manual-override capacity warning
+        updateManualOverrideWarning(computePercent, memoryPercent, storagePercent);
 
         // --- Power & Rack Space Estimates ---
         updatePowerRackEstimates(nodeCount, hwConfig);
@@ -2912,7 +3132,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
         // Per node hardware config note — always second
         if (hwConfig && hwConfig.generation) {
-            notes.push(`Per node hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB RAM`);
+            notes.push(`Per node hardware configuration: ${hwConfig.generation.name} — ${hwConfig.coresPerSocket} cores × ${hwConfig.sockets} socket(s) = ${hwConfig.totalPhysicalCores} physical cores, ${hwConfig.memoryGB} GB memory`);
             if (hwConfig.gpuCount > 0) {
                 const gpuLabel = getGpuLabel(hwConfig.gpuType);
                 notes.push(`GPU: ${hwConfig.gpuCount} × ${gpuLabel} per node`);
@@ -2933,6 +3153,12 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 notes.push('Two-way mirror: Provides drive fault tolerance. Requires minimum 2 capacity drives.');
             }
             notes.push('Single node requires minimum 2 capacity drives (NVMe or SSD) of the same type');
+        } else if (clusterType === 'aldo-mgmt') {
+            notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management. Nodes are fixed and cannot be scaled.');
+            notes.push(`ALDO minimum hardware per node: ${ALDO_MIN_CORES_PER_NODE} physical cores, ${ALDO_MIN_MEMORY_GB} GB memory, ${ALDO_MIN_STORAGE_PER_NODE_TB} TB SSD/NVMe storage`);
+            notes.push(`ALDO appliance reservation: ${ALDO_APPLIANCE_OVERHEAD_GB} GB memory per node (${ALDO_APPLIANCE_OVERHEAD_GB * 3} GB total) reserved for the disconnected operations appliance VM — this overhead is deducted from available workload memory`);
+            notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
+            notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
@@ -2953,13 +3179,13 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (hwConfig && hwConfig.diskConfig) {
             const dc = hwConfig.diskConfig;
             if (dc.isTiered) {
-                notes.push(`Storage layout: ${dc.cache.count}× ${dc.cache.type} cache + ${dc.capacity.count}× ${dc.capacity.type} capacity disks per node`);
+                notes.push(`Storage layout: ${dc.cache.count} × ${dc.cache.type} cache + ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node`);
                 // Mixed all-flash recommendation
                 if (hwConfig.storageConfig === 'mixed-flash') {
                     notes.push('ℹ️ All-Flash (single type SSD or NVMe) configuration is recommended for increased capacity. Mixed all-flash (NVMe cache + SSD capacity) uses tiered storage which limits capacity disks to 16 per node (24 total drive bays).');
                 }
             } else {
-                notes.push(`Storage layout: ${dc.capacity.count}× ${dc.capacity.type} capacity disks per node (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
+                notes.push(`Storage layout: ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
             }
         }
         
@@ -3032,7 +3258,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
             if (cacheTB > 0) {
                 const metadataGB = Math.ceil(cacheTB * 4);
-                notes.push(`ℹ️ Storage Spaces Direct metadata: ~${metadataGB} GB RAM reserved per node for cache drives (4 GB per TB of cache capacity). Not included in workload memory calculations.`);
+                notes.push(`ℹ️ Storage Spaces Direct metadata: ~${metadataGB} GB memory reserved per node for cache drives (4 GB per TB of cache capacity). Not included in workload memory calculations.`);
             }
         }
 
@@ -3105,14 +3331,14 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         }
 
         // Host overhead note
-        notes.push('ℹ️ Host overhead: 32 GB RAM reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
+        notes.push('ℹ️ Host overhead: 32 GB memory reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
 
         // Network note
         notes.push('ℹ️ Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
 
         // Boot/OS drive note — only shown when memory exceeds 768 GB (larger boot drive needed)
         if (hwConfig && hwConfig.memoryGB > 768) {
-            notes.push('ℹ️ Boot drive: 400 GB+ OS disk recommended per node for systems with >768 GB RAM.');
+            notes.push('ℹ️ Boot drive: minimum 400 GB OS disks recommended for systems with >768 GB memory.');
         }
     }
     
@@ -3153,6 +3379,7 @@ function updateDesignerActionVisibility() {
 // Map sizer cluster type to Designer scale value
 function mapSizerToDesignerScale(clusterType) {
     if (clusterType === 'rack-aware') return 'rack_aware';
+    if (clusterType === 'aldo-mgmt') return 'medium';
     // Both 'single' and 'standard' map to 'medium' (Hyperconverged)
     return 'medium';
 }
@@ -3348,6 +3575,40 @@ function configureInDesigner() {
         return;
     }
 
+    // Show region picker modal — the user selects a region, then we navigate
+    const modal = document.getElementById('region-picker-modal');
+    const overlay = document.getElementById('region-modal-overlay');
+    if (modal && overlay) {
+        // Reset to Azure Commercial and show its regions
+        const commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
+        if (commercialRadio) commercialRadio.checked = true;
+        updateRegionOptions();
+        modal.classList.add('active');
+        overlay.classList.add('active');
+    }
+}
+
+// Update visible region buttons based on selected cloud type
+function updateRegionOptions() {
+    const selectedCloud = document.querySelector('input[name="region-cloud"]:checked')?.value || 'azure_commercial';
+    const buttons = document.querySelectorAll('#region-grid .region-btn');
+    buttons.forEach(btn => {
+        btn.style.display = btn.getAttribute('data-cloud') === selectedCloud ? '' : 'none';
+    });
+}
+
+// Close the region picker modal
+function closeRegionModal() {
+    const modal = document.getElementById('region-picker-modal');
+    const overlay = document.getElementById('region-modal-overlay');
+    if (modal) modal.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+}
+
+// User selected a region — build payload and navigate to Designer
+function selectRegionAndConfigure(region, cloud) {
+    closeRegionModal();
+
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = document.getElementById('node-count').value;
     const resiliency = document.getElementById('resiliency').value;
@@ -3357,6 +3618,9 @@ function configureInDesigner() {
     const sizerPayload = {
         source: 'sizer',
         timestamp: new Date().toISOString(),
+        // Region selected by user
+        cloud: cloud,
+        region: region,
         // Designer-compatible fields
         scale: mapSizerToDesignerScale(clusterType),
         nodes: nodeCount,
@@ -3392,7 +3656,51 @@ function configureInDesigner() {
                 totalMemoryGB: parseInt(document.getElementById('total-memory').textContent) || 0,
                 totalStorageTB: parseFloat(document.getElementById('total-storage').textContent) || 0
             }
-        }
+        },
+        // Individual workload details (transparent pass-through to Report)
+        sizerWorkloads: workloads.map(function(w) {
+            var req = calculateWorkloadRequirements(w);
+            var entry = {
+                type: w.type,
+                name: w.name,
+                totalVcpus: req.vcpus,
+                totalMemoryGB: req.memory,
+                totalStorageGB: req.storage
+            };
+            // Type-specific details for the report
+            switch (w.type) {
+                case 'vm':
+                    entry.vcpusPerVm = w.vcpus;
+                    entry.memoryPerVmGB = w.memory;
+                    entry.storagePerVmGB = w.storage;
+                    entry.count = w.count;
+                    break;
+                case 'aks':
+                    entry.clusterCount = w.clusterCount;
+                    entry.controlPlaneNodes = w.controlPlaneNodes;
+                    entry.controlPlaneVcpus = w.controlPlaneVcpus;
+                    entry.controlPlaneMemory = w.controlPlaneMemory;
+                    entry.workerNodes = w.workerNodes;
+                    entry.workerVcpus = w.workerVcpus;
+                    entry.workerMemory = w.workerMemory;
+                    entry.workerStorage = w.workerStorage;
+                    break;
+                case 'avd':
+                    entry.profile = w.profile;
+                    entry.userCount = w.userCount;
+                    entry.sessionType = w.sessionType;
+                    entry.concurrency = w.concurrency;
+                    entry.fslogix = w.fslogix;
+                    entry.fslogixSize = w.fslogixSize;
+                    if (w.profile === 'custom') {
+                        entry.customVcpus = w.customVcpus;
+                        entry.customMemory = w.customMemory;
+                        entry.customStorage = w.customStorage;
+                    }
+                    break;
+            }
+            return entry;
+        })
     };
 
     // Store in localStorage for the Designer to pick up
@@ -3420,7 +3728,9 @@ function resetScenario() {
     _vcpuRatioUserSet = false;
     _memoryUserSet = false;
     _cpuConfigUserSet = false;
-    _diskConfigUserSet = false;
+    _diskSizeUserSet = false;
+    _diskCountUserSet = false;
+    clearManualBadges();
     
     // Reset hardware config
     document.getElementById('cpu-manufacturer').value = 'intel';

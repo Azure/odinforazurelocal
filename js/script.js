@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.17.04';
+const WIZARD_VERSION = '0.17.10';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -133,7 +133,8 @@ const state = {
     rdmaGuardMessage: null,
     privateEndpoints: null, // 'pe_enabled' or 'pe_disabled'
     privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
-    sizerHardware: null // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
+    sizerHardware: null, // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
+    sizerWorkloads: null // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
 };
 
 // Auto-save state to localStorage
@@ -8311,14 +8312,21 @@ function checkForSizerImport() {
             state.sizerHardware = payload.sizerHardware;
         }
 
+        // Store individual workload details (transparent pass-through to Report)
+        if (payload.sizerWorkloads) {
+            state.sizerWorkloads = payload.sizerWorkloads;
+        }
+
         // Step 01: Always select Hyperconverged
         selectOption('scenario', 'hyperconverged');
 
-        // Step 02: Always select Azure Commercial
-        selectOption('region', 'azure_commercial');
+        // Step 02: Cloud type from sizer (default: Azure Commercial)
+        const cloud = payload.cloud || 'azure_commercial';
+        selectOption('region', cloud);
 
-        // Step 03: Default to East US
-        selectOption('localInstanceRegion', 'east_us');
+        // Step 03: Region from sizer (user selected before navigating)
+        const selectedRegion = payload.region || 'east_us';
+        selectOption('localInstanceRegion', selectedRegion);
 
         // Step 04: Cluster Configuration based on sizer input
         if (payload.scale) {
@@ -8364,13 +8372,20 @@ function checkForSizerImport() {
         `;
 
         const hw = payload.sizerHardware || {};
-        const details = `${hw.nodeCount || '?'} node(s) • ${hw.cpu ? hw.cpu.totalCores + ' cores' : ''} • ${hw.memory ? hw.memory.perNodeGB + ' GB RAM' : ''} per node`;
+        const details = `${hw.nodeCount || '?'} node(s) • ${hw.cpu ? hw.cpu.totalCores + ' cores' : ''} • ${hw.memory ? hw.memory.perNodeGB + ' GB memory' : ''} per node`;
+
+        const regionLabels = {
+            'east_us': 'East US', 'west_europe': 'West Europe', 'australia_east': 'Australia East',
+            'canada_central': 'Canada Central', 'india_central': 'India Central', 'japan_east': 'Japan East',
+            'south_central_us': 'South Central US', 'southeast_asia': 'Southeast Asia', 'us_gov_virginia': 'US Gov Virginia'
+        };
+        const regionLabel = regionLabels[selectedRegion] || selectedRegion;
 
         banner.innerHTML = `
             <div style="flex: 1;">
                 <div style="font-weight: 700; margin-bottom: 4px;">Sizer Configuration Imported</div>
                 <div style="font-size: 12px; opacity: 0.9;">${details}</div>
-                <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">⚠️ Azure region defaulted to East US, update above if needed</div>
+                <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">📍 Azure region: ${regionLabel}</div>
             </div>
             <button onclick="this.parentElement.remove()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Dismiss</button>
         `;

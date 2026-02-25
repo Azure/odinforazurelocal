@@ -1928,7 +1928,8 @@
                     'privateEndpoints',
                     'privateEndpointsList',
                     // Sizer hardware (hidden, imported from Sizer tool)
-                    'sizerHardware'
+                    'sizerHardware',
+                    'sizerWorkloads'
                 ];
                 
                 const actualFields = Object.keys(state);
@@ -1969,7 +1970,7 @@
                     'adfsServerName', 'dnsServers', 'localDnsZone', 'dnsServiceExisting',
                     'sdnEnabled', 'sdnFeatures', 'sdnManagement', 'securityConfiguration',
                     'securitySettings', 'rdmaGuardMessage', 'privateEndpoints', 'privateEndpointsList',
-                    'sizerHardware'
+                    'sizerHardware', 'sizerWorkloads'
                 ];
                 
                 const actualFields = Object.keys(state);
@@ -4150,11 +4151,13 @@
                 const savedMemFlag = _memoryUserSet;
                 const savedRatioFlag = _vcpuRatioUserSet;
                 const savedCpuFlag = _cpuConfigUserSet;
-                const savedDiskFlag = _diskConfigUserSet;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
                 _memoryUserSet = false;
                 _vcpuRatioUserSet = false;
                 _cpuConfigUserSet = true; // lock CPU so test focuses on memory
-                _diskConfigUserSet = true; // lock disk so test focuses on memory
+                _diskSizeUserSet = true; // lock disk so test focuses on memory
+                _diskCountUserSet = true;
                 document.getElementById('vcpu-ratio').value = '4';
                 document.getElementById('node-memory').value = '512';
                 const nodeCount = 12;
@@ -4174,7 +4177,8 @@
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
-                _diskConfigUserSet = savedDiskFlag;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
                 return assert(resultMem <= 2048,
                     'Conservative mode caps memory at 2048 GB (2 TB)', '≤ 2048', resultMem);
             })(),
@@ -4183,11 +4187,13 @@
                 const savedMemFlag = _memoryUserSet;
                 const savedRatioFlag = _vcpuRatioUserSet;
                 const savedCpuFlag = _cpuConfigUserSet;
-                const savedDiskFlag = _diskConfigUserSet;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
                 _memoryUserSet = true; // lock memory
                 _vcpuRatioUserSet = false;
                 _cpuConfigUserSet = false;
-                _diskConfigUserSet = true;
+                _diskSizeUserSet = true;
+                _diskCountUserSet = true;
                 document.getElementById('vcpu-ratio').value = '4';
                 document.getElementById('cpu-cores').value = '64';
                 document.getElementById('cpu-sockets').value = '2';
@@ -4209,7 +4215,8 @@
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
-                _diskConfigUserSet = savedDiskFlag;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
                 return assert(resultRatio === 4,
                     'Conservative mode keeps vCPU ratio at 4:1', 4, resultRatio);
             })()
@@ -4221,11 +4228,13 @@
                 const savedMemFlag = _memoryUserSet;
                 const savedRatioFlag = _vcpuRatioUserSet;
                 const savedCpuFlag = _cpuConfigUserSet;
-                const savedDiskFlag = _diskConfigUserSet;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
                 _memoryUserSet = false;
                 _vcpuRatioUserSet = false;
                 _cpuConfigUserSet = true;
-                _diskConfigUserSet = true;
+                _diskSizeUserSet = true;
+                _diskCountUserSet = true;
                 document.getElementById('vcpu-ratio').value = '4';
                 document.getElementById('node-memory').value = '512';
                 const nodeCount = 12;
@@ -4244,7 +4253,8 @@
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
-                _diskConfigUserSet = savedDiskFlag;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
                 return assert(resultMem > 2048,
                     'Aggressive mode allows memory above 2 TB', '> 2048', resultMem);
             })(),
@@ -4253,7 +4263,8 @@
                 const savedMemFlag = _memoryUserSet;
                 const savedRatioFlag = _vcpuRatioUserSet;
                 const savedCpuFlag = _cpuConfigUserSet;
-                const savedDiskFlag = _diskConfigUserSet;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
                 const savedGenHtml2 = document.getElementById('cpu-generation').innerHTML;
                 const savedCoresHtml2 = document.getElementById('cpu-cores').innerHTML;
                 const savedMfg2 = document.getElementById('cpu-manufacturer').value;
@@ -4263,7 +4274,8 @@
                 _memoryUserSet = true;
                 _vcpuRatioUserSet = false;
                 _cpuConfigUserSet = false;
-                _diskConfigUserSet = true;
+                _diskSizeUserSet = true;
+                _diskCountUserSet = true;
                 _vcpuRatioAutoEscalated = false;
                 document.getElementById('vcpu-ratio').value = '4';
                 document.getElementById('cpu-manufacturer').value = 'intel';
@@ -4294,7 +4306,8 @@
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
-                _diskConfigUserSet = savedDiskFlag;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
                 return assert(resultRatio > 4,
                     'Aggressive mode escalates vCPU ratio above 4:1', '> 4', resultRatio);
             })()
@@ -4416,7 +4429,8 @@
                 const savedMemFlag = _memoryUserSet;
                 const savedRatioFlag = _vcpuRatioUserSet;
                 const savedCpuFlag = _cpuConfigUserSet;
-                const savedDiskFlag = _diskConfigUserSet;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
                 const savedMfg = document.getElementById('cpu-manufacturer').value;
                 const savedGen = document.getElementById('cpu-generation').value;
                 const savedCores = document.getElementById('cpu-cores').value;
@@ -4428,7 +4442,8 @@
                 _memoryUserSet = true;
                 _vcpuRatioUserSet = false;
                 _cpuConfigUserSet = false;
-                _diskConfigUserSet = true;
+                _diskSizeUserSet = true;
+                _diskCountUserSet = true;
                 _vcpuRatioAutoEscalated = false;
 
                 document.getElementById('vcpu-ratio').value = '4';
@@ -4469,7 +4484,8 @@
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
-                _diskConfigUserSet = savedDiskFlag;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
 
                 // Should have switched to AMD and stepped ratio back to 4:1
                 return assert(resultMfg === 'amd' && resultRatio === 4,
@@ -4481,7 +4497,8 @@
                 const savedMemFlag = _memoryUserSet;
                 const savedRatioFlag = _vcpuRatioUserSet;
                 const savedCpuFlag = _cpuConfigUserSet;
-                const savedDiskFlag = _diskConfigUserSet;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
                 const savedMfg = document.getElementById('cpu-manufacturer').value;
                 const savedGen = document.getElementById('cpu-generation').value;
                 const savedCores = document.getElementById('cpu-cores').value;
@@ -4493,7 +4510,8 @@
                 _memoryUserSet = true;
                 _vcpuRatioUserSet = false;
                 _cpuConfigUserSet = false;
-                _diskConfigUserSet = true;
+                _diskSizeUserSet = true;
+                _diskCountUserSet = true;
                 _vcpuRatioAutoEscalated = false;
 
                 document.getElementById('vcpu-ratio').value = '4';
@@ -4532,7 +4550,8 @@
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
-                _diskConfigUserSet = savedDiskFlag;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
 
                 // Should have switched to AMD but kept ratio at 5:1 (4:1 would be ≥90%)
                 return assert(resultMfg2 === 'amd' && resultRatio2 === 5,

@@ -12,6 +12,42 @@
 
     var CURRENT_REPORT_STATE = null;
     var ARC_GATEWAY_VM_DIAGRAM_URL = 'https://raw.githubusercontent.com/Azure/AzureLocal-Supportability/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/images/AzureLocalPublicPathFlowsFinal-1Node-Step6-VMFlows.dark.svg';
+
+    // Firewall allow-list endpoint URLs per region (consolidated lists from GitHub)
+    var FIREWALL_ENDPOINT_URLS = {
+        east_us: { label: 'East US', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/EastUSendpoints/eastus-hci-endpoints.md' },
+        south_central_us: { label: 'South Central US', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/SouthCentralUSEndpoints/southcentralus-hci-endpoints.md' },
+        west_europe: { label: 'West Europe', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/WestEuropeendpoints/westeurope-hci-endpoints.md' },
+        australia_east: { label: 'Australia East', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/AustraliaEastendpoints/AustraliaEast-hci-endpoints.md' },
+        southeast_asia: { label: 'Southeast Asia', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/SouthEastAsiaEndpoints/southeastasia-hci-endpoints.md' },
+        india_central: { label: 'Central India', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/IndiaCentralEndpoints/IndiaCentral-hci-endpoints.md' },
+        canada_central: { label: 'Canada Central', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/CanadaCentralEndpoints/canadacentral-hci-endpoints.md' },
+        japan_east: { label: 'Japan East', url: 'https://github.com/Azure/AzureStack-Tools/blob/master/HCI/JapanEastEndpoints/japaneast-hci-endpoints.md' },
+        us_gov_virginia: { label: 'US Gov Virginia', url: 'https://github.com/CristianEdwards/AzureStack-Tools/blob/master/HCI/usgovvirginia-hci-endpoints/usgovvirginia-hci-endpoints.md' }
+    };
+    var ARC_GATEWAY_ENDPOINTS_URL = 'https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-azure-arc-gateway-overview?tabs=portal#azure-local-endpoints-not-redirected';
+
+    // Returns { label, url } for the firewall allow-list link based on Arc Gateway and region
+    function getFirewallEndpointInfo(s) {
+        if (s.arc === 'arc_gateway') {
+            return {
+                label: 'Azure Local endpoints not redirected via Arc Gateway',
+                url: ARC_GATEWAY_ENDPOINTS_URL
+            };
+        }
+        var regionInfo = FIREWALL_ENDPOINT_URLS[s.localInstanceRegion];
+        if (regionInfo) {
+            return {
+                label: 'Consolidated endpoint list for ' + regionInfo.label + ' (Azure Local, Arc-enabled servers, ARB, AKS)',
+                url: regionInfo.url
+            };
+        }
+        // Fallback to the general firewall requirements page
+        return {
+            label: 'Azure Local firewall requirements',
+            url: 'https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements'
+        };
+    }
     var isPrintFriendly = false;
 
     // Outbound connectivity diagram URLs - use local files from docs folder
@@ -1290,6 +1326,47 @@
             md.push('');
         }
 
+        // Sizer Workloads (individual workload details from Sizer)
+        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop' };
+            var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            md.push('## Workloads (from Sizer)');
+            md.push('');
+            for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
+                var wl = s.sizerWorkloads[wi];
+                var wlLabel = wl.name || typeLabels[wl.type] || wl.type;
+                md.push('### ' + wlLabel + ' (' + (typeLabels[wl.type] || wl.type) + ')');
+                md.push('');
+                md.push('| Setting | Value |');
+                md.push('|---------|-------|');
+                if (wl.type === 'vm') {
+                    md.push('| VM Count | ' + (wl.count || 0) + ' |');
+                    md.push('| vCPUs per VM | ' + (wl.vcpusPerVm || 0) + ' |');
+                    md.push('| Memory per VM | ' + (wl.memoryPerVmGB || 0) + ' GB |');
+                    md.push('| Storage per VM | ' + (wl.storagePerVmGB || 0) + ' GB |');
+                } else if (wl.type === 'aks') {
+                    md.push('| Clusters | ' + (wl.clusterCount || 0) + ' |');
+                    md.push('| Control Plane | ' + (wl.controlPlaneNodes || 0) + ' nodes × ' + (wl.controlPlaneVcpus || 0) + ' vCPU / ' + (wl.controlPlaneMemory || 0) + ' GB |');
+                    md.push('| Workers | ' + (wl.workerNodes || 0) + ' nodes × ' + (wl.workerVcpus || 0) + ' vCPU / ' + (wl.workerMemory || 0) + ' GB / ' + (wl.workerStorage || 0) + ' GB |');
+                } else if (wl.type === 'avd') {
+                    md.push('| Users | ' + (wl.userCount || 0) + ' |');
+                    md.push('| Profile | ' + (avdProfileLabels[wl.profile] || wl.profile || '-') + ' |');
+                    md.push('| Session Type | ' + (wl.sessionType === 'single' ? 'Single-session' : 'Multi-session') + ' |');
+                    if (wl.sessionType !== 'single') {
+                        md.push('| Concurrency | ' + (wl.concurrency || 100) + '% |');
+                    }
+                    if (wl.fslogix) {
+                        md.push('| FSLogix | ' + (wl.fslogixSize || 30) + ' GB per user |');
+                    }
+                    if (wl.profile === 'custom') {
+                        md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user |');
+                    }
+                }
+                md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
+                md.push('');
+            }
+        }
+
         // Host Networking
         md.push('## Host Networking');
         md.push('');
@@ -1356,6 +1433,12 @@
         if (s.privateEndpoints) {
             md.push('| Private Endpoints | ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled') + ' |');
         }
+        if (s.scenario === 'disconnected') {
+            md.push('| Network Requirements | [Plan your network for disconnected operations](https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network) |');
+        } else if (s.arc || s.localInstanceRegion) {
+            var fwInfoMd = getFirewallEndpointInfo(s);
+            md.push('| Firewall Allow List Endpoint Requirements | [' + fwInfoMd.label + '](' + fwInfoMd.url + ') |');
+        }
         md.push('');
 
         // Outbound Connectivity Diagram
@@ -1364,6 +1447,23 @@
             md.push('### ' + diagramTitle);
             md.push('');
             md.push('![' + diagramTitle + '](' + diagrams.outbound + ')');
+            md.push('');
+        }
+
+        // AKS Arc Network Requirements (shown when AKS workloads are configured)
+        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks'; })) {
+            md.push('## AKS Arc Network Requirements');
+            md.push('');
+            md.push('[AKS Arc network & port requirements documentation](https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements)');
+            md.push('');
+            md.push('| Source | Destination | Port | Description |');
+            md.push('|--------|-------------|------|-------------|');
+            md.push('| Management network IPs | AKS Arc VM logical network | 22 | Log collection for troubleshooting |');
+            md.push('| Management network IPs | AKS Arc VM logical network | 6443 | Kubernetes API communication |');
+            md.push('| AKS Arc VM logical network | Cluster IP address | 55000 | Cloud Agent gRPC server |');
+            md.push('| AKS Arc VM logical network | Cluster IP address | 65000 | Cloud Agent gRPC authentication |');
+            md.push('');
+            md.push('> If using separate VLANs, bi-directional cross-VLAN connectivity is required between management network and AKS Arc VM logical network for all ports above.');
             md.push('');
         }
 
@@ -1594,6 +1694,14 @@
         md.push('');
         md.push('**Private Endpoints:** ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-')));
         md.push('');
+        if (s.scenario === 'disconnected') {
+            md.push('**Network Requirements:** [Plan your network for disconnected operations](https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network)');
+            md.push('');
+        } else if (s.arc || s.localInstanceRegion) {
+            var fwInfoRat = getFirewallEndpointInfo(s);
+            md.push('**Firewall Allow List Endpoint Requirements:** [' + fwInfoRat.label + '](' + fwInfoRat.url + ')');
+            md.push('');
+        }
         var outboundNotes = [];
         if (s.outbound === 'private') {
             outboundNotes.push('Private outbound assumes controlled egress via firewall/proxy; the wizard forces Arc Gateway + explicit proxy behavior.');
@@ -5949,6 +6057,14 @@
             + '<br><strong>Arc Gateway:</strong> ' + escapeHtml(s.arc === 'arc_gateway' ? 'Enabled (Recommended)' : (s.arc === 'no_arc' ? 'Disabled' : '-'))
             + '<br><strong>Proxy:</strong> ' + escapeHtml(s.proxy === 'no_proxy' ? 'Disabled' : (s.proxy ? 'Enabled' : '-'))
             + '<br><strong>Private Endpoints:</strong> ' + escapeHtml(s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : (s.privateEndpoints === 'pe_disabled' ? 'Disabled' : '-'))
+            + (function () {
+                if (s.scenario === 'disconnected') {
+                    return '<br><strong>Network Requirements:</strong> <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">Plan your network for disconnected operations</a>';
+                }
+                if (!s.arc && !s.localInstanceRegion) return '';
+                var fwInfoHtml = getFirewallEndpointInfo(s);
+                return '<br><strong>Firewall Allow List Endpoint Requirements:</strong> <a href="' + escapeHtml(fwInfoHtml.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary);">' + escapeHtml(fwInfoHtml.label) + '</a>';
+            })()
             + (outboundNotes.length ? list(outboundNotes) : '')
             + proxyBypassHtml
             + outboundDiagramHtml
@@ -6747,7 +6863,21 @@
             connectivityRows += row('Proxy', proxyText);
         }
         if (s.privateEndpoints) connectivityRows += row('Private Endpoints', s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled');
-        
+
+        // Firewall / Network Requirements link (varies by deployment type)
+        if (s.scenario === 'disconnected') {
+            connectivityRows += '<div class="summary-row">'
+                + '<div class="summary-label">' + escapeHtml('Network Requirements') + '</div>'
+                + '<div class="summary-value"><a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">Plan your network for disconnected operations</a></div>'
+                + '</div>';
+        } else if (s.arc || s.localInstanceRegion) {
+            var fwInfo = getFirewallEndpointInfo(s);
+            connectivityRows += '<div class="summary-row">'
+                + '<div class="summary-label">' + escapeHtml('Firewall Allow List Endpoint Requirements') + '</div>'
+                + '<div class="summary-value"><a href="' + escapeHtml(fwInfo.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">' + escapeHtml(fwInfo.label) + '</a></div>'
+                + '</div>';
+        }
+
         // Generate connectivity diagram based on outbound/arc/proxy selection
         var connectivityExtra = '';
         var diagramKey = getOutboundDiagramKey(s);
@@ -6863,9 +6993,131 @@
                 + '</div>';
         }
 
+        // Sizer Hardware Configuration (only present when imported from Sizer)
+        var sizerHardwareRows = '';
+        if (s.sizerHardware) {
+            var hw = s.sizerHardware;
+            if (hw.cpu) {
+                sizerHardwareRows += row('CPU', hw.cpu.generation || '-');
+                sizerHardwareRows += row('Cores per Socket', String(hw.cpu.coresPerSocket || '-'));
+                sizerHardwareRows += row('CPU Sockets', String(hw.cpu.sockets || '-'));
+                sizerHardwareRows += row('Total Physical Cores per Node', String(hw.cpu.totalCores || '-'));
+            }
+            if (hw.memory) {
+                sizerHardwareRows += row('Memory per Node', (hw.memory.perNodeGB || '-') + ' GB');
+            }
+            if (hw.gpu && hw.gpu.countPerNode > 0) {
+                sizerHardwareRows += row('GPU per Node', hw.gpu.countPerNode + ' × ' + (hw.gpu.type || '-'));
+            }
+            if (hw.vcpuRatio) {
+                sizerHardwareRows += row('vCPU Ratio (pCPU:vCPU)', hw.vcpuRatio + ':1');
+            }
+            if (hw.storage) {
+                var storageLabel = hw.storage.config === 'all-flash' ? 'All-Flash' :
+                                   hw.storage.config === 'mixed-flash' ? 'Mixed All-Flash (NVMe + SSD)' :
+                                   hw.storage.config === 'hybrid' ? 'Hybrid (SSD/NVMe + HDD)' : (hw.storage.config || '-');
+                sizerHardwareRows += row('Storage Configuration', storageLabel);
+                if (hw.storage.diskConfig) {
+                    var dc = hw.storage.diskConfig;
+                    if (dc.isTiered && dc.cache && dc.capacity) {
+                        sizerHardwareRows += row('Cache Disks', dc.cache.count + '× ' + (dc.cache.sizeGB >= 1024 ? (dc.cache.sizeGB / 1024).toFixed(1) + ' TB' : dc.cache.sizeGB + ' GB') + ' (' + (dc.cache.type || '') + ')');
+                        sizerHardwareRows += row('Capacity Disks', dc.capacity.count + '× ' + (dc.capacity.sizeGB >= 1024 ? (dc.capacity.sizeGB / 1024).toFixed(1) + ' TB' : dc.capacity.sizeGB + ' GB') + ' (' + (dc.capacity.type || '') + ')');
+                    } else if (dc.capacity) {
+                        sizerHardwareRows += row('Capacity Disks', dc.capacity.count + '× ' + (dc.capacity.sizeGB >= 1024 ? (dc.capacity.sizeGB / 1024).toFixed(1) + ' TB' : dc.capacity.sizeGB + ' GB') + ' (' + (dc.capacity.type || '') + ')');
+                    }
+                }
+            }
+            if (hw.resiliency) {
+                var resLabel = hw.resiliency === '3way' ? 'Three-way Mirror' :
+                               hw.resiliency === '2way' ? 'Two-way Mirror' :
+                               hw.resiliency === 'simple' ? 'Simple' : (hw.resiliency || '-');
+                sizerHardwareRows += row('Storage Resiliency', resLabel);
+            }
+            if (hw.futureGrowth && hw.futureGrowth !== '0') {
+                sizerHardwareRows += row('Future Growth', hw.futureGrowth + '%');
+            }
+            if (hw.clusterType) {
+                var ctLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
+                sizerHardwareRows += row('Cluster Type', ctLabels[hw.clusterType] || hw.clusterType);
+            }
+            if (hw.workloadSummary) {
+                var ws = hw.workloadSummary;
+                sizerHardwareRows += row('Workloads', String(ws.count || 0));
+                sizerHardwareRows += row('Total vCPUs Required', String(ws.totalVcpus || 0));
+                sizerHardwareRows += row('Total Memory Required', (ws.totalMemoryGB || 0) + ' GB');
+                sizerHardwareRows += row('Total Storage Required', (ws.totalStorageTB || 0) + ' TB');
+            }
+        }
+
+        // Sizer Workloads (individual workload details from Sizer)
+        var sizerWorkloadsRows = '';
+        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop' };
+            var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
+                var wl = s.sizerWorkloads[wi];
+                var wlLabel = wl.name || typeLabels[wl.type] || wl.type;
+                // Workload summary row
+                sizerWorkloadsRows += '<div class="summary-row" style="border-top: 1px solid var(--glass-border); margin-top: 0.5rem; padding-top: 0.5rem;">'
+                    + '<div class="summary-label" style="font-weight: 600;">' + escapeHtml(wlLabel) + '</div>'
+                    + '<div class="summary-value" style="font-weight: 600;">' + escapeHtml(typeLabels[wl.type] || wl.type) + '</div>'
+                    + '</div>';
+                // Type-specific details
+                if (wl.type === 'vm') {
+                    sizerWorkloadsRows += row('VM Count', String(wl.count || 0));
+                    sizerWorkloadsRows += row('vCPUs per VM', String(wl.vcpusPerVm || 0));
+                    sizerWorkloadsRows += row('Memory per VM', (wl.memoryPerVmGB || 0) + ' GB');
+                    sizerWorkloadsRows += row('Storage per VM', (wl.storagePerVmGB || 0) + ' GB');
+                } else if (wl.type === 'aks') {
+                    sizerWorkloadsRows += row('Clusters', String(wl.clusterCount || 0));
+                    sizerWorkloadsRows += row('Control Plane', (wl.controlPlaneNodes || 0) + ' nodes × ' + (wl.controlPlaneVcpus || 0) + ' vCPU / ' + (wl.controlPlaneMemory || 0) + ' GB');
+                    sizerWorkloadsRows += row('Workers', (wl.workerNodes || 0) + ' nodes × ' + (wl.workerVcpus || 0) + ' vCPU / ' + (wl.workerMemory || 0) + ' GB / ' + (wl.workerStorage || 0) + ' GB');
+                } else if (wl.type === 'avd') {
+                    sizerWorkloadsRows += row('Users', String(wl.userCount || 0));
+                    sizerWorkloadsRows += row('Profile', avdProfileLabels[wl.profile] || wl.profile || '-');
+                    sizerWorkloadsRows += row('Session Type', (wl.sessionType === 'single' ? 'Single-session' : 'Multi-session'));
+                    if (wl.sessionType !== 'single') {
+                        sizerWorkloadsRows += row('Concurrency', (wl.concurrency || 100) + '%');
+                    }
+                    if (wl.fslogix) {
+                        sizerWorkloadsRows += row('FSLogix', (wl.fslogixSize || 30) + ' GB per user');
+                    }
+                    if (wl.profile === 'custom') {
+                        sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user');
+                    }
+                }
+                // Totals for this workload
+                sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');
+            }
+        }
+
+        // AKS Arc Network Requirements (shown when AKS workloads are configured)
+        var aksNetworkRows = '';
+        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks'; })) {
+            aksNetworkRows += '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">'
+                + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">AKS Arc network &amp; port requirements documentation</a>'
+                + '</div>'
+                + '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 0.5rem;">'
+                + '<thead><tr style="border-bottom: 2px solid var(--glass-border); text-align: left;">'
+                + '<th style="padding: 6px 8px;">Source</th>'
+                + '<th style="padding: 6px 8px;">Destination</th>'
+                + '<th style="padding: 6px 8px;">Port</th>'
+                + '<th style="padding: 6px 8px;">Description</th>'
+                + '</tr></thead><tbody>'
+                + '<tr style="border-bottom: 1px solid var(--glass-border);"><td style="padding: 6px 8px;">Management network IPs</td><td style="padding: 6px 8px;">AKS Arc VM logical network</td><td style="padding: 6px 8px; font-family: monospace;">22</td><td style="padding: 6px 8px;">Log collection for troubleshooting</td></tr>'
+                + '<tr style="border-bottom: 1px solid var(--glass-border);"><td style="padding: 6px 8px;">Management network IPs</td><td style="padding: 6px 8px;">AKS Arc VM logical network</td><td style="padding: 6px 8px; font-family: monospace;">6443</td><td style="padding: 6px 8px;">Kubernetes API communication</td></tr>'
+                + '<tr style="border-bottom: 1px solid var(--glass-border);"><td style="padding: 6px 8px;">AKS Arc VM logical network</td><td style="padding: 6px 8px;">Cluster IP address</td><td style="padding: 6px 8px; font-family: monospace;">55000</td><td style="padding: 6px 8px;">Cloud Agent gRPC server</td></tr>'
+                + '<tr style="border-bottom: 1px solid var(--glass-border);"><td style="padding: 6px 8px;">AKS Arc VM logical network</td><td style="padding: 6px 8px;">Cluster IP address</td><td style="padding: 6px 8px; font-family: monospace;">65000</td><td style="padding: 6px 8px;">Cloud Agent gRPC authentication</td></tr>'
+                + '</tbody></table>'
+                + '<div style="font-size: 0.8rem; color: var(--text-secondary); font-style: italic;">If using separate VLANs, bi-directional cross-VLAN connectivity is required between management network and AKS Arc VM logical network for all ports above.</div>';
+        }
+
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
+            + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')
+            + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking')
             + sectionWithExtra('Connectivity', 'summary-section-title--mgmt', connectivityRows, connectivityExtra, 'connectivity')
+            + sectionWithExtra('AKS Arc Network Requirements', 'summary-section-title--net', aksNetworkRows, '', 'aks-network')
             + section('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows, 'infrastructure-network')
             + section('Active Directory', 'summary-section-title--mgmt', activeDirectoryRows, 'active-directory')
             + section('Security Configuration', 'summary-section-title--mgmt', securityRows, 'security')

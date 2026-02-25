@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.10] - 2026-02-25
+
+### Added
+
+#### Sizer: ALDO Management Cluster Type
+- **New Cluster Type**: Added "ALDO Management Cluster" option to the Sizer cluster type dropdown — a fixed 3-node, all-flash configuration with three-way mirror resiliency
+- **Fixed Node Count**: ALDO Management Cluster is locked to exactly 3 nodes with the node count dropdown disabled
+- **All-Flash Storage**: Storage type is automatically set to all-flash when ALDO Management Cluster is selected
+- **Three-Way Mirror Only**: Resiliency is locked to three-way mirror for ALDO Management Cluster (two-way mirror option removed)
+- **Minimum Hardware Enforcement**: Automatically enforces documented ALDO minimums — 96 GB memory, 24 physical cores, and 2 TB SSD/NVMe storage per node when ALDO cluster type is selected
+- **Appliance VM Overhead**: Reserves 64 GB memory per node (192 GB total) for the disconnected operations appliance VM — deducted from available workload memory in capacity bars and auto-scaling calculations
+- **Boot Disk Recommendation**: Sizing notes recommend 960 GB SSD/NVMe boot disk per node to reduce deployment complexity
+- **Custom Sizing Notes**: Expanded sizing notes with minimum hardware specs, appliance reservation breakdown, and boot disk guidance
+- **Knowledge Link**: ALDO sizing notes include a link to the disconnected operations overview documentation
+
+#### Sizer: MANUAL Override Badges & Persistence
+- **MANUAL Badge**: Light green "MANUAL" badge appears on any hardware dropdown (vCPU ratio, memory, CPU cores, sockets, manufacturer, generation, disk size, disk count) when a user manually edits the value — visually distinguishes user choices from auto-scaled values
+- **Override Persistence**: MANUAL overrides now persist across workload add, edit, delete, and clone — only the explicit "Remove MANUAL overrides" button or a full scenario reset clears them
+- **Remove MANUAL Overrides Button**: New button at the bottom of the hardware config section appears when any MANUAL override is active — clears all user locks and re-runs auto-scaling
+- **Capacity Warning**: Amber warning banner appears when any capacity bar reaches ≥90% utilization while MANUAL overrides are active — identifies which specific overrides are preventing auto-scaling (e.g. "Memory capacity cannot be auto-scaled because of MANUAL override on: Memory")
+- **Independent Disk Locks**: Disk size and disk count are independently lockable — manually setting disk size still allows disk count to auto-scale, and vice versa
+
+#### Sizer: Region Picker for Designer Transfer
+- **Region Selection Modal**: When clicking "Configure in Designer", users now select their Azure region in a modal before navigating — prevents the cascade reset that previously wiped imported cluster configuration and size when changing region in the Designer
+- **Cloud Toggle**: Radio toggle between Azure Commercial (8 regions) and Azure Government (1 region) with a clean grid layout
+- **Region in Banner**: Import confirmation banner now shows the selected region (e.g. "📍 Azure region: West Europe") instead of defaulting to East US
+
+#### Report: Sizer Hardware & Workloads Pass-Through
+- **Hardware Configuration Section**: The HTML report now renders the full "Hardware Configuration (from Sizer)" section — CPU, memory, GPU, disks, resiliency, growth factor, cluster type, and workload summary totals (was previously only in the Markdown export)
+- **Individual Workloads Section**: New "Workloads (from Sizer)" section in the report showing per-workload details — VM count/specs, AKS cluster/control-plane/worker configuration, AVD users/profile/session type — with subtotals per workload
+- **Transparent Workload Pass-Through**: Individual workload details (not just summary totals) are now passed from Sizer → Designer → Report automatically without being visible in the Designer UI
+- **Disconnected Network Link**: Connectivity section now shows "Plan your network for disconnected operations" with a link to MS Learn documentation when Disconnected deployment type is selected (previously blank)
+
+#### Report: AKS Arc Network Requirements
+- **Network Port Table**: When AKS workloads are configured, the report shows an "AKS Arc Network Requirements" section with the port/VLAN requirements table (ports 22, 6443, 55000, 65000) and cross-VLAN notes
+- **Documentation Link**: Links to the AKS Arc network system requirements documentation on MS Learn
+
+#### Report: Firewall Allow List
+- **Endpoint Requirements**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
+
+### Changed
+
+#### Sizer: Three-Way Mirror for 3+ Node Standard Clusters
+- **Resiliency Lock**: Standard clusters with 3 or more nodes are now locked to three-way mirror only — the two-way mirror option is removed for 3+ node configurations
+
+#### Sizer: Sizing Notes Text Improvements
+- **RAM → Memory**: Replaced all references to "RAM" with "memory" in sizing notes for consistency
+- **Boot Drive Text**: Updated boot drive note to "minimum 400 GB OS disks recommended for systems with >768 GB memory"
+- **Storage Layout Spacing**: Added spacing around the multiplication sign in storage layout notes (e.g. "6 × SSD" instead of "6× SSD")
+
+### Fixed
+
+#### Designer: Edge 2-Node Switchless Default Gateway
+- **Gateway Field Fix**: Fixed the Default Gateway field being empty and disabled on the Edge 2-Node Switchless template — the template was using `ip: 'dhcp'` which caused `updateInfraNetwork()` to disable and clear the gateway field; changed to `ip: 'static'` with `infraGateway: '192.168.100.1'`
+
+#### Sizer: Tiered Storage Detection
+- **Disk Size Badge Fix**: Fixed MANUAL badge not appearing on Capacity per Disk for all-flash storage configurations — the tiered storage detection was incorrectly matching all-flash values like `nvme-capacity` as tiered; replaced with proper `_isTieredStorage()` helper that checks the `isTiered` property from storage tiering options
+
+#### CI: ESLint Fixes
+- **Global Declaration**: Added `selectDisconnectedOption` to ESLint globals to resolve `no-undef` error in CI
+- **Indentation Fix**: Re-indented `loadTemplate()` try-block from 4-space to 8-space to match surrounding code style
+- **Variable Declarations**: Changed `var` to `const` in `loadTemplate()` for ESLint `no-var` compliance
+
+---
+
 ## [0.17.04] - 2026-02-23
 
 ### Fixed
