@@ -5,7 +5,7 @@ name: Test & Lint
 
 on:
   push:
-    branches: [main, Release]
+    branches: [main]
   pull_request:
     branches: [main, Release]
 
@@ -47,9 +47,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       
-      - name: Install Puppeteer
-        run: npm install puppeteer
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3 4 5; do
+            npm install && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
       
       - name: Run Unit Tests
         run: node scripts/run-tests.js

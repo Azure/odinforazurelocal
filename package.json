@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "eslint": "^8.57.1",
+    "puppeteer": "^24.37.1"
+  },
+  "dependencies": {
+    "html-validate": "^10.7.0"
+  }
+}

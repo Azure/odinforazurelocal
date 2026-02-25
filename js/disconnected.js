@@ -18,7 +18,7 @@
 //   state.applianceVlanId      – number | null
 // ============================================================================
 
-(function () {
+(function() {
     'use strict';
 
     // ========================================================================
@@ -40,7 +40,7 @@
     // SELECTION HANDLER  (called from D1 onclick)
     // ========================================================================
 
-    window.selectDisconnectedOption = function (category, value) {
+    window.selectDisconnectedOption = function(category, value) {
         initDisconnectedState();
 
         if (category === 'clusterRole') {
@@ -48,7 +48,7 @@
             state.fqdnConfirmed = false;
             state.autonomousCloudFqdn = null;
             // Clear FQDN input when switching cluster role
-            var fqdnInput = document.getElementById('autonomous-cloud-fqdn');
+            const fqdnInput = document.getElementById('autonomous-cloud-fqdn');
             if (fqdnInput) fqdnInput.value = '';
 
             // Management cluster: force 3 nodes, standard scale
@@ -74,8 +74,8 @@
             } else if (value === 'different') {
                 state.applianceIp1 = null;
                 state.applianceIp2 = null;
-                var apIp1 = document.getElementById('appliance-ip-1');
-                var apIp2 = document.getElementById('appliance-ip-2');
+                const apIp1 = document.getElementById('appliance-ip-1');
+                const apIp2 = document.getElementById('appliance-ip-2');
                 if (apIp1) apIp1.value = '';
                 if (apIp2) apIp2.value = '';
             }
@@ -86,9 +86,9 @@
 
         // Auto-scroll to next step (skip during template/import loading)
         if (!window.__loadingTemplate) {
-            setTimeout(function () {
+            setTimeout(function() {
                 if (category === 'clusterRole') {
-                    var fqdnStep = document.getElementById('step-fqdn');
+                    const fqdnStep = document.getElementById('step-fqdn');
                     if (fqdnStep) fqdnStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             }, 200);
@@ -102,10 +102,10 @@
     // Helper: check if the current FQDN value is a valid format
     function isValidFqdn(fqdn) {
         if (!fqdn) return false;
-        var fqdnRegex = /^[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?)+$/;
+        const fqdnRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
         if (!fqdnRegex.test(fqdn)) return false;
 
-        var labels = fqdn.toLowerCase().split('.');
+        const labels = fqdn.toLowerCase().split('.');
 
         // Reject apex/root domains like contoso.com (must be a host FQDN)
         if (labels.length < 3) return false;
@@ -118,17 +118,17 @@
 
     // Helper: update the confirm button enabled/disabled state
     function updateFqdnConfirmButton() {
-        var btn = document.getElementById('fqdn-confirm-btn');
+        const btn = document.getElementById('fqdn-confirm-btn');
         if (!btn) return;
-        var fqdn = (state.autonomousCloudFqdn || '').trim();
+        const fqdn = (state.autonomousCloudFqdn || '').trim();
         btn.disabled = !isValidFqdn(fqdn);
     }
 
     // Helper: sync the confirm / confirmed UI state
     function updateFqdnConfirmUI() {
-        var confirmContainer = document.getElementById('fqdn-confirm-container');
-        var confirmedMsg = document.getElementById('fqdn-confirmed-msg');
-        var fqdnInput = document.getElementById('autonomous-cloud-fqdn');
+        const confirmContainer = document.getElementById('fqdn-confirm-container');
+        const confirmedMsg = document.getElementById('fqdn-confirmed-msg');
+        const fqdnInput = document.getElementById('autonomous-cloud-fqdn');
         if (!confirmContainer || !confirmedMsg) return;
 
         if (state.fqdnConfirmed) {
@@ -143,16 +143,16 @@
         }
     }
 
-    window.updateAutonomousCloudFqdn = function (value) {
+    window.updateAutonomousCloudFqdn = function(value) {
         initDisconnectedState();
-        var fqdn = (value || '').trim();
+        const fqdn = (value || '').trim();
         state.autonomousCloudFqdn = fqdn || null;
 
         // If user edits the FQDN, un-confirm
         state.fqdnConfirmed = false;
 
-        var errEl = document.getElementById('fqdn-error');
-        var succEl = document.getElementById('fqdn-success');
+        const errEl = document.getElementById('fqdn-error');
+        const succEl = document.getElementById('fqdn-success');
         if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('visible'); }
         if (succEl) { succEl.classList.add('hidden'); succEl.classList.remove('visible'); }
 
@@ -181,9 +181,9 @@
     };
 
     // Confirm FQDN (called from button click)
-    window.confirmFqdn = function () {
+    window.confirmFqdn = function() {
         initDisconnectedState();
-        var fqdn = (state.autonomousCloudFqdn || '').trim();
+        const fqdn = (state.autonomousCloudFqdn || '').trim();
         if (!isValidFqdn(fqdn)) return;
         state.fqdnConfirmed = true;
         updateFqdnConfirmUI();
@@ -192,10 +192,10 @@
 
         // Scroll to the next visible step so the user sees the wizard progress (skip during template/import loading)
         if (!window.__loadingTemplate) {
-            setTimeout(function () {
+            setTimeout(function() {
                 // Management sees cloud step next; workload skips to step-2 (scale)
-                var nextStepId = state.clusterRole === 'workload' ? 'step-2' : 'step-cloud';
-                var nextStep = document.getElementById(nextStepId);
+                const nextStepId = state.clusterRole === 'workload' ? 'step-2' : 'step-cloud';
+                const nextStep = document.getElementById(nextStepId);
                 if (nextStep && !nextStep.classList.contains('hidden')) {
                     nextStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
@@ -204,12 +204,12 @@
     };
 
     // Edit FQDN (unlock for editing)
-    window.editFqdn = function () {
+    window.editFqdn = function() {
         initDisconnectedState();
         state.fqdnConfirmed = false;
         updateFqdnConfirmUI();
         // Focus the input
-        var fqdnInput = document.getElementById('autonomous-cloud-fqdn');
+        const fqdnInput = document.getElementById('autonomous-cloud-fqdn');
         if (fqdnInput) fqdnInput.focus();
         if (typeof updateUI === 'function') updateUI();
         if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
@@ -220,21 +220,21 @@
     // ========================================================================
 
     function isValidVlanId(vlanId) {
-        var value = parseInt(vlanId, 10);
+        const value = parseInt(vlanId, 10);
         return !isNaN(value) && value >= 1 && value <= 4094;
     }
 
     function updateApplianceVlanUI() {
-        var mode = state.applianceVlanMode;
-        var section = document.getElementById('appliance-ip-section');
-        var vlanIdSection = document.getElementById('appliance-vlan-id-section');
-        var ipInputs = document.getElementById('appliance-ip-inputs');
-        var vlanInput = document.getElementById('appliance-vlan-id');
+        const mode = state.applianceVlanMode;
+        const section = document.getElementById('appliance-ip-section');
+        const vlanIdSection = document.getElementById('appliance-vlan-id-section');
+        const ipInputs = document.getElementById('appliance-ip-inputs');
+        const vlanInput = document.getElementById('appliance-vlan-id');
 
         if (!section) return;
 
-        section.querySelectorAll('.option-card[onclick*="applianceVlanMode"]').forEach(function (card) {
-            var val = card.getAttribute('data-value');
+        section.querySelectorAll('.option-card[onclick*="applianceVlanMode"]').forEach(function(card) {
+            const val = card.getAttribute('data-value');
             card.classList.toggle('selected', val === mode);
         });
 
@@ -266,11 +266,11 @@
         }
     }
 
-    window.updateApplianceVlanId = function (value) {
-        var vlanValue = parseInt(String(value || '').trim(), 10);
-        var errEl = document.getElementById('appliance-vlan-error');
-        var succEl = document.getElementById('appliance-vlan-success');
-        var ipInputs = document.getElementById('appliance-ip-inputs');
+    window.updateApplianceVlanId = function(value) {
+        const vlanValue = parseInt(String(value || '').trim(), 10);
+        const errEl = document.getElementById('appliance-vlan-error');
+        const succEl = document.getElementById('appliance-vlan-success');
+        const ipInputs = document.getElementById('appliance-ip-inputs');
 
         if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('visible'); }
         if (succEl) { succEl.classList.add('hidden'); succEl.classList.remove('visible'); }
@@ -303,15 +303,15 @@
         if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
     };
 
-    window.updateApplianceIps = function () {
-        var ip1Input = document.getElementById('appliance-ip-1');
-        var ip2Input = document.getElementById('appliance-ip-2');
-        var errEl = document.getElementById('appliance-ip-error');
-        var succEl = document.getElementById('appliance-ip-success');
+    window.updateApplianceIps = function() {
+        const ip1Input = document.getElementById('appliance-ip-1');
+        const ip2Input = document.getElementById('appliance-ip-2');
+        const errEl = document.getElementById('appliance-ip-error');
+        const succEl = document.getElementById('appliance-ip-success');
         if (!ip1Input || !ip2Input) return;
 
-        var ip1 = ip1Input.value.trim();
-        var ip2 = ip2Input.value.trim();
+        const ip1 = ip1Input.value.trim();
+        const ip2 = ip2Input.value.trim();
 
         if (errEl) { errEl.classList.add('hidden'); errEl.classList.remove('visible'); }
         if (succEl) { succEl.classList.add('hidden'); succEl.classList.remove('visible'); }
@@ -321,11 +321,11 @@
 
         if (!ip1 && !ip2) return;
 
-        var requireInfraSubnet = state.applianceVlanMode !== 'different';
-        var errors = validateApplianceIps(ip1, ip2, requireInfraSubnet);
+        const requireInfraSubnet = state.applianceVlanMode !== 'different';
+        const errors = validateApplianceIps(ip1, ip2, requireInfraSubnet);
         if (errors.length > 0) {
             if (errEl) {
-                errEl.innerHTML = errors.map(function (e) { return '\u26A0 ' + e; }).join('<br>');
+                errEl.innerHTML = errors.map(function(e) { return '\u26A0 ' + e; }).join('<br>');
                 errEl.classList.remove('hidden');
                 errEl.classList.add('visible');
             }
@@ -343,8 +343,8 @@
     };
 
     function validateApplianceIps(ip1, ip2, requireInfraSubnet) {
-        var errors = [];
-        var ipRegex = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+        const errors = [];
+        const ipRegex = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
 
         if (ip1 && !ipRegex.test(ip1)) errors.push('Appliance IP 1 is not a valid IPv4 address.');
         if (ip2 && !ipRegex.test(ip2)) errors.push('Appliance IP 2 is not a valid IPv4 address.');
@@ -356,18 +356,18 @@
         // - same VLAN: appliance IPs must be within infra CIDR
         // - different VLAN: appliance IPs must NOT be within infra CIDR
         if (state.infraCidr) {
-            var cidrParts = state.infraCidr.split('/');
+            const cidrParts = state.infraCidr.split('/');
             if (cidrParts.length === 2) {
-                var networkIp = cidrParts[0];
-                var prefix = parseInt(cidrParts[1]);
-                var networkLong = ipToLong(networkIp);
-                var mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
-                var netStart = (networkLong & mask) >>> 0;
-                var netEnd = (netStart | (~mask >>> 0)) >>> 0;
+                const networkIp = cidrParts[0];
+                const prefix = parseInt(cidrParts[1]);
+                const networkLong = ipToLong(networkIp);
+                const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
+                const netStart = (networkLong & mask) >>> 0;
+                const netEnd = (netStart | (~mask >>> 0)) >>> 0;
 
                 if (ip1) {
-                    var ip1Long = ipToLong(ip1);
-                    var ip1InInfraSubnet = ip1Long > netStart && ip1Long < netEnd;
+                    const ip1Long = ipToLong(ip1);
+                    const ip1InInfraSubnet = ip1Long > netStart && ip1Long < netEnd;
                     if (requireInfraSubnet && !ip1InInfraSubnet) {
                         errors.push('Appliance IP 1 (' + ip1 + ') is outside the infrastructure CIDR ' + state.infraCidr + '.');
                     }
@@ -376,8 +376,8 @@
                     }
                 }
                 if (ip2) {
-                    var ip2Long = ipToLong(ip2);
-                    var ip2InInfraSubnet = ip2Long > netStart && ip2Long < netEnd;
+                    const ip2Long = ipToLong(ip2);
+                    const ip2InInfraSubnet = ip2Long > netStart && ip2Long < netEnd;
                     if (requireInfraSubnet && !ip2InInfraSubnet) {
                         errors.push('Appliance IP 2 (' + ip2 + ') is outside the infrastructure CIDR ' + state.infraCidr + '.');
                     }
@@ -390,9 +390,9 @@
 
         // Check not a node IP
         if (state.nodeSettings && state.nodeSettings.length > 0) {
-            state.nodeSettings.forEach(function (node, idx) {
+            state.nodeSettings.forEach(function(node, idx) {
                 if (node && node.ipCidr) {
-                    var nodeIp = node.ipCidr.split('/')[0];
+                    const nodeIp = node.ipCidr.split('/')[0];
                     if (ip1 && ip1 === nodeIp) errors.push('Appliance IP 1 conflicts with Node ' + (idx + 1) + ' IP (' + nodeIp + ').');
                     if (ip2 && ip2 === nodeIp) errors.push('Appliance IP 2 conflicts with Node ' + (idx + 1) + ' IP (' + nodeIp + ').');
                 }
@@ -409,7 +409,7 @@
     }
 
     function ipToLong(ip) {
-        var parts = ip.split('.').map(Number);
+        const parts = ip.split('.').map(Number);
         return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
     }
 
@@ -418,9 +418,9 @@
     // ========================================================================
 
     function updateDisconnectedUI() {
-        var stepD1 = document.getElementById('step-d1');
-        var stepFqdn = document.getElementById('step-fqdn');
-        var applianceSection = document.getElementById('appliance-ip-section');
+        const stepD1 = document.getElementById('step-d1');
+        const stepFqdn = document.getElementById('step-fqdn');
+        const applianceSection = document.getElementById('appliance-ip-section');
 
         // Hide D-steps by default
         if (stepD1) stepD1.classList.add('hidden');
@@ -439,7 +439,7 @@
             }
             if (applianceSection) applianceSection.classList.add('hidden');
             hideWorkloadTwoNodeBanner();
-            var ctxBanner = document.getElementById('disconnected-cloud-context');
+            const ctxBanner = document.getElementById('disconnected-cloud-context');
             if (ctxBanner) { ctxBanner.classList.add('hidden'); ctxBanner.classList.remove('visible'); }
             return;
         }
@@ -454,7 +454,7 @@
             hideRegularSteps();
             if (applianceSection) applianceSection.classList.add('hidden');
             hideWorkloadTwoNodeBanner();
-            var ctxBanner2 = document.getElementById('disconnected-cloud-context');
+            const ctxBanner2 = document.getElementById('disconnected-cloud-context');
             if (ctxBanner2) { ctxBanner2.classList.add('hidden'); ctxBanner2.classList.remove('visible'); }
             return;
         }
@@ -464,7 +464,7 @@
             // Show FQDN step for both management and workload clusters
             if (stepFqdn) stepFqdn.classList.remove('hidden');
             // Restore FQDN value
-            var fqdnInput = document.getElementById('autonomous-cloud-fqdn');
+            const fqdnInput = document.getElementById('autonomous-cloud-fqdn');
             if (fqdnInput && state.autonomousCloudFqdn && !fqdnInput.value) {
                 fqdnInput.value = state.autonomousCloudFqdn;
             }
@@ -473,7 +473,7 @@
         }
 
         // === Show context banner early for management cluster (visible alongside FQDN step) ===
-        var cloudContextBannerEarly = document.getElementById('disconnected-cloud-context');
+        const cloudContextBannerEarly = document.getElementById('disconnected-cloud-context');
         if (state.clusterRole === 'management') {
             if (cloudContextBannerEarly) { cloudContextBannerEarly.classList.remove('hidden'); cloudContextBannerEarly.classList.add('visible'); }
         } else {
@@ -488,14 +488,14 @@
         }
 
         // === Context banner for management cluster cloud/region steps ===
-        var cloudContextBanner = document.getElementById('disconnected-cloud-context');
+        const cloudContextBanner = document.getElementById('disconnected-cloud-context');
 
         // === WORKLOAD CLUSTER FLOW ===
         if (state.clusterRole === 'workload') {
 
             // Hide region steps (cloud + local-region) — workload clusters don't need them
-            var stepCloud = document.getElementById('step-cloud');
-            var stepLocalRegion = document.getElementById('step-local-region');
+            const stepCloud = document.getElementById('step-cloud');
+            const stepLocalRegion = document.getElementById('step-local-region');
             if (stepCloud) stepCloud.classList.add('hidden');
             if (stepLocalRegion) stepLocalRegion.classList.add('hidden');
 
@@ -521,9 +521,9 @@
                 if (state.infra && state.infra.start && state.infra.end) {
                     applianceSection.classList.remove('hidden');
                     // Restore input values
-                    var ip1 = document.getElementById('appliance-ip-1');
-                    var ip2 = document.getElementById('appliance-ip-2');
-                    var vlanIdInput = document.getElementById('appliance-vlan-id');
+                    const ip1 = document.getElementById('appliance-ip-1');
+                    const ip2 = document.getElementById('appliance-ip-2');
+                    const vlanIdInput = document.getElementById('appliance-vlan-id');
                     if (ip1 && state.applianceIp1 && !ip1.value) ip1.value = state.applianceIp1;
                     if (ip2 && state.applianceIp2 && !ip2.value) ip2.value = state.applianceIp2;
                     if (vlanIdInput && state.applianceVlanId && !vlanIdInput.value) vlanIdInput.value = String(state.applianceVlanId);
@@ -543,34 +543,34 @@
 
         // === WORKLOAD FLOW: Hide ADFS server name (mgmt cluster config only) ===
         if (state.clusterRole === 'workload') {
-            var adfsSection = document.getElementById('adfs-server-section');
+            const adfsSection = document.getElementById('adfs-server-section');
             if (adfsSection) adfsSection.classList.add('hidden');
             state.adfsServerName = null;
         }
     }
 
     function hideRegularSteps() {
-        var ids = [
+        const ids = [
             'step-cloud', 'step-local-region', 'step-2', 'step-3', 'step-3-5',
             'step-4', 'step-5', 'step-6', 'step-7', 'step-8', 'step-9',
             'step-9b', 'step-10', 'step-11', 'step-12', 'step-5-5',
             'step-13', 'step-13-5', 'step-14'
         ];
-        ids.forEach(function (id) {
-            var el = document.getElementById(id);
+        ids.forEach(function(id) {
+            const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
     }
 
     function updateD1Selection() {
-        document.querySelectorAll('#step-d1 .option-card').forEach(function (card) {
-            var val = card.getAttribute('data-value');
+        document.querySelectorAll('#step-d1 .option-card').forEach(function(card) {
+            const val = card.getAttribute('data-value');
             card.classList.toggle('selected', val === state.clusterRole);
         });
     }
 
     function updateD1Explanation() {
-        var box = document.getElementById('d1-explanation');
+        const box = document.getElementById('d1-explanation');
         if (!box) return;
         if (state.clusterRole === 'management') {
             box.innerHTML = '<strong style="color: #ef4444;">Management Cluster</strong>' +
@@ -601,23 +601,23 @@
         state.privateEndpointsList = [];
 
         // Show step-9b but disable cards and add explanation
-        var step9b = document.getElementById('step-9b');
+        const step9b = document.getElementById('step-9b');
         if (step9b) {
             step9b.classList.remove('hidden');
 
             // Disable all PE option cards
-            document.querySelectorAll('#step-9b .option-card').forEach(function (card) {
+            document.querySelectorAll('#step-9b .option-card').forEach(function(card) {
                 card.classList.add('disabled');
                 card.style.opacity = '0.5';
                 card.style.pointerEvents = 'none';
             });
 
             // Force pe_disabled card to show as selected
-            var peDisabledCard = step9b.querySelector('[data-value="pe_disabled"]');
+            const peDisabledCard = step9b.querySelector('[data-value="pe_disabled"]');
             if (peDisabledCard) peDisabledCard.classList.add('selected');
 
             // Add/update info banner
-            var banner = document.getElementById('pe-disconnected-info');
+            let banner = document.getElementById('pe-disconnected-info');
             if (!banner) {
                 banner = document.createElement('div');
                 banner.id = 'pe-disconnected-info';
@@ -626,13 +626,13 @@
                 banner.innerHTML = '<strong style="color: #ef4444;">Not Available</strong>' +
                     '<p style="margin:0.25rem 0 0;">Azure Local disconnected operations does not support Private Endpoints. ' +
                     'This option is automatically set to Disabled.</p>';
-                var grid = step9b.querySelector('.options-grid');
+                const grid = step9b.querySelector('.options-grid');
                 if (grid) grid.parentNode.insertBefore(banner, grid.nextSibling);
             }
             banner.classList.remove('hidden');
 
             // Hide PE selection section (checkboxes)
-            var peSelection = document.getElementById('private-endpoints-selection');
+            const peSelection = document.getElementById('private-endpoints-selection');
             if (peSelection) peSelection.classList.add('hidden');
         }
     }
@@ -649,11 +649,11 @@
         state.scale = 'medium';
 
         // Disable node chips that are not 3
-        document.querySelectorAll('#step-3 .node-chip').forEach(function (chip) {
-            var onclick = chip.getAttribute('onclick') || '';
-            var match = onclick.match(/'([^']+)'\)$/);
+        document.querySelectorAll('#step-3 .node-chip').forEach(function(chip) {
+            const onclick = chip.getAttribute('onclick') || '';
+            const match = onclick.match(/'([^']+)'\)$/);
             if (match) {
-                var val = match[1];
+                const val = match[1];
                 if (val !== '3') {
                     chip.classList.add('disabled');
                 }
@@ -665,9 +665,9 @@
     }
 
     function showMgmtBanner() {
-        var nodesStep = document.getElementById('step-3');
+        const nodesStep = document.getElementById('step-3');
         if (!nodesStep) return;
-        var banner = document.getElementById('mgmt-cluster-info');
+        let banner = document.getElementById('mgmt-cluster-info');
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'mgmt-cluster-info';
@@ -676,7 +676,7 @@
             banner.innerHTML = '<strong style="color: #ef4444;">\uD83D\uDEE1\uFE0F Management Cluster</strong>' +
                 '<p style="margin:0.25rem 0 0;">The management cluster is fixed at 3 nodes. ' +
                 'It hosts the disconnected operations appliance VM, DNS, PKI, Active Directory, and ADFS services.</p>';
-            var header = nodesStep.querySelector('.step-header');
+            const header = nodesStep.querySelector('.step-header');
             if (header && header.nextElementSibling) {
                 header.parentNode.insertBefore(banner, header.nextElementSibling);
             } else if (header) {
@@ -687,7 +687,7 @@
     }
 
     function hideMgmtBanner() {
-        var banner = document.getElementById('mgmt-cluster-info');
+        const banner = document.getElementById('mgmt-cluster-info');
         if (banner) banner.classList.add('hidden');
     }
 
@@ -697,10 +697,10 @@
             return;
         }
 
-        var nodesStep = document.getElementById('step-3');
+        const nodesStep = document.getElementById('step-3');
         if (!nodesStep) return;
 
-        var banner = document.getElementById('workload-two-node-info');
+        let banner = document.getElementById('workload-two-node-info');
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'workload-two-node-info';
@@ -708,7 +708,7 @@
             banner.style.marginBottom = '1rem';
             banner.innerHTML = '<strong style="color: #ef4444;">⚠️ Disconnected Workload Cluster Constraint</strong>' +
                 '<p style="margin:0.25rem 0 0;">Azure Local disconnected operations does not support cloud witness and 2 nodes deployment is not supported.</p>';
-            var header = nodesStep.querySelector('.step-header');
+            const header = nodesStep.querySelector('.step-header');
             if (header && header.nextElementSibling) {
                 header.parentNode.insertBefore(banner, header.nextElementSibling);
             } else if (header) {
@@ -720,7 +720,7 @@
     }
 
     function hideWorkloadTwoNodeBanner() {
-        var banner = document.getElementById('workload-two-node-info');
+        const banner = document.getElementById('workload-two-node-info');
         if (banner) banner.classList.add('hidden');
     }
 
@@ -742,9 +742,9 @@
     // HOOKS INTO MAIN WIZARD
     // ========================================================================
 
-    var _originalUpdateUI = window.updateUI;
+    const _originalUpdateUI = window.updateUI;
     if (typeof _originalUpdateUI === 'function') {
-        window.updateUI = function () {
+        window.updateUI = function() {
             initDisconnectedState();
 
             // For workload clusters, auto-set region defaults before updateUI runs
@@ -768,9 +768,9 @@
     }
 
     // Hook into resetAll
-    var _originalResetAll = window.resetAll;
+    const _originalResetAll = window.resetAll;
     if (typeof _originalResetAll === 'function') {
-        window.resetAll = function () {
+        window.resetAll = function() {
             state.clusterRole = null;
             state.autonomousCloudFqdn = null;
             state.fqdnConfirmed = false;
@@ -780,13 +780,13 @@
             state.applianceVlanId = null;
 
             // Clear FQDN input
-            var fqdnInput = document.getElementById('autonomous-cloud-fqdn');
+            const fqdnInput = document.getElementById('autonomous-cloud-fqdn');
             if (fqdnInput) fqdnInput.value = '';
 
             // Clear appliance inputs
-            var ip1 = document.getElementById('appliance-ip-1');
-            var ip2 = document.getElementById('appliance-ip-2');
-            var applianceVlanId = document.getElementById('appliance-vlan-id');
+            const ip1 = document.getElementById('appliance-ip-1');
+            const ip2 = document.getElementById('appliance-ip-2');
+            const applianceVlanId = document.getElementById('appliance-vlan-id');
             if (ip1) ip1.value = '';
             if (ip2) ip2.value = '';
             if (applianceVlanId) applianceVlanId.value = '';
@@ -800,9 +800,9 @@
     }
 
     // Hook into selectOption — reset disconnected state when scenario changes
-    var _originalSelectOption = window.selectOption;
+    const _originalSelectOption = window.selectOption;
     if (typeof _originalSelectOption === 'function') {
-        window.selectOption = function (category, value) {
+        window.selectOption = function(category, value) {
             if (category === 'scenario' && value !== 'disconnected') {
                 state.clusterRole = null;
                 state.autonomousCloudFqdn = null;
@@ -833,7 +833,7 @@
 
     // Auto-init
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function () { initDisconnectedState(); });
+        document.addEventListener('DOMContentLoaded', function() { initDisconnectedState(); });
     } else {
         initDisconnectedState();
     }

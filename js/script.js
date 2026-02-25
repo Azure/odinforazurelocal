@@ -5451,7 +5451,7 @@ function getStorageVlanOverrideNetworkCount() {
     // - Switchless 2-node: 2 storage networks (VLANs 711, 712)
     // - Switchless 3/4-node: 1 storage network (single VLAN across all subnets)
     if (state.storage === 'switchless') {
-        var nodeCount = parseInt(state.nodes, 10) || 0;
+        const nodeCount = parseInt(state.nodes, 10) || 0;
         if (nodeCount === 2) return 2;
         return 1;
     }
@@ -5937,7 +5937,7 @@ function updateSummary() {
     if (state.scenario) scenarioScaleRows += renderRow('Scenario', escapeHtml(formatScenario(state.scenario)));
     if (state.scenario === 'disconnected' && state.clusterRole) {
         scenarioScaleRows += renderRow('Cluster Role', escapeHtml(state.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'));
-        var _fqdn = state.autonomousCloudFqdn || '(not set)';
+        const _fqdn = state.autonomousCloudFqdn || '(not set)';
         scenarioScaleRows += renderRow('Autonomous Cloud FQDN', escapeHtml(_fqdn), { mono: true });
     } else {
         if (state.region) scenarioScaleRows += renderRow('Azure Cloud', escapeHtml(formatRegion(state.region)));
