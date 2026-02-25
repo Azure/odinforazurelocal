@@ -44,7 +44,6 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only (two-way mirror option removed)
 - **Designer: Edge Gateway Fix**: Fixed Default Gateway field being empty/disabled on Edge 2-Node Switchless template — changed IP assignment from DHCP to static with gateway `192.168.100.1`
 - **CI: ESLint Fixes**: Added `selectDisconnectedOption` global, fixed `loadTemplate()` indentation and `var`→`const` declarations
-- **Example Template Fix (#140)**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–76%) instead of 100% — all five templates now load fully complete
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
