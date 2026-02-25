@@ -40,10 +40,14 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 ### 🎉 Version 0.17.10 - Latest Release
-- **Sizer: ALDO Management Cluster**: New cluster type — fixed 3-node, all-flash, three-way mirror with IRVM1 auto-workload (24 vCPUs, 78 GB, 2 TB), enforced minimum hardware (96 GB memory, 24 cores, 2 TB per node), and 64 GB/node appliance overhead
-- **Sizer: ARB Overhead**: Azure Resource Bridge appliance VM (8 GB memory, 4 vCPUs) deducted from cluster capacity
-- **Sizer: MANUAL Override Badges**: Green "MANUAL" badge on any user-edited hardware dropdown — persists across workload changes with amber capacity warning when overrides prevent auto-scaling
-- **Sizer: Region Picker**: Region selection modal before navigating to Designer — prevents cascade reset that wiped imported configuration when changing region
+- **Sizer: ALDO Management Cluster**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios; node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror
+- **Sizer: ALDO Minimum Hardware**: Enforces ALDO minimums — 96 GB memory, 24 physical cores, 2 TB SSD/NVMe per node; 64 GB/node (192 GB total) reserved for appliance VM; 960 GB boot disk recommended
+- **Sizer: ALDO IRVM1 Auto-Workload**: Fixed infrastructure workload (IRVM1 — 24 vCPUs, 78 GB memory, 2 TB storage) automatically added when ALDO selected; Add Workload buttons disabled, workload locked; cores auto-scale floor enforces 24 physical cores minimum
+- **Sizer: ARB Overhead**: Azure Resource Bridge appliance VM (8 GB memory, 4 vCPUs per cluster) deducted from available capacity in sizing calculations and capacity bars
+- **Sizer: MANUAL Override Badges**: Green "MANUAL" badge on any user-edited hardware dropdown — persists across workload changes with amber capacity warning when overrides prevent auto-scaling; "Remove MANUAL overrides" button to clear all locks
+- **Sizer: Independent Disk Locks**: Disk size and disk count are independently lockable — manually setting one still allows auto-scaling on the other
+- **Sizer: Region Picker**: Region selection modal in Sizer before navigating to Designer — Azure Commercial (8 regions) and Azure Government (1 region) toggle; prevents cascade reset that wiped imported cluster configuration
+- **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only
 - **Report: Sizer Hardware & Workloads**: Full hardware specs and individual workload details now shown in the HTML report (VM, AKS, AVD with per-workload subtotals)
 - **Report: AKS Arc Network Requirements**: Port/VLAN requirements table (ports 22, 6443, 55000, 65000) shown when AKS workloads are configured
 - **Report: Disconnected Network Link**: "Plan your network for disconnected operations" link in Connectivity section for disconnected deployments
@@ -352,7 +356,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February 2026)
 
-#### 0.17.10 - ALDO Management Cluster, MANUAL Overrides & Edge Gateway Fix
+#### 0.17.10 - ALDO Management, IRVM1 Auto-Workload, ARB Overhead, Region Picker & Sizer Report
 - **Sizer: ALDO Management Cluster Type**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios; node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror
 - **Sizer: ALDO Minimum Hardware Enforcement**: Automatically enforces documented ALDO minimums — 96 GB memory, 24 physical cores, and 2 TB SSD/NVMe storage per node; 64 GB/node (192 GB total) reserved for the disconnected operations appliance VM and deducted from workload capacity; 960 GB boot disk recommended in sizing notes
 - **Sizer: ALDO IRVM1 Auto-Workload**: Fixed infrastructure workload (IRVM1 — 24 vCPUs, 78 GB memory, 2 TB storage) automatically added when ALDO Management Cluster is selected; Add Workload buttons disabled, workload cannot be edited/cloned/deleted; ALDO cores auto-scale floor enforces 24 physical cores minimum
