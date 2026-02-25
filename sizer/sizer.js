@@ -3124,13 +3124,13 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (hwConfig && hwConfig.diskConfig) {
             const dc = hwConfig.diskConfig;
             if (dc.isTiered) {
-                notes.push(`Storage layout: ${dc.cache.count}× ${dc.cache.type} cache + ${dc.capacity.count}× ${dc.capacity.type} capacity disks per node`);
+                notes.push(`Storage layout: ${dc.cache.count} × ${dc.cache.type} cache + ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node`);
                 // Mixed all-flash recommendation
                 if (hwConfig.storageConfig === 'mixed-flash') {
                     notes.push('ℹ️ All-Flash (single type SSD or NVMe) configuration is recommended for increased capacity. Mixed all-flash (NVMe cache + SSD capacity) uses tiered storage which limits capacity disks to 16 per node (24 total drive bays).');
                 }
             } else {
-                notes.push(`Storage layout: ${dc.capacity.count}× ${dc.capacity.type} capacity disks per node (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
+                notes.push(`Storage layout: ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node (${(dc.capacity.sizeGB / 1024).toFixed(1)} TB each)`);
             }
         }
         
