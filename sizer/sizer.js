@@ -341,18 +341,25 @@ function onCpuConfigChange() {
 // Dedicated handlers for capacity disk dropdowns — lock only the specific field against auto-scaling
 function onDiskSizeChange() {
     _diskSizeUserSet = true;
-    // Mark whichever disk size dropdown is currently visible
-    const tiering = document.getElementById('storage-tiering');
-    const isTiered = tiering && tiering.value && tiering.value !== 'none';
+    const isTiered = _isTieredStorage();
     markManualSet(isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size');
     onHardwareConfigChange();
 }
 function onDiskCountChange() {
     _diskCountUserSet = true;
-    const tiering = document.getElementById('storage-tiering');
-    const isTiered = tiering && tiering.value && tiering.value !== 'none';
+    const isTiered = _isTieredStorage();
     markManualSet(isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count');
     onHardwareConfigChange();
+}
+
+// Check if current storage tiering is a two-tier (cache + capacity) configuration
+function _isTieredStorage() {
+    const storageConfig = document.getElementById('storage-config').value;
+    const tieringId = document.getElementById('storage-tiering').value;
+    const options = STORAGE_TIERING_OPTIONS[storageConfig];
+    if (!options) return false;
+    const selectedTier = options.find(o => o.id === tieringId) || options[0];
+    return selectedTier.isTiered;
 }
 
 // Show/hide GPU type dropdown based on GPU count
@@ -740,6 +747,9 @@ function markManualSet(elementId) {
             }
         }
     }
+    // Show the "Remove MANUAL overrides" button
+    const clearBtn = document.getElementById('clear-manual-overrides');
+    if (clearBtn) clearBtn.style.display = 'block';
 }
 
 // Clear all manual-set highlights and badges
@@ -754,6 +764,20 @@ function clearManualBadges() {
         }
     }
     _manualFields.clear();
+    // Hide the "Remove MANUAL overrides" button
+    const clearBtn = document.getElementById('clear-manual-overrides');
+    if (clearBtn) clearBtn.style.display = 'none';
+}
+
+// Remove all manual overrides — resets user locks and re-runs auto-scaling
+function clearAllManualOverrides() {
+    _vcpuRatioUserSet = false;
+    _memoryUserSet = false;
+    _cpuConfigUserSet = false;
+    _diskSizeUserSet = false;
+    _diskCountUserSet = false;
+    clearManualBadges();
+    calculateRequirements();
 }
 
 // Mark a field element as auto-scaled (add visual highlight + badge)

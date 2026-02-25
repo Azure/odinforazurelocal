@@ -1687,3 +1687,35 @@ body {
     vertical-align: middle;
     animation: manual-set-pulse 1.8s ease-out;
 }
+/* "Remove MANUAL overrides" button container */
+.clear-manual-overrides {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.btn-clear-manual {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent-green);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-clear-manual:hover {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.btn-clear-manual svg {
+    width: 14px;
+    height: 14px;
+    stroke: var(--accent-green);
+    flex-shrink: 0;
+}
