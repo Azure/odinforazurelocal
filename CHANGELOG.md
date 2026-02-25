@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.17.10] - 2026-02-24
+## [0.17.10] - 2026-02-25
 
 ### Added
 
@@ -20,16 +20,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Appliance VM Overhead**: Reserves 64 GB memory per node (192 GB total) for the disconnected operations appliance VM — deducted from available workload memory in capacity bars and auto-scaling calculations
 - **Boot Disk Recommendation**: Sizing notes recommend 960 GB SSD/NVMe boot disk per node to reduce deployment complexity
 - **Custom Sizing Notes**: Expanded sizing notes with minimum hardware specs, appliance reservation breakdown, and boot disk guidance
+- **Knowledge Link**: ALDO sizing notes include a link to the disconnected operations overview documentation
+
+#### Sizer: MANUAL Override Badges & Persistence
+- **MANUAL Badge**: Light green "MANUAL" badge appears on any hardware dropdown (vCPU ratio, memory, CPU cores, sockets, manufacturer, generation, disk size, disk count) when a user manually edits the value — visually distinguishes user choices from auto-scaled values
+- **Override Persistence**: MANUAL overrides now persist across workload add, edit, delete, and clone — only the explicit "Remove MANUAL overrides" button or a full scenario reset clears them
+- **Remove MANUAL Overrides Button**: New button at the bottom of the hardware config section appears when any MANUAL override is active — clears all user locks and re-runs auto-scaling
+- **Capacity Warning**: Amber warning banner appears when any capacity bar reaches ≥90% utilization while MANUAL overrides are active — identifies which specific overrides are preventing auto-scaling (e.g. "Memory capacity cannot be auto-scaled because of MANUAL override on: Memory")
+- **Independent Disk Locks**: Disk size and disk count are independently lockable — manually setting disk size still allows disk count to auto-scale, and vice versa
+
+#### Report: Firewall Allow List
+- **Endpoint Requirements**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
 
 ### Changed
 
 #### Sizer: Three-Way Mirror for 3+ Node Standard Clusters
 - **Resiliency Lock**: Standard clusters with 3 or more nodes are now locked to three-way mirror only — the two-way mirror option is removed for 3+ node configurations
 
+#### Sizer: Sizing Notes Text Improvements
+- **RAM → Memory**: Replaced all references to "RAM" with "memory" in sizing notes for consistency
+- **Boot Drive Text**: Updated boot drive note to "minimum 400 GB OS disks recommended for systems with >768 GB memory"
+- **Storage Layout Spacing**: Added spacing around the multiplication sign in storage layout notes (e.g. "6 × SSD" instead of "6× SSD")
+
 ### Fixed
 
 #### Designer: Edge 2-Node Switchless Default Gateway
 - **Gateway Field Fix**: Fixed the Default Gateway field being empty and disabled on the Edge 2-Node Switchless template — the template was using `ip: 'dhcp'` which caused `updateInfraNetwork()` to disable and clear the gateway field; changed to `ip: 'static'` with `infraGateway: '192.168.100.1'`
+
+#### Sizer: Tiered Storage Detection
+- **Disk Size Badge Fix**: Fixed MANUAL badge not appearing on Capacity per Disk for all-flash storage configurations — the tiered storage detection was incorrectly matching all-flash values like `nvme-capacity` as tiered; replaced with proper `_isTieredStorage()` helper that checks the `isTiered` property from storage tiering options
 
 #### CI: ESLint Fixes
 - **Global Declaration**: Added `selectDisconnectedOption` to ESLint globals to resolve `no-undef` error in CI

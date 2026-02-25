@@ -41,9 +41,11 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.17.10 - Latest Release
 - **Sizer: ALDO Management Cluster**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios with enforced minimum hardware (96 GB memory, 24 cores, 2 TB storage per node) and 64 GB/node appliance VM overhead
+- **Sizer: MANUAL Override Badges**: Green "MANUAL" badge on any user-edited hardware dropdown — persists across workload changes with amber capacity warning when overrides prevent auto-scaling
+- **Sizer: Independent Disk Locks**: Disk size and disk count can be independently locked — manually setting one still allows auto-scaling on the other
 - **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only (two-way mirror option removed)
+- **Report: Firewall Allow List**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
 - **Designer: Edge Gateway Fix**: Fixed Default Gateway field being empty/disabled on Edge 2-Node Switchless template — changed IP assignment from DHCP to static with gateway `192.168.100.1`
-- **CI: ESLint Fixes**: Added `selectDisconnectedOption` global, fixed `loadTemplate()` indentation and `var`→`const` declarations
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -347,11 +349,16 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February 2026)
 
-#### 0.17.10 - ALDO Management Cluster, Three-Way Mirror & Edge Gateway Fix
+#### 0.17.10 - ALDO Management Cluster, MANUAL Overrides & Edge Gateway Fix
 - **Sizer: ALDO Management Cluster Type**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios; node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror
 - **Sizer: ALDO Minimum Hardware Enforcement**: Automatically enforces documented ALDO minimums — 96 GB memory, 24 physical cores, and 2 TB SSD/NVMe storage per node; 64 GB/node (192 GB total) reserved for the disconnected operations appliance VM and deducted from workload capacity; 960 GB boot disk recommended in sizing notes
+- **Sizer: MANUAL Override Badges**: Green "MANUAL" badge on any user-edited hardware dropdown — persists across workload add/edit/delete/clone with amber capacity warning when overrides prevent auto-scaling; "Remove MANUAL overrides" button to clear all locks
+- **Sizer: Independent Disk Locks**: Disk size and disk count are independently lockable — manually setting one still allows auto-scaling on the other
 - **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only — two-way mirror option removed for 3+ node configurations
+- **Sizer: Sizing Notes**: Replaced "RAM" with "memory", updated boot drive text, added spacing around × in storage layout notes, added ALDO knowledge link
+- **Report: Firewall Allow List**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
 - **Designer: Edge 2-Node Switchless Default Gateway**: Fixed the Default Gateway field being empty and disabled — template was using DHCP which caused the gateway field to be disabled; changed to static IP with gateway `192.168.100.1`
+- **Sizer: Tiered Storage Fix**: Fixed MANUAL badge not appearing on disk size for all-flash configurations — replaced incorrect tiered detection with `_isTieredStorage()` helper
 - **CI: ESLint Fixes**: Added `selectDisconnectedOption` to ESLint globals, fixed `loadTemplate()` try-block indentation (4-space → 8-space), changed `var` to `const` declarations
 
 #### 0.17.04 - Example Template Fix & Regression Tests
