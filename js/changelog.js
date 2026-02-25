@@ -38,7 +38,12 @@ function showChangelog() {
                         <li><strong>Fixed Infrastructure:</strong> Node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror only.</li>
                         <li><strong>Minimum Hardware:</strong> Automatically enforces ALDO minimums — 96 GB memory, 24 physical cores, and 2 TB SSD/NVMe storage per node.</li>
                         <li><strong>Appliance Overhead:</strong> Reserves 64 GB memory per node (192 GB total) for the disconnected operations appliance VM — deducted from available workload capacity.</li>
+                        <li><strong>IRVM1 Auto-Workload:</strong> Fixed infrastructure workload (IRVM1 — 24 vCPUs, 78 GB memory, 2 TB storage) automatically added; Add Workload buttons disabled, workload locked from edit/clone/delete.</li>
                         <li><strong>Boot Disk:</strong> Sizing notes recommend 960 GB SSD/NVMe boot disk per node.</li>
+                    </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">⚙️ Sizer: ARB Overhead</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Cluster-Level Deduction:</strong> Azure Resource Bridge appliance VM (8 GB memory, 4 vCPUs) deducted from available cluster capacity in sizing and capacity bars.</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🏷️ Sizer: MANUAL Override Badges</h4>
                     <ul style="margin: 0; padding-left: 20px;">

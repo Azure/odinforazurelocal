@@ -681,6 +681,17 @@ const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM 
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
 
+// ALDO Infrastructure Requirement VM (IRVM1) — auto-added when ALDO Management Cluster is selected
+const ALDO_IRVM = {
+    name: 'IRVM1',
+    type: 'vm',
+    vcpus: 24,
+    memory: 78,
+    storage: 2048,  // 2 TB usable storage
+    count: 1,
+    isAldoFixed: true  // marker to prevent edit/delete/clone
+};
+
 // Disk count per node
 const MIN_DISK_COUNT = 2; // Azure Local minimum; matches dropdown minimum
 const MAX_DISK_COUNT = 24;
@@ -997,7 +1008,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
     // --- Auto-scale CPU cores (and sockets if needed) ---
     // Skip when the user has manually set CPU cores/sockets (respect user override).
-    const requiredCoresPerNode = Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore);
+    // For ALDO management clusters, enforce minimum 24 physical cores per node
+    const aldoMinCores = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_CORES_PER_NODE : 0;
+    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
     const SOCKET_OPTIONS = [1, 2];
@@ -1639,6 +1652,7 @@ function resumeSizerState() {
     workloadIdCounter = d.workloadIdCounter || 0;
 
     // Update UI
+    updateAldoWorkloadButtons();
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
@@ -1763,6 +1777,24 @@ function onNodeCountChange() {
 
 // Handle cluster type change (single / standard / rack-aware)
 function onClusterTypeChange() {
+    const clusterType = document.getElementById('cluster-type').value;
+    const wasAldo = workloads.some(w => w.isAldoFixed);
+    const isAldo = clusterType === 'aldo-mgmt';
+
+    // Switching TO aldo-mgmt: clear workloads and add IRVM1
+    if (isAldo && !wasAldo) {
+        workloads = [];
+        const irvm = Object.assign({}, ALDO_IRVM, { id: ++workloadIdCounter });
+        workloads.push(irvm);
+        renderWorkloads();
+    }
+    // Switching AWAY from aldo-mgmt: remove the fixed IRVM workload
+    if (!isAldo && wasAldo) {
+        workloads = workloads.filter(w => !w.isAldoFixed);
+        renderWorkloads();
+    }
+
+    updateAldoWorkloadButtons();
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
     updateResiliencyOptions();
@@ -1770,6 +1802,19 @@ function onClusterTypeChange() {
     updateClusterInfo();
     enforceAldoMinimums();
     calculateRequirements();
+}
+
+// Enable/disable workload add buttons for ALDO Management Cluster
+function updateAldoWorkloadButtons() {
+    const clusterType = document.getElementById('cluster-type').value;
+    const isAldo = clusterType === 'aldo-mgmt';
+    const buttons = document.querySelectorAll('.workload-type-btn');
+    buttons.forEach(btn => {
+        btn.disabled = isAldo;
+        btn.style.opacity = isAldo ? '0.4' : '';
+        btn.style.cursor = isAldo ? 'not-allowed' : '';
+        btn.title = isAldo ? 'Workloads are fixed for ALDO Management Cluster' : '';
+    });
 }
 
 // Enforce ALDO Management Cluster minimum hardware requirements
@@ -2376,6 +2421,7 @@ function addWorkload() {
 function editWorkload(id) {
     const w = workloads.find(wl => wl.id === id);
     if (!w) return;
+    if (w.isAldoFixed) return; // Cannot edit ALDO fixed workload
 
     editingWorkloadId = id;
     currentModalType = w.type;
@@ -2439,7 +2485,9 @@ function editWorkload(id) {
 // Delete workload
 function deleteWorkload(id) {
     const w = workloads.find(wl => wl.id === id);
-    const label = w ? w.name : 'this workload';
+    if (!w) return;
+    if (w.isAldoFixed) return; // Cannot delete ALDO fixed workload
+    const label = w.name;
     if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
     workloads = workloads.filter(w => w.id !== id);
     renderWorkloads();
@@ -2450,6 +2498,7 @@ function deleteWorkload(id) {
 function cloneWorkload(id) {
     const original = workloads.find(w => w.id === id);
     if (!original) return;
+    if (original.isAldoFixed) return; // Cannot clone ALDO fixed workload
     const clone = JSON.parse(JSON.stringify(original));
     clone.id = ++workloadIdCounter;
     clone.name = original.name + ' (copy)';
@@ -2483,10 +2532,11 @@ function renderWorkloads() {
                     <div class="workload-card-title">
                         ${w.name}
                         <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(w.type)}</span>
+                        ${w.isAldoFixed ? '<span style="font-size: 10px; background: #7c3aed; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">ALDO FIXED</span>' : ''}
                     </div>
                     <div class="workload-card-details">${details}</div>
                 </div>
-                <div class="workload-card-actions">
+                <div class="workload-card-actions"${w.isAldoFixed ? ' style="display:none"' : ''}>
                     <button class="edit" onclick="editWorkload(${w.id})" title="Edit">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"/>
@@ -3161,6 +3211,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push('Single node requires minimum 2 capacity drives (NVMe or SSD) of the same type');
         } else if (clusterType === 'aldo-mgmt') {
             notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management. Nodes are fixed and cannot be scaled.');
+            notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure`);
             notes.push(`ALDO minimum hardware per node: ${ALDO_MIN_CORES_PER_NODE} physical cores, ${ALDO_MIN_MEMORY_GB} GB memory, ${ALDO_MIN_STORAGE_PER_NODE_TB} TB SSD/NVMe storage`);
             notes.push(`ALDO appliance reservation: ${ALDO_APPLIANCE_OVERHEAD_GB} GB memory per node (${ALDO_APPLIANCE_OVERHEAD_GB * 3} GB total) reserved for the disconnected operations appliance VM — this overhead is deducted from available workload memory`);
             notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
@@ -3814,6 +3865,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateStorageForClusterType();
     updateResiliencyOptions();
     updateClusterInfo();
+    updateAldoWorkloadButtons();
     // Initialize hardware defaults
     initHardwareDefaults();
     // Initialize storage config dropdowns
