@@ -47,12 +47,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       
       - name: Install dependencies
-        run: npm install
-        env:
-          npm_config_fetch_retries: 5
-          npm_config_fetch_retry_mintimeout: 10000
+        run: |
+          for i in 1 2 3 4 5; do
+            npm install && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
       
       - name: Run Unit Tests
         run: node scripts/run-tests.js
