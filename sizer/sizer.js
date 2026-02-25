@@ -3210,7 +3210,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
             notes.push('Single node requires minimum 2 capacity drives (NVMe or SSD) of the same type');
         } else if (clusterType === 'aldo-mgmt') {
-            notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management. Nodes are fixed and cannot be scaled.');
+            notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management.');
             notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure`);
             notes.push(`ALDO minimum hardware per node: ${ALDO_MIN_CORES_PER_NODE} physical cores, ${ALDO_MIN_MEMORY_GB} GB memory, ${ALDO_MIN_STORAGE_PER_NODE_TB} TB SSD/NVMe storage`);
             notes.push(`ALDO appliance reservation: ${ALDO_APPLIANCE_OVERHEAD_GB} GB memory per node (${ALDO_APPLIANCE_OVERHEAD_GB * 3} GB total) reserved for the disconnected operations appliance VM — this overhead is deducted from available workload memory`);
