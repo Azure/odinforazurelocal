@@ -372,6 +372,8 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Report: Firewall Allow List**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
 - **Designer: Edge 2-Node Switchless Default Gateway**: Fixed the Default Gateway field being empty and disabled — template was using DHCP which caused the gateway field to be disabled; changed to static IP with gateway `192.168.100.1`
 - **Sizer: Tiered Storage Fix**: Fixed MANUAL badge not appearing on disk size for all-flash configurations — replaced incorrect tiered detection with `_isTieredStorage()` helper
+- **Sizer: ALDO Configure in Designer Fix**: "Configure in Designer" for ALDO Management Cluster now correctly selects the Disconnected scenario with Management Cluster role and prompts for Autonomous Cloud FQDN — previously defaulted to Hyperconverged
+- **Sizer: ALDO Analytics Tracking**: Selecting ALDO Management Cluster now increments the Sizer analytics counter, matching workload addition tracking
 - **CI: ESLint Fixes**: Added `selectDisconnectedOption` to ESLint globals, fixed `loadTemplate()` try-block indentation (4-space → 8-space), changed `var` to `const` declarations
 
 #### 0.17.04 - Example Template Fix & Regression Tests

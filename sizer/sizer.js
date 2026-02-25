@@ -1787,6 +1787,10 @@ function onClusterTypeChange() {
         const irvm = Object.assign({}, ALDO_IRVM, { id: ++workloadIdCounter });
         workloads.push(irvm);
         renderWorkloads();
+        // Track ALDO Management Cluster selection for analytics
+        if (typeof trackFormCompletion === 'function') {
+            trackFormCompletion('sizerCalculation');
+        }
     }
     // Switching AWAY from aldo-mgmt: remove the fixed IRVM workload
     if (!isAldo && wasAldo) {
