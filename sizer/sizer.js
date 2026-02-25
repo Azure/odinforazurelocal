@@ -3023,6 +3023,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`ALDO minimum hardware per node: ${ALDO_MIN_CORES_PER_NODE} physical cores, ${ALDO_MIN_MEMORY_GB} GB memory, ${ALDO_MIN_STORAGE_PER_NODE_TB} TB SSD/NVMe storage`);
             notes.push(`ALDO appliance reservation: ${ALDO_APPLIANCE_OVERHEAD_GB} GB memory per node (${ALDO_APPLIANCE_OVERHEAD_GB * 3} GB total) reserved for the disconnected operations appliance VM — this overhead is deducted from available workload memory`);
             notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
+            notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
