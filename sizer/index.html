@@ -723,6 +723,28 @@
         </div>
     </div>
 
+    <!-- ALDO FQDN Modal (shown before region picker for ALDO Management Cluster) -->
+    <div class="modal-overlay" id="aldo-fqdn-modal-overlay" onclick="closeAldoFqdnModal()"></div>
+    <div class="modal region-picker-modal" id="aldo-fqdn-modal">
+        <div class="modal-header">
+            <h3>Autonomous Cloud Endpoint</h3>
+            <button class="modal-close" onclick="closeAldoFqdnModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="region-picker-desc">Enter the Autonomous Cloud FQDN for the ALDO management cluster. This endpoint is used by disconnected operations for the local Azure control plane.</p>
+            <div style="margin: 16px 0;">
+                <label for="aldo-fqdn-input" style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary, #e0e7ff);">Autonomous Cloud FQDN</label>
+                <input type="text" id="aldo-fqdn-input" placeholder="e.g. mgmt.contoso.com" oninput="validateAldoFqdn()" style="width: 100%; padding: 10px 14px; border: 1px solid var(--glass-border, #2d3653); border-radius: 8px; background: var(--input-bg, #0d1117); color: var(--text-primary, #e0e7ff); font-size: 14px; box-sizing: border-box;">
+                <div id="aldo-fqdn-error" style="display: none; color: #ef4444; font-size: 12px; margin-top: 6px;"></div>
+                <div id="aldo-fqdn-success" style="display: none; color: #10b981; font-size: 12px; margin-top: 6px;">&#10003; Valid FQDN format</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAldoFqdnModal()">Cancel</button>
+            <button class="btn btn-primary" id="aldo-fqdn-confirm-btn" disabled onclick="confirmAldoFqdnAndConfigure()">Continue to Region Selection</button>
+        </div>
+    </div>
+
     <!-- Analytics -->
     <script src="../js/analytics.js"></script>
     <script src="../js/changelog.js"></script>
