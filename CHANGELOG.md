@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Boot Disk Recommendation**: Sizing notes recommend 960 GB SSD/NVMe boot disk per node to reduce deployment complexity
 - **Custom Sizing Notes**: Expanded sizing notes with minimum hardware specs, appliance reservation breakdown, and boot disk guidance
 - **Knowledge Link**: ALDO sizing notes include a link to the disconnected operations overview documentation
+- **IRVM1 Auto-Workload**: When ALDO Management Cluster is selected, a fixed infrastructure workload (IRVM1 — 1 × VM with 24 vCPUs, 78 GB memory, 2 TB storage) is automatically added; Add Workload buttons are disabled and the workload cannot be edited, cloned, or deleted
+- **ALDO Cores Auto-Scale Floor**: Auto-scaling now enforces the ALDO minimum of 24 physical cores per node — previously the auto-scaler could set cores below the documented minimum when workload demand was low
 
 #### Sizer: MANUAL Override Badges & Persistence
 - **MANUAL Badge**: Light green "MANUAL" badge appears on any hardware dropdown (vCPU ratio, memory, CPU cores, sockets, manufacturer, generation, disk size, disk count) when a user manually edits the value — visually distinguishes user choices from auto-scaled values
@@ -28,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Remove MANUAL Overrides Button**: New button at the bottom of the hardware config section appears when any MANUAL override is active — clears all user locks and re-runs auto-scaling
 - **Capacity Warning**: Amber warning banner appears when any capacity bar reaches ≥90% utilization while MANUAL overrides are active — identifies which specific overrides are preventing auto-scaling (e.g. "Memory capacity cannot be auto-scaled because of MANUAL override on: Memory")
 - **Independent Disk Locks**: Disk size and disk count are independently lockable — manually setting disk size still allows disk count to auto-scale, and vice versa
+
+#### Sizer: Azure Resource Bridge (ARB) Overhead
+- **Cluster-Level Deduction**: Azure Resource Bridge appliance VM overhead (8 GB memory, 4 vCPUs) is now deducted from available cluster capacity in sizing calculations and capacity bars
+- **Consolidated Sizing Note**: Infrastructure overhead note combines Infrastructure_1 (256 GB usable storage) and ARB (8 GB memory, 4 vCPUs) in a single bullet
 
 #### Sizer: Region Picker for Designer Transfer
 - **Region Selection Modal**: When clicking "Configure in Designer", users now select their Azure region in a modal before navigating — prevents the cascade reset that previously wiped imported cluster configuration and size when changing region in the Designer

@@ -3924,16 +3924,17 @@
                     'memory', r.bottleneck);
             })(),
             (() => {
-                // 256 GB memory - 32 GB overhead = 224 GB usable
+                // 256 GB memory - 32 GB overhead = 224 GB usable per node
+                // ARB reserves 8 GB per cluster, so 216 GB workload + 8 GB ARB = 224 GB total → fits 1 node
                 const hw = {
                     totalPhysicalCores: 256,
                     memoryGB: 256,
                     diskConfig: { isTiered: false, capacity: { count: 24, sizeGB: 3584, type: 'NVMe' } }
                 };
-                const r = getRecommendedNodeCount(10, 224, 100, hw, 2, '2way');
-                // 224 GB / 224 GB usable per node = 1 memory node → exactly fits 1 node
+                const r = getRecommendedNodeCount(10, 216, 100, hw, 2, '2way');
+                // 216 GB workload + 8 GB ARB = 224 GB / 224 GB usable per node = 1 memory node
                 return assert(r.memoryNodes === 1,
-                    '256 GB node - 32 GB overhead = 224 GB usable: 224 GB workload fits in 1 memory node',
+                    '256 GB node - 32 GB host overhead = 224 GB usable: 216 GB workload + 8 GB ARB fits in 1 memory node',
                     1, r.memoryNodes);
             })()
         ]);
