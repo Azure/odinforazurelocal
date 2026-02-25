@@ -8317,8 +8317,33 @@ function checkForSizerImport() {
             state.sizerWorkloads = payload.sizerWorkloads;
         }
 
-        // Step 01: Always select Hyperconverged
-        selectOption('scenario', 'hyperconverged');
+        // Step 01: Scenario (Disconnected for ALDO, Hyperconverged for others)
+        const scenario = payload.scenario || 'hyperconverged';
+        selectOption('scenario', scenario);
+
+        // Disconnected operations: set cluster role and FQDN
+        if (scenario === 'disconnected' && payload.clusterRole) {
+            // Set loading flag to prevent auto-scroll during import
+            window.__loadingTemplate = true;
+
+            if (typeof selectDisconnectedOption === 'function') {
+                selectDisconnectedOption('clusterRole', payload.clusterRole);
+            } else {
+                state.clusterRole = payload.clusterRole;
+            }
+
+            // Restore FQDN + confirmed state AFTER selectDisconnectedOption (which resets them)
+            if (payload.autonomousCloudFqdn) {
+                state.autonomousCloudFqdn = payload.autonomousCloudFqdn;
+                const fqdnInput = document.getElementById('autonomous-cloud-fqdn');
+                if (fqdnInput) fqdnInput.value = payload.autonomousCloudFqdn;
+            }
+            if (payload.fqdnConfirmed) {
+                state.fqdnConfirmed = true;
+            }
+
+            window.__loadingTemplate = false;
+        }
 
         // Step 02: Cloud type from sizer (default: Azure Commercial)
         const cloud = payload.cloud || 'azure_commercial';

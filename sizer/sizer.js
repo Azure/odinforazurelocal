@@ -1787,6 +1787,10 @@ function onClusterTypeChange() {
         const irvm = Object.assign({}, ALDO_IRVM, { id: ++workloadIdCounter });
         workloads.push(irvm);
         renderWorkloads();
+        // Track ALDO Management Cluster selection for analytics
+        if (typeof trackFormCompletion === 'function') {
+            trackFormCompletion('sizerCalculation');
+        }
     }
     // Switching AWAY from aldo-mgmt: remove the fixed IRVM workload
     if (!isAldo && wasAldo) {
@@ -3210,10 +3214,8 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
             notes.push('Single node requires minimum 2 capacity drives (NVMe or SSD) of the same type');
         } else if (clusterType === 'aldo-mgmt') {
-            notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management. Nodes are fixed and cannot be scaled.');
-            notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure`);
-            notes.push(`ALDO minimum hardware per node: ${ALDO_MIN_CORES_PER_NODE} physical cores, ${ALDO_MIN_MEMORY_GB} GB memory, ${ALDO_MIN_STORAGE_PER_NODE_TB} TB SSD/NVMe storage`);
-            notes.push(`ALDO appliance reservation: ${ALDO_APPLIANCE_OVERHEAD_GB} GB memory per node (${ALDO_APPLIANCE_OVERHEAD_GB * 3} GB total) reserved for the disconnected operations appliance VM — this overhead is deducted from available workload memory`);
+            notes.push('ALDO Management Cluster: Fixed 3-node cluster for Azure Local Disconnected Operations (ALDO) management.');
+            notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure, additional infrastructure workloads may be added in a future release`);
             notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
             notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
         } else {
@@ -3634,6 +3636,23 @@ function configureInDesigner() {
         return;
     }
 
+    const clusterType = document.getElementById('cluster-type').value;
+
+    // ALDO Management Cluster: show FQDN modal instead of region picker
+    if (clusterType === 'aldo-mgmt') {
+        const fqdnModal = document.getElementById('aldo-fqdn-modal');
+        const fqdnOverlay = document.getElementById('aldo-fqdn-modal-overlay');
+        if (fqdnModal && fqdnOverlay) {
+            const fqdnInput = document.getElementById('aldo-fqdn-input');
+            if (fqdnInput) fqdnInput.value = '';
+            clearAldoFqdnValidation();
+            fqdnModal.classList.add('active');
+            fqdnOverlay.classList.add('active');
+            if (fqdnInput) fqdnInput.focus();
+        }
+        return;
+    }
+
     // Show region picker modal — the user selects a region, then we navigate
     const modal = document.getElementById('region-picker-modal');
     const overlay = document.getElementById('region-modal-overlay');
@@ -3656,6 +3675,84 @@ function updateRegionOptions() {
     });
 }
 
+// ============================================
+// ALDO FQDN Modal Functions
+// ============================================
+
+function closeAldoFqdnModal() {
+    const modal = document.getElementById('aldo-fqdn-modal');
+    const overlay = document.getElementById('aldo-fqdn-modal-overlay');
+    if (modal) modal.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+}
+
+function clearAldoFqdnValidation() {
+    const errEl = document.getElementById('aldo-fqdn-error');
+    const succEl = document.getElementById('aldo-fqdn-success');
+    const btn = document.getElementById('aldo-fqdn-confirm-btn');
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    if (succEl) succEl.style.display = 'none';
+    if (btn) btn.disabled = true;
+}
+
+function validateAldoFqdn() {
+    const input = document.getElementById('aldo-fqdn-input');
+    const errEl = document.getElementById('aldo-fqdn-error');
+    const succEl = document.getElementById('aldo-fqdn-success');
+    const btn = document.getElementById('aldo-fqdn-confirm-btn');
+    if (!input) return;
+
+    const fqdn = input.value.trim();
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    if (succEl) succEl.style.display = 'none';
+    if (btn) btn.disabled = true;
+
+    if (!fqdn) return;
+
+    // Validate FQDN format (same rules as Designer)
+    const fqdnRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
+    if (!fqdnRegex.test(fqdn)) {
+        if (errEl) { errEl.textContent = '\u26A0 Invalid FQDN format. Use a host FQDN (e.g. mgmt.contoso.com).'; errEl.style.display = 'block'; }
+        return;
+    }
+    const labels = fqdn.toLowerCase().split('.');
+    if (labels.length < 3) {
+        if (errEl) { errEl.textContent = '\u26A0 Root domains (e.g. contoso.com) are not supported. Use a host FQDN.'; errEl.style.display = 'block'; }
+        return;
+    }
+    if (labels[labels.length - 1] === 'local') {
+        if (errEl) { errEl.textContent = '\u26A0 .local domains are not supported for disconnected operations.'; errEl.style.display = 'block'; }
+        return;
+    }
+
+    // Valid
+    if (succEl) succEl.style.display = 'block';
+    if (btn) btn.disabled = false;
+}
+
+function confirmAldoFqdnAndConfigure() {
+    const input = document.getElementById('aldo-fqdn-input');
+    if (!input) return;
+    const fqdn = input.value.trim();
+    if (!fqdn) return;
+
+    closeAldoFqdnModal();
+
+    // Show region picker next — the region is still needed for the management cluster
+    // Pass FQDN through a temporary variable
+    window._aldoPendingFqdn = fqdn;
+
+    const modal = document.getElementById('region-picker-modal');
+    const overlay = document.getElementById('region-modal-overlay');
+    if (modal && overlay) {
+        const commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
+        if (commercialRadio) commercialRadio.checked = true;
+        updateRegionOptions();
+        modal.classList.add('active');
+        overlay.classList.add('active');
+    }
+}
+
 // Close the region picker modal
 function closeRegionModal() {
     const modal = document.getElementById('region-picker-modal');
@@ -3673,10 +3770,21 @@ function selectRegionAndConfigure(region, cloud) {
     const resiliency = document.getElementById('resiliency').value;
     const hwConfig = getHardwareConfig();
 
+    // ALDO Management Cluster: set disconnected scenario + management cluster role
+    const isAldo = clusterType === 'aldo-mgmt';
+    const aldoFqdn = window._aldoPendingFqdn || null;
+    if (isAldo) delete window._aldoPendingFqdn;
+
     // Build the sizer-to-designer payload
     const sizerPayload = {
         source: 'sizer',
         timestamp: new Date().toISOString(),
+        // Scenario: disconnected for ALDO, hyperconverged for others
+        scenario: isAldo ? 'disconnected' : 'hyperconverged',
+        // ALDO-specific fields
+        clusterRole: isAldo ? 'management' : undefined,
+        autonomousCloudFqdn: aldoFqdn || undefined,
+        fqdnConfirmed: aldoFqdn ? true : undefined,
         // Region selected by user
         cloud: cloud,
         region: region,

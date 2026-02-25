@@ -28,9 +28,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       
       - name: Install ESLint
-        run: npm install eslint@8
+        run: |
+          for i in 1 2 3 4 5; do
+            npm install eslint@8 && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
       
       - name: Run ESLint on JS modules
         run: npx eslint js/*.js --format stylish
@@ -89,9 +95,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       
       - name: Install html-validate
-        run: npm install html-validate
+        run: |
+          for i in 1 2 3 4 5; do
+            npm install html-validate && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
       
       - name: Validate HTML files
         run: npx html-validate index.html arm/arm.html report/report.html sizer/index.html --formatter stylish

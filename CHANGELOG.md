@@ -71,6 +71,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Sizer: Tiered Storage Detection
 - **Disk Size Badge Fix**: Fixed MANUAL badge not appearing on Capacity per Disk for all-flash storage configurations — the tiered storage detection was incorrectly matching all-flash values like `nvme-capacity` as tiered; replaced with proper `_isTieredStorage()` helper that checks the `isTiered` property from storage tiering options
 
+#### Sizer: ALDO Configure in Designer Fix
+- **Disconnected Scenario**: "Configure in Designer" for ALDO Management Cluster now correctly selects the Disconnected scenario with Management Cluster role — previously defaulted to Hyperconverged
+- **FQDN Prompt**: ALDO users are prompted for their Autonomous Cloud FQDN before navigating to the Designer, ensuring the FQDN and cluster role are pre-populated
+
+#### Sizer: ALDO Analytics Tracking
+- **Usage Tracking**: Selecting ALDO Management Cluster now increments the Sizer analytics counter, matching the tracking behavior of workload additions
+
 #### CI: ESLint Fixes
 - **Global Declaration**: Added `selectDisconnectedOption` to ESLint globals to resolve `no-undef` error in CI
 - **Indentation Fix**: Re-indented `loadTemplate()` try-block from 4-space to 8-space to match surrounding code style
