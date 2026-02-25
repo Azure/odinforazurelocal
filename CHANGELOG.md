@@ -16,7 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed Node Count**: ALDO Management Cluster is locked to exactly 3 nodes with the node count dropdown disabled
 - **All-Flash Storage**: Storage type is automatically set to all-flash when ALDO Management Cluster is selected
 - **Three-Way Mirror Only**: Resiliency is locked to three-way mirror for ALDO Management Cluster (two-way mirror option removed)
-- **Custom Sizing Notes**: Custom sizing note explaining the ALDO Management Cluster fixed infrastructure requirements
+- **Minimum Hardware Enforcement**: Automatically enforces documented ALDO minimums — 96 GB memory, 24 physical cores, and 2 TB SSD/NVMe storage per node when ALDO cluster type is selected
+- **Appliance VM Overhead**: Reserves 64 GB memory per node (192 GB total) for the disconnected operations appliance VM — deducted from available workload memory in capacity bars and auto-scaling calculations
+- **Boot Disk Recommendation**: Sizing notes recommend 960 GB SSD/NVMe boot disk per node to reduce deployment complexity
+- **Custom Sizing Notes**: Expanded sizing notes with minimum hardware specs, appliance reservation breakdown, and boot disk guidance
 
 ### Changed
 

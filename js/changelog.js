@@ -36,7 +36,9 @@ function showChangelog() {
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>New Cluster Type:</strong> Added "ALDO Management Cluster" to the Sizer — a fixed 3-node, all-flash configuration with three-way mirror resiliency.</li>
                         <li><strong>Fixed Infrastructure:</strong> Node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror only.</li>
-                        <li><strong>Custom Sizing Notes:</strong> Dedicated sizing note explaining the ALDO Management Cluster fixed infrastructure requirements.</li>
+                        <li><strong>Minimum Hardware:</strong> Automatically enforces ALDO minimums — 96 GB memory, 24 physical cores, and 2 TB SSD/NVMe storage per node.</li>
+                        <li><strong>Appliance Overhead:</strong> Reserves 64 GB memory per node (192 GB total) for the disconnected operations appliance VM — deducted from available workload capacity.</li>
+                        <li><strong>Boot Disk:</strong> Sizing notes recommend 960 GB SSD/NVMe boot disk per node.</li>
                     </ul>
                     <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🔒 Sizer: Three-Way Mirror for 3+ Nodes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
