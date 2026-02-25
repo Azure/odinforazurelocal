@@ -330,9 +330,13 @@ function onCpuConfigChange() {
     onHardwareConfigChange();
 }
 
-// Dedicated handler for capacity disk dropdowns — locks disk config against auto-scaling
-function onDiskConfigChange() {
-    _diskConfigUserSet = true;
+// Dedicated handlers for capacity disk dropdowns — lock only the specific field against auto-scaling
+function onDiskSizeChange() {
+    _diskSizeUserSet = true;
+    onHardwareConfigChange();
+}
+function onDiskCountChange() {
+    _diskCountUserSet = true;
     onHardwareConfigChange();
 }
 
@@ -682,8 +686,10 @@ let _memoryUserSet = false;
 // Track whether the user manually set CPU cores or sockets (prevents CPU auto-scaling from overriding)
 let _cpuConfigUserSet = false;
 
-// Track whether the user manually set disk count/size (prevents disk auto-scaling from overriding)
-let _diskConfigUserSet = false;
+// Track whether the user manually set disk size or disk count (independently)
+// Only the specific field the user touched is locked; the other remains auto-scalable.
+let _diskSizeUserSet = false;
+let _diskCountUserSet = false;
 
 // Track disk bay consolidation details for sizing notes
 let _diskConsolidationInfo = null;
@@ -971,9 +977,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Always reset consolidation info — even when user locked disk config
     _diskConsolidationInfo = null;
 
-    // Skip disk count/size auto-scaling when the user has manually set the disk configuration.
-    // The user can still see capacity bars and warnings; we just don't override their choice.
-    if (diskSizeGB > 0 && !_diskConfigUserSet) {
+    // Disk auto-scaling: size and count are independently lockable.
+    // When user manually sets disk size, count can still be auto-scaled (and vice versa).
+    // Disk bay consolidation (changes both) only runs when neither is locked.
+    if (diskSizeGB > 0 && (!_diskSizeUserSet || !_diskCountUserSet)) {
         const disksNeeded = Math.ceil(rawPerNodeNeededGB / diskSizeGB);
         const diskCountInput = document.getElementById(diskCountId);
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
@@ -988,11 +995,12 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // free for future expansion. Evaluate all larger standard sizes and pick
         // the smallest one that brings disk count below the 50% threshold; if none
         // can, pick the one that saves the most bays.
+        // Only runs when BOTH size and count are auto-managed (consolidation changes both).
         const DISK_BAY_CONSOLIDATION_THRESHOLD = 0.5; // 50% of max bays
         let consolidatedDiskSize = diskSizeGB;
         let consolidatedDiskSizeTB = diskSizeTB;
         const bayThreshold = Math.ceil(maxDisksForType * DISK_BAY_CONSOLIDATION_THRESHOLD);
-        if (targetDisks >= bayThreshold) {
+        if (!_diskSizeUserSet && !_diskCountUserSet && targetDisks >= bayThreshold) {
             // Collect all standard sizes larger than current
             const largerSizes = DISK_SIZE_OPTIONS_TB.filter(s => s * 1024 > diskSizeGB);
             let bestCandidate = null;
@@ -1033,41 +1041,45 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             }
         }
 
-        // Always set disk count to the computed value (bidirectional).
-        // Previous code only increased, which caused stale counts to persist
-        // after auto-save/restore or workload reduction.
-        if (!_diskConsolidationInfo && targetDisks !== currentDiskCount) {
+        // Auto-scale disk count (when count is not user-locked).
+        // Recalculates based on current disk size — including when user increased size manually.
+        if (!_diskCountUserSet && !_diskConsolidationInfo && targetDisks !== currentDiskCount) {
             diskCountInput.value = targetDisks;
             changed = true;
+            markAutoScaled(diskCountId);
+        } else if (!_diskCountUserSet && previouslyAutoScaled && previouslyAutoScaled.has(diskCountId)) {
             markAutoScaled(diskCountId);
         }
 
         // --- Auto-scale disk size when disk count alone isn't enough ---
         // If we've maxed out disk count and per-node storage is still insufficient,
         // step up to the next standard disk size (3.84 → 7.68 → 15.36 TB)
-        const currentDiskCountFinal = parseInt(diskCountInput.value) || 4;
-        const currentDiskSizeGB = consolidatedDiskSize;
-        if (currentDiskCountFinal >= maxDisksForType) {
-            const currentStoragePerNodeGB = currentDiskCountFinal * currentDiskSizeGB;
-            if (currentStoragePerNodeGB < rawPerNodeNeededGB) {
-                const diskSizeSelect = document.getElementById(diskSizeId);
-                // Find the smallest standard size that provides enough per-node storage
-                for (const sizeTB of DISK_SIZE_OPTIONS_TB) {
-                    const candidateGB = sizeTB * 1024;
-                    if (candidateGB > currentDiskSizeGB && currentDiskCountFinal * candidateGB >= rawPerNodeNeededGB) {
-                        diskSizeSelect.value = sizeTB;
-                        changed = true;
-                        markAutoScaled(diskSizeId);
-                        break;
+        // Only when disk size is not user-locked.
+        if (!_diskSizeUserSet) {
+            const currentDiskCountFinal = parseInt(diskCountInput.value) || 4;
+            const currentDiskSizeGB = consolidatedDiskSize;
+            if (currentDiskCountFinal >= maxDisksForType) {
+                const currentStoragePerNodeGB = currentDiskCountFinal * currentDiskSizeGB;
+                if (currentStoragePerNodeGB < rawPerNodeNeededGB) {
+                    const diskSizeSelect = document.getElementById(diskSizeId);
+                    // Find the smallest standard size that provides enough per-node storage
+                    for (const sizeTB of DISK_SIZE_OPTIONS_TB) {
+                        const candidateGB = sizeTB * 1024;
+                        if (candidateGB > currentDiskSizeGB && currentDiskCountFinal * candidateGB >= rawPerNodeNeededGB) {
+                            diskSizeSelect.value = sizeTB;
+                            changed = true;
+                            markAutoScaled(diskSizeId);
+                            break;
+                        }
                     }
-                }
-                // If no standard size is big enough, set to max available
-                if (!changed || (currentDiskCountFinal * (parseFloat(document.getElementById(diskSizeId).value) * 1024)) < rawPerNodeNeededGB) {
-                    const maxSize = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1];
-                    if (maxSize * 1024 > currentDiskSizeGB) {
-                        diskSizeSelect.value = maxSize;
-                        changed = true;
-                        markAutoScaled(diskSizeId);
+                    // If no standard size is big enough, set to max available
+                    if (!changed || (currentDiskCountFinal * (parseFloat(document.getElementById(diskSizeId).value) * 1024)) < rawPerNodeNeededGB) {
+                        const maxSize = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1];
+                        if (maxSize * 1024 > currentDiskSizeGB) {
+                            diskSizeSelect.value = maxSize;
+                            changed = true;
+                            markAutoScaled(diskSizeId);
+                        }
                     }
                 }
             }
@@ -1219,8 +1231,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     }
 
     // Storage headroom — bump disk count first, then disk size, until below threshold
-    // Skip when the user has manually set disk config (respect user override).
-    if (!_diskConfigUserSet) {
+    // Each action respects its own user-lock flag independently.
+    if (!_diskCountUserSet || !_diskSizeUserSet) {
         const hrDiskCountInput = document.getElementById(diskCountId);
         const hrDiskSizeSelect = document.getElementById(diskSizeId);
         let hrDiskCount = parseInt(hrDiskCountInput.value) || 4;
@@ -1232,15 +1244,15 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         let storageSafety = 0;
         while (storagePct > HEADROOM_THRESHOLD && storageSafety < 30) {
             storageSafety++;
-            // Try increasing disk count first
+            // Try increasing disk count first (if not user-locked)
             const hrMaxDisks = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
-            if (hrDiskCount < hrMaxDisks) {
+            if (!_diskCountUserSet && hrDiskCount < hrMaxDisks) {
                 hrDiskCount++;
                 hrDiskCountInput.value = hrDiskCount;
                 changed = true;
                 markAutoScaled(diskCountId);
-            } else {
-                // Disk count maxed — try stepping up disk size
+            } else if (!_diskSizeUserSet) {
+                // Disk count maxed or user-locked — try stepping up disk size
                 const nextSize = DISK_SIZE_OPTIONS_TB.find(s => s * 1024 > hrDiskSizeGB);
                 if (nextSize) {
                     hrDiskSizeTB = nextSize;
@@ -1249,8 +1261,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                     changed = true;
                     markAutoScaled(diskSizeId);
                 } else {
-                    break; // maxed out on both disk count and disk size
+                    break; // maxed out on available disk size options
                 }
+            } else {
+                break; // both dimensions are user-locked or maxed
             }
             storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
             storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
@@ -2222,7 +2236,8 @@ function addWorkload() {
     _vcpuRatioUserSet = false;
     _memoryUserSet = false;
     _cpuConfigUserSet = false;
-    _diskConfigUserSet = false;
+    _diskSizeUserSet = false;
+    _diskCountUserSet = false;
     calculateRequirements();
 }
 
@@ -2301,7 +2316,8 @@ function deleteWorkload(id) {
     _vcpuRatioUserSet = false;
     _memoryUserSet = false;
     _cpuConfigUserSet = false;
-    _diskConfigUserSet = false;
+    _diskSizeUserSet = false;
+    _diskCountUserSet = false;
     calculateRequirements();
 }
 
@@ -2317,7 +2333,8 @@ function cloneWorkload(id) {
     _vcpuRatioUserSet = false;
     _memoryUserSet = false;
     _cpuConfigUserSet = false;
-    _diskConfigUserSet = false;
+    _diskSizeUserSet = false;
+    _diskCountUserSet = false;
     calculateRequirements();
 }
 
@@ -3512,7 +3529,8 @@ function resetScenario() {
     _vcpuRatioUserSet = false;
     _memoryUserSet = false;
     _cpuConfigUserSet = false;
-    _diskConfigUserSet = false;
+    _diskSizeUserSet = false;
+    _diskCountUserSet = false;
     
     // Reset hardware config
     document.getElementById('cpu-manufacturer').value = 'intel';
