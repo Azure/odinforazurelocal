@@ -4586,12 +4586,10 @@ function updateUI() {
                 state.infraVlanId = null;
 
                 // Disable intent cards.
-                if (cards && cards.intent) {
-                    Object.values(cards.intent).forEach(c => {
-                        c.classList.add('disabled');
-                        c.classList.remove('selected');
-                    });
-                }
+                Object.values(cards.intent).forEach(c => {
+                    c.classList.add('disabled');
+                    c.classList.remove('selected');
+                });
             }
         } catch (e) {
             // ignore
@@ -4612,12 +4610,10 @@ function updateUI() {
             state.infraVlanId = null;
 
             // Disable intent cards.
-            if (cards && cards.intent) {
-                Object.values(cards.intent).forEach(c => {
-                    c.classList.add('disabled');
-                    c.classList.remove('selected');
-                });
-            }
+            Object.values(cards.intent).forEach(c => {
+                c.classList.add('disabled');
+                c.classList.remove('selected');
+            });
         }
     } else {
         portsExp.classList.remove('visible');
