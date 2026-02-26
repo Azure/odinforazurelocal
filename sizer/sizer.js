@@ -6,6 +6,8 @@
 const SIZER_STATE_KEY = 'odinSizerState';
 const SIZER_TIMESTAMP_KEY = 'odinSizerTimestamp';
 const SIZER_VERSION = 1;
+const DEFAULT_PHYSICAL_CORES_PER_NODE = 64; // Fallback when totalPhysicalCores is not specified in hwConfig
+const DEFAULT_RAW_TB_PER_NODE = 10;         // Fallback raw storage per node (TB) when disk config is not specified
 
 // Initialize and track page view for analytics
 if (typeof initializeAnalytics === 'function') {
@@ -2794,13 +2796,13 @@ function calculateRequirements(options) {
                 while (nodeCount < maxNodeOption && attempts < 16) {
                     attempts++;
                     const effNodes = nodeCount > 1 ? nodeCount - 1 : 1;
-                    const vcpuToCore = getVcpuRatio();                    const physCores = hwConfig.totalPhysicalCores || 64;
+                    const vcpuToCore = getVcpuRatio();                    const physCores = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
                     const memPerNode = hwConfig.memoryGB || 512;
                     let rawGBPerNode = 0;
                     if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
                         rawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
                     }
-                    const rawTBPerNode = rawGBPerNode / 1024 || 10;
+                    const rawTBPerNode = (rawGBPerNode / 1024) || DEFAULT_RAW_TB_PER_NODE;
 
                     const availVcpus = physCores * effNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
                     const hostOverheadMemoryGBLoop = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
@@ -2911,13 +2913,13 @@ function calculateRequirements(options) {
                         // Check utilisation at the reduced node count
                         const dEffNodes = nodeCount > 1 ? nodeCount - 1 : 1;
                         const dVcpuToCore = getVcpuRatio();
-                        const dPhysCores = hwConfig.totalPhysicalCores || 64;
+                        const dPhysCores = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
                         const dMemPerNode = hwConfig.memoryGB || 512;
                         let dRawGBPerNode = 0;
                         if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
                             dRawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
                         }
-                        const dRawTBPerNode = dRawGBPerNode / 1024 || 10;
+                        const dRawTBPerNode = dRawGBPerNode / 1024 || DEFAULT_RAW_TB_PER_NODE;
 
                         const dAvailVcpus = dPhysCores * dEffNodes * dVcpuToCore - ARB_VCPU_OVERHEAD;
                         const dHostOverhead = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
@@ -3031,14 +3033,14 @@ function calculateRequirements(options) {
         document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
 
-        const physicalCoresPerNode = hwConfig.totalPhysicalCores || 64;
+        const physicalCoresPerNode = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
         const memoryPerNode = hwConfig.memoryGB || 512;
 
         let rawStoragePerNodeGB = 0;
         if (hwConfig.diskConfig.capacity) {
             rawStoragePerNodeGB = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
         }
-        const rawStoragePerNodeTB = rawStoragePerNodeGB / 1024 || 10;
+        const rawStoragePerNodeTB = rawStoragePerNodeGB / 1024 || DEFAULT_RAW_TB_PER_NODE;
 
         const totalAvailableVcpus = physicalCoresPerNode * effectiveNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
         const hostOverheadGB = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0); // Azure Local host OS + management overhead per node (+ ALDO appliance)

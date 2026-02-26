@@ -240,7 +240,9 @@ function removeCells(content, idsToRemove) {
 function setCellValue(content, cellId, newValue) {
     const escaped = cellId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     const regex = new RegExp(`(id="${escaped}"[^>]*\\bvalue=")([^"]*)(")`, 'g');
-    return content.replace(regex, `$1${newValue}$3`);
+    return content.replace(regex, function (match, prefix, _oldValue, suffix) {
+        return prefix + newValue + suffix;
+    });
 }
 
 /**

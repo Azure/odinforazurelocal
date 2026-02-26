@@ -225,6 +225,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let currentImageSrc = '';
 
+    // Simple URL validation to prevent loading unsafe protocols
+    function isSafeImageSrc(src) {
+        if (!src || typeof src !== 'string') return false;
+        var trimmed = src.trim();
+        // Allow common relative URL patterns
+        if (
+            trimmed.startsWith('/') ||
+            trimmed.startsWith('./') ||
+            trimmed.startsWith('../') ||
+            !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)
+        ) {
+            return true;
+        }
+        // For absolute URLs, only allow http and https
+        try {
+            var url = new URL(trimmed, window.location.origin);
+            var protocol = url.protocol.toLowerCase();
+            return protocol === 'http:' || protocol === 'https:';
+        } catch (e) {
+            return false;
+        }
+    }
+
     // Close modal function
     function closeModal() {
         modal.style.display = 'none';
@@ -235,6 +258,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Open modal function
     function openModal(imgSrc, imgAlt) {
+        if (!isSafeImageSrc(imgSrc)) {
+            console.error('Blocked unsafe image source for modal:', imgSrc);
+            return;
+        }
         currentImageSrc = imgSrc;
         modalTitle.textContent = imgAlt || 'Diagram';
         
