@@ -126,9 +126,9 @@ const MGMT_NODE1 = '5';
 const MGMT_NODE2 = 'JwsQfcPdxONgqVIScywy-89';
 const MGMT_NODE3 = 'JwsQfcPdxONgqVIScywy-100';
 const MGMT_BG = 'JwsQfcPdxONgqVIScywy-218';
-const MGMT_STORAGE_CONTAINER = 'zp-9drkoqEdSkVLqGhjB-19';
-const MGMT_STORAGE_LABEL = 'zp-9drkoqEdSkVLqGhjB-20';
-const MGMT_STORAGE_PORT1 = 'zp-9drkoqEdSkVLqGhjB-22'; // Slot-1-Port-1
+const MGMT_STORAGE_CONTAINER = 'zp-9drkoqEdSkVLqGhjB-19'; // Management cluster node1 storage container
+const MGMT_STORAGE_LABEL = 'zp-9drkoqEdSkVLqGhjB-20';    // Management cluster node1 storage label
+const MGMT_STORAGE_PORT1 = 'zp-9drkoqEdSkVLqGhjB-22';    // Management cluster node1 Slot-1-Port-1
 
 // Storage port geometry constants (from existing diagram)
 const PORT_WIDTH = 56.76;
@@ -138,6 +138,16 @@ const PORT_RIGHT_X = 74.89;
 const PORT_ROW1_Y = 28.86;
 const PORT_ROW_SPACING = 34.4;
 const PORT_STYLE = 'rounded=1;whiteSpace=wrap;html=1;fillColor=#5B3ABF;strokeColor=none;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=15;align=center;verticalAlign=middle;fontFamily=Helvetica;';
+
+/**
+ * Return the number of extra storage port rows needed for a switchless node count.
+ * 2-node: 0 (existing 2 ports suffice), 3-node: 1 (Slot-2), 4-node: 2 (Slot-2 + Slot-3).
+ */
+function getExtraRows(nodeCount) {
+    if (nodeCount <= 2) return 0;
+    if (nodeCount === 3) return 1;
+    return 2;
+}
 
 function getArchType(filename) {
     if (filename.includes('fullyconverged')) return 'fullyconverged';
@@ -329,7 +339,7 @@ function setPageHeight(content, height) {
 function adjustStoragePorts(content, nodeCount) {
     if (nodeCount === 2) return content; // Already has 2 ports
 
-    const extraRows = nodeCount === 3 ? 1 : 2; // 1 extra row for 3-node, 2 for 4-node
+    const extraRows = getExtraRows(nodeCount);
     const extraHeight = extraRows * PORT_ROW_SPACING;
 
     // 1. Increase storage container height
@@ -407,7 +417,7 @@ function adjustStoragePorts(content, nodeCount) {
  * - Add a switchless note label below the mgmt cluster nodes
  */
 function adjustMgmtClusterSwitchless(content) {
-    const extraRows = 1; // 3-node = 1 extra row (Slot-2)
+    const extraRows = getExtraRows(3); // mgmt cluster is always 3-node
     const extraHeight = extraRows * PORT_ROW_SPACING;
 
     // 1. Increase mgmt storage container height
@@ -539,14 +549,7 @@ function generateSwitchlessDiagram(sourceFile, nodeCount) {
     // Base: node4/back node bottom is at y=247.26 + height.
     // Original back node: y=247.26, h=220 → bottom=467.26
     // Each extra row of storage ports adds PORT_ROW_SPACING to height.
-    let extraRows;
-    if (nodeCount === 3) {
-        extraRows = 1;
-    } else if (nodeCount === 4) {
-        extraRows = 2;
-    } else {
-        extraRows = 0;
-    }
+    const extraRows = getExtraRows(nodeCount);
     const extraH = extraRows * PORT_ROW_SPACING;
     // Bottom of deepest node by node count:
     // 2-node: node2 at y=217.26, h=225 → bottom=442.26 (no port growth)
