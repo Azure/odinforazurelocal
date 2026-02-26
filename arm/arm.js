@@ -481,11 +481,21 @@ function deployToAzure() {
     var templateUrl = ref.url;
     
     // Only perform GitHub URL conversion if it matches the expected format
-    if (templateUrl && templateUrl.indexOf('github.com') !== -1 && templateUrl.indexOf('/blob/') !== -1) {
+    // Use URL parsing for strict hostname validation to prevent spoofed domains
+    var isGitHub = false;
+    var isRawGitHub = false;
+    try {
+        var parsedUrl = new URL(templateUrl);
+        isGitHub = parsedUrl.hostname === 'github.com';
+        isRawGitHub = parsedUrl.hostname === 'raw.githubusercontent.com';
+    } catch (e) {
+        // templateUrl is not a valid URL — skip conversion
+    }
+    if (isGitHub && templateUrl.indexOf('/blob/') !== -1) {
         templateUrl = templateUrl
             .replace('github.com', 'raw.githubusercontent.com')
             .replace('/blob/', '/');
-    } else if (templateUrl && templateUrl.indexOf('raw.githubusercontent.com') === -1 && templateUrl.indexOf('github.com') !== -1) {
+    } else if (!isRawGitHub && isGitHub) {
         // GitHub URL without /blob/ - may be an invalid format, warn user
         console.warn('GitHub URL format may not be supported for raw conversion:', templateUrl);
     }

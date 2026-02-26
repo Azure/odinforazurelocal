@@ -8409,8 +8409,8 @@ function checkForSizerImport() {
         banner.innerHTML = `
             <div style="flex: 1;">
                 <div style="font-weight: 700; margin-bottom: 4px;">Sizer Configuration Imported</div>
-                <div style="font-size: 12px; opacity: 0.9;">${details}</div>
-                <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">📍 Azure region: ${regionLabel}</div>
+                <div style="font-size: 12px; opacity: 0.9;">${escapeHtml(details)}</div>
+                <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">📍 Azure region: ${escapeHtml(regionLabel)}</div>
             </div>
             <button onclick="this.parentElement.remove()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Dismiss</button>
         `;

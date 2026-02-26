@@ -1568,8 +1568,8 @@
             md.push('|--------|-------|---------|');
             allChecks.forEach(function (v) {
                 var mark = v.passed ? '✅' : '⚠️';
-                var details = v.details ? v.details.replace(/\|/g, '\\|') : '';
-                var name = v.name ? v.name.replace(/\|/g, '\\|') : '';
+                var details = v.details ? v.details.replace(/\|/g, function() { return '\\|'; }) : '';
+                var name = v.name ? v.name.replace(/\|/g, function() { return '\\|'; }) : '';
                 md.push('| ' + mark + ' | ' + name + ' | ' + details + ' |');
             });
             md.push('');

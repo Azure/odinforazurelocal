@@ -236,13 +236,27 @@ document.addEventListener('DOMContentLoaded', function() {
         currentImageSrc = imgSrc;
         modalTitle.textContent = imgAlt || 'Diagram';
         
-        // Use object tag for SVG to allow proper scaling
+        // Clear previous content
+        modalImageWrapper.innerHTML = '';
+        
+        // Use DOM APIs instead of innerHTML to prevent XSS from DOM-sourced values
         if (imgSrc.toLowerCase().endsWith('.svg') || imgSrc.toLowerCase().includes('.svg?')) {
-            modalImageWrapper.innerHTML = `<object type="image/svg+xml" data="${imgSrc}" style="width: 100%; height: 100%;">
-                <img src="${imgSrc}" alt="${imgAlt || 'Diagram'}" style="max-width: 100%; max-height: 100%;">
-            </object>`;
+            var obj = document.createElement('object');
+            obj.type = 'image/svg+xml';
+            obj.data = imgSrc;
+            obj.style.cssText = 'width: 100%; height: 100%;';
+            var fallbackImg = document.createElement('img');
+            fallbackImg.src = imgSrc;
+            fallbackImg.alt = imgAlt || 'Diagram';
+            fallbackImg.style.cssText = 'max-width: 100%; max-height: 100%;';
+            obj.appendChild(fallbackImg);
+            modalImageWrapper.appendChild(obj);
         } else {
-            modalImageWrapper.innerHTML = `<img src="${imgSrc}" alt="${imgAlt || 'Diagram'}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+            var img = document.createElement('img');
+            img.src = imgSrc;
+            img.alt = imgAlt || 'Diagram';
+            img.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain;';
+            modalImageWrapper.appendChild(img);
         }
         
         modal.style.display = 'flex';
