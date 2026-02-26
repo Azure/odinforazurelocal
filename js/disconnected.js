@@ -325,7 +325,7 @@
         const errors = validateApplianceIps(ip1, ip2, requireInfraSubnet);
         if (errors.length > 0) {
             if (errEl) {
-                errEl.innerHTML = errors.map(function(e) { return '\u26A0 ' + e; }).join('<br>');
+                errEl.innerHTML = errors.map(function(e) { return '\u26A0 ' + (typeof escapeHtml === 'function' ? escapeHtml(e) : e); }).join('<br>');
                 errEl.classList.remove('hidden');
                 errEl.classList.add('visible');
             }

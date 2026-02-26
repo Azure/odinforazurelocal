@@ -160,14 +160,14 @@
                 passCount++;
                 testCase.classList.add('pass');
                 testCase.innerHTML = `
-                    <span>${testName}</span>
+                    <span>${escapeHtml(testName)}</span>
                     <span class="test-status pass">✓ PASS</span>
                 `;
             } else {
                 failCount++;
                 testCase.classList.add('fail');
                 testCase.innerHTML = `
-                    <span>${testName}<br><small style="color:#f87171;">Expected: ${expected}, Got: ${actual}</small></span>
+                    <span>${escapeHtml(testName)}<br><small style="color:#f87171;">Expected: ${escapeHtml(String(expected))}, Got: ${escapeHtml(String(actual))}</small></span>
                     <span class="test-status fail">✗ FAIL</span>
                 `;
             }
@@ -179,7 +179,7 @@
             currentSuite = `${name} (${moduleName})`;
             const suite = document.createElement('div');
             suite.className = 'test-suite';
-            suite.innerHTML = `<h2>${name} <span class="module-badge">${moduleName}</span></h2>`;
+            suite.innerHTML = `<h2>${escapeHtml(name)} <span class="module-badge">${escapeHtml(moduleName)}</span></h2>`;
             
             tests.forEach(test => {
                 if (test) suite.appendChild(test);

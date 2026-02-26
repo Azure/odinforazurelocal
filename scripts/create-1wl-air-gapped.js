@@ -164,9 +164,7 @@ for (let i = 0; i < lines.length; i++) {
     if (line.includes('x="1380"')) {
         line = line.replace('x="1380"', 'x="1010"');
     }
-    if (line.includes('x="838"')) {
-        line = line.replace('x="838"', 'x="838"'); // keep this one, it's WL1's position
-    }
+    // x="838" kept as-is — it's WL1's position, no transformation needed
 
     // Title adjustment: update width of title cell that may be too wide
     if (line.includes('id="heOv2aa4RVyxCJM62_e7-10"')) {
