@@ -1682,6 +1682,9 @@ function dismissSizerResumeBanner() {
 let workloads = [];
 let workloadIdCounter = 0;
 
+// Cached reference to #empty-state element (survives innerHTML replacement)
+let _emptyStateEl = null;
+
 // Default workload configurations
 const WORKLOAD_DEFAULTS = {
     vm: {
@@ -2512,12 +2515,17 @@ function cloneWorkload(id) {
 // Render workloads list
 function renderWorkloads() {
     const container = document.getElementById('workloads-list');
-    const emptyState = document.getElementById('empty-state');
+    // Use cached reference — getElementById returns null after innerHTML replacement
+    if (!_emptyStateEl) {
+        _emptyStateEl = document.getElementById('empty-state');
+    }
     
     if (workloads.length === 0) {
         container.innerHTML = '';
-        container.appendChild(emptyState);
-        emptyState.style.display = 'flex';
+        if (_emptyStateEl) {
+            container.appendChild(_emptyStateEl);
+            _emptyStateEl.style.display = 'flex';
+        }
         return;
     }
     
