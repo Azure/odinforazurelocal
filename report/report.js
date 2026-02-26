@@ -1100,7 +1100,7 @@
         md.push('| Field | Value |');
         md.push('|-------|-------|');
         md.push('| Generated | ' + (new Date().toLocaleString()) + ' |');
-        md.push('| Scenario | ' + (formatScenario(s.scenario, s) || '-') + ' |');
+        md.push('| Scenario | ' + formatScenario(s.scenario, s) + ' |');
         md.push('');
 
         // Scenario & Scale
@@ -3117,7 +3117,6 @@
                 var buckets = {};
                 for (var i = 1; i <= p; i++) {
                     var assignment = (customIntents && customIntents[i]) ? String(customIntents[i]) : 'unused';
-                    if (!assignment) assignment = 'unused';
                     if (assignment === 'unused') continue;
                     if (!buckets[assignment]) buckets[assignment] = [];
                     buckets[assignment].push(i);

@@ -178,7 +178,7 @@
             if (s === 'azure_government') return 'Azure Government';
             if (s === 'azure_commercial') return 'Azure Commercial';
             if (s === 'azure_china') return 'Azure China';
-            return s || '';
+            return s;
         }
 
         metaEl.innerHTML = ''
