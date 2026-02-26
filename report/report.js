@@ -62,8 +62,8 @@
         // Disconnected Operations diagrams
         'disconnected_fullyconverged_limited': '../docs/disconnected-operations/aldo-fullyconverged-limited-connectivity.svg',
         'disconnected_fullyconverged_airgapped': '../docs/disconnected-operations/aldo-fullyconverged-air-gapped.svg',
-        'disconnected_disaggregated_limited': '../docs/disconnected-operations/aldo-dissaggregated-limited-connectivity.svg',
-        'disconnected_disaggregated_airgapped': '../docs/disconnected-operations/aldo-dissaggregated-air-gapped.svg',
+        'disconnected_disaggregated_limited': '../docs/disconnected-operations/aldo-disaggregated-limited-connectivity.svg',
+        'disconnected_disaggregated_airgapped': '../docs/disconnected-operations/aldo-disaggregated-air-gapped.svg',
         'disconnected_compute_storage_limited': '../docs/disconnected-operations/aldo-compute-storage-limited-connectivity.svg',
         'disconnected_compute_storage_airgapped': '../docs/disconnected-operations/aldo-compute-storage-air-gapped.svg',
         'disconnected_4intent_limited': '../docs/disconnected-operations/aldo-4intent-limited-connectivity.svg',
@@ -98,8 +98,8 @@
     var OUTBOUND_DRAWIO = {
         'disconnected_fullyconverged_limited': '../docs/disconnected-operations/ALDO-fullyconverged-Limited-Connectivity.drawio',
         'disconnected_fullyconverged_airgapped': '../docs/disconnected-operations/ALDO-fullyconverged-Air-Gapped.drawio',
-        'disconnected_disaggregated_limited': '../docs/disconnected-operations/ALDO-dissaggregated-Limited-Connectivity.drawio',
-        'disconnected_disaggregated_airgapped': '../docs/disconnected-operations/ALDO-dissaggregated-Air-Gapped.drawio',
+        'disconnected_disaggregated_limited': '../docs/disconnected-operations/ALDO-disaggregated-Limited-Connectivity.drawio',
+        'disconnected_disaggregated_airgapped': '../docs/disconnected-operations/ALDO-disaggregated-Air-Gapped.drawio',
         'disconnected_compute_storage_limited': '../docs/disconnected-operations/ALDO-compute-storage-Limited-Connectivity.drawio',
         'disconnected_compute_storage_airgapped': '../docs/disconnected-operations/ALDO-compute-storage-Air-Gapped.drawio',
         'disconnected_4intent_limited': '../docs/disconnected-operations/ALDO-4intent-Limited-Connectivity.drawio',
@@ -3116,7 +3116,7 @@
 
                 var buckets = {};
                 for (var i = 1; i <= p; i++) {
-                    var assignment = (customIntents && customIntents[i]) ? String(customIntents[i]) : 'unused';
+                    var assignment = customIntents[i] ? String(customIntents[i]) : 'unused';
                     if (assignment === 'unused') continue;
                     if (!buckets[assignment]) buckets[assignment] = [];
                     buckets[assignment].push(i);

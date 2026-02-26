@@ -86,7 +86,7 @@ const CLUSTER2_ARCH_IDS = {
         'zp-9drkoqEdSkVLqGhjB-30',
         'zp-9drkoqEdSkVLqGhjB-31',
     ],
-    dissaggregated: [
+    disaggregated: [
         '5rdFPu6zPOaKkkA2_qyP-20',
         '5rdFPu6zPOaKkkA2_qyP-21',
         '5rdFPu6zPOaKkkA2_qyP-22',
@@ -141,7 +141,7 @@ const PORT_STYLE = 'rounded=1;whiteSpace=wrap;html=1;fillColor=#5B3ABF;strokeCol
 
 function getArchType(filename) {
     if (filename.includes('fullyconverged')) return 'fullyconverged';
-    if (filename.includes('dissaggregated')) return 'dissaggregated';
+    if (filename.includes('disaggregated')) return 'disaggregated';
     if (filename.includes('mgmt-compute')) return 'mgmt-compute';
     throw new Error(`Unknown architecture type in: ${filename}`);
 }
@@ -155,7 +155,7 @@ function getOutboundType(filename) {
 function getIntentLabel(archType) {
     switch (archType) {
         case 'fullyconverged': return 'fully converged';
-        case 'dissaggregated': return 'disaggregated';
+        case 'disaggregated': return 'disaggregated';
         case 'mgmt-compute': return 'management + compute';
     }
 }
@@ -541,7 +541,14 @@ function generateSwitchlessDiagram(sourceFile, nodeCount) {
     // Base: node4/back node bottom is at y=247.26 + height.
     // Original back node: y=247.26, h=220 → bottom=467.26
     // Each extra row of storage ports adds PORT_ROW_SPACING to height.
-    const extraRows = nodeCount === 3 ? 1 : nodeCount === 4 ? 2 : 0;
+    let extraRows;
+    if (nodeCount === 3) {
+        extraRows = 1;
+    } else if (nodeCount === 4) {
+        extraRows = 2;
+    } else {
+        extraRows = 0;
+    }
     const extraH = extraRows * PORT_ROW_SPACING;
     // Bottom of deepest node by node count:
     // 2-node: node2 at y=217.26, h=225 → bottom=442.26 (no port growth)
@@ -587,12 +594,12 @@ function generateSwitchlessDiagram(sourceFile, nodeCount) {
 
     // 9. Generate output filename
     const outboundSuffix = outboundType === 'air-gapped' ? 'Air-Gapped' : 'Limited-Connectivity';
-    const outputFile = `ALDO-mgmt-compute-${nodeCount}node-switchless-${outboundSuffix}.drawio`;
+    const outputFileName = `ALDO-mgmt-compute-${nodeCount}node-switchless-${outboundSuffix}.drawio`;
 
     // Write output
-    fs.writeFileSync(path.join(SRC_DIR, outputFile), content, 'utf-8');
-    console.log(`  Created: ${outputFile}`);
-    return outputFile;
+    fs.writeFileSync(path.join(SRC_DIR, outputFileName), content, 'utf-8');
+    console.log(`  Created: ${outputFileName}`);
+    return outputFileName;
 }
 
 // Main
@@ -605,8 +612,8 @@ for (const sourceFile of SOURCE_FILES) {
     console.log(`Source: ${sourceFile} (${archType}, ${outboundType})`);
 
     for (const nodeCount of [2, 3, 4]) {
-        const outputFile = generateSwitchlessDiagram(sourceFile, nodeCount);
-        generatedFiles.push(outputFile);
+        const outputFileName = generateSwitchlessDiagram(sourceFile, nodeCount);
+        generatedFiles.push(outputFileName);
     }
     console.log('');
 }
