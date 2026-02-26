@@ -1,6 +1,12 @@
 // ============================================================================
 // DISCONNECTED OPERATIONS — Cluster Role Flow
 // ============================================================================
+
+// Regular expression for validating host FQDNs (RFC 1035-style):
+// - Labels start and end with alphanumeric characters.
+// - Inner characters may be alphanumeric or hyphens.
+// - At least one dot-separated label is required (enforced further below).
+const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
 // When user selects "Disconnected" in Step 1, a new D1 step appears asking
 // the cluster role:
 //
@@ -102,8 +108,7 @@
     // Helper: check if the current FQDN value is a valid format
     function isValidFqdn(fqdn) {
         if (!fqdn) return false;
-        const fqdnRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)+$/;
-        if (!fqdnRegex.test(fqdn)) return false;
+        if (!FQDN_VALIDATION_REGEX.test(fqdn)) return false;
 
         const labels = fqdn.toLowerCase().split('.');
 
@@ -342,6 +347,15 @@
         if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
     };
 
+    function calculateSubnetMask(prefix) {
+        // Compute IPv4 subnet mask as a 32-bit unsigned integer from CIDR prefix length.
+        // Example: prefix 24 -> 0xFFFFFF00 (255.255.255.0)
+        if (prefix === 0) return 0;
+        // Start from all 1s, shift left to create leading 1s followed by trailing 0s,
+        // then coerce to unsigned 32-bit integer.
+        return (~0 << (32 - prefix)) >>> 0;
+    }
+
     function validateApplianceIps(ip1, ip2, requireInfraSubnet) {
         const errors = [];
         const ipRegex = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
@@ -361,7 +375,7 @@
                 const networkIp = cidrParts[0];
                 const prefix = parseInt(cidrParts[1]);
                 const networkLong = ipToLong(networkIp);
-                const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
+                const mask = calculateSubnetMask(prefix);
                 const netStart = (networkLong & mask) >>> 0;
                 const netEnd = (netStart | (~mask >>> 0)) >>> 0;
 

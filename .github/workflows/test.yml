@@ -42,7 +42,7 @@ jobs:
         run: npx eslint js/*.js --format stylish
 
   test:
-    name: Unit Tests
+    name: ODIN Unit Tests
     runs-on: ubuntu-latest
     
     steps:
@@ -75,7 +75,7 @@ jobs:
           retention-days: 30
 
       - name: Publish JUnit Test Report
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: ODIN Unit Tests

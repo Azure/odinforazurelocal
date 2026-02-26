@@ -134,7 +134,12 @@
                 var encoded = hash.substring(idx + 5);
                 console.log('Encoded data length:', encoded.length);
                 encoded = decodeURIComponent(encoded);
-                var json = decodeURIComponent(escape(atob(encoded)));
+                var binary = atob(encoded);
+                var bytes = new Uint8Array(binary.length);
+                for (var i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                var json = new TextDecoder('utf-8').decode(bytes);
                 var parsed = JSON.parse(json);
                 console.log('Successfully parsed from hash:', parsed);
                 return parsed;
@@ -178,7 +183,7 @@
             if (s === 'azure_government') return 'Azure Government';
             if (s === 'azure_commercial') return 'Azure Commercial';
             if (s === 'azure_china') return 'Azure China';
-            return s || '';
+            return s;
         }
 
         metaEl.innerHTML = ''
@@ -493,8 +498,8 @@ function deployToAzure() {
     }
     if (isGitHub && templateUrl.indexOf('/blob/') !== -1) {
         templateUrl = templateUrl
-            .replace('github.com', 'raw.githubusercontent.com')
-            .replace('/blob/', '/');
+            .replace(/github\.com/g, 'raw.githubusercontent.com')
+            .replace(/\/blob\//g, '/');
     } else if (!isRawGitHub && isGitHub) {
         // GitHub URL without /blob/ - may be an invalid format, warn user
         console.warn('GitHub URL format may not be supported for raw conversion:', templateUrl);
@@ -848,7 +853,6 @@ function showNotification(message, type) {
         top: 20px;
         right: 20px;
         padding: 16px 24px;
-        background: ${bgColor};
         color: white;
         border-radius: 8px;
         font-weight: 600;
@@ -856,6 +860,7 @@ function showNotification(message, type) {
         animation: slideIn 0.3s ease-out;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     `;
+    notification.style.backgroundColor = bgColor;
     
     document.body.appendChild(notification);
     

@@ -7,8 +7,15 @@
 const fs = require('fs');
 const path = require('path');
 
-const srcFile = path.join(__dirname, '..', 'docs', 'disconnected-operations', 'ALDO-mgmt-compute-Air-Gapped.drawio');
-const dstFile = path.join(__dirname, '..', 'docs', 'disconnected-operations', 'ALDO-mgmt-compute-1wl-Air-Gapped.drawio');
+const defaultSrcFile = path.join(__dirname, '..', 'docs', 'disconnected-operations', 'ALDO-mgmt-compute-Air-Gapped.drawio');
+const defaultDstFile = path.join(__dirname, '..', 'docs', 'disconnected-operations', 'ALDO-mgmt-compute-1wl-Air-Gapped.drawio');
+
+const srcFile = process.env.SRC_FILE || process.argv[2] || defaultSrcFile;
+const dstFile = process.env.DST_FILE || process.argv[3] || defaultDstFile;
+
+// Horizontal offset (in draw.io units) applied to shift right-side router/internet
+// elements from their original x-range (~1360–1400) into the new canvas region (~990–1030).
+const RIGHT_SIDE_X_OFFSET = 370;
 
 const src = fs.readFileSync(srcFile, 'utf8');
 const lines = src.split('\n');
@@ -87,9 +94,6 @@ const rightSideIds = new Set([
     '8VQSKHo2EGNXFli9giS4-22',   // "Internet" label
 ]);
 
-// Edge from WL1 workload LNET to right router - needs points adjusted
-const wl1ToRouterEdge = '8VQSKHo2EGNXFli9giS4-24';
-
 // Process lines
 const result = [];
 let skipBlock = false;
@@ -147,16 +151,14 @@ for (let i = 0; i < lines.length; i++) {
     if (isRightSide) {
         // Shift x coordinates: ~1360-1400 → ~990-1030
         line = line.replace(/x="(1[3-4]\d{2}(?:\.\d+)?)"/, function(match, xVal) {
-            const newX = parseFloat(xVal) - 370;
+            const newX = parseFloat(xVal) - RIGHT_SIDE_X_OFFSET;
             return 'x="' + newX + '"';
         });
     }
 
-    // Adjust edge from WL1 workload LNET to right router - update target point
-    if (line.includes('id="' + wl1ToRouterEdge + '"')) {
-        // This edge has target entry point that references the router position
-        // The Array points need adjustment too
-    }
+    // Adjust edge from WL1 workload LNET to right router - update target point.
+    // This edge has a target entry point that references the router position.
+    // The mxPoint array points need adjustment too.
 
     // Handle mxPoint arrays inside WL1-to-router edge
     // The edge 8VQSKHo2EGNXFli9giS4-24 has points at x=838 and x=1380

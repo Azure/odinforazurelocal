@@ -93,23 +93,6 @@ function adjustCellHeight(content, cellId, delta) {
                 const newH = (parseFloat(hMatch[1]) + delta).toFixed(2);
                 lines[i] = lines[i].replace(/\bheight="[^"]*"/, `height="${newH}"`);
             }
-            foundCell = false;
-            break;
-        }
-    }
-    return lines.join('\n');
-}
-
-function setCellGeometry(content, cellId, props) {
-    const lines = content.split('\n');
-    let foundCell = false;
-    for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes(`id="${cellId}"`)) foundCell = true;
-        if (foundCell && lines[i].includes('<mxGeometry')) {
-            if (props.width !== undefined) lines[i] = lines[i].replace(/\bwidth="[^"]*"/, `width="${props.width}"`);
-            if (props.height !== undefined) lines[i] = lines[i].replace(/\bheight="[^"]*"/, `height="${props.height}"`);
-            if (props.x !== undefined) lines[i] = lines[i].replace(/\bx="[^"]*"/, `x="${props.x}"`);
-            if (props.y !== undefined) lines[i] = lines[i].replace(/\by="[^"]*"/, `y="${props.y}"`);
             break;
         }
     }

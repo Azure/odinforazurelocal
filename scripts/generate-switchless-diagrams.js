@@ -116,14 +116,10 @@ const BG_RECT = 'JwsQfcPdxONgqVIScywy-129';
 const CL1_BG = 'JwsQfcPdxONgqVIScywy-182';
 // Title cell
 const TITLE_CELL = 'heOv2aa4RVyxCJM62_e7-10';
-// Cluster 1 workloads LNET
-const CL1_WORKLOADS_LNET = 'JwsQfcPdxONgqVIScywy-166';
-
 // Workload cluster node1 storage container and children
 const WL_STORAGE_CONTAINER = 'zp-9drkoqEdSkVLqGhjB-24';
 const WL_STORAGE_LABEL = 'zp-9drkoqEdSkVLqGhjB-25';
 const WL_STORAGE_PORT1 = 'zp-9drkoqEdSkVLqGhjB-27'; // Slot-1-Port-1
-const WL_STORAGE_PORT2 = 'zp-9drkoqEdSkVLqGhjB-26'; // Slot-1-Port-2
 
 // Management cluster cell IDs (always 3 nodes)
 const MGMT_NODE1 = '5';
@@ -133,7 +129,6 @@ const MGMT_BG = 'JwsQfcPdxONgqVIScywy-218';
 const MGMT_STORAGE_CONTAINER = 'zp-9drkoqEdSkVLqGhjB-19';
 const MGMT_STORAGE_LABEL = 'zp-9drkoqEdSkVLqGhjB-20';
 const MGMT_STORAGE_PORT1 = 'zp-9drkoqEdSkVLqGhjB-22'; // Slot-1-Port-1
-const MGMT_STORAGE_PORT2 = 'zp-9drkoqEdSkVLqGhjB-21'; // Slot-1-Port-2
 
 // Storage port geometry constants (from existing diagram)
 const PORT_WIDTH = 56.76;
@@ -495,7 +490,6 @@ function adjustCellHeight(content, cellId, delta) {
                 const newH = (parseFloat(hMatch[1]) + delta).toFixed(2);
                 lines[i] = lines[i].replace(/\bheight="[^"]*"/, `height="${newH}"`);
             }
-            foundCell = false;
             break;
         }
     }
