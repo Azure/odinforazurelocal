@@ -4588,7 +4588,6 @@ function updateUI() {
                 // Disable intent cards.
                 if (cards && cards.intent) {
                     Object.values(cards.intent).forEach(c => {
-                        if (!c) return;
                         c.classList.add('disabled');
                         c.classList.remove('selected');
                     });
@@ -4615,7 +4614,6 @@ function updateUI() {
             // Disable intent cards.
             if (cards && cards.intent) {
                 Object.values(cards.intent).forEach(c => {
-                    if (!c) return;
                     c.classList.add('disabled');
                     c.classList.remove('selected');
                 });
