@@ -43,6 +43,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Knowledge Tab: Embedded Content**: Knowledge tab now loads inline within the main page instead of navigating away — outbound connectivity architecture guide displayed in an embedded frame
 - **Knowledge Tab: Interactive Diagrams**: Added interactive WebGL flow diagrams for Public Path and Private Path outbound connectivity, selectable via a left sidebar
 - **Knowledge Tab: Sidebar Navigation**: Left sidebar with links to switch between the Architecture Guide, Public Path Flow diagram, and Private Path Flow diagram — all rendered in-page via iframe
+- **Sizer: ALDO Switch-Back Fix**: Fixed bug where Add Workload buttons and Number of Physical Nodes dropdown remained locked after switching away from ALDO Management Cluster — `renderWorkloads()` innerHTML replacement destroyed the `#empty-state` element, causing a TypeError that halted the cluster-type change handler
 
 ### Version 0.17.10
 - **Sizer: ALDO Management Cluster**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios; node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror
@@ -384,6 +385,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: ALDO Configure in Designer Fix**: "Configure in Designer" for ALDO Management Cluster now correctly selects the Disconnected scenario with Management Cluster role and prompts for Autonomous Cloud FQDN — previously defaulted to Hyperconverged
 - **Sizer: ALDO Analytics Tracking**: Selecting ALDO Management Cluster now increments the Sizer analytics counter, matching workload addition tracking
 - **CI: ESLint Fixes**: Added `selectDisconnectedOption` to ESLint globals, fixed `loadTemplate()` try-block indentation (4-space → 8-space), changed `var` to `const` declarations
+- **Sizer: ALDO Cluster Type Switch-Back Fix**: Fixed bug where Add Workload buttons (VMs, AKS Arc, AVD) remained disabled and Number of Physical Nodes dropdown stayed greyed out after switching away from ALDO Management Cluster back to Standard or Rack-Aware — `renderWorkloads()` innerHTML replacement destroyed the `#empty-state` DOM element, causing a TypeError that halted `onClusterTypeChange()` before controls could be re-enabled; fixed by caching the element reference at module scope
 
 #### 0.17.04 - Example Template Fix & Regression Tests
 - **Example Template Fix (#140)**: Fixed issue where loading an Example Configuration Template resulted in incomplete wizard progress (67–76%) instead of 100% — all five templates now load fully complete
