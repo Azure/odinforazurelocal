@@ -3116,7 +3116,7 @@
 
                 var buckets = {};
                 for (var i = 1; i <= p; i++) {
-                    var assignment = (customIntents && customIntents[i]) ? String(customIntents[i]) : 'unused';
+                    var assignment = customIntents[i] ? String(customIntents[i]) : 'unused';
                     if (assignment === 'unused') continue;
                     if (!buckets[assignment]) buckets[assignment] = [];
                     buckets[assignment].push(i);
