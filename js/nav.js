@@ -15,7 +15,7 @@
     if (!nav) return;
 
     const active = nav.getAttribute('data-active') || 'designer';
-    let base     = (nav.getAttribute('data-base') || '').replace(/[^a-zA-Z0-9\-._~\/:]/g, '');
+    let base = (nav.getAttribute('data-base') || '').replace(/[^a-zA-Z0-9\-._~\/:]/g, '');
 
     // Ensure base ends with '/' if non-empty
     if (base && base.charAt(base.length - 1) !== '/') base += '/';
