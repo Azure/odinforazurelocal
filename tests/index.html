@@ -1934,7 +1934,6 @@
                 
                 const actualFields = Object.keys(state);
                 const undocumented = actualFields.filter(f => !knownFields.includes(f));
-                const extraInList = knownFields.filter(f => !actualFields.includes(f));
                 
                 // Test for undocumented fields (new fields added to state but not to this list)
                 // Failure message includes actionable instructions for the developer
@@ -4173,7 +4172,6 @@
                 // ~30,000 GB total memory across 11 effective nodes = ~2727 GB per node needed
                 autoScaleHardware(1000, 30000, 10000, nodeCount, 2, hwConfig, new Set());
                 const resultMem = parseInt(document.getElementById('node-memory').value);
-                const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
                 // Restore
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
@@ -4342,8 +4340,6 @@
                 const result = _tryAmdCoreUpgrade(6000, 10, 5, 64, 2, 90);
 
                 const resultMfg = document.getElementById('cpu-manufacturer').value;
-                const resultGen = document.getElementById('cpu-generation').value;
-                const resultCores = parseInt(document.getElementById('cpu-cores').value);
 
                 // Restore
                 document.getElementById('cpu-generation').innerHTML = savedGenHtml;

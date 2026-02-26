@@ -3174,7 +3174,6 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig) {
     const notes = [];
     const clusterType = document.getElementById('cluster-type').value;
-    const config = RESILIENCY_CONFIG[resiliency];
     
     if (workloads.length === 0) {
         notes.push('Add workloads to see sizing recommendations');

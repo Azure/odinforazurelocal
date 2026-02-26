@@ -237,7 +237,6 @@ function setCellValue(content, cellId, newValue) {
  * Modify geometry of a cell (width and/or height and/or x and/or y)
  */
 function setCellGeometry(content, cellId, props) {
-    const escaped = cellId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     // Find the cell line and its geometry line
     const lines = content.split('\n');
     let foundCell = false;
@@ -499,7 +498,6 @@ function adjustCellHeight(content, cellId, delta) {
 function generateSwitchlessDiagram(sourceFile, nodeCount) {
     const archType = getArchType(sourceFile);
     const outboundType = getOutboundType(sourceFile);
-    const intentLabel = getIntentLabel(archType);
     const outboundLabel = getOutboundLabel(outboundType);
 
     // Read source file

@@ -4787,7 +4787,6 @@ function updateUI() {
         intentExp.classList.add('visible');
         let text = '';
         const portCount = parseInt(state.ports);
-        const isSwitchless = state.storage === 'switchless';
 
         if (state.intent === 'all_traffic') {
             text = '<strong>Fully Converged Network</strong><br>All traffic types (Management, Compute, Storage) are permanently grouped onto a single SET team.';
@@ -10106,7 +10105,6 @@ function getIntentZonesForIntent(intent) {
     // Minimum adapters: 2 for standard scenarios, 1 for Low Capacity
     const zones = [];
     const isLowCapacity = state.scale === 'low_capacity';
-    const isSingleNode = state.nodes === '1';
     const minStandard = 2;
     const minLowCap = 1;
 
@@ -10285,7 +10283,6 @@ function getDefaultAdapterMapping(intent, portCount) {
     // Returns a default adapter mapping based on intent type
     const mapping = {};
     const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
-    const isSingleNode = state.nodes === '1';
 
     // Find RDMA-capable ports
     const rdmaPorts = [];
