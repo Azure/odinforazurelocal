@@ -141,7 +141,7 @@ const PORT_STYLE = 'rounded=1;whiteSpace=wrap;html=1;fillColor=#5B3ABF;strokeCol
 
 function getArchType(filename) {
     if (filename.includes('fullyconverged')) return 'fullyconverged';
-    if (filename.includes('dissaggregated')) return 'disaggregated';
+    if (filename.includes('disaggregated')) return 'disaggregated';
     if (filename.includes('mgmt-compute')) return 'mgmt-compute';
     throw new Error(`Unknown architecture type in: ${filename}`);
 }

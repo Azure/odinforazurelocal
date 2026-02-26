@@ -22,8 +22,8 @@ const path = require('path');
 const SRC_DIR = path.join(__dirname, '..', 'docs', 'disconnected-operations');
 
 const SOURCE_FILES = [
-    'ALDO-dissaggregated-Air-Gapped.drawio',
-    'ALDO-dissaggregated-Limited-Connectivity.drawio'
+    'ALDO-disaggregated-Air-Gapped.drawio',
+    'ALDO-disaggregated-Limited-Connectivity.drawio'
 ];
 
 const TITLE_CELL = 'heOv2aa4RVyxCJM62_e7-10';
