@@ -27,8 +27,17 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.10 - Latest Release</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">February 25, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.11 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 26, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📚 Knowledge Tab: Embedded Content & Interactive Diagrams</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Embedded Knowledge Tab:</strong> Knowledge tab now loads inline within the main page instead of navigating to a separate page — outbound connectivity architecture guide displayed in an embedded iframe.</li>
+                        <li><strong>Interactive Diagrams:</strong> Added interactive WebGL flow diagrams for Public Path and Private Path outbound connectivity architectures, selectable via a left sidebar.</li>
+                        <li><strong>Sidebar Navigation:</strong> Left sidebar with links to switch between the Architecture Guide, Public Path Flow diagram, and Private Path Flow diagram — all rendered in-page.</li>
+                    </ul>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">

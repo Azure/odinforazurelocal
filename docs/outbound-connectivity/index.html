@@ -1456,5 +1456,14 @@ Invoke-AzStackHciArcInitialization `
     <script src="script.js"></script>
     <!-- Analytics -->
     <script src="../../js/analytics.js"></script>
+    <!-- Hide ODIN top nav when loaded inside an iframe -->
+    <script>
+        if (window.self !== window.top) {
+            var topNav = document.getElementById('odin-nav');
+            if (topNav) topNav.style.display = 'none';
+            document.body.classList.remove('has-tab-nav');
+            document.body.style.paddingTop = '0';
+        }
+    </script>
 </body>
 </html>

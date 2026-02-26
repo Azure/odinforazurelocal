@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.17.10';
+const WIZARD_VERSION = '0.17.11';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -38,11 +38,25 @@ function switchOdinTab(tabId) {
     sessionStorage.setItem('odinActiveTab', tabId);
 }
 
+/**
+ * Switch between Knowledge sub-pages (guide, public flow, private flow)
+ * @param {HTMLElement} linkEl - The clicked nav link element
+ * @param {string} src - iframe src URL
+ */
+function switchKnowledgePage(linkEl, src) {
+    // Update active state in sidebar
+    var links = document.querySelectorAll('.knowledge-nav-item');
+    links.forEach(function(l) { l.classList.remove('active'); });
+    if (linkEl) linkEl.classList.add('active');
+    // Update iframe
+    var iframe = document.getElementById('knowledge-iframe');
+    if (iframe) iframe.src = src;
+}
+
 // Restore active tab on page load (if navigating back)
 document.addEventListener('DOMContentLoaded', function() {
     const savedTab = sessionStorage.getItem('odinActiveTab');
-    if (savedTab && savedTab !== 'knowledge') {
-        // Knowledge tab navigates away, so don't try to switch to it
+    if (savedTab && (savedTab === 'designer' || savedTab === 'knowledge')) {
         switchOdinTab(savedTab);
     }
 

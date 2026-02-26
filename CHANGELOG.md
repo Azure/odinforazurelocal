@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.11] - 2026-02-26
+
+### Added
+
+#### Knowledge Tab: Embedded Content & Interactive Diagrams
+- **Embedded Knowledge Tab**: Knowledge tab now loads inline within the main page instead of navigating to a separate page — outbound connectivity architecture guide displayed in an embedded iframe
+- **Interactive Outbound Connectivity Diagrams**: Added interactive WebGL flow diagrams for Public Path and Private Path outbound connectivity architectures
+- **Sidebar Navigation**: Left sidebar in the Knowledge tab with links to switch between the Architecture Guide, Public Path Flow diagram, and Private Path Flow diagram
+- **In-Page Tab Switching**: Knowledge tab uses the same `switchOdinTab` mechanism as Designer for seamless in-page navigation
+- **Iframe Nav Hiding**: ODIN top navigation bar automatically hidden when the outbound connectivity page is loaded inside an iframe to avoid duplicate navigation
+- **SVG Icons**: Added Azure service SVG icons (Arc Gateway, Azure Firewall, ExpressRoute, Private Endpoints, VNET, etc.) for the interactive diagrams
+- **Responsive Layout**: Knowledge sidebar collapses to a horizontal nav strip on mobile viewports
+
+---
+
 ## [0.17.10] - 2026-02-25
 
 ### Added
