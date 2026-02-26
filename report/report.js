@@ -11,7 +11,6 @@
     window.togglePrintFriendly = togglePrintFriendly;
 
     var CURRENT_REPORT_STATE = null;
-    var ARC_GATEWAY_VM_DIAGRAM_URL = 'https://raw.githubusercontent.com/Azure/AzureLocal-Supportability/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/images/AzureLocalPublicPathFlowsFinal-1Node-Step6-VMFlows.dark.svg';
 
     // Firewall allow-list endpoint URLs per region (consolidated lists from GitHub)
     var FIREWALL_ENDPOINT_URLS = {
@@ -919,36 +918,6 @@
         });
     }
 
-    function parseSvgText(svgText) {
-        try {
-            var parser = new DOMParser();
-            var doc = parser.parseFromString(String(svgText || ''), 'image/svg+xml');
-            var svg = doc && doc.documentElement;
-            if (!svg || String(svg.nodeName).toLowerCase() !== 'svg') return null;
-            return svg;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function normalizeExternalDiagramSvg(svgEl) {
-        try {
-            if (!svgEl) return;
-            svgEl.classList.add('switchless-diagram__svg');
-            // Make responsive in the report/print.
-            // Keep intrinsic width/height if present; some SVGs omit viewBox and depend on them.
-            if (!svgEl.getAttribute('preserveAspectRatio')) {
-                svgEl.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-            }
-            var style = svgEl.getAttribute('style') || '';
-            if (style.indexOf('max-width') < 0) style += (style ? ';' : '') + 'max-width:100%';
-            if (style.indexOf('height') < 0) style += ';height:auto';
-            svgEl.setAttribute('style', style);
-        } catch (e) {
-            // ignore
-        }
-    }
-
     function downloadReportHtml() {
         // Backward-compatible alias: HTML download was replaced by Word download.
         downloadReportWord();
@@ -1845,7 +1814,6 @@
         var torCount = isSingleNode ? 1 : ((s.torSwitchCount === 'single') ? 1 : 2);
 
         var intent = s.intent;
-        var isCustom = intent === 'custom';
 
         // --- Port classification (mirrors SVG logic) ---
         var hasAdapterMapping = s.adapterMappingConfirmed && s.adapterMapping && Object.keys(s.adapterMapping).length > 0;
@@ -1887,7 +1855,6 @@
 
         // Classify ports
         var mgmtPorts = [];
-        var computePorts = [];
         var storPorts = [];
         for (var pi = 0; pi < ports; pi++) {
             var t = getTraffic(pi);
@@ -1895,7 +1862,6 @@
             var hasM = t.indexOf('m') >= 0;
             var hasC = t.indexOf('c') >= 0;
             if (hasS && !hasM && !hasC) { storPorts.push(pi + 1); }
-            else if (hasC && !hasM && !hasS) { computePorts.push(pi + 1); }
             else if (hasS) { storPorts.push(pi + 1); mgmtPorts.push(pi + 1); } // all_traffic: both
             else { mgmtPorts.push(pi + 1); }
         }
@@ -1903,7 +1869,6 @@
         if (intent === 'all_traffic') {
             mgmtPorts = [];
             storPorts = [];
-            computePorts = [];
             for (var ai = 0; ai < ports; ai++) { mgmtPorts.push(ai + 1); }
         }
 
@@ -3086,13 +3051,6 @@
                 return getPortCustomName(state, idx1Based, 'nic');
             }
 
-            function intentLabelForSet(intent) {
-                if (intent === 'all_traffic') return 'Management + Compute + Storage intent';
-                if (intent === 'mgmt_compute') return 'Management + Compute intent';
-                if (intent === 'compute_storage') return 'Compute + Storage intent';
-                if (intent === 'custom') return 'Custom intent(s)';
-                return 'Network intent';
-            }
             var isCustom = state.intent === 'custom';
             
             // Check if adapter mapping is confirmed (used for mgmt_compute intent)
@@ -6469,7 +6427,6 @@
 
     function renderValidationInline(items) {
         if (!items || items.length === 0) return '';
-        var passed = items.filter(function (x) { return x.passed; });
         var failed = items.filter(function (x) { return !x.passed; });
 
         var html = '<div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--glass-border);">'
