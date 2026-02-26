@@ -425,7 +425,6 @@
      * @returns {string} The display name
      */
     function getPortCustomName(state, idx1Based, type) {
-        type = type || 'nic';
         try {
             // Check portConfig for custom names (v0.13.0+ feature)
             if (state && Array.isArray(state.portConfig) && state.portConfig[idx1Based - 1]) {
@@ -512,49 +511,6 @@
             return 'CIDRs shown are your custom storage subnet configuration.';
         }
         return defaultNote;
-    }
-
-    function buildStandaloneReportHtml(opts) {
-        opts = opts || {};
-        var inlineCss = opts.inlineCss || '';
-
-        var title = document.title || 'Azure Local Design Assistant (ALDA) Tool — Report';
-        var headParts = [];
-        headParts.push('<meta charset="UTF-8">');
-        headParts.push('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
-        headParts.push('<title>' + escapeHtml(title) + '</title>');
-        headParts.push('<link rel="preconnect" href="https://fonts.googleapis.com">');
-        headParts.push('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>');
-        headParts.push('<link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@300;400;600;700&display=swap" rel="stylesheet">');
-
-        if (inlineCss) {
-            headParts.push('<style>' + inlineCss + '</style>');
-        } else {
-            headParts.push('<link rel="stylesheet" href="../css/style.css">');
-        }
-
-        // Clone main report content (avoid including script tags).
-        var main = document.querySelector('main.container');
-        var bodyHtml = '';
-        if (main) {
-            var clone = main.cloneNode(true);
-
-            // Remove any action buttons from the exported file.
-            var noPrintEls = clone.querySelectorAll('.no-print');
-            for (var i = 0; i < noPrintEls.length; i++) {
-                if (noPrintEls[i] && noPrintEls[i].parentNode) {
-                    noPrintEls[i].parentNode.removeChild(noPrintEls[i]);
-                }
-            }
-
-            bodyHtml = '<div class="background-globes"></div>' + clone.outerHTML;
-        }
-
-        return '<!DOCTYPE html>'
-            + '<html lang="en">'
-            + '<head>' + headParts.join('') + '</head>'
-            + '<body>' + bodyHtml + '</body>'
-            + '</html>';
     }
 
     function buildStandaloneReportWordHtml(opts) {
@@ -993,50 +949,6 @@
         }
     }
 
-    function ensureArcGatewayVmDiagramInContainer(containerEl) {
-        if (!containerEl) return Promise.resolve(false);
-        if (containerEl.querySelector('svg')) return Promise.resolve(true);
-
-        // Show a tiny loading message for the on-screen report.
-        if (!containerEl.__loadingSet) {
-            containerEl.__loadingSet = true;
-            containerEl.innerHTML = '<div class="switchless-diagram__note">Loading Arc Gateway diagram…</div>';
-        }
-
-        try {
-            return fetch(ARC_GATEWAY_VM_DIAGRAM_URL, { cache: 'no-store' })
-                .then(function (r) {
-                    if (!r.ok) throw new Error('Failed to fetch diagram');
-                    return r.text();
-                })
-                .then(function (svgText) {
-                    var svg = parseSvgText(svgText);
-                    if (!svg) throw new Error('Invalid SVG');
-                    normalizeExternalDiagramSvg(svg);
-                    var imported = document.importNode(svg, true);
-
-                    var wrap = document.createElement('div');
-                    wrap.className = 'switchless-diagram';
-                    wrap.appendChild(imported);
-                    var foot = document.createElement('div');
-                    foot.className = 'switchless-diagram__note';
-                    foot.innerHTML = 'Source: <a href="https://github.com/Azure/AzureLocal-Supportability/blob/main/TSG/Networking/Arc-Gateway-Outbound-Connectivity/DeepDive-ArcGateway-Outbound-Traffic.md" target="_blank" rel="noreferrer" style="color:var(--accent-blue); text-decoration:underline;">Arc Gateway outbound connectivity deep dive</a> (Scenario 6)';
-                    wrap.appendChild(foot);
-
-                    containerEl.innerHTML = '';
-                    containerEl.appendChild(wrap);
-                    return true;
-                })
-                .catch(function () {
-                    containerEl.innerHTML = '<div class="switchless-diagram__note">Unable to load Arc Gateway diagram (network blocked).<br><a href="' + ARC_GATEWAY_VM_DIAGRAM_URL + '" target="_blank" rel="noreferrer" style="color:var(--accent-blue); text-decoration:underline;">Open SVG</a></div>';
-                    return false;
-                });
-        } catch (e) {
-            containerEl.innerHTML = '<div class="switchless-diagram__note">Unable to load Arc Gateway diagram.</div>';
-            return Promise.resolve(false);
-        }
-    }
-
     function downloadReportHtml() {
         // Backward-compatible alias: HTML download was replaced by Word download.
         downloadReportWord();
@@ -1175,57 +1087,6 @@
         } catch (e) {
             // ignore
         }
-    }
-
-    // Helper: convert SVG text to PNG data URL via off-screen canvas
-    function svgTextToPngDataUrl(svgText) {
-        return new Promise(function (resolve) {
-            try {
-                // Strip XML prolog and DOCTYPE — these cause img.onerror when
-                // an SVG is loaded from a Blob URL in most browsers.
-                var cleaned = svgText
-                    .replace(/<\?xml[^?]*\?>/gi, '')
-                    .replace(/<!DOCTYPE[^>]*>/gi, '')
-                    .trim();
-                var svgBlob = new Blob([cleaned], { type: 'image/svg+xml;charset=utf-8' });
-                var svgUrl = URL.createObjectURL(svgBlob);
-                var img = new Image();
-                img.onload = function () {
-                    try {
-                        var w = img.naturalWidth || img.width;
-                        var h = img.naturalHeight || img.height;
-                        if (!w || !h) {
-                            console.warn('SVG to PNG: image has 0 dimensions', w, h);
-                            URL.revokeObjectURL(svgUrl);
-                            resolve(null);
-                            return;
-                        }
-                        var canvas = document.createElement('canvas');
-                        canvas.width = w * 2;
-                        canvas.height = h * 2;
-                        var ctx = canvas.getContext('2d');
-                        ctx.scale(2, 2);
-                        ctx.drawImage(img, 0, 0, w, h);
-                        var pngUrl = canvas.toDataURL('image/png');
-                        URL.revokeObjectURL(svgUrl);
-                        resolve(pngUrl);
-                    } catch (e) {
-                        console.warn('SVG to PNG canvas error:', e);
-                        URL.revokeObjectURL(svgUrl);
-                        resolve(null);
-                    }
-                };
-                img.onerror = function () {
-                    console.warn('SVG to PNG image load error for Blob URL');
-                    URL.revokeObjectURL(svgUrl);
-                    resolve(null);
-                };
-                img.src = svgUrl;
-            } catch (e) {
-                console.warn('SVG to PNG setup error:', e);
-                resolve(null);
-            }
-        });
     }
 
     function buildMarkdownContent(s, diagrams) {
@@ -2054,7 +1915,6 @@
             ports = 2 + storCount;
             mgmtPorts = [1, 2];
             storPorts = [];
-            computePorts = [];
             for (var sp = 3; sp <= ports; sp++) storPorts.push(sp);
         }
 
@@ -2286,8 +2146,7 @@
         // --- Switchless storage mesh ---
         if (isSwitchless && n >= 2) {
             // Build switchless mesh edges with color-coded subnets, mirroring the ODIN SVG renderer.
-            // Each node-pair gets 2 dedicated subnets (dual-link). Total subnets = n*(n-1).
-            var totalSubnets = n * (n - 1);
+            // Each node-pair gets 2 dedicated subnets (dual-link).
             var subnetHues;
             if (n === 2) {
                 subnetHues = [210, 330];
@@ -3227,10 +3086,6 @@
                 return getPortCustomName(state, idx1Based, 'nic');
             }
 
-            function getSmbLabel(idx1Based) {
-                return getPortCustomName(state, idx1Based, 'smb');
-            }
-
             function intentLabelForSet(intent) {
                 if (intent === 'all_traffic') return 'Management + Compute + Storage intent';
                 if (intent === 'mgmt_compute') return 'Management + Compute intent';
@@ -3238,12 +3093,6 @@
                 if (intent === 'custom') return 'Custom intent(s)';
                 return 'Network intent';
             }
-            function intentShortLabel(intent) {
-                // In Rack Aware diagrams, keep the label compact (avoid repeating the word "intent").
-                var s = intentLabelForSet(intent);
-                return String(s).replace(/\s+intent\(s\)\s*$/i, '').replace(/\s+intent\s*$/i, '');
-            }
-
             var isCustom = state.intent === 'custom';
             
             // Check if adapter mapping is confirmed (used for mgmt_compute intent)
@@ -3925,11 +3774,6 @@
             var room1NodeXs = nodeXsForRoom(room1X, z1Nodes.length);
             var room2NodeXs = nodeXsForRoom(room2X, z2Nodes.length);
 
-            function line(x1, y1, x2, y2, stroke, dash) {
-                var d = dash ? ' stroke-dasharray="' + dash + '"' : '';
-                return '<path d="M ' + x1 + ' ' + y1 + ' L ' + x2 + ' ' + y2 + '" stroke="' + stroke + '" stroke-width="2" fill="none"' + d + ' />';
-            }
-
             function label(x, y, txt, color, size, weight) {
                 return '<text x="' + x + '" y="' + y + '" text-anchor="middle" font-size="' + (size || 12) + '" fill="' + (color || 'var(--text-secondary)') + '" font-weight="' + (weight || '400') + '">' + escapeHtml(txt) + '</text>';
             }
@@ -4507,10 +4351,6 @@
                 var trunkStroke = 'var(--accent-blue)';
                 var trunkOpacity = 0.55;
                 var trunkDash = '1 7';
-                var trunkY = swY + swH + 18;
-                var room1Mid = Math.floor((room1TorXs[0] + room1TorXs[1] + torW) / 2);
-                var room2Mid = Math.floor((room2TorXs[0] + room2TorXs[1] + torW) / 2);
-
                 // One connector per TOR, anchored at the TOR (top-center) and landing on Switch/Router sides.
                 // Use two distinct landing Y offsets per side to avoid overlap.
                 var attachLeftX = swX;
@@ -5485,14 +5325,6 @@
                     { subnet: 11, a: { n: 2, p: 4 }, b: { n: 3, p: 4 }, pair: 'Node3↔Node4', lane: 10 },
                     { subnet: 12, a: { n: 2, p: 5 }, b: { n: 3, p: 5 }, pair: 'Node3↔Node4', lane: 11 }
                 ];
-
-                function pathBetween4(a, b, busY, midX) {
-                    return 'M ' + a.x + ' ' + a.y
-                        + ' L ' + a.x + ' ' + busY
-                        + ' L ' + midX + ' ' + busY
-                        + ' L ' + b.x + ' ' + busY
-                        + ' L ' + b.x + ' ' + b.y;
-                }
 
                 function pathBetween4Clean(a, b, busY, midX) {
                     // Clean orthogonal routing:

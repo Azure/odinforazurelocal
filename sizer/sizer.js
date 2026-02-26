@@ -916,7 +916,6 @@ function _tryAmdCoreUpgrade(totalVcpus, effectiveNodes, currentRatio, currentCor
 
     // Find the best AMD generation whose max dual-socket cores exceeds current config
     let bestGen = null;
-    let bestCores = 0;
     let bestMaxCores = 0;
     for (const gen of CPU_GENERATIONS.amd) {
         const genMaxCores = gen.coreOptions[gen.coreOptions.length - 1];
@@ -1148,7 +1147,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // Only runs when BOTH size and count are auto-managed (consolidation changes both).
         const DISK_BAY_CONSOLIDATION_THRESHOLD = 0.5; // 50% of max bays
         let consolidatedDiskSize = diskSizeGB;
-        let consolidatedDiskSizeTB = diskSizeTB;
         const bayThreshold = Math.ceil(maxDisksForType * DISK_BAY_CONSOLIDATION_THRESHOLD);
         if (!_diskSizeUserSet && !_diskCountUserSet && targetDisks >= bayThreshold) {
             // Collect all standard sizes larger than current
@@ -1180,7 +1178,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 };
                 targetDisks = bestCandidate.count;
                 consolidatedDiskSize = bestCandidate.sizeGB;
-                consolidatedDiskSizeTB = bestCandidate.sizeTB;
                 // Update disk size select
                 document.getElementById(diskSizeId).value = bestCandidate.sizeTB;
                 // Update disk count to the consolidated (lower) value
@@ -1386,7 +1383,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const hrDiskCountInput = document.getElementById(diskCountId);
         const hrDiskSizeSelect = document.getElementById(diskSizeId);
         let hrDiskCount = parseInt(hrDiskCountInput.value) || 4;
-        let hrDiskSizeTB = parseFloat(hrDiskSizeSelect.value) || 3.84;
+        const hrDiskSizeTB = parseFloat(hrDiskSizeSelect.value) || 3.84;
         let hrDiskSizeGB = hrDiskSizeTB * 1024;
         let storageCap = hrDiskCount * hrDiskSizeGB * nodeCount;
         let storagePct = storageCap > 0 ? Math.round(totalRawNeededGB / storageCap * 100) : 0;
@@ -1405,7 +1402,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 // Disk count maxed or user-locked — try stepping up disk size
                 const nextSize = DISK_SIZE_OPTIONS_TB.find(s => s * 1024 > hrDiskSizeGB);
                 if (nextSize) {
-                    hrDiskSizeTB = nextSize;
                     hrDiskSizeGB = nextSize * 1024;
                     hrDiskSizeSelect.value = nextSize;
                     changed = true;

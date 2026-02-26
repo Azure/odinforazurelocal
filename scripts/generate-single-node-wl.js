@@ -157,7 +157,6 @@ function setCellGeomProp(content, cellId, prop, value) {
                 new RegExp(`\\b${prop}="[^"]*"`),
                 `${prop}="${value}"`
             );
-            foundCell = false;
             break;
         }
     }

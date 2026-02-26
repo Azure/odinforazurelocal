@@ -1722,7 +1722,6 @@ function generateArmParameters() {
                     const smbCount = (Number.isFinite(n) && n > 1) ? (2 * (n - 1)) : 2;
                     // Storage ports start after the management/compute ports (typically port 3+)
                     return Array.from({ length: smbCount }, (_, i) => {
-                        const portIdx1Based = 2 + i + 1; // ports 3, 4, 5, ...
                         return armAdapterNameForSmb(i + 1, 2);
                     });
                 }
@@ -2704,7 +2703,6 @@ function renderRackAwareZonesUi() {
     const drop2 = document.getElementById('rack-az2-drop');
     if (!drop1 || !drop2) return;
 
-    const half = Math.floor(n / 2);
     const zone1Ids = [];
     const zone2Ids = [];
     for (let i = 1; i <= n; i++) {
@@ -5032,9 +5030,6 @@ function updateUI() {
         }
     }
 
-    const infraVlanInfo = document.getElementById('infra-vlan-info');
-    const infraVlanCustom = document.getElementById('infra-vlan-custom');
-    const infraVlanIdInput = document.getElementById('infra-vlan-id');
     applyInfraVlanVisibility();
 
     // Node settings section (Step 12)
