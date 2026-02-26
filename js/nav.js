@@ -68,9 +68,12 @@
         const isActive = t.id === active;
         const cls = 'odin-tab-btn' + (isActive ? ' active' : '');
 
-        if (active === 'designer' && t.id === 'designer') {
-            // On the main page, Designer tab is a <button> wired to switchOdinTab
-            html += '<button type="button" class="' + cls + '" data-tab="designer" onclick="switchOdinTab(\'designer\')">';
+        // On the main (designer) page, both Designer and Knowledge tabs are <button>s
+        // that call switchOdinTab to swap content in-page.
+        var isMainPage = (active === 'designer');
+
+        if (isMainPage && (t.id === 'designer' || t.id === 'knowledge')) {
+            html += '<button type="button" class="' + cls + '" data-tab="' + t.id + '" onclick="switchOdinTab(\'' + t.id + '\')">';
         } else if (isActive) {
             html += '<a href="#" class="' + cls + '" data-tab="' + t.id + '">';
         } else {
@@ -82,7 +85,7 @@
             html += ' <span class="odin-tab-badge">' + t.badge + '</span>';
         }
 
-        html += (active === 'designer' && t.id === 'designer') ? '</button>' : '</a>';
+        html += (isMainPage && (t.id === 'designer' || t.id === 'knowledge')) ? '</button>' : '</a>';
     }
 
     // Feedback link

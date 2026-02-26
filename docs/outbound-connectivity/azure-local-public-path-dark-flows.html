@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Local Network Flow — Interactive Public Path v6</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #020210;
+            overflow: hidden;
+            height: 100vh;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+        }
+        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+        .perf {
+            position: fixed; bottom: 10px; right: 16px;
+            color: rgba(0,229,255,0.25); font-size: 11px; z-index: 10;
+            font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+        }
+        /* ─── Title Bar ─── */
+        .title-bar {
+            position: fixed; top: 0; left: 0; right: 0; height: 52px;
+            background: rgba(2,2,16,0.8);
+            backdrop-filter: blur(24px) saturate(1.6);
+            border-bottom: 1px solid rgba(191,90,242,0.1);
+            display: flex; align-items: center; padding: 0 28px; z-index: 10;
+        }
+        .title-bar::after {
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+            background: #d8b4fe;
+            opacity: 0.6;
+        }
+        .title-bar .dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: #bf5af2; margin-right: 14px;
+            box-shadow: 0 0 14px #bf5af2, 0 0 4px #bf5af2;
+            animation: neonPulse 1.8s ease-in-out infinite;
+        }
+        @keyframes neonPulse {
+            0%, 100% { box-shadow: 0 0 8px #bf5af2, 0 0 2px #bf5af2; }
+            50% { box-shadow: 0 0 22px #bf5af2, 0 0 8px #bf5af2, 0 0 40px rgba(191,90,242,0.3); }
+        }
+        .title-bar span {
+            font-family: 'Rajdhani', 'Inter', sans-serif;
+            font-size: 16px; font-weight: 700; letter-spacing: 1.2px;
+            color: #d8b4fe;
+        }
+        /* ─── Architecture Scenario Bar (top) ─── */
+        .arch-bar {
+            position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 6px; z-index: 20;
+            background: rgba(2,2,16,0.85);
+            backdrop-filter: blur(28px) saturate(1.6);
+            padding: 8px 14px; border-radius: 14px;
+            border: 1px solid rgba(191,90,242,0.15);
+            box-shadow: 0 0 30px rgba(191,90,242,0.06), 0 8px 32px rgba(0,0,0,0.6),
+                        inset 0 1px 0 rgba(255,255,255,0.03);
+            align-items: center;
+        }
+        .arch-label {
+            font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700;
+            letter-spacing: 1px; color: rgba(216,180,254,0.5); margin-right: 6px;
+            text-transform: uppercase; white-space: nowrap;
+        }
+        .arch-btn {
+            position: relative; padding: 6px 16px;
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            color: rgba(200,215,255,0.55); font-size: 12px; font-weight: 600;
+            cursor: pointer; white-space: nowrap; letter-spacing: 0.3px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .arch-btn::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+        }
+        .arch-btn:hover {
+            background: rgba(255,255,255,0.06); color: #fff;
+            border-color: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+        .arch-btn.active {
+            border-color: rgba(191,90,242,0.5);
+            background: rgba(191,90,242,0.12);
+            color: #fff;
+            box-shadow: 0 0 20px rgba(191,90,242,0.15),
+                        0 0 6px rgba(191,90,242,0.25),
+                        inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .arch-btn .arch-dot {
+            display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+            background: #bf5af2; margin-right: 7px; vertical-align: middle;
+            opacity: 0.35; transition: all 0.3s;
+        }
+        .arch-btn.active .arch-dot { opacity: 1; box-shadow: 0 0 8px #bf5af2; }
+        /* ─── Button Bar ─── */
+        .flow-bar {
+            position: fixed; bottom: 22px; left: 38%; transform: translateX(-50%);
+            display: flex; flex-direction: column; gap: 8px; z-index: 20;
+            background: rgba(2,2,16,0.85);
+            backdrop-filter: blur(28px) saturate(1.6);
+            padding: 14px 18px; border-radius: 18px;
+            border: 1px solid rgba(0,229,255,0.12);
+            box-shadow: 0 0 40px rgba(0,229,255,0.06), 0 12px 48px rgba(0,0,0,0.7),
+                        inset 0 1px 0 rgba(255,255,255,0.03);
+            align-items: center;
+        }
+        .flow-main-row, .flow-sub-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center; }
+        .sub-group {
+            display: none; gap: 6px; align-items: center;
+            padding: 4px 10px; border-radius: 10px;
+            background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+        }
+        .sub-group.visible { display: flex; }
+        .sub-label { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; margin-right: 4px; white-space: nowrap; text-transform: uppercase; font-family: 'Rajdhani', sans-serif; }
+        .sub-btn { padding: 4px 12px !important; font-size: 11px !important; }
+        .flow-sep { display: none; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(0,229,255,0.2), rgba(191,90,242,0.2), transparent); }
+        .flow-sep.visible { display: block; }
+        .flow-btn {
+            position: relative; padding: 8px 20px;
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+            background: rgba(255,255,255,0.03);
+            color: rgba(200,215,255,0.6); font-size: 13px; font-weight: 600;
+            cursor: pointer; white-space: nowrap; letter-spacing: 0.4px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .flow-btn::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+        }
+        .flow-btn:hover {
+            background: rgba(255,255,255,0.06); color: #fff;
+            border-color: rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+        .flow-btn.active {
+            border-color: var(--btn-color, rgba(0,229,255,0.5));
+            background: color-mix(in srgb, var(--btn-color, #00e5ff) 12%, transparent);
+            color: #fff;
+            box-shadow: 0 0 24px color-mix(in srgb, var(--btn-color, #00e5ff) 20%, transparent),
+                        0 0 6px color-mix(in srgb, var(--btn-color, #00e5ff) 30%, transparent),
+                        inset 0 1px 0 rgba(255,255,255,0.06);
+        }
+        .flow-btn .btn-dot {
+            display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+            background: var(--btn-color, #00e5ff); margin-right: 8px; vertical-align: middle;
+            opacity: 0.4; transition: all 0.3s;
+        }
+        .flow-btn.active .btn-dot { opacity: 1; box-shadow: 0 0 10px var(--btn-color, #00e5ff); }
+        .flow-btn.show-all { border-color: rgba(0,229,255,0.2); font-weight: 700; letter-spacing: 0.8px; font-family: 'Rajdhani', sans-serif; font-size: 14px; }
+        .flow-btn.show-all.active { border-color: rgba(0,229,255,0.4); background: rgba(0,229,255,0.1); box-shadow: 0 0 24px rgba(0,229,255,0.15); }
+    </style>
+</head>
+<body>
+    <canvas id="c"></canvas>
+    <div class="title-bar">
+        <div class="dot"></div>
+        <span>AZURE LOCAL — OUTBOUND CONNECTIVITY: PUBLIC PATH</span>
+    </div>
+    <div class="perf" id="fps">-- fps</div>
+
+    <!-- Architecture Scenario Buttons -->
+    <div class="arch-bar">
+        <span class="arch-label">Architecture:</span>
+        <button class="arch-btn active" onclick="switchArch(1)" id="arch-1"><span class="arch-dot"></span>No Proxy, No Arc GW</button>
+        <button class="arch-btn" onclick="switchArch(2)" id="arch-2"><span class="arch-dot"></span>Proxy, No Arc GW</button>
+        <button class="arch-btn" onclick="switchArch(3)" id="arch-3"><span class="arch-dot"></span>No Proxy, Arc GW</button>
+        <button class="arch-btn" onclick="switchArch(4)" id="arch-4"><span class="arch-dot"></span>Proxy &amp; Arc GW</button>
+    </div>
+
+    <div class="flow-bar">
+        <div class="flow-sub-row" id="sub-row">
+            <div class="sub-group" id="sub-hosts">
+                <span class="sub-label" style="color:#00e5ff">Nodes:</span>
+                <button class="flow-btn sub-btn" style="--btn-color:#00e5ff" onclick="toggleSub('hosts','arcgw')" id="btn-hosts-arcgw"><span class="btn-dot"></span>HTTPS Allowed</button>
+                <button class="flow-btn sub-btn" style="--btn-color:#00ff88" onclick="toggleSub('hosts','internet')" id="btn-hosts-internet"><span class="btn-dot"></span>Internet</button>
+                <button class="flow-btn sub-btn" style="--btn-color:#ff0066" onclick="toggleSub('hosts','bypassed')" id="btn-hosts-bypassed"><span class="btn-dot"></span>Bypassed</button>
+            </div>
+            <div class="sub-group" id="sub-arb">
+                <span class="sub-label" style="color:#4d8dff">ARB:</span>
+                <button class="flow-btn sub-btn" style="--btn-color:#00e5ff" onclick="toggleSub('arb','arcgw')" id="btn-arb-arcgw"><span class="btn-dot"></span>HTTPS Allowed</button>
+                <button class="flow-btn sub-btn" style="--btn-color:#00ff88" onclick="toggleSub('arb','internet')" id="btn-arb-internet"><span class="btn-dot"></span>Internet</button>
+                <button class="flow-btn sub-btn" style="--btn-color:#ff0066" onclick="toggleSub('arb','bypassed')" id="btn-arb-bypassed"><span class="btn-dot"></span>Bypassed</button>
+            </div>
+            <div class="sub-group" id="sub-aks">
+                <span class="sub-label" style="color:#00e5ff">AKS:</span>
+                <button class="flow-btn sub-btn" style="--btn-color:#00e5ff" onclick="toggleSub('aks','arcgw')" id="btn-aks-arcgw"><span class="btn-dot"></span>HTTPS Allowed</button>
+                <button class="flow-btn sub-btn" style="--btn-color:#00ff88" onclick="toggleSub('aks','internet')" id="btn-aks-internet"><span class="btn-dot"></span>Internet</button>
+                <button class="flow-btn sub-btn" style="--btn-color:#ff0066" onclick="toggleSub('aks','bypassed')" id="btn-aks-bypassed"><span class="btn-dot"></span>Bypassed</button>
+            </div>
+            <div class="sub-group" id="sub-vms">
+                <span class="sub-label" style="color:#ffb800">VMs:</span>
+                <button class="flow-btn sub-btn" style="--btn-color:#ffb800" onclick="toggleSub('vms','direct')" id="btn-vms-direct"><span class="btn-dot"></span>Direct</button>
+            </div>
+        </div>
+        <div class="flow-sep" id="flow-sep"></div>
+        <div class="flow-main-row">
+            <button class="flow-btn show-all" onclick="toggleAll()" id="btn-all">SHOW ALL</button>
+            <button class="flow-btn" style="--btn-color:#4d8dff" onclick="toggleSource('hosts')" id="btn-hosts"><span class="btn-dot"></span>Azure Local Nodes</button>
+            <button class="flow-btn" style="--btn-color:#6366f1" onclick="toggleSource('arb')" id="btn-arb"><span class="btn-dot"></span>ARB</button>
+            <button class="flow-btn" style="--btn-color:#00e5ff" onclick="toggleSource('aks')" id="btn-aks"><span class="btn-dot"></span>AKS</button>
+            <button class="flow-btn" style="--btn-color:#ffb800" onclick="toggleSource('vms')" id="btn-vms"><span class="btn-dot"></span>VMs</button>
+        </div>
+    </div>
+
+    <script>
+    // ════════════════════════════════════════════════════════════════════════
+    // Azure Local Network Flow v6 — "Flat Dark" Public Path Multi-Arch
+    // ════════════════════════════════════════════════════════════════════════
+
+    const canvas = document.getElementById('c');
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    let W, H, fontScale = 1;
+    function S(px) { return Math.round(px * fontScale * 10) / 10; }  // scale px values
+    function resize() {
+        W = window.innerWidth; H = window.innerHeight;
+        fontScale = Math.max(0.5, Math.min(1, W / 1920));
+        canvas.width = W * dpr; canvas.height = H * dpr;
+        canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    }
+    window.addEventListener('resize', () => { resize(); layoutNodes(); });
+    resize();
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    let mouseX = W / 2, mouseY = H / 2, hoveredNode = null;
+    canvas.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+
+    // ── Neon Color Palette ──────────────────────────────────────────────
+    const C = {
+        bg: '#020210', nCyan: '#00e5ff', nPink: '#ff0066', nGreen: '#00ff88',
+        nPurple: '#bf5af2', nBlue: '#4d8dff', nOrange: '#ff8800', nGold: '#ffb800', nRed: '#ff3355',
+        dBlue: '#1a3a8a', dCyan: '#0a5e6e', dGreen: '#0a6e3a', dPink: '#8a1a4a',
+        dPurple: '#5a2a8a', dOrange: '#8a4a0a', dRed: '#6a1a1a', dGold: '#6a5a0a',
+        text: '#e0eaff', textDim: 'rgba(160,190,240,0.55)',
+    };
+
+    // ── SVG Icon Loader ──────────────────────────────────────────────
+    const svgIconImages = {};
+    ['azureLocalMachine:AzureLocalMachine', 'azureFirewall:AzureFirewall', 'arcGateway:ArcGateway',
+     'expressRoute:ExpressRouteCircuits', 'privateEndpoints:PrivateEndpoints',
+     'lnet:AzureLocalLNET', 'vnet:VNET', 'azureLocalVM:AzureLocalVM', 'azureLocalAKS:AzureLocalAKS',
+     'azureLocalCluster:AzureLocalCluster', 'azure:azure'].forEach(entry => {
+        const [name, file] = entry.split(':');
+        const img = new Image();
+        img.onload = () => { svgIconImages[name] = img; };
+        img.src = 'icons/' + file + '.svg';
+    });
+
+    // ── Architecture Scenario State ─────────────────────────────────────
+    let currentArch = 1; // 1-4, default = simplest diagram
+
+    // ── Arch-aware sub-button visibility ─────────────────────────────────
+    function updateSubButtonsForArch() {
+        const hasProxy = (currentArch === 2 || currentArch === 4);
+        const hasArcGW = (currentArch === 3 || currentArch === 4);
+        // hosts sub-buttons — arcgw & internet always visible, bypassed only with Arc GW
+        const hostsArcgw = document.getElementById('btn-hosts-arcgw');
+        const hostsInternet = document.getElementById('btn-hosts-internet');
+        const hostsBypassed = document.getElementById('btn-hosts-bypassed');
+        if (hostsArcgw) hostsArcgw.style.display = '';
+        if (hostsInternet) hostsInternet.style.display = '';
+        if (hostsBypassed) hostsBypassed.style.display = (hasProxy || hasArcGW) ? '' : 'none';
+        // arb sub-buttons
+        const arbArcgw = document.getElementById('btn-arb-arcgw');
+        const arbInternet = document.getElementById('btn-arb-internet');
+        const arbBypassed = document.getElementById('btn-arb-bypassed');
+        if (arbArcgw) arbArcgw.style.display = '';
+        if (arbInternet) arbInternet.style.display = '';
+        if (arbBypassed) arbBypassed.style.display = (hasProxy || hasArcGW) ? '' : 'none';
+        // aks sub-buttons
+        const aksArcgw = document.getElementById('btn-aks-arcgw');
+        const aksInternet = document.getElementById('btn-aks-internet');
+        const aksBypassed = document.getElementById('btn-aks-bypassed');
+        if (aksArcgw) aksArcgw.style.display = '';
+        if (aksInternet) aksInternet.style.display = '';
+        if (aksBypassed) aksBypassed.style.display = (hasProxy || hasArcGW) ? '' : 'none';
+    }
+
+    function switchArch(num) {
+        if (num === currentArch) return;
+        currentArch = num;
+        for (let i = 1; i <= 4; i++) document.getElementById('arch-' + i).classList.toggle('active', i === num);
+        // Reset flow state
+        showAll = false; showAllTarget = 0; showAllOpacity = 0;
+        document.getElementById('btn-all').classList.remove('active');
+        for (const srcId in flowState) {
+            flowState[srcId].expanded = false;
+            document.getElementById('btn-' + srcId).classList.remove('active');
+            const subEl = document.getElementById('sub-' + srcId);
+            if (subEl) subEl.classList.remove('visible');
+            for (const sub in flowState[srcId].subs) {
+                flowState[srcId].subs[sub].visible = false;
+                flowState[srcId].subs[sub].target = 0;
+                flowState[srcId].subs[sub].opacity = 0;
+                const btn = document.getElementById('btn-' + srcId + '-' + sub);
+                if (btn) btn.classList.remove('active');
+            }
+        }
+        updateSubRowVisibility();
+        rebuildTopology();
+        updateSubButtonsForArch();
+    }
+
+    // ── Flow State ──────────────────────────────────────────────────────
+    const flowState = {
+        hosts: { expanded: false, subs: { arcgw: { visible: false, opacity: 0, target: 0 }, internet: { visible: false, opacity: 0, target: 0 }, bypassed: { visible: false, opacity: 0, target: 0 } }},
+        arb:   { expanded: false, subs: { arcgw: { visible: false, opacity: 0, target: 0 }, internet: { visible: false, opacity: 0, target: 0 }, bypassed: { visible: false, opacity: 0, target: 0 } }},
+        aks:   { expanded: false, subs: { arcgw: { visible: false, opacity: 0, target: 0 }, internet: { visible: false, opacity: 0, target: 0 }, bypassed: { visible: false, opacity: 0, target: 0 } }},
+        vms:   { expanded: false, subs: { direct: { visible: false, opacity: 0, target: 0 } }},
+    };
+    let showAll = false, showAllOpacity = 0, showAllTarget = 0;
+
+    function updateSubRowVisibility() { document.getElementById('flow-sep').classList.toggle('visible', Object.values(flowState).some(s => s.expanded)); }
+    function toggleSource(srcId) {
+        if (showAll) { showAll = false; showAllTarget = 0; document.getElementById('btn-all').classList.remove('active'); }
+        const src = flowState[srcId]; src.expanded = !src.expanded;
+        document.getElementById('btn-' + srcId).classList.toggle('active', src.expanded);
+        document.getElementById('sub-' + srcId).classList.toggle('visible', src.expanded);
+        if (!src.expanded) { for (const sub in src.subs) { src.subs[sub].visible = false; src.subs[sub].target = 0; const btn = document.getElementById('btn-' + srcId + '-' + sub); if (btn) btn.classList.remove('active'); } }
+        updateSubRowVisibility();
+    }
+    function toggleSub(srcId, subType) { const sub = flowState[srcId].subs[subType]; sub.visible = !sub.visible; sub.target = sub.visible ? 1 : 0; document.getElementById('btn-' + srcId + '-' + subType).classList.toggle('active', sub.visible); }
+    function toggleAll() {
+        showAll = !showAll; showAllTarget = showAll ? 1 : 0; document.getElementById('btn-all').classList.toggle('active', showAll);
+        if (showAll) { for (const srcId in flowState) { flowState[srcId].expanded = false; document.getElementById('btn-' + srcId).classList.remove('active'); document.getElementById('sub-' + srcId).classList.remove('visible'); for (const sub in flowState[srcId].subs) { flowState[srcId].subs[sub].visible = false; flowState[srcId].subs[sub].target = 0; const btn = document.getElementById('btn-' + srcId + '-' + sub); if (btn) btn.classList.remove('active'); } } }
+        updateSubRowVisibility();
+    }
+    function updateGroupOpacities() {
+        const sp = 0.08;
+        showAllOpacity += (showAllTarget - showAllOpacity) * sp; if (Math.abs(showAllOpacity - showAllTarget) < 0.005) showAllOpacity = showAllTarget;
+        for (const s in flowState) for (const b in flowState[s].subs) { const o = flowState[s].subs[b]; o.opacity += (o.target - o.opacity) * sp; if (Math.abs(o.opacity - o.target) < 0.005) o.opacity = o.target; }
+    }
+    function getGroupOpacity(groups) {
+        if (!groups || !groups.length) return 1; let m = showAllOpacity;
+        for (const g of groups) { const d = g.indexOf('.'); if (d < 0) continue; const s = g.substring(0, d), b = g.substring(d + 1); if (flowState[s] && flowState[s].subs[b]) m = Math.max(m, flowState[s].subs[b].opacity); }
+        return m;
+    }
+
+    // ── Star Field ──────────────────────────────────────────────────────
+    const stars = [];
+    for (let i = 0; i < 300; i++) {
+        stars.push({
+            x: Math.random(), y: Math.random(),
+            size: 0.3 + Math.random() * 1.5,
+            twinkleSpeed: 0.5 + Math.random() * 3,
+            twinkleOffset: Math.random() * Math.PI * 2,
+            brightness: 0.2 + Math.random() * 0.8,
+        });
+    }
+
+    // ── Pulse Rings ─────────────────────────────────────────────────────
+    const pulseRings = [];
+    let lastPulseTime = 0;
+
+    // ── Topology ────────────────────────────────────────────────────────
+    let zones = [], nodes = [], edges = [];
+
+    function defineTopology() {
+        zones.length = 0; nodes.length = 0; edges.length = 0;
+
+        const hasProxy = (currentArch === 2 || currentArch === 4);
+        const hasArcGW = (currentArch === 3 || currentArch === 4);
+
+        // ── Zone: Azure Local Instance ──
+        zones.push({ id: 'azlocal', label: 'AZURE LOCAL INSTANCE', x: 0.02, y: 0.05, w: 0.30, h: 0.72, borderColor: C.nCyan, labelColor: '#00e5ff', fill: 'rgba(0,229,255,0.02)', dashed: true });
+
+        // ── Azure Local nodes (always present) ──
+        const hostLy = hasArcGW ? 0.18 : 0.20;  // center with firewall when no Arc GW
+        nodes.push({ id: 'hosts', label: 'Azure Local host', sub: 'Mgmt LNET', zone: 'azlocal', lx: 0.06, ly: hostLy, w: 0.12, h: 0.055, fill: C.dBlue, glow: C.nBlue, textColor: '#fff', svgIcon: 'azureLocalMachine' });
+        nodes.push({ id: 'arb', label: 'ARB', sub: 'Mgmt LNET', zone: 'azlocal', lx: 0.04, ly: 0.42, w: 0.10, h: 0.055, fill: C.dBlue, glow: C.nBlue, textColor: '#fff', svgIcon: 'lnet' });
+        nodes.push({ id: 'aks', label: 'AKS', sub: 'AKS LNET', zone: 'azlocal', lx: 0.16, ly: 0.42, w: 0.10, h: 0.055, fill: C.dCyan, glow: C.nCyan, textColor: '#fff', svgIcon: 'azureLocalAKS' });
+        nodes.push({ id: 'vms', label: 'VMs', sub: 'VMs LNET', zone: 'azlocal', lx: 0.08, ly: 0.58, w: 0.12, h: 0.055, fill: C.dGold, glow: C.nGold, textColor: '#fff', svgIcon: 'azureLocalVM' });
+
+        // ── Arc Proxy & Cluster IP (only with Arc GW) ──
+        if (hasArcGW) {
+            nodes.push({ id: 'arcproxy', label: 'Arc Proxy', sub: '', zone: 'azlocal', lx: 0.22, ly: 0.19, w: 0.06, h: 0.07, fill: C.dGreen, glow: C.nGreen, textColor: '#fff' });
+            nodes.push({ id: 'clusterip', label: 'Cluster IP:40343', sub: '', zone: 'azlocal', lx: 0.08, ly: 0.24, w: 0.08, h: 0.035, fill: C.dGreen, glow: C.nGreen, textColor: '#fff', badge: true });
+        }
+
+        // ── Corporate Proxy (only with Proxy) ──
+        if (hasProxy) {
+            nodes.push({ id: 'corpproxy', label: 'Corporate', sub: 'Infra Proxy', zone: null, lx: 0.33, ly: 0.14, w: 0.08, h: 0.18, fill: C.dOrange, glow: C.nOrange, textColor: '#fff', icon: '⟳', cardStyle: true });
+            nodes.push({ id: 'corpproxy2', label: 'Corporate', sub: 'Workloads Proxy', zone: null, lx: 0.34, ly: 0.55, w: 0.06, h: 0.11, fill: C.dOrange, glow: C.nOrange, textColor: '#fff', icon: '⟳', cardStyle: true });
+        }
+
+        // ── Firewall (always present) ──
+        nodes.push({ id: 'firewall', label: 'Corporate', sub: 'Firewall', zone: null, lx: 0.425, ly: 0.14, w: 0.08, h: 0.18, fill: C.dRed, glow: C.nRed, textColor: '#fff', icon: '🛡', svgIcon: 'azureFirewall', cardStyle: true });
+
+        // ── Arc Gateway (only with Arc GW) ──
+        if (hasArcGW) {
+            nodes.push({ id: 'arcgw', label: 'Arc', sub: 'gateway', zone: null, lx: 0.62, ly: 0.185, w: 0.06, h: 0.08, fill: '#0a4a5e', glow: C.nCyan, textColor: C.nCyan, icon: '⮕', svgIcon: 'arcGateway', bigLabel: true });
+        }
+
+        // ── ExpressRoute (always) ──
+        nodes.push({ id: 'express', label: 'ExpressRoute Path', sub: '', zone: null, lx: 0.53, ly: 0.53, w: 0.10, h: 0.065, fill: C.dPurple, glow: C.nPurple, textColor: '#fff', icon: '📡', svgIcon: 'expressRoute' });
+
+        // ── Right-side destinations (always) ──
+        nodes.push({ id: 'azpubep', label: 'Azure', sub: 'Public Endpoints', zone: null, lx: 0.72, ly: 0.10, w: 0.16, h: 0.14, fill: C.dBlue, glow: C.nBlue, textColor: '#fff', icon: '☁', svgIcon: 'azure', cardStyle: true });
+        nodes.push({ id: 'pubendpt', label: 'Internet', sub: 'Public Endpoints', zone: null, lx: 0.72, ly: 0.32, w: 0.16, h: 0.14, fill: C.dCyan, glow: C.nGreen, textColor: '#fff', icon: '🌐', cardStyle: true });
+        nodes.push({ id: 'privendpt', label: 'Azure VNET', sub: 'Private Endpoints', zone: null, lx: 0.72, ly: 0.60, w: 0.16, h: 0.14, fill: C.dPurple, glow: C.nPurple, textColor: '#fff', icon: '⊕', svgIcon: 'privateEndpoints', cardStyle: true });
+
+        // ════════════════════════════════════════════════════════════════
+        // EDGES — vary per architecture
+        // ════════════════════════════════════════════════════════════════
+
+        if (hasArcGW) {
+            // ── With Arc GW: hosts→arcproxy, ARB/AKS→clusterip→arcproxy→arcgw→azpubep ──
+
+            // hosts → arcproxy (blue — all traffic through arc proxy)
+            edges.push({ from: 'hosts', to: 'arcproxy', color: C.nBlue, label: '', dashed: false, animated: true, speed: 1.0, groups: ['hosts.arcgw', 'hosts.internet'] });
+
+            // ARB → clusterip (via waypoints)
+            edges.push({ from: 'arb', to: 'clusterip', color: C.nBlue, label: 'ARB HTTP/HTTPS\noutbound traffic', labelT: 0.3, labelColor: '#99bbff', labelAlign: 'right', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'top', groups: ['arb.arcgw', 'arb.internet'],
+                waypoints: [{ lx: 0.09, ly: 0.36 }, { lx: 0.10, ly: 0.36 }, { lx: 0.10, ly: 0.275 }] });
+
+            // AKS → clusterip (via waypoints)
+            edges.push({ from: 'aks', to: 'clusterip', color: C.nCyan, label: 'AKS HTTP/HTTPS\noutbound traffic', labelT: 0.3, labelColor: '#99ffee', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'top', groups: ['aks.arcgw', 'aks.internet'],
+                waypoints: [{ lx: 0.21, ly: 0.36 }, { lx: 0.14, ly: 0.36 }, { lx: 0.14, ly: 0.275 }] });
+
+            // clusterip → arcproxy
+            edges.push({ from: 'clusterip', to: 'arcproxy', color: C.nGreen, label: '', dashed: false, animated: true, speed: 0.8, groups: ['arb.arcgw', 'arb.internet', 'aks.arcgw', 'aks.internet'] });
+
+            // arcproxy → arcgw (HTTPS allowed)
+            edges.push({ from: 'arcproxy', to: 'arcgw', color: C.nCyan, label: 'HTTPS Azure allowed endpoints\nby Arc gateway', dashed: false, animated: true, speed: 0.7, labelColor: '#99eeff', labelT: 0.85, labelYOffset: -35, groups: ['hosts.arcgw', 'arb.arcgw', 'aks.arcgw'] });
+
+            // arcgw → azpubep (Azure backbone)
+            edges.push({ from: 'arcgw', to: 'azpubep', color: C.nCyan, label: 'Azure\nbackbone\ntraffic', dashed: false, animated: true, speed: 0.8, labelColor: '#99eeff', labelYOffset: -45, groups: ['hosts.arcgw', 'arb.arcgw', 'aks.arcgw'] });
+
+            // arcproxy → pubendpt (non-Arc GW internet traffic)
+            edges.push({ from: 'arcproxy', to: 'pubendpt', color: C.nGreen, label: 'All HTTP and any HTTPS endpoint\nnot allowed by Arc gateway', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'bottom', targetAnchor: 'left', labelColor: '#99ffcc', labelT: 0.75, groups: ['hosts.internet', 'arb.internet', 'aks.internet'],
+                waypoints: [{ lx: 0.25, ly: 0.30 }, { lx: 0.37, ly: 0.30 }, { lx: 0.465, ly: 0.30 }, { lx: 0.51, ly: 0.30 }, { lx: 0.51, ly: 0.39 }] });
+
+            // firewall → azpubep (VMs + bypassed traffic to Azure public endpoints — routed UP to avoid tunnel overlap)
+            edges.push({ from: 'firewall', to: 'azpubep', color: C.nCyan, label: 'Azure public endpoints', dashed: false, animated: true, speed: 0.8, labelColor: '#99eeff', labelYOffset: 14, labelT: 0.5, sourceAnchor: 'top', targetAnchor: 'top', groups: ['hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'],
+                waypoints: [{ lx: 0.465, ly: 0.08 }, { lx: 0.80, ly: 0.08 }] });
+
+            // firewall → pubendpt (VMs + bypassed traffic to Internet — routed DOWN to avoid tunnel overlap)
+            edges.push({ from: 'firewall', to: 'pubendpt', color: C.nGreen, label: 'Internet public\nendpoints', dashed: false, animated: true, speed: 0.7, labelColor: '#99ffcc', labelT: 0.5, sourceAnchor: 'bottom', targetAnchor: 'bottom', groups: ['hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'],
+                waypoints: [{ lx: 0.465, ly: 0.50 }, { lx: 0.80, ly: 0.50 }] });
+
+        } else {
+            // ── Without Arc GW ──
+
+            // hosts → proxy or firewall
+            if (hasProxy) {
+                edges.push({ from: 'hosts', to: 'corpproxy', color: C.nBlue, label: 'HTTP and HTTPS\noutbound traffic', labelColor: '#99bbff', labelT: 0.25, dashed: false, animated: true, speed: 0.8, groups: ['hosts.arcgw', 'hosts.internet'] });
+            } else {
+                edges.push({ from: 'hosts', to: 'firewall', color: C.nBlue, label: 'HTTP and HTTPS\noutbound traffic', labelColor: '#99bbff', labelT: 0.25, dashed: false, animated: true, speed: 0.8, groups: ['hosts.arcgw', 'hosts.internet'] });
+            }
+
+            // ARB → proxy or firewall (sourceAnchor: top)
+            if (hasProxy) {
+                edges.push({ from: 'arb', to: 'corpproxy', color: C.nBlue, label: 'ARB HTTP/HTTPS\noutbound traffic', labelColor: '#99bbff', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'top', targetAnchor: 'bottom', labelT: 0.3, groups: ['arb.arcgw', 'arb.internet'],
+                    waypoints: [{ lx: 0.09, ly: 0.38 }, { lx: 0.37, ly: 0.38 }] });
+            } else {
+                edges.push({ from: 'arb', to: 'firewall', color: C.nBlue, label: 'ARB HTTP/HTTPS\noutbound traffic', labelColor: '#99bbff', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'top', targetAnchor: 'bottom', labelT: 0.15, groups: ['arb.arcgw', 'arb.internet'],
+                    waypoints: [{ lx: 0.09, ly: 0.38 }, { lx: 0.465, ly: 0.38 }] });
+            }
+
+            // AKS → proxy or firewall (sourceAnchor: top)
+            if (hasProxy) {
+                edges.push({ from: 'aks', to: 'corpproxy', color: C.nCyan, label: 'AKS HTTP/HTTPS\noutbound traffic', labelColor: '#99ffee', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'top', targetAnchor: 'bottom', groups: ['aks.arcgw', 'aks.internet'],
+                    waypoints: [{ lx: 0.21, ly: 0.35 }, { lx: 0.37, ly: 0.35 }] });
+            } else {
+                edges.push({ from: 'aks', to: 'firewall', color: C.nCyan, label: 'AKS HTTP/HTTPS\noutbound traffic', labelColor: '#99ffee', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'top', targetAnchor: 'bottom', groups: ['aks.arcgw', 'aks.internet'],
+                    waypoints: [{ lx: 0.21, ly: 0.35 }, { lx: 0.465, ly: 0.35 }] });
+            }
+
+            // proxy → firewall (only with proxy)
+            if (hasProxy) {
+                edges.push({ from: 'corpproxy', to: 'firewall', color: C.nOrange, label: '', dashed: false, animated: true, speed: 0.8, groups: ['hosts.arcgw', 'hosts.internet', 'arb.arcgw', 'arb.internet', 'aks.arcgw', 'aks.internet'] });
+            }
+
+            // firewall → azpubep (Azure public endpoints)
+            edges.push({ from: 'firewall', to: 'azpubep', color: C.nCyan, label: 'Azure public\nendpoints', dashed: false, animated: true, speed: 0.8, labelColor: '#99eeff', labelYOffset: -35, groups: ['hosts.arcgw', 'arb.arcgw', 'aks.arcgw', 'hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'] });
+
+            // firewall → pubendpt (Internet endpoints)
+            edges.push({ from: 'firewall', to: 'pubendpt', color: C.nGreen, label: 'Internet public\nendpoints', dashed: false, animated: true, speed: 0.7, labelColor: '#99ffcc', sourceAnchor: 'right', targetAnchor: 'left', groups: ['hosts.internet', 'arb.internet', 'aks.internet', 'hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'] });
+        }
+
+        // ── Bypassed edges (traffic bypassing proxy / arc proxy) ──
+        if (hasProxy || hasArcGW) {
+            // hosts → firewall bypassed (pink, top anchors)
+            edges.push({ from: 'hosts', to: 'firewall', color: C.nPink, label: 'Arc proxy bypassed\nendpoints', labelColor: '#ff99bb', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'top', targetAnchor: 'top', groups: ['hosts.bypassed'],
+                waypoints: [{ lx: 0.12, ly: 0.10 }, { lx: 0.465, ly: 0.10 }] });
+
+            // ARB → firewall bypassed
+            edges.push({ from: 'arb', to: 'firewall', color: C.nPink, label: 'ARB proxy bypassed\nendpoints', labelColor: '#ff99bb', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'bottom', targetAnchor: 'bottom', labelT: 0.3, groups: ['arb.bypassed'],
+                waypoints: [{ lx: 0.09, ly: 0.52 }, { lx: 0.48, ly: 0.52 }, { lx: 0.48, ly: 0.36 }] });
+
+            // AKS → firewall bypassed
+            edges.push({ from: 'aks', to: 'firewall', color: C.nPink, label: 'AKS proxy bypassed\nendpoints', labelColor: '#ff99bb', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'right', targetAnchor: 'bottom', groups: ['aks.bypassed'],
+                waypoints: [{ lx: 0.45, ly: 0.45 }, { lx: 0.45, ly: 0.36 }] });
+        }
+
+        // ── VMs → firewall ──
+        if (hasProxy || hasArcGW) {
+            edges.push({ from: 'vms', to: 'firewall', color: C.nPink, label: 'VMs proxy bypassed\nprivate endpoints', dashed: false, animated: true, speed: 0.5, labelColor: '#ff99bb', sourceAnchor: 'bottom', targetAnchor: 'bottom', labelT: 0.25, groups: ['vms.direct'],
+                waypoints: [{ lx: 0.14, ly: 0.72 }, { lx: 0.44, ly: 0.72 }, { lx: 0.44, ly: 0.36 }] });
+        }
+        edges.push({ from: 'vms', to: 'firewall', color: C.nGold, label: '', dashed: false, animated: true, speed: 0.6, labelColor: '#ffe680', sourceAnchor: 'right', targetAnchor: 'bottom', labelT: 0.15, groups: ['vms.direct'],
+            waypoints: [{ lx: 0.465, ly: 0.61 }, { lx: 0.465, ly: 0.36 }] });
+
+        // ── Firewall → private endpoints (ExpressRoute) — always ──
+        const exprGroups = ['hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'];
+        if (!hasArcGW) { exprGroups.push('hosts.arcgw', 'hosts.internet', 'arb.arcgw', 'arb.internet', 'aks.arcgw', 'aks.internet'); }
+        edges.push({ from: 'firewall', to: 'privendpt', color: C.nPurple, label: 'ExpressRoute\ntraffic', dashed: false, animated: true, speed: 0.5, labelColor: '#d8aaff', sourceAnchor: 'bottom', targetAnchor: 'left', labelT: 0.3, groups: exprGroups,
+            waypoints: [{ lx: 0.50, ly: 0.40 }, { lx: 0.57, ly: 0.50 }, { lx: 0.57, ly: 0.67 }] });
+    }
+
+    function rebuildTopology() {
+        defineTopology();
+        layoutNodes();
+        initFlowDots();
+    }
+
+    defineTopology();
+
+    // ── Layout ──────────────────────────────────────────────────────────
+    let laidOut = { zones: [], nodes: [], edges: [] };
+    function layoutNodes() {
+        const pad = 50, topOff = 60, aw = W - pad * 2, ah = H - pad - topOff;
+        laidOut.zones = zones.map(z => ({ ...z, px: pad + z.x * aw, py: topOff + z.y * ah, pw: z.w * aw, ph: z.h * ah }));
+        laidOut.nodes = nodes.map(n => ({ ...n, px: pad + n.lx * aw, py: topOff + n.ly * ah, pw: n.w * aw, ph: n.h * ah, cx: pad + n.lx * aw + n.w * aw * 0.5, cy: topOff + n.ly * ah + n.h * ah * 0.5 }));
+        laidOut.edges = edges.map(e => {
+            const fromN = laidOut.nodes.find(n => n.id === e.from), toN = laidOut.nodes.find(n => n.id === e.to);
+            if (!fromN || !toN) return null;
+            const yOff = e.yOffset || 0, sa = e.sourceAnchor || null;
+            let fx = fromN.cx, fy = fromN.cy + yOff;
+            if (sa === 'top') fy = fromN.py; else if (sa === 'bottom') fy = fromN.py + fromN.ph; else if (sa === 'right') { fx = fromN.px + fromN.pw; fy = fromN.cy; } else if (sa === 'left') { fx = fromN.px; fy = fromN.cy; }
+            const ta = e.targetAnchor || null; let tx = toN.cx, ty = toN.cy + yOff;
+            if (ta === 'bottom') ty = toN.py + toN.ph; else if (ta === 'top') ty = toN.py; else if (ta === 'right') { tx = toN.px + toN.pw; ty = toN.cy; } else if (ta === 'left') { tx = toN.px; ty = toN.cy; }
+            let points;
+            if (e.waypoints && e.waypoints.length > 0) { points = [{ x: fx, y: fy }]; e.waypoints.forEach(wp => points.push({ x: pad + wp.lx * aw, y: topOff + wp.ly * ah })); points.push({ x: tx, y: ty }); }
+            else points = computeOrthogonalPath(fromN, toN, yOff, sa);
+            const smooth = smoothPath(points, 14);
+            return { ...e, points, smooth, fx, fy, tx, ty };
+        }).filter(Boolean);
+    }
+    function computeOrthogonalPath(f, t, yOff, sa) {
+        const gap = 12, dx = t.cx - f.cx, dy = t.cy - f.cy; let sx, sy, ex, ey;
+        if (sa === 'top') { sx = f.cx; sy = f.py - gap; ex = t.cx; ey = t.py + t.ph; if (Math.abs(sx - ex) < 5) return [{ x: sx, y: sy }, { x: ex, y: ey }]; const my = (sy + ey) / 2; return [{ x: sx, y: sy }, { x: sx, y: my }, { x: ex, y: my }, { x: ex, y: ey }]; }
+        if (sa === 'bottom') { sx = f.cx; sy = f.py + f.ph + gap; ex = t.px - gap; ey = t.cy; return [{ x: sx, y: sy }, { x: sx, y: ey }, { x: ex, y: ey }]; }
+        if (Math.abs(dx) > Math.abs(dy) * 0.5) { if (dx > 0) { sx = f.px + f.pw + gap; ex = t.px - gap; } else { sx = f.px - gap; ex = t.px + t.pw + gap; } sy = f.cy + (yOff || 0); ey = t.cy + (yOff || 0); }
+        else { if (dy > 0) { sy = f.py + f.ph + gap; ey = t.py - gap; } else { sy = f.py - gap; ey = t.py + t.ph + gap; } sx = f.cx; ex = t.cx; }
+        if (Math.abs(sx - ex) < 5) return [{ x: sx, y: sy }, { x: ex, y: ey }]; if (Math.abs(sy - ey) < 5) return [{ x: sx, y: sy }, { x: ex, y: ey }];
+        const mx = (sx + ex) / 2; return [{ x: sx, y: sy }, { x: mx, y: sy }, { x: mx, y: ey }, { x: ex, y: ey }];
+    }
+    layoutNodes();
+
+    // ── Flow Particles ──────────────────────────────────────────────────
+    let flowDots = [];
+    function initFlowDots() {
+        flowDots.length = 0;
+        edges.forEach((e, ei) => { const c = 3 + Math.floor(Math.random() * 4); for (let i = 0; i < c; i++) flowDots.push({ edgeIdx: ei, t: i / c, speed: (e.speed || 0.7) * (0.6 + Math.random() * 0.7), size: 2 + Math.random() * 2.5, bright: 0.6 + Math.random() * 0.4 }); });
+    }
+    initFlowDots();
+
+    // ── Ambient Particles ───────────────────────────────────────────────
+    const ambient = [];
+    for (let i = 0; i < 60; i++) ambient.push({ x: Math.random(), y: Math.random(), vx: (Math.random() - 0.5) * 0.0002, vy: (Math.random() - 0.5) * 0.0002, size: 0.5 + Math.random() * 2, alpha: 0.04 + Math.random() * 0.1, hue: [C.nCyan, C.nPink, C.nPurple, C.nGreen, C.nBlue][Math.floor(Math.random() * 5)] });
+
+    // ── Helpers ─────────────────────────────────────────────────────────
+    function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath(); }
+    function hexRgb(hex) { return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) }; }
+    function rgba(hex, a) { const c = hexRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
+    function posOnPath(pts, t) {
+        if (pts.length < 2) return pts[0] || { x: 0, y: 0 }; let total = 0; const segs = [];
+        for (let i = 1; i < pts.length; i++) { const dx = pts[i].x - pts[i-1].x, dy = pts[i].y - pts[i-1].y, len = Math.sqrt(dx*dx + dy*dy); segs.push({ s: pts[i-1], e: pts[i], len }); total += len; }
+        const target = t * total; let acc = 0;
+        for (const seg of segs) { if (acc + seg.len >= target) { const f = (target - acc) / seg.len; return { x: seg.s.x + (seg.e.x - seg.s.x) * f, y: seg.s.y + (seg.e.y - seg.s.y) * f }; } acc += seg.len; }
+        return pts[pts.length - 1];
+    }
+    function roundedPolyline(ctx, pts, r) { if (pts.length < 2) return; ctx.moveTo(pts[0].x, pts[0].y); for (let i = 1; i < pts.length - 1; i++) ctx.arcTo(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, r); ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y); }
+    function smoothPath(pts, r) {
+        if (!pts || pts.length < 3) return pts ? [...pts] : [];
+        const out = [{ x: pts[0].x, y: pts[0].y }];
+        for (let i = 1; i < pts.length - 1; i++) {
+            const A = pts[i-1], B = pts[i], CC = pts[i+1];
+            const dxAB = B.x - A.x, dyAB = B.y - A.y;
+            const dxCB = B.x - CC.x, dyCB = B.y - CC.y;
+            const lenAB = Math.sqrt(dxAB*dxAB + dyAB*dyAB);
+            const lenCB = Math.sqrt(dxCB*dxCB + dyCB*dyCB);
+            const maxR = Math.min(r, lenAB * 0.45, lenCB * 0.45);
+            if (maxR < 1) { out.push({x: B.x, y: B.y}); continue; }
+            const t1x = B.x - (dxAB / lenAB) * maxR, t1y = B.y - (dyAB / lenAB) * maxR;
+            const t2x = B.x - (dxCB / lenCB) * maxR, t2y = B.y - (dyCB / lenCB) * maxR;
+            out.push({x: t1x, y: t1y});
+            const steps = 10;
+            for (let s = 1; s < steps; s++) {
+                const t = s / steps, mt = 1 - t;
+                out.push({ x: mt*mt*t1x + 2*mt*t*B.x + t*t*t2x, y: mt*mt*t1y + 2*mt*t*B.y + t*t*t2y });
+            }
+            out.push({x: t2x, y: t2y});
+        }
+        out.push({ x: pts[pts.length-1].x, y: pts[pts.length-1].y });
+        return out;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // RENDER
+    // ════════════════════════════════════════════════════════════════════
+    let frameCount = 0, lastFpsTime = 0;
+    const t0 = performance.now();
+
+    function render(now) {
+        requestAnimationFrame(render);
+        const time = (now - t0) / 1000;
+        updateGroupOpacities();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+
+        // ── Background: deep space gradient ──
+        const bgGrad = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.9);
+        bgGrad.addColorStop(0, '#06061e');
+        bgGrad.addColorStop(0.5, '#030314');
+        bgGrad.addColorStop(1, '#010108');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, W, H);
+
+        // ── Nebula clouds (3 layers) ──
+        const nebulae = [
+            { cx: 0.2, cy: 0.3, r: 0.38, color: C.nCyan, speed: 0.06, phase: 0 },
+            { cx: 0.75, cy: 0.6, r: 0.32, color: C.nPurple, speed: 0.04, phase: 2 },
+            { cx: 0.5, cy: 0.8, r: 0.28, color: C.nPink, speed: 0.05, phase: 4 },
+        ];
+        nebulae.forEach(nb => {
+            const nx = W * (nb.cx + 0.08 * Math.sin(time * nb.speed + nb.phase));
+            const ny = H * (nb.cy + 0.06 * Math.cos(time * nb.speed * 0.8 + nb.phase));
+            const nr = Math.max(W, H) * nb.r;
+            const breath = 0.8 + 0.2 * Math.sin(time * 0.3 + nb.phase);
+            const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, nr);
+            ng.addColorStop(0, rgba(nb.color, 0.035 * breath));
+            ng.addColorStop(0.4, rgba(nb.color, 0.015 * breath));
+            ng.addColorStop(1, rgba(nb.color, 0));
+            ctx.fillStyle = ng;
+            ctx.fillRect(0, 0, W, H);
+        });
+
+        // ── Star field ──
+        stars.forEach(s => {
+            const twinkle = 0.3 + 0.7 * Math.pow(Math.sin(time * s.twinkleSpeed + s.twinkleOffset) * 0.5 + 0.5, 2);
+            const alpha = s.brightness * twinkle;
+            const px = s.x * W, py = s.y * H;
+            if (s.size > 1.2) {
+                const sg = ctx.createRadialGradient(px, py, 0, px, py, s.size * 3);
+                sg.addColorStop(0, `rgba(200,220,255,${alpha})`);
+                sg.addColorStop(0.3, `rgba(200,220,255,${alpha * 0.3})`);
+                sg.addColorStop(1, 'rgba(200,220,255,0)');
+                ctx.fillStyle = sg;
+                ctx.beginPath(); ctx.arc(px, py, s.size * 3, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.fillStyle = `rgba(220,235,255,${alpha})`;
+            ctx.beginPath(); ctx.arc(px, py, s.size * 0.5, 0, Math.PI * 2); ctx.fill();
+        });
+
+        // ── Hex dot grid ──
+        const hexSize = 44;
+        const hexH = hexSize * Math.sqrt(3);
+        ctx.fillStyle = 'rgba(0,229,255,0.025)';
+        for (let row = 0; row < H / (hexH * 0.5) + 1; row++) {
+            for (let col = 0; col < W / hexSize + 1; col++) {
+                const hx = col * hexSize * 1.5;
+                const hy = row * hexH * 0.5 + (col % 2 === 1 ? hexH * 0.25 : 0);
+                ctx.beginPath(); ctx.arc(hx, hy, 0.8, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        // ── Mouse spotlight ──
+        const spotR = 280;
+        const spotG = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, spotR);
+        spotG.addColorStop(0, 'rgba(0,229,255,0.04)'); spotG.addColorStop(0.3, 'rgba(0,229,255,0.02)'); spotG.addColorStop(1, 'rgba(0,229,255,0)');
+        ctx.fillStyle = spotG; ctx.fillRect(0, 0, W, H);
+
+        // ── Ambient particles ──
+        ambient.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            if (p.x < 0 || p.x > 1) p.vx = -p.vx;
+            if (p.y < 0 || p.y > 1) p.vy = -p.vy;
+            const px = p.x * W, py = p.y * H, tw = 0.5 + 0.5 * Math.sin(time * 1.5 + p.x * 20);
+            const ag = ctx.createRadialGradient(px, py, 0, px, py, p.size * 12);
+            ag.addColorStop(0, rgba(p.hue, p.alpha * tw));
+            ag.addColorStop(1, rgba(p.hue, 0));
+            ctx.fillStyle = ag; ctx.beginPath(); ctx.arc(px, py, p.size * 12, 0, Math.PI * 2); ctx.fill();
+        });
+
+        // ── Zones ──
+        laidOut.zones.forEach(z => {
+            const pulse = 0.7 + 0.3 * Math.sin(time * 0.6 + z.x * 5);
+            const bc = hexRgb(z.borderColor);
+            if (z.fill) { roundRect(z.px, z.py, z.pw, z.ph, 18); ctx.fillStyle = z.fill; ctx.fill(); }
+            roundRect(z.px, z.py, z.pw, z.ph, 18);
+            ctx.strokeStyle = `rgba(${bc.r},${bc.g},${bc.b},${0.4 * pulse})`; ctx.lineWidth = 1.5;
+            if (z.dashed) { ctx.setLineDash([12, 8]); ctx.lineDashOffset = -time * 15; }
+            ctx.shadowColor = `rgba(${bc.r},${bc.g},${bc.b},${0.25 * pulse})`; ctx.shadowBlur = 20;
+            ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur = 0;
+            ctx.beginPath(); ctx.moveTo(z.px + 18, z.py + 0.5); ctx.lineTo(z.px + z.pw - 18, z.py + 0.5);
+            ctx.strokeStyle = `rgba(${bc.r},${bc.g},${bc.b},${0.1 * pulse})`; ctx.lineWidth = 1; ctx.stroke();
+            ctx.fillStyle = z.labelColor || C.text;
+            ctx.font = `700 ${S(13)}px "Rajdhani", "Inter", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.letterSpacing = '2px';
+            ctx.fillText(z.label, z.px + z.pw / 2, z.py + 8);
+            if (z.id === 'azlocal' && svgIconImages['azureLocalCluster']) { const cSz = S(36); ctx.save(); ctx.globalAlpha = 0.9; ctx.drawImage(svgIconImages['azureLocalCluster'], z.px + S(10), z.py + S(4), cSz, cSz); ctx.restore(); }
+        });
+
+        // ── Pipe / Tunnel (only when Arc GW present) ──
+        if (currentArch === 3 || currentArch === 4) {
+            const pAlpha = getGroupOpacity(['hosts.arcgw', 'arb.arcgw', 'aks.arcgw']);
+            const apN = laidOut.nodes.find(n => n.id === 'arcproxy'), agN = laidOut.nodes.find(n => n.id === 'arcgw');
+            if (apN && agN && pAlpha > 0.01) {
+                const py = apN.cy, pH = 24, px1 = apN.px + apN.pw, px2 = agN.px, pW = px2 - px1;
+                ctx.save(); ctx.globalAlpha = pAlpha;
+                const tg = ctx.createLinearGradient(px1, py - pH/2, px1, py + pH/2);
+                tg.addColorStop(0, 'rgba(0,229,255,0.06)'); tg.addColorStop(0.4, 'rgba(2,2,16,0.6)');
+                tg.addColorStop(0.6, 'rgba(2,2,16,0.6)'); tg.addColorStop(1, 'rgba(191,90,242,0.04)');
+                roundRect(px1, py - pH/2, pW, pH, 12); ctx.fillStyle = tg; ctx.fill();
+                roundRect(px1, py - pH/2, pW, pH, 12);
+                ctx.strokeStyle = 'rgba(0,229,255,0.25)'; ctx.lineWidth = 1;
+                ctx.shadowColor = 'rgba(0,229,255,0.2)'; ctx.shadowBlur = 12;
+                ctx.stroke(); ctx.shadowBlur = 0;
+                ctx.font = `${S(9)}px "JetBrains Mono", "Cascadia Code", Consolas, monospace`; ctx.textBaseline = 'middle';
+                const chars = '0123456789ABCDEF';
+                for (let i = 0; i < 20; i++) {
+                    const cx = px1 + 10 + ((time * 60 + i * (pW / 20)) % (pW - 20));
+                    const charIdx = Math.floor(time * 3 + i * 7) % chars.length;
+                    const fadeEdge = Math.min(1, Math.min(cx - px1, px2 - cx) / 30);
+                    ctx.fillStyle = `rgba(0,229,255,${0.18 * fadeEdge})`; ctx.textAlign = 'center';
+                    ctx.fillText(chars[charIdx], cx, py);
+                }
+                for (let p = 0; p < 3; p++) {
+                    const sx = px1 + (((time * 55 + p * pW / 3) % pW));
+                    const sg = ctx.createRadialGradient(sx, py, 0, sx, py, 28);
+                    sg.addColorStop(0, 'rgba(0,229,255,0.18)'); sg.addColorStop(1, 'rgba(0,229,255,0)');
+                    ctx.fillStyle = sg; ctx.beginPath(); ctx.rect(px1 + 2, py - pH/2 + 2, pW - 4, pH - 4); ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        // ── Edges ──
+        laidOut.edges.forEach(e => {
+            if (!e.points || e.points.length < 2) return;
+            const alpha = getGroupOpacity(e.groups); if (alpha < 0.01) return;
+            const rc = hexRgb(e.color), cR = 14;
+            ctx.save(); ctx.globalAlpha = alpha;
+            ctx.beginPath(); roundedPolyline(ctx, e.points, cR);
+            ctx.strokeStyle = `rgba(${rc.r},${rc.g},${rc.b},0.04)`; ctx.lineWidth = 14;
+            ctx.shadowColor = `rgba(${rc.r},${rc.g},${rc.b},0.3)`; ctx.shadowBlur = 16;
+            ctx.stroke(); ctx.shadowBlur = 0;
+            ctx.beginPath(); roundedPolyline(ctx, e.points, cR);
+            ctx.strokeStyle = `rgba(${rc.r},${rc.g},${rc.b},0.35)`; ctx.lineWidth = 1.5;
+            if (e.dashed) { ctx.setLineDash([6, 6]); ctx.lineDashOffset = -time * 22 * (e.speed || 0.7); }
+            ctx.stroke(); ctx.setLineDash([]);
+            const last = e.points[e.points.length - 1], prev = e.points[e.points.length - 2];
+            const angle = Math.atan2(last.y - prev.y, last.x - prev.x), aS = S(9);
+            ctx.fillStyle = `rgba(${rc.r},${rc.g},${rc.b},0.7)`;
+            ctx.beginPath(); ctx.moveTo(last.x, last.y);
+            ctx.lineTo(last.x - aS * Math.cos(angle - 0.35), last.y - aS * Math.sin(angle - 0.35));
+            ctx.lineTo(last.x - aS * Math.cos(angle + 0.35), last.y - aS * Math.sin(angle + 0.35));
+            ctx.closePath(); ctx.fill();
+            if (e.label) {
+                const mid = posOnPath(e.points, e.labelT ?? 0.5), lines = e.label.split('\n');
+                ctx.font = `500 ${S(12)}px "Inter", sans-serif`;
+                const align = e.labelAlign || 'center'; ctx.textAlign = align; ctx.textBaseline = 'middle';
+                lines.forEach((line, li) => {
+                    const yB = (e.labelYOffset ?? S(-14)), xB = (e.labelXOffset ?? 0);
+                    const ly = mid.y + yB - (lines.length - 1 - li) * S(16);
+                    const tw = ctx.measureText(line).width + S(16);
+                    let pillX = mid.x + xB - tw/2, textX = mid.x + xB;
+                    if (align === 'right') { pillX = mid.x - tw; textX = mid.x - 5; }
+                    else if (align === 'left') { pillX = mid.x; textX = mid.x + 5; }
+                    roundRect(pillX, ly - S(10), tw, S(20), S(7));
+                    ctx.fillStyle = 'rgba(2,2,16,0.85)'; ctx.fill();
+                    roundRect(pillX, ly - 10, tw, 20, 7);
+                    ctx.strokeStyle = `rgba(${rc.r},${rc.g},${rc.b},0.15)`; ctx.lineWidth = 0.5; ctx.stroke();
+                    ctx.fillStyle = e.labelColor || `rgba(${rc.r},${rc.g},${rc.b},0.85)`;
+                    ctx.fillText(line, textX, ly);
+                });
+            }
+            ctx.restore();
+        });
+
+        // ── Flow Dots ──
+        flowDots.forEach(fd => {
+            const e = laidOut.edges[fd.edgeIdx]; if (!e || !e.points) return;
+            const alpha = getGroupOpacity(e.groups); if (alpha < 0.01) return;
+            fd.t += fd.speed * 0.004; if (fd.t > 1) fd.t -= 1;
+            const pos = posOnPath(e.smooth || e.points, fd.t), rc = hexRgb(e.color);
+            ctx.save(); ctx.globalAlpha = alpha;
+            const bR = fd.size * 8;
+            const bg = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, bR);
+            bg.addColorStop(0, `rgba(${rc.r},${rc.g},${rc.b},${0.45 * fd.bright})`);
+            bg.addColorStop(0.15, `rgba(${rc.r},${rc.g},${rc.b},${0.15 * fd.bright})`);
+            bg.addColorStop(1, `rgba(${rc.r},${rc.g},${rc.b},0)`);
+            ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(pos.x, pos.y, bR, 0, Math.PI * 2); ctx.fill();
+            const flareLen = fd.size * 14, flareA = 0.12 * fd.bright;
+            const hg = ctx.createLinearGradient(pos.x - flareLen, pos.y, pos.x + flareLen, pos.y);
+            hg.addColorStop(0, `rgba(${rc.r},${rc.g},${rc.b},0)`);
+            hg.addColorStop(0.35, `rgba(${rc.r},${rc.g},${rc.b},${flareA})`);
+            hg.addColorStop(0.5, `rgba(${rc.r},${rc.g},${rc.b},${flareA * 2.5})`);
+            hg.addColorStop(0.65, `rgba(${rc.r},${rc.g},${rc.b},${flareA})`);
+            hg.addColorStop(1, `rgba(${rc.r},${rc.g},${rc.b},0)`);
+            ctx.fillStyle = hg; ctx.fillRect(pos.x - flareLen, pos.y - 0.8, flareLen * 2, 1.6);
+            const vg = ctx.createLinearGradient(pos.x, pos.y - flareLen, pos.x, pos.y + flareLen);
+            vg.addColorStop(0, `rgba(${rc.r},${rc.g},${rc.b},0)`);
+            vg.addColorStop(0.35, `rgba(${rc.r},${rc.g},${rc.b},${flareA})`);
+            vg.addColorStop(0.5, `rgba(${rc.r},${rc.g},${rc.b},${flareA * 2.5})`);
+            vg.addColorStop(0.65, `rgba(${rc.r},${rc.g},${rc.b},${flareA})`);
+            vg.addColorStop(1, `rgba(${rc.r},${rc.g},${rc.b},0)`);
+            ctx.fillStyle = vg; ctx.fillRect(pos.x - 0.8, pos.y - flareLen, 1.6, flareLen * 2);
+            ctx.fillStyle = `rgba(${Math.min(255,rc.r+120)},${Math.min(255,rc.g+120)},${Math.min(255,rc.b+120)},${0.95 * fd.bright})`;
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, fd.size * 0.8, 0, Math.PI * 2); ctx.fill();
+            for (let ti = 1; ti <= 7; ti++) {
+                let tt = fd.t - ti * 0.012; if (tt < 0) tt += 1;
+                const tp = posOnPath(e.smooth || e.points, tt), ta = (0.35 - ti * 0.045) * fd.bright, ts = fd.size * (1 - ti * 0.1);
+                if (ta > 0 && ts > 0) { ctx.fillStyle = `rgba(${rc.r},${rc.g},${rc.b},${ta})`; ctx.beginPath(); ctx.arc(tp.x, tp.y, ts, 0, Math.PI * 2); ctx.fill(); }
+            }
+            ctx.restore();
+        });
+
+        // ── Pulse Rings ──
+        if (time - lastPulseTime > 1.8 && laidOut.nodes.length > 0) {
+            const rn = laidOut.nodes[Math.floor(Math.random() * laidOut.nodes.length)];
+            pulseRings.push({ cx: rn.cx, cy: rn.cy, radius: 0, maxRadius: Math.max(rn.pw, rn.ph) * 1.8, color: rn.glow || rn.fill, born: time });
+            lastPulseTime = time;
+        }
+        for (let i = pulseRings.length - 1; i >= 0; i--) {
+            const pr = pulseRings[i], age = time - pr.born;
+            if (age > 1.5) { pulseRings.splice(i, 1); continue; }
+            const progress = age / 1.5; pr.radius = pr.maxRadius * progress;
+            const prAlpha = (1 - progress) * 0.4, prc = hexRgb(pr.color);
+            ctx.strokeStyle = `rgba(${prc.r},${prc.g},${prc.b},${prAlpha})`; ctx.lineWidth = 1.5 * (1 - progress);
+            ctx.shadowColor = `rgba(${prc.r},${prc.g},${prc.b},${prAlpha * 0.5})`; ctx.shadowBlur = 8;
+            ctx.beginPath(); ctx.arc(pr.cx, pr.cy, pr.radius, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+        }
+
+        // ── Nodes — firewall & express drawn last ──
+        const frontIds = new Set(['firewall', 'express']);
+        const sortedNodes = [...laidOut.nodes].sort((a, b) => (frontIds.has(a.id) ? 1 : 0) - (frontIds.has(b.id) ? 1 : 0));
+
+        // ── Hover detection ──
+        hoveredNode = null;
+        for (let i = sortedNodes.length - 1; i >= 0; i--) {
+            const n = sortedNodes[i];
+            if (mouseX >= n.px && mouseX <= n.px + n.pw && mouseY >= n.py && mouseY <= n.py + n.ph) {
+                hoveredNode = n; break;
+            }
+        }
+        canvas.style.cursor = hoveredNode ? 'pointer' : 'default';
+
+        sortedNodes.forEach(n => {
+            const isHov = (n === hoveredNode);
+            const hoverLift = isHov ? 1.35 : 1;
+            const hoverGlow = isHov ? 2.2 : 1;
+            const pulse = 0.8 + 0.2 * Math.sin(time * 1.4 + n.lx * 22 + n.ly * 17);
+            const fc = hexRgb(n.fill), gc = hexRgb(n.glow || n.fill);
+
+            // Hover outer glow ring
+            if (isHov) {
+                ctx.save();
+                const hgR = Math.max(n.pw, n.ph) * 0.9;
+                const hgGrad = ctx.createRadialGradient(n.cx, n.cy, hgR * 0.4, n.cx, n.cy, hgR);
+                hgGrad.addColorStop(0, `rgba(${gc.r},${gc.g},${gc.b},0.12)`);
+                hgGrad.addColorStop(0.6, `rgba(${gc.r},${gc.g},${gc.b},0.04)`);
+                hgGrad.addColorStop(1, `rgba(${gc.r},${gc.g},${gc.b},0)`);
+                ctx.fillStyle = hgGrad;
+                ctx.beginPath(); ctx.arc(n.cx, n.cy, hgR, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+
+            if (n.cardStyle) {
+                ctx.shadowColor = `rgba(${gc.r},${gc.g},${gc.b},${0.45 * pulse * hoverGlow})`; ctx.shadowBlur = 22 * hoverLift;
+                roundRect(n.px, n.py, n.pw, n.ph, 16);
+                const fg = ctx.createLinearGradient(n.px, n.py, n.px + n.pw * 0.3, n.py + n.ph);
+                const fillBoost = isHov ? 0.15 : 0;
+                fg.addColorStop(0, `rgba(${fc.r+15},${fc.g+15},${fc.b+15},${0.6 + fillBoost})`);
+                fg.addColorStop(0.5, `rgba(${fc.r},${fc.g},${fc.b},${0.35 + fillBoost})`);
+                fg.addColorStop(1, `rgba(${Math.max(0,fc.r-10)},${Math.max(0,fc.g-10)},${Math.max(0,fc.b-10)},${0.25 + fillBoost})`);
+                ctx.fillStyle = fg; ctx.fill();
+                roundRect(n.px, n.py, n.pw, n.ph, 16);
+                ctx.strokeStyle = `rgba(${gc.r},${gc.g},${gc.b},${(isHov ? 0.85 : 0.45) * pulse})`; ctx.lineWidth = isHov ? 1.8 : 1; ctx.stroke(); ctx.shadowBlur = 0;
+                ctx.save(); ctx.beginPath(); ctx.moveTo(n.px + 16, n.py + 0.5); ctx.lineTo(n.px + n.pw - 16, n.py + 0.5);
+                ctx.strokeStyle = `rgba(255,255,255,${0.1 * pulse * hoverLift})`; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+                if (n.svgIcon && svgIconImages[n.svgIcon]) { const iconSz = Math.min(n.ph * 0.45, S(40)); ctx.save(); ctx.globalAlpha = (isHov ? 0.95 : 0.75) * pulse; ctx.drawImage(svgIconImages[n.svgIcon], n.cx - iconSz/2, n.py + n.ph * 0.08, iconSz, iconSz); ctx.restore(); }
+                else if (n.icon) { ctx.font = `${Math.min(n.ph * 0.4, S(36))}px "Segoe UI"`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = `rgba(255,255,255,${(isHov ? 0.8 : 0.55) * pulse})`; ctx.fillText(n.icon, n.cx, n.py + n.ph * 0.25); }
+                ctx.font = `700 ${Math.min(S(14), n.pw * 0.08)}px "Inter", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
+                ctx.fillText(n.label, n.cx, n.py + n.ph * 0.62);
+                if (n.sub) { ctx.font = `500 ${Math.min(S(11), n.pw * 0.065)}px "Inter", sans-serif`; ctx.fillStyle = `rgba(${gc.r},${gc.g},${gc.b},1.0)`; ctx.fillText(n.sub, n.cx, n.py + n.ph * 0.78); }
+            } else if (n.badge) {
+                ctx.shadowColor = `rgba(${gc.r},${gc.g},${gc.b},${0.3 * pulse * hoverGlow})`; ctx.shadowBlur = 10 * hoverLift;
+                roundRect(n.px, n.py, n.pw, n.ph, 8);
+                ctx.fillStyle = `rgba(${fc.r},${fc.g},${fc.b},${isHov ? 0.5 : 0.3})`; ctx.fill();
+                ctx.strokeStyle = `rgba(${gc.r},${gc.g},${gc.b},${(isHov ? 0.9 : 0.6) * pulse})`; ctx.lineWidth = isHov ? 1.5 : 1; ctx.stroke(); ctx.shadowBlur = 0;
+                ctx.font = `700 ${S(9)}px "Inter", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = n.textColor || '#fff'; ctx.fillText(n.label, n.cx, n.cy);
+            } else {
+                ctx.shadowColor = `rgba(${gc.r},${gc.g},${gc.b},${0.4 * pulse * hoverGlow})`; ctx.shadowBlur = 16 * hoverLift;
+                roundRect(n.px, n.py, n.pw, n.ph, 10);
+                const fg = ctx.createLinearGradient(n.px, n.py, n.px, n.py + n.ph);
+                const fillBoost = isHov ? 0.12 : 0;
+                fg.addColorStop(0, `rgba(${fc.r},${fc.g},${fc.b},${0.3 + fillBoost})`); fg.addColorStop(1, `rgba(${fc.r},${fc.g},${fc.b},${0.08 + fillBoost})`);
+                ctx.fillStyle = fg; ctx.fill();
+                ctx.strokeStyle = `rgba(${gc.r},${gc.g},${gc.b},${(isHov ? 0.85 : 0.55) * pulse})`; ctx.lineWidth = isHov ? 1.5 : 1; ctx.stroke(); ctx.shadowBlur = 0;
+                ctx.save(); ctx.beginPath(); ctx.moveTo(n.px + 10, n.py + 0.5); ctx.lineTo(n.px + n.pw - 10, n.py + 0.5);
+                ctx.strokeStyle = `rgba(255,255,255,${0.07 * pulse * hoverLift})`; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+                if (n.svgIcon && svgIconImages[n.svgIcon]) { const iconSz = Math.min(n.ph * 0.8, S(26)); ctx.save(); ctx.globalAlpha = (isHov ? 0.9 : 0.65); ctx.drawImage(svgIconImages[n.svgIcon], n.px + S(14), n.cy - iconSz/2, iconSz, iconSz); ctx.restore(); }
+                else if (n.icon) { ctx.font = `${S(14)}px "Segoe UI"`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = `rgba(255,255,255,${isHov ? 0.65 : 0.4})`; ctx.fillText(n.icon, n.px + 5, n.cy); ctx.textAlign = 'center'; }
+                const lx = n.px + n.pw - 8, ly = n.py + 8, lp = 0.5 + 0.5 * Math.sin(time * 2.5 + n.lx * 30);
+                const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, 6);
+                lg.addColorStop(0, `rgba(${gc.r},${gc.g},${gc.b},${(isHov ? 1.0 : 0.9) * lp})`); lg.addColorStop(1, `rgba(${gc.r},${gc.g},${gc.b},0)`);
+                ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(lx, ly, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.font = n.bigLabel ? `700 ${S(14)}px "Inter", sans-serif` : `600 ${S(12)}px "Inter", sans-serif`;
+                const txtOff = (n.svgIcon && svgIconImages[n.svgIcon]) ? S(12) : 0;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = n.textColor || '#fff';
+                ctx.fillText(n.label, n.cx + txtOff, n.sub ? n.cy - 5 : n.cy);
+                if (n.sub) { ctx.font = n.bigLabel ? `500 ${S(11)}px "Inter", sans-serif` : `500 ${S(10)}px "Inter", sans-serif`; ctx.fillStyle = n.bigLabel ? (n.glow || '#99eeff') : `rgba(${gc.r},${gc.g},${gc.b},1.0)`; ctx.fillText(n.sub, n.cx + txtOff, n.cy + S(7)); }
+            }
+        });
+
+        // ── Legend ──
+        const legendItems = [];
+        const hasProxy = (currentArch === 2 || currentArch === 4);
+        const hasArcGW = (currentArch === 3 || currentArch === 4);
+        if (hasArcGW) {
+            legendItems.push({ label: 'HTTP/HTTPS outbound to proxy', color: C.nBlue });
+            legendItems.push({ label: 'Arc Gateway (HTTPS allowed)', color: C.nCyan });
+            legendItems.push({ label: 'Internet (non Arc GW traffic)', color: C.nGreen });
+        } else {
+            legendItems.push({ label: 'HTTP/HTTPS outbound traffic', color: C.nBlue });
+            legendItems.push({ label: 'Azure public endpoints', color: C.nCyan });
+            legendItems.push({ label: 'Internet public endpoints', color: C.nGreen });
+        }
+        if (hasProxy || hasArcGW) legendItems.push({ label: 'Proxy bypassed endpoints', color: C.nPink });
+        legendItems.push({ label: 'Private Endpoints (ExpressRoute)', color: C.nPurple });
+        legendItems.push({ label: 'VMs direct traffic', color: C.nGold });
+
+        const lX = S(16), legendH = legendItems.length * S(26) + S(28), lY = H - legendH - S(34), legendW = S(310);
+        roundRect(lX, lY, legendW, legendH, 14);
+        ctx.fillStyle = 'rgba(2,2,16,0.8)'; ctx.fill();
+        roundRect(lX, lY, legendW, legendH, 14);
+        ctx.strokeStyle = 'rgba(0,229,255,0.1)'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.save(); ctx.beginPath(); ctx.moveTo(lX + S(14), lY + 0.5); ctx.lineTo(lX + legendW - S(14), lY + 0.5);
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+        legendItems.forEach((item, i) => {
+            const iy = lY + S(18) + i * S(26), rc = hexRgb(item.color);
+            const dg = ctx.createRadialGradient(lX + S(18), iy + 2, 0, lX + S(18), iy + 2, S(10));
+            dg.addColorStop(0, `rgba(${rc.r},${rc.g},${rc.b},0.9)`); dg.addColorStop(0.35, `rgba(${rc.r},${rc.g},${rc.b},0.25)`);
+            dg.addColorStop(1, `rgba(${rc.r},${rc.g},${rc.b},0)`);
+            ctx.fillStyle = dg; ctx.beginPath(); ctx.arc(lX + S(18), iy + 2, S(10), 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = item.color; ctx.beginPath(); ctx.arc(lX + S(18), iy + 2, S(4), 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = `rgba(${rc.r},${rc.g},${rc.b},0.6)`; ctx.lineWidth = 2;
+            ctx.setLineDash([S(5), S(4)]); ctx.lineDashOffset = -time * 20;
+            ctx.beginPath(); ctx.moveTo(lX + S(30), iy + 2); ctx.lineTo(lX + S(60), iy + 2); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = C.textDim; ctx.font = `500 ${S(12)}px "Inter", sans-serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(item.label, lX + S(68), iy + 3);
+        });
+
+        // ── Scanline overlay ──
+        ctx.fillStyle = 'rgba(0,0,0,0.025)';
+        for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+
+        // ── Vignette ──
+        const vig = ctx.createRadialGradient(W/2, H/2, Math.min(W,H) * 0.3, W/2, H/2, Math.max(W,H) * 0.85);
+        vig.addColorStop(0, 'rgba(2,2,16,0)'); vig.addColorStop(1, 'rgba(2,2,16,0.55)');
+        ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+
+        // ── FPS ──
+        frameCount++;
+        if (now - lastFpsTime > 500) { document.getElementById('fps').textContent = Math.round(frameCount / ((now - lastFpsTime) / 1000)) + ' fps'; frameCount = 0; lastFpsTime = now; }
+    }
+
+    lastFpsTime = performance.now();
+    updateSubButtonsForArch();
+    requestAnimationFrame(render);
+    </script>
+</body>
+</html>

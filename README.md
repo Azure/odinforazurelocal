@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.17.10 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.17.11 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -39,7 +39,12 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.17.10 - Latest Release
+### 🎉 Version 0.17.11 - Latest Release
+- **Knowledge Tab: Embedded Content**: Knowledge tab now loads inline within the main page instead of navigating away — outbound connectivity architecture guide displayed in an embedded frame
+- **Knowledge Tab: Interactive Diagrams**: Added interactive WebGL flow diagrams for Public Path and Private Path outbound connectivity, selectable via a left sidebar
+- **Knowledge Tab: Sidebar Navigation**: Left sidebar with links to switch between the Architecture Guide, Public Path Flow diagram, and Private Path Flow diagram — all rendered in-page via iframe
+
+### Version 0.17.10
 - **Sizer: ALDO Management Cluster**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios; node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror
 - **Sizer: ALDO Minimum Hardware**: Enforces ALDO minimums — 96 GB memory, 24 physical cores, 2 TB SSD/NVMe per node; 64 GB/node (192 GB total) reserved for appliance VM; 960 GB boot disk recommended
 - **Sizer: ALDO IRVM1 Auto-Workload**: Fixed infrastructure workload (IRVM1 — 24 vCPUs, 78 GB memory, 2 TB storage) automatically added when ALDO selected; Add Workload buttons disabled, workload locked; cores auto-scale floor enforces 24 physical cores minimum
@@ -340,7 +345,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.17.10  
+**Version**: 0.17.11  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -355,6 +360,10 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February 2026)
+
+#### 0.17.11 - Knowledge Tab Embedded Content & Interactive Outbound Connectivity Diagrams
+- **Knowledge Tab: Embedded Content**: Knowledge tab now loads inline within the main page — outbound connectivity architecture guide displayed in an embedded frame with sidebar navigation
+- **Knowledge Tab: Interactive Diagrams**: Added interactive WebGL flow diagrams for Public Path and Private Path outbound connectivity, selectable via a left sidebar
 
 #### 0.17.10 - ALDO Management, IRVM1 Auto-Workload, ARB Overhead, Region Picker & Sizer Report
 - **Sizer: ALDO Management Cluster Type**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios; node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror
