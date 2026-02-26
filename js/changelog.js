@@ -115,6 +115,12 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Global Declaration:</strong> Added <code>selectDisconnectedOption</code> to ESLint globals to resolve CI errors.</li>
                         <li><strong>Code Style:</strong> Fixed <code>loadTemplate()</code> try-block indentation and <code>var</code>→<code>const</code> declarations.</li>
                     </ul>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Sizer: ALDO Cluster Type Switch-Back Fix</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Workload Buttons:</strong> Fixed bug where Add Workload buttons remained disabled after switching away from ALDO Management Cluster back to Standard or Rack-Aware.</li>
+                        <li><strong>Node Dropdown:</strong> Fixed Number of Physical Nodes dropdown staying greyed out after switching away from ALDO Management Cluster.</li>
+                        <li><strong>Root Cause:</strong> <code>renderWorkloads()</code> innerHTML replacement destroyed the <code>#empty-state</code> DOM element — re-rendering with no workloads caused a TypeError that halted the cluster-type change handler before re-enabling controls. Fixed by caching the element reference.</li>
+                    </ul>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">

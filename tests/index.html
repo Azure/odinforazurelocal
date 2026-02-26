@@ -3282,6 +3282,107 @@
             })()
         ]);
 
+        // --- ALDO Management Cluster: switch-back regression ---
+        // Ensure aldo-mgmt option exists in cluster-type stub
+        (() => {
+            const ctStub = document.getElementById('cluster-type');
+            if (ctStub && !ctStub.querySelector('option[value="aldo-mgmt"]')) {
+                const opt = document.createElement('option');
+                opt.value = 'aldo-mgmt';
+                opt.text = 'aldo-mgmt';
+                ctStub.appendChild(opt);
+            }
+        })();
+
+        testSuite('ALDO Management Cluster switch-back', 'sizer.js', [
+            (() => {
+                // Create workload-type-btn stubs if none exist
+                let btns = document.querySelectorAll('.workload-type-btn');
+                const createdBtns = [];
+                if (btns.length === 0) {
+                    ['vm', 'aks', 'avd'].forEach(type => {
+                        const btn = document.createElement('button');
+                        btn.className = 'workload-type-btn';
+                        btn.style.display = 'none';
+                        document.body.appendChild(btn);
+                        createdBtns.push(btn);
+                    });
+                    btns = document.querySelectorAll('.workload-type-btn');
+                }
+                // Disable buttons (simulate ALDO selection)
+                document.getElementById('cluster-type').value = 'aldo-mgmt';
+                updateAldoWorkloadButtons();
+                const allDisabled = Array.from(btns).every(b => b.disabled === true);
+                // Re-enable buttons (simulate switch to standard)
+                document.getElementById('cluster-type').value = 'standard';
+                updateAldoWorkloadButtons();
+                const allEnabled = Array.from(btns).every(b => b.disabled === false);
+                // Cleanup
+                createdBtns.forEach(b => b.remove());
+                return assert(allDisabled && allEnabled,
+                    'Workload buttons: disabled for ALDO, re-enabled for Standard',
+                    'disabled→enabled', (allDisabled ? 'disabled' : 'NOT disabled') + '→' + (allEnabled ? 'enabled' : 'NOT enabled'));
+            })(),
+            (() => {
+                // Node dropdown: locked for ALDO, unlocked for Standard
+                const nodeSelect = document.getElementById('node-count');
+                document.getElementById('cluster-type').value = 'aldo-mgmt';
+                updateNodeOptionsForClusterType();
+                const aldoDisabled = nodeSelect.disabled;
+                const aldoValue = nodeSelect.value;
+                document.getElementById('cluster-type').value = 'standard';
+                updateNodeOptionsForClusterType();
+                const stdDisabled = nodeSelect.disabled;
+                return assert(aldoDisabled === true && aldoValue === '3' && stdDisabled === false,
+                    'Node dropdown: disabled at 3 for ALDO, re-enabled for Standard',
+                    'disabled=3→enabled', 'disabled=' + aldoValue + '→' + (stdDisabled ? 'disabled' : 'enabled'));
+            })(),
+            (() => {
+                // renderWorkloads: empty-state survives innerHTML replacement
+                // Create test container and empty-state if needed
+                let container = document.getElementById('workloads-list');
+                let emptyEl = document.getElementById('empty-state');
+                const createdContainer = !container;
+                const createdEmpty = !emptyEl;
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'workloads-list';
+                    container.style.display = 'none';
+                    document.body.appendChild(container);
+                }
+                if (!emptyEl) {
+                    emptyEl = document.createElement('div');
+                    emptyEl.id = 'empty-state';
+                    emptyEl.className = 'empty-state';
+                    emptyEl.innerHTML = '<p>No workloads added yet</p>';
+                    container.appendChild(emptyEl);
+                }
+                // Reset cached reference so test is clean
+                _emptyStateEl = null;
+                // Simulate ALDO: add a workload and render (replaces innerHTML, destroying empty-state)
+                const savedWorkloads = workloads.slice();
+                const savedCounter = workloadIdCounter;
+                workloads = [Object.assign({}, ALDO_IRVM, { id: 999 })];
+                renderWorkloads();
+                // Simulate switch-back: clear workloads and render (must recover empty-state)
+                workloads = [];
+                let threw = false;
+                try { renderWorkloads(); } catch (e) { threw = true; }
+                const recovered = document.getElementById('empty-state') !== null;
+                // Restore
+                workloads = savedWorkloads;
+                workloadIdCounter = savedCounter;
+                _emptyStateEl = null;
+                if (createdContainer) container.remove();
+                // Element may have been re-appended; clean up by id
+                const leftover = document.getElementById('empty-state');
+                if (leftover && createdEmpty) leftover.remove();
+                return assert(!threw && recovered,
+                    'renderWorkloads: empty-state recovered after innerHTML replacement',
+                    'no error + recovered', (threw ? 'error thrown' : 'no error') + ' + ' + (recovered ? 'recovered' : 'lost'));
+            })()
+        ]);
+
         // ========================================================================
         // v0.15.95 NEW FEATURE TESTS
         // ========================================================================

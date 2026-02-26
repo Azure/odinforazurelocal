@@ -98,6 +98,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Indentation Fix**: Re-indented `loadTemplate()` try-block from 4-space to 8-space to match surrounding code style
 - **Variable Declarations**: Changed `var` to `const` in `loadTemplate()` for ESLint `no-var` compliance
 
+#### Sizer: ALDO Cluster Type Switch-Back Fix
+- **Workload Buttons**: Fixed bug where Add Workload buttons (VMs, AKS Arc, AVD) remained disabled after switching away from ALDO Management Cluster back to Standard or Rack-Aware
+- **Node Dropdown**: Fixed Number of Physical Nodes dropdown staying greyed out after switching away from ALDO Management Cluster
+- **Root Cause**: `renderWorkloads()` innerHTML replacement destroyed the `#empty-state` DOM element when rendering ALDO workloads — switching back to an empty workload list caused a TypeError (`appendChild(null)`) that halted `onClusterTypeChange()` before `updateAldoWorkloadButtons()` and `updateNodeOptionsForClusterType()` could re-enable controls; fixed by caching the element reference at module scope
+
 ---
 
 ## [0.17.04] - 2026-02-23
