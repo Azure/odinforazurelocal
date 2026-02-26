@@ -42,7 +42,7 @@ jobs:
         run: npx eslint js/*.js --format stylish
 
   test:
-    name: Unit Tests
+    name: ODIN Unit Tests
     runs-on: ubuntu-latest
     
     steps:
