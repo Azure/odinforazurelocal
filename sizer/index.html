@@ -93,10 +93,20 @@
                             </svg>
                             Workload Scenario
                         </h2>
-                        <button class="btn btn-secondary btn-sm" onclick="resetScenario()" title="Reset all workloads and settings">
-                            🔄 Reset
-                        </button>
+                        <div class="section-header-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="importSizerJSON()" title="Import configuration from a JSON file">
+                                📂 Import
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="exportSizerJSON()" title="Export configuration as a JSON file">
+                                📤 Export
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="resetScenario()" title="Reset all workloads and settings">
+                                🔄 Reset
+                            </button>
+                        </div>
                     </div>
+                    <!-- Hidden file input for JSON import -->
+                    <input type="file" id="sizer-import-file" accept=".json" style="display: none;" onchange="handleSizerFileImport(event)">
                     <p class="section-desc">Add workloads to calculate your Azure Local cluster requirements.</p>
                 </div>
 
@@ -388,12 +398,24 @@
                                     <option value="15.36">15.36 TB</option>
                                 </select>
                             </div>
-                            <div class="config-info disk-type-info" id="capacity-disk-type-info">
+
+                            <h3 class="hw-subsection-title">S2D Repair Reservation</h3>
+                            <div class="config-row">
+                                <label for="repair-disk-count">Capacity Disks Reserved for Repair</label>
+                                <select id="repair-disk-count" onchange="onRepairDiskCountChange()">
+                                    <option value="0">0</option>
+                                    <option value="1">1</option>
+                                    <option value="2" selected>2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                </select>
+                            </div>
+                            <div class="config-info disk-type-info" id="repair-disk-info">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"/>
                                     <path d="M12 16v-4M12 8h.01"/>
                                 </svg>
-                                <span>Disk type: <strong>SSD</strong> — All disks are used for capacity storage.</span>
+                                <span id="repair-disk-info-text">S2D reserves 1 capacity disk per node (up to 4 max) as free space in the storage pool for repair jobs.</span>
                             </div>
                         </div>
 
@@ -468,6 +490,24 @@
                                     <path d="M12 16v-4M12 8h.01"/>
                                 </svg>
                                 <span>Capacity disk type: <strong id="capacity-disk-type-label">SSD</strong></span>
+                            </div>
+                            <h3 class="hw-subsection-title">S2D Repair Reservation</h3>
+                            <div class="config-row">
+                                <label for="tiered-repair-disk-count">Capacity Disks Reserved for Repair</label>
+                                <select id="tiered-repair-disk-count" onchange="onRepairDiskCountChange()">
+                                    <option value="0">0</option>
+                                    <option value="1">1</option>
+                                    <option value="2" selected>2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                </select>
+                            </div>
+                            <div class="config-info disk-type-info" id="tiered-repair-disk-info">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <path d="M12 16v-4M12 8h.01"/>
+                                </svg>
+                                <span id="tiered-repair-disk-info-text">S2D reserves 1 capacity disk per node (up to 4 max) as free space in the storage pool for repair jobs.</span>
                             </div>
                         </div>
                     </div>
@@ -711,6 +751,12 @@
                     <button class="btn btn-secondary" onclick="exportSizerWord()" title="Download as Word document">
                         📄 Download Word
                     </button>
+                    <button class="btn btn-secondary" onclick="exportSizerJSON()" title="Export configuration as a shareable JSON file">
+                        📤 Export JSON
+                    </button>
+                    <button class="btn btn-secondary" onclick="importSizerJSON()" title="Import configuration from a JSON file">
+                        📂 Import JSON
+                    </button>
                 </div>
             </div>
         </div>
@@ -795,5 +841,8 @@
     <script src="../js/analytics.js"></script>
     <script src="../js/changelog.js"></script>
     <script src="sizer.js"></script>
+    <footer style="text-align:center;padding:2rem 1rem 1rem;font-size:0.85rem;color:#aaa;">
+        🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.
+    </footer>
 </body>
 </html>
