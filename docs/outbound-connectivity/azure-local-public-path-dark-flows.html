@@ -158,6 +158,80 @@
         .flow-btn.active .btn-dot { opacity: 1; box-shadow: 0 0 10px var(--btn-color, #00e5ff); }
         .flow-btn.show-all { border-color: rgba(0,229,255,0.2); font-weight: 700; letter-spacing: 0.8px; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
         .flow-btn.show-all.active { border-color: rgba(0,229,255,0.4); background: rgba(0,229,255,0.1); box-shadow: 0 0 24px rgba(0,229,255,0.15); }
+        .res-label {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 700;
+            letter-spacing: 1px; color: rgba(0,229,255,0.5); margin-right: 6px;
+            text-transform: uppercase; white-space: nowrap;
+        }
+        /* ─── Onboarding Overlay ─── */
+        .flow-onboarding-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.88); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            animation: obFadeIn 0.3s ease;
+        }
+        @keyframes obFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes obScaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+        .flow-onboarding-card {
+            background: rgba(12,12,30,0.95); border: 1px solid rgba(191,90,242,0.2);
+            border-radius: 20px; padding: 32px; max-width: 560px; width: 90%;
+            max-height: 90vh; overflow-y: auto; text-align: center;
+            animation: obScaleIn 0.3s ease;
+            box-shadow: 0 0 60px rgba(191,90,242,0.08), 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .flow-onboarding-card h2 {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 22px; font-weight: 700; color: #d8b4fe; margin-bottom: 10px;
+        }
+        .flow-onboarding-card p.ob-desc {
+            color: rgba(200,215,255,0.7); font-size: 14px; line-height: 1.6; margin-bottom: 22px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .ob-features {
+            display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px; text-align: left;
+        }
+        .ob-feature {
+            display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px;
+            background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .ob-feature-num {
+            flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+            background: rgba(191,90,242,0.15); border: 1px solid rgba(191,90,242,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700; color: #d8b4fe;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .ob-feature-text { font-size: 13px; color: rgba(200,215,255,0.7); line-height: 1.5; font-family: 'Segoe UI', system-ui, sans-serif; }
+        .ob-feature-text strong { color: #e0eaff; display: block; margin-bottom: 2px; }
+        .ob-feature-text .ob-pill {
+            display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;
+            margin: 2px 2px 2px 0; letter-spacing: 0.3px; vertical-align: middle;
+        }
+        .ob-progress { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+        .ob-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.15); transition: all 0.3s; }
+        .ob-dot.active { background: #bf5af2; width: 22px; border-radius: 4px; }
+        .ob-buttons { display: flex; gap: 12px; justify-content: center; }
+        .ob-btn {
+            padding: 10px 24px; border-radius: 10px; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; border: none;
+            font-family: 'Segoe UI', system-ui, sans-serif; min-height: 40px;
+        }
+        .ob-btn-primary { background: #bf5af2; color: #fff; }
+        .ob-btn-primary:hover { background: #a04ad8; transform: translateY(-1px); }
+        .ob-btn-secondary { background: transparent; border: 1px solid rgba(255,255,255,0.12); color: rgba(200,215,255,0.6); }
+        .ob-btn-secondary:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
+        .ob-icon { font-size: 48px; margin-bottom: 14px; }
+        /* Help button (top-right) */
+        .flow-help-btn {
+            position: fixed; top: 14px; right: 24px; z-index: 30;
+            padding: 6px 14px; border-radius: 10px; cursor: pointer;
+            background: rgba(2,2,16,0.85); backdrop-filter: blur(20px);
+            border: 1px solid rgba(191,90,242,0.15); color: rgba(216,180,254,0.6);
+            font-size: 12px; font-weight: 600; font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex; align-items: center; gap: 6px; transition: all 0.3s;
+        }
+        .flow-help-btn:hover { border-color: rgba(191,90,242,0.4); color: #d8b4fe; background: rgba(191,90,242,0.1); }
+        .flow-help-btn svg { width: 14px; height: 14px; }
     </style>
 </head>
 <body>
@@ -167,6 +241,12 @@
         <span>AZURE LOCAL — OUTBOUND CONNECTIVITY: PUBLIC PATH</span>
     </div>
     <div class="perf" id="fps">-- fps</div>
+
+    <!-- Help Button -->
+    <button class="flow-help-btn" onclick="showFlowOnboarding()" title="Show user guide">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Help
+    </button>
 
     <!-- Architecture Scenario Buttons -->
     <div class="arch-bar">
@@ -204,6 +284,7 @@
         </div>
         <div class="flow-sep" id="flow-sep"></div>
         <div class="flow-main-row">
+            <span class="res-label">Resources:</span>
             <button class="flow-btn show-all" onclick="toggleAll()" id="btn-all">SHOW ALL</button>
             <button class="flow-btn" style="--btn-color:#4d8dff" onclick="toggleSource('hosts')" id="btn-hosts"><span class="btn-dot"></span>Azure Local Nodes</button>
             <button class="flow-btn" style="--btn-color:#6366f1" onclick="toggleSource('arb')" id="btn-arb"><span class="btn-dot"></span>ARB</button>
@@ -921,6 +1002,87 @@
     lastFpsTime = performance.now();
     updateSubButtonsForArch();
     requestAnimationFrame(render);
+
+    // ── Flow Diagram Onboarding ─────────────────────────────────────
+    const flowOnboardingSteps = [
+        {
+            icon: '🗺️',
+            title: 'Interactive Flow Diagram',
+            desc: 'This diagram shows how traffic flows from Azure Local resources through your network to Azure services. Use the controls to explore different architecture scenarios and traffic paths.',
+            features: [
+                { label: '1', title: 'Select an Architecture', text: 'Use the <span class="ob-pill" style="background:rgba(191,90,242,0.15);color:#d8b4fe;border:1px solid rgba(191,90,242,0.25);">ARCHITECTURE</span> bar at the top to switch between proxy and Arc Gateway configurations.' },
+                { label: '2', title: 'Hover over nodes', text: 'Mouse over any component in the diagram to see its connections highlighted and learn about its role.' }
+            ]
+        },
+        {
+            icon: '🖥️',
+            title: 'Explore Resources',
+            desc: 'The <span style="color:#00e5ff;font-weight:600;">RESOURCES</span> bar at the bottom lets you focus on traffic from a specific source.',
+            features: [
+                { label: '1', title: 'Click a Resource button', text: 'Select <span class="ob-pill" style="background:rgba(77,141,255,0.15);color:#4d8dff;border:1px solid rgba(77,141,255,0.25);">Azure Local Nodes</span>, <span class="ob-pill" style="background:rgba(99,102,241,0.15);color:#6366f1;border:1px solid rgba(99,102,241,0.25);">ARB</span>, <span class="ob-pill" style="background:rgba(0,229,255,0.15);color:#00e5ff;border:1px solid rgba(0,229,255,0.25);">AKS</span>, or <span class="ob-pill" style="background:rgba(255,184,0,0.15);color:#ffb800;border:1px solid rgba(255,184,0,0.25);">VMs</span> to isolate its traffic flows.' },
+                { label: '2', title: 'Traffic sub-types appear', text: 'When a resource is selected, traffic type buttons appear above — such as <span class="ob-pill" style="background:rgba(0,229,255,0.12);color:#00e5ff;border:1px solid rgba(0,229,255,0.2);">HTTPS Allowed</span>, <span class="ob-pill" style="background:rgba(0,255,136,0.12);color:#00ff88;border:1px solid rgba(0,255,136,0.2);">Internet</span>, or <span class="ob-pill" style="background:rgba(255,0,102,0.12);color:#ff0066;border:1px solid rgba(255,0,102,0.2);">Bypassed</span>.' }
+            ]
+        },
+        {
+            icon: '🔍',
+            title: 'Filter Traffic Types',
+            desc: 'Drill into exactly which traffic flows you need to investigate.',
+            features: [
+                { label: '1', title: 'Click a traffic type', text: 'Toggle individual traffic types on/off for any selected resource to highlight only those paths in the diagram.' },
+                { label: '2', title: 'Show All mode', text: 'Click <span class="ob-pill" style="background:rgba(0,229,255,0.12);color:#00e5ff;border:1px solid rgba(0,229,255,0.2);">SHOW ALL</span> to display every traffic flow at once — useful for seeing the full picture.' }
+            ]
+        }
+    ];
+    let flowOnboardingStep = 0;
+
+    function showFlowOnboarding() {
+        flowOnboardingStep = 0;
+        renderFlowOnboardingStep();
+    }
+
+    function renderFlowOnboardingStep() {
+        const step = flowOnboardingSteps[flowOnboardingStep];
+        document.querySelectorAll('.flow-onboarding-overlay').forEach(el => el.remove());
+        const overlay = document.createElement('div');
+        overlay.className = 'flow-onboarding-overlay';
+        overlay.innerHTML = `
+            <div class="flow-onboarding-card">
+                <div class="ob-icon">${step.icon}</div>
+                <h2>${step.title}</h2>
+                <p class="ob-desc">${step.desc}</p>
+                <div class="ob-features">
+                    ${step.features.map(f => `
+                        <div class="ob-feature">
+                            <div class="ob-feature-num">${f.label}</div>
+                            <div class="ob-feature-text"><strong>${f.title}</strong>${f.text}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="ob-progress">
+                    ${flowOnboardingSteps.map((_, i) => `<div class="ob-dot ${i === flowOnboardingStep ? 'active' : ''}"></div>`).join('')}
+                </div>
+                <div class="ob-buttons">
+                    <button class="ob-btn ob-btn-secondary" data-action="skip">Skip</button>
+                    <button class="ob-btn ob-btn-primary" data-action="next">${flowOnboardingStep === flowOnboardingSteps.length - 1 ? 'Get Started' : 'Next'}</button>
+                </div>
+            </div>`;
+        overlay.querySelector('[data-action="skip"]').addEventListener('click', dismissFlowOnboarding);
+        overlay.querySelector('[data-action="next"]').addEventListener('click', () => {
+            if (flowOnboardingStep >= flowOnboardingSteps.length - 1) { dismissFlowOnboarding(); }
+            else { flowOnboardingStep++; renderFlowOnboardingStep(); }
+        });
+        document.body.appendChild(overlay);
+    }
+
+    function dismissFlowOnboarding() {
+        localStorage.setItem('odin_flow_onboarding_complete', 'true');
+        document.querySelectorAll('.flow-onboarding-overlay').forEach(el => el.remove());
+    }
+
+    // Show onboarding on first visit
+    if (!localStorage.getItem('odin_flow_onboarding_complete')) {
+        showFlowOnboarding();
+    }
     </script>
 </body>
 </html>
