@@ -57,6 +57,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Import Fix**: Fixed Sizer hardware/workload auto-import not applying in Designer — `?from=sizer` URL param was stripped by the tab routing cleanup; now only `?tab=` is removed
 - **Analytics: Visitors Rename**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
 - **Feedback Link**: Feedback button now opens GitHub Issues in a full new browser tab instead of a popup window
+- **Sizer: Export/Import JSON**: Export and import Sizer configurations as JSON files — share hardware sizing and workload scenarios via email or backup for later; full state persistence including all dropdowns, workloads, and MANUAL overrides
+- **Sizer: MANUAL Node Count**: Number of Physical Nodes now supports persistent MANUAL override — selecting a node count locks it from auto-recommendation until cleared
+- **Sizer: Configurable S2D Repair Disks**: New "Capacity Disks Reserved for Repair" dropdown in the Disk Configuration section — defaults to AUTO (1 disk per node, max 4) with MANUAL override support; sizing notes show a warning when the manual value is below the recommended reservation
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -377,6 +380,9 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: Import Fix**: Fixed hardware/workload auto-import not applying — `?from=sizer` param preserved during tab URL cleanup
 - **Analytics: Visitors Rename**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
 - **Feedback Link**: Opens GitHub Issues in a full new browser tab instead of a popup window
+- **Sizer: Export/Import JSON**: Export and import Sizer configurations as JSON files for sharing or backup — full state persistence including all dropdowns, workloads, and MANUAL overrides
+- **Sizer: MANUAL Node Count**: Number of Physical Nodes now supports persistent MANUAL override lock
+- **Sizer: Configurable S2D Repair Disks**: New "Capacity Disks Reserved for Repair" dropdown with AUTO/MANUAL support; sizing notes warn when below recommended reservation
 
 #### 0.17.11 - Knowledge Tab Embedded Content & Interactive Outbound Connectivity Diagrams
 - **Knowledge Tab: Embedded Content**: Knowledge tab now loads inline within the main page — outbound connectivity architecture guide displayed in an embedded frame with sidebar navigation

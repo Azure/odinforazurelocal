@@ -272,9 +272,7 @@ function onStorageTieringChange() {
         singleTierDiv.style.display = 'block';
         twoTierDiv.style.display = 'none';
 
-        // Update capacity disk type info
-        const capacityInfo = document.getElementById('capacity-disk-type-info');
-        capacityInfo.querySelector('span').innerHTML = `Disk type: <strong>${selectedTier.diskTypes.capacity}</strong> — All disks are used for capacity storage.`;
+
     }
 
     onHardwareConfigChange();
@@ -711,12 +709,88 @@ const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
 // S2D resiliency repair: reserve 1 capacity disk per node (up to 4 max) from the storage pool
 const S2D_REPAIR_MAX_RESERVED_DISKS = 4;
 
-// Calculate S2D repair reserved raw space (GB) for a given node count and disk size
-// 1 node: reserve 1 capacity disk. 2+ nodes: reserve min(nodeCount, 4) capacity disks.
+// Track whether the user manually set the repair disk count
+let _repairDisksUserSet = false;
+
+// Calculate S2D repair reserved raw space (GB) for a given node count and disk size.
+// Uses the configurable repair disk count from the dropdown when available.
 function getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) {
     if (nodeCount <= 0) return 0;
-    const reservedDisks = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
+    const reservedDisks = getRepairDiskCount(nodeCount);
     return reservedDisks * capacityDiskSizeGB;
+}
+
+// Get the current repair disk count — from the dropdown if visible, else calculate from node count
+function getRepairDiskCount(nodeCountOverride) {
+    const isTiered = _isTieredStorage();
+    const selectId = isTiered ? 'tiered-repair-disk-count' : 'repair-disk-count';
+    const el = document.getElementById(selectId);
+    if (el) {
+        return parseInt(el.value) || 0;
+    }
+    // Fallback: compute from node count
+    const nodeCount = nodeCountOverride || (parseInt(document.getElementById('node-count').value) || 2);
+    return Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
+}
+
+// Auto-update the repair disk dropdown based on node count (1 per node, max 4).
+// Only runs when the user has NOT manually set the value.
+function updateRepairDiskCountAuto() {
+    if (_repairDisksUserSet) return;
+    const nodeCount = parseInt(document.getElementById('node-count').value) || 2;
+    const autoValue = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
+
+    // Update both single-tier and tiered dropdowns
+    const repairSelect = document.getElementById('repair-disk-count');
+    const tieredRepairSelect = document.getElementById('tiered-repair-disk-count');
+    if (repairSelect) repairSelect.value = autoValue;
+    if (tieredRepairSelect) tieredRepairSelect.value = autoValue;
+
+    // Mark as auto-scaled
+    const isTiered = _isTieredStorage();
+    const activeId = isTiered ? 'tiered-repair-disk-count' : 'repair-disk-count';
+    markAutoScaled(activeId);
+
+    // Update info text
+    updateRepairDiskInfoText();
+}
+
+// Update the repair disk info text to reflect current values
+function updateRepairDiskInfoText() {
+    const isTiered = _isTieredStorage();
+    const selectId = isTiered ? 'tiered-repair-disk-count' : 'repair-disk-count';
+    const infoId = isTiered ? 'tiered-repair-disk-info-text' : 'repair-disk-info-text';
+    const el = document.getElementById(selectId);
+    const infoEl = document.getElementById(infoId);
+    if (!el || !infoEl) return;
+
+    const count = parseInt(el.value) || 0;
+    const diskSizeId = isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size';
+    const diskSizeTB = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
+    const totalTB = (count * diskSizeTB).toFixed(2);
+
+    if (count === 0) {
+        infoEl.textContent = 'No capacity disks reserved for S2D repair. S2D will use available pool free space for rebuild operations.';
+    } else {
+        infoEl.textContent = 'S2D reserves ' + count + ' \u00d7 capacity disk (' + diskSizeTB.toFixed(2) + ' TB each = ' + totalTB + ' TB total) as free space in the storage pool for repair jobs.';
+    }
+}
+
+// Handler for repair disk count dropdown change (MANUAL override)
+function onRepairDiskCountChange() {
+    _repairDisksUserSet = true;
+    const isTiered = _isTieredStorage();
+    const activeId = isTiered ? 'tiered-repair-disk-count' : 'repair-disk-count';
+    markManualSet(activeId);
+
+    // Sync the other dropdown to the same value
+    const value = document.getElementById(activeId).value;
+    const otherId = isTiered ? 'repair-disk-count' : 'tiered-repair-disk-count';
+    const otherEl = document.getElementById(otherId);
+    if (otherEl) otherEl.value = value;
+
+    updateRepairDiskInfoText();
+    onHardwareConfigChange();
 }
 
 // Track whether the vCPU ratio was auto-escalated from default (4:1) during auto-scale
@@ -730,6 +804,9 @@ let _memoryUserSet = false;
 
 // Track whether the user manually set CPU cores or sockets (prevents CPU auto-scaling from overriding)
 let _cpuConfigUserSet = false;
+
+// Track whether the user manually set the node count (prevents auto-node-recommendation from overriding)
+let _nodeCountUserSet = false;
 
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
@@ -799,12 +876,15 @@ function clearAllManualOverrides() {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    _nodeCountUserSet = false;
+    _repairDisksUserSet = false;
     clearManualBadges();
     calculateRequirements();
 }
 
 // Human-readable names for manually-set hardware fields
 const _MANUAL_FIELD_LABELS = {
+    'node-count': 'Node Count',
     'vcpu-ratio': 'vCPU Ratio',
     'node-memory': 'Memory',
     'cpu-cores': 'CPU Cores',
@@ -814,7 +894,9 @@ const _MANUAL_FIELD_LABELS = {
     'capacity-disk-size': 'Capacity Disk Size',
     'capacity-disk-count': 'Capacity Disk Count',
     'tiered-capacity-disk-size': 'Capacity Disk Size',
-    'tiered-capacity-disk-count': 'Capacity Disk Count'
+    'tiered-capacity-disk-count': 'Capacity Disk Count',
+    'repair-disk-count': 'S2D Repair Disks',
+    'tiered-repair-disk-count': 'S2D Repair Disks'
 };
 
 // Show or hide the manual-override capacity warning based on current utilization
@@ -1460,6 +1542,7 @@ function getSizerState() {
     return {
         clusterType: document.getElementById('cluster-type').value,
         nodeCount: document.getElementById('node-count').value,
+        nodeCountUserSet: _nodeCountUserSet,
         futureGrowth: document.getElementById('future-growth').value,
         resiliency: document.getElementById('resiliency').value,
         cpuManufacturer: document.getElementById('cpu-manufacturer').value,
@@ -1478,6 +1561,8 @@ function getSizerState() {
         cacheDiskSize: document.getElementById('cache-disk-size').value,
         tieredCapacityDiskCount: document.getElementById('tiered-capacity-disk-count').value,
         tieredCapacityDiskSize: document.getElementById('tiered-capacity-disk-size').value,
+        repairDiskCount: document.getElementById('repair-disk-count').value,
+        repairDisksUserSet: _repairDisksUserSet,
         workloads: workloads,
         workloadIdCounter: workloadIdCounter
     };
@@ -1654,6 +1739,23 @@ function resumeSizerState() {
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
 
+    // Restore manual node count flag
+    _nodeCountUserSet = !!d.nodeCountUserSet;
+    if (_nodeCountUserSet) {
+        markManualSet('node-count');
+    }
+
+    // Restore repair disk count
+    _repairDisksUserSet = !!d.repairDisksUserSet;
+    if (d.repairDiskCount !== undefined) {
+        document.getElementById('repair-disk-count').value = d.repairDiskCount;
+        document.getElementById('tiered-repair-disk-count').value = d.repairDiskCount;
+        if (_repairDisksUserSet) {
+            markManualSet('repair-disk-count');
+            markManualSet('tiered-repair-disk-count');
+        }
+    }
+
     // Update UI
     updateAldoWorkloadButtons();
     updateClusterInfo();
@@ -1775,10 +1877,12 @@ let currentModalType = null;
 
 // Handle node count change
 function onNodeCountChange() {
+    _nodeCountUserSet = true;
+    markManualSet('node-count');
     updateResiliencyOptions();
     updateResiliencyRecommendation();
     updateClusterInfo();
-    calculateRequirements({ skipAutoNodeRecommend: true });
+    calculateRequirements();
 }
 
 // Handle cluster type change (single / standard / rack-aware)
@@ -2692,7 +2796,7 @@ function calculateWorkloadRequirements(w) {
 function calculateRequirements(options) {
     if (isCalculating) return;
     isCalculating = true;
-    const skipAutoNodeRecommend = options && options.skipAutoNodeRecommend;
+    const skipAutoNodeRecommend = _nodeCountUserSet || (options && options.skipAutoNodeRecommend);
 
     try {
         // Sum all workload requirements (raw, before growth)
@@ -2754,6 +2858,9 @@ function calculateRequirements(options) {
 
         // Read (possibly updated) node count
         let nodeCount = parseInt(document.getElementById('node-count').value) || 3;
+
+        // Auto-update repair disk reservation based on node count (if not manually set)
+        updateRepairDiskCountAuto();
 
         // Re-read resiliency after node recommendation may have changed it
         // (e.g. updateNodeRecommendation → updateResiliencyOptions changes
@@ -2845,6 +2952,7 @@ function calculateRequirements(options) {
                     nodeCount = nextNode;
                     const nodeSelect = document.getElementById('node-count');
                     nodeSelect.value = nodeCount;
+                    updateRepairDiskCountAuto();
                     updateResiliencyOptions();
                     updateClusterInfo();
 
@@ -3393,11 +3501,18 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
         // S2D Resiliency Repair note
         if (nodeCount >= 1 && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
-            const reservedDisks = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
+            const reservedDisks = getRepairDiskCount();
+            const recommendedDisks = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
             const reservedDiskSizeGB = hwConfig.diskConfig.capacity.sizeGB;
             const reservedTotalGB = reservedDisks * reservedDiskSizeGB;
             const reservedTotalTB = (reservedTotalGB / 1024).toFixed(2);
-            notes.push('ℹ️ S2D Resiliency Repair: ' + reservedDisks + ' × capacity disk (' + (reservedDiskSizeGB / 1024).toFixed(2) + ' TB each = ' + reservedTotalTB + ' TB total) free space reserved in the storage pool for Storage Spaces Direct repair jobs, up to a maximum of ' + S2D_REPAIR_MAX_RESERVED_DISKS + ' × capacity disks. This raw capacity has been deducted from the available usable storage.');
+            if (_repairDisksUserSet && reservedDisks < recommendedDisks) {
+                notes.push('⚠️ S2D Resiliency Repair: Warning — recommended ' + recommendedDisks + ' × capacity disks should be reserved based on the cluster size (' + nodeCount + ' nodes), but currently only ' + reservedDisks + ' × capacity disk' + (reservedDisks !== 1 ? 's are' : ' is') + ' reserved (' + reservedTotalTB + ' TB). This raw capacity has been deducted from the available usable storage.');
+            } else if (_repairDisksUserSet) {
+                notes.push('ℹ️ S2D Resiliency Repair: ' + reservedDisks + ' × capacity disk (' + (reservedDiskSizeGB / 1024).toFixed(2) + ' TB each = ' + reservedTotalTB + ' TB total) free space reserved in the storage pool for Storage Spaces Direct repair jobs (manually set). This raw capacity has been deducted from the available usable storage.');
+            } else {
+                notes.push('ℹ️ S2D Resiliency Repair: ' + reservedDisks + ' × capacity disk (' + (reservedDiskSizeGB / 1024).toFixed(2) + ' TB each = ' + reservedTotalTB + ' TB total) free space reserved in the storage pool for Storage Spaces Direct repair jobs, up to a maximum of ' + S2D_REPAIR_MAX_RESERVED_DISKS + ' × capacity disks. This raw capacity has been deducted from the available usable storage.');
+            }
         }
 
         // Disk bay consolidation note
@@ -3906,6 +4021,201 @@ function selectRegionAndConfigure(region, cloud) {
     window.location.href = '../?tab=designer&from=sizer';
 }
 
+// ============================================
+// Export / Import Sizer Configuration (JSON)
+// ============================================
+
+// Export current sizer state to a downloadable JSON file
+function exportSizerJSON() {
+    try {
+        const state = getSizerState();
+        const exportPayload = {
+            _meta: {
+                tool: 'ODIN Sizer for Azure Local',
+                version: SIZER_VERSION,
+                exportedAt: new Date().toISOString(),
+                url: window.location.href
+            },
+            data: state
+        };
+
+        const json = JSON.stringify(exportPayload, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        // Build a descriptive filename
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const clusterType = state.clusterType || 'standard';
+        const nodeCount = state.nodeCount || '0';
+        const wlCount = (state.workloads && state.workloads.length) || 0;
+        const filename = `odin-sizer_${clusterType}_${nodeCount}n_${wlCount}wl_${dateStr}.json`;
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('Export failed:', e);
+        alert('Failed to export sizer configuration. See console for details.');
+    }
+}
+
+// Trigger file picker for JSON import
+function importSizerJSON() {
+    const fileInput = document.getElementById('sizer-import-file');
+    if (fileInput) {
+        fileInput.value = ''; // reset so the same file can be re-selected
+        fileInput.click();
+    }
+}
+
+// Handle the selected file for import
+function handleSizerFileImport(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+        alert('Please select a valid JSON file.');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            const parsed = JSON.parse(e.target.result);
+
+            // Accept either { _meta, data } wrapper or raw state object
+            const d = parsed.data || parsed;
+
+            // Basic validation: ensure it looks like sizer state
+            if (!d.clusterType && !d.workloads) {
+                alert('The selected file does not appear to be a valid ODIN Sizer configuration.');
+                return;
+            }
+
+            // Confirm before overwriting current state
+            if (workloads.length > 0) {
+                if (!confirm('Importing will replace your current configuration and all workloads. Continue?')) {
+                    return;
+                }
+            }
+
+            // Apply via the same restore logic used by resumeSizerState
+            applyImportedSizerState(d);
+
+        } catch (err) {
+            console.error('Import parse error:', err);
+            alert('Failed to parse the JSON file. Please ensure it is a valid ODIN Sizer export.');
+        }
+    };
+    reader.readAsText(file);
+}
+
+// Apply an imported sizer state object to the UI (mirrors resumeSizerState)
+function applyImportedSizerState(d) {
+    // Restore cluster config
+    document.getElementById('cluster-type').value = d.clusterType || 'standard';
+    updateNodeOptionsForClusterType();
+    updateStorageForClusterType();
+    document.getElementById('node-count').value = d.nodeCount || '3';
+    document.getElementById('future-growth').value = d.futureGrowth || '0';
+
+    // Restore CPU config
+    document.getElementById('cpu-manufacturer').value = d.cpuManufacturer || 'intel';
+    const manufacturer = d.cpuManufacturer || 'intel';
+    const generations = CPU_GENERATIONS[manufacturer];
+    if (generations) {
+        const genSelect = document.getElementById('cpu-generation');
+        genSelect.innerHTML = generations.map(g =>
+            `<option value="${g.id}">${g.name}</option>`
+        ).join('');
+        genSelect.disabled = false;
+        genSelect.value = d.cpuGeneration || generations[0].id;
+
+        const gen = generations.find(g => g.id === (d.cpuGeneration || generations[0].id));
+        if (gen) {
+            const coresSelect = document.getElementById('cpu-cores');
+            coresSelect.innerHTML = gen.coreOptions.map(c =>
+                `<option value="${c}">${c} cores</option>`
+            ).join('');
+            coresSelect.disabled = false;
+            coresSelect.value = d.cpuCores || '24';
+        }
+    }
+
+    document.getElementById('cpu-sockets').value = d.cpuSockets || '2';
+    document.getElementById('node-memory').value = d.nodeMemory || '512';
+
+    // Restore GPU config
+    document.getElementById('gpu-count').value = d.gpuCount || '0';
+    document.getElementById('gpu-type').value = d.gpuType || 'a2';
+    updateGpuTypeVisibility();
+
+    // Restore vCPU ratio
+    if (d.vcpuRatio) {
+        document.getElementById('vcpu-ratio').value = d.vcpuRatio;
+    }
+
+    // Restore storage config
+    document.getElementById('storage-config').value = d.storageConfig || 'all-flash';
+    onStorageConfigChange();
+    if (d.storageTiering) {
+        document.getElementById('storage-tiering').value = d.storageTiering;
+        onStorageTieringChange();
+    }
+
+    // Restore disk configs
+    document.getElementById('capacity-disk-count').value = d.capacityDiskCount || '4';
+    document.getElementById('capacity-disk-size').value = d.capacityDiskSize || '3.84';
+    document.getElementById('cache-disk-count').value = d.cacheDiskCount || '2';
+    document.getElementById('cache-disk-size').value = d.cacheDiskSize || '1.92';
+    document.getElementById('tiered-capacity-disk-count').value = d.tieredCapacityDiskCount || '4';
+    document.getElementById('tiered-capacity-disk-size').value = d.tieredCapacityDiskSize || '3.84';
+
+    // Restore resiliency
+    updateResiliencyOptions();
+    if (d.resiliency) {
+        const resSelect = document.getElementById('resiliency');
+        const validOptions = Array.from(resSelect.options).map(o => o.value);
+        if (validOptions.includes(d.resiliency)) {
+            resSelect.value = d.resiliency;
+        }
+    }
+
+    // Restore workloads
+    workloads = d.workloads || [];
+    workloadIdCounter = d.workloadIdCounter || 0;
+
+    // Restore manual node count flag
+    _nodeCountUserSet = !!d.nodeCountUserSet;
+    if (_nodeCountUserSet) {
+        markManualSet('node-count');
+    }
+
+    // Restore repair disk count
+    _repairDisksUserSet = !!d.repairDisksUserSet;
+    if (d.repairDiskCount !== undefined) {
+        document.getElementById('repair-disk-count').value = d.repairDiskCount;
+        document.getElementById('tiered-repair-disk-count').value = d.repairDiskCount;
+        if (_repairDisksUserSet) {
+            markManualSet('repair-disk-count');
+            markManualSet('tiered-repair-disk-count');
+        }
+    }
+
+    // Update UI
+    updateAldoWorkloadButtons();
+    updateClusterInfo();
+    renderWorkloads();
+    calculateRequirements();
+
+    // Persist to localStorage
+    saveSizerState();
+}
+
 // Reset scenario
 function resetScenario() {
     // Confirm if there are workloads added
@@ -3922,6 +4232,8 @@ function resetScenario() {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    _nodeCountUserSet = false;
+    _repairDisksUserSet = false;
     clearManualBadges();
     
     // Reset hardware config
@@ -3944,6 +4256,8 @@ function resetScenario() {
     document.getElementById('cache-disk-size').value = '1.92';
     document.getElementById('tiered-capacity-disk-count').value = '4';
     document.getElementById('tiered-capacity-disk-size').value = '3.84';
+    document.getElementById('repair-disk-count').value = '2';
+    document.getElementById('tiered-repair-disk-count').value = '2';
     
     // Reset cluster config
     document.getElementById('cluster-type').value = 'standard';

@@ -48,6 +48,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Analytics Label**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
 - **Feedback Link**: Feedback button now opens GitHub Issues in a full new browser tab instead of a popup window
 
+#### Sizer: Export/Import JSON
+- **Export JSON**: Export complete Sizer configuration (hardware settings, workloads, MANUAL overrides) as a shareable JSON file with descriptive metadata
+- **Import JSON**: Import previously exported Sizer JSON files to restore full configuration — validates file structure before applying
+- **Header & Export Buttons**: Export/Import buttons added to both the Sizer header and the export actions area
+
+#### Sizer: MANUAL Node Count Override
+- **Persistent Lock**: Number of Physical Nodes dropdown now supports persistent MANUAL override — selecting a node count sets a green MANUAL badge and prevents auto-node-recommendation from overriding the selection
+- **Clear on Reset**: MANUAL node count lock is cleared when using "Remove MANUAL overrides" or resetting the scenario
+
+#### Sizer: Configurable S2D Repair Disk Reservation
+- **New Dropdown**: Added "Capacity Disks Reserved for Repair" dropdown (0–4) in the Disk Configuration section for both single-tier and two-tier storage layouts
+- **AUTO Default**: Defaults to AUTO mode — reserves 1 capacity disk per node, up to a maximum of 4, matching the previous hardcoded behaviour
+- **MANUAL Override**: User can manually set the repair disk count with a green MANUAL badge; value persists across workload changes
+- **Warning Note**: Sizing notes display a ⚠️ warning when the manually selected repair disk count is below the recommended value based on cluster size
+- **State Persistence**: Repair disk count and MANUAL flag included in export/import JSON and localStorage auto-save
+
 ---
 
 ## [0.17.11] - 2026-02-26

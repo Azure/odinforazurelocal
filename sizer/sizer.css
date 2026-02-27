@@ -491,6 +491,13 @@ header .header-description {
     align-items: center;
 }
 
+.section-header-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 .section-header-row .btn-sm {
     padding: 4px 12px;
     font-size: 12px;

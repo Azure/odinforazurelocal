@@ -93,6 +93,30 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📤 Sizer: Export/Import JSON</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Export:</strong> Export complete Sizer configuration (hardware settings, workloads, MANUAL overrides) as a shareable JSON file.</li>
+                        <li><strong>Import:</strong> Import previously exported JSON files to restore full Sizer configuration — validates file structure before applying.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔒 Sizer: MANUAL Node Count</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Persistent Lock:</strong> Number of Physical Nodes now supports persistent MANUAL override — selecting a node count locks it from auto-recommendation until cleared.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">💾 Sizer: Configurable S2D Repair Disks</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New Dropdown:</strong> "Capacity Disks Reserved for Repair" dropdown (0–4) in the Disk Configuration section — defaults to AUTO (1 per node, max 4).</li>
+                        <li><strong>MANUAL Override:</strong> Manually set the repair disk count with a persistent MANUAL badge.</li>
+                        <li><strong>Warning Note:</strong> Sizing notes display a ⚠️ warning when the manual value is below the recommended reservation based on cluster size.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--text-secondary); margin: 0 0 8px 0;">Version 0.17.11</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 26, 2026</div>
                 </div>
