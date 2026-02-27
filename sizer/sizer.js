@@ -1123,7 +1123,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             if (targetCores === null) {
                 targetCores = maxCoresForGen;
                 if (sockets < 2) {
-                    sockets = 2;
                     socketsSelect.value = 2;
                     changed = true;
                     markAutoScaled('cpu-sockets');
@@ -1388,7 +1387,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                                 // step back to 4:1 and still stay under threshold
                                 const pctAt4 = Math.round(totalVcpus / (hrCores * hrSockets * effectiveNodes * 4) * 100);
                                 if (pctAt4 < VCPU_ESCALATION_THRESHOLD) {
-                                    vcpuToCore = 4;
                                     document.getElementById('vcpu-ratio').value = 4;
                                     // Ratio back at default — no auto-escalation badge needed
                                     _vcpuRatioAutoEscalated = false;
