@@ -77,7 +77,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">� Sizer: Configure in Designer Fix</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛠️ Sizer: Configure in Designer Fix</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Navigation Fix:</strong> Fixed "Configure in Designer" navigating to the Knowledge tab instead of Designer — added <code>?tab=designer</code> to the Sizer navigation URL.</li>
                         <li><strong>Import Fix:</strong> Fixed Sizer hardware/workload auto-import not applying in Designer — <code>?from=sizer</code> URL param was being stripped by the tab routing cleanup; now only <code>?tab=</code> is removed.</li>
@@ -191,7 +191,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Disk Size Badge:</strong> Fixed MANUAL badge not appearing on disk size for all-flash configurations — replaced incorrect tiered detection with <code>_isTieredStorage()</code> helper.</li>
                     </ul>
-                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">� Sizer: ALDO Configure in Designer Fix</h4>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🐛 Sizer: ALDO Configure in Designer Fix</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Disconnected Scenario:</strong> "Configure in Designer" for ALDO Management Cluster now correctly selects the Disconnected scenario with Management Cluster role — previously defaulted to Hyperconverged.</li>
                         <li><strong>FQDN Prompt:</strong> ALDO users are prompted for their Autonomous Cloud FQDN before navigating to the Designer, ensuring the FQDN and cluster role are pre-populated.</li>
@@ -200,7 +200,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Usage Tracking:</strong> Selecting ALDO Management Cluster now increments the Sizer analytics counter, matching the tracking behavior of workload additions.</li>
                     </ul>
-                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">�🔧 CI: ESLint Fixes</h4>
+                    <h4 style="color: var(--accent-purple); margin: 16px 0 12px 0;">🔧 CI: ESLint Fixes</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Global Declaration:</strong> Added <code>selectDisconnectedOption</code> to ESLint globals to resolve CI errors.</li>
                         <li><strong>Code Style:</strong> Fixed <code>loadTemplate()</code> try-block indentation and <code>var</code>→<code>const</code> declarations.</li>

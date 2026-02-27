@@ -184,6 +184,18 @@
             background: var(--subtle-bg-hover);
         }
 
+        .nav-help-btn {
+            margin-left: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .nav-help-btn svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
         /* Mobile nav: hide text labels, show only icons */
         @media (max-width: 768px) {
             .odin-tab-nav {
@@ -224,8 +236,9 @@
                 font-size: 14px;
             }
 
-            /* Hide the "Feedback" text, keep emoji */
-            .nav-feedback-text {
+            /* Hide the "Feedback" and "Help" text, keep icons */
+            .nav-feedback-text,
+            .nav-help-text {
                 display: none;
             }
         }
