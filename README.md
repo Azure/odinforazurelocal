@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.17.56 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.17.57 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -40,11 +40,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.17.56 - Latest Release
-- **Designer-to-Sizer Transfer**: New "⚖️ Sizer: Add Workloads to this Cluster" button at the bottom of the Designer — transfers deployment type and node count to the Sizer so users can add workloads to the cluster they have just designed; button enabled once Deployment Type and Nodes are selected
-- **Sizer: Designer Import**: The Sizer now accepts configuration from the Designer — pre-populates cluster type and node count with a confirmation banner showing what was imported
-- **Sizer: MANUAL Node Lock**: Node count from Designer is locked as MANUAL in the Sizer — prevents auto-scaling from overriding the Designer's cluster size
-- **Sizer: Workload Persistence**: Workloads from a prior Sizer session are restored when returning from the Designer; banner shows the count of restored workloads
+### 🎉 Version 0.17.57 - Latest Release
+- **Sizer: Individual MANUAL Dismiss**: Each MANUAL badge now has a small × button to remove that specific override without clearing all overrides
+- **Shared Flag Handling**: CPU-related badges (cores, sockets, manufacturer, generation) are linked — dismissing any one clears all four together
+- **Remove All Button Renamed**: The existing button is renamed to "Remove all MANUAL overrides" for clarity
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -332,7 +331,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.17.56  
+**Version**: 0.17.57  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -347,6 +346,11 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February 2026)
+
+#### 0.17.57 - Individual MANUAL Override Dismiss
+- **Per-Field Dismiss**: Each MANUAL badge now includes a small × button to remove that individual override without clearing all overrides
+- **Shared Flag Handling**: CPU-related badges (cores, sockets, manufacturer, generation) are linked — dismissing any one clears all four
+- **Remove All Button Renamed**: Button renamed to "Remove all MANUAL overrides" for clarity
 
 #### 0.17.56 - Designer-to-Sizer Transfer
 - **Designer-to-Sizer Transfer**: New "⚖️ Sizer: Add Workloads to this Cluster" button at the bottom of the Designer — transfers deployment type and node count to the Sizer; enabled once Deployment Type and Nodes are selected

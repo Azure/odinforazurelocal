@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.57] - 2026-02-27
+
+### Added
+
+#### Sizer: Individual MANUAL Override Dismiss
+- **Per-Field Dismiss**: Each MANUAL badge now includes a small × button to remove that individual override without clearing all overrides at once
+- **Shared Flag Handling**: CPU-related fields (cores, sockets, manufacturer, generation) share a single lock — dismissing any one clears all four CPU badges together
+- **Remove All Button Rename**: Renamed "Remove MANUAL overrides" button to "Remove all MANUAL overrides" for clarity
+
+---
+
 ## [0.17.56] - 2026-02-27
 
 ### Added
