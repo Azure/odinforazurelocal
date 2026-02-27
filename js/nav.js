@@ -95,7 +95,7 @@
     if (active === 'designer' || active === 'sizer') {
         const helpFn = active === 'sizer' ? 'showSizerOnboarding()' : 'showOnboarding()';
         html += '<button type="button" onclick="' + helpFn + '" class="nav-theme-toggle nav-help-btn" title="Show Getting Started guide">';
-        html += '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+        html += '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2.5-3 4"/><circle cx="12" cy="18" r="0.5" fill="currentColor"/></svg>';
         html += '<span class="nav-help-text"> Help</span></button>';
     }
 
