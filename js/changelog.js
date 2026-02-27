@@ -77,9 +77,18 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Analytics: Visitors Rename</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">� Sizer: Configure in Designer Fix</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Label Change:</strong> Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages.</li>
+                        <li><strong>Navigation Fix:</strong> Fixed "Configure in Designer" navigating to the Knowledge tab instead of Designer — added <code>?tab=designer</code> to the Sizer navigation URL.</li>
+                        <li><strong>Import Fix:</strong> Fixed Sizer hardware/workload auto-import not applying in Designer — <code>?from=sizer</code> URL param was being stripped by the tab routing cleanup; now only <code>?tab=</code> is removed.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Analytics & UI</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Visitors Rename:</strong> Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages.</li>
+                        <li><strong>Feedback Link:</strong> Feedback button now opens GitHub Issues in a full new browser tab instead of a popup window.</li>
                     </ul>
                 </div>
 

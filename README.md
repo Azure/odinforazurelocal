@@ -53,7 +53,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Preview Badge Removed**: Removed the purple "Preview" badge from the Sizer navigation link
 - **Sizer: Analytics Fix**: Fixed page view statistics not loading on the Sizer — added missing `utils.js` dependency and fallback `fetchAndDisplayStats()` call
 - **Sizer: Title Update**: Changed Sizer page title to "ODIN Sizer for Azure Local" with updated description text
+- **Sizer: Configure in Designer Fix**: Fixed "Configure in Designer" navigating to the Knowledge tab instead of Designer — added `?tab=designer` to the Sizer navigation URL
+- **Sizer: Import Fix**: Fixed Sizer hardware/workload auto-import not applying in Designer — `?from=sizer` URL param was stripped by the tab routing cleanup; now only `?tab=` is removed
 - **Analytics: Visitors Rename**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
+- **Feedback Link**: Feedback button now opens GitHub Issues in a full new browser tab instead of a popup window
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -370,7 +373,10 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Sizer: Preview Badge Removed**: Removed purple "Preview" badge from Sizer navigation link
 - **Sizer: Analytics Fix**: Fixed page view statistics not loading — added missing `utils.js` dependency and fallback `fetchAndDisplayStats()` call
 - **Sizer: Title Update**: Changed page title to "ODIN Sizer for Azure Local" with updated description
+- **Sizer: Configure in Designer Fix**: Fixed "Configure in Designer" navigating to Knowledge tab — added `?tab=designer` to navigation URL
+- **Sizer: Import Fix**: Fixed hardware/workload auto-import not applying — `?from=sizer` param preserved during tab URL cleanup
 - **Analytics: Visitors Rename**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
+- **Feedback Link**: Opens GitHub Issues in a full new browser tab instead of a popup window
 
 #### 0.17.11 - Knowledge Tab Embedded Content & Interactive Outbound Connectivity Diagrams
 - **Knowledge Tab: Embedded Content**: Knowledge tab now loads inline within the main page — outbound connectivity architecture guide displayed in an embedded frame with sidebar navigation

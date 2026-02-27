@@ -39,9 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Missing utils.js**: Fixed page view statistics not loading on the Sizer page — added missing `utils.js` script dependency that provides `formatNumber()`
 - **Fallback Stats Fetch**: Added explicit `fetchAndDisplayStats()` call with 1-second delay as a fallback when the initial analytics load fails
 
+#### Sizer: Configure in Designer Navigation
+- **Tab Parameter**: Fixed "Configure in Designer" navigating to the Knowledge tab instead of Designer — added `?tab=designer` to the Sizer navigation URL
+- **Import Param Preservation**: Fixed Sizer hardware/workload auto-import not applying in Designer — the `?from=sizer` URL param was being stripped by the tab routing cleanup; tab cleanup now only removes the `tab` param, preserving other query parameters
+
 ### Changed
 
 - **Analytics Label**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
+- **Feedback Link**: Feedback button now opens GitHub Issues in a full new browser tab instead of a popup window
 
 ---
 
