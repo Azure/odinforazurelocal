@@ -39,6 +39,29 @@ function switchOdinTab(tabId) {
 }
 
 /**
+ * Context-aware Help button handler called from the nav bar.
+ * If the Knowledge tab is visible and the iframe contains a flow diagram page,
+ * triggers the flow-diagram onboarding inside the iframe.
+ * Otherwise, falls back to the Designer onboarding walkthrough.
+ */
+function showNavHelp() {
+    // Check if the Knowledge tab is currently active
+    var knowledgeTab = document.getElementById('tab-knowledge');
+    if (knowledgeTab && knowledgeTab.classList.contains('active')) {
+        // Knowledge tab is showing — check if the iframe has a flow diagram
+        var iframe = document.getElementById('knowledge-iframe');
+        if (iframe && iframe.contentWindow && typeof iframe.contentWindow.showFlowOnboarding === 'function') {
+            iframe.contentWindow.showFlowOnboarding();
+            return;
+        }
+    }
+    // Default: show the Designer onboarding
+    if (typeof showOnboarding === 'function') {
+        showOnboarding();
+    }
+}
+
+/**
  * Switch between Knowledge sub-pages (guide, public flow, private flow)
  * @param {HTMLElement} linkEl - The clicked nav link element
  * @param {string} src - iframe src URL

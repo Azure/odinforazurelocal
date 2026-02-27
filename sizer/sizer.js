@@ -4389,7 +4389,7 @@ const sizerOnboardingSteps = [
             { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, and AVD workloads with CPU, memory, and storage needs' },
             { icon: '⚖️', title: 'Resiliency Options', text: 'Choose mirror types and see the real impact on usable storage' },
             { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, and storage utilization update in real time' },
-            { icon: '💾', title: 'Auto-Save', text: 'Progress is automatically saved to your browser' }
+            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved to your browser — export your config as JSON to share or back up, and import it later to resume' }
         ]
     },
     {
