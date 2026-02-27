@@ -754,24 +754,6 @@ function updateRepairDiskCountAuto() {
     const activeId = isTiered ? 'tiered-repair-disk-count' : 'repair-disk-count';
     markAutoScaled(activeId);
 
-    // Update info text
-    updateRepairDiskInfoText();
-}
-
-// Update the repair disk info text to show the recommended (AUTO) reservation
-function updateRepairDiskInfoText() {
-    const isTiered = _isTieredStorage();
-    const infoId = isTiered ? 'tiered-repair-disk-info-text' : 'repair-disk-info-text';
-    const infoEl = document.getElementById(infoId);
-    if (!infoEl) return;
-
-    const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
-    const recommendedCount = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
-    const diskSizeId = isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size';
-    const diskSizeTB = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
-    const totalTB = (recommendedCount * diskSizeTB).toFixed(2);
-
-    infoEl.textContent = 'Recommended: Reserve ' + recommendedCount + ' \u00d7 capacity disk (' + diskSizeTB.toFixed(2) + ' TB each = ' + totalTB + ' TB total) as free space in the S2D storage pool for repair jobs.';
 }
 
 // Handler for repair disk count dropdown change (MANUAL override)
@@ -787,7 +769,6 @@ function onRepairDiskCountChange() {
     const otherEl = document.getElementById(otherId);
     if (otherEl) otherEl.value = value;
 
-    updateRepairDiskInfoText();
     onHardwareConfigChange();
 }
 
