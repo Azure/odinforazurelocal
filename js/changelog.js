@@ -37,6 +37,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Per-Field Dismiss:</strong> Each MANUAL badge now includes a small × button to remove that individual override — no need to clear all overrides at once.</li>
                         <li><strong>Shared Flag Handling:</strong> CPU-related fields (cores, sockets, manufacturer, generation) share a single lock — dismissing any one clears all four CPU badges together.</li>
                         <li><strong>Remove All Button:</strong> The existing "Remove MANUAL overrides" button is renamed to "Remove all MANUAL overrides" for clarity.</li>
+                        <li><strong>Auto-Scale on Dismiss:</strong> Dismissing a MANUAL override immediately triggers auto-scaling — the field reverts to an optimal value and receives the purple AUTO badge.</li>
                     </ul>
                 </div>
 

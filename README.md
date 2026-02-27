@@ -44,6 +44,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Individual MANUAL Dismiss**: Each MANUAL badge now has a small × button to remove that specific override without clearing all overrides
 - **Shared Flag Handling**: CPU-related badges (cores, sockets, manufacturer, generation) are linked — dismissing any one clears all four together
 - **Remove All Button Renamed**: The existing button is renamed to "Remove all MANUAL overrides" for clarity
+- **Auto-Scale on Dismiss**: Dismissing a MANUAL override immediately triggers auto-scaling — the field reverts to an optimal value and receives the purple AUTO badge
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -351,6 +352,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Per-Field Dismiss**: Each MANUAL badge now includes a small × button to remove that individual override without clearing all overrides
 - **Shared Flag Handling**: CPU-related badges (cores, sockets, manufacturer, generation) are linked — dismissing any one clears all four
 - **Remove All Button Renamed**: Button renamed to "Remove all MANUAL overrides" for clarity
+- **Auto-Scale on Dismiss**: Dismissing a MANUAL override immediately triggers auto-scaling — the field reverts to an optimal value and receives the purple AUTO badge
 
 #### 0.17.56 - Designer-to-Sizer Transfer
 - **Designer-to-Sizer Transfer**: New "⚖️ Sizer: Add Workloads to this Cluster" button at the bottom of the Designer — transfers deployment type and node count to the Sizer; enabled once Deployment Type and Nodes are selected
