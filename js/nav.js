@@ -70,7 +70,7 @@
 
         // On the main (designer) page, both Designer and Knowledge tabs are <button>s
         // that call switchOdinTab to swap content in-page.
-        var isMainPage = (active === 'designer');
+        const isMainPage = (active === 'designer');
 
         if (isMainPage && (t.id === 'designer' || t.id === 'knowledge')) {
             html += '<button type="button" class="' + cls + '" data-tab="' + t.id + '" onclick="switchOdinTab(\'' + t.id + '\')">';

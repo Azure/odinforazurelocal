@@ -45,11 +45,11 @@ function switchOdinTab(tabId) {
  */
 function switchKnowledgePage(linkEl, src) {
     // Update active state in sidebar
-    var links = document.querySelectorAll('.knowledge-nav-item');
+    const links = document.querySelectorAll('.knowledge-nav-item');
     links.forEach(function(l) { l.classList.remove('active'); });
     if (linkEl) linkEl.classList.add('active');
     // Update iframe
-    var iframe = document.getElementById('knowledge-iframe');
+    const iframe = document.getElementById('knowledge-iframe');
     if (iframe) iframe.src = src;
 }
 

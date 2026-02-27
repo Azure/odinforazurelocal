@@ -359,8 +359,11 @@ function onDiskCountChange() {
 
 // Check if current storage tiering is a two-tier (cache + capacity) configuration
 function _isTieredStorage() {
-    const storageConfig = document.getElementById('storage-config').value;
-    const tieringId = document.getElementById('storage-tiering').value;
+    const storageEl = document.getElementById('storage-config');
+    const tieringEl = document.getElementById('storage-tiering');
+    if (!storageEl || !tieringEl) return false;
+    const storageConfig = storageEl.value;
+    const tieringId = tieringEl.value;
     const options = STORAGE_TIERING_OPTIONS[storageConfig];
     if (!options) return false;
     const selectedTier = options.find(o => o.id === tieringId) || options[0];
