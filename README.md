@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.17.55 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.17.56 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -31,6 +31,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Multiple Deployment Scenarios**: Hyperconverged, Multi-Rack, Disconnected, and M365 Local
 - **Hardware Sizer (Preview)**: Workload-based hardware sizing for VMs, AKS, and AVD — calculates CPU, memory, storage, GPU, and node requirements with auto-scaling and power/rack-space estimates
 - **Sizer-to-Designer Integration**: Size your hardware first, then transfer the configuration directly into the Designer wizard with one click
+- **Designer-to-Sizer Integration**: Design your cluster first, then transfer deployment type and node count to the Sizer to add workloads
 - **Cloud Witness Configuration**: Automatic witness type selection based on cluster topology
 - **Storage Pool Management**: Configure storage pool deployment mode (Express, InfraOnly, KeepStorage)
 - **Security Configuration**: Configure security controls with recommended or customized settings
@@ -39,27 +40,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.17.55 - Latest Release
-- **Navigation: Tab-Based Routing**: All top navigation links (Designer, Knowledge, Sizer) now use `?tab=` URL parameters for consistent tab switching; parameters cleaned after processing via `history.replaceState`
-- **Navigation: Designer Link Bug Fix**: Fixed intermittent bug where clicking Designer from the Sizer navigated to the Knowledge tab — stale `sessionStorage.odinActiveTab` combined with missing `?tab=designer` parameter
-- **Knowledge Tab: Session Popup Fix**: Fixed "Previous Session Found" popup appearing incorrectly on the Knowledge tab — `checkForSavedState()` now skips when active tab is Knowledge
-- **Knowledge: Flow Diagram Backgrounds**: Replaced animated stars/space WebGL effects with flat dark backgrounds (`#111111`) on Public and Private Path flow diagrams
-- **Knowledge: Public Path Layout**: Shifted all Public Path Flow diagram elements down to prevent overlap with the Architecture navigation bar
-- **Sizer: ALDO Workload Cluster**: New "ALDO Workload Cluster" deployment type — integrates disconnected scenario with workload cluster role in Designer; prompts for Autonomous Cloud FQDN before transfer
-- **Sizer: ALDO Workload Region Skip**: ALDO Workload Cluster skips the region picker when transferring to Designer
-- **Sizer: Deployment Type Rename**: Renamed "Cluster Type" to "Deployment Type" throughout the Sizer
-- **Sizer: Header Redesign**: Restructured Sizer header to match the Designer layout — centered title, absolutely-positioned logo, and Firebase analytics stats bar
-- **Sizer: Disclaimer Banner**: Added disclaimer banner to the Sizer page matching the Designer's warning banner
-- **Sizer: Preview Badge Removed**: Removed the purple "Preview" badge from the Sizer navigation link
-- **Sizer: Analytics Fix**: Fixed page view statistics not loading on the Sizer — added missing `utils.js` dependency and fallback `fetchAndDisplayStats()` call
-- **Sizer: Title Update**: Changed Sizer page title to "ODIN Sizer for Azure Local" with updated description text
-- **Sizer: Configure in Designer Fix**: Fixed "Configure in Designer" navigating to the Knowledge tab instead of Designer — added `?tab=designer` to the Sizer navigation URL
-- **Sizer: Import Fix**: Fixed Sizer hardware/workload auto-import not applying in Designer — `?from=sizer` URL param was stripped by the tab routing cleanup; now only `?tab=` is removed
-- **Analytics: Visitors Rename**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
-- **Feedback Link**: Feedback button now opens GitHub Issues in a full new browser tab instead of a popup window
-- **Sizer: Export/Import JSON**: Export and import Sizer configurations as JSON files — share hardware sizing and workload scenarios via email or backup for later; full state persistence including all dropdowns, workloads, and MANUAL overrides
-- **Sizer: MANUAL Node Count**: Number of Physical Nodes now supports persistent MANUAL override — selecting a node count locks it from auto-recommendation until cleared
-- **Sizer: Configurable S2D Repair Disks**: New "Capacity Disks Reserved for Repair" dropdown in the Disk Configuration section — defaults to AUTO (1 disk per node, max 4) with MANUAL override support; sizing notes show a warning when the manual value is below the recommended reservation
+### 🎉 Version 0.17.56 - Latest Release
+- **Designer-to-Sizer Transfer**: New "⚖️ Sizer: Add Workloads to This Cluster" button at the bottom of the Designer — transfers deployment type and node count to the Sizer so users can add workloads to the cluster they have just designed; button enabled once Deployment Type and Nodes are selected
+- **Sizer: Designer Import**: The Sizer now accepts configuration from the Designer — pre-populates cluster type and node count with a confirmation banner showing what was imported
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -347,7 +330,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.17.55  
+**Version**: 0.17.56  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -362,6 +345,10 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February 2026)
+
+#### 0.17.56 - Designer-to-Sizer Transfer
+- **Designer-to-Sizer Transfer**: New "⚖️ Sizer: Add Workloads to This Cluster" button at the bottom of the Designer — transfers deployment type and node count to the Sizer; enabled once Deployment Type and Nodes are selected
+- **Sizer: Designer Import**: Sizer accepts configuration from the Designer — pre-populates cluster type and node count with a confirmation banner; skips saved session prompt when importing from Designer
 
 #### 0.17.55 - Navigation Consistency, Sizer ALDO Workload Cluster, Header Redesign & Analytics
 - **Navigation: Tab-Based Routing**: All top navigation links now use `?tab=` URL parameters for consistent tab switching; parameters cleaned after processing via `history.replaceState`

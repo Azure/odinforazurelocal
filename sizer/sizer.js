@@ -1591,6 +1591,89 @@ function clearSizerState() {
     }
 }
 
+// ============================================
+// DESIGNER-TO-SIZER IMPORT
+// ============================================
+// When the Designer transfers deployment type and node count to the Sizer,
+// we pre-populate the cluster config and show a confirmation banner.
+// ============================================
+
+function checkForDesignerImport() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('from') !== 'designer') return false;
+
+    try {
+        const raw = localStorage.getItem('odinDesignerToSizer');
+        if (!raw) return false;
+
+        const payload = JSON.parse(raw);
+        if (!payload || payload.source !== 'designer') return false;
+
+        // Apply cluster type
+        const clusterTypeSelect = document.getElementById('cluster-type');
+        if (clusterTypeSelect && payload.clusterType) {
+            clusterTypeSelect.value = payload.clusterType;
+        }
+
+        // Trigger cluster type change handlers to update node options, storage, etc.
+        updateNodeOptionsForClusterType();
+        updateStorageForClusterType();
+        updateResiliencyOptions();
+        updateAldoWorkloadButtons();
+
+        // Apply node count (after node options are updated for the cluster type)
+        const nodeCountSelect = document.getElementById('node-count');
+        if (nodeCountSelect && payload.nodeCount) {
+            // Check the option exists before setting
+            const optionExists = Array.from(nodeCountSelect.options).some(
+                function(opt) { return opt.value === payload.nodeCount; }
+            );
+            if (optionExists) {
+                nodeCountSelect.value = payload.nodeCount;
+            }
+        }
+
+        // Clean up payload
+        localStorage.removeItem('odinDesignerToSizer');
+
+        // Clean URL
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        // Build cluster type label for banner
+        const clusterLabels = {
+            'single': 'Single Node',
+            'standard': 'Standard Cluster',
+            'rack-aware': 'Rack-Aware Cluster',
+            'aldo-mgmt': 'ALDO Management Cluster',
+            'aldo-wl': 'ALDO Workload Cluster'
+        };
+        const typeLabel = clusterLabels[payload.clusterType] || payload.clusterType;
+        const nodeLabel = payload.nodeCount === '1' ? '1 node' : (payload.nodeCount + ' nodes');
+
+        // Show confirmation banner
+        const banner = document.createElement('div');
+        banner.id = 'designer-import-banner';
+        banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:16px 24px;background:linear-gradient(135deg,rgba(139,92,246,0.95),rgba(59,130,246,0.95));color:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:16px;animation:slideDown 0.3s ease;max-width:600px;';
+        banner.innerHTML = '<div style="flex:1;"><div style="font-weight:700;margin-bottom:4px;">Designer Configuration Imported</div><div style="font-size:12px;opacity:0.9;">' +
+            typeLabel + ' \u2022 ' + nodeLabel + ' \u2014 add workloads to size your hardware</div></div>' +
+            '<button onclick="this.parentElement.remove()" style="padding:8px 16px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Dismiss</button>';
+        document.body.appendChild(banner);
+
+        // Auto-dismiss after 8 seconds
+        setTimeout(function() {
+            const el = document.getElementById('designer-import-banner');
+            if (el) el.remove();
+        }, 8000);
+
+        return true;
+    } catch (e) {
+        console.warn('Failed to import designer configuration:', e);
+        return false;
+    }
+}
+
 // Check for saved state and show resume banner
 function checkForSavedSizerState() {
     const saved = loadSizerState();
@@ -4349,8 +4432,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Skip UI initialization when running in test harness (no sizer DOM elements present)
     if (window.__SIZER_TEST_MODE__) return;
 
+    // Check for Designer-to-Sizer transfer BEFORE saved state check
+    const designerImported = checkForDesignerImport();
+
     // Check for saved session BEFORE initial calc (so it doesn't get overwritten)
-    checkForSavedSizerState();
+    if (!designerImported) {
+        checkForSavedSizerState();
+    }
 
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
