@@ -1633,6 +1633,19 @@ function checkForDesignerImport() {
             }
         }
 
+        // Silently restore workloads from previously saved Sizer state (if any)
+        const savedSizer = loadSizerState();
+        let restoredCount = 0;
+        if (savedSizer && savedSizer.data) {
+            const sd = savedSizer.data;
+            if (sd.workloads && sd.workloads.length > 0) {
+                workloads = sd.workloads;
+                workloadIdCounter = sd.workloadIdCounter || workloads.length;
+                restoredCount = workloads.length;
+                renderWorkloads();
+            }
+        }
+
         // Clean up payload
         localStorage.removeItem('odinDesignerToSizer');
 
@@ -1656,8 +1669,14 @@ function checkForDesignerImport() {
         const banner = document.createElement('div');
         banner.id = 'designer-import-banner';
         banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:16px 24px;background:linear-gradient(135deg,rgba(139,92,246,0.95),rgba(59,130,246,0.95));color:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:16px;animation:slideDown 0.3s ease;max-width:600px;';
+        var subtitleText = typeLabel + ' \u2022 ' + nodeLabel;
+        if (restoredCount > 0) {
+            subtitleText += ' \u2022 ' + restoredCount + ' workload' + (restoredCount > 1 ? 's' : '') + ' restored \u2014 add more or review sizing';
+        } else {
+            subtitleText += ' \u2014 add workloads to size your hardware';
+        }
         banner.innerHTML = '<div style="flex:1;"><div style="font-weight:700;margin-bottom:4px;">Designer Configuration Imported</div><div style="font-size:12px;opacity:0.9;">' +
-            typeLabel + ' \u2022 ' + nodeLabel + ' \u2014 add workloads to size your hardware</div></div>' +
+            subtitleText + '</div></div>' +
             '<button onclick="this.parentElement.remove()" style="padding:8px 16px;background:rgba(255,255,255,0.2);color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">Dismiss</button>';
         document.body.appendChild(banner);
 
