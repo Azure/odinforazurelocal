@@ -111,4 +111,23 @@
     html += '</div>';
 
     nav.innerHTML = html;
+
+    // Define showNavHelp globally so the Help button works regardless of script load order.
+    // Checks if the Knowledge tab is active with a flow diagram in the iframe;
+    // if so, triggers the flow-diagram onboarding; otherwise falls back to Designer onboarding.
+    if (active === 'designer' && !window.showNavHelp) {
+        window.showNavHelp = function() {
+            var knowledgeTab = document.getElementById('tab-knowledge');
+            if (knowledgeTab && knowledgeTab.classList.contains('active')) {
+                var iframe = document.getElementById('knowledge-iframe');
+                if (iframe && iframe.contentWindow && typeof iframe.contentWindow.showFlowOnboarding === 'function') {
+                    iframe.contentWindow.showFlowOnboarding();
+                    return;
+                }
+            }
+            if (typeof showOnboarding === 'function') {
+                showOnboarding();
+            }
+        };
+    }
 })();
