@@ -93,13 +93,7 @@
 
     // Help button — re-launch onboarding walkthrough (Designer + Knowledge flow diagrams, and Sizer)
     if (active === 'designer' || active === 'sizer') {
-        var helpFn;
-        if (active === 'sizer') {
-            helpFn = 'showSizerOnboarding()';
-        } else {
-            // Designer page: showNavHelp() checks if Knowledge tab is active with a flow diagram
-            helpFn = 'showNavHelp()';
-        }
+        const helpFn = active === 'sizer' ? 'showSizerOnboarding()' : 'showNavHelp()';
         html += '<button type="button" onclick="' + helpFn + '" class="nav-theme-toggle nav-help-btn" title="Show Getting Started guide">';
         html += '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2.5-3 4"/><circle cx="12" cy="18" r="0.5" fill="currentColor"/></svg>';
         html += '<span class="nav-help-text"> Help</span></button>';
@@ -117,9 +111,9 @@
     // if so, triggers the flow-diagram onboarding; otherwise falls back to Designer onboarding.
     if (active === 'designer' && !window.showNavHelp) {
         window.showNavHelp = function() {
-            var knowledgeTab = document.getElementById('tab-knowledge');
+            const knowledgeTab = document.getElementById('tab-knowledge');
             if (knowledgeTab && knowledgeTab.classList.contains('active')) {
-                var iframe = document.getElementById('knowledge-iframe');
+                const iframe = document.getElementById('knowledge-iframe');
                 if (iframe && iframe.contentWindow && typeof iframe.contentWindow.showFlowOnboarding === 'function') {
                     iframe.contentWindow.showFlowOnboarding();
                     return;
