@@ -29,14 +29,14 @@
             id: 'designer',
             label: 'Designer',
             svg: svgDesigner,
-            href: base || './',
+            href: (base || './') + '?tab=designer',
             badge: null
         },
         {
             id: 'knowledge',
             label: 'Knowledge',
             svg: svgKnowledge,
-            href: base + 'docs/outbound-connectivity/',
+            href: (base || './') + '?tab=knowledge',
             badge: null
         },
         {
@@ -44,7 +44,7 @@
             label: 'Sizer',
             svg: svgSizer,
             href: base + 'sizer/',
-            badge: 'Preview'
+            badge: null
         }
     ];
 
@@ -56,7 +56,7 @@
     if (active === 'designer') {
         html += '<div class="odin-tab-logo">';
     } else {
-        html += '<a href="' + (base || './') + '" class="odin-tab-logo">';
+        html += '<a href="' + (base || './') + '?tab=designer" class="odin-tab-logo">';
     }
     html += '<img src="' + base + 'images/odin-logo.png" alt="Odin">';
     html += '<span>ODIN</span>';
@@ -88,8 +88,8 @@
         html += (isMainPage && (t.id === 'designer' || t.id === 'knowledge')) ? '</button>' : '</a>';
     }
 
-    // Feedback link
-    html += '<a href="https://github.com/Azure/odinforazurelocal/issues" target="_blank" rel="noopener noreferrer" class="nav-theme-toggle" title="Raise feedback or issue" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">\uD83D\uDCA1<span class="nav-feedback-text"> Feedback</span></a>';
+    // Feedback link — open in a full new browser tab (no features string = tab, not popup)
+    html += '<a href="https://github.com/Azure/odinforazurelocal/issues" onclick="event.preventDefault(); window.open(this.href, \'_blank\');" class="nav-theme-toggle" title="Raise feedback or issue" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">\uD83D\uDCA1<span class="nav-feedback-text"> Feedback</span></a>';
 
     // Theme toggle
     html += '<button type="button" onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" style="margin-left: 0;" title="Toggle light/dark theme">\uD83C\uDF19</button>';

@@ -27,7 +27,73 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.11 - Latest Release</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.55 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">February 27, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧭 Navigation: Tab-Based Routing & Consistency</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>URL Parameter Routing:</strong> All top navigation links (Designer, Knowledge, Sizer) now use <code>?tab=</code> URL parameters for consistent tab switching — parameters cleaned after processing.</li>
+                        <li><strong>Designer Link Fix:</strong> Fixed intermittent bug where clicking Designer from the Sizer navigated to the Knowledge tab — stale sessionStorage combined with missing <code>?tab=designer</code> parameter.</li>
+                        <li><strong>Session Popup Fix:</strong> Fixed "Previous Session Found" popup appearing incorrectly on the Knowledge tab.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎨 Knowledge: Flow Diagram Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Flat Background:</strong> Replaced animated stars/space WebGL effects with flat dark backgrounds (<code>#111111</code>) on Public and Private Path flow diagrams.</li>
+                        <li><strong>Layout Fix:</strong> Shifted all Public Path Flow diagram elements down to prevent overlap with the Architecture navigation bar.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📐 Sizer: ALDO Workload Cluster</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New Deployment Type:</strong> Added "ALDO Workload Cluster" — integrates disconnected scenario with workload cluster role in the Designer.</li>
+                        <li><strong>FQDN Prompt:</strong> Prompts for Autonomous Cloud FQDN before transferring to Designer.</li>
+                        <li><strong>Region Skip:</strong> Skips the region picker when transferring ALDO Workload Cluster to Designer.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🖌️ Sizer: Header Redesign & UI</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Header Layout:</strong> Restructured Sizer header to match the Designer layout — centered title, absolutely-positioned logo, and Firebase analytics stats bar.</li>
+                        <li><strong>Disclaimer Banner:</strong> Added disclaimer banner matching the Designer's warning banner.</li>
+                        <li><strong>Preview Badge Removed:</strong> Removed the purple "Preview" badge from the Sizer navigation link.</li>
+                        <li><strong>Title Update:</strong> Changed page title to "ODIN Sizer for Azure Local" with updated description.</li>
+                        <li><strong>Deployment Type:</strong> Renamed "Cluster Type" to "Deployment Type" throughout the Sizer.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Sizer: Analytics Fix</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Missing Dependency:</strong> Fixed page view statistics not loading on the Sizer — added missing <code>utils.js</code> dependency providing <code>formatNumber()</code>.</li>
+                        <li><strong>Fallback Fetch:</strong> Added explicit <code>fetchAndDisplayStats()</code> call with 1-second delay as a fallback.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">� Sizer: Configure in Designer Fix</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Navigation Fix:</strong> Fixed "Configure in Designer" navigating to the Knowledge tab instead of Designer — added <code>?tab=designer</code> to the Sizer navigation URL.</li>
+                        <li><strong>Import Fix:</strong> Fixed Sizer hardware/workload auto-import not applying in Designer — <code>?from=sizer</code> URL param was being stripped by the tab routing cleanup; now only <code>?tab=</code> is removed.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Analytics & UI</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Visitors Rename:</strong> Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages.</li>
+                        <li><strong>Feedback Link:</strong> Feedback button now opens GitHub Issues in a full new browser tab instead of a popup window.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--text-secondary); margin: 0 0 8px 0;">Version 0.17.11</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">February 26, 2026</div>
                 </div>
 
