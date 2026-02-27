@@ -758,25 +758,20 @@ function updateRepairDiskCountAuto() {
     updateRepairDiskInfoText();
 }
 
-// Update the repair disk info text to reflect current values
+// Update the repair disk info text to show the recommended (AUTO) reservation
 function updateRepairDiskInfoText() {
     const isTiered = _isTieredStorage();
-    const selectId = isTiered ? 'tiered-repair-disk-count' : 'repair-disk-count';
     const infoId = isTiered ? 'tiered-repair-disk-info-text' : 'repair-disk-info-text';
-    const el = document.getElementById(selectId);
     const infoEl = document.getElementById(infoId);
-    if (!el || !infoEl) return;
+    if (!infoEl) return;
 
-    const count = parseInt(el.value) || 0;
+    const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
+    const recommendedCount = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
     const diskSizeId = isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size';
     const diskSizeTB = parseFloat(document.getElementById(diskSizeId).value) || 3.84;
-    const totalTB = (count * diskSizeTB).toFixed(2);
+    const totalTB = (recommendedCount * diskSizeTB).toFixed(2);
 
-    if (count === 0) {
-        infoEl.textContent = 'No capacity disks reserved for S2D repair. S2D will use available pool free space for rebuild operations.';
-    } else {
-        infoEl.textContent = 'S2D reserves ' + count + ' \u00d7 capacity disk (' + diskSizeTB.toFixed(2) + ' TB each = ' + totalTB + ' TB total) as free space in the storage pool for repair jobs.';
-    }
+    infoEl.textContent = 'Recommended: Reserve ' + recommendedCount + ' \u00d7 capacity disk (' + diskSizeTB.toFixed(2) + ' TB each = ' + totalTB + ' TB total) as free space in the S2D storage pool for repair jobs.';
 }
 
 // Handler for repair disk count dropdown change (MANUAL override)
