@@ -1766,7 +1766,9 @@ header .header-description {
 
 /* Small "manual" badge on the label when its field was manually set */
 .config-row label .manual-set-badge {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
@@ -1779,6 +1781,29 @@ header .header-description {
     margin-left: 6px;
     vertical-align: middle;
     animation: manual-set-pulse 1.8s ease-out;
+}
+
+/* Dismiss × button inside a manual badge */
+.manual-badge-dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--accent-green);
+    opacity: 0.6;
+    transition: opacity 0.15s, background 0.15s;
+    margin-left: 1px;
+}
+
+.manual-badge-dismiss:hover {
+    opacity: 1;
+    background: rgba(16, 185, 129, 0.2);
 }
 /* "Remove MANUAL overrides" button container */
 .clear-manual-overrides {

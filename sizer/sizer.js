@@ -804,7 +804,7 @@ let _autoScaledFields = new Set();
 // Track which hardware fields were manually set by the user
 let _manualFields = new Set();
 
-// Mark a field element as manually set by the user (add green highlight + MANUAL badge)
+// Mark a field element as manually set by the user (add green highlight + MANUAL badge with × dismiss)
 function markManualSet(elementId) {
     _manualFields.add(elementId);
     const el = document.getElementById(elementId);
@@ -820,13 +820,28 @@ function markManualSet(elementId) {
             if (!label.querySelector('.manual-set-badge')) {
                 const badge = document.createElement('span');
                 badge.className = 'manual-set-badge';
-                badge.textContent = 'manual';
                 badge.title = 'This value was manually set and will not be changed by auto-scaling';
+
+                const textNode = document.createTextNode('manual');
+                badge.appendChild(textNode);
+
+                const dismiss = document.createElement('span');
+                dismiss.className = 'manual-badge-dismiss';
+                dismiss.textContent = '\u00d7';
+                dismiss.title = 'Remove this override';
+                dismiss.setAttribute('role', 'button');
+                dismiss.setAttribute('aria-label', 'Remove ' + (_MANUAL_FIELD_LABELS[elementId] || elementId) + ' override');
+                dismiss.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    clearSingleManualOverride(elementId);
+                });
+                badge.appendChild(dismiss);
+
                 label.appendChild(badge);
             }
         }
     }
-    // Show the "Remove MANUAL overrides" button
+    // Show the "Remove all MANUAL overrides" button
     const clearBtn = document.getElementById('clear-manual-overrides');
     if (clearBtn) clearBtn.style.display = 'block';
 }
@@ -877,6 +892,62 @@ const _MANUAL_FIELD_LABELS = {
     'repair-disk-count': 'S2D Repair Disks',
     'tiered-repair-disk-count': 'S2D Repair Disks'
 };
+
+// Map element IDs to their corresponding _*UserSet flag name and sibling IDs
+// that share the same flag (clearing one clears all siblings).
+const _MANUAL_FIELD_TO_FLAG = {
+    'node-count':                { flag: 'nodeCount',   siblings: [] },
+    'vcpu-ratio':                { flag: 'vcpuRatio',   siblings: [] },
+    'node-memory':               { flag: 'memory',      siblings: [] },
+    'cpu-cores':                 { flag: 'cpuConfig',   siblings: ['cpu-sockets', 'cpu-manufacturer', 'cpu-generation'] },
+    'cpu-sockets':               { flag: 'cpuConfig',   siblings: ['cpu-cores', 'cpu-manufacturer', 'cpu-generation'] },
+    'cpu-manufacturer':          { flag: 'cpuConfig',   siblings: ['cpu-cores', 'cpu-sockets', 'cpu-generation'] },
+    'cpu-generation':            { flag: 'cpuConfig',   siblings: ['cpu-cores', 'cpu-sockets', 'cpu-manufacturer'] },
+    'capacity-disk-size':        { flag: 'diskSize',    siblings: ['tiered-capacity-disk-size'] },
+    'tiered-capacity-disk-size': { flag: 'diskSize',    siblings: ['capacity-disk-size'] },
+    'capacity-disk-count':       { flag: 'diskCount',   siblings: ['tiered-capacity-disk-count'] },
+    'tiered-capacity-disk-count':{ flag: 'diskCount',   siblings: ['capacity-disk-count'] },
+    'repair-disk-count':         { flag: 'repairDisks', siblings: ['tiered-repair-disk-count'] },
+    'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] }
+};
+
+// Remove a single manual override — clears the flag (and sibling badges that share it), then re-runs auto-scaling
+function clearSingleManualOverride(elementId) {
+    const mapping = _MANUAL_FIELD_TO_FLAG[elementId];
+    if (!mapping) return;
+
+    // Reset the corresponding _*UserSet flag
+    switch (mapping.flag) {
+        case 'nodeCount':   _nodeCountUserSet   = false; break;
+        case 'vcpuRatio':   _vcpuRatioUserSet   = false; break;
+        case 'memory':      _memoryUserSet       = false; break;
+        case 'cpuConfig':   _cpuConfigUserSet    = false; break;
+        case 'diskSize':    _diskSizeUserSet     = false; break;
+        case 'diskCount':   _diskCountUserSet    = false; break;
+        case 'repairDisks': _repairDisksUserSet  = false; break;
+    }
+
+    // Remove badge from this element and all siblings sharing the same flag
+    const idsToRemove = [elementId, ...mapping.siblings];
+    for (const id of idsToRemove) {
+        _manualFields.delete(id);
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('manual-set');
+        const row = el?.closest('.config-row');
+        if (row) {
+            const badge = row.querySelector('.manual-set-badge');
+            if (badge) badge.remove();
+        }
+    }
+
+    // Hide "Remove all" button if no manual fields remain
+    if (_manualFields.size === 0) {
+        const clearBtn = document.getElementById('clear-manual-overrides');
+        if (clearBtn) clearBtn.style.display = 'none';
+    }
+
+    calculateRequirements();
+}
 
 // Show or hide the manual-override capacity warning based on current utilization
 // and active manual overrides. Called after capacity bars are updated.
@@ -1123,7 +1194,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             if (targetCores === null) {
                 targetCores = maxCoresForGen;
                 if (sockets < 2) {
-                    sockets = 2;
                     socketsSelect.value = 2;
                     changed = true;
                     markAutoScaled('cpu-sockets');
@@ -1388,7 +1458,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                                 // step back to 4:1 and still stay under threshold
                                 const pctAt4 = Math.round(totalVcpus / (hrCores * hrSockets * effectiveNodes * 4) * 100);
                                 if (pctAt4 < VCPU_ESCALATION_THRESHOLD) {
-                                    vcpuToCore = 4;
                                     document.getElementById('vcpu-ratio').value = 4;
                                     // Ratio back at default — no auto-escalation badge needed
                                     _vcpuRatioAutoEscalated = false;

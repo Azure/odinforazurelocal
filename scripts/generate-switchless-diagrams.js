@@ -176,14 +176,6 @@ function getOutboundType(filename) {
     throw new Error(`Unknown outbound type in: ${filename}`);
 }
 
-function getIntentLabel(archType) {
-    switch (archType) {
-        case 'fullyconverged': return 'fully converged';
-        case 'disaggregated': return 'disaggregated';
-        case 'mgmt-compute': return 'management + compute';
-    }
-}
-
 function getOutboundLabel(outboundType) {
     return outboundType === 'air-gapped' ? 'air-gapped' : 'limited connectivity';
 }
