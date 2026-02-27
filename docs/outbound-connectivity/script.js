@@ -229,6 +229,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function isSafeImageSrc(src) {
         if (!src || typeof src !== 'string') return false;
         var trimmed = src.trim();
+        // Explicitly block data: URIs to avoid SVG/XSS vectors
+        if (/^data:/i.test(trimmed)) {
+            return false;
+        }
         // Allow common relative URL patterns
         if (
             trimmed.startsWith('/') ||
@@ -309,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.URL.revokeObjectURL(url);
             })
             .catch(err => {
-                console.error('Failed to download:', err);
+                console.error('Failed to download diagram "' + name + '" from ' + src + ':', err);
                 // Fallback: open in new tab
                 window.open(src, '_blank');
             });

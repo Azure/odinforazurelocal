@@ -16,6 +16,20 @@
  * 6. Reduces page width and background rectangle
  */
 
+// Ensure this script is executed in a Node.js environment.
+if (
+    typeof process === 'undefined' ||
+    typeof require === 'undefined' ||
+    !process.release ||
+    process.release.name !== 'node'
+) {
+    const msg = 'The generate-switchless-diagrams script must be run with Node.js (CLI), not in a browser or non-Node environment.';
+    if (typeof console !== 'undefined' && typeof console.error === 'function') {
+        console.error(msg);
+    }
+    throw new Error(msg);
+}
+
 const fs = require('fs');
 const path = require('path');
 
@@ -513,7 +527,14 @@ function generateSwitchlessDiagram(sourceFile, nodeCount) {
     const outboundLabel = getOutboundLabel(outboundType);
 
     // Read source file
-    let content = fs.readFileSync(path.join(SRC_DIR, sourceFile), 'utf-8');
+    let content;
+    const sourcePath = path.join(SRC_DIR, sourceFile);
+    try {
+        content = fs.readFileSync(sourcePath, 'utf-8');
+    } catch (err) {
+        console.error('Failed to read source diagram file "' + sourceFile + '" at path "' + sourcePath + '" while generating ' + nodeCount + '-node switchless ' + outboundLabel + ' architecture.');
+        throw err;
+    }
 
     // 1. Build list of IDs to remove (cluster 2 + right-side internet)
     const idsToRemove = [
