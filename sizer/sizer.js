@@ -3903,7 +3903,7 @@ function selectRegionAndConfigure(region, cloud) {
     }
 
     // Navigate to Designer
-    window.location.href = '../?from=sizer';
+    window.location.href = '../?tab=designer&from=sizer';
 }
 
 // Reset scenario
