@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Sizer: Designer Import
 - **Pre-Population**: Sizer detects `?from=designer` URL parameter and reads the `odinDesignerToSizer` localStorage payload to set cluster type and node count dropdowns
-- **Confirmation Banner**: Shows a purple banner with the imported deployment type and node count, auto-dismissed after 8 seconds
+- **MANUAL Node Count Lock**: Node count transferred from the Designer is marked as MANUAL — prevents Sizer auto-scaling from overriding the Designer's node count
+- **Workload Persistence**: Workloads from a prior Sizer session are silently restored when returning from the Designer; banner shows the count of restored workloads
+- **Confirmation Banner**: Shows a purple banner with the imported deployment type, node count, and restored workload count; auto-dismissed after 8 seconds
 - **Session Skip**: When importing from Designer, the saved session resume prompt is skipped to avoid conflicting with the imported configuration
 
 ---

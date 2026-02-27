@@ -37,6 +37,8 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Add Workloads Button:</strong> New "⚖️ Sizer: Add Workloads to This Cluster" button at the bottom of the Designer — transfers deployment type and node count to the Sizer so you can add workloads to the cluster you have designed.</li>
                         <li><strong>Smart Mapping:</strong> Automatically maps Designer scenario and scale to the correct Sizer deployment type — Standard, Rack-Aware, Single Node, ALDO Management, and ALDO Workload clusters are all supported.</li>
                         <li><strong>Sizer Import:</strong> The Sizer now accepts configuration from the Designer — pre-populates cluster type and node count with a confirmation banner showing what was imported.</li>
+                        <li><strong>MANUAL Node Lock:</strong> Node count transferred from the Designer is locked as MANUAL in the Sizer — prevents auto-scaling from overriding the cluster size you designed.</li>
+                        <li><strong>Workload Persistence:</strong> Workloads from a prior Sizer session are automatically restored when returning from the Designer; the import banner shows how many workloads were restored.</li>
                     </ul>
                 </div>
 

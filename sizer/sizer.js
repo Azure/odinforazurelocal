@@ -1622,6 +1622,7 @@ function checkForDesignerImport() {
         updateAldoWorkloadButtons();
 
         // Apply node count (after node options are updated for the cluster type)
+        // Mark as MANUAL so auto-scaling does not override the Designer's node count
         const nodeCountSelect = document.getElementById('node-count');
         if (nodeCountSelect && payload.nodeCount) {
             // Check the option exists before setting
@@ -1630,6 +1631,8 @@ function checkForDesignerImport() {
             );
             if (optionExists) {
                 nodeCountSelect.value = payload.nodeCount;
+                _nodeCountUserSet = true;
+                markManualSet('node-count');
             }
         }
 
