@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.17.55';
+const WIZARD_VERSION = '0.17.56';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -36,29 +36,6 @@ function switchOdinTab(tabId) {
 
     // Save current tab to session storage for persistence during page session
     sessionStorage.setItem('odinActiveTab', tabId);
-}
-
-/**
- * Context-aware Help button handler called from the nav bar.
- * If the Knowledge tab is visible and the iframe contains a flow diagram page,
- * triggers the flow-diagram onboarding inside the iframe.
- * Otherwise, falls back to the Designer onboarding walkthrough.
- */
-function showNavHelp() {
-    // Check if the Knowledge tab is currently active
-    var knowledgeTab = document.getElementById('tab-knowledge');
-    if (knowledgeTab && knowledgeTab.classList.contains('active')) {
-        // Knowledge tab is showing — check if the iframe has a flow diagram
-        var iframe = document.getElementById('knowledge-iframe');
-        if (iframe && iframe.contentWindow && typeof iframe.contentWindow.showFlowOnboarding === 'function') {
-            iframe.contentWindow.showFlowOnboarding();
-            return;
-        }
-    }
-    // Default: show the Designer onboarding
-    if (typeof showOnboarding === 'function') {
-        showOnboarding();
-    }
 }
 
 /**
@@ -3394,6 +3371,16 @@ function updateUI() {
         armBtn.title = readiness.ready
             ? ('Open ARM parameters JSON (placeholders: ' + (readiness.placeholders || []).join(', ') + ')')
             : ('Missing: ' + readiness.missing.join(', '));
+    }
+
+    // Sizer transfer button gating — enabled once scenario and nodes are chosen
+    const sizerBtn = document.getElementById('transfer-to-sizer-btn');
+    if (sizerBtn) {
+        const canTransfer = Boolean(state.scenario && state.nodes);
+        sizerBtn.disabled = !canTransfer;
+        sizerBtn.title = canTransfer
+            ? 'Open the Sizer pre-configured with this cluster to add workloads'
+            : 'Select a Deployment Type and Node count first';
     }
 
     // Defaults (must run before visual selection updates)
@@ -8466,6 +8453,63 @@ function checkForSizerImport() {
         console.warn('Failed to import sizer configuration:', e);
         return false;
     }
+}
+
+// ============================================================================
+// DESIGNER-TO-SIZER TRANSFER
+// ============================================================================
+// Transfers deployment type and node count from the Designer to the Sizer,
+// allowing users to add workloads to the cluster they have designed.
+// ============================================================================
+
+/**
+ * Map Designer state (scenario + scale) to Sizer cluster-type dropdown value.
+ * This is the reverse of mapSizerToDesignerScale() in sizer.js.
+ */
+function mapDesignerToSizerClusterType() {
+    // Disconnected scenarios: determine ALDO management vs workload
+    if (state.scenario === 'disconnected') {
+        if (state.clusterRole === 'management') return 'aldo-mgmt';
+        if (state.clusterRole === 'workload') return 'aldo-wl';
+        return 'standard';
+    }
+    // Rack-aware scale
+    if (state.scale === 'rack_aware') return 'rack-aware';
+    // Single node
+    if (state.nodes === '1') return 'single';
+    // Default: standard cluster
+    return 'standard';
+}
+
+/**
+ * Transfer deployment type and cluster size from the Designer to the Sizer.
+ * Stores the payload in localStorage and navigates to the Sizer page.
+ */
+function transferToSizer() {
+    if (!state.scenario || !state.nodes) {
+        alert('Please select a Deployment Type and Node count before transferring to the Sizer.');
+        return;
+    }
+
+    const payload = {
+        source: 'designer',
+        timestamp: new Date().toISOString(),
+        clusterType: mapDesignerToSizerClusterType(),
+        nodeCount: String(state.nodes),
+        // Pass through scenario details for context
+        scenario: state.scenario,
+        scale: state.scale,
+        clusterRole: state.clusterRole || null
+    };
+
+    try {
+        localStorage.setItem('odinDesignerToSizer', JSON.stringify(payload));
+    } catch (e) {
+        console.warn('Failed to store designer-to-sizer payload:', e);
+    }
+
+    // Navigate to Sizer page
+    window.location.href = 'sizer/index.html?from=designer';
 }
 
 // Show resume prompt on page load if saved state exists

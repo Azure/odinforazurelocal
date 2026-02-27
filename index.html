@@ -505,7 +505,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.17.55 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+                        Version 0.17.56 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
                     </div>
                 </div>
             </div>
@@ -2450,6 +2450,13 @@
                         </button>
                         <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
                             Opens a page with Azure ARM parameters JSON, populated from your answers with placeholders for values not collected.
+                        </p>
+
+                        <button id="transfer-to-sizer-btn" type="button" class="report-button" onclick="transferToSizer()" disabled style="margin-top:0.75rem; padding: 0.75rem 1.25rem; font-size: 0.9rem;">
+                            ⚖️ Sizer: Add Workloads to this Cluster
+                        </button>
+                        <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
+                            Opens the ODIN Sizer pre-configured with this cluster's deployment type and node count, so you can add workloads and size the hardware.
                         </p>
                     </div>
                 </section>

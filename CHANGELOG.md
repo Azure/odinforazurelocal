@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.56] - 2026-02-27
+
+### Added
+
+#### Designer-to-Sizer Transfer
+- **Add Workloads Button**: New "⚖️ Sizer: Add Workloads to this Cluster" button at the bottom of the Designer, below the ARM deployment files button
+- **Smart Mapping**: Automatically maps Designer scenario (hyperconverged, disconnected) and scale (standard, rack-aware, single node) to the correct Sizer deployment type
+- **Transfer Payload**: Stores deployment type and node count in `localStorage` as `odinDesignerToSizer` and navigates to `sizer/index.html?from=designer`
+- **Button Gating**: Button is disabled until both Deployment Type and Node count are selected in the Designer
+
+#### Sizer: Designer Import
+- **Pre-Population**: Sizer detects `?from=designer` URL parameter and reads the `odinDesignerToSizer` localStorage payload to set cluster type and node count dropdowns
+- **MANUAL Node Count Lock**: Node count transferred from the Designer is marked as MANUAL — prevents Sizer auto-scaling from overriding the Designer's node count
+- **Workload Persistence**: Workloads from a prior Sizer session are silently restored when returning from the Designer; banner shows the count of restored workloads
+- **Confirmation Banner**: Shows a purple banner with the imported deployment type, node count, and restored workload count; auto-dismissed after 8 seconds
+- **Session Skip**: When importing from Designer, the saved session resume prompt is skipped to avoid conflicting with the imported configuration
+
+---
+
 ## [0.17.55] - 2026-02-27
 
 ### Added
