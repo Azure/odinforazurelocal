@@ -1552,10 +1552,13 @@ function getSizerState() {
         cpuGeneration: document.getElementById('cpu-generation').value,
         cpuCores: document.getElementById('cpu-cores').value,
         cpuSockets: document.getElementById('cpu-sockets').value,
+        cpuConfigUserSet: _cpuConfigUserSet,
         nodeMemory: document.getElementById('node-memory').value,
+        memoryUserSet: _memoryUserSet,
         gpuCount: document.getElementById('gpu-count').value,
         gpuType: document.getElementById('gpu-type').value,
         vcpuRatio: document.getElementById('vcpu-ratio').value,
+        vcpuRatioUserSet: _vcpuRatioUserSet,
         storageConfig: document.getElementById('storage-config').value,
         storageTiering: document.getElementById('storage-tiering').value,
         capacityDiskCount: document.getElementById('capacity-disk-count').value,
@@ -1564,6 +1567,8 @@ function getSizerState() {
         cacheDiskSize: document.getElementById('cache-disk-size').value,
         tieredCapacityDiskCount: document.getElementById('tiered-capacity-disk-count').value,
         tieredCapacityDiskSize: document.getElementById('tiered-capacity-disk-size').value,
+        diskSizeUserSet: _diskSizeUserSet,
+        diskCountUserSet: _diskCountUserSet,
         repairDiskCount: document.getElementById('repair-disk-count').value,
         repairDisksUserSet: _repairDisksUserSet,
         workloads: workloads,
@@ -1742,10 +1747,40 @@ function resumeSizerState() {
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
 
-    // Restore manual node count flag
+    // Restore all MANUAL override flags
     _nodeCountUserSet = !!d.nodeCountUserSet;
     if (_nodeCountUserSet) {
         markManualSet('node-count');
+    }
+
+    _vcpuRatioUserSet = !!d.vcpuRatioUserSet;
+    if (_vcpuRatioUserSet) {
+        markManualSet('vcpu-ratio');
+    }
+
+    _memoryUserSet = !!d.memoryUserSet;
+    if (_memoryUserSet) {
+        markManualSet('node-memory');
+    }
+
+    _cpuConfigUserSet = !!d.cpuConfigUserSet;
+    if (_cpuConfigUserSet) {
+        markManualSet('cpu-manufacturer');
+        markManualSet('cpu-generation');
+        markManualSet('cpu-cores');
+        markManualSet('cpu-sockets');
+    }
+
+    _diskSizeUserSet = !!d.diskSizeUserSet;
+    if (_diskSizeUserSet) {
+        const isTiered = _isTieredStorage();
+        markManualSet(isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size');
+    }
+
+    _diskCountUserSet = !!d.diskCountUserSet;
+    if (_diskCountUserSet) {
+        const isTiered = _isTieredStorage();
+        markManualSet(isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count');
     }
 
     // Restore repair disk count
@@ -4192,10 +4227,40 @@ function applyImportedSizerState(d) {
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
 
-    // Restore manual node count flag
+    // Restore all MANUAL override flags
     _nodeCountUserSet = !!d.nodeCountUserSet;
     if (_nodeCountUserSet) {
         markManualSet('node-count');
+    }
+
+    _vcpuRatioUserSet = !!d.vcpuRatioUserSet;
+    if (_vcpuRatioUserSet) {
+        markManualSet('vcpu-ratio');
+    }
+
+    _memoryUserSet = !!d.memoryUserSet;
+    if (_memoryUserSet) {
+        markManualSet('node-memory');
+    }
+
+    _cpuConfigUserSet = !!d.cpuConfigUserSet;
+    if (_cpuConfigUserSet) {
+        markManualSet('cpu-manufacturer');
+        markManualSet('cpu-generation');
+        markManualSet('cpu-cores');
+        markManualSet('cpu-sockets');
+    }
+
+    _diskSizeUserSet = !!d.diskSizeUserSet;
+    if (_diskSizeUserSet) {
+        const isTiered = _isTieredStorage();
+        markManualSet(isTiered ? 'tiered-capacity-disk-size' : 'capacity-disk-size');
+    }
+
+    _diskCountUserSet = !!d.diskCountUserSet;
+    if (_diskCountUserSet) {
+        const isTiered = _isTieredStorage();
+        markManualSet(isTiered ? 'tiered-capacity-disk-count' : 'capacity-disk-count');
     }
 
     // Restore repair disk count
