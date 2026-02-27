@@ -60,9 +60,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlTab = urlParams.get('tab');
     if (urlTab && (urlTab === 'designer' || urlTab === 'knowledge')) {
         switchOdinTab(urlTab);
-        // Clean the ?tab= param from URL so it doesn't override sessionStorage on refresh
+        // Clean only the ?tab= param from URL, preserve other params (e.g. ?from=sizer)
         if (window.history && window.history.replaceState) {
-            const cleanUrl = window.location.pathname + window.location.hash;
+            urlParams.delete('tab');
+            const remainingParams = urlParams.toString();
+            const cleanUrl = window.location.pathname + (remainingParams ? '?' + remainingParams : '') + window.location.hash;
             window.history.replaceState(null, '', cleanUrl);
         }
     } else {
