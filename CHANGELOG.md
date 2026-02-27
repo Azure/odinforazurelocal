@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Designer-to-Sizer Transfer
-- **Add Workloads Button**: New "⚖️ Sizer: Add Workloads to This Cluster" button at the bottom of the Designer, below the ARM deployment files button
+- **Add Workloads Button**: New "⚖️ Sizer: Add Workloads to this Cluster" button at the bottom of the Designer, below the ARM deployment files button
 - **Smart Mapping**: Automatically maps Designer scenario (hyperconverged, disconnected) and scale (standard, rack-aware, single node) to the correct Sizer deployment type
 - **Transfer Payload**: Stores deployment type and node count in `localStorage` as `odinDesignerToSizer` and navigates to `sizer/index.html?from=designer`
 - **Button Gating**: Button is disabled until both Deployment Type and Node count are selected in the Designer
