@@ -88,16 +88,16 @@
         html += (isMainPage && (t.id === 'designer' || t.id === 'knowledge')) ? '</button>' : '</a>';
     }
 
+    // Feedback link — open in a full new browser tab (no features string = tab, not popup)
+    html += '<a href="https://github.com/Azure/odinforazurelocal/issues" onclick="event.preventDefault(); window.open(this.href, \'_blank\');" class="nav-theme-toggle" title="Raise feedback or issue" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">\uD83D\uDCA1<span class="nav-feedback-text"> Feedback</span></a>';
+
     // Help button — re-launch onboarding walkthrough (Designer and Sizer only)
     if (active === 'designer' || active === 'sizer') {
         const helpFn = active === 'sizer' ? 'showSizerOnboarding()' : 'showOnboarding()';
         html += '<button type="button" onclick="' + helpFn + '" class="nav-theme-toggle nav-help-btn" title="Show Getting Started guide">';
-        html += '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+        html += '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
         html += '<span class="nav-help-text"> Help</span></button>';
     }
-
-    // Feedback link — open in a full new browser tab (no features string = tab, not popup)
-    html += '<a href="https://github.com/Azure/odinforazurelocal/issues" onclick="event.preventDefault(); window.open(this.href, \'_blank\');" class="nav-theme-toggle" title="Raise feedback or issue" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">\uD83D\uDCA1<span class="nav-feedback-text"> Feedback</span></a>';
 
     // Theme toggle
     html += '<button type="button" onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" style="margin-left: 0;" title="Toggle light/dark theme">\uD83C\uDF19</button>';
