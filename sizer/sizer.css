@@ -149,6 +149,18 @@ body {
     background: var(--subtle-bg-hover);
 }
 
+.nav-help-btn {
+    margin-left: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.nav-help-btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
 /* Container */
 .container {
     max-width: 1400px;
@@ -1435,7 +1447,8 @@ header .header-description {
         font-size: 14px;
     }
 
-    .nav-feedback-text {
+    .nav-feedback-text,
+    .nav-help-text {
         display: none;
     }
 
