@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.17.11';
+const WIZARD_VERSION = '0.17.55';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -53,11 +53,23 @@ function switchKnowledgePage(linkEl, src) {
     if (iframe) iframe.src = src;
 }
 
-// Restore active tab on page load (if navigating back)
+// Restore active tab on page load (if navigating back, or via ?tab= URL param)
 document.addEventListener('DOMContentLoaded', function() {
-    const savedTab = sessionStorage.getItem('odinActiveTab');
-    if (savedTab && (savedTab === 'designer' || savedTab === 'knowledge')) {
-        switchOdinTab(savedTab);
+    // URL parameter takes priority (e.g. ?tab=knowledge from Sizer link)
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlTab = urlParams.get('tab');
+    if (urlTab && (urlTab === 'designer' || urlTab === 'knowledge')) {
+        switchOdinTab(urlTab);
+        // Clean the ?tab= param from URL so it doesn't override sessionStorage on refresh
+        if (window.history && window.history.replaceState) {
+            const cleanUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState(null, '', cleanUrl);
+        }
+    } else {
+        const savedTab = sessionStorage.getItem('odinActiveTab');
+        if (savedTab && (savedTab === 'designer' || savedTab === 'knowledge')) {
+            switchOdinTab(savedTab);
+        }
     }
 
     // Make all option-cards keyboard accessible
@@ -8435,6 +8447,12 @@ function checkForSizerImport() {
 function checkForSavedState() {
     // Skip on test page
     if (window.location.pathname.includes('/tests/') || window.location.pathname.includes('/tests')) {
+        return;
+    }
+
+    // Skip when Knowledge tab is active (no Designer session banner needed)
+    const activeTab = sessionStorage.getItem('odinActiveTab');
+    if (activeTab === 'knowledge') {
         return;
     }
 

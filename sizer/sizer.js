@@ -16,6 +16,11 @@ if (typeof initializeAnalytics === 'function') {
 if (typeof trackPageView === 'function') {
     trackPageView();
 }
+// Fetch stats explicitly (in case trackPageView write hasn't completed yet)
+if (typeof fetchAndDisplayStats === 'function') {
+    // Small delay to allow Firebase init to complete
+    setTimeout(function() { fetchAndDisplayStats(); }, 1000);
+}
 
 // ============================================
 // CPU Generation Data
@@ -1525,7 +1530,7 @@ function checkForSavedSizerState() {
     // Only show if there are workloads or non-default settings
     const d = saved.data;
     const hasWorkloads = d.workloads && d.workloads.length > 0;
-    const hasNonDefaults = (d.clusterType !== 'standard' && d.clusterType !== 'aldo-mgmt') || d.nodeCount !== '3' ||
+    const hasNonDefaults = (d.clusterType !== 'standard' && d.clusterType !== 'aldo-mgmt' && d.clusterType !== 'aldo-wl') || d.nodeCount !== '3' ||
         d.resiliency !== '3way' || d.futureGrowth !== '0';
     if (!hasWorkloads && !hasNonDefaults) return;
 
@@ -1915,8 +1920,8 @@ function updateResiliencyRecommendation() {
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
     const resiliency = document.getElementById('resiliency').value;
-    // Show warning only for standard clusters with 3+ nodes that chose 2-way mirror
-    el.style.display = (clusterType === 'standard' && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
+    // Show warning only for standard or aldo-wl clusters with 3+ nodes that chose 2-way mirror
+    el.style.display = ((clusterType === 'standard' || clusterType === 'aldo-wl') && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
 }
 
 // Update node count options based on cluster type
@@ -2070,6 +2075,8 @@ function updateNodeTip() {
         tipText.textContent = 'Tip: Single node clusters will always incur workload downtime during updates. No N+1 capacity is available.';
     } else if (clusterType === 'aldo-mgmt') {
         tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
+    } else if (clusterType === 'aldo-wl') {
+        tipText.textContent = 'Tip: ALDO Workload Cluster is used for disconnected operations workloads. N+1 capacity is reserved for maintenance (ability to drain a node during servicing).';
     } else {
         tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.';
     }
@@ -3223,6 +3230,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure, additional infrastructure workloads may be added in a future release`);
             notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
             notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
+        } else if (clusterType === 'aldo-wl') {
+            notes.push('ALDO Workload Cluster: A multi-node cluster for Azure Local Disconnected Operations (ALDO) workloads. Configured as a Disconnected Workload Cluster in the Designer.');
+            notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
@@ -3446,6 +3456,7 @@ function updateDesignerActionVisibility() {
 function mapSizerToDesignerScale(clusterType) {
     if (clusterType === 'rack-aware') return 'rack_aware';
     if (clusterType === 'aldo-mgmt') return 'medium';
+    if (clusterType === 'aldo-wl') return 'medium';
     // Both 'single' and 'standard' map to 'medium' (Hyperconverged)
     return 'medium';
 }
@@ -3469,7 +3480,7 @@ function exportSizerWord() {
     var futureGrowth = document.getElementById('future-growth').value;
     var resConfig = RESILIENCY_CONFIG[resiliency] || {};
 
-    var clusterLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster' };
+    var clusterLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster', 'aldo-mgmt': 'ALDO Management Cluster', 'aldo-wl': 'ALDO Workload Cluster' };
     var storageLabels = { 'all-flash': 'All-Flash (NVMe or SSD)', 'mixed-flash': 'Mixed All-Flash (NVMe + SSD)', 'hybrid': 'Hybrid (SSD/NVMe + HDD)' };
     var growthLabels = { '0': 'None', '10': '10%', '20': '20%', '30': '30%', '50': '50%' };
 
@@ -3544,7 +3555,7 @@ function exportSizerWord() {
     // Cluster Configuration
     html += '<h2>Cluster Configuration</h2>';
     html += '<table class="kv-table"><tbody>';
-    html += '<tr><td>Cluster Type</td><td>' + (clusterLabels[clusterType] || clusterType) + '</td></tr>';
+    html += '<tr><td>Deployment Type</td><td>' + (clusterLabels[clusterType] || clusterType) + '</td></tr>';
     html += '<tr><td>Node Count</td><td>' + nodeCount + '</td></tr>';
     html += '<tr><td>Storage Resiliency</td><td>' + (resConfig.name || resiliency) + '</td></tr>';
     html += '<tr><td>Future Growth</td><td>' + (growthLabels[futureGrowth] || futureGrowth + '%') + '</td></tr>';
@@ -3643,8 +3654,8 @@ function configureInDesigner() {
 
     const clusterType = document.getElementById('cluster-type').value;
 
-    // ALDO Management Cluster: show FQDN modal instead of region picker
-    if (clusterType === 'aldo-mgmt') {
+    // ALDO Management or Workload Cluster: show FQDN modal instead of region picker
+    if (clusterType === 'aldo-mgmt' || clusterType === 'aldo-wl') {
         const fqdnModal = document.getElementById('aldo-fqdn-modal');
         const fqdnOverlay = document.getElementById('aldo-fqdn-modal-overlay');
         if (fqdnModal && fqdnOverlay) {
@@ -3743,7 +3754,16 @@ function confirmAldoFqdnAndConfigure() {
 
     closeAldoFqdnModal();
 
-    // Show region picker next — the region is still needed for the management cluster
+    const clusterType = document.getElementById('cluster-type').value;
+
+    // ALDO Workload Cluster: skip region picker (region not used for disconnected workload)
+    if (clusterType === 'aldo-wl') {
+        window._aldoPendingFqdn = fqdn;
+        selectRegionAndConfigure('', '');
+        return;
+    }
+
+    // ALDO Management Cluster: show region picker next
     // Pass FQDN through a temporary variable
     window._aldoPendingFqdn = fqdn;
 
@@ -3775,8 +3795,8 @@ function selectRegionAndConfigure(region, cloud) {
     const resiliency = document.getElementById('resiliency').value;
     const hwConfig = getHardwareConfig();
 
-    // ALDO Management Cluster: set disconnected scenario + management cluster role
-    const isAldo = clusterType === 'aldo-mgmt';
+    // ALDO Management or Workload Cluster: set disconnected scenario + cluster role
+    const isAldo = clusterType === 'aldo-mgmt' || clusterType === 'aldo-wl';
     const aldoFqdn = window._aldoPendingFqdn || null;
     if (isAldo) delete window._aldoPendingFqdn;
 
@@ -3784,10 +3804,10 @@ function selectRegionAndConfigure(region, cloud) {
     const sizerPayload = {
         source: 'sizer',
         timestamp: new Date().toISOString(),
-        // Scenario: disconnected for ALDO, hyperconverged for others
+        // Scenario: disconnected for ALDO types, hyperconverged for others
         scenario: isAldo ? 'disconnected' : 'hyperconverged',
         // ALDO-specific fields
-        clusterRole: isAldo ? 'management' : undefined,
+        clusterRole: clusterType === 'aldo-mgmt' ? 'management' : (clusterType === 'aldo-wl' ? 'workload' : undefined),
         autonomousCloudFqdn: aldoFqdn || undefined,
         fqdnConfirmed: aldoFqdn ? true : undefined,
         // Region selected by user

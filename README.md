@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.17.11 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.17.55 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -39,26 +39,21 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.17.11 - Latest Release
-- **Knowledge Tab: Embedded Content**: Knowledge tab now loads inline within the main page instead of navigating away — outbound connectivity architecture guide displayed in an embedded frame
-- **Knowledge Tab: Interactive Diagrams**: Added interactive WebGL flow diagrams for Public Path and Private Path outbound connectivity, selectable via a left sidebar
-- **Knowledge Tab: Sidebar Navigation**: Left sidebar with links to switch between the Architecture Guide, Public Path Flow diagram, and Private Path Flow diagram — all rendered in-page via iframe
-- **Sizer: ALDO Switch-Back Fix**: Fixed bug where Add Workload buttons and Number of Physical Nodes dropdown remained locked after switching away from ALDO Management Cluster — `renderWorkloads()` innerHTML replacement destroyed the `#empty-state` element, causing a TypeError that halted the cluster-type change handler
-
-### Version 0.17.10
-- **Sizer: ALDO Management Cluster**: New cluster type — fixed 3-node, all-flash, three-way mirror configuration for ALDO management scenarios; node count locked at 3, storage forced to all-flash, resiliency locked to three-way mirror
-- **Sizer: ALDO Minimum Hardware**: Enforces ALDO minimums — 96 GB memory, 24 physical cores, 2 TB SSD/NVMe per node; 64 GB/node (192 GB total) reserved for appliance VM; 960 GB boot disk recommended
-- **Sizer: ALDO IRVM1 Auto-Workload**: Fixed infrastructure workload (IRVM1 — 24 vCPUs, 78 GB memory, 2 TB storage) automatically added when ALDO selected; Add Workload buttons disabled, workload locked; cores auto-scale floor enforces 24 physical cores minimum
-- **Sizer: ARB Overhead**: Azure Resource Bridge appliance VM (8 GB memory, 4 vCPUs per cluster) deducted from available capacity in sizing calculations and capacity bars
-- **Sizer: MANUAL Override Badges**: Green "MANUAL" badge on any user-edited hardware dropdown — persists across workload changes with amber capacity warning when overrides prevent auto-scaling; "Remove MANUAL overrides" button to clear all locks
-- **Sizer: Independent Disk Locks**: Disk size and disk count are independently lockable — manually setting one still allows auto-scaling on the other
-- **Sizer: Region Picker**: Region selection modal in Sizer before navigating to Designer — Azure Commercial (8 regions) and Azure Government (1 region) toggle; prevents cascade reset that wiped imported cluster configuration
-- **Sizer: Three-Way Mirror for 3+ Nodes**: Standard clusters with 3 or more nodes are now locked to three-way mirror only
-- **Report: Sizer Hardware & Workloads**: Full hardware specs and individual workload details now shown in the HTML report (VM, AKS, AVD with per-workload subtotals)
-- **Report: AKS Arc Network Requirements**: Port/VLAN requirements table (ports 22, 6443, 55000, 65000) shown when AKS workloads are configured
-- **Report: Disconnected Network Link**: "Plan your network for disconnected operations" link in Connectivity section for disconnected deployments
-- **Report: Firewall Allow List**: Added Firewall Allow List Endpoint Requirements row to the report Connectivity section
-- **Designer: Edge Gateway Fix**: Fixed Default Gateway field being empty/disabled on Edge 2-Node Switchless template — changed IP assignment from DHCP to static with gateway `192.168.100.1`
+### 🎉 Version 0.17.55 - Latest Release
+- **Navigation: Tab-Based Routing**: All top navigation links (Designer, Knowledge, Sizer) now use `?tab=` URL parameters for consistent tab switching; parameters cleaned after processing via `history.replaceState`
+- **Navigation: Designer Link Bug Fix**: Fixed intermittent bug where clicking Designer from the Sizer navigated to the Knowledge tab — stale `sessionStorage.odinActiveTab` combined with missing `?tab=designer` parameter
+- **Knowledge Tab: Session Popup Fix**: Fixed "Previous Session Found" popup appearing incorrectly on the Knowledge tab — `checkForSavedState()` now skips when active tab is Knowledge
+- **Knowledge: Flow Diagram Backgrounds**: Replaced animated stars/space WebGL effects with flat dark backgrounds (`#111111`) on Public and Private Path flow diagrams
+- **Knowledge: Public Path Layout**: Shifted all Public Path Flow diagram elements down to prevent overlap with the Architecture navigation bar
+- **Sizer: ALDO Workload Cluster**: New "ALDO Workload Cluster" deployment type — integrates disconnected scenario with workload cluster role in Designer; prompts for Autonomous Cloud FQDN before transfer
+- **Sizer: ALDO Workload Region Skip**: ALDO Workload Cluster skips the region picker when transferring to Designer
+- **Sizer: Deployment Type Rename**: Renamed "Cluster Type" to "Deployment Type" throughout the Sizer
+- **Sizer: Header Redesign**: Restructured Sizer header to match the Designer layout — centered title, absolutely-positioned logo, and Firebase analytics stats bar
+- **Sizer: Disclaimer Banner**: Added disclaimer banner to the Sizer page matching the Designer's warning banner
+- **Sizer: Preview Badge Removed**: Removed the purple "Preview" badge from the Sizer navigation link
+- **Sizer: Analytics Fix**: Fixed page view statistics not loading on the Sizer — added missing `utils.js` dependency and fallback `fetchAndDisplayStats()` call
+- **Sizer: Title Update**: Changed Sizer page title to "ODIN Sizer for Azure Local" with updated description text
+- **Analytics: Visitors Rename**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -346,7 +341,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.17.11  
+**Version**: 0.17.55  
 **Last Updated**: February 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -361,6 +356,21 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February 2026)
+
+#### 0.17.55 - Navigation Consistency, Sizer ALDO Workload Cluster, Header Redesign & Analytics
+- **Navigation: Tab-Based Routing**: All top navigation links now use `?tab=` URL parameters for consistent tab switching; parameters cleaned after processing via `history.replaceState`
+- **Navigation: Designer Link Bug Fix**: Fixed intermittent bug where clicking Designer from Sizer navigated to Knowledge tab — stale sessionStorage combined with missing `?tab=designer` parameter
+- **Knowledge Tab: Session Popup Fix**: Fixed "Previous Session Found" popup appearing incorrectly on the Knowledge tab
+- **Knowledge: Flow Diagram Backgrounds**: Flat dark backgrounds (`#111111`) replacing animated stars/space WebGL effects on Public and Private Path flow diagrams
+- **Knowledge: Public Path Layout**: Shifted diagram elements down to prevent overlap with the Architecture navigation bar
+- **Sizer: ALDO Workload Cluster**: New deployment type integrating disconnected scenario with workload cluster role; prompts for Autonomous Cloud FQDN before transfer; skips region picker
+- **Sizer: Deployment Type Rename**: Renamed "Cluster Type" to "Deployment Type" throughout the Sizer
+- **Sizer: Header Redesign**: Restructured Sizer header to match Designer layout — centered title, absolutely-positioned logo, and Firebase analytics stats bar
+- **Sizer: Disclaimer Banner**: Added disclaimer banner matching the Designer's warning banner
+- **Sizer: Preview Badge Removed**: Removed purple "Preview" badge from Sizer navigation link
+- **Sizer: Analytics Fix**: Fixed page view statistics not loading — added missing `utils.js` dependency and fallback `fetchAndDisplayStats()` call
+- **Sizer: Title Update**: Changed page title to "ODIN Sizer for Azure Local" with updated description
+- **Analytics: Visitors Rename**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
 
 #### 0.17.11 - Knowledge Tab Embedded Content & Interactive Outbound Connectivity Diagrams
 - **Knowledge Tab: Embedded Content**: Knowledge tab now loads inline within the main page — outbound connectivity architecture guide displayed in an embedded frame with sidebar navigation

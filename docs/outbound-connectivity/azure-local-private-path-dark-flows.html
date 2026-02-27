@@ -8,7 +8,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #020210;
+            background: #111111;
             overflow: hidden;
             height: 100vh;
             font-family: 'Inter', 'Segoe UI', sans-serif;
@@ -22,7 +22,7 @@
         /* ─── Title Bar ─── */
         .title-bar {
             position: fixed; top: 0; left: 0; right: 0; height: 52px;
-            background: rgba(2,2,16,0.8);
+            background: rgba(17,17,17,0.95);
             backdrop-filter: blur(24px) saturate(1.6);
             border-bottom: 1px solid rgba(191,90,242,0.1);
             display: flex; align-items: center; padding: 0 28px; z-index: 10;
@@ -250,17 +250,8 @@
         return m;
     }
 
-    // ── Star Field ──────────────────────────────────────────────────────
+    // ── Star Field (disabled – flat background) ────────────────────────
     const stars = [];
-    for (let i = 0; i < 300; i++) {
-        stars.push({
-            x: Math.random(), y: Math.random(),
-            size: 0.3 + Math.random() * 1.5,
-            twinkleSpeed: 0.5 + Math.random() * 3,
-            twinkleOffset: Math.random() * Math.PI * 2,
-            brightness: 0.2 + Math.random() * 0.8,
-        });
-    }
 
     // ── Pulse Rings ─────────────────────────────────────────────────────
     const pulseRings = [];
@@ -420,61 +411,9 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
 
-        // ── Background: deep space gradient ──
-        const bgGrad = ctx.createRadialGradient(W * 0.5, H * 0.4, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.9);
-        bgGrad.addColorStop(0, '#06061e');
-        bgGrad.addColorStop(0.5, '#030314');
-        bgGrad.addColorStop(1, '#010108');
-        ctx.fillStyle = bgGrad;
+        // ── Background: flat dark ──
+        ctx.fillStyle = '#111111';
         ctx.fillRect(0, 0, W, H);
-
-        // ── Nebula clouds (3 layers with purple tint for private) ──
-        const nebulae = [
-            { cx: 0.2, cy: 0.3, r: 0.38, color: C.nPurple, speed: 0.06, phase: 0 },
-            { cx: 0.75, cy: 0.6, r: 0.32, color: C.nCyan, speed: 0.04, phase: 2 },
-            { cx: 0.5, cy: 0.8, r: 0.28, color: C.nPink, speed: 0.05, phase: 4 },
-        ];
-        nebulae.forEach(nb => {
-            const nx = W * (nb.cx + 0.08 * Math.sin(time * nb.speed + nb.phase));
-            const ny = H * (nb.cy + 0.06 * Math.cos(time * nb.speed * 0.8 + nb.phase));
-            const nr = Math.max(W, H) * nb.r;
-            const breath = 0.8 + 0.2 * Math.sin(time * 0.3 + nb.phase);
-            const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, nr);
-            ng.addColorStop(0, rgba(nb.color, 0.035 * breath));
-            ng.addColorStop(0.4, rgba(nb.color, 0.015 * breath));
-            ng.addColorStop(1, rgba(nb.color, 0));
-            ctx.fillStyle = ng;
-            ctx.fillRect(0, 0, W, H);
-        });
-
-        // ── Star field ──
-        stars.forEach(s => {
-            const twinkle = 0.3 + 0.7 * Math.pow(Math.sin(time * s.twinkleSpeed + s.twinkleOffset) * 0.5 + 0.5, 2);
-            const alpha = s.brightness * twinkle;
-            const px = s.x * W, py = s.y * H;
-            if (s.size > 1.2) {
-                const sg = ctx.createRadialGradient(px, py, 0, px, py, s.size * 3);
-                sg.addColorStop(0, `rgba(220,200,255,${alpha})`);
-                sg.addColorStop(0.3, `rgba(220,200,255,${alpha * 0.3})`);
-                sg.addColorStop(1, 'rgba(220,200,255,0)');
-                ctx.fillStyle = sg;
-                ctx.beginPath(); ctx.arc(px, py, s.size * 3, 0, Math.PI * 2); ctx.fill();
-            }
-            ctx.fillStyle = `rgba(230,220,255,${alpha})`;
-            ctx.beginPath(); ctx.arc(px, py, s.size * 0.5, 0, Math.PI * 2); ctx.fill();
-        });
-
-        // ── Hex dot grid ──
-        const hexSize = 44;
-        const hexH = hexSize * Math.sqrt(3);
-        ctx.fillStyle = 'rgba(191,90,242,0.02)';
-        for (let row = 0; row < H / (hexH * 0.5) + 1; row++) {
-            for (let col = 0; col < W / hexSize + 1; col++) {
-                const hx = col * hexSize * 1.5;
-                const hy = row * hexH * 0.5 + (col % 2 === 1 ? hexH * 0.25 : 0);
-                ctx.beginPath(); ctx.arc(hx, hy, 0.8, 0, Math.PI * 2); ctx.fill();
-            }
-        }
 
         // ── Mouse spotlight (purple tint for private) ──
         const spotR = 280;

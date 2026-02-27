@@ -29,14 +29,14 @@
             id: 'designer',
             label: 'Designer',
             svg: svgDesigner,
-            href: base || './',
+            href: (base || './') + '?tab=designer',
             badge: null
         },
         {
             id: 'knowledge',
             label: 'Knowledge',
             svg: svgKnowledge,
-            href: base + 'docs/outbound-connectivity/',
+            href: (base || './') + '?tab=knowledge',
             badge: null
         },
         {
@@ -44,7 +44,7 @@
             label: 'Sizer',
             svg: svgSizer,
             href: base + 'sizer/',
-            badge: 'Preview'
+            badge: null
         }
     ];
 
@@ -56,7 +56,7 @@
     if (active === 'designer') {
         html += '<div class="odin-tab-logo">';
     } else {
-        html += '<a href="' + (base || './') + '" class="odin-tab-logo">';
+        html += '<a href="' + (base || './') + '?tab=designer" class="odin-tab-logo">';
     }
     html += '<img src="' + base + 'images/odin-logo.png" alt="Odin">';
     html += '<span>ODIN</span>';

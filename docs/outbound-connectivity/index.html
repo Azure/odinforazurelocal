@@ -12,9 +12,22 @@
     <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
 </head>
 <body>
-    <!-- Tab Navigation (shared component) -->
+    <!-- Tab Navigation (shared component) - hidden when embedded in iframe -->
     <nav class="odin-tab-nav" id="odin-nav" data-active="knowledge" data-base="../../"></nav>
     <script src="../../js/nav.js"></script>
+    <script>
+        // When loaded inside an iframe (e.g. from Designer Knowledge tab),
+        // hide the top nav bar to avoid duplicate navigation.
+        (function() {
+            try {
+                if (window.self !== window.top) {
+                    var nav = document.getElementById('odin-nav');
+                    if (nav) nav.style.display = 'none';
+                    document.body.classList.add('in-iframe');
+                }
+            } catch (e) { /* cross-origin iframe – leave nav visible */ }
+        })();
+    </script>
 
     <nav class="sidebar">
         <div class="sidebar-header">

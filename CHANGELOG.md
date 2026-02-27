@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.55] - 2026-02-27
+
+### Added
+
+#### Navigation: Tab-Based Routing & Consistency
+- **URL Parameter Routing**: All top navigation links (Designer, Knowledge, Sizer) now use `?tab=` URL parameters for consistent tab switching
+- **Parameter Cleanup**: URL parameters cleaned after processing via `history.replaceState` to keep the address bar tidy
+- **Designer Link Fix**: Fixed intermittent bug where clicking Designer from the Sizer navigated to the Knowledge tab — stale `sessionStorage.odinActiveTab` combined with missing `?tab=designer` parameter caused incorrect tab activation
+- **Knowledge Session Popup Fix**: Fixed "Previous Session Found" popup appearing incorrectly on the Knowledge tab — `checkForSavedState()` now skips when active tab is Knowledge
+
+#### Knowledge: Flow Diagram Visual Improvements
+- **Flat Dark Backgrounds**: Replaced animated stars/space WebGL effects with flat dark backgrounds (`#111111`) on Public Path and Private Path flow diagrams to match the sidebar and overall theme
+- **Public Path Layout Fix**: Shifted all Public Path Flow diagram elements down to prevent overlap with the Architecture navigation bar
+
+#### Sizer: ALDO Workload Cluster
+- **New Deployment Type**: Added "ALDO Workload Cluster" deployment type to the Sizer — integrates disconnected scenario with workload cluster role in the Designer
+- **FQDN Prompt**: ALDO Workload Cluster prompts for Autonomous Cloud FQDN before transferring to Designer
+- **Region Skip**: ALDO Workload Cluster skips the region picker when transferring to Designer, proceeding directly after FQDN entry
+
+#### Sizer: Header Redesign & UI Consistency
+- **Header Layout**: Restructured Sizer header to match the Designer layout — centered title, absolutely-positioned logo, and Firebase analytics stats bar with four counters
+- **Disclaimer Banner**: Added disclaimer banner to the Sizer page matching the Designer's warning banner
+- **Preview Badge Removed**: Removed the purple "Preview" badge from the Sizer navigation link
+- **Title Update**: Changed Sizer page title to "ODIN Sizer for Azure Local" with updated description text
+- **Deployment Type Rename**: Renamed "Cluster Type" to "Deployment Type" throughout the Sizer UI
+
+### Fixed
+
+#### Sizer: Analytics & Dependencies
+- **Missing utils.js**: Fixed page view statistics not loading on the Sizer page — added missing `utils.js` script dependency that provides `formatNumber()`
+- **Fallback Stats Fetch**: Added explicit `fetchAndDisplayStats()` call with 1-second delay as a fallback when the initial analytics load fails
+
+### Changed
+
+- **Analytics Label**: Renamed "Page Views" to "Visitors" in the stats bar on both Designer and Sizer pages
+
+---
+
 ## [0.17.11] - 2026-02-26
 
 ### Added

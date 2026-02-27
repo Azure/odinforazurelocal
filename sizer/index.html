@@ -21,16 +21,60 @@
     <script src="../js/nav.js"></script>
 
     <main class="container">
-        <!-- Header -->
-        <header class="sizer-header">
-            <div class="header-content">
-                <h1>ODIN Sizer <span class="sizer-preview-badge">Preview</span></h1>
-                <p class="subtitle">Azure Local Instance Sizing Tool - Used to calculate hardware requirements based on your workload scenarios and their resiliency and capacity requirements. This tool provides example hardware configurations only. Please consult with your preferred hardware OEM partner for detailed guidance and recommendations on their Azure Local solution offerings.</p>
+        <div class="disclaimer-wrapper">
+            <div class="disclaimer-banner">
+                <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
             </div>
-            <div class="header-logo-wrapper">
-                <img src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
-                <div class="header-version">
-                    Version 0.17.11 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+        </div>
+
+        <!-- Header -->
+        <header>
+            <div class="header-title-wrapper">
+                <h1 class="header-title">ODIN Sizer for Azure Local</h1>
+                <div class="header-logo-wrapper">
+                    <img src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
+                    <div class="header-version">
+                        Version 0.17.55 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+                    </div>
+                </div>
+            </div>
+            <p class="header-description">Calculate cluster hardware requirements based on your workload scenarios and their resiliency and capacity requirements. This tool provides example hardware configurations only. Please consult with your preferred hardware OEM partner for detailed guidance and recommendations on their Azure Local solution offerings.</p>
+
+            <!-- Page Statistics -->
+            <div id="page-statistics">
+                <div class="stats-container">
+                    <div class="stat-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <span class="stat-label">Visitors:</span>
+                        <span id="stat-page-views" class="stat-value">—</span>
+                    </div>
+                    <div class="stat-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <span class="stat-label">Designs Generated:</span>
+                        <span id="stat-design-docs" class="stat-value">—</span>
+                    </div>
+                    <div class="stat-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        </svg>
+                        <span class="stat-label">ARM Deployments:</span>
+                        <span id="stat-arm-deployments" class="stat-value">—</span>
+                    </div>
+                    <div class="stat-item">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                            <line x1="8" y1="21" x2="16" y2="21"/>
+                            <line x1="12" y1="17" x2="12" y2="21"/>
+                        </svg>
+                        <span class="stat-label">Sizes Calculated:</span>
+                        <span id="stat-sizer-calcs" class="stat-value">—</span>
+                    </div>
                 </div>
             </div>
         </header>
@@ -110,12 +154,13 @@
                     </div>
 
                     <div class="config-row cluster-setting">
-                        <label for="cluster-type">Cluster Type</label>
+                        <label for="cluster-type">Deployment Type</label>
                         <select id="cluster-type" onchange="onClusterTypeChange()">
                             <option value="single">Single Node</option>
                             <option value="standard" selected>Standard Cluster</option>
                             <option value="rack-aware">Rack-Aware Cluster</option>
                             <option value="aldo-mgmt">ALDO Management Cluster</option>
+                            <option value="aldo-wl">ALDO Workload Cluster</option>
                         </select>
                     </div>
                     <div class="config-row cluster-setting">
@@ -746,6 +791,7 @@
     </div>
 
     <!-- Analytics -->
+    <script src="../js/utils.js"></script>
     <script src="../js/analytics.js"></script>
     <script src="../js/changelog.js"></script>
     <script src="sizer.js"></script>

@@ -2245,3 +2245,13 @@ a:hover {
     font-weight: 600;
     margin-top: 8px;
 }
+
+/* When embedded inside an iframe (e.g. Designer Knowledge tab),
+   remove top padding and reposition sidebar since top nav is hidden. */
+body.in-iframe {
+    padding-top: 0;
+}
+body.in-iframe .sidebar {
+    top: 0;
+    height: 100vh;
+}
