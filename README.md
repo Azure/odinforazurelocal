@@ -43,7 +43,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ### 🎉 Version 0.17.58 - Latest Release
 - **Mobile Layout Fixes (iOS)**: Fixed Sizer header, disclaimer, stats bar, and Privacy footer not aligning with form panels on mobile devices; fixed Designer "Unsure? Start with Sizer" button overlapping Step 04 header on narrow screens
 - **Sizer Mobile Consistency**: Aligned Sizer mobile logo size (80px), version text (11px), and logo-above-title ordering to match the Designer
-- **Designer Title Update**: Renamed Designer title from "Odin for Azure Local" to "ODIN Designer for Azure Local" for consistency with the Sizer naming convention
+- **Designer Title Update**: Renamed Designer title from "Odin for Azure Local" to "ODIN Designer for Azure Local" for consistency with the Sizer naming convention, this also adds clarity, given the expanded scope of ODIN, which includes the Knowledge and Sizer pages.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
