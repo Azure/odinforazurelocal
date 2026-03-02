@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.17.57 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.17.58 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -40,11 +40,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.17.57 - Latest Release
-- **Sizer: Individual MANUAL Dismiss**: Each MANUAL badge now has a small × button to remove that specific override without clearing all overrides
-- **Shared Flag Handling**: CPU-related badges (cores, sockets, manufacturer, generation) are linked — dismissing any one clears all four together
-- **Remove All Button Renamed**: The existing button is renamed to "Remove all MANUAL overrides" for clarity
-- **Auto-Scale on Dismiss**: Dismissing a MANUAL override immediately triggers auto-scaling — the field reverts to an optimal value and receives the purple AUTO badge
+### 🎉 Version 0.17.58 - Latest Release
+- **Mobile Layout Fixes (iOS)**: Fixed Sizer header, disclaimer, stats bar, and Privacy footer not aligning with form panels on mobile devices; fixed Designer "Unsure? Start with Sizer" button overlapping Step 04 header on narrow screens
+- **Sizer Mobile Consistency**: Aligned Sizer mobile logo size (80px), version text (11px), and logo-above-title ordering to match the Designer
+- **Designer Title Update**: Renamed Designer title from "Odin for Azure Local" to "ODIN Designer for Azure Local" for consistency with the Sizer naming convention, this also adds clarity, given the expanded scope of ODIN, which includes the Knowledge and Sizer pages.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -332,8 +331,8 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.17.57  
-**Last Updated**: February 2026  
+**Version**: 0.17.58  
+**Last Updated**: March 2026  
 **Compatibility**: Azure Local 2506+
 
 ---
@@ -346,7 +345,14 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
-### 🎉 Version 0.17.x Series (February 2026)
+### 🎉 Version 0.17.x Series (February - March 2026)
+
+#### 0.17.58 - Mobile Layout Fixes & Consistency
+- **Sizer Mobile Alignment**: Fixed header, disclaimer banner, stats bar, and Privacy footer not visually aligned with form panels on iOS mobile devices — added matching horizontal padding on mobile
+- **Sizer Footer Fix**: Moved Privacy footer inside the container element so it respects max-width and aligns with page content
+- **Designer Step-Header Overflow**: Fixed "Unsure? Start with Sizer" button overlapping Step 04 (Cluster Configuration) header on narrow mobile screens — step-header now wraps and sizer-link drops to its own line
+- **Sizer Mobile Header Consistency**: Aligned logo size (80px), version text size (11px), and logo ordering (logo above title) with the Designer's mobile layout
+- **Designer Title Update**: Renamed from "Odin for Azure Local" to "ODIN Designer for Azure Local" for naming consistency with the Sizer
 
 #### 0.17.57 - Individual MANUAL Override Dismiss
 - **Per-Field Dismiss**: Each MANUAL badge now includes a small × button to remove that individual override without clearing all overrides

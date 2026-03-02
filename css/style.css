@@ -1175,8 +1175,19 @@ header .header-description {
         padding: 1rem;
     }
 
+    .step-header {
+        flex-wrap: wrap;
+    }
+
     .step-header h2 {
         font-size: 1.1rem;
+    }
+
+    .sizer-link {
+        margin-left: 0;
+        width: 100%;
+        text-align: center;
+        order: 3;
     }
 
     /* ARM placeholder inputs container */
