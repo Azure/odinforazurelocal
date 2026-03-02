@@ -1467,15 +1467,20 @@ header .header-description {
 
     .header-logo-wrapper {
         position: static;
+        order: -1;
         margin-bottom: 0.5rem;
     }
 
     .header-logo-wrapper img {
-        max-height: 100px;
+        max-height: 80px;
     }
 
     .header-version {
-        font-size: 13px;
+        font-size: 11px;
+        white-space: normal;
+        text-align: center;
+        display: block !important;
+        visibility: visible !important;
     }
 
     header {
