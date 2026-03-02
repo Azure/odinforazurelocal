@@ -1478,6 +1478,10 @@ header .header-description {
         font-size: 13px;
     }
 
+    header {
+        padding: 0 25px;
+    }
+
     header .header-title {
         font-size: 1.5rem;
     }
@@ -1485,6 +1489,15 @@ header .header-description {
     header .header-description {
         font-size: 0.95rem;
         text-align: center;
+    }
+
+    .disclaimer-wrapper {
+        padding: 0 25px;
+    }
+
+    .sizer-footer {
+        padding-left: 25px;
+        padding-right: 25px;
     }
 
     .stats-container {
