@@ -1,4 +1,4 @@
-﻿// Shared changelog modal - loaded by both Designer and Sizer pages
+// Shared changelog modal - loaded by both Designer and Sizer pages
 // Show changelog/what's new
 function showChangelog() { // eslint-disable-line no-unused-vars
     const overlay = document.createElement('div');
@@ -39,7 +39,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Designer Step-Header Overflow:</strong> Fixed "Unsure? Start with Sizer" button overlapping Step 04 (Cluster Configuration) header on narrow mobile screens — the link now wraps to its own line.</li>
                         <li><strong>Sizer Mobile Header Consistency:</strong> Aligned logo size, version text size, and logo ordering (logo above title) with the Designer's mobile layout.</li>
                         <li><strong>Designer Title Update:</strong> Renamed from "Odin for Azure Local" to "ODIN Designer for Azure Local" for naming consistency with the Sizer.</li>
-                        <li><strong>CSS Nesting Fix:</strong> Fixed invalid CSS nesting where hover/active selectors were incorrectly nested inside <code>.stat-value</code> — moved to top-level selectors.</li>
+                        <li><strong>CSS Nesting Fix:</strong> Corrected CSS for hover and active states of <code>.stat-value</code> elements so styles apply consistently across browsers.</li>
                     </ul>
                 </div>
 
@@ -908,7 +908,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.10.2</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">January 20, 2025</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">January 20, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
@@ -1228,7 +1228,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.05); border-left: 3px solid var(--accent-purple); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.4.3</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">June 26, 2025</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">December 17, 2025</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">

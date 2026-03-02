@@ -44,7 +44,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Mobile Layout Fixes (iOS)**: Fixed Sizer header, disclaimer, stats bar, and Privacy footer not aligning with form panels on mobile devices; fixed Designer "Unsure? Start with Sizer" button overlapping Step 04 header on narrow screens
 - **Sizer Mobile Consistency**: Aligned Sizer mobile logo size (80px), version text (11px), and logo-above-title ordering to match the Designer
 - **Designer Title Update**: Renamed Designer title from "Odin for Azure Local" to "ODIN Designer for Azure Local" for consistency with the Sizer naming convention, this also adds clarity, given the expanded scope of ODIN, which includes the Knowledge and Sizer pages.
-- **CSS Nesting Fix**: Fixed invalid CSS nesting where `.onboarding-btn-primary:hover`, `.option-card:active`, and `.breadcrumb-item:active` rules were incorrectly nested inside the `.stat-value` declaration block — moved to top-level selectors
+- **CSS Nesting Fix**: Corrected CSS for hover and active states of `.stat-value` elements so styles apply consistently across browsers
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -354,7 +354,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Designer Step-Header Overflow**: Fixed "Unsure? Start with Sizer" button overlapping Step 04 (Cluster Configuration) header on narrow mobile screens — step-header now wraps and sizer-link drops to its own line
 - **Sizer Mobile Header Consistency**: Aligned logo size (80px), version text size (11px), and logo ordering (logo above title) with the Designer's mobile layout
 - **Designer Title Update**: Renamed from "Odin for Azure Local" to "ODIN Designer for Azure Local" for naming consistency with the Sizer
-- **CSS Nesting Fix**: Fixed invalid CSS nesting where hover/active selectors were incorrectly nested inside `.stat-value` — moved to top-level
+- **CSS Nesting Fix**: Corrected CSS for hover and active states of `.stat-value` elements so styles apply consistently across browsers
 
 #### 0.17.57 - Individual MANUAL Override Dismiss
 - **Per-Field Dismiss**: Each MANUAL badge now includes a small × button to remove that individual override without clearing all overrides
