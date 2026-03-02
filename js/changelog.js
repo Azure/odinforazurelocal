@@ -27,9 +27,23 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.57 - Latest Release</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">February 27, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.58 - Latest Release</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">March 2, 2026</div>
                 </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📱 Mobile Layout Fixes (iOS) & Consistency</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Sizer Mobile Alignment:</strong> Fixed header, disclaimer banner, stats bar, and Privacy footer not visually aligned with form panels on iOS mobile devices.</li>
+                        <li><strong>Sizer Footer Fix:</strong> Moved Privacy footer inside the container element so it respects max-width and aligns with page content.</li>
+                        <li><strong>Designer Step-Header Overflow:</strong> Fixed "Unsure? Start with Sizer" button overlapping Step 04 (Cluster Configuration) header on narrow mobile screens — the link now wraps to its own line.</li>
+                        <li><strong>Sizer Mobile Header Consistency:</strong> Aligned logo size, version text size, and logo ordering (logo above title) with the Designer's mobile layout.</li>
+                        <li><strong>Designer Title Update:</strong> Renamed from "Odin for Azure Local" to "ODIN Designer for Azure Local" for naming consistency with the Sizer.</li>
+                    </ul>
+                </div>
+
+                <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 24px 0;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.17.57</div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🏷️ Sizer: Individual MANUAL Override Dismiss</h4>
