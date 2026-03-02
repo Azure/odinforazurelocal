@@ -2744,19 +2744,19 @@ header .header-description {
 .stat-value {
     color: var(--text-primary);
     font-weight: 600;
+}
 
-    .onboarding-btn-primary:hover {
-        transform: none;
-    }
+.onboarding-btn-primary:hover {
+    transform: none;
+}
 
-    /* Ensure tap feedback */
-    .option-card:active {
-        background: rgba(255, 255, 255, 0.08);
-    }
+/* Ensure tap feedback */
+.option-card:active {
+    background: rgba(255, 255, 255, 0.08);
+}
 
-    .breadcrumb-item:active {
-        background: rgba(255, 255, 255, 0.1);
-    }
+.breadcrumb-item:active {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 /* Stats bar mobile - 2x2 grid (must be after base .stats-container) */
