@@ -11,11 +11,17 @@ function showChangelog() {
     // Reusable close handler — used by X button, overlay click, and Escape key.
     const closeChangelog = () => {
         document.removeEventListener('keydown', onKeyDown);
+        overlay.removeEventListener('click', onOverlayClick);
         if (overlay.parentElement) {
             overlay.parentElement.removeChild(overlay);
         }
         if (window.closeChangelog === closeChangelog) {
-            try { delete window.closeChangelog; } catch (_) { window.closeChangelog = undefined; }
+            window.closeChangelog = undefined;
+        }
+    };
+    const onOverlayClick = (e) => {
+        if (e.target === overlay) {
+            window.closeChangelog && window.closeChangelog();
         }
     };
     const onKeyDown = (e) => {
@@ -1392,11 +1398,7 @@ function showChangelog() {
         </div>
     `;
 
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            window.closeChangelog && window.closeChangelog();
-        }
-    });
+    overlay.addEventListener('click', onOverlayClick);
 
     document.body.appendChild(overlay);
     // Allow closing the modal with the Escape key for accessibility.
