@@ -39,6 +39,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Designer Step-Header Overflow:</strong> Fixed "Unsure? Start with Sizer" button overlapping Step 04 (Cluster Configuration) header on narrow mobile screens — the link now wraps to its own line.</li>
                         <li><strong>Sizer Mobile Header Consistency:</strong> Aligned logo size, version text size, and logo ordering (logo above title) with the Designer's mobile layout.</li>
                         <li><strong>Designer Title Update:</strong> Renamed from "Odin for Azure Local" to "ODIN Designer for Azure Local" for naming consistency with the Sizer.</li>
+                        <li><strong>CSS Nesting Fix:</strong> Fixed invalid CSS nesting where hover/active selectors were incorrectly nested inside <code>.stat-value</code> — moved to top-level selectors.</li>
                     </ul>
                 </div>
 

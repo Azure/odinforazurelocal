@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sizer Footer Fix**: Moved Privacy footer inside the `<main class="container">` element so it respects max-width and mobile padding rules
 - **Designer Step-Header Overflow**: Fixed "Unsure? Start with Sizer" button overlapping Step 04 (Cluster Configuration) header on narrow mobile screens — `.step-header` now uses `flex-wrap: wrap` and the sizer-link drops to its own full-width line
 - **Sizer Mobile Header Consistency**: Aligned logo size (80px), version text size (11px), and logo ordering (`order: -1`, logo above title) with the Designer's mobile layout
+- **CSS Nesting Fix**: Fixed invalid CSS nesting where `.onboarding-btn-primary:hover`, `.option-card:active`, and `.breadcrumb-item:active` rules were incorrectly nested inside the `.stat-value` declaration block — moved to top-level selectors
 
 ### Changed
 - **Designer Title**: Renamed from "Odin for Azure Local" to "ODIN Designer for Azure Local" for naming consistency with the Sizer
