@@ -29,7 +29,7 @@ const CPU_GENERATIONS = {
     intel: [
         {
             id: 'xeon-4th',
-            name: 'Intel® 4th Gen Xeon® Scalable (Sapphire Rapids)',
+            name: 'Intel® 4th Gen Xeon® (Sapphire Rapids)',
             minCores: 8,
             maxCores: 60,
             coreOptions: [8, 12, 16, 24, 32, 40, 48, 56, 60],
@@ -43,7 +43,7 @@ const CPU_GENERATIONS = {
         },
         {
             id: 'xeon-5th',
-            name: 'Intel® 5th Gen Xeon® Scalable (Emerald Rapids)',
+            name: 'Intel® 5th Gen Xeon® (Emerald Rapids)',
             minCores: 8,
             maxCores: 64,
             coreOptions: [8, 12, 16, 24, 32, 48, 64],
@@ -57,7 +57,7 @@ const CPU_GENERATIONS = {
         },
         {
             id: 'xeon-6',
-            name: 'Intel® 6th Gen Xeon® Scalable (Granite Rapids / Sierra Forest)',
+            name: 'Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest)',
             minCores: 8,
             maxCores: 172,
             coreOptions: [8, 12, 16, 24, 32, 48, 64, 72, 86, 96, 128, 144, 172],
@@ -4489,7 +4489,7 @@ function resetScenario() {
     calculateRequirements();
 }
 
-// Set default hardware config (Intel 6th Gen Xeon Scalable Granite Rapids / Sierra Forest, 32 cores)
+// Set default hardware config (Intel 6th Gen Xeon Granite Rapids / Sierra Forest, 32 cores)
 function initHardwareDefaults() {
     const manufacturer = document.getElementById('cpu-manufacturer').value;
     if (!manufacturer) return;
