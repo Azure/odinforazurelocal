@@ -57,7 +57,7 @@ const CPU_GENERATIONS = {
         },
         {
             id: 'xeon-6',
-            name: 'Intel® Xeon® 6 (Granite Rapids / Sierra Forest)',
+            name: 'Intel® 6th Gen Xeon® Scalable (Granite Rapids / Sierra Forest)',
             minCores: 8,
             maxCores: 172,
             coreOptions: [8, 12, 16, 24, 32, 48, 64, 72, 86, 96, 128, 144, 172],
@@ -4489,7 +4489,7 @@ function resetScenario() {
     calculateRequirements();
 }
 
-// Set default hardware config (Intel Xeon 6 Granite Rapids / Sierra Forest, 32 cores)
+// Set default hardware config (Intel 6th Gen Xeon Scalable Granite Rapids / Sierra Forest, 32 cores)
 function initHardwareDefaults() {
     const manufacturer = document.getElementById('cpu-manufacturer').value;
     if (!manufacturer) return;

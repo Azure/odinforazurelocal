@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-#### Sizer: Intel® Xeon® 6 (Granite Rapids / Sierra Forest)
-- **Intel® Xeon® 6 Expanded**: Expanded the Intel® Xeon® 6 CPU generation in the Sizer to cover the full 8–172 core range from the Azure Local hardware catalog — includes both Granite Rapids (P-cores) and Sierra Forest (E-cores) codenames (ref: [Intel Xeon Processors](https://www.intel.com/content/www/us/en/products/details/processors/xeon.html))
-- **Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to Intel® Xeon® 6 (Granite Rapids / Sierra Forest)
+#### Sizer: Intel® 6th Gen Xeon® Scalable (Granite Rapids / Sierra Forest)
+- **Intel® 6th Gen Xeon® Scalable Expanded**: Expanded the Intel® 6th Gen Xeon® Scalable CPU generation in the Sizer to cover the full 8–172 core range from the Azure Local hardware catalog — includes both Granite Rapids (P-cores) and Sierra Forest (E-cores) codenames (ref: [Intel Xeon Processors](https://www.intel.com/content/www/us/en/products/details/processors/xeon.html))
+- **Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to Intel® 6th Gen Xeon® Scalable (Granite Rapids / Sierra Forest)
 
 ---
 

@@ -58,10 +58,10 @@ function showChangelog() {
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚙️ Sizer: Intel® Xeon® 6 (Granite Rapids / Sierra Forest)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚙️ Sizer: Intel® 6th Gen Xeon® Scalable (Granite Rapids / Sierra Forest)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Intel® Xeon® 6 Expanded:</strong> Expanded the Intel® Xeon® 6 CPU generation in the Sizer to cover the full 8–172 core range from the <a href="https://azurelocalsolutions.azure.microsoft.com" target="_blank">Azure Local hardware catalog</a> — includes both Granite Rapids (P-cores) and Sierra Forest (E-cores) codenames.</li>
-                        <li><strong>Updated Intel Default:</strong> Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to Intel® Xeon® 6 (Granite Rapids / Sierra Forest).</li>
+                        <li><strong>Intel® 6th Gen Xeon® Scalable Expanded:</strong> Expanded the Intel® 6th Gen Xeon® Scalable CPU generation in the Sizer to cover the full 8–172 core range from the <a href="https://azurelocalsolutions.azure.microsoft.com" target="_blank">Azure Local hardware catalog</a> — includes both Granite Rapids (P-cores) and Sierra Forest (E-cores) codenames.</li>
+                        <li><strong>Updated Intel Default:</strong> Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to Intel® 6th Gen Xeon® Scalable (Granite Rapids / Sierra Forest).</li>
                     </ul>
                 </div>
 
