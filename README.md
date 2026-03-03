@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.17.58 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.17.60 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -40,11 +40,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.17.58 - Latest Release
-- **Mobile Layout Fixes (iOS)**: Fixed Sizer header, disclaimer, stats bar, and Privacy footer not aligning with form panels on mobile devices; fixed Designer "Unsure? Start with Sizer" button overlapping Step 04 header on narrow screens
-- **Sizer Mobile Consistency**: Aligned Sizer mobile logo size (80px), version text (11px), and logo-above-title ordering to match the Designer
-- **Designer Title Update**: Renamed Designer title from "Odin for Azure Local" to "ODIN Designer for Azure Local" for consistency with the Sizer naming convention, this also adds clarity, given the expanded scope of ODIN, which includes the Knowledge and Sizer pages.
-- **CSS Nesting Fix**: Corrected CSS for hover and active states of `.stat-value` elements so styles apply consistently across browsers
+### 🎉 Version 0.17.60 - Latest Release
+- **Sizer: Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest)**: Expanded the Intel® 6th Gen Xeon® CPU generation in the Sizer to cover the full 8–172 core range from the Azure Local hardware catalog, and set it as the default Intel CPU selection
+- **Sizer: Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon® (Emerald Rapids) to Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest)
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -332,7 +330,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.17.58  
+**Version**: 0.17.60  
 **Last Updated**: March 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -347,6 +345,10 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February - March 2026)
+
+#### 0.17.60 - Sizer: Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest)
+- **Intel® 6th Gen Xeon® Expanded**: Expanded the Intel® 6th Gen Xeon® CPU generation in the Sizer to cover the full 8–172 core range from the Azure Local hardware catalog
+- **Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon® (Emerald Rapids) to Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest)
 
 #### 0.17.58 - Mobile Layout Fixes & Consistency
 - **Sizer Mobile Alignment**: Fixed header, disclaimer banner, stats bar, and Privacy footer not visually aligned with form panels on iOS mobile devices — added matching horizontal padding on mobile

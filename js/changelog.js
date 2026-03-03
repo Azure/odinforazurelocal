@@ -53,24 +53,20 @@ function showChangelog() {
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.58</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">March 2, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.17.60</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">March 3, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📱 Mobile Layout Fixes (iOS) & Consistency</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚙️ Sizer: Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Sizer Mobile Alignment:</strong> Fixed header, disclaimer banner, stats bar, and Privacy footer not visually aligned with form panels on iOS mobile devices.</li>
-                        <li><strong>Sizer Footer Fix:</strong> Moved Privacy footer inside the container element so it respects max-width and aligns with page content.</li>
-                        <li><strong>Designer Step-Header Overflow:</strong> Fixed "Unsure? Start with Sizer" button overlapping Step 04 (Cluster Configuration) header on narrow mobile screens — the link now wraps to its own line.</li>
-                        <li><strong>Sizer Mobile Header Consistency:</strong> Aligned logo size, version text size, and logo ordering (logo above title) with the Designer's mobile layout.</li>
-                        <li><strong>Designer Title Update:</strong> Renamed from "Odin for Azure Local" to "ODIN Designer for Azure Local" for naming consistency with the Sizer.</li>
-                        <li><strong>CSS Nesting Fix:</strong> Corrected CSS for hover and active states of <code>.stat-value</code> elements so styles apply consistently across browsers.</li>
+                        <li><strong>Intel® 6th Gen Xeon® Expanded:</strong> Expanded the Intel® 6th Gen Xeon® CPU generation in the Sizer to cover the full 8–172 core range from the <a href="https://azurelocalsolutions.azure.microsoft.com" target="_blank">Azure Local hardware catalog</a> — includes both Granite Rapids (P-cores) and Sierra Forest (E-cores) codenames.</li>
+                        <li><strong>Updated Intel Default:</strong> Intel CPU default changed from 5th Gen Xeon® (Emerald Rapids) to Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest).</li>
                     </ul>
                 </div>
 
                 <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 24px 0;">
-                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.17.57</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.17.58</div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🏷️ Sizer: Individual MANUAL Override Dismiss</h4>
