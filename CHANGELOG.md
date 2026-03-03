@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.60] - 2026-03-03
+
+### Added
+
+#### Sizer: Intel® 6th Gen Xeon® Scalable Processor
+- **Intel® 6th Gen Xeon® Scalable Processor**: Added new CPU generation option to the Sizer — supports 8–172 cores, based on the Azure Local hardware catalog (ref: [Intel Xeon Processors](https://www.intel.com/content/www/us/en/products/details/processors/xeon.html))
+
+### Changed
+- **Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to 6th Gen Xeon Scalable Processor
+
+---
+
 ## [0.17.58] - 2026-03-02
 
 ### Fixed

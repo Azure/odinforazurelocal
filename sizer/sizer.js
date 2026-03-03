@@ -68,6 +68,20 @@ const CPU_GENERATIONS = {
             memoryChannels: 8,
             pcieVersion: '5.0',
             tdpPerSocketW: 500
+        },
+        {
+            id: 'xeon-6th-gen',
+            name: 'Intel® 6th Gen Xeon® Scalable Processor',
+            minCores: 8,
+            maxCores: 172,
+            coreOptions: [8, 12, 16, 24, 32, 48, 64, 72, 86, 96, 128, 144, 172],
+            defaultCores: 32,
+            architecture: 'Lion Cove / Crestmont',
+            socket: 'LGA 4710',
+            memoryType: 'DDR5-6400 / MCR-8800',
+            memoryChannels: 8,
+            pcieVersion: '5.0',
+            tdpPerSocketW: 500
         }
     ],
     amd: [
@@ -4489,7 +4503,7 @@ function resetScenario() {
     calculateRequirements();
 }
 
-// Set default hardware config (Intel Emerald Rapids, 24 cores)
+// Set default hardware config (Intel 6th Gen Xeon Scalable, 32 cores)
 function initHardwareDefaults() {
     const manufacturer = document.getElementById('cpu-manufacturer').value;
     if (!manufacturer) return;
@@ -4497,12 +4511,12 @@ function initHardwareDefaults() {
     const generations = CPU_GENERATIONS[manufacturer];
     const genSelect = document.getElementById('cpu-generation');
     genSelect.innerHTML = generations.map(g =>
-        `<option value="${g.id}" ${g.id === 'xeon-5th' && manufacturer === 'intel' ? 'selected' : ''}>${g.name}</option>`
+        `<option value="${g.id}" ${g.id === 'xeon-6th-gen' && manufacturer === 'intel' ? 'selected' : ''}>${g.name}</option>`
     ).join('');
     genSelect.disabled = false;
 
     // Set default generation
-    const defaultGenId = manufacturer === 'intel' ? 'xeon-5th' : generations[0].id;
+    const defaultGenId = manufacturer === 'intel' ? 'xeon-6th-gen' : generations[0].id;
     genSelect.value = defaultGenId;
 
     // Populate cores for the default generation
@@ -4510,10 +4524,10 @@ function initHardwareDefaults() {
     if (generation) {
         const coresSelect = document.getElementById('cpu-cores');
         coresSelect.innerHTML = generation.coreOptions.map(c =>
-            `<option value="${c}" ${c === 24 ? 'selected' : ''}>${c} cores</option>`
+            `<option value="${c}" ${c === generation.defaultCores ? 'selected' : ''}>${c} cores</option>`
         ).join('');
         coresSelect.disabled = false;
-        coresSelect.value = '24';
+        coresSelect.value = String(generation.defaultCores);
     }
 }
 
