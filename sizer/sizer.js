@@ -57,26 +57,12 @@ const CPU_GENERATIONS = {
         },
         {
             id: 'xeon-6',
-            name: 'Intel® Xeon® 6 (Granite Rapids)',
-            minCores: 16,
-            maxCores: 128,
-            coreOptions: [16, 24, 32, 48, 64, 72, 86, 96, 128],
-            defaultCores: 32,
-            architecture: 'Lion Cove / Skymont',
-            socket: 'LGA 4710',
-            memoryType: 'DDR5-6400 / MCR-8800',
-            memoryChannels: 8,
-            pcieVersion: '5.0',
-            tdpPerSocketW: 500
-        },
-        {
-            id: 'xeon-6th-gen',
-            name: 'Intel® 6th Gen Xeon® Scalable Processor',
+            name: 'Intel® Xeon® 6 (Granite Rapids / Sierra Forest)',
             minCores: 8,
             maxCores: 172,
             coreOptions: [8, 12, 16, 24, 32, 48, 64, 72, 86, 96, 128, 144, 172],
             defaultCores: 32,
-            architecture: 'Lion Cove / Crestmont',
+            architecture: 'Lion Cove / Skymont',
             socket: 'LGA 4710',
             memoryType: 'DDR5-6400 / MCR-8800',
             memoryChannels: 8,
@@ -4503,7 +4489,7 @@ function resetScenario() {
     calculateRequirements();
 }
 
-// Set default hardware config (Intel 6th Gen Xeon Scalable, 32 cores)
+// Set default hardware config (Intel Xeon 6 Granite Rapids / Sierra Forest, 32 cores)
 function initHardwareDefaults() {
     const manufacturer = document.getElementById('cpu-manufacturer').value;
     if (!manufacturer) return;
@@ -4511,12 +4497,12 @@ function initHardwareDefaults() {
     const generations = CPU_GENERATIONS[manufacturer];
     const genSelect = document.getElementById('cpu-generation');
     genSelect.innerHTML = generations.map(g =>
-        `<option value="${g.id}" ${g.id === 'xeon-6th-gen' && manufacturer === 'intel' ? 'selected' : ''}>${g.name}</option>`
+        `<option value="${g.id}" ${g.id === 'xeon-6' && manufacturer === 'intel' ? 'selected' : ''}>${g.name}</option>`
     ).join('');
     genSelect.disabled = false;
 
     // Set default generation
-    const defaultGenId = manufacturer === 'intel' ? 'xeon-6th-gen' : generations[0].id;
+    const defaultGenId = manufacturer === 'intel' ? 'xeon-6' : generations[0].id;
     genSelect.value = defaultGenId;
 
     // Populate cores for the default generation

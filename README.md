@@ -41,8 +41,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 ### 🎉 Version 0.17.60 - Latest Release
-- **Sizer: Intel® 6th Gen Xeon® Scalable Processor**: Added Intel® 6th Gen Xeon® Scalable Processor (8–172 cores) to the Sizer CPU generation dropdown, based on the Azure Local hardware catalog; this is now the default Intel processor selection
-- **Sizer: Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to 6th Gen Xeon Scalable Processor
+- **Sizer: Intel® Xeon® 6 (Granite Rapids / Sierra Forest)**: Expanded the Intel® Xeon® 6 CPU generation in the Sizer to cover the full 8–172 core range from the Azure Local hardware catalog, and set it as the default Intel CPU selection
+- **Sizer: Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to Intel® Xeon® 6 (Granite Rapids / Sierra Forest)
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -346,9 +346,9 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.17.x Series (February - March 2026)
 
-#### 0.17.60 - Sizer: Intel® 6th Gen Xeon® Scalable Processor
-- **Intel® 6th Gen Xeon® Scalable Processor**: Added new CPU generation option to the Sizer — supports 8–172 cores, based on the Azure Local hardware catalog
-- **Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to 6th Gen Xeon Scalable Processor
+#### 0.17.60 - Sizer: Intel® Xeon® 6 (Granite Rapids / Sierra Forest)
+- **Intel® Xeon® 6 Expanded**: Expanded the Intel® Xeon® 6 CPU generation in the Sizer to cover the full 8–172 core range from the Azure Local hardware catalog
+- **Updated Intel Default**: Intel CPU default changed from 5th Gen Xeon Scalable (Emerald Rapids) to Intel® Xeon® 6 (Granite Rapids / Sierra Forest)
 
 #### 0.17.58 - Mobile Layout Fixes & Consistency
 - **Sizer Mobile Alignment**: Fixed header, disclaimer banner, stats bar, and Privacy footer not visually aligned with form panels on iOS mobile devices — added matching horizontal padding on mobile
