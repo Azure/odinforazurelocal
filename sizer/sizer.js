@@ -1770,12 +1770,10 @@ function checkForSavedSizerState() {
     const saved = loadSizerState();
     if (!saved || !saved.data) return;
 
-    // Only show if there are workloads or non-default settings
+    // Only show if there are actual workloads to resume
     const d = saved.data;
     const hasWorkloads = d.workloads && d.workloads.length > 0;
-    const hasNonDefaults = (d.clusterType !== 'standard' && d.clusterType !== 'aldo-mgmt' && d.clusterType !== 'aldo-wl') || d.nodeCount !== '3' ||
-        d.resiliency !== '3way' || d.futureGrowth !== '0';
-    if (!hasWorkloads && !hasNonDefaults) return;
+    if (!hasWorkloads) return;
 
     const timestamp = saved.timestamp ? new Date(saved.timestamp).toLocaleString() : 'Unknown time';
     const workloadCount = d.workloads ? d.workloads.length : 0;
@@ -1958,6 +1956,8 @@ function startSizerFresh() {
     clearSizerState();
     dismissSizerResumeBanner();
     resetScenario();
+    // resetScenario → calculateRequirements re-saves state; clear it again
+    clearSizerState();
 }
 
 // Dismiss the resume banner
