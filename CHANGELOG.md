@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.61] - 2026-03-09
+
+### Fixed
+
+#### Sizer: Fix Resume Session Banner
+- **Fix Resume Banner**: Fixed the "Previous Sizer Session Found" banner appearing unconditionally on every page load, even when no workloads were added — the banner now only appears when there are actual workloads to resume (fixes #178)
+- **Fix Start Fresh Re-Save**: Fixed `startSizerFresh()` immediately re-saving default state via `calculateRequirements()` → `saveSizerState()`, causing the banner to reappear on the next page load
+
+---
+
 ## [0.17.60] - 2026-03-03
 
 ### Changed
