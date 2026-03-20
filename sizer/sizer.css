@@ -561,6 +561,19 @@ header .header-description {
     transform: translateY(-2px);
 }
 
+.workload-type-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+    transform: none;
+}
+
+.workload-type-btn:disabled:hover {
+    background: var(--subtle-bg);
+    border-color: var(--border-light);
+    transform: none;
+}
+
 .workload-icon {
     width: 48px;
     height: 48px;
@@ -1058,6 +1071,10 @@ header .header-description {
 
 .breakdown-fill.storage {
     background: linear-gradient(90deg, var(--accent-green), #34d399);
+}
+
+.breakdown-fill.gpu {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
 }
 
 .breakdown-fill.over-threshold {
