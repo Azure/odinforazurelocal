@@ -549,6 +549,7 @@ function getGpuRequirementFields(workloadType) {
         </div>
         ${aksGpuVmSizeField}
         <div id="wl-gpu-p-fields" style="display: none;">
+            <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-partitioning" target="_blank" style="color: var(--link-color);">📖 GPU Partitioning (GPU-P) Management Guide</a></div>
             <div class="form-group">
                 <label>GPU Partition Size
                     <span class="info-icon" title="Fraction of a physical GPU allocated to each VM. Smaller partitions allow more VMs to share a single GPU.">ⓘ</span>
@@ -2646,11 +2647,6 @@ function updateNodeTip() {
 
 // Show add workload modal
 function showAddWorkloadModal(type) {
-    // Block adding VM workloads if a Total VM Requirements workload already exists
-    if (type === 'vm') {
-        const btn = document.getElementById('btn-add-vm');
-        if (btn && btn.disabled) return;
-    }
     currentModalType = type;
     const modal = document.getElementById('add-workload-modal');
     const overlay = document.getElementById('modal-overlay');
@@ -3196,7 +3192,6 @@ function renderWorkloads() {
             container.appendChild(_emptyStateEl);
             _emptyStateEl.style.display = 'flex';
         }
-        updateVmButtonState();
         return;
     }
     
@@ -3242,18 +3237,6 @@ function renderWorkloads() {
     });
     
     container.innerHTML = html;
-    updateVmButtonState();
-}
-
-// Disable the Azure Local VMs button when a Total VM Requirements workload exists
-function updateVmButtonState() {
-    const btn = document.getElementById('btn-add-vm');
-    if (!btn) return;
-    const hasTotalVm = workloads.some(w => w.type === 'vm' && w.inputMode === 'total');
-    btn.disabled = hasTotalVm;
-    btn.title = hasTotalVm
-        ? 'A "Total VM Requirements" workload already exists. Edit or delete it before adding more Azure Local VM workloads.'
-        : '';
 }
 
 // Get workload icon SVG
