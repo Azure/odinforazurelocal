@@ -149,14 +149,14 @@ const CPU_GENERATIONS = {
 // GPU model specifications
 // Ref: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation?view=azloc-2602#supported-gpu-models
 const GPU_MODELS = {
-    t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: false },
-    a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true  },
-    a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true  },
-    l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true  },
-    l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true  },
-    l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true  },
-    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true  },
-    h100:      { name: 'NVIDIA H100',            vramGB: 80, tdpW: 700, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: false, supportsGpuP: true  }
+    t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: false, validPartitions: [] },
+    a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    h100:      { name: 'NVIDIA H100',            vramGB: 80, tdpW: 700, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
 };
 
 // AKS GPU-enabled VM sizes (DDA only — AKS does not support GPU-P)
@@ -490,9 +490,6 @@ function getGpuLabel(gpuType) {
 // workloadType: 'vm', 'aks', or 'avd'
 function getGpuRequirementFields(workloadType) {
     const supportGpuP = workloadType !== 'aks';
-    const partitionOptions = GPU_PARTITION_PROFILES.map(p =>
-        `<option value="${p.id}">${p.label}</option>`
-    ).join('');
     const gpuPOption = supportGpuP
         ? '<option value="gpu-p">GPU-P (GPU Partitioning)</option>'
         : '';
@@ -555,8 +552,8 @@ function getGpuRequirementFields(workloadType) {
                     <span class="info-icon" title="Fraction of a physical GPU allocated to each VM. Smaller partitions allow more VMs to share a single GPU.">ⓘ</span>
                 </label>
                 <select id="wl-gpu-p-partition">
-                    ${partitionOptions}
                 </select>
+                <div id="wl-gpu-p-vram-info" class="hint" style="margin-top: 4px;"></div>
             </div>
         </div>
     `;
@@ -572,6 +569,10 @@ function toggleWorkloadGpuFields() {
     // For AKS DDA: hide the manual DDA count (VM size determines GPU count)
     if (ddaFields) ddaFields.style.display = (mode === 'dda' && !isAks) ? '' : 'none';
     if (gpuPFields) gpuPFields.style.display = mode === 'gpu-p' ? '' : 'none';
+    // Populate GPU-P partition options based on hardware GPU model
+    if (mode === 'gpu-p') {
+        populateGpuPartitions();
+    }
     // For AKS DDA, show the GPU VM size selector and populate it
     if (aksVmFields) {
         aksVmFields.style.display = mode === 'dda' ? '' : 'none';
@@ -584,6 +585,37 @@ function toggleWorkloadGpuFields() {
             if (vcpuEl) vcpuEl.disabled = false;
             if (memEl) memEl.disabled = false;
         }
+    }
+}
+
+// Populate GPU-P partition dropdown based on hardware GPU model's valid partitions
+function populateGpuPartitions() {
+    const partSelect = document.getElementById('wl-gpu-p-partition');
+    if (!partSelect) return;
+    const gpuTypeEl = document.getElementById('gpu-type');
+    const gpuType = gpuTypeEl ? gpuTypeEl.value : 'a2';
+    const gpuModel = GPU_MODELS[gpuType];
+    const validIds = gpuModel && gpuModel.validPartitions ? gpuModel.validPartitions : ['1', '1/2', '1/4', '1/8'];
+    const vramGB = gpuModel ? gpuModel.vramGB : 16;
+    const currentValue = partSelect.value;
+    partSelect.innerHTML = '';
+    validIds.forEach(id => {
+        const profile = GPU_PARTITION_PROFILES.find(p => p.id === id);
+        if (!profile) return;
+        const vramPerPartition = Math.round(vramGB * profile.fraction * 10) / 10;
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `${profile.label} — ${vramPerPartition} GB VRAM per VM`;
+        partSelect.appendChild(opt);
+    });
+    // Restore previous selection if still valid
+    if (validIds.includes(currentValue)) {
+        partSelect.value = currentValue;
+    }
+    // Update info text
+    const infoEl = document.getElementById('wl-gpu-p-vram-info');
+    if (infoEl) {
+        infoEl.textContent = `GPU model: ${gpuModel ? gpuModel.name : 'Unknown'} (${vramGB} GB VRAM total). Partition sizes are filtered to this model.`;
     }
 }
 
@@ -3040,11 +3072,12 @@ function addWorkload() {
     if (workload.gpuMode && workload.gpuMode !== 'none') {
         const hwGpuCount = parseInt(document.getElementById('gpu-count').value) || 0;
         if (hwGpuCount === 0) {
-            // Default to 1 GPU per node with the first available model
             document.getElementById('gpu-count').value = '1';
             updateGpuTypeVisibility();
-            // Brief notification to user
-            alert('GPU hardware has been automatically enabled in the Hardware Configuration (1 GPU per node). You can adjust the GPU count and model in the Hardware Configuration panel.');
+            const gpuTypeEl = document.getElementById('gpu-type');
+            const gpuModel = gpuTypeEl ? GPU_MODELS[gpuTypeEl.value] : null;
+            const gpuName = gpuModel ? gpuModel.name : 'default';
+            alert(`GPU hardware has been automatically enabled in the Hardware Configuration (${gpuName}). The GPU count per node and node count will auto-scale to meet your workload demand.`);
         }
     }
 
