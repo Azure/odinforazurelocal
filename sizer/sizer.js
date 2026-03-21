@@ -4370,13 +4370,30 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         const currentGpuPercent = parseInt(document.getElementById('gpu-percent').textContent) || 0;
         const gpuSectionVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
         if (gpuSectionVisible && currentGpuPercent >= 90) {
-            notes.push('🚫 GPU utilization is at ' + currentGpuPercent + '% — configurations at or above 90% are not recommended. Add more nodes with GPUs, or reduce GPU workloads. Remember that N−1 node capacity must be maintained for updates and draining.');
+            const clusterTypeGpu = document.getElementById('cluster-type').value;
+            const maxNodesGpu = clusterTypeGpu === 'rack-aware' ? 8 : clusterTypeGpu === 'single' ? 1 : 16;
+            const atMaxNodes = nodeCount >= maxNodesGpu;
+            const gpuAdvice = atMaxNodes
+                ? 'Reduce GPU workloads or increase GPUs per node. Node count is at maximum (' + maxNodesGpu + ').'
+                : 'Add more nodes with GPUs, or reduce GPU workloads.';
+            notes.push('🚫 GPU utilization is at ' + currentGpuPercent + '% — configurations at or above 90% are not recommended. ' + gpuAdvice + ' Remember that N−1 node capacity must be maintained for updates and draining.');
         }
         if (gpuSectionVisible && totalGpus > 0) {
             const gpuCountPerNode = hwConfig.gpuCount || 0;
             const physicalMaxGpus = gpuCountPerNode * nodeCount;
             if (totalGpus > physicalMaxGpus) {
-                notes.push('🚫 GPU demand (' + totalGpus + ' GPUs) exceeds the physical capacity (' + physicalMaxGpus + ' GPUs across ' + nodeCount + ' nodes × ' + gpuCountPerNode + ' GPUs/node). Add more nodes or reduce GPU workloads.');
+                const gpuModel = GPU_MODELS[hwConfig.gpuType];
+                const maxPerNode = gpuModel ? gpuModel.maxPerNode : gpuCountPerNode;
+                const clusterType = document.getElementById('cluster-type').value;
+                const maxNodes = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : 16;
+                const canAddNodes = nodeCount < maxNodes;
+                const canAddGpus = gpuCountPerNode < maxPerNode;
+                let advice = '';
+                if (canAddGpus && canAddNodes) advice = 'Increase GPUs per node (up to ' + maxPerNode + '), add more nodes, or reduce GPU workloads.';
+                else if (canAddGpus) advice = 'Increase GPUs per node (up to ' + maxPerNode + ') or reduce GPU workloads. Node count is at maximum (' + maxNodes + ').';
+                else if (canAddNodes) advice = 'Add more nodes or reduce GPU workloads. GPUs per node is at maximum (' + maxPerNode + ').';
+                else advice = 'Reduce GPU workloads — node count (' + maxNodes + ') and GPUs per node (' + maxPerNode + ') are both at maximum.';
+                notes.push('🚫 GPU demand (' + totalGpus + ' GPUs) exceeds the physical capacity (' + physicalMaxGpus + ' GPUs across ' + nodeCount + ' nodes × ' + gpuCountPerNode + ' GPUs/node). ' + advice);
             } else if (totalGpus > gpuCountPerNode * effectiveNodes) {
                 notes.push('⚠️ GPU demand (' + totalGpus + ' GPUs) fits the physical hardware but exceeds N−1 effective capacity (' + (gpuCountPerNode * effectiveNodes) + ' GPUs). During node maintenance/updates, GPU workloads may not all be accommodated.');
             }
