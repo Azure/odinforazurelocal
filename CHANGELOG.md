@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### Sizer: GPU Capacity Planning (closes #180)
-- **GPU Workload Requirements**: All three workload types (Azure Local VMs, AKS Arc, AVD) now support GPU mode selection — DDA (Direct Device Assignment) and GPU-P (GPU Partitioning)
+- **GPU Workload Requirements**: All three workload types (Azure Local VMs, AKS Arc, AVD) now support GPU mode selection — DDA (Discrete Device Assignment) and GPU-P (GPU Partitioning)
 - **GPU Model Selectors**: DDA and GPU-P modes include GPU model dropdowns that auto-set hardware GPU type and enforce homogeneous configuration across all workloads and nodes
 - **Homogeneous GPU Locking**: Once a workload selects a GPU model, the hardware GPU Type is locked (disabled with WORKLOAD badge) and all subsequent workload GPU selectors are locked to the same model
 - **Per-Model GPU-P Partitions**: GPU-P partition sizes dynamically filter based on the selected GPU model, showing VRAM per partition (e.g., A2 supports up to 1:8, L40S supports up to 1:16)
