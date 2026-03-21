@@ -497,13 +497,14 @@ function getLockedGpuType() {
     for (const w of workloads) {
         if (!w.gpuMode || w.gpuMode === 'none') continue;
         if (w.gpuMode === 'gpu-p' && w.gpuPModel) return w.gpuPModel;
+        if (w.gpuMode === 'dda' && w.gpuDdaModel) return w.gpuDdaModel;
         // For AKS DDA with a VM size, derive GPU type from AKS_GPU_VM_SIZES
         if (w.aksGpuVmSize) {
             for (const [gpuKey, sizes] of Object.entries(AKS_GPU_VM_SIZES)) {
                 if (sizes.some(s => s.name === w.aksGpuVmSize)) return gpuKey;
             }
         }
-        // For DDA without AKS VM size, use the hardware config GPU type
+        // Fallback: use the hardware config GPU type
         const hwGpuTypeEl = document.getElementById('gpu-type');
         if (hwGpuTypeEl) return hwGpuTypeEl.value;
     }
@@ -581,10 +582,20 @@ function getGpuRequirementFields(workloadType) {
         </div>
         <div id="wl-gpu-dda-fields" style="display: none;">
             <div class="form-group">
+                <label>GPU Model
+                    <span class="info-icon" title="Select the GPU model for DDA. This sets the hardware GPU type. All nodes must use the same GPU model.">ⓘ</span>
+                </label>
+                <select id="wl-gpu-dda-model" onchange="onDdaModelChange()">
+                </select>
+            </div>
+            <div class="form-group">
                 <label id="wl-gpu-dda-label">${ddaLabel}
                     <span class="info-icon" title="${ddaTooltip}">ⓘ</span>
                 </label>
-                <input type="number" id="wl-gpu-dda-count" value="1" min="1" max="8">
+                <select id="wl-gpu-dda-count">
+                    <option value="1" selected>1</option>
+                    <option value="2">2</option>
+                </select>
             </div>
         </div>
         ${aksGpuVmSizeField}
@@ -616,9 +627,14 @@ function toggleWorkloadGpuFields() {
     const gpuPFields = document.getElementById('wl-gpu-p-fields');
     const aksVmFields = document.getElementById('wl-gpu-aks-vm-fields');
     const isAks = !!aksVmFields; // AKS modal has the VM size selector
-    // For AKS DDA: hide the manual DDA count (VM size determines GPU count)
+    // For AKS DDA: hide the manual DDA fields (VM size determines GPU count)
     if (ddaFields) ddaFields.style.display = (mode === 'dda' && !isAks) ? '' : 'none';
     if (gpuPFields) gpuPFields.style.display = mode === 'gpu-p' ? '' : 'none';
+    // Populate DDA model and count for non-AKS DDA
+    if (mode === 'dda' && !isAks) {
+        populateDdaModels();
+        populateDdaCountOptions();
+    }
     // Populate GPU-P model and partition options
     if (mode === 'gpu-p') {
         populateGpuPModels();
@@ -639,7 +655,78 @@ function toggleWorkloadGpuFields() {
     }
 }
 
-// Populate GPU-P partition dropdown based on hardware GPU model's valid partitions
+// Populate DDA GPU model dropdown (for VM/AVD, not AKS)
+function populateDdaModels() {
+    const modelSelect = document.getElementById('wl-gpu-dda-model');
+    if (!modelSelect) return;
+    const currentValue = modelSelect.value;
+    modelSelect.innerHTML = '';
+    const lockedType = getLockedGpuType();
+    const hwGpuTypeEl = document.getElementById('gpu-type');
+    const hwGpuType = hwGpuTypeEl ? hwGpuTypeEl.value : '';
+    for (const [key, model] of Object.entries(GPU_MODELS)) {
+        if (!model.supportsAzureLocalVMs) continue;
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = `${model.name} (${model.vramGB} GB, max ${model.maxPerNode}/node)`;
+        modelSelect.appendChild(opt);
+    }
+    // If locked, force to that type and disable
+    if (lockedType && modelSelect.querySelector(`option[value="${lockedType}"]`)) {
+        modelSelect.value = lockedType;
+        modelSelect.disabled = true;
+        modelSelect.title = 'GPU model is locked \u2014 all nodes must use the same GPU model (homogeneous configuration).';
+    } else {
+        modelSelect.disabled = false;
+        modelSelect.title = '';
+        if (currentValue && modelSelect.querySelector(`option[value="${currentValue}"]`)) {
+            modelSelect.value = currentValue;
+        } else if (hwGpuType && modelSelect.querySelector(`option[value="${hwGpuType}"]`)) {
+            modelSelect.value = hwGpuType;
+        }
+    }
+}
+
+// Populate DDA GPU count dropdown based on selected model's maxPerNode
+function populateDdaCountOptions() {
+    const countSelect = document.getElementById('wl-gpu-dda-count');
+    const modelSelect = document.getElementById('wl-gpu-dda-model');
+    if (!countSelect) return;
+    const gpuType = modelSelect ? modelSelect.value : 'a2';
+    const gpuModel = GPU_MODELS[gpuType];
+    const maxPerNode = gpuModel ? gpuModel.maxPerNode : 2;
+    const currentValue = parseInt(countSelect.value) || 1;
+    countSelect.innerHTML = '';
+    for (let i = 1; i <= maxPerNode; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        countSelect.appendChild(opt);
+    }
+    // Restore previous selection if still valid
+    countSelect.value = currentValue <= maxPerNode ? currentValue : 1;
+}
+
+// Handle DDA model selection \u2014 update hardware GPU type and count options
+function onDdaModelChange() {
+    const modelSelect = document.getElementById('wl-gpu-dda-model');
+    if (!modelSelect) return;
+    const selectedGpuType = modelSelect.value;
+    // Auto-set hardware GPU type to match
+    const hwGpuTypeEl = document.getElementById('gpu-type');
+    if (hwGpuTypeEl && hwGpuTypeEl.value !== selectedGpuType) {
+        hwGpuTypeEl.value = selectedGpuType;
+    }
+    // Auto-enable GPU in hardware config if not already set
+    const hwGpuCountEl = document.getElementById('gpu-count');
+    if (hwGpuCountEl && parseInt(hwGpuCountEl.value) === 0) {
+        hwGpuCountEl.value = '1';
+        updateGpuTypeVisibility();
+    }
+    enforceGpuMaxPerNode();
+    populateDdaCountOptions();
+}
+
 // Populate GPU-P model dropdown with models that support GPU-P
 function populateGpuPModels() {
     const modelSelect = document.getElementById('wl-gpu-p-model');
@@ -3117,6 +3204,11 @@ function readWorkloadGpuFields() {
     const result = { gpuMode: mode };
     if (mode === 'dda') {
         result.gpuDdaCount = parseInt(document.getElementById('wl-gpu-dda-count').value) || 1;
+        // Store DDA model if present (VM/AVD)
+        const ddaModelEl = document.getElementById('wl-gpu-dda-model');
+        if (ddaModelEl && ddaModelEl.value) {
+            result.gpuDdaModel = ddaModelEl.value;
+        }
         // Store AKS GPU VM size if present
         const aksVmSizeEl = document.getElementById('wl-gpu-aks-vm-size');
         if (aksVmSizeEl && aksVmSizeEl.value) {
@@ -3290,6 +3382,14 @@ function editWorkload(id) {
             gpuModeEl.value = w.gpuMode;
             toggleWorkloadGpuFields();
             if (w.gpuMode === 'dda' && w.gpuDdaCount) {
+                // Restore DDA model first (VM/AVD), then count options
+                if (w.gpuDdaModel) {
+                    const ddaModelEl = document.getElementById('wl-gpu-dda-model');
+                    if (ddaModelEl) {
+                        ddaModelEl.value = w.gpuDdaModel;
+                        populateDdaCountOptions();
+                    }
+                }
                 document.getElementById('wl-gpu-dda-count').value = w.gpuDdaCount;
                 // Restore AKS GPU VM size if present
                 if (w.aksGpuVmSize) {
