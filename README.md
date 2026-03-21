@@ -353,7 +353,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 ### 🎉 Version 0.18.x Series (March 2026)
 
 #### 0.18.01 - Sizer: GPU Capacity Planning & Total VM Requirements
-- **Sizer: GPU Capacity Planning ([#180](https://github.com/Azure/odinforazurelocal/issues/180))**: Full GPU capacity planning based on workload requirements — supports DDA (Direct Device Assignment) and GPU-P (GPU Partitioning) modes across Azure Local VMs, AKS Arc, and AVD workloads
+- **Sizer: GPU Capacity Planning ([#180](https://github.com/Azure/odinforazurelocal/issues/180))**: Full GPU capacity planning based on workload requirements — supports DDA (Discrete Device Assignment) and GPU-P (GPU Partitioning) modes across Azure Local VMs, AKS Arc, and AVD workloads
 - **GPU Model Selectors**: DDA and GPU-P modes include GPU model dropdowns that auto-set hardware GPU type and enforce homogeneous configuration across all workloads and nodes (with WORKLOAD badge on locked hardware GPU Type)
 - **Per-Model GPU-P Partitions**: GPU-P partition sizes dynamically filter based on the selected GPU model, showing VRAM per partition (e.g., A2 supports up to 1:8 / 2 GB, L40S supports up to 1:16 / 3 GB)
 - **GPU Capacity Bar**: New GPU capacity bar chart showing consumed vs available GPUs with N−1 node awareness for maintenance/drain reserve

@@ -577,7 +577,7 @@ function getGpuRequirementFields(workloadType) {
             </label>
             <select id="wl-gpu-mode" onchange="toggleWorkloadGpuFields()">
                 <option value="none" selected>None</option>
-                <option value="dda">DDA (Direct Device Assignment)</option>
+                <option value="dda">DDA (Discrete Device Assignment)</option>
                 ${gpuPOption}
             </select>
             ${gpuPNote}
