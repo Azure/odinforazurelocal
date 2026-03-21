@@ -34,7 +34,7 @@
                 <div class="header-logo-wrapper">
                     <img src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.17.61 | <a href="#" onclick="event.preventDefault(); showChangelog();" class="whats-new-link">What's New</a>
+                        Version 0.18.01 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -300,21 +300,29 @@
                     <h3 class="hw-subsection-title">GPU Configuration</h3>
                     <div class="config-row">
                         <label for="gpu-count">GPUs per Node</label>
-                        <select id="gpu-count" onchange="onHardwareConfigChange()">
+                        <select id="gpu-count" onchange="onGpuCountChange()">
                             <option value="0" selected>None</option>
                             <option value="1">1</option>
                             <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
                         </select>
                     </div>
                     <div class="config-row" id="gpu-type-row" style="display: none;">
-                        <label for="gpu-type">GPU Type</label>
-                        <select id="gpu-type" onchange="onHardwareConfigChange()">
-                            <option value="a2" selected>NVIDIA A2 (16 GB VRAM, 60W TDP)</option>
-                            <option value="a16">NVIDIA A16 (64 GB VRAM, 250W TDP)</option>
-                            <option value="l4">NVIDIA L4 (24 GB VRAM, 72W TDP)</option>
-                            <option value="l40">NVIDIA L40 (48 GB VRAM, 300W TDP)</option>
-                            <option value="l40s">NVIDIA L40S (48 GB VRAM, 350W TDP)</option>
+                        <label for="gpu-type">GPU Type <span id="gpu-type-lock-badge" style="display: none; font-size: 10px; background: #f59e0b; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">WORKLOAD</span></label>
+                        <select id="gpu-type" onchange="onGpuTypeChange()">
+                            <option value="t4">NVIDIA T4 (16 GB, 70W, max 2/node)</option>
+                            <option value="a2" selected>NVIDIA A2 (16 GB, 60W, max 2/node)</option>
+                            <option value="a16">NVIDIA A16 (64 GB, 250W, max 2/node)</option>
+                            <option value="l4">NVIDIA L4 (24 GB, 72W, max 4/node)</option>
+                            <option value="l40">NVIDIA L40 (48 GB, 300W, max 2/node)</option>
+                            <option value="l40s">NVIDIA L40S (48 GB, 350W, max 4/node)</option>
+                            <option value="rtxpro6000">NVIDIA RTX Pro 6000 (48 GB, 600W, max 2/node)</option>
+                            <option value="h100">NVIDIA H100 (80 GB, 700W, max 4/node)</option>
                         </select>
+                    </div>
+                    <div class="config-row" id="gpu-max-warning" style="display: none;">
+                        <span class="hint" style="color: var(--accent-orange);">⚠️ Selected GPU count exceeds the maximum supported per node for this GPU model. The count has been capped.</span>
                     </div>
 
                     <!-- Advanced Settings -->
@@ -324,6 +332,7 @@
                         <select id="vcpu-ratio" onchange="onVcpuRatioChange()">
                             <option value="1">1:1 (No overcommit)</option>
                             <option value="2">2:1</option>
+                            <option value="3">3:1</option>
                             <option value="4" selected>4:1 (Default)</option>
                             <option value="5">5:1</option>
                             <option value="6">6:1</option>
@@ -665,13 +674,25 @@
                                 <span id="storage-used">0</span> / <span id="storage-total">0</span> TB
                             </div>
                         </div>
+                        <div class="breakdown-item" id="gpu-capacity-section" style="display: none;">
+                            <div class="breakdown-header">
+                                <span>GPU (Physical Units) - Consumed</span>
+                                <span id="gpu-percent">0%</span>
+                            </div>
+                            <div class="breakdown-bar">
+                                <div class="breakdown-fill gpu" id="gpu-fill" style="width: 0%"></div>
+                            </div>
+                            <div class="breakdown-legend">
+                                <span id="gpu-used">0</span> / <span id="gpu-total">0</span> GPUs (across N−1 effective nodes)
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Capacity Utilization Warning -->
                 <div class="config-info config-info-warning" id="capacity-utilization-warning" style="display: none;">
                     <span class="info-icon">🚫</span>
-                    <span>One or more resources (Compute, Memory, or Storage) are at or above 90% utilization. This is not a recommended configuration — increase per-node hardware specs, add more nodes, or reduce workloads before proceeding to the Designer.</span>
+                    <span>One or more resources (Compute, Memory, Storage, or GPU) are at or above 90% utilization. This is not a recommended configuration — increase per-node hardware specs, add more nodes, or reduce workloads before proceeding to the Designer.</span>
                 </div>
 
                 <!-- Manual Override Capacity Warning -->

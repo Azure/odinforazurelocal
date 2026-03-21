@@ -147,13 +147,72 @@ const CPU_GENERATIONS = {
 };
 
 // GPU model specifications
+// Ref: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation?view=azloc-2602#supported-gpu-models
 const GPU_MODELS = {
-    a2:  { name: 'NVIDIA A2',  vramGB: 16, tdpW: 60 },
-    a16: { name: 'NVIDIA A16', vramGB: 64, tdpW: 250 },
-    l4:  { name: 'NVIDIA L4',  vramGB: 24, tdpW: 72 },
-    l40: { name: 'NVIDIA L40', vramGB: 48, tdpW: 300 },
-    l40s:{ name: 'NVIDIA L40S', vramGB: 48, tdpW: 350 }
+    t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: false, validPartitions: [] },
+    a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    h100:      { name: 'NVIDIA H100',            vramGB: 80, tdpW: 700, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
 };
+
+// AKS GPU-enabled VM sizes (DDA only — AKS does not support GPU-P)
+// Ref: https://learn.microsoft.com/en-us/azure/aks/hybrid/deploy-gpu-node-pool#supported-gpu-vm-sizes
+const AKS_GPU_VM_SIZES = {
+    t4: [
+        { name: 'Standard_NK6',              gpus: 1, vramGB: 8,  vcpus: 6,  memoryGB: 12  },
+        { name: 'Standard_NK12',             gpus: 2, vramGB: 16, vcpus: 12, memoryGB: 24  }
+    ],
+    a2: [
+        { name: 'Standard_NC4_A2',           gpus: 1, vramGB: 16, vcpus: 4,  memoryGB: 8   },
+        { name: 'Standard_NC8_A2',           gpus: 1, vramGB: 16, vcpus: 8,  memoryGB: 16  },
+        { name: 'Standard_NC16_A2',          gpus: 2, vramGB: 32, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC32_A2',          gpus: 2, vramGB: 32, vcpus: 32, memoryGB: 128 }
+    ],
+    a16: [
+        { name: 'Standard_NC4_A16',          gpus: 1, vramGB: 16, vcpus: 4,  memoryGB: 8   },
+        { name: 'Standard_NC8_A16',          gpus: 1, vramGB: 16, vcpus: 8,  memoryGB: 16  },
+        { name: 'Standard_NC16_A16',         gpus: 2, vramGB: 32, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC32_A16',         gpus: 2, vramGB: 32, vcpus: 32, memoryGB: 128 }
+    ],
+    l4: [
+        { name: 'Standard_NC16_L4_1',        gpus: 1, vramGB: 24, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC16_L4_2',        gpus: 2, vramGB: 48, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC32_L4_1',        gpus: 1, vramGB: 24, vcpus: 32, memoryGB: 128 },
+        { name: 'Standard_NC32_L4_2',        gpus: 2, vramGB: 48, vcpus: 32, memoryGB: 128 }
+    ],
+    l40: [
+        { name: 'Standard_NC16_L40_1',       gpus: 1, vramGB: 48, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC16_L40_2',       gpus: 2, vramGB: 96, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC32_L40_1',       gpus: 1, vramGB: 48, vcpus: 32, memoryGB: 128 },
+        { name: 'Standard_NC32_L40_2',       gpus: 2, vramGB: 96, vcpus: 32, memoryGB: 128 }
+    ],
+    l40s: [
+        { name: 'Standard_NC16_L40S_1',      gpus: 1, vramGB: 48, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC16_L40S_2',      gpus: 2, vramGB: 96, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC32_L40S_1',      gpus: 1, vramGB: 48, vcpus: 32, memoryGB: 128 },
+        { name: 'Standard_NC32_L40S_2',      gpus: 2, vramGB: 96, vcpus: 32, memoryGB: 128 }
+    ],
+    rtxpro6000: [
+        { name: 'Standard_NC16_RTX6000Pro_1', gpus: 1, vramGB: 48, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC16_RTX6000Pro_2', gpus: 2, vramGB: 96, vcpus: 16, memoryGB: 64  },
+        { name: 'Standard_NC32_RTX6000Pro_1', gpus: 1, vramGB: 48, vcpus: 32, memoryGB: 128 },
+        { name: 'Standard_NC32_RTX6000Pro_2', gpus: 2, vramGB: 96, vcpus: 32, memoryGB: 128 }
+    ]
+};
+
+// GPU-P partition sizes (fraction of a physical GPU)
+// See: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation
+const GPU_PARTITION_PROFILES = [
+    { id: '1',     label: 'Full GPU (1:1)',     fraction: 1 },
+    { id: '1/2',   label: 'Half GPU (1:2)',     fraction: 0.5 },
+    { id: '1/4',   label: 'Quarter GPU (1:4)',  fraction: 0.25 },
+    { id: '1/8',   label: 'Eighth GPU (1:8)',   fraction: 0.125 },
+    { id: '1/16',  label: 'Sixteenth GPU (1:16)', fraction: 0.0625 }
+];
 
 // Storage tiering configuration
 const STORAGE_TIERING_OPTIONS = {
@@ -377,6 +436,81 @@ function updateGpuTypeVisibility() {
     if (gpuTypeRow) {
         gpuTypeRow.style.display = gpuCount > 0 ? '' : 'none';
     }
+    updateHwGpuTypeLock();
+}
+
+// Lock hardware GPU Type dropdown when any workload has selected a GPU model
+function updateHwGpuTypeLock() {
+    const gpuTypeEl = document.getElementById('gpu-type');
+    const badge = document.getElementById('gpu-type-lock-badge');
+    if (!gpuTypeEl) return;
+    const lockedType = getLockedGpuType();
+    if (lockedType) {
+        gpuTypeEl.disabled = true;
+        gpuTypeEl.title = 'GPU type is locked by workload configuration — all nodes must use the same GPU model (homogeneous). Remove all GPU workloads to change the GPU type.';
+        if (badge) badge.style.display = '';
+    } else {
+        gpuTypeEl.disabled = false;
+        gpuTypeEl.title = '';
+        if (badge) badge.style.display = 'none';
+    }
+}
+
+// Handler for GPU count dropdown — enforce maxPerNode for the selected GPU model
+function onGpuCountChange() {
+    _gpuCountUserSet = true;
+    markManualSet('gpu-count');
+    updateGpuTypeVisibility();
+    enforceGpuMaxPerNode();
+    onHardwareConfigChange();
+}
+
+// Handler for GPU type dropdown — enforce maxPerNode when GPU model changes
+function onGpuTypeChange() {
+    enforceGpuMaxPerNode();
+    onHardwareConfigChange();
+}
+
+// Enforce that GPU count does not exceed the selected model's maxPerNode
+function enforceGpuMaxPerNode() {
+    const gpuCountEl = document.getElementById('gpu-count');
+    const gpuTypeEl = document.getElementById('gpu-type');
+    const warningEl = document.getElementById('gpu-max-warning');
+    if (!gpuCountEl || !gpuTypeEl) return;
+    const gpuCount = parseInt(gpuCountEl.value) || 0;
+    if (gpuCount === 0) {
+        if (warningEl) warningEl.style.display = 'none';
+        return;
+    }
+    const gpuType = gpuTypeEl.value;
+    const model = GPU_MODELS[gpuType];
+    const maxPerNode = model ? model.maxPerNode : 2;
+    if (gpuCount > maxPerNode) {
+        gpuCountEl.value = maxPerNode;
+        if (warningEl) warningEl.style.display = '';
+    } else {
+        if (warningEl) warningEl.style.display = 'none';
+    }
+}
+
+// Get the locked GPU type from existing workloads (homogeneous requirement).
+// Returns the GPU type key if any workload has selected a GPU, or null if none.
+function getLockedGpuType() {
+    for (const w of workloads) {
+        if (!w.gpuMode || w.gpuMode === 'none') continue;
+        if (w.gpuMode === 'gpu-p' && w.gpuPModel) return w.gpuPModel;
+        if (w.gpuMode === 'dda' && w.gpuDdaModel) return w.gpuDdaModel;
+        // For AKS DDA with a VM size, derive GPU type from AKS_GPU_VM_SIZES
+        if (w.aksGpuVmSize) {
+            for (const [gpuKey, sizes] of Object.entries(AKS_GPU_VM_SIZES)) {
+                if (sizes.some(s => s.name === w.aksGpuVmSize)) return gpuKey;
+            }
+        }
+        // Fallback: use the hardware config GPU type
+        const hwGpuTypeEl = document.getElementById('gpu-type');
+        if (hwGpuTypeEl) return hwGpuTypeEl.value;
+    }
+    return null;
 }
 
 // Get the vCPU to physical core overcommit ratio from dropdown
@@ -390,6 +524,366 @@ function getGpuLabel(gpuType) {
     const model = GPU_MODELS[gpuType];
     if (model) return `${model.name} (${model.vramGB} GB VRAM, ${model.tdpW}W TDP)`;
     return gpuType || 'Unknown';
+}
+
+// Build GPU requirement fields HTML for workload modals
+// workloadType: 'vm', 'aks', or 'avd'
+function getGpuRequirementFields(workloadType) {
+    const supportGpuP = workloadType !== 'aks';
+    const gpuPOption = supportGpuP
+        ? '<option value="gpu-p">GPU-P (GPU Partitioning)</option>'
+        : '';
+    const gpuPNote = !supportGpuP
+        ? '<span class="hint">Note: AKS Arc does not support GPU-P at this time.</span>'
+        : '';
+
+    // For AKS, build a GPU VM size selector instead of manual DDA count
+    let aksGpuVmSizeField = '';
+    if (workloadType === 'aks') {
+        aksGpuVmSizeField = `
+        <div id="wl-gpu-aks-vm-fields" style="display: none;">
+            <div class="form-group">
+                <label>GPU VM Size
+                    <span class="info-icon" title="AKS GPU-enabled worker nodes must use a supported VM SKU. vCPU and memory per worker node are set by the selected VM size.">ⓘ</span>
+                </label>
+                <select id="wl-gpu-aks-vm-size" onchange="onAksGpuVmSizeChange()">
+                    <option value="" selected>Select a GPU VM size...</option>
+                </select>
+            </div>
+            <div id="wl-gpu-aks-vm-info" class="hint" style="margin-top: 4px;"></div>
+        </div>`;
+    }
+
+    // Documentation link varies by workload type
+    let gpuDocsLink = '';
+    if (workloadType === 'aks') {
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc</a></div>';
+    } else if (workloadType === 'vm' || workloadType === 'avd') {
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for Azure Local VMs</a></div>';
+    }
+
+    // DDA label varies by workload type
+    const ddaLabel = workloadType === 'avd' ? 'GPUs per Session Host' : 'GPUs per VM';
+    const ddaTooltip = workloadType === 'avd'
+        ? 'Number of physical GPUs assigned via DDA to each AVD session host.'
+        : 'Number of physical GPUs assigned via DDA to each VM.';
+
+    return `
+        <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">GPU Requirements</h4>
+        ${gpuDocsLink}
+        <div class="form-group">
+            <label>GPU Mode
+                <span class="info-icon" title="None: no GPU needed. DDA: dedicates entire physical GPU(s) to a VM. GPU-P: partitions a GPU to share across multiple VMs.">ⓘ</span>
+            </label>
+            <select id="wl-gpu-mode" onchange="toggleWorkloadGpuFields()">
+                <option value="none" selected>None</option>
+                <option value="dda">DDA (Direct Device Assignment)</option>
+                ${gpuPOption}
+            </select>
+            ${gpuPNote}
+        </div>
+        <div id="wl-gpu-dda-fields" style="display: none;">
+            <div class="form-group">
+                <label>GPU Model
+                    <span class="info-icon" title="Select the GPU model for DDA. This sets the hardware GPU type. All nodes must use the same GPU model.">ⓘ</span>
+                </label>
+                <select id="wl-gpu-dda-model" onchange="onDdaModelChange()">
+                </select>
+            </div>
+            <div class="form-group">
+                <label id="wl-gpu-dda-label">${ddaLabel}
+                    <span class="info-icon" title="${ddaTooltip}">ⓘ</span>
+                </label>
+                <select id="wl-gpu-dda-count">
+                    <option value="1" selected>1</option>
+                    <option value="2">2</option>
+                </select>
+            </div>
+        </div>
+        ${aksGpuVmSizeField}
+        <div id="wl-gpu-p-fields" style="display: none;">
+            <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-partitioning" target="_blank" style="color: var(--link-color);">📖 GPU Partitioning (GPU-P) Management Guide</a></div>
+            <div class="form-group">
+                <label>GPU Model
+                    <span class="info-icon" title="Select the GPU model for partitioning. This sets the hardware GPU type and determines available partition sizes.">ⓘ</span>
+                </label>
+                <select id="wl-gpu-p-model" onchange="onGpuPModelChange()">
+                </select>
+            </div>
+            <div class="form-group">
+                <label>GPU Partition Size
+                    <span class="info-icon" title="Fraction of a physical GPU allocated to each VM. Smaller partitions allow more VMs to share a single GPU.">ⓘ</span>
+                </label>
+                <select id="wl-gpu-p-partition">
+                </select>
+                <div id="wl-gpu-p-vram-info" class="hint" style="margin-top: 4px;"></div>
+            </div>
+        </div>
+    `;
+}
+
+// Toggle GPU fields visibility based on selected GPU mode
+function toggleWorkloadGpuFields() {
+    const mode = document.getElementById('wl-gpu-mode').value;
+    const ddaFields = document.getElementById('wl-gpu-dda-fields');
+    const gpuPFields = document.getElementById('wl-gpu-p-fields');
+    const aksVmFields = document.getElementById('wl-gpu-aks-vm-fields');
+    const isAks = !!aksVmFields; // AKS modal has the VM size selector
+    // For AKS DDA: hide the manual DDA fields (VM size determines GPU count)
+    if (ddaFields) ddaFields.style.display = (mode === 'dda' && !isAks) ? '' : 'none';
+    if (gpuPFields) gpuPFields.style.display = mode === 'gpu-p' ? '' : 'none';
+    // Populate DDA model and count for non-AKS DDA
+    if (mode === 'dda' && !isAks) {
+        populateDdaModels();
+        populateDdaCountOptions();
+    }
+    // Populate GPU-P model and partition options
+    if (mode === 'gpu-p') {
+        populateGpuPModels();
+        populateGpuPartitions();
+    }
+    // For AKS DDA, show the GPU VM size selector and populate it
+    if (aksVmFields) {
+        aksVmFields.style.display = mode === 'dda' ? '' : 'none';
+        if (mode === 'dda') {
+            populateAksGpuVmSizes();
+        } else {
+            // Re-enable worker vCPU/memory fields when GPU mode is not DDA
+            const vcpuEl = document.getElementById('aks-worker-vcpus');
+            const memEl = document.getElementById('aks-worker-memory');
+            if (vcpuEl) vcpuEl.disabled = false;
+            if (memEl) memEl.disabled = false;
+        }
+    }
+}
+
+// Populate DDA GPU model dropdown (for VM/AVD, not AKS)
+function populateDdaModels() {
+    const modelSelect = document.getElementById('wl-gpu-dda-model');
+    if (!modelSelect) return;
+    const currentValue = modelSelect.value;
+    modelSelect.innerHTML = '';
+    const lockedType = getLockedGpuType();
+    const hwGpuTypeEl = document.getElementById('gpu-type');
+    const hwGpuType = hwGpuTypeEl ? hwGpuTypeEl.value : '';
+    for (const [key, model] of Object.entries(GPU_MODELS)) {
+        if (!model.supportsAzureLocalVMs) continue;
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = `${model.name} (${model.vramGB} GB, max ${model.maxPerNode}/node)`;
+        modelSelect.appendChild(opt);
+    }
+    // If locked, force to that type and disable
+    if (lockedType && modelSelect.querySelector(`option[value="${lockedType}"]`)) {
+        modelSelect.value = lockedType;
+        modelSelect.disabled = true;
+        modelSelect.title = 'GPU model is locked \u2014 all nodes must use the same GPU model (homogeneous configuration).';
+    } else {
+        modelSelect.disabled = false;
+        modelSelect.title = '';
+        if (currentValue && modelSelect.querySelector(`option[value="${currentValue}"]`)) {
+            modelSelect.value = currentValue;
+        } else if (hwGpuType && modelSelect.querySelector(`option[value="${hwGpuType}"]`)) {
+            modelSelect.value = hwGpuType;
+        }
+    }
+}
+
+// Populate DDA GPU count dropdown based on selected model's maxPerNode
+function populateDdaCountOptions() {
+    const countSelect = document.getElementById('wl-gpu-dda-count');
+    const modelSelect = document.getElementById('wl-gpu-dda-model');
+    if (!countSelect) return;
+    const gpuType = modelSelect ? modelSelect.value : 'a2';
+    const gpuModel = GPU_MODELS[gpuType];
+    const maxPerNode = gpuModel ? gpuModel.maxPerNode : 2;
+    const currentValue = parseInt(countSelect.value) || 1;
+    countSelect.innerHTML = '';
+    for (let i = 1; i <= maxPerNode; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = i;
+        countSelect.appendChild(opt);
+    }
+    // Restore previous selection if still valid
+    countSelect.value = currentValue <= maxPerNode ? currentValue : 1;
+}
+
+// Handle DDA model selection \u2014 update hardware GPU type and count options
+function onDdaModelChange() {
+    const modelSelect = document.getElementById('wl-gpu-dda-model');
+    if (!modelSelect) return;
+    const selectedGpuType = modelSelect.value;
+    // Auto-set hardware GPU type to match
+    const hwGpuTypeEl = document.getElementById('gpu-type');
+    if (hwGpuTypeEl && hwGpuTypeEl.value !== selectedGpuType) {
+        hwGpuTypeEl.value = selectedGpuType;
+    }
+    // Auto-enable GPU in hardware config if not already set
+    const hwGpuCountEl = document.getElementById('gpu-count');
+    if (hwGpuCountEl && parseInt(hwGpuCountEl.value) === 0) {
+        hwGpuCountEl.value = '1';
+        updateGpuTypeVisibility();
+    }
+    enforceGpuMaxPerNode();
+    populateDdaCountOptions();
+}
+
+// Populate GPU-P model dropdown with models that support GPU-P
+function populateGpuPModels() {
+    const modelSelect = document.getElementById('wl-gpu-p-model');
+    if (!modelSelect) return;
+    const currentValue = modelSelect.value;
+    modelSelect.innerHTML = '';
+    // Check if GPU type is locked by an existing workload
+    const lockedType = getLockedGpuType();
+    const hwGpuTypeEl = document.getElementById('gpu-type');
+    const hwGpuType = hwGpuTypeEl ? hwGpuTypeEl.value : '';
+    for (const [key, model] of Object.entries(GPU_MODELS)) {
+        if (!model.supportsGpuP || !model.validPartitions || model.validPartitions.length === 0) continue;
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = `${model.name} (${model.vramGB} GB VRAM)`;
+        modelSelect.appendChild(opt);
+    }
+    // If locked, force to that type and disable
+    if (lockedType && modelSelect.querySelector(`option[value="${lockedType}"]`)) {
+        modelSelect.value = lockedType;
+        modelSelect.disabled = true;
+        modelSelect.title = 'GPU model is locked — all nodes must use the same GPU model (homogeneous configuration). Change the GPU type in Hardware Configuration or remove existing GPU workloads first.';
+    } else {
+        modelSelect.disabled = false;
+        modelSelect.title = '';
+        // Pre-select the hardware GPU type if it supports GPU-P
+        if (currentValue && modelSelect.querySelector(`option[value="${currentValue}"]`)) {
+            modelSelect.value = currentValue;
+        } else if (hwGpuType && modelSelect.querySelector(`option[value="${hwGpuType}"]`)) {
+            modelSelect.value = hwGpuType;
+        }
+    }
+}
+
+// Handle GPU-P model selection — update partitions and hardware GPU type
+function onGpuPModelChange() {
+    const modelSelect = document.getElementById('wl-gpu-p-model');
+    if (!modelSelect) return;
+    const selectedGpuType = modelSelect.value;
+    // Auto-set hardware GPU type to match
+    const hwGpuTypeEl = document.getElementById('gpu-type');
+    if (hwGpuTypeEl && hwGpuTypeEl.value !== selectedGpuType) {
+        hwGpuTypeEl.value = selectedGpuType;
+    }
+    // Auto-enable GPU in hardware config if not already set
+    const hwGpuCountEl = document.getElementById('gpu-count');
+    if (hwGpuCountEl && parseInt(hwGpuCountEl.value) === 0) {
+        hwGpuCountEl.value = '1';
+        updateGpuTypeVisibility();
+    }
+    enforceGpuMaxPerNode();
+    populateGpuPartitions();
+}
+
+function populateGpuPartitions() {
+    const partSelect = document.getElementById('wl-gpu-p-partition');
+    if (!partSelect) return;
+    // Read from GPU-P model dropdown if present, otherwise fall back to hardware GPU type
+    const gpuPModelEl = document.getElementById('wl-gpu-p-model');
+    const gpuTypeEl = document.getElementById('gpu-type');
+    const gpuType = (gpuPModelEl && gpuPModelEl.value) ? gpuPModelEl.value : (gpuTypeEl ? gpuTypeEl.value : 'a2');
+    const gpuModel = GPU_MODELS[gpuType];
+    const validIds = gpuModel && gpuModel.validPartitions ? gpuModel.validPartitions : ['1', '1/2', '1/4', '1/8'];
+    const vramGB = gpuModel ? gpuModel.vramGB : 16;
+    const currentValue = partSelect.value;
+    partSelect.innerHTML = '';
+    validIds.forEach(id => {
+        const profile = GPU_PARTITION_PROFILES.find(p => p.id === id);
+        if (!profile) return;
+        const vramPerPartition = Math.round(vramGB * profile.fraction * 10) / 10;
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `${profile.label} — ${vramPerPartition} GB VRAM per VM`;
+        partSelect.appendChild(opt);
+    });
+    // Restore previous selection if still valid
+    if (validIds.includes(currentValue)) {
+        partSelect.value = currentValue;
+    }
+    // Update info text
+    const infoEl = document.getElementById('wl-gpu-p-vram-info');
+    if (infoEl) {
+        infoEl.textContent = `${gpuModel ? gpuModel.name : 'Unknown'} (${vramGB} GB VRAM total). Partition sizes filtered to this model.`;
+    }
+}
+
+// Populate AKS GPU VM size dropdown with ALL supported GPU VM sizes
+function populateAksGpuVmSizes() {
+    const vmSizeSelect = document.getElementById('wl-gpu-aks-vm-size');
+    if (!vmSizeSelect) return;
+    vmSizeSelect.innerHTML = '<option value="" selected>Select a GPU VM size...</option>';
+    // Check if GPU type is locked by an existing workload
+    const lockedType = getLockedGpuType();
+    // Iterate GPU types — filter to locked type if set
+    for (const gpuKey of Object.keys(AKS_GPU_VM_SIZES)) {
+        if (lockedType && gpuKey !== lockedType) continue;
+        const sizes = AKS_GPU_VM_SIZES[gpuKey];
+        const gpuModel = GPU_MODELS[gpuKey];
+        const gpuName = gpuModel ? gpuModel.name : gpuKey;
+        sizes.forEach(s => {
+            vmSizeSelect.innerHTML += `<option value="${s.name}" data-gpu-type="${gpuKey}">${s.name} [${gpuName}] (${s.gpus} GPU, ${s.vcpus} vCPUs, ${s.memoryGB} GB RAM)</option>`;
+        });
+    }
+    const infoEl = document.getElementById('wl-gpu-aks-vm-info');
+    if (infoEl) {
+        if (lockedType) {
+            const lockedModel = GPU_MODELS[lockedType];
+            infoEl.textContent = `GPU model locked to ${lockedModel ? lockedModel.name : lockedType} — all nodes must use the same GPU (homogeneous configuration).`;
+        } else {
+            infoEl.textContent = '';
+        }
+    }
+}
+
+// Handle AKS GPU VM size selection — auto-set worker vCPU/memory and hardware GPU type
+function onAksGpuVmSizeChange() {
+    const vmSizeSelect = document.getElementById('wl-gpu-aks-vm-size');
+    const infoEl = document.getElementById('wl-gpu-aks-vm-info');
+    if (!vmSizeSelect) return;
+    const selectedOption = vmSizeSelect.selectedOptions[0];
+    if (!selectedOption || !selectedOption.value) {
+        if (infoEl) infoEl.textContent = '';
+        return;
+    }
+    const selectedName = selectedOption.value;
+    const gpuType = selectedOption.getAttribute('data-gpu-type');
+    // Find the VM size details
+    const sizes = AKS_GPU_VM_SIZES[gpuType] || [];
+    const vmSize = sizes.find(s => s.name === selectedName);
+    if (vmSize) {
+        // Auto-fill worker node vCPU and memory fields and lock them
+        const vcpuEl = document.getElementById('aks-worker-vcpus');
+        const memEl = document.getElementById('aks-worker-memory');
+        if (vcpuEl) { vcpuEl.value = vmSize.vcpus; vcpuEl.disabled = true; }
+        if (memEl) { memEl.value = vmSize.memoryGB; memEl.disabled = true; }
+        // Update the DDA GPU count to match the VM size
+        const ddaCountEl = document.getElementById('wl-gpu-dda-count');
+        if (ddaCountEl) ddaCountEl.value = vmSize.gpus;
+        // Auto-set hardware GPU type to match the selected VM size
+        const hwGpuTypeEl = document.getElementById('gpu-type');
+        if (hwGpuTypeEl && hwGpuTypeEl.value !== gpuType) {
+            hwGpuTypeEl.value = gpuType;
+        }
+        // Auto-enable GPU in hardware config if not already set
+        const hwGpuCountEl = document.getElementById('gpu-count');
+        if (hwGpuCountEl && parseInt(hwGpuCountEl.value) === 0) {
+            hwGpuCountEl.value = '1';
+            updateGpuTypeVisibility();
+        }
+        // Enforce maxPerNode after changing GPU type
+        enforceGpuMaxPerNode();
+        const gpuModel = GPU_MODELS[gpuType];
+        const gpuName = gpuModel ? gpuModel.name : gpuType;
+        if (infoEl) infoEl.textContent = `Worker nodes: ${vmSize.vcpus} vCPUs, ${vmSize.memoryGB} GB RAM per node. Hardware GPU set to ${gpuName}.`;
+    }
 }
 
 // Get current hardware configuration
@@ -513,7 +1007,7 @@ function getGrowthFactor() {
 }
 
 // Calculate recommended node count based on workload demands and per-node hardware
-function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwConfig, resiliencyMultiplier, resiliency) {
+function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwConfig, resiliencyMultiplier, resiliency, totalGpus) {
     const vcpuToCore = getVcpuRatio(); // configurable overcommit ratio
     const hostOverheadMemoryGB = 32; // Azure Local host OS + management overhead per node
 
@@ -548,11 +1042,22 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     let memoryNodes = usableMemoryPerNode > 0 ? Math.ceil(totalMemoryWithARB / usableMemoryPerNode) : 1;
     let storageNodes = maxRawStoragePerNodeGB > 0 ? Math.ceil(totalRawStorageNeededGB / maxRawStoragePerNodeGB) : 1;
 
+    // GPU node calculation: GPUs need N+1 for maintenance (same as compute/memory)
+    let gpuNodes = 0;
+    const gpuCountPerNode = hwConfig.gpuCount || 0;
+    if (totalGpus > 0 && gpuCountPerNode > 0) {
+        // Determine max GPUs per node based on GPU model
+        const gpuModel = GPU_MODELS[hwConfig.gpuType];
+        const maxGpuPerNode = gpuModel ? gpuModel.maxPerNode : gpuCountPerNode;
+        gpuNodes = Math.ceil(totalGpus / maxGpuPerNode);
+    }
+
     // Base minimum from workload
-    // N+1 only applies to compute and memory (storage remains accessible during node drain)
+    // N+1 only applies to compute, memory, and GPU (storage remains accessible during node drain)
     let computeWithN1 = computeNodes >= 2 ? computeNodes + 1 : computeNodes;
     let memoryWithN1 = memoryNodes >= 2 ? memoryNodes + 1 : memoryNodes;
-    let recommended = Math.max(computeWithN1, memoryWithN1, storageNodes);
+    let gpuWithN1 = gpuNodes >= 2 ? gpuNodes + 1 : gpuNodes;
+    let recommended = Math.max(computeWithN1, memoryWithN1, storageNodes, gpuWithN1);
 
     // Enforce resiliency minimum
     const config = RESILIENCY_CONFIG[resiliency];
@@ -565,7 +1070,9 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
 
     // Determine sizing driver (bottleneck)
     let bottleneck = 'compute';
-    if (memoryNodes >= computeNodes && memoryNodes >= storageNodes) bottleneck = 'memory';
+    const maxDimension = Math.max(computeNodes, memoryNodes, storageNodes, gpuNodes);
+    if (gpuNodes === maxDimension && gpuNodes > 0) bottleneck = 'gpu';
+    else if (memoryNodes >= computeNodes && memoryNodes >= storageNodes) bottleneck = 'memory';
     else if (storageNodes >= computeNodes && storageNodes >= memoryNodes) bottleneck = 'storage';
 
     return {
@@ -573,6 +1080,7 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
         computeNodes,
         memoryNodes,
         storageNodes,
+        gpuNodes,
         bottleneck
     };
 }
@@ -792,6 +1300,9 @@ let _nodeCountUserSet = false;
 let _diskSizeUserSet = false;
 let _diskCountUserSet = false;
 
+// Track whether the user manually set GPU count per node (prevents GPU auto-scaling from overriding)
+let _gpuCountUserSet = false;
+
 // Track disk bay consolidation details for sizing notes
 let _diskConsolidationInfo = null;
 
@@ -870,6 +1381,7 @@ function clearAllManualOverrides() {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    _gpuCountUserSet = false;
     _nodeCountUserSet = false;
     _repairDisksUserSet = false;
     clearManualBadges();
@@ -908,7 +1420,8 @@ const _MANUAL_FIELD_TO_FLAG = {
     'capacity-disk-count':       { flag: 'diskCount',   siblings: ['tiered-capacity-disk-count'] },
     'tiered-capacity-disk-count':{ flag: 'diskCount',   siblings: ['capacity-disk-count'] },
     'repair-disk-count':         { flag: 'repairDisks', siblings: ['tiered-repair-disk-count'] },
-    'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] }
+    'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] },
+    'gpu-count':                 { flag: 'gpuCount',    siblings: [] }
 };
 
 // Remove a single manual override — clears the flag (and sibling badges that share it), then re-runs auto-scaling
@@ -924,6 +1437,7 @@ function clearSingleManualOverride(elementId) {
         case 'cpuConfig':   _cpuConfigUserSet    = false; break;
         case 'diskSize':    _diskSizeUserSet     = false; break;
         case 'diskCount':   _diskCountUserSet    = false; break;
+        case 'gpuCount':    _gpuCountUserSet     = false; break;
         case 'repairDisks': _repairDisksUserSet  = false; break;
     }
 
@@ -2426,29 +2940,66 @@ function getVMModalContent() {
     const defaults = WORKLOAD_DEFAULTS.vm;
     return `
         <div class="form-group">
+            <label>Input Mode
+                <span class="info-icon" title="Per VM: specify resources per VM and multiply by count. Total: enter aggregate vCPU, memory, and storage totals directly.">ⓘ</span>
+            </label>
+            <select id="vm-input-mode" onchange="toggleVMInputMode()">
+                <option value="per-vm" selected>Per VM Requirements</option>
+                <option value="total">Total VM Requirements</option>
+            </select>
+        </div>
+        <div class="form-group">
             <label>Workload Name</label>
             <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production VMs">
         </div>
-        <div class="form-group">
+        <div id="vm-count-group" class="form-group">
             <label>Number of VMs</label>
             <input type="number" id="vm-count" value="${defaults.count}" min="1" max="10000">
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>vCPUs per VM</label>
-                <input type="number" id="vm-vcpus" value="${defaults.vcpus}" min="1" max="128">
+                <label id="vm-vcpus-label">vCPUs per VM</label>
+                <input type="number" id="vm-vcpus" value="${defaults.vcpus}" min="1" max="10000">
             </div>
             <div class="form-group">
-                <label>Memory per VM (GB)</label>
-                <input type="number" id="vm-memory" value="${defaults.memory}" min="1" max="1024">
+                <label id="vm-memory-label">Memory per VM (GB)</label>
+                <input type="number" id="vm-memory" value="${defaults.memory}" min="1" max="65536">
             </div>
         </div>
         <div class="form-group">
-            <label>Storage per VM (GB)</label>
-            <input type="number" id="vm-storage" value="${defaults.storage}" min="1" max="64000">
-            <span class="hint">Total disk capacity including OS</span>
+            <label id="vm-storage-label">Storage per VM (GB)</label>
+            <input type="number" id="vm-storage" value="${defaults.storage}" min="1" max="640000">
+            <span class="hint" id="vm-storage-hint">Total disk capacity including OS</span>
         </div>
+        ${getGpuRequirementFields('vm')}
     `;
+}
+
+// Toggle VM input mode between Per VM and Total
+function toggleVMInputMode() {
+    const mode = document.getElementById('vm-input-mode').value;
+    const countGroup = document.getElementById('vm-count-group');
+    const vcpusLabel = document.getElementById('vm-vcpus-label');
+    const memoryLabel = document.getElementById('vm-memory-label');
+    const storageLabel = document.getElementById('vm-storage-label');
+    const storageHint = document.getElementById('vm-storage-hint');
+    const gpuDdaLabel = document.getElementById('wl-gpu-dda-label');
+
+    if (mode === 'total') {
+        countGroup.style.display = 'none';
+        vcpusLabel.textContent = 'Total vCPUs';
+        memoryLabel.textContent = 'Total Memory (GB)';
+        storageLabel.textContent = 'Total Storage (GB)';
+        storageHint.textContent = 'Aggregate storage across all VMs';
+        if (gpuDdaLabel) gpuDdaLabel.innerHTML = 'Total GPUs Required <span class="info-icon" title="Total number of physical GPUs needed for this workload (DDA).">ⓘ</span>';
+    } else {
+        countGroup.style.display = '';
+        vcpusLabel.textContent = 'vCPUs per VM';
+        memoryLabel.textContent = 'Memory per VM (GB)';
+        storageLabel.textContent = 'Storage per VM (GB)';
+        storageHint.textContent = 'Total disk capacity including OS';
+        if (gpuDdaLabel) gpuDdaLabel.innerHTML = 'GPUs per VM/Unit <span class="info-icon" title="Number of physical GPUs assigned via DDA to each VM or workload unit.">ⓘ</span>';
+    }
 }
 
 // Get AKS modal content
@@ -2503,6 +3054,7 @@ function getAKSModalContent() {
                 <input type="number" id="aks-worker-storage" value="${defaults.workerStorage}" min="50" max="4000">
             </div>
         </div>
+        ${getGpuRequirementFields('aks')}
     `;
 }
 
@@ -2601,6 +3153,7 @@ function getAVDModalContent() {
         <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
             We recommend using simulation tools (e.g. LoginVSI) to validate sizing with stress tests and real-life usage simulations.
         </div>
+        ${getGpuRequirementFields('avd')}
     `;
 }
 
@@ -2652,6 +3205,33 @@ function updateAVDDescription() {
 // Track edit mode
 let editingWorkloadId = null;
 
+// Read GPU requirement fields from the workload modal
+function readWorkloadGpuFields() {
+    const modeEl = document.getElementById('wl-gpu-mode');
+    const mode = modeEl ? modeEl.value : 'none';
+    const result = { gpuMode: mode };
+    if (mode === 'dda') {
+        result.gpuDdaCount = parseInt(document.getElementById('wl-gpu-dda-count').value) || 1;
+        // Store DDA model if present (VM/AVD)
+        const ddaModelEl = document.getElementById('wl-gpu-dda-model');
+        if (ddaModelEl && ddaModelEl.value) {
+            result.gpuDdaModel = ddaModelEl.value;
+        }
+        // Store AKS GPU VM size if present
+        const aksVmSizeEl = document.getElementById('wl-gpu-aks-vm-size');
+        if (aksVmSizeEl && aksVmSizeEl.value) {
+            result.aksGpuVmSize = aksVmSizeEl.value;
+        }
+    } else if (mode === 'gpu-p') {
+        result.gpuPartition = document.getElementById('wl-gpu-p-partition').value || '1';
+        const gpuPModelEl = document.getElementById('wl-gpu-p-model');
+        if (gpuPModelEl && gpuPModelEl.value) {
+            result.gpuPModel = gpuPModelEl.value;
+        }
+    }
+    return result;
+}
+
 function addWorkload() {
     if (!currentModalType) return;
     
@@ -2664,10 +3244,11 @@ function addWorkload() {
     
     switch (currentModalType) {
         case 'vm':
+            workload.inputMode = document.getElementById('vm-input-mode').value || 'per-vm';
             workload.vcpus = parseInt(document.getElementById('vm-vcpus').value) || 4;
             workload.memory = parseInt(document.getElementById('vm-memory').value) || 16;
             workload.storage = parseInt(document.getElementById('vm-storage').value) || 100;
-            workload.count = parseInt(document.getElementById('vm-count').value) || 1;
+            workload.count = workload.inputMode === 'total' ? 1 : (parseInt(document.getElementById('vm-count').value) || 1);
             break;
         case 'aks':
             workload.clusterCount = parseInt(document.getElementById('aks-cluster-count').value) || 1;
@@ -2703,7 +3284,24 @@ function addWorkload() {
             }
             break;
     }
-    
+
+    // Read GPU requirements (common to all workload types)
+    const gpuFields = readWorkloadGpuFields();
+    Object.assign(workload, gpuFields);
+
+    // Auto-enable GPUs in hardware config if workload requires them
+    if (workload.gpuMode && workload.gpuMode !== 'none') {
+        const hwGpuCount = parseInt(document.getElementById('gpu-count').value) || 0;
+        if (hwGpuCount === 0) {
+            document.getElementById('gpu-count').value = '1';
+            updateGpuTypeVisibility();
+            const gpuTypeEl = document.getElementById('gpu-type');
+            const gpuModel = gpuTypeEl ? GPU_MODELS[gpuTypeEl.value] : null;
+            const gpuName = gpuModel ? gpuModel.name : 'default';
+            alert(`GPU hardware has been automatically enabled in the Hardware Configuration (${gpuName}). The GPU count per node and node count will auto-scale to meet your workload demand.`);
+        }
+    }
+
     if (editingWorkloadId) {
         // Replace existing workload
         const idx = workloads.findIndex(w => w.id === editingWorkloadId);
@@ -2741,6 +3339,10 @@ function editWorkload(id) {
             title.textContent = 'Edit Azure Local VMs';
             body.innerHTML = getVMModalContent();
             document.getElementById('workload-name').value = w.name;
+            if (w.inputMode === 'total') {
+                document.getElementById('vm-input-mode').value = 'total';
+                toggleVMInputMode();
+            }
             document.getElementById('vm-count').value = w.count;
             document.getElementById('vm-vcpus').value = w.vcpus;
             document.getElementById('vm-memory').value = w.memory;
@@ -2779,6 +3381,41 @@ function editWorkload(id) {
                 document.getElementById('avd-custom-storage').value = w.customStorage || 50;
             }
             break;
+    }
+
+    // Restore GPU fields (common to all types)
+    if (w.gpuMode && w.gpuMode !== 'none') {
+        const gpuModeEl = document.getElementById('wl-gpu-mode');
+        if (gpuModeEl) {
+            gpuModeEl.value = w.gpuMode;
+            toggleWorkloadGpuFields();
+            if (w.gpuMode === 'dda' && w.gpuDdaCount) {
+                // Restore DDA model first (VM/AVD), then count options
+                if (w.gpuDdaModel) {
+                    const ddaModelEl = document.getElementById('wl-gpu-dda-model');
+                    if (ddaModelEl) {
+                        ddaModelEl.value = w.gpuDdaModel;
+                        populateDdaCountOptions();
+                    }
+                }
+                document.getElementById('wl-gpu-dda-count').value = w.gpuDdaCount;
+                // Restore AKS GPU VM size if present
+                if (w.aksGpuVmSize) {
+                    const aksVmSizeEl = document.getElementById('wl-gpu-aks-vm-size');
+                    if (aksVmSizeEl) aksVmSizeEl.value = w.aksGpuVmSize;
+                }
+            } else if (w.gpuMode === 'gpu-p' && w.gpuPartition) {
+                // Restore GPU-P model first, then partitions
+                if (w.gpuPModel) {
+                    const gpuPModelEl = document.getElementById('wl-gpu-p-model');
+                    if (gpuPModelEl) {
+                        gpuPModelEl.value = w.gpuPModel;
+                        populateGpuPartitions();
+                    }
+                }
+                document.getElementById('wl-gpu-p-partition').value = w.gpuPartition;
+            }
+        }
     }
 
     if (submitBtn) submitBtn.textContent = 'Update Workload';
@@ -2825,6 +3462,7 @@ function renderWorkloads() {
             container.appendChild(_emptyStateEl);
             _emptyStateEl.style.display = 'flex';
         }
+        updateHwGpuTypeLock();
         return;
     }
     
@@ -2842,6 +3480,7 @@ function renderWorkloads() {
                         ${w.name}
                         <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400;">${getWorkloadTypeName(w.type)}</span>
                         ${w.isAldoFixed ? '<span style="font-size: 10px; background: #7c3aed; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">ALDO FIXED</span>' : ''}
+                        ${w.gpuMode && w.gpuMode !== 'none' ? '<span style="font-size: 10px; background: #ca8a04; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">GPU</span>' : ''}
                     </div>
                     <div class="workload-card-details">${details}</div>
                 </div>
@@ -2869,6 +3508,7 @@ function renderWorkloads() {
     });
     
     container.innerHTML = html;
+    updateHwGpuTypeLock();
 }
 
 // Get workload icon SVG
@@ -2897,12 +3537,19 @@ function getWorkloadTypeName(type) {
 
 // Get workload details string
 function getWorkloadDetails(w) {
+    let detail = '';
     switch (w.type) {
         case 'vm':
-            return `${w.count} VMs × ${w.vcpus} vCPUs, ${w.memory} GB RAM, ${w.storage} GB storage`;
+            if (w.inputMode === 'total') {
+                detail = `Total: ${w.vcpus} vCPUs, ${w.memory} GB RAM, ${w.storage} GB storage`;
+            } else {
+                detail = `${w.count} VMs \u00d7 ${w.vcpus} vCPUs, ${w.memory} GB RAM, ${w.storage} GB storage`;
+            }
+            break;
         case 'aks':
             const totalNodes = (w.controlPlaneNodes + w.workerNodes) * w.clusterCount;
-            return `${w.clusterCount} cluster(s) × ${totalNodes / w.clusterCount} nodes each`;
+            detail = `${w.clusterCount} cluster(s) × ${totalNodes / w.clusterCount} nodes each`;
+            break;
         case 'avd':
             const sessionLabel = (w.sessionType || 'multi') === 'multi' ? 'multi-session' : 'single-session';
             const conc = w.concurrency != null ? w.concurrency : 100;
@@ -2916,10 +3563,21 @@ function getWorkloadDetails(w) {
             }
             avdDesc += ` \u2022 ${sessionLabel} \u2022 ${conc}% concurrency (${concurrentUsers} peak)`;
             if (w.fslogix) avdDesc += ` \u2022 FSLogix ${w.fslogixSize || 30} GB/user`;
-            return avdDesc;
+            detail = avdDesc;
+            break;
         default:
             return '';
     }
+    // Append GPU info if configured
+    if (w.gpuMode === 'dda') {
+        const gpuCount = w.gpuDdaCount || 1;
+        detail += ` \u2022 DDA ${gpuCount} GPU${gpuCount > 1 ? 's' : ''}/unit`;
+        if (w.aksGpuVmSize) detail += ` (${w.aksGpuVmSize})`;
+    } else if (w.gpuMode === 'gpu-p') {
+        const partProfile = GPU_PARTITION_PROFILES.find(p => p.id === w.gpuPartition);
+        detail += ` \u2022 GPU-P ${partProfile ? partProfile.label : w.gpuPartition}`;
+    }
+    return detail;
 }
 
 // Calculate workload requirements
@@ -2976,8 +3634,44 @@ function calculateWorkloadRequirements(w) {
             break;
         }
     }
-    
-    return { vcpus, memory, storage };
+
+    // Calculate GPU requirements
+    let gpus = 0; // In units of whole physical GPUs
+    if (w.gpuMode === 'dda') {
+        const ddaCount = w.gpuDdaCount || 1;
+        switch (w.type) {
+            case 'vm':
+                gpus = ddaCount * w.count;
+                break;
+            case 'aks':
+                // DDA GPUs per worker node × worker nodes × clusters
+                gpus = ddaCount * w.workerNodes * w.clusterCount;
+                break;
+            case 'avd':
+                // DDA GPUs per session host (approximation: concurrent users, 1 GPU per session host)
+                gpus = ddaCount * (w.sessionType === 'single'
+                    ? w.userCount
+                    : Math.ceil(w.userCount * ((w.concurrency || 100) / 100)));
+                break;
+        }
+    } else if (w.gpuMode === 'gpu-p') {
+        const partProfile = GPU_PARTITION_PROFILES.find(p => p.id === w.gpuPartition);
+        const fraction = partProfile ? partProfile.fraction : 1;
+        switch (w.type) {
+            case 'vm':
+                gpus = fraction * w.count;
+                break;
+            case 'avd': {
+                const concUsers = w.sessionType === 'single'
+                    ? w.userCount
+                    : Math.ceil(w.userCount * ((w.concurrency || 100) / 100));
+                gpus = fraction * concUsers;
+                break;
+            }
+        }
+    }
+
+    return { vcpus, memory, storage, gpus };
 }
 
 // Calculate all requirements
@@ -2988,13 +3682,14 @@ function calculateRequirements(options) {
 
     try {
         // Sum all workload requirements (raw, before growth)
-        let totalVcpus = 0, totalMemory = 0, totalStorage = 0;
+        let totalVcpus = 0, totalMemory = 0, totalStorage = 0, totalGpus = 0;
 
         workloads.forEach(w => {
             const reqs = calculateWorkloadRequirements(w);
             totalVcpus += reqs.vcpus;
             totalMemory += reqs.memory;
             totalStorage += reqs.storage;
+            totalGpus += reqs.gpus || 0;
         });
 
         // Apply future growth factor
@@ -3002,6 +3697,7 @@ function calculateRequirements(options) {
         totalVcpus = Math.ceil(totalVcpus * growthFactor);
         totalMemory = Math.ceil(totalMemory * growthFactor);
         totalStorage = Math.ceil(totalStorage * growthFactor);
+        totalGpus = Math.ceil(totalGpus * growthFactor);
 
         // Get current resiliency setting
         let resiliency = document.getElementById('resiliency').value;
@@ -3019,7 +3715,7 @@ function calculateRequirements(options) {
             if (workloads.length > 0) {
                 const recommendation = getRecommendedNodeCount(
                     totalVcpus, totalMemory, totalStorage,
-                    maxHwConfig, resiliencyMultiplier, resiliency
+                    maxHwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (recommendation) {
                     updateNodeRecommendation(recommendation);
@@ -3034,7 +3730,7 @@ function calculateRequirements(options) {
             if (workloads.length > 0) {
                 const infoRec = getRecommendedNodeCount(
                     totalVcpus, totalMemory, totalStorage,
-                    maxHwConfig, resiliencyMultiplier, resiliency
+                    maxHwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (infoRec) {
                     updateNodeRecommendationInfo(infoRec, parseInt(document.getElementById('node-count').value) || 3);
@@ -3071,6 +3767,28 @@ function calculateRequirements(options) {
         clearAutoScaledHighlights();
         _diskConsolidationInfo = null;
 
+        // --- Auto-scale GPUs per node to meet GPU workload demand ---
+        if (workloads.length > 0 && totalGpus > 0 && !_gpuCountUserSet) {
+            const gpuCountEl = document.getElementById('gpu-count');
+            const gpuTypeEl = document.getElementById('gpu-type');
+            const currentGpuCount = parseInt(gpuCountEl.value) || 0;
+            const gpuType = gpuTypeEl ? gpuTypeEl.value : 'a2';
+            const gpuModel = GPU_MODELS[gpuType];
+            const maxPerNode = gpuModel ? gpuModel.maxPerNode : 2;
+            if (currentGpuCount > 0 && currentGpuCount < maxPerNode) {
+                // Calculate needed GPUs per node: totalGpus / effectiveNodes, rounded up
+                const effNodesForGpu = nodeCount > 1 ? nodeCount - 1 : 1;
+                const neededPerNode = Math.ceil(totalGpus / effNodesForGpu);
+                const targetPerNode = Math.min(neededPerNode, maxPerNode);
+                if (targetPerNode > currentGpuCount) {
+                    gpuCountEl.value = targetPerNode;
+                    markAutoScaled('gpu-count');
+                    updateGpuTypeVisibility();
+                    hwConfig = getHardwareConfig();
+                }
+            }
+        }
+
         // --- Auto-scale CPU cores, memory & disk count to avoid >100% capacity ---
         if (workloads.length > 0) {
             const hwChanged = autoScaleHardware(totalVcpus, totalMemory, totalStorage, nodeCount, resiliencyMultiplier, hwConfig, previouslyAutoScaled);
@@ -3081,7 +3799,7 @@ function calculateRequirements(options) {
                 // Re-run node recommendation with maxHwConfig so the message stays consistent
                 const updatedRec = getRecommendedNodeCount(
                     totalVcpus, totalMemory, totalStorage,
-                    maxHwConfig, resiliencyMultiplier, resiliency
+                    maxHwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (updatedRec) {
                     if (!skipAutoNodeRecommend) {
@@ -3125,7 +3843,12 @@ function calculateRequirements(options) {
                     const memPct = availMem > 0 ? Math.round((totalMemory / availMem) * 100) : 0;
                     const stoPct = availStorage > 0 ? Math.round(((totalStorage / 1000) / availStorage) * 100) : 0;
 
-                    if (cpuPct < UTIL_THRESHOLD && memPct < UTIL_THRESHOLD && stoPct < UTIL_THRESHOLD) {
+                    // GPU utilization check
+                    const loopGpuPerNode = hwConfig.gpuCount || 0;
+                    const availGpus = loopGpuPerNode * effNodes;
+                    const gpuPct = (totalGpus > 0 && availGpus > 0) ? Math.round((totalGpus / availGpus) * 100) : 0;
+
+                    if (cpuPct < UTIL_THRESHOLD && memPct < UTIL_THRESHOLD && stoPct < UTIL_THRESHOLD && gpuPct < UTIL_THRESHOLD) {
                         conservativeSuccess = true;
                         break;
                     }
@@ -3157,7 +3880,7 @@ function calculateRequirements(options) {
                 // Update the recommendation message to reflect the final node count
                 const finalRec = getRecommendedNodeCount(
                     totalVcpus, totalMemory, totalStorage,
-                    hwConfig, resiliencyMultiplier, resiliency
+                    hwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (finalRec) {
                     // Override recommended with actual final node count so message matches dropdown
@@ -3280,7 +4003,7 @@ function calculateRequirements(options) {
                 // Update recommendation to reflect final node count after all passes
                 const postAggressiveRec = getRecommendedNodeCount(
                     totalVcpus, totalMemory, totalStorage,
-                    hwConfig, resiliencyMultiplier, resiliency
+                    hwConfig, resiliencyMultiplier, resiliency, totalGpus
                 );
                 if (postAggressiveRec) {
                     postAggressiveRec.recommended = nodeCount;
@@ -3382,14 +4105,38 @@ function calculateRequirements(options) {
         document.getElementById('storage-used').textContent = (totalStorage / 1000).toFixed(1);
         document.getElementById('storage-total').textContent = totalAvailableStorage.toFixed(1);
 
+        // --- GPU Capacity Bar ---
+        const gpuCountPerNode = hwConfig.gpuCount || 0;
+        const gpuCapacitySection = document.getElementById('gpu-capacity-section');
+        let gpuPercent = 0;
+        if (gpuCountPerNode > 0 && totalGpus > 0) {
+            // Available GPUs use N-1 effective nodes (resiliency — must be able to drain a node)
+            const totalAvailableGpus = gpuCountPerNode * effectiveNodes;
+            // Cap totalGpus at physical limit (growth factor cannot exceed physical hardware)
+            const cappedGpus = Math.min(totalGpus, gpuCountPerNode * nodeCount);
+            gpuPercent = Math.min(100, Math.round((cappedGpus / totalAvailableGpus) * 100)) || 0;
+            document.getElementById('gpu-percent').textContent = gpuPercent + '%';
+            document.getElementById('gpu-fill').style.width = gpuPercent + '%';
+            document.getElementById('gpu-used').textContent = totalGpus % 1 === 0 ? totalGpus : totalGpus.toFixed(1);
+            document.getElementById('gpu-total').textContent = totalAvailableGpus;
+            document.getElementById('gpu-fill').classList.toggle('over-threshold', gpuPercent >= 90);
+            if (gpuCapacitySection) gpuCapacitySection.style.display = '';
+        } else {
+            if (gpuCapacitySection) gpuCapacitySection.style.display = 'none';
+            document.getElementById('gpu-percent').textContent = '0%';
+            document.getElementById('gpu-fill').style.width = '0%';
+            document.getElementById('gpu-used').textContent = '0';
+            document.getElementById('gpu-total').textContent = '0';
+        }
+
         // Toggle over-threshold (red) on any capacity bar >= 90%
         const UTILIZATION_THRESHOLD = 90;
         document.getElementById('compute-fill').classList.toggle('over-threshold', computePercent >= UTILIZATION_THRESHOLD);
         document.getElementById('memory-fill').classList.toggle('over-threshold', memoryPercent >= UTILIZATION_THRESHOLD);
         document.getElementById('storage-fill').classList.toggle('over-threshold', storagePercent >= UTILIZATION_THRESHOLD);
 
-        // Show/hide utilization warning banner
-        const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storagePercent >= UTILIZATION_THRESHOLD) && workloads.length > 0;
+        // Show/hide utilization warning banner (include GPU)
+        const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storagePercent >= UTILIZATION_THRESHOLD || (gpuCountPerNode > 0 && totalGpus > 0 && gpuPercent >= UTILIZATION_THRESHOLD)) && workloads.length > 0;
         const warningBanner = document.getElementById('capacity-utilization-warning');
         if (warningBanner) {
             warningBanner.style.display = anyOverThreshold ? 'flex' : 'none';
@@ -3402,7 +4149,7 @@ function calculateRequirements(options) {
         updatePowerRackEstimates(nodeCount, hwConfig);
 
         // Update sizing notes
-        updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig);
+        updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes);
 
         // Auto-save state after every calculation (skip during initial page load)
         if (!isInitialLoad) {
@@ -3484,7 +4231,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 }
 
 // Update sizing notes
-function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig) {
+function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes) {
     const notes = [];
     const clusterType = document.getElementById('cluster-type').value;
     
@@ -3620,6 +4367,37 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (currentStoragePercent >= 90) {
             notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add nodes, increase disk count/size, or reduce workloads.');
         }
+        const currentGpuPercent = parseInt(document.getElementById('gpu-percent').textContent) || 0;
+        const gpuSectionVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
+        if (gpuSectionVisible && currentGpuPercent >= 90) {
+            const clusterTypeGpu = document.getElementById('cluster-type').value;
+            const maxNodesGpu = clusterTypeGpu === 'rack-aware' ? 8 : clusterTypeGpu === 'single' ? 1 : 16;
+            const atMaxNodes = nodeCount >= maxNodesGpu;
+            const gpuAdvice = atMaxNodes
+                ? 'Reduce GPU workloads or increase GPUs per node. Node count is at maximum (' + maxNodesGpu + ').'
+                : 'Add more nodes with GPUs, or reduce GPU workloads.';
+            notes.push('🚫 GPU utilization is at ' + currentGpuPercent + '% — configurations at or above 90% are not recommended. ' + gpuAdvice + ' Remember that N−1 node capacity must be maintained for updates and draining.');
+        }
+        if (gpuSectionVisible && totalGpus > 0) {
+            const gpuCountPerNode = hwConfig.gpuCount || 0;
+            const physicalMaxGpus = gpuCountPerNode * nodeCount;
+            if (totalGpus > physicalMaxGpus) {
+                const gpuModel = GPU_MODELS[hwConfig.gpuType];
+                const maxPerNode = gpuModel ? gpuModel.maxPerNode : gpuCountPerNode;
+                const clusterType = document.getElementById('cluster-type').value;
+                const maxNodes = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : 16;
+                const canAddNodes = nodeCount < maxNodes;
+                const canAddGpus = gpuCountPerNode < maxPerNode;
+                let advice = '';
+                if (canAddGpus && canAddNodes) advice = 'Increase GPUs per node (up to ' + maxPerNode + '), add more nodes, or reduce GPU workloads.';
+                else if (canAddGpus) advice = 'Increase GPUs per node (up to ' + maxPerNode + ') or reduce GPU workloads. Node count is at maximum (' + maxNodes + ').';
+                else if (canAddNodes) advice = 'Add more nodes or reduce GPU workloads. GPUs per node is at maximum (' + maxPerNode + ').';
+                else advice = 'Reduce GPU workloads — node count (' + maxNodes + ') and GPUs per node (' + maxPerNode + ') are both at maximum.';
+                notes.push('🚫 GPU demand (' + totalGpus + ' GPUs) exceeds the physical capacity (' + physicalMaxGpus + ' GPUs across ' + nodeCount + ' nodes × ' + gpuCountPerNode + ' GPUs/node). ' + advice);
+            } else if (totalGpus > gpuCountPerNode * effectiveNodes) {
+                notes.push('⚠️ GPU demand (' + totalGpus + ' GPUs) fits the physical hardware but exceeds N−1 effective capacity (' + (gpuCountPerNode * effectiveNodes) + ' GPUs). During node maintenance/updates, GPU workloads may not all be accommodated.');
+            }
+        }
 
         // Storage metadata memory overhead note (4 GB per TB of cache drive capacity)
         if (hwConfig && hwConfig.diskConfig) {
@@ -3744,6 +4522,11 @@ function updateDesignerActionVisibility() {
         if (computePercent >= 90) overResources.push('Compute');
         if (memoryPercent >= 90) overResources.push('Memory');
         if (storagePercent >= 90) overResources.push('Storage');
+        const gpuSec = document.getElementById('gpu-capacity-section');
+        if (gpuSec && gpuSec.style.display !== 'none') {
+            const gpuPct = parseInt(document.getElementById('gpu-percent').textContent) || 0;
+            if (gpuPct >= 90) overResources.push('GPU');
+        }
 
         if (overResources.length > 0 && workloads.length > 0) {
             designerBtn.disabled = true;
@@ -3806,6 +4589,8 @@ function exportSizerWord() {
     var computePercent = document.getElementById('compute-percent').textContent || '0%';
     var memoryPercent = document.getElementById('memory-percent').textContent || '0%';
     var storagePercent = document.getElementById('storage-percent').textContent || '0%';
+    var gpuPercent = document.getElementById('gpu-percent').textContent || '0%';
+    var gpuVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
 
     // Disk config description
     var diskDesc = '';
@@ -3905,6 +4690,9 @@ function exportSizerWord() {
     html += '<tr><td>Compute (vCPUs) - Consumed</td><td>' + computePercent + '</td></tr>';
     html += '<tr><td>Memory - Consumed</td><td>' + memoryPercent + '</td></tr>';
     html += '<tr><td>Usable Storage - Consumed</td><td>' + storagePercent + '</td></tr>';
+    if (gpuVisible) {
+        html += '<tr><td>GPU (Physical Units) - Consumed</td><td>' + gpuPercent + '</td></tr>';
+    }
     html += '</tbody></table>';
 
     // Workloads
@@ -4450,6 +5238,7 @@ function resetScenario() {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    _gpuCountUserSet = false;
     _nodeCountUserSet = false;
     _repairDisksUserSet = false;
     clearManualBadges();

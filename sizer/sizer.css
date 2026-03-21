@@ -242,6 +242,11 @@ header .header-description {
 .whats-new-link {
     color: var(--accent-blue);
     text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
 }
 
 .whats-new-link:hover {
@@ -1058,6 +1063,10 @@ header .header-description {
 
 .breakdown-fill.storage {
     background: linear-gradient(90deg, var(--accent-green), #34d399);
+}
+
+.breakdown-fill.gpu {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
 }
 
 .breakdown-fill.over-threshold {
