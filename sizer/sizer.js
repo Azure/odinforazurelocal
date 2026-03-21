@@ -458,6 +458,8 @@ function updateHwGpuTypeLock() {
 
 // Handler for GPU count dropdown — enforce maxPerNode for the selected GPU model
 function onGpuCountChange() {
+    _gpuCountUserSet = true;
+    markManualSet('gpu-count');
     updateGpuTypeVisibility();
     enforceGpuMaxPerNode();
     onHardwareConfigChange();
@@ -1298,6 +1300,9 @@ let _nodeCountUserSet = false;
 let _diskSizeUserSet = false;
 let _diskCountUserSet = false;
 
+// Track whether the user manually set GPU count per node (prevents GPU auto-scaling from overriding)
+let _gpuCountUserSet = false;
+
 // Track disk bay consolidation details for sizing notes
 let _diskConsolidationInfo = null;
 
@@ -1376,6 +1381,7 @@ function clearAllManualOverrides() {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    _gpuCountUserSet = false;
     _nodeCountUserSet = false;
     _repairDisksUserSet = false;
     clearManualBadges();
@@ -1414,7 +1420,8 @@ const _MANUAL_FIELD_TO_FLAG = {
     'capacity-disk-count':       { flag: 'diskCount',   siblings: ['tiered-capacity-disk-count'] },
     'tiered-capacity-disk-count':{ flag: 'diskCount',   siblings: ['capacity-disk-count'] },
     'repair-disk-count':         { flag: 'repairDisks', siblings: ['tiered-repair-disk-count'] },
-    'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] }
+    'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] },
+    'gpu-count':                 { flag: 'gpuCount',    siblings: [] }
 };
 
 // Remove a single manual override — clears the flag (and sibling badges that share it), then re-runs auto-scaling
@@ -1430,6 +1437,7 @@ function clearSingleManualOverride(elementId) {
         case 'cpuConfig':   _cpuConfigUserSet    = false; break;
         case 'diskSize':    _diskSizeUserSet     = false; break;
         case 'diskCount':   _diskCountUserSet    = false; break;
+        case 'gpuCount':    _gpuCountUserSet     = false; break;
         case 'repairDisks': _repairDisksUserSet  = false; break;
     }
 
@@ -3760,7 +3768,7 @@ function calculateRequirements(options) {
         _diskConsolidationInfo = null;
 
         // --- Auto-scale GPUs per node to meet GPU workload demand ---
-        if (workloads.length > 0 && totalGpus > 0) {
+        if (workloads.length > 0 && totalGpus > 0 && !_gpuCountUserSet) {
             const gpuCountEl = document.getElementById('gpu-count');
             const gpuTypeEl = document.getElementById('gpu-type');
             const currentGpuCount = parseInt(gpuCountEl.value) || 0;
@@ -5213,6 +5221,7 @@ function resetScenario() {
     _cpuConfigUserSet = false;
     _diskSizeUserSet = false;
     _diskCountUserSet = false;
+    _gpuCountUserSet = false;
     _nodeCountUserSet = false;
     _repairDisksUserSet = false;
     clearManualBadges();
