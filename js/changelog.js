@@ -5,7 +5,7 @@
  * Intended to be called from HTML (e.g. onclick handlers).
  * @global
  */
-function showChangelog() {
+function showChangelog() { // eslint-disable-line no-unused-vars
     const overlay = document.createElement('div');
 
     // Reusable close handler — used by X button, overlay click, and Escape key.
