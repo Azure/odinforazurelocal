@@ -3774,6 +3774,7 @@ function calculateRequirements(options) {
                 const targetPerNode = Math.min(neededPerNode, maxPerNode);
                 if (targetPerNode > currentGpuCount) {
                     gpuCountEl.value = targetPerNode;
+                    markAutoScaled('gpu-count');
                     updateGpuTypeVisibility();
                     hwConfig = getHardwareConfig();
                 }

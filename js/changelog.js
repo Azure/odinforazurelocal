@@ -61,10 +61,13 @@ function showChangelog() {
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎮 Sizer: GPU Capacity Planning (closes <a href="https://github.com/Azure/odinforazurelocal/issues/180" target="_blank">#180</a>)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>GPU Workload Requirements:</strong> All three workload types (Azure Local VMs, AKS Arc, AVD) now support GPU mode selection — DDA and GPU-P.</li>
+                        <li><strong>GPU Model Selectors:</strong> DDA and GPU-P modes include GPU model dropdowns with homogeneous locking — once a GPU model is selected, it's enforced across all workloads and the hardware config (WORKLOAD badge).</li>
+                        <li><strong>Per-Model GPU-P Partitions:</strong> Partition sizes filter based on selected GPU model, showing VRAM per partition (e.g., A2 up to 1:8, L40S up to 1:16).</li>
                         <li><strong>GPU Capacity Bar:</strong> New GPU capacity bar showing consumed vs available GPUs with N−1 node awareness.</li>
-                        <li><strong>GPU Auto-Scaling:</strong> GPU demand drives node count and GPUs-per-node auto-scaling up to each model's physical maximum.</li>
+                        <li><strong>GPU Auto-Scaling:</strong> GPU demand drives node count and GPUs-per-node auto-scaling (AUTO badge) up to each model's physical maximum.</li>
                         <li><strong>GPU Models:</strong> Added NVIDIA T4, RTX Pro 6000, and H100 with correct maxPerNode limits (up to 4/node).</li>
                         <li><strong>AKS GPU VM Sizes:</strong> All supported GPU-enabled VM SKUs with fixed vCPU/memory — auto-sets hardware GPU type.</li>
+                        <li><strong>GPU Badge:</strong> Workload cards show a yellow "GPU" badge when GPU-enabled.</li>
                         <li><strong>Threshold Warnings:</strong> GPU ≥90% triggers warnings and blocks Designer export.</li>
                     </ul>
                 </div>
@@ -74,7 +77,6 @@ function showChangelog() {
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Total VM Input Mode:</strong> New "Total VM Requirements" option — enter aggregate vCPU, memory, storage, and GPU totals directly.</li>
                         <li><strong>Input Mode First:</strong> Input Mode selector is now the first field in the VM modal.</li>
-                        <li><strong>Safeguards:</strong> Azure Local VMs button disabled when a Total VM workload exists.</li>
                     </ul>
                 </div>
 

@@ -13,20 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Sizer: GPU Capacity Planning (closes #180)
 - **GPU Workload Requirements**: All three workload types (Azure Local VMs, AKS Arc, AVD) now support GPU mode selection — DDA (Direct Device Assignment) and GPU-P (GPU Partitioning)
+- **GPU Model Selectors**: DDA and GPU-P modes include GPU model dropdowns that auto-set hardware GPU type and enforce homogeneous configuration across all workloads and nodes
+- **Homogeneous GPU Locking**: Once a workload selects a GPU model, the hardware GPU Type is locked (disabled with WORKLOAD badge) and all subsequent workload GPU selectors are locked to the same model
+- **Per-Model GPU-P Partitions**: GPU-P partition sizes dynamically filter based on the selected GPU model, showing VRAM per partition (e.g., A2 supports up to 1:8, L40S supports up to 1:16)
+- **DDA GPU Count Dropdown**: Free-text input replaced with dropdown capped at the model's maxPerNode (1–4 depending on model)
 - **GPU Capacity Bar**: New GPU capacity bar chart below storage showing consumed vs available GPUs with N−1 node awareness for maintenance/drain reserve
-- **GPU Auto-Scaling**: GPU demand drives node count recommendations and GPUs-per-node auto-scaling up to each model's physical maximum
+- **GPU Auto-Scaling**: GPU demand drives node count recommendations and GPUs-per-node auto-scaling (with AUTO badge) up to each model's physical maximum
 - **GPU Models Expanded**: Added NVIDIA T4 (16 GB, 70W, max 2/node), RTX Pro 6000 (48 GB, 600W, max 2/node), H100 (80 GB, 700W, max 4/node) — each model includes maxPerNode, DDA/GPU-P support, and AKS compatibility flags
 - **AKS GPU VM Sizes**: AKS workloads show all supported GPU-enabled VM SKUs with fixed vCPU/memory — auto-sets hardware GPU type and disables manual vCPU/memory fields
+- **GPU Badge**: Workload cards show a yellow "GPU" badge when GPU-enabled
 - **GPU Threshold Warnings**: GPU ≥90% triggers over-threshold (red bar), sizing notes, and blocks Designer export
 - **GPU Hardware Auto-Enable**: Adding a GPU workload automatically enables GPUs in hardware config if not already set
-- **GPU maxPerNode Enforcement**: GPU count dropdown enforces per-model maximum (up to 4 for L40S, L4, H100)
-- **Knowledge Links**: GPU Requirements sections include links to Microsoft documentation for supported GPU models
+- **Knowledge Links**: GPU Requirements sections include links to Microsoft documentation for supported GPU models and GPU-P management guide
 - **GPU in Reports**: GPU utilization and hardware config flow through Sizer Word export, Designer, and Report Generator
 
 #### Sizer: Total VM Requirements (closes #181)
 - **Total VM Input Mode**: New "Total VM Requirements" option in the Azure Local VMs modal — enter aggregate vCPU, memory, storage, and GPU totals directly
 - **Input Mode First**: Input Mode selector moved to the top of the VM modal for immediate visibility
-- **Total Mode Safeguards**: Azure Local VMs button is disabled when a Total VM workload exists, with hover tooltip explaining why
 - **Dynamic Labels**: Field labels and GPU label change to "Total vCPUs", "Total Memory", "Total GPUs Required" etc. in Total mode
 
 #### Sizer: 3:1 vCPU Overcommit Ratio
