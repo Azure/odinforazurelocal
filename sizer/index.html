@@ -309,7 +309,7 @@
                         </select>
                     </div>
                     <div class="config-row" id="gpu-type-row" style="display: none;">
-                        <label for="gpu-type">GPU Type</label>
+                        <label for="gpu-type">GPU Type <span id="gpu-type-lock-badge" style="display: none; font-size: 10px; background: #f59e0b; color: white; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600;">WORKLOAD</span></label>
                         <select id="gpu-type" onchange="onGpuTypeChange()">
                             <option value="t4">NVIDIA T4 (16 GB, 70W, max 2/node)</option>
                             <option value="a2" selected>NVIDIA A2 (16 GB, 60W, max 2/node)</option>

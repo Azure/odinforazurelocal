@@ -436,6 +436,24 @@ function updateGpuTypeVisibility() {
     if (gpuTypeRow) {
         gpuTypeRow.style.display = gpuCount > 0 ? '' : 'none';
     }
+    updateHwGpuTypeLock();
+}
+
+// Lock hardware GPU Type dropdown when any workload has selected a GPU model
+function updateHwGpuTypeLock() {
+    const gpuTypeEl = document.getElementById('gpu-type');
+    const badge = document.getElementById('gpu-type-lock-badge');
+    if (!gpuTypeEl) return;
+    const lockedType = getLockedGpuType();
+    if (lockedType) {
+        gpuTypeEl.disabled = true;
+        gpuTypeEl.title = 'GPU type is locked by workload configuration — all nodes must use the same GPU model (homogeneous). Remove all GPU workloads to change the GPU type.';
+        if (badge) badge.style.display = '';
+    } else {
+        gpuTypeEl.disabled = false;
+        gpuTypeEl.title = '';
+        if (badge) badge.style.display = 'none';
+    }
 }
 
 // Handler for GPU count dropdown — enforce maxPerNode for the selected GPU model
@@ -471,6 +489,25 @@ function enforceGpuMaxPerNode() {
     } else {
         if (warningEl) warningEl.style.display = 'none';
     }
+}
+
+// Get the locked GPU type from existing workloads (homogeneous requirement).
+// Returns the GPU type key if any workload has selected a GPU, or null if none.
+function getLockedGpuType() {
+    for (const w of workloads) {
+        if (!w.gpuMode || w.gpuMode === 'none') continue;
+        if (w.gpuMode === 'gpu-p' && w.gpuPModel) return w.gpuPModel;
+        // For AKS DDA with a VM size, derive GPU type from AKS_GPU_VM_SIZES
+        if (w.aksGpuVmSize) {
+            for (const [gpuKey, sizes] of Object.entries(AKS_GPU_VM_SIZES)) {
+                if (sizes.some(s => s.name === w.aksGpuVmSize)) return gpuKey;
+            }
+        }
+        // For DDA without AKS VM size, use the hardware config GPU type
+        const hwGpuTypeEl = document.getElementById('gpu-type');
+        if (hwGpuTypeEl) return hwGpuTypeEl.value;
+    }
+    return null;
 }
 
 // Get the vCPU to physical core overcommit ratio from dropdown
@@ -609,7 +646,8 @@ function populateGpuPModels() {
     if (!modelSelect) return;
     const currentValue = modelSelect.value;
     modelSelect.innerHTML = '';
-    // Get current hardware GPU type to pre-select
+    // Check if GPU type is locked by an existing workload
+    const lockedType = getLockedGpuType();
     const hwGpuTypeEl = document.getElementById('gpu-type');
     const hwGpuType = hwGpuTypeEl ? hwGpuTypeEl.value : '';
     for (const [key, model] of Object.entries(GPU_MODELS)) {
@@ -619,11 +657,20 @@ function populateGpuPModels() {
         opt.textContent = `${model.name} (${model.vramGB} GB VRAM)`;
         modelSelect.appendChild(opt);
     }
-    // Pre-select the hardware GPU type if it supports GPU-P, otherwise keep first
-    if (currentValue && modelSelect.querySelector(`option[value="${currentValue}"]`)) {
-        modelSelect.value = currentValue;
-    } else if (hwGpuType && modelSelect.querySelector(`option[value="${hwGpuType}"]`)) {
-        modelSelect.value = hwGpuType;
+    // If locked, force to that type and disable
+    if (lockedType && modelSelect.querySelector(`option[value="${lockedType}"]`)) {
+        modelSelect.value = lockedType;
+        modelSelect.disabled = true;
+        modelSelect.title = 'GPU model is locked — all nodes must use the same GPU model (homogeneous configuration). Change the GPU type in Hardware Configuration or remove existing GPU workloads first.';
+    } else {
+        modelSelect.disabled = false;
+        modelSelect.title = '';
+        // Pre-select the hardware GPU type if it supports GPU-P
+        if (currentValue && modelSelect.querySelector(`option[value="${currentValue}"]`)) {
+            modelSelect.value = currentValue;
+        } else if (hwGpuType && modelSelect.querySelector(`option[value="${hwGpuType}"]`)) {
+            modelSelect.value = hwGpuType;
+        }
     }
 }
 
@@ -684,8 +731,11 @@ function populateAksGpuVmSizes() {
     const vmSizeSelect = document.getElementById('wl-gpu-aks-vm-size');
     if (!vmSizeSelect) return;
     vmSizeSelect.innerHTML = '<option value="" selected>Select a GPU VM size...</option>';
-    // Iterate all GPU types that have AKS VM sizes
+    // Check if GPU type is locked by an existing workload
+    const lockedType = getLockedGpuType();
+    // Iterate GPU types — filter to locked type if set
     for (const gpuKey of Object.keys(AKS_GPU_VM_SIZES)) {
+        if (lockedType && gpuKey !== lockedType) continue;
         const sizes = AKS_GPU_VM_SIZES[gpuKey];
         const gpuModel = GPU_MODELS[gpuKey];
         const gpuName = gpuModel ? gpuModel.name : gpuKey;
@@ -694,7 +744,14 @@ function populateAksGpuVmSizes() {
         });
     }
     const infoEl = document.getElementById('wl-gpu-aks-vm-info');
-    if (infoEl) infoEl.textContent = '';
+    if (infoEl) {
+        if (lockedType) {
+            const lockedModel = GPU_MODELS[lockedType];
+            infoEl.textContent = `GPU model locked to ${lockedModel ? lockedModel.name : lockedType} — all nodes must use the same GPU (homogeneous configuration).`;
+        } else {
+            infoEl.textContent = '';
+        }
+    }
 }
 
 // Handle AKS GPU VM size selection — auto-set worker vCPU/memory and hardware GPU type
@@ -3297,6 +3354,7 @@ function renderWorkloads() {
             container.appendChild(_emptyStateEl);
             _emptyStateEl.style.display = 'flex';
         }
+        updateHwGpuTypeLock();
         return;
     }
     
@@ -3342,6 +3400,7 @@ function renderWorkloads() {
     });
     
     container.innerHTML = html;
+    updateHwGpuTypeLock();
 }
 
 // Get workload icon SVG
