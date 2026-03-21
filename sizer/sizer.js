@@ -522,6 +522,12 @@ function getGpuRequirementFields(workloadType) {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for Azure Local VMs</a></div>';
     }
 
+    // DDA label varies by workload type
+    const ddaLabel = workloadType === 'avd' ? 'GPUs per Session Host' : 'GPUs per VM';
+    const ddaTooltip = workloadType === 'avd'
+        ? 'Number of physical GPUs assigned via DDA to each AVD session host.'
+        : 'Number of physical GPUs assigned via DDA to each VM.';
+
     return `
         <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">GPU Requirements</h4>
         ${gpuDocsLink}
@@ -538,8 +544,8 @@ function getGpuRequirementFields(workloadType) {
         </div>
         <div id="wl-gpu-dda-fields" style="display: none;">
             <div class="form-group">
-                <label id="wl-gpu-dda-label">GPUs per VM/Unit
-                    <span class="info-icon" title="Number of physical GPUs assigned via DDA to each VM or workload unit.">ⓘ</span>
+                <label id="wl-gpu-dda-label">${ddaLabel}
+                    <span class="info-icon" title="${ddaTooltip}">ⓘ</span>
                 </label>
                 <input type="number" id="wl-gpu-dda-count" value="1" min="1" max="8">
             </div>
@@ -547,6 +553,13 @@ function getGpuRequirementFields(workloadType) {
         ${aksGpuVmSizeField}
         <div id="wl-gpu-p-fields" style="display: none;">
             <div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-manage-via-partitioning" target="_blank" style="color: var(--link-color);">📖 GPU Partitioning (GPU-P) Management Guide</a></div>
+            <div class="form-group">
+                <label>GPU Model
+                    <span class="info-icon" title="Select the GPU model for partitioning. This sets the hardware GPU type and determines available partition sizes.">ⓘ</span>
+                </label>
+                <select id="wl-gpu-p-model" onchange="onGpuPModelChange()">
+                </select>
+            </div>
             <div class="form-group">
                 <label>GPU Partition Size
                     <span class="info-icon" title="Fraction of a physical GPU allocated to each VM. Smaller partitions allow more VMs to share a single GPU.">ⓘ</span>
@@ -569,8 +582,9 @@ function toggleWorkloadGpuFields() {
     // For AKS DDA: hide the manual DDA count (VM size determines GPU count)
     if (ddaFields) ddaFields.style.display = (mode === 'dda' && !isAks) ? '' : 'none';
     if (gpuPFields) gpuPFields.style.display = mode === 'gpu-p' ? '' : 'none';
-    // Populate GPU-P partition options based on hardware GPU model
+    // Populate GPU-P model and partition options
     if (mode === 'gpu-p') {
+        populateGpuPModels();
         populateGpuPartitions();
     }
     // For AKS DDA, show the GPU VM size selector and populate it
@@ -589,11 +603,57 @@ function toggleWorkloadGpuFields() {
 }
 
 // Populate GPU-P partition dropdown based on hardware GPU model's valid partitions
+// Populate GPU-P model dropdown with models that support GPU-P
+function populateGpuPModels() {
+    const modelSelect = document.getElementById('wl-gpu-p-model');
+    if (!modelSelect) return;
+    const currentValue = modelSelect.value;
+    modelSelect.innerHTML = '';
+    // Get current hardware GPU type to pre-select
+    const hwGpuTypeEl = document.getElementById('gpu-type');
+    const hwGpuType = hwGpuTypeEl ? hwGpuTypeEl.value : '';
+    for (const [key, model] of Object.entries(GPU_MODELS)) {
+        if (!model.supportsGpuP || !model.validPartitions || model.validPartitions.length === 0) continue;
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = `${model.name} (${model.vramGB} GB VRAM)`;
+        modelSelect.appendChild(opt);
+    }
+    // Pre-select the hardware GPU type if it supports GPU-P, otherwise keep first
+    if (currentValue && modelSelect.querySelector(`option[value="${currentValue}"]`)) {
+        modelSelect.value = currentValue;
+    } else if (hwGpuType && modelSelect.querySelector(`option[value="${hwGpuType}"]`)) {
+        modelSelect.value = hwGpuType;
+    }
+}
+
+// Handle GPU-P model selection — update partitions and hardware GPU type
+function onGpuPModelChange() {
+    const modelSelect = document.getElementById('wl-gpu-p-model');
+    if (!modelSelect) return;
+    const selectedGpuType = modelSelect.value;
+    // Auto-set hardware GPU type to match
+    const hwGpuTypeEl = document.getElementById('gpu-type');
+    if (hwGpuTypeEl && hwGpuTypeEl.value !== selectedGpuType) {
+        hwGpuTypeEl.value = selectedGpuType;
+    }
+    // Auto-enable GPU in hardware config if not already set
+    const hwGpuCountEl = document.getElementById('gpu-count');
+    if (hwGpuCountEl && parseInt(hwGpuCountEl.value) === 0) {
+        hwGpuCountEl.value = '1';
+        updateGpuTypeVisibility();
+    }
+    enforceGpuMaxPerNode();
+    populateGpuPartitions();
+}
+
 function populateGpuPartitions() {
     const partSelect = document.getElementById('wl-gpu-p-partition');
     if (!partSelect) return;
+    // Read from GPU-P model dropdown if present, otherwise fall back to hardware GPU type
+    const gpuPModelEl = document.getElementById('wl-gpu-p-model');
     const gpuTypeEl = document.getElementById('gpu-type');
-    const gpuType = gpuTypeEl ? gpuTypeEl.value : 'a2';
+    const gpuType = (gpuPModelEl && gpuPModelEl.value) ? gpuPModelEl.value : (gpuTypeEl ? gpuTypeEl.value : 'a2');
     const gpuModel = GPU_MODELS[gpuType];
     const validIds = gpuModel && gpuModel.validPartitions ? gpuModel.validPartitions : ['1', '1/2', '1/4', '1/8'];
     const vramGB = gpuModel ? gpuModel.vramGB : 16;
@@ -615,7 +675,7 @@ function populateGpuPartitions() {
     // Update info text
     const infoEl = document.getElementById('wl-gpu-p-vram-info');
     if (infoEl) {
-        infoEl.textContent = `GPU model: ${gpuModel ? gpuModel.name : 'Unknown'} (${vramGB} GB VRAM total). Partition sizes are filtered to this model.`;
+        infoEl.textContent = `${gpuModel ? gpuModel.name : 'Unknown'} (${vramGB} GB VRAM total). Partition sizes filtered to this model.`;
     }
 }
 
@@ -3007,6 +3067,10 @@ function readWorkloadGpuFields() {
         }
     } else if (mode === 'gpu-p') {
         result.gpuPartition = document.getElementById('wl-gpu-p-partition').value || '1';
+        const gpuPModelEl = document.getElementById('wl-gpu-p-model');
+        if (gpuPModelEl && gpuPModelEl.value) {
+            result.gpuPModel = gpuPModelEl.value;
+        }
     }
     return result;
 }
@@ -3176,6 +3240,14 @@ function editWorkload(id) {
                     if (aksVmSizeEl) aksVmSizeEl.value = w.aksGpuVmSize;
                 }
             } else if (w.gpuMode === 'gpu-p' && w.gpuPartition) {
+                // Restore GPU-P model first, then partitions
+                if (w.gpuPModel) {
+                    const gpuPModelEl = document.getElementById('wl-gpu-p-model');
+                    if (gpuPModelEl) {
+                        gpuPModelEl.value = w.gpuPModel;
+                        populateGpuPartitions();
+                    }
+                }
                 document.getElementById('wl-gpu-p-partition').value = w.gpuPartition;
             }
         }
