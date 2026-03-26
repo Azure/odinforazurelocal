@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.18.02] - 2026-03-26
+
+### Fixed
+
+#### Designer: Fix NIC overrideAdapterProperty (fixes #187)
+- **Fix `overrideAdapterProperty` flag**: Fixed a bug where disabling RDMA on NICs assigned to the Management+Compute intent (e.g., in a switchless 4+ NIC configuration) would generate `"overrideAdapterProperty": false` in the ARM parameter JSON instead of `true` — the adapterPropertyOverrides (networkDirect: Disabled) were present but not enforced
+- **NIC-Level RDMA Detection**: `buildAdapterPropertyOverrides()` now accepts the group's NIC list and checks `portConfig[i].rdmaManual` — if any NIC in the group had its RDMA manually changed at Step 07, the override flag is set
+- **Auto-Disable Flag**: When `renderIntentOverrides()` auto-disables RDMA for an intent group because no NICs are RDMA-capable, `__touchedAdapterProperty` is now set so the generated JSON correctly includes `overrideAdapterProperty: true`
+
+---
+
 ## [0.18.01] - 2026-03-20
 
 ### Added
