@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.18.01 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.18.02 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -40,15 +40,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.18.01 - Latest Release
-- **Sizer: GPU Capacity Planning ([#180](https://github.com/Azure/odinforazurelocal/issues/180))**: Full GPU capacity planning based on workload requirements — supports DDA and GPU-P modes across Azure Local VMs, AKS Arc, and AVD workloads with N−1 node awareness, auto-scaling of GPU count per node and physical nodes, and a new GPU capacity bar chart
-- **Sizer: Total VM Requirements ([#181](https://github.com/Azure/odinforazurelocal/issues/181))**: New "Total VM Requirements" input mode for Azure Local VMs — enter aggregate vCPU, memory, and storage totals directly instead of per-VM sizing
-- **Sizer: GPU Model Selectors**: DDA and GPU-P modes now include GPU model dropdowns — selecting a model auto-sets the hardware GPU type and enforces homogeneous configuration across all workloads and nodes
-- **Sizer: Per-Model GPU-P Partitions**: GPU-P partition sizes dynamically filter based on the selected GPU model, showing VRAM per partition (e.g., A2 supports up to 1:8, L40S supports up to 1:16)
-- **Sizer: GPU Models Expanded**: Added NVIDIA T4, RTX Pro 6000, and H100 models with correct maxPerNode limits (up to 4 per node for L40S, L4, H100)
-- **Sizer: AKS GPU VM Sizes**: AKS workloads now show all supported GPU-enabled VM SKUs with fixed vCPU/memory per size, auto-setting hardware GPU type on selection
-- **Sizer: GPU Auto-Scaling**: GPU demand now drives node count recommendations and GPUs-per-node auto-scaling (with AUTO badge) up to the model's maximum
-- **Sizer: 3:1 vCPU Overcommit Ratio**: Added the missing 3:1 option to the vCPU overcommit ratio dropdown
+### 🎉 Version 0.18.02 - Latest Release
+- **Designer: Fix NIC `overrideAdapterProperty` ([#187](https://github.com/Azure/odinforazurelocal/issues/187))**: Fixed a bug where disabling RDMA on NICs assigned to the Management+Compute intent (e.g., in a switchless 4+ NIC configuration) would generate `"overrideAdapterProperty": false` in the ARM parameter JSON instead of `true` — the override flag now correctly activates when NIC-level RDMA is changed at Step 07 or auto-disabled at Step 08
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -351,6 +344,11 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.18.x Series (March 2026)
+
+#### 0.18.02 - Designer: Fix NIC overrideAdapterProperty (#187)
+- **Fix NIC `overrideAdapterProperty` ([#187](https://github.com/Azure/odinforazurelocal/issues/187))**: Fixed a bug where disabling RDMA on NICs assigned to the Management+Compute intent (e.g., in a switchless 4+ NIC configuration) would generate `"overrideAdapterProperty": false` in the ARM parameter JSON instead of `true`
+- **NIC-Level RDMA Detection**: The ARM intent generator now detects NIC-level RDMA changes made at Step 07 (Port Configuration) and correctly sets the override flag
+- **Auto-Disable Flag**: When Step 08 (Intent Overrides) auto-disables RDMA for an intent group because no NICs are RDMA-capable, the adapter property touched flag is now set
 
 #### 0.18.01 - Sizer: GPU Capacity Planning & Total VM Requirements
 - **Sizer: GPU Capacity Planning ([#180](https://github.com/Azure/odinforazurelocal/issues/180))**: Full GPU capacity planning based on workload requirements — supports DDA (Discrete Device Assignment) and GPU-P (GPU Partitioning) modes across Azure Local VMs, AKS Arc, and AVD workloads

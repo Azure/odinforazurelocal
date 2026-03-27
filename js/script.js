@@ -1760,12 +1760,17 @@ function generateArmParameters() {
                 });
             };
 
-            const buildAdapterPropertyOverrides = (groupKey) => {
+            const buildAdapterPropertyOverrides = (groupKey, groupNicNumbers) => {
                 const ov = (state.intentOverrides && state.intentOverrides[groupKey]) ? state.intentOverrides[groupKey] : null;
-                const touched = !!(ov && (
+                // Check if any NIC in this group had its RDMA manually changed at Step 07 (#187).
+                const nicLevelManualRdma = Array.isArray(groupNicNumbers) && groupNicNumbers.some(n => {
+                    const pc = state.portConfig && state.portConfig[n - 1];
+                    return pc && pc.rdmaManual === true;
+                });
+                const touched = !!(nicLevelManualRdma || (ov && (
                     ov.__touchedAdapterProperty === true ||
                     (ov.__touched === true && ov.__touchedAdapterProperty === undefined && ov.__touchedVswitch === undefined && ov.__touchedVlan === undefined)
-                ));
+                )));
 
                 const jumbo = ov && ov.jumboFrames ? String(ov.jumboFrames) : '';
                 const rdmaMode = ov && ov.rdmaMode ? String(ov.rdmaMode) : '';
@@ -1850,7 +1855,7 @@ function generateArmParameters() {
                     ? getStorageAdapterNamesForIntent(g.nics)
                     : (Array.isArray(g.nics) ? g.nics : []).map(n => armAdapterNameForNic(n));
 
-                const adapterOverrides = buildAdapterPropertyOverrides(g.key);
+                const adapterOverrides = buildAdapterPropertyOverrides(g.key, g.nics);
                 const vswitchOverrides = buildVirtualSwitchConfigurationOverrides(g.key);
                 const qosOverrides = buildQosPolicyOverrides(g.key);
 
@@ -5542,8 +5547,11 @@ function renderIntentOverrides(container) {
         });
 
         // If no NICs in the group have RDMA enabled, auto-set rdmaMode to 'Disabled'
+        // and mark adapter property as touched so overrideAdapterProperty is set in the output (#187).
         if (!groupHasRdma && ov.rdmaMode !== 'Disabled') {
             ov.rdmaMode = 'Disabled';
+            ov.__touched = true;
+            ov.__touchedAdapterProperty = true;
         }
 
         const card = document.createElement('div');

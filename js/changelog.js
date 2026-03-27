@@ -53,12 +53,24 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.01</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">March 20, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.02</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">March 26, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🎮 Sizer: GPU Capacity Planning (closes <a href="https://github.com/Azure/odinforazurelocal/issues/180" target="_blank">#180</a>)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Designer: Fix NIC overrideAdapterProperty (fixes <a href="https://github.com/Azure/odinforazurelocal/issues/187" target="_blank">#187</a>)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Fix overrideAdapterProperty:</strong> Fixed a bug where disabling RDMA on NICs assigned to the Management+Compute intent (e.g., in a switchless 4+ NIC configuration) would generate <code>"overrideAdapterProperty": false</code> in the ARM parameter JSON instead of <code>true</code>.</li>
+                        <li><strong>NIC-Level RDMA Detection:</strong> The ARM intent generator now detects NIC-level RDMA changes made at Step 07 (Port Configuration) and correctly sets the override flag.</li>
+                        <li><strong>Auto-Disable Flag:</strong> When Step 08 auto-disables RDMA for an intent group because no NICs are RDMA-capable, the adapter property touched flag is now set.</li>
+                    </ul>
+                </div>
+
+                <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 24px 0;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.18.01</div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--text-secondary); margin: 0 0 12px 0;">🎮 Sizer: GPU Capacity Planning (closes <a href="https://github.com/Azure/odinforazurelocal/issues/180" target="_blank">#180</a>)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>GPU Workload Requirements:</strong> All three workload types (Azure Local VMs, AKS Arc, AVD) now support GPU mode selection — DDA and GPU-P.</li>
                         <li><strong>GPU Model Selectors:</strong> DDA and GPU-P modes include GPU model dropdowns with homogeneous locking — once a GPU model is selected, it's enforced across all workloads and the hardware config (WORKLOAD badge).</li>
@@ -73,7 +85,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Sizer: Total VM Requirements (closes <a href="https://github.com/Azure/odinforazurelocal/issues/181" target="_blank">#181</a>)</h4>
+                    <h4 style="color: var(--text-secondary); margin: 0 0 12px 0;">📊 Sizer: Total VM Requirements (closes <a href="https://github.com/Azure/odinforazurelocal/issues/181" target="_blank">#181</a>)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Total VM Input Mode:</strong> New "Total VM Requirements" option — enter aggregate vCPU, memory, storage, and GPU totals directly.</li>
                         <li><strong>Input Mode First:</strong> Input Mode selector is now the first field in the VM modal.</li>
@@ -81,7 +93,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚙️ Sizer: 3:1 vCPU Overcommit Ratio</h4>
+                    <h4 style="color: var(--text-secondary); margin: 0 0 12px 0;">⚙️ Sizer: 3:1 vCPU Overcommit Ratio</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>3:1 Option:</strong> Added the missing 3:1 vCPU overcommit ratio to the Advanced Settings dropdown.</li>
                     </ul>

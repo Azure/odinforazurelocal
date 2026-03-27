@@ -10,6 +10,7 @@
     --glass-border: rgba(255, 255, 255, 0.1);
     --subtle-bg: rgba(255, 255, 255, 0.03);
     --subtle-bg-hover: rgba(255, 255, 255, 0.06);
+    --nav-height: 56px;
 }
 
 * {
@@ -30,7 +31,7 @@ body {
 /* Breadcrumb Navigation */
 .breadcrumb-nav {
     position: sticky;
-    top: 56px; /* Account for fixed nav bar height */
+    top: var(--nav-height); /* Account for fixed nav bar height */
     z-index: 100;
     background: var(--nav-bg);
     backdrop-filter: blur(20px);
@@ -155,7 +156,7 @@ body {
 /* Animated Step Transitions */
 .step {
     animation: stepFadeIn 0.4s ease-out;
-    scroll-margin-top: 140px; /* Account for fixed nav (56px) + sticky breadcrumb (~80px) */
+    scroll-margin-top: 140px; /* Account for fixed nav (--nav-height) + sticky breadcrumb (~80px) */
 }
 
 @keyframes stepFadeIn {

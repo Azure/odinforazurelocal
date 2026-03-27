@@ -18,6 +18,7 @@
     --glass-border: rgba(255, 255, 255, 0.1);
     --subtle-bg: rgba(255, 255, 255, 0.03);
     --subtle-bg-hover: rgba(255, 255, 255, 0.06);
+    --nav-height: 56px;
 }
 
 * {
@@ -32,7 +33,7 @@ body {
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     line-height: 1.6;
     min-height: 100vh;
-    padding-top: 56px;
+    padding-top: var(--nav-height);
 }
 
 /* Tab Navigation */
@@ -54,7 +55,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    height: 56px;
+    height: var(--nav-height);
 }
 
 .odin-tab-logo {
@@ -1462,7 +1463,7 @@ header .header-description {
     }
 
     body {
-        padding-top: 56px;
+        padding-top: var(--nav-height);
     }
     
     .container {
