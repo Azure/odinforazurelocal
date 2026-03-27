@@ -1651,7 +1651,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.10.2] - 2025-01-20
+## [0.10.2] - 2026-01-20
 
 ### Changed
 
@@ -1671,7 +1671,7 @@ This change provides a clearer user experience since SDN is optional and is not 
 
 ---
 
-## [0.10.1] - 2025-01-19
+## [0.10.1] - 2026-01-19
 
 ### Fixed
 
@@ -1686,7 +1686,7 @@ This ensures that when users import a previously exported ARM template, these im
 
 ---
 
-## [0.10.0] - 2025-01-19
+## [0.10.0] - 2026-01-19
 
 ### Fixed
 
