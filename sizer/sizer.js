@@ -4178,7 +4178,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         // Still show 3D rack visualization with default config
         if (typeof renderRack3D === 'function') {
             var isTieredEmpty = document.getElementById('storage-type') && document.getElementById('storage-type').value === 'tiered';
-            var emptyDiskCount = 8;
+            var emptyDiskCount;
             if (isTieredEmpty) {
                 emptyDiskCount = (parseInt(document.getElementById('cache-disk-count').value, 10) || 2)
                                + (parseInt(document.getElementById('tiered-capacity-disk-count').value, 10) || 4);
