@@ -4177,7 +4177,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         section.style.display = 'none';
         // Still show 3D rack visualization with default config
         if (typeof renderRack3D === 'function') {
-            var isTieredEmpty = document.getElementById('storage-type') && document.getElementById('storage-type').value === 'tiered';
+            var isTieredEmpty = _isTieredStorage();
             var emptyDiskCount;
             if (isTieredEmpty) {
                 emptyDiskCount = (parseInt(document.getElementById('cache-disk-count').value, 10) || 2)
@@ -4269,7 +4269,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             }
         }
         renderRack3D({
-            clusterType: document.getElementById('cluster-type').value,
+            clusterType: document.getElementById('cluster-type').value || 'standard',
             nodeCount: nodeCount,
             hasGpu: hwConfig.gpuCount > 0,
             gpuModel: hwConfig.gpuType || '',

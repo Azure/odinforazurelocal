@@ -577,8 +577,7 @@ function placeCoreNetwork(scene, rack1X, rack2X) {
     );
 
     // ── Pink/Magenta cables: SMB Storage Trunks (cross-rack ToR ↔ ToR, rear) ──
-    // Calculate actual TOR switch center Y positions
-    var torDeviceH = 1 * RACK.U_HEIGHT - 0.004;
+    // Calculate actual TOR switch center Y positions (reuse torDeviceH from above)
     var tor1CenterY = 0.06 + (42 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002; // U42
     var tor2CenterY = 0.06 + (41 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002; // U41
     var torSwitchDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
@@ -767,7 +766,7 @@ function placeStandardCoreNetwork(scene, rackX, torCount, nodeCount) {
         var srvDeviceH = 2 * RACK.U_HEIGHT - 0.004;
         var srvDeviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
         var srvBackZ = srvDeviceDepth / 2 + 0.005;
-        var srvU = RACK.TOTAL_U; // server placed at top when no ToRs
+        var srvU = RACK.TOTAL_U - 1; // server placed at U41 (serverStartU - 1) when no ToRs
         var srvY = 0.06 + (srvU - 1) * RACK.U_HEIGHT + srvDeviceH / 2 + 0.002;
         var srvPortW = 0.012;
         var srvPortStartX = rackX - srvDeviceW / 2 + 0.03;
