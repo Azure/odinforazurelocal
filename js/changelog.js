@@ -53,12 +53,23 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.02</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">March 26, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.03</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">March 30, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 Designer: Fix NIC overrideAdapterProperty (fixes <a href="https://github.com/Azure/odinforazurelocal/issues/187" target="_blank">#187</a>)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 ARM Parameters: Fix Custom Location Name (fixes <a href="https://github.com/Azure/odinforazurelocal/issues/189" target="_blank">#189</a>)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Fix customLocation parameter key:</strong> Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the <code>customLocation</code> value in the generated parameter JSON — the update code referenced a mismatched key (<code>customLocationName</code> instead of <code>customLocation</code>).</li>
+                        <li><strong>Pre-population fix:</strong> The custom location input field also now correctly pre-populates from the parameter JSON when loading a template.</li>
+                    </ul>
+                </div>
+
+                <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 24px 0;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.18.02</div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--text-secondary); margin: 0 0 12px 0;">🔧 Designer: Fix NIC overrideAdapterProperty (fixes <a href="https://github.com/Azure/odinforazurelocal/issues/187" target="_blank">#187</a>)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Fix overrideAdapterProperty:</strong> Fixed a bug where disabling RDMA on NICs assigned to the Management+Compute intent (e.g., in a switchless 4+ NIC configuration) would generate <code>"overrideAdapterProperty": false</code> in the ARM parameter JSON instead of <code>true</code>.</li>
                         <li><strong>NIC-Level RDMA Detection:</strong> The ARM intent generator now detects NIC-level RDMA changes made at Step 07 (Port Configuration) and correctly sets the override flag.</li>

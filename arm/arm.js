@@ -318,8 +318,8 @@
         }
         
         var customLocationInput = document.getElementById('input-custom-location');
-        if (customLocationInput && params.customLocationName && isValidValue(params.customLocationName.value)) {
-            customLocationInput.value = params.customLocationName.value;
+        if (customLocationInput && params.customLocation && isValidValue(params.customLocation.value)) {
+            customLocationInput.value = params.customLocation.value;
         }
     }
 
@@ -926,8 +926,8 @@ function updateParameters() {
         params.adouPath.value = ouPath;
     }
     
-    if (customLocation && params.customLocationName) {
-        params.customLocationName.value = customLocation;
+    if (customLocation && params.customLocation) {
+        params.customLocation.value = customLocation;
     }
     
     // Also update any remaining REPLACE_WITH_ placeholders with generic replacements
