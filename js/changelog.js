@@ -53,12 +53,27 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.03</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.04</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">March 30, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔧 ARM Parameters: Fix Custom Location Name (fixes <a href="https://github.com/Azure/odinforazurelocal/issues/189" target="_blank">#189</a>)</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🖥️ Sizer: 3D Rack Visualization</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Interactive 3D rack preview:</strong> Renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays, LEDs, Azure logo, dual PSUs, network ports) and 1U ToR switches (48-port ethernet, QSFP uplinks).</li>
+                        <li><strong>Rack-aware support:</strong> Rack-aware deployments render two side-by-side cabinets with balanced node distribution and blue core switch/router.</li>
+                        <li><strong>Network topology:</strong> Management/compute uplinks (blue), SMB storage trunks (pink) between cross-rack ToR pairs, and LAG inter-switch links (orange) between paired ToRs.</li>
+                        <li><strong>Dynamic updates:</strong> Visualization re-renders in real-time as sizer inputs change (node count, cluster type, disk config).</li>
+                        <li><strong>Interactive controls:</strong> Left-click and hold to rotate, scroll to zoom, right-click and hold to move. Touch-device friendly.</li>
+                        <li><strong>Azure branding:</strong> Microsoft Azure logo overlay and Azure "A" logo on each server node.</li>
+                    </ul>
+                </div>
+
+                <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 24px 0;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.18.03</div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--text-secondary); margin: 0 0 12px 0;">🔧 ARM Parameters: Fix Custom Location Name (fixes <a href="https://github.com/Azure/odinforazurelocal/issues/189" target="_blank">#189</a>)</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Fix customLocation parameter key:</strong> Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the <code>customLocation</code> value in the generated parameter JSON — the update code referenced a mismatched key (<code>customLocationName</code> instead of <code>customLocation</code>).</li>
                         <li><strong>Pre-population fix:</strong> The custom location input field also now correctly pre-populates from the parameter JSON when loading a template.</li>

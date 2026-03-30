@@ -8507,7 +8507,9 @@ function transferToSizer() {
         // Pass through scenario details for context
         scenario: state.scenario,
         scale: state.scale,
-        clusterRole: state.clusterRole || null
+        clusterRole: state.clusterRole || null,
+        // Pass physical port count for 3D rack visualization
+        ports: state.ports ? parseInt(state.ports, 10) : 4
     };
 
     try {

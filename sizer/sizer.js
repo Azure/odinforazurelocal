@@ -1295,6 +1295,9 @@ let _cpuConfigUserSet = false;
 // Track whether the user manually set the node count (prevents auto-node-recommendation from overriding)
 let _nodeCountUserSet = false;
 
+// Physical port count from Designer (default 4 if user hasn't come from Designer)
+let _designerPortCount = 4;
+
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
 let _diskSizeUserSet = false;
@@ -2203,6 +2206,11 @@ function checkForDesignerImport() {
         updateStorageForClusterType();
         updateResiliencyOptions();
         updateAldoWorkloadButtons();
+
+        // Store physical port count from Designer for 3D rack visualization
+        if (payload.ports) {
+            _designerPortCount = parseInt(payload.ports, 10) || 4;
+        }
 
         // Apply node count (after node options are updated for the cluster type)
         // Mark as MANUAL so auto-scaling does not override the Designer's node count
@@ -4167,6 +4175,26 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 
     if (workloads.length === 0) {
         section.style.display = 'none';
+        // Still show 3D rack visualization with default config
+        if (typeof renderRack3D === 'function') {
+            var isTieredEmpty = _isTieredStorage();
+            var emptyDiskCount;
+            if (isTieredEmpty) {
+                emptyDiskCount = (parseInt(document.getElementById('cache-disk-count').value, 10) || 2)
+                               + (parseInt(document.getElementById('tiered-capacity-disk-count').value, 10) || 4);
+            } else {
+                emptyDiskCount = parseInt(document.getElementById('capacity-disk-count').value, 10) || 4;
+            }
+            renderRack3D({
+                clusterType: document.getElementById('cluster-type').value || 'standard',
+                nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
+                hasGpu: false,
+                gpuModel: '',
+                perNodeWatts: 0,
+                diskCount: emptyDiskCount,
+                portCount: _designerPortCount || 4
+            });
+        }
         return;
     }
 
@@ -4228,6 +4256,28 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
     document.getElementById('rack-units').textContent = rackUnits + 'U';
     section.style.display = 'block';
+
+    // Update 3D rack visualization
+    if (typeof renderRack3D === 'function') {
+        var diskTotal = 0;
+        if (hwConfig.diskConfig) {
+            if (hwConfig.diskConfig.isTiered) {
+                diskTotal = (hwConfig.diskConfig.cache ? hwConfig.diskConfig.cache.count : 0)
+                          + (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.count : 0);
+            } else {
+                diskTotal = hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.count : 4;
+            }
+        }
+        renderRack3D({
+            clusterType: document.getElementById('cluster-type').value || 'standard',
+            nodeCount: nodeCount,
+            hasGpu: hwConfig.gpuCount > 0,
+            gpuModel: hwConfig.gpuType || '',
+            perNodeWatts: perNodeW,
+            diskCount: diskTotal || 8,
+            portCount: _designerPortCount || 4
+        });
+    }
 }
 
 // Update sizing notes

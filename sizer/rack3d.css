@@ -1,0 +1,150 @@
+/* ============================================
+   3D Rack Visualization - Styles
+   ============================================ */
+
+.rack-viz-section {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+}
+
+.rack-viz-section h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.rack-viz-section h3 .toggle-arrow {
+    transition: transform 0.2s ease;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.rack-viz-section h3 .toggle-arrow.collapsed {
+    transform: rotate(-90deg);
+}
+
+.rack-viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rack-viz-badge {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--accent-purple);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+#rack-viz-container {
+    margin-top: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    background: #0a0a0a;
+    border: 1px solid var(--glass-border);
+}
+
+.rack-viz-logo {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    height: 40px;
+    opacity: 0.85;
+    pointer-events: none;
+    z-index: 1;
+}
+
+#rack-viz-container.collapsed {
+    display: none;
+}
+
+#rack-3d-canvas {
+    width: 100%;
+    height: 500px;
+    display: block;
+    outline: none;
+}
+
+.rack-viz-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-top: 1px solid var(--glass-border);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.rack-viz-controls .hint {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rack-viz-legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.rack-viz-legend .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rack-viz-legend .legend-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.rack-viz-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+/* Print: hide 3D canvas */
+@media print {
+    .rack-viz-section {
+        display: none !important;
+    }
+}
+
+/* Mobile: reduce canvas height */
+@media (max-width: 768px) {
+    #rack-3d-canvas {
+        height: 350px;
+    }
+}
+
+@media (max-width: 480px) {
+    #rack-3d-canvas {
+        height: 280px;
+    }
+
+    .rack-viz-legend {
+        gap: 8px;
+    }
+}

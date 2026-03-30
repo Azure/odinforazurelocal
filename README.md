@@ -1,8 +1,8 @@
-# Odin for Azure Local
+# ODIN for Azure Local
 
-## Version 0.18.03 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.18.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
-A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
+A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
 > **Disclaimer:** This tool is provided as-is without Microsoft support. This is an experimental project to help customers accelerate their skills ramp up for Azure Local, while helping IT architects to validate desired configurations.
 
@@ -27,9 +27,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ## Features
 
 ### ✨ Core Functionality
-- **Step-by-Step Wizard**: Guided decision flow for Azure Local network configuration
+- **Step-by-Step Designer Wizard**: Guided decision flow for Azure Local instance configuration, including network configuration, outbound endpoints, security and storage deployment options
 - **Multiple Deployment Scenarios**: Hyperconverged, Multi-Rack, Disconnected, and M365 Local
-- **Hardware Sizer (Preview)**: Workload-based hardware sizing for VMs, AKS, and AVD — calculates CPU, memory, storage, GPU, and node requirements with auto-scaling and power/rack-space estimates
+- **Hardware Sizer**: Workload-based hardware sizing for VMs, AKS, and AVD — calculates CPU, memory, storage, GPU, and node requirements with auto-scaling and power/rack-space estimates, and a 3D visualization of hardware in a 42U rack
 - **Sizer-to-Designer Integration**: Size your hardware first, then transfer the configuration directly into the Designer wizard with one click
 - **Designer-to-Sizer Integration**: Design your cluster first, then transfer deployment type and node count to the Sizer to add workloads
 - **Cloud Witness Configuration**: Automatic witness type selection based on cluster topology
@@ -40,8 +40,13 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.18.03 - Latest Release
-- **ARM Parameters: Fix Custom Location Name ([#189](https://github.com/Azure/odinforazurelocal/issues/189))**: Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the `customLocation` value in the generated parameter JSON — the update code referenced a mismatched key (`customLocationName` instead of `customLocation`)
+### 🎉 Version 0.18.04 - Latest Release
+- **Azure Local - 3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js (MIT) — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays with pull handles, status LEDs, Azure logo, dual PSUs, network ports, BMC port, ventilation grille) and 1U ToR switches (48-port ethernet in two rows, QSFP uplinks, fan vents)
+- **Rack-Aware Support**: Rack-aware deployments render two side-by-side cabinets with balanced node distribution, blue core switch/router above racks
+- **Network Topology**: Rack-aware view includes management/compute uplink cables (blue) from each ToR to the core router, SMB storage trunk cables (pink) between cross-rack ToR pairs, and LAG inter-switch links (orange) between paired ToRs in each rack
+- **Dynamic Updates**: Rack visualization updates in real-time as sizer inputs change (node count, cluster type, disk configuration)
+- **Interactive Controls**: Left-click and hold to rotate, scroll to zoom, right-click and hold to move up and down; touch-friendly
+- **Azure Branding**: Microsoft Azure logo overlay and Azure "A" logo on each server node front panel
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -329,7 +334,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.18.03  
+**Version**: 0.18.04  
 **Last Updated**: March 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -344,6 +349,14 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.18.x Series (March 2026)
+
+#### 0.18.04 - Sizer: 3D Rack Visualization
+- **3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js (MIT) — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays with pull handles, status LEDs, Azure logo, dual PSUs, network ports, BMC port, ventilation grille) and 1U ToR switches (48-port ethernet in two rows, QSFP uplinks, fan vents)
+- **Rack-Aware Support**: Rack-aware deployments render two side-by-side cabinets with balanced node distribution, blue core switch/router above racks
+- **Network Topology**: Rack-aware view includes management/compute uplink cables (blue) from each ToR to the core router, SMB storage trunk cables (pink) between cross-rack ToR pairs, and LAG inter-switch links (orange) between paired ToRs in each rack
+- **Dynamic Updates**: Rack visualization updates in real-time as sizer inputs change (node count, cluster type, disk configuration)
+- **Interactive Controls**: Left-click and hold to rotate, scroll to zoom, right-click and hold to move up and down; touch-friendly
+- **Azure Branding**: Microsoft Azure logo overlay and Azure "A" logo on each server node front panel
 
 #### 0.18.03 - ARM Parameters: Fix Custom Location Name (#189)
 - **Fix Custom Location Name ([#189](https://github.com/Azure/odinforazurelocal/issues/189))**: Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the `customLocation` value in the generated parameter JSON — the update code referenced a mismatched key (`customLocationName` instead of `customLocation`)

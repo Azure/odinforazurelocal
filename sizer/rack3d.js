@@ -1,0 +1,1046 @@
+/* ============================================
+   3D Rack Visualization — rack3d.js
+   Uses Three.js (MIT) to render server cabinets
+   ============================================ */
+
+// Module-scoped state
+var _rack3d = {
+    scene: null,
+    camera: null,
+    renderer: null,
+    controls: null,
+    animId: null,
+    canvas: null,
+    initialized: false,
+    azureLogoTexture: null,
+    lastConfig: null
+};
+
+// ── Constants ────────────────────────────────
+var RACK = {
+    U_HEIGHT: 0.04445,    // 1U = 44.45 mm → 0.04445 m
+    TOTAL_U: 42,
+    WIDTH: 0.6,           // 600 mm standard rack width
+    DEPTH: 1.0,           // 1000 mm standard depth
+    POST_SIZE: 0.03,      // Rail post cross-section
+    RAIL_DEPTH: 0.015,
+    GAP_BETWEEN: 0.3      // Gap between two racks (rack-aware)
+};
+
+RACK.INNER_HEIGHT = RACK.TOTAL_U * RACK.U_HEIGHT;  // ~1.867 m
+RACK.OUTER_HEIGHT = RACK.INNER_HEIGHT + 0.12;       // top/bottom frame
+
+// Colors
+var COLORS = {
+    RACK_FRAME:  0x2a2a2a,
+    RACK_RAIL:   0x3a3a3a,
+    EMPTY_SLOT:  0x1a1a1a,
+    SERVER:      0xaaaaaa,  // Light grey
+    SERVER_GPU:  0xd97706,  // Amber for GPU nodes
+    TOR_SWITCH:  0x059669,  // Green
+    LABEL_COLOR: '#ffffff',
+    FLOOR:       0x111111
+};
+
+// ── Helpers ──────────────────────────────────
+
+function disposeMesh(obj) {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+        if (Array.isArray(obj.material)) {
+            obj.material.forEach(function(m) { m.dispose(); });
+        } else {
+            obj.material.dispose();
+        }
+    }
+}
+
+function clearScene(scene) {
+    while (scene.children.length > 0) {
+        var child = scene.children[0];
+        if (child.traverse) {
+            child.traverse(function(c) { if (c.isMesh) disposeMesh(c); });
+        }
+        scene.remove(child);
+    }
+}
+
+function makeTextSprite(text, fontSize, color) {
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    canvas.width = 256;
+    canvas.height = 64;
+    ctx.font = (fontSize || 24) + 'px Segoe UI, Arial, sans-serif';
+    ctx.fillStyle = color || COLORS.LABEL_COLOR;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    var texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    var material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false });
+    var sprite = new THREE.Sprite(material);
+    sprite.scale.set(0.4, 0.1, 1);
+    return sprite;
+}
+
+// Create a text label as a flat plane fixed to a face (not billboarded)
+// facing: 'front' (negative Z) or 'back' (positive Z)
+function makeFaceLabel(text, fontSize, color, facing) {
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d');
+    canvas.width = 512;
+    canvas.height = 64;
+    ctx.font = (fontSize || 24) + 'px Segoe UI, Arial, sans-serif';
+    ctx.fillStyle = color || COLORS.LABEL_COLOR;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    var texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    var mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false, side: THREE.FrontSide });
+    var geo = new THREE.PlaneGeometry(0.5, 0.065);
+    var mesh = new THREE.Mesh(geo, mat);
+    if (facing === 'front') {
+        mesh.rotation.y = Math.PI; // rotate so normal faces -Z (towards camera)
+    }
+    // facing === 'back' keeps default normal facing +Z (rear of rack)
+    return mesh;
+}
+
+// ── Build a single 42U rack frame ────────────
+
+function buildRackFrame(scene, offsetX) {
+    var group = new THREE.Group();
+    group.position.x = offsetX;
+
+    var frameMat = new THREE.MeshStandardMaterial({ color: COLORS.RACK_FRAME, roughness: 0.7, metalness: 0.5 });
+    var railMat  = new THREE.MeshStandardMaterial({ color: COLORS.RACK_RAIL, roughness: 0.6, metalness: 0.4 });
+
+    // Four vertical posts
+    var postGeo = new THREE.BoxGeometry(RACK.POST_SIZE, RACK.OUTER_HEIGHT, RACK.POST_SIZE);
+    var postPositions = [
+        [-RACK.WIDTH / 2 + RACK.POST_SIZE / 2, RACK.OUTER_HEIGHT / 2, -RACK.DEPTH / 2 + RACK.POST_SIZE / 2],
+        [ RACK.WIDTH / 2 - RACK.POST_SIZE / 2, RACK.OUTER_HEIGHT / 2, -RACK.DEPTH / 2 + RACK.POST_SIZE / 2],
+        [-RACK.WIDTH / 2 + RACK.POST_SIZE / 2, RACK.OUTER_HEIGHT / 2,  RACK.DEPTH / 2 - RACK.POST_SIZE / 2],
+        [ RACK.WIDTH / 2 - RACK.POST_SIZE / 2, RACK.OUTER_HEIGHT / 2,  RACK.DEPTH / 2 - RACK.POST_SIZE / 2]
+    ];
+    postPositions.forEach(function(pos) {
+        var post = new THREE.Mesh(postGeo, frameMat);
+        post.position.set(pos[0], pos[1], pos[2]);
+        group.add(post);
+    });
+
+    // Top and bottom horizontal cross-bars (front and back)
+    var crossGeoFB = new THREE.BoxGeometry(RACK.WIDTH, RACK.POST_SIZE, RACK.POST_SIZE);
+    var crossGeoSide = new THREE.BoxGeometry(RACK.POST_SIZE, RACK.POST_SIZE, RACK.DEPTH);
+    [0, RACK.OUTER_HEIGHT].forEach(function(y) {
+        // Front + Back
+        [-RACK.DEPTH / 2 + RACK.POST_SIZE / 2, RACK.DEPTH / 2 - RACK.POST_SIZE / 2].forEach(function(z) {
+            var bar = new THREE.Mesh(crossGeoFB, frameMat);
+            bar.position.set(0, y + RACK.POST_SIZE / 2, z);
+            group.add(bar);
+        });
+        // Left + Right
+        [-RACK.WIDTH / 2 + RACK.POST_SIZE / 2, RACK.WIDTH / 2 - RACK.POST_SIZE / 2].forEach(function(x) {
+            var bar = new THREE.Mesh(crossGeoSide, frameMat);
+            bar.position.set(x, y + RACK.POST_SIZE / 2, 0);
+            group.add(bar);
+        });
+    });
+
+    // U-slot rail markers (thin horizontal lines on front posts)
+    var railGeo = new THREE.BoxGeometry(RACK.RAIL_DEPTH, 0.002, RACK.POST_SIZE);
+    var baseY = 0.06; // bottom offset inside frame
+    for (var u = 0; u <= RACK.TOTAL_U; u++) {
+        var y = baseY + u * RACK.U_HEIGHT;
+        [-RACK.WIDTH / 2 + RACK.POST_SIZE + RACK.RAIL_DEPTH / 2,
+         RACK.WIDTH / 2 - RACK.POST_SIZE - RACK.RAIL_DEPTH / 2].forEach(function(x) {
+            var rail = new THREE.Mesh(railGeo, railMat);
+            rail.position.set(x, y, -RACK.DEPTH / 2 + RACK.POST_SIZE / 2);
+            group.add(rail);
+        });
+    }
+
+    scene.add(group);
+    return { group: group, baseY: baseY };
+}
+
+// ── Place a 2U server node with detailed front/back ──
+
+function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskCount, portCount) {
+    var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
+    var deviceHeight = 2 * RACK.U_HEIGHT - 0.004;
+    var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+    var frontZ = -deviceDepth / 2;
+    var backZ = deviceDepth / 2;
+    var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
+    var cx = rackGroup.position.x;
+
+    var bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.3 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 });
+    var metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.7 });
+    var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.6 });
+
+    // Main chassis
+    var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
+    var body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.set(cx, y, 0);
+    scene.add(body);
+
+    // ── Front face details ──
+
+    // Front bezel (dark panel)
+    var bezelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.006, 0.003);
+    var bezel = new THREE.Mesh(bezelGeo, darkMat);
+    bezel.position.set(cx, y, frontZ - 0.002);
+    scene.add(bezel);
+
+    // Disk bay area — all drive slots on front panel
+    var numDisks = diskCount || 8;
+    var frontDisks = numDisks;
+    var diskAreaWidth = deviceWidth * 0.55;
+    var diskStartX = cx - deviceWidth / 2 + 0.02;
+    var diskSlotW = Math.min(0.02, (diskAreaWidth - 0.005) / frontDisks - 0.003);
+    var diskSlotH = deviceHeight * 0.55;
+    var diskSlotGeo = new THREE.BoxGeometry(diskSlotW, diskSlotH, 0.002);
+    var diskMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.4 });
+    var diskHandleMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 });
+
+    for (var d = 0; d < frontDisks; d++) {
+        var dx = diskStartX + d * (diskSlotW + 0.003) + diskSlotW / 2;
+        var slot = new THREE.Mesh(diskSlotGeo, diskMat);
+        slot.position.set(dx, y, frontZ - 0.004);
+        scene.add(slot);
+        var handleGeo = new THREE.BoxGeometry(diskSlotW - 0.002, 0.003, 0.001);
+        var handle = new THREE.Mesh(handleGeo, diskHandleMat);
+        handle.position.set(dx, y + diskSlotH / 2 + 0.002, frontZ - 0.005);
+        scene.add(handle);
+    }
+
+    // Status LEDs (right side of front panel)
+    var ledX = cx + deviceWidth / 2 - 0.03;
+    var ledGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
+    var led1 = new THREE.Mesh(ledGeo, ledGreen);
+    led1.position.set(ledX, y + deviceHeight * 0.2, frontZ - 0.004);
+    scene.add(led1);
+    var ledBlue = new THREE.MeshStandardMaterial({ color: 0x3399ff, emissive: 0x3399ff, emissiveIntensity: 0.4 });
+    var led2 = new THREE.Mesh(ledGeo, ledBlue);
+    led2.position.set(ledX + 0.01, y + deviceHeight * 0.2, frontZ - 0.004);
+    scene.add(led2);
+
+    // Power button (small circle-like square, right side)
+    var pwrBtnGeo = new THREE.BoxGeometry(0.008, 0.008, 0.001);
+    var pwrBtn = new THREE.Mesh(pwrBtnGeo, metalMat);
+    pwrBtn.position.set(ledX + 0.005, y - deviceHeight * 0.15, frontZ - 0.004);
+    scene.add(pwrBtn);
+
+    // Azure logo on front face (right-hand side)
+    if (_rack3d.azureLogoTexture) {
+        var logoSize = deviceHeight * 0.5;
+        var logoGeo = new THREE.PlaneGeometry(logoSize, logoSize);
+        var logoMat = new THREE.MeshBasicMaterial({
+            map: _rack3d.azureLogoTexture,
+            transparent: true,
+            depthWrite: false
+        });
+        var logoMesh = new THREE.Mesh(logoGeo, logoMat);
+        logoMesh.rotation.y = Math.PI; // face front (-Z)
+        logoMesh.position.set(cx + deviceWidth / 2 - 0.045, y, frontZ - 0.006);
+        scene.add(logoMesh);
+    }
+
+    // GPU accent stripe
+    if (isGpu) {
+        var stripeGeo = new THREE.BoxGeometry(deviceWidth - 0.01, 0.005, 0.002);
+        var stripeMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.3 });
+        var stripe = new THREE.Mesh(stripeGeo, stripeMat);
+        stripe.position.set(cx, y + deviceHeight / 2 - 0.004, frontZ - 0.005);
+        scene.add(stripe);
+    }
+
+    // ── Back face details ──
+
+    // Back panel (dark)
+    var backPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.006, 0.003);
+    var backPanel = new THREE.Mesh(backPanelGeo, darkMat);
+    backPanel.position.set(cx, y, backZ + 0.002);
+    scene.add(backPanel);
+
+    // Dual PSU modules (two rectangles at bottom-right of back)
+    var psuW = deviceWidth * 0.18;
+    var psuH = deviceHeight * 0.7;
+    var psuGeo = new THREE.BoxGeometry(psuW, psuH, 0.006);
+    var psuMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 });
+    for (var p = 0; p < 2; p++) {
+        var psuX = cx + deviceWidth / 2 - 0.02 - p * (psuW + 0.008) - psuW / 2;
+        var psu = new THREE.Mesh(psuGeo, psuMat);
+        psu.position.set(psuX, y - deviceHeight * 0.05, backZ + 0.005);
+        scene.add(psu);
+        // PSU handle
+        var psuHandleGeo = new THREE.BoxGeometry(psuW * 0.6, 0.006, 0.003);
+        var psuHandle = new THREE.Mesh(psuHandleGeo, metalMat);
+        psuHandle.position.set(psuX, y + psuH / 2 - 0.01, backZ + 0.009);
+        scene.add(psuHandle);
+    }
+
+    // Network ports (row of small rectangles on back, left side)
+    var portW = 0.012;
+    var portH = 0.01;
+    var portGeo = new THREE.BoxGeometry(portW, portH, 0.004);
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
+    var numPorts = portCount || 4;
+    var portStartX = cx - deviceWidth / 2 + 0.03;
+    for (var pt = 0; pt < numPorts; pt++) {
+        var port = new THREE.Mesh(portGeo, portMat);
+        port.position.set(portStartX + pt * (portW + 0.006), y + deviceHeight * 0.15, backZ + 0.005);
+        scene.add(port);
+    }
+
+    // BMC / management port (single port, slightly offset)
+    var bmcPort = new THREE.Mesh(portGeo, new THREE.MeshStandardMaterial({ color: 0x0078d4, roughness: 0.5, metalness: 0.4 }));
+    bmcPort.position.set(portStartX + numPorts * (portW + 0.006) + 0.01, y + deviceHeight * 0.15, backZ + 0.005);
+    scene.add(bmcPort);
+
+    // Ventilation grille (series of thin horizontal lines, center-left of back)
+    var ventMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.1 });
+    for (var v = 0; v < 6; v++) {
+        var ventGeo = new THREE.BoxGeometry(deviceWidth * 0.25, 0.002, 0.002);
+        var vent = new THREE.Mesh(ventGeo, ventMat);
+        vent.position.set(cx - deviceWidth * 0.05, y - deviceHeight * 0.2 + v * 0.008, backZ + 0.004);
+        scene.add(vent);
+    }
+
+    // Labels — fixed to front and rear faces
+    if (label) {
+        var frontLabel = makeFaceLabel(label + ' (Front)', 28, '#ffffff', 'front');
+        frontLabel.position.set(cx, y, frontZ - 0.008);
+        scene.add(frontLabel);
+        var rearLabel = makeFaceLabel(label + ' (Rear)', 28, '#ffffff', 'back');
+        rearLabel.position.set(cx, y, backZ + 0.012);
+        scene.add(rearLabel);
+    }
+
+    return body;
+}
+
+// ── Place a 1U ToR switch with ethernet ports ──
+
+function placeSwitch(scene, rackGroup, baseY, uStart, label) {
+    var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
+    var deviceHeight = 1 * RACK.U_HEIGHT - 0.004;
+    var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+    var frontZ = -deviceDepth / 2;
+    var backZ = deviceDepth / 2;
+    var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
+    var cx = rackGroup.position.x;
+
+    var switchMat = new THREE.MeshStandardMaterial({ color: COLORS.TOR_SWITCH, roughness: 0.45, metalness: 0.35 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.8, metalness: 0.2 });
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, metalness: 0.5 });
+    var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.5 });
+
+    // Main chassis
+    var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
+    var body = new THREE.Mesh(bodyGeo, switchMat);
+    body.position.set(cx, y, 0);
+    scene.add(body);
+
+    // ── Front face — clean panel with status LEDs (ports face rear) ──
+    var frontPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.004, 0.003);
+    var frontPanel = new THREE.Mesh(frontPanelGeo, darkMat);
+    frontPanel.position.set(cx, y, frontZ - 0.002);
+    scene.add(frontPanel);
+
+    // Status LEDs on front (right side)
+    var ledGeo = new THREE.BoxGeometry(0.004, 0.004, 0.001);
+    for (var li = 0; li < 3; li++) {
+        var led = new THREE.Mesh(ledGeo, ledGreen);
+        led.position.set(cx + deviceWidth / 2 - 0.02 - li * 0.008, y + deviceHeight / 2 - 0.005, frontZ - 0.004);
+        scene.add(led);
+    }
+
+    // ── Back face (rear) — ethernet ports, uplinks, PSU ──
+    var backPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.004, 0.003);
+    var backPanel = new THREE.Mesh(backPanelGeo, darkMat);
+    backPanel.position.set(cx, y, backZ + 0.002);
+    scene.add(backPanel);
+
+    // Ethernet ports — two rows of RJ45-like rectangles (rear-facing)
+    var ethW = 0.008;
+    var ethH = 0.006;
+    var ethGeo = new THREE.BoxGeometry(ethW, ethH, 0.003);
+    var ethInnerGeo = new THREE.BoxGeometry(ethW - 0.002, ethH - 0.002, 0.001);
+    var ethInnerMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+
+    var portsPerRow = 24;
+    var portSpacing = (deviceWidth - 0.08) / portsPerRow;
+    var rowStartX = cx - deviceWidth / 2 + 0.04;
+
+    for (var row = 0; row < 2; row++) {
+        var rowY = y + (row === 0 ? 0.006 : -0.006);
+        for (var ep = 0; ep < portsPerRow; ep++) {
+            var epx = rowStartX + ep * portSpacing;
+            // Port housing
+            var ethPort = new THREE.Mesh(ethGeo, portMat);
+            ethPort.position.set(epx, rowY, backZ + 0.004);
+            scene.add(ethPort);
+            // Port inner (dark hole)
+            var ethInner = new THREE.Mesh(ethInnerGeo, ethInnerMat);
+            ethInner.position.set(epx, rowY, backZ + 0.006);
+            scene.add(ethInner);
+        }
+    }
+
+    // Uplink ports (4× QSFP — larger rectangles, rear)
+    var qsfpW = 0.016;
+    var qsfpH = 0.012;
+    var qsfpGeo = new THREE.BoxGeometry(qsfpW, qsfpH, 0.004);
+    var qsfpMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 });
+    for (var q = 0; q < 4; q++) {
+        var qsfp = new THREE.Mesh(qsfpGeo, qsfpMat);
+        qsfp.position.set(cx - deviceWidth / 2 + 0.04 + q * (qsfpW + 0.008), y - deviceHeight * 0.2, backZ + 0.005);
+        scene.add(qsfp);
+    }
+
+    // PSU (single module, right side of rear)
+    var psuGeo = new THREE.BoxGeometry(deviceWidth * 0.15, deviceHeight * 0.7, 0.006);
+    var psuMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 });
+    var psu = new THREE.Mesh(psuGeo, psuMat);
+    psu.position.set(cx + deviceWidth / 2 - 0.06, y, backZ + 0.005);
+    scene.add(psu);
+
+    // Fan vents (center of rear)
+    var ventMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.1 });
+    for (var fv = 0; fv < 4; fv++) {
+        var ventLineGeo = new THREE.BoxGeometry(deviceWidth * 0.15, 0.002, 0.002);
+        var ventLine = new THREE.Mesh(ventLineGeo, ventMat);
+        ventLine.position.set(cx + 0.05, y - deviceHeight * 0.15 + fv * 0.006, backZ + 0.004);
+        scene.add(ventLine);
+    }
+
+    // Labels — fixed to front and rear faces
+    if (label) {
+        var frontLabel = makeFaceLabel(label + ' (Front)', 24, '#ffffff', 'front');
+        frontLabel.position.set(cx, y, frontZ - 0.008);
+        scene.add(frontLabel);
+        var rearLabel = makeFaceLabel(label + ' (Rear)', 24, '#ffffff', 'back');
+        rearLabel.position.set(cx, y, backZ + 0.008);
+        scene.add(rearLabel);
+    }
+
+    return body;
+}
+
+// ── Core network for rack-aware topology ─────
+
+function placeCoreNetwork(scene, rack1X, rack2X) {
+    var routerY = RACK.OUTER_HEIGHT + 0.35;
+    var routerX = (rack1X + rack2X) / 2;
+    var routerZ = 0;
+
+    // Blue core switch material
+    var routerMat = new THREE.MeshStandardMaterial({ color: 0x1a6fc4, roughness: 0.4, metalness: 0.5 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8, metalness: 0.2 });
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
+    var blueMat = new THREE.MeshBasicMaterial({ color: 0x3399ff, transparent: true, opacity: 0.7 });
+    var pinkMat = new THREE.MeshBasicMaterial({ color: 0xff66bb, transparent: true, opacity: 0.7 });
+    var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.5 });
+
+    // ── Core Switch/Router — wider 1U box ──
+    var rWidth = RACK.WIDTH * 1.2;
+    var rHeight = RACK.U_HEIGHT * 1.5;
+    var rDepth = RACK.DEPTH * 0.6;
+
+    var routerGeo = new THREE.BoxGeometry(rWidth, rHeight, rDepth);
+    var router = new THREE.Mesh(routerGeo, routerMat);
+    router.position.set(routerX, routerY, routerZ);
+    scene.add(router);
+
+    // Front panel — clean panel with LEDs (ports face rear)
+    var frontZ = routerZ - rDepth / 2;
+    var backRZ = routerZ + rDepth / 2;
+    var rpGeo = new THREE.BoxGeometry(rWidth - 0.004, rHeight - 0.004, 0.003);
+    var rPanelFront = new THREE.Mesh(rpGeo, darkMat);
+    rPanelFront.position.set(routerX, routerY, frontZ - 0.002);
+    scene.add(rPanelFront);
+
+    // Status LEDs on front
+    var rLedGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
+    for (var rl = 0; rl < 3; rl++) {
+        var rLed = new THREE.Mesh(rLedGeo, ledGreen);
+        rLed.position.set(routerX + rWidth / 2 - 0.02 - rl * 0.01, routerY + rHeight / 2 - 0.006, frontZ - 0.003);
+        scene.add(rLed);
+    }
+
+    // Rear panel — ports face rear
+    var rPanelBack = new THREE.Mesh(rpGeo.clone(), darkMat);
+    rPanelBack.position.set(routerX, routerY, backRZ + 0.002);
+    scene.add(rPanelBack);
+
+    // Router ports (rear — 8 ports)
+    var rpW = 0.014;
+    var rpH = 0.012;
+    var rpGeoPort = new THREE.BoxGeometry(rpW, rpH, 0.003);
+    for (var rp = 0; rp < 8; rp++) {
+        var rpx = routerX - rWidth / 2 + 0.04 + rp * (rpW + 0.008);
+        var port = new THREE.Mesh(rpGeoPort, portMat);
+        port.position.set(rpx, routerY, backRZ + 0.004);
+        scene.add(port);
+    }
+
+    // Label: "Core Switch / Router / Firewall" on front face of switch
+    var routerLabel = makeFaceLabel('Core Switch / Router / Firewall', 28, '#ffffff', 'front');
+    routerLabel.position.set(routerX, routerY, frontZ - 0.008);
+    scene.add(routerLabel);
+
+    // ── Small shelf/platform under router ──
+    var shelfGeo = new THREE.BoxGeometry(rWidth + 0.06, 0.01, rDepth + 0.06);
+    var shelfMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.7, metalness: 0.4 });
+    var shelf = new THREE.Mesh(shelfGeo, shelfMat);
+    shelf.position.set(routerX, routerY - rHeight / 2 - 0.005, routerZ);
+    scene.add(shelf);
+
+    // ── Cable runs ──
+    var cableRadius = 0.004;
+
+    // Helper: create a right-angle cable between two points (up, across, down)
+    function makeCable(startPos, endPos, color, arcHeight) {
+        var topY = Math.max(startPos.y, endPos.y) + (arcHeight || 0.15);
+        var midZ = (startPos.z + endPos.z) / 2;
+        // Path: start → up → across at top → down → end
+        var points = [
+            new THREE.Vector3(startPos.x, startPos.y, startPos.z),
+            new THREE.Vector3(startPos.x, topY, startPos.z),
+            new THREE.Vector3(startPos.x, topY, midZ),
+            new THREE.Vector3(endPos.x, topY, midZ),
+            new THREE.Vector3(endPos.x, topY, endPos.z),
+            new THREE.Vector3(endPos.x, endPos.y, endPos.z)
+        ];
+        // Use LineCurve segments joined together for sharp 90° bends
+        for (var i = 0; i < points.length - 1; i++) {
+            var segGeo = new THREE.TubeGeometry(
+                new THREE.LineCurve3(points[i], points[i + 1]),
+                2, cableRadius, 6, false
+            );
+            var segMesh = new THREE.Mesh(segGeo, color);
+            scene.add(segMesh);
+        }
+    }
+
+    // ToR QSFP uplink port positions (rear of switch)
+    var torDeviceH = 1 * RACK.U_HEIGHT - 0.004;
+    var torDeviceW = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
+    var torSwitchDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+    var torQsfpZ = torSwitchDepth / 2 + 0.005;
+    var qsfpW = 0.016;
+    // ToR 1 (U42) and ToR 2 (U41) center Y
+    var tor1Y = 0.06 + (42 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002;
+    var tor2Y = 0.06 + (41 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002;
+    var tor1QsfpY = tor1Y - torDeviceH * 0.2;
+    var tor2QsfpY = tor2Y - torDeviceH * 0.2;
+    var routerBottomY = routerY - rHeight / 2;
+    var routerRearZ = backRZ;
+
+    // QSFP port X offset helper (port index 0-3)
+    function qsfpX(rackCx, portIdx) {
+        return rackCx - torDeviceW / 2 + 0.04 + portIdx * (qsfpW + 0.008);
+    }
+
+    // ── Blue cables: Management/Compute Trunks (each rack's ToRs → Router) ──
+    // Rack 1 ToR 1 → Router (use QSFP port 2)
+    makeCable(
+        { x: qsfpX(rack1X, 2), y: tor1QsfpY, z: torQsfpZ },
+        { x: routerX - rWidth / 4, y: routerBottomY, z: routerRearZ },
+        blueMat, 0.12
+    );
+    // Rack 1 ToR 2 → Router (use QSFP port 3)
+    makeCable(
+        { x: qsfpX(rack1X, 3), y: tor2QsfpY, z: torQsfpZ },
+        { x: routerX - rWidth / 8, y: routerBottomY, z: routerRearZ },
+        blueMat, 0.10
+    );
+    // Rack 2 ToR 3 → Router (use QSFP port 2)
+    makeCable(
+        { x: qsfpX(rack2X, 2), y: tor1QsfpY, z: torQsfpZ },
+        { x: routerX + rWidth / 8, y: routerBottomY, z: routerRearZ },
+        blueMat, 0.10
+    );
+    // Rack 2 ToR 4 → Router (use QSFP port 3)
+    makeCable(
+        { x: qsfpX(rack2X, 3), y: tor2QsfpY, z: torQsfpZ },
+        { x: routerX + rWidth / 4, y: routerBottomY, z: routerRearZ },
+        blueMat, 0.12
+    );
+
+    // ── Pink/Magenta cables: SMB Storage Trunks (cross-rack ToR ↔ ToR, rear) ──
+    // Calculate actual TOR switch center Y positions (reuse torDeviceH from above)
+    var tor1CenterY = 0.06 + (42 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002; // U42
+    var tor2CenterY = 0.06 + (41 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002; // U41
+    var torSwitchDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+    var torBackZ = torSwitchDepth / 2 + 0.006;
+    // Start/end Y at TOR center so vertical legs reach the ports
+    var smbUpperY = tor1CenterY;
+    var smbLowerY = tor2CenterY;
+    var smbArcHeight = 0.03;
+    var smbCableR = 0.004;
+
+    // Helper: build a clean 4-point up-across-down cable (no zero-length segments)
+    function makeHCable(startX, endX, portY, arcH, z, mat) {
+        var topY = portY + arcH;
+        var pts = [
+            new THREE.Vector3(startX, portY, z),
+            new THREE.Vector3(startX, topY, z),
+            new THREE.Vector3(endX, topY, z),
+            new THREE.Vector3(endX, portY, z)
+        ];
+        for (var i = 0; i < pts.length - 1; i++) {
+            var seg = new THREE.TubeGeometry(
+                new THREE.LineCurve3(pts[i], pts[i + 1]),
+                2, smbCableR, 6, false
+            );
+            scene.add(new THREE.Mesh(seg, mat));
+        }
+    }
+
+    // SMB1 Trunk: TOR 1 (Rack 1) ↔ TOR 3 (Rack 2) — upper cable, left side of switches
+    makeHCable(rack1X - 0.12, rack2X - 0.12, smbUpperY, smbArcHeight, torBackZ, pinkMat);
+    // SMB2 Trunk: TOR 2 (Rack 1) ↔ TOR 4 (Rack 2) — lower cable, right side of switches
+    makeHCable(rack1X + 0.15, rack2X + 0.15, smbLowerY, -smbArcHeight, torBackZ, pinkMat);
+
+    // ── LAG cables between paired ToRs in each rack (rear port-to-port, 2 per pair) ──
+    var lagCableMat = new THREE.MeshBasicMaterial({ color: 0xff9933, transparent: true, opacity: 0.8 });
+    var lagCableRadius = 0.003;
+
+    // Rack 1 LAG: two cables from TOR 1 rear down to TOR 2 rear
+    var lag1aGeo = new THREE.TubeGeometry(
+        new THREE.LineCurve3(
+            new THREE.Vector3(rack1X + 0.10, tor1CenterY, torBackZ),
+            new THREE.Vector3(rack1X + 0.10, tor2CenterY, torBackZ)
+        ), 2, lagCableRadius, 6, false
+    );
+    scene.add(new THREE.Mesh(lag1aGeo, lagCableMat));
+    var lag1bGeo = new THREE.TubeGeometry(
+        new THREE.LineCurve3(
+            new THREE.Vector3(rack1X + 0.13, tor1CenterY, torBackZ),
+            new THREE.Vector3(rack1X + 0.13, tor2CenterY, torBackZ)
+        ), 2, lagCableRadius, 6, false
+    );
+    scene.add(new THREE.Mesh(lag1bGeo, lagCableMat));
+    var lag1Label = makeTextSprite('LAG', 12, '#ff9933');
+    lag1Label.position.set(rack1X + 0.115, (tor1CenterY + tor2CenterY) / 2, torBackZ + 0.03);
+    lag1Label.scale.set(0.14, 0.04, 1);
+    scene.add(lag1Label);
+
+    // Rack 2 LAG: two cables from TOR 3 rear down to TOR 4 rear
+    var lag2aGeo = new THREE.TubeGeometry(
+        new THREE.LineCurve3(
+            new THREE.Vector3(rack2X + 0.10, tor1CenterY, torBackZ),
+            new THREE.Vector3(rack2X + 0.10, tor2CenterY, torBackZ)
+        ), 2, lagCableRadius, 6, false
+    );
+    scene.add(new THREE.Mesh(lag2aGeo, lagCableMat));
+    var lag2bGeo = new THREE.TubeGeometry(
+        new THREE.LineCurve3(
+            new THREE.Vector3(rack2X + 0.13, tor1CenterY, torBackZ),
+            new THREE.Vector3(rack2X + 0.13, tor2CenterY, torBackZ)
+        ), 2, lagCableRadius, 6, false
+    );
+    scene.add(new THREE.Mesh(lag2bGeo, lagCableMat));
+    var lag2Label = makeTextSprite('LAG', 12, '#ff9933');
+    lag2Label.position.set(rack2X + 0.115, (tor1CenterY + tor2CenterY) / 2, torBackZ + 0.03);
+    lag2Label.scale.set(0.14, 0.04, 1);
+    scene.add(lag2Label);
+}
+
+// ── Core Switch/Router for standard (single-rack) clusters ──
+
+function placeStandardCoreNetwork(scene, rackX, torCount, nodeCount) {
+    var routerY = RACK.OUTER_HEIGHT + 0.35;
+    var routerX = rackX;
+    var routerZ = 0;
+
+    var routerMat = new THREE.MeshStandardMaterial({ color: 0x1a6fc4, roughness: 0.4, metalness: 0.5 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8, metalness: 0.2 });
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
+    var blueMat = new THREE.MeshBasicMaterial({ color: 0x3399ff, transparent: true, opacity: 0.7 });
+    var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.5 });
+
+    var rWidth = RACK.WIDTH * 1.0;
+    var rHeight = RACK.U_HEIGHT * 1.5;
+    var rDepth = RACK.DEPTH * 0.6;
+
+    var routerGeo = new THREE.BoxGeometry(rWidth, rHeight, rDepth);
+    var router = new THREE.Mesh(routerGeo, routerMat);
+    router.position.set(routerX, routerY, routerZ);
+    scene.add(router);
+
+    // Front panel
+    var frontZ = routerZ - rDepth / 2;
+    var backRZ = routerZ + rDepth / 2;
+    var rpGeo = new THREE.BoxGeometry(rWidth - 0.004, rHeight - 0.004, 0.003);
+    var rPanelFront = new THREE.Mesh(rpGeo, darkMat);
+    rPanelFront.position.set(routerX, routerY, frontZ - 0.002);
+    scene.add(rPanelFront);
+
+    // Status LEDs on front
+    var rLedGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
+    for (var rl = 0; rl < 3; rl++) {
+        var rLed = new THREE.Mesh(rLedGeo, ledGreen);
+        rLed.position.set(routerX + rWidth / 2 - 0.02 - rl * 0.01, routerY + rHeight / 2 - 0.006, frontZ - 0.003);
+        scene.add(rLed);
+    }
+
+    // Rear panel
+    var rPanelBack = new THREE.Mesh(rpGeo.clone(), darkMat);
+    rPanelBack.position.set(routerX, routerY, backRZ + 0.002);
+    scene.add(rPanelBack);
+
+    // Router ports (rear)
+    var rpW = 0.014;
+    var rpH = 0.012;
+    var rpGeoPort = new THREE.BoxGeometry(rpW, rpH, 0.003);
+    for (var rp = 0; rp < 8; rp++) {
+        var rpx = routerX - rWidth / 2 + 0.04 + rp * (rpW + 0.008);
+        var port = new THREE.Mesh(rpGeoPort, portMat);
+        port.position.set(rpx, routerY, backRZ + 0.004);
+        scene.add(port);
+    }
+
+    // Label
+    var routerLabel = makeFaceLabel('Core Switch / Router / Firewall', 28, '#ffffff', 'front');
+    routerLabel.position.set(routerX, routerY, frontZ - 0.008);
+    scene.add(routerLabel);
+
+    // Shelf
+    var shelfGeo = new THREE.BoxGeometry(rWidth + 0.06, 0.01, rDepth + 0.06);
+    var shelfMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.7, metalness: 0.4 });
+    var shelf = new THREE.Mesh(shelfGeo, shelfMat);
+    shelf.position.set(routerX, routerY - rHeight / 2 - 0.005, routerZ);
+    scene.add(shelf);
+
+    // Cable runs — uplinks from each ToR QSFP port to router
+    var cableRadius = 0.004;
+    var stdTorDeviceH = 1 * RACK.U_HEIGHT - 0.004;
+    var stdTorDeviceW = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
+    var stdTorSwitchDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+    var stdQsfpZ = stdTorSwitchDepth / 2 + 0.005;
+    var stdQsfpW = 0.016;
+    var stdTor1Y = 0.06 + (42 - 1) * RACK.U_HEIGHT + stdTorDeviceH / 2 + 0.002;
+    var stdTor2Y = 0.06 + (41 - 1) * RACK.U_HEIGHT + stdTorDeviceH / 2 + 0.002;
+    var stdTor1QsfpY = stdTor1Y - stdTorDeviceH * 0.2;
+    var stdTor2QsfpY = stdTor2Y - stdTorDeviceH * 0.2;
+    var routerBottomY = routerY - rHeight / 2;
+    var routerRearZ = backRZ;
+
+    function stdQsfpX(portIdx) {
+        return rackX - stdTorDeviceW / 2 + 0.04 + portIdx * (stdQsfpW + 0.008);
+    }
+
+    function makeStdCable(startPos, endPos, color, arcHeight) {
+        var topY = Math.max(startPos.y, endPos.y) + (arcHeight || 0.15);
+        var midZ = (startPos.z + endPos.z) / 2;
+        var points = [
+            new THREE.Vector3(startPos.x, startPos.y, startPos.z),
+            new THREE.Vector3(startPos.x, topY, startPos.z),
+            new THREE.Vector3(startPos.x, topY, midZ),
+            new THREE.Vector3(endPos.x, topY, midZ),
+            new THREE.Vector3(endPos.x, topY, endPos.z),
+            new THREE.Vector3(endPos.x, endPos.y, endPos.z)
+        ];
+        for (var i = 0; i < points.length - 1; i++) {
+            var segGeo = new THREE.TubeGeometry(
+                new THREE.LineCurve3(points[i], points[i + 1]),
+                2, cableRadius, 6, false
+            );
+            scene.add(new THREE.Mesh(segGeo, color));
+        }
+    }
+
+    if (nodeCount === 1) {
+        // Single node: 2 uplink cables from server rear ports to router
+        var srvDeviceW = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
+        var srvDeviceH = 2 * RACK.U_HEIGHT - 0.004;
+        var srvDeviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+        var srvBackZ = srvDeviceDepth / 2 + 0.005;
+        var srvU = RACK.TOTAL_U - 1; // server placed at U41 (serverStartU - 1) when no ToRs
+        var srvY = 0.06 + (srvU - 1) * RACK.U_HEIGHT + srvDeviceH / 2 + 0.002;
+        var srvPortW = 0.012;
+        var srvPortStartX = rackX - srvDeviceW / 2 + 0.03;
+        var srvPortY = srvY + srvDeviceH * 0.15;
+        // Cable from port 0
+        makeStdCable(
+            { x: srvPortStartX + 0 * (srvPortW + 0.006) + srvPortW / 2, y: srvPortY, z: srvBackZ },
+            { x: routerX - rWidth / 4, y: routerBottomY, z: routerRearZ },
+            blueMat, 0.12
+        );
+        // Cable from port 1
+        makeStdCable(
+            { x: srvPortStartX + 1 * (srvPortW + 0.006) + srvPortW / 2, y: srvPortY, z: srvBackZ },
+            { x: routerX + rWidth / 4, y: routerBottomY, z: routerRearZ },
+            blueMat, 0.10
+        );
+    } else {
+        // ToR 1 → Router (QSFP port 2)
+        makeStdCable(
+            { x: stdQsfpX(2), y: stdTor1QsfpY, z: stdQsfpZ },
+            { x: routerX - rWidth / 4, y: routerBottomY, z: routerRearZ },
+            blueMat, 0.12
+        );
+        // ToR 2 → Router (QSFP port 3, if present)
+        if (torCount >= 2) {
+            makeStdCable(
+                { x: stdQsfpX(3), y: stdTor2QsfpY, z: stdQsfpZ },
+                { x: routerX + rWidth / 4, y: routerBottomY, z: routerRearZ },
+                blueMat, 0.10
+            );
+        }
+    }
+}
+
+// ── Main render function ─────────────────────
+
+function renderRack3D(config) {
+    if (typeof THREE === 'undefined') {
+        console.warn('rack3d: Three.js not loaded');
+        return;
+    }
+    _rack3d.lastConfig = config;
+
+    var container = document.getElementById('rack-viz-container');
+    var canvasEl = document.getElementById('rack-3d-canvas');
+    if (!container || !canvasEl) return;
+
+    // Show the section — only when there's something to render
+    var section = document.getElementById('rack-viz-section');
+    if (section) section.style.display = 'block';
+
+    // Determine rack layout
+    var isRackAware = config.clusterType === 'rack-aware';
+    var rackCount = isRackAware ? 2 : 1;
+    var nodeCount = config.nodeCount || 2;
+    var torPerRack = nodeCount > 1 ? 2 : 0;
+
+    // Distribute nodes across racks
+    var racks = [];
+    if (isRackAware) {
+        var half = Math.ceil(nodeCount / 2);
+        racks.push({ nodes: half, tor: torPerRack });
+        racks.push({ nodes: nodeCount - half, tor: torPerRack });
+    } else {
+        racks.push({ nodes: nodeCount, tor: torPerRack });
+    }
+
+    // Initialize Three.js (once)
+    if (!_rack3d.initialized) {
+        _rack3d.scene = new THREE.Scene();
+        _rack3d.camera = new THREE.PerspectiveCamera(45, canvasEl.clientWidth / canvasEl.clientHeight, 0.01, 50);
+        _rack3d.renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: false });
+        _rack3d.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        _rack3d.renderer.setSize(canvasEl.clientWidth, canvasEl.clientHeight);
+        _rack3d.renderer.setClearColor(0x0a0a0a);
+
+        // Load Azure logo texture
+        var loader = new THREE.TextureLoader();
+        loader.load('../images/azure-logo.png', function(tex) {
+            tex.minFilter = THREE.LinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            _rack3d.azureLogoTexture = tex;
+            // Re-render so logos appear on initial load
+            if (_rack3d.lastConfig) {
+                renderRack3D(_rack3d.lastConfig);
+            }
+        });
+
+        // OrbitControls
+        _rack3d.controls = new THREE.OrbitControls(_rack3d.camera, canvasEl);
+        _rack3d.controls.enableDamping = true;
+        _rack3d.controls.dampingFactor = 0.08;
+        _rack3d.controls.minDistance = 0.5;
+        _rack3d.controls.maxDistance = 6;
+        _rack3d.controls.maxPolarAngle = Math.PI / 2 + 0.1; // slight below-horizon
+
+        // Resize observer
+        var ro = new ResizeObserver(function() {
+            var w = canvasEl.clientWidth;
+            var h = canvasEl.clientHeight;
+            if (w === 0 || h === 0) return;
+            _rack3d.camera.aspect = w / h;
+            _rack3d.camera.updateProjectionMatrix();
+            _rack3d.renderer.setSize(w, h);
+        });
+        ro.observe(canvasEl);
+
+        // Animation loop
+        function animate() {
+            _rack3d.animId = requestAnimationFrame(animate);
+            _rack3d.controls.update();
+            _rack3d.renderer.render(_rack3d.scene, _rack3d.camera);
+        }
+        animate();
+        _rack3d.initialized = true;
+    }
+
+    // Clear previous scene contents
+    clearScene(_rack3d.scene);
+
+    // Lighting
+    var ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    _rack3d.scene.add(ambient);
+
+    var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(2, 3, 2);
+    _rack3d.scene.add(dirLight);
+
+    var fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    fillLight.position.set(-2, 1, -1);
+    _rack3d.scene.add(fillLight);
+
+    // Floor plane
+    var floorSize = isRackAware ? 8 : 6;
+    var floorGeo = new THREE.PlaneGeometry(floorSize, floorSize);
+    var floorMat = new THREE.MeshStandardMaterial({ color: COLORS.FLOOR, roughness: 1 });
+    var floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0;
+    _rack3d.scene.add(floor);
+
+    // Build racks
+    var totalWidth = rackCount * RACK.WIDTH + (rackCount - 1) * RACK.GAP_BETWEEN;
+    var startX = -totalWidth / 2 + RACK.WIDTH / 2;
+
+    for (var r = 0; r < rackCount; r++) {
+        // For rack-aware, build in reverse order so Rack 1 appears on viewer's left
+        var rackIndex = isRackAware ? (rackCount - 1 - r) : r;
+        var offsetX = startX + r * (RACK.WIDTH + RACK.GAP_BETWEEN);
+        var rack = buildRackFrame(_rack3d.scene, offsetX);
+        var rackInfo = racks[rackIndex];
+
+        // Place ToR switches at top of rack (U41, U42)
+        for (var t = 0; t < rackInfo.tor; t++) {
+            var torU = RACK.TOTAL_U - t; // 42, 41
+            var torNum = isRackAware ? (rackIndex * 2 + t + 1) : (t + 1);
+            var torLabel = 'TOR ' + torNum;
+            placeSwitch(_rack3d.scene, rack.group, rack.baseY, torU, torLabel);
+        }
+
+        // Place server nodes below switches, from top down
+        var topServerU = RACK.TOTAL_U - rackInfo.tor; // first available U below switches
+        for (var n = 0; n < rackInfo.nodes; n++) {
+            var serverStartU = topServerU - (n * 2); // 2U per server, top-down
+            if (serverStartU < 1) break;
+            var color = COLORS.SERVER;
+            var nodeLabel = isRackAware
+                ? 'R' + (rackIndex + 1) + ' Node ' + (n + 1)
+                : 'Node ' + (n + 1);
+            placeServer(_rack3d.scene, rack.group, rack.baseY, serverStartU - 1, color,
+                nodeLabel, false, config.diskCount || 8, config.portCount || 4);
+        }
+
+        // Rack label above (just above the rack frame, below the core router)
+        var rackLabel = isRackAware ? 'Rack ' + (rackIndex + 1) : '42U Rack';
+        var labelY = RACK.OUTER_HEIGHT + 0.08;
+        var rackSprite = makeTextSprite(rackLabel, 28, '#ffffff');
+        rackSprite.position.set(offsetX - RACK.WIDTH / 2, labelY, -RACK.DEPTH / 2);
+        rackSprite.scale.set(0.5, 0.12, 1);
+        _rack3d.scene.add(rackSprite);
+    }
+
+    // Core network for rack-aware topology
+    if (isRackAware) {
+        var rack1X = startX;
+        var rack2X = startX + (RACK.WIDTH + RACK.GAP_BETWEEN);
+        placeCoreNetwork(_rack3d.scene, rack1X, rack2X);
+    } else {
+        // Core switch/router for standard (single-rack) clusters
+        placeStandardCoreNetwork(_rack3d.scene, startX, torPerRack, nodeCount);
+    }
+
+    // LAG cables for standard (non-rack-aware) clusters with 2 ToRs
+    if (!isRackAware && torPerRack >= 2) {
+        var stdTorDeviceH = 1 * RACK.U_HEIGHT - 0.004;
+        var stdTor1Y = 0.06 + (42 - 1) * RACK.U_HEIGHT + stdTorDeviceH / 2 + 0.002;
+        var stdTor2Y = 0.06 + (41 - 1) * RACK.U_HEIGHT + stdTorDeviceH / 2 + 0.002;
+        var stdSwitchDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+        var stdTorBackZ = stdSwitchDepth / 2 + 0.006;
+        var stdLagMat = new THREE.MeshBasicMaterial({ color: 0xff9933, transparent: true, opacity: 0.8 });
+        var stdRackX = startX;
+        var stdLag1Geo = new THREE.TubeGeometry(
+            new THREE.LineCurve3(
+                new THREE.Vector3(stdRackX + 0.10, stdTor1Y, stdTorBackZ),
+                new THREE.Vector3(stdRackX + 0.10, stdTor2Y, stdTorBackZ)
+            ), 2, 0.003, 6, false
+        );
+        _rack3d.scene.add(new THREE.Mesh(stdLag1Geo, stdLagMat));
+        var stdLag2Geo = new THREE.TubeGeometry(
+            new THREE.LineCurve3(
+                new THREE.Vector3(stdRackX + 0.13, stdTor1Y, stdTorBackZ),
+                new THREE.Vector3(stdRackX + 0.13, stdTor2Y, stdTorBackZ)
+            ), 2, 0.003, 6, false
+        );
+        _rack3d.scene.add(new THREE.Mesh(stdLag2Geo, stdLagMat));
+        var stdLagLabel = makeTextSprite('LAG', 12, '#ff9933');
+        stdLagLabel.position.set(stdRackX + 0.115, (stdTor1Y + stdTor2Y) / 2, stdTorBackZ + 0.03);
+        stdLagLabel.scale.set(0.14, 0.04, 1);
+        _rack3d.scene.add(stdLagLabel);
+    }
+
+    // Camera position — front-left, tight on rack body (minimal floor)
+    var camDist, camTargetY;
+    if (isRackAware) {
+        // Front-left view, slight downward angle onto racks + core router
+        var routerTopY = RACK.OUTER_HEIGHT + 0.35 + 0.05; // top of core router
+        camDist = 1.95;
+        camTargetY = RACK.OUTER_HEIGHT * 0.85;
+        _rack3d.camera.position.set(0.65, routerTopY * 1.1, -camDist);
+    } else {
+        // Auto-zoom based on node count — more nodes need wider view
+        var stdRouterTopY = RACK.OUTER_HEIGHT + 0.35 + 0.05;
+        if (nodeCount >= 16) {
+            camDist = 4.8;
+        } else if (nodeCount >= 13) {
+            camDist = 4.3;
+        } else if (nodeCount >= 10) {
+            camDist = 3.8;
+        } else if (nodeCount >= 6) {
+            camDist = 3.4;
+        } else {
+            camDist = 3.0;
+        }
+        camTargetY = RACK.OUTER_HEIGHT * 0.8;
+        _rack3d.camera.position.set(0.55, stdRouterTopY * 1.05, -camDist * 0.65);
+    }
+    _rack3d.controls.target.set(0, camTargetY, 0);
+    _rack3d.controls.update();
+
+    // Update legend text
+    var usedU = document.getElementById('rack-viz-used-u');
+    var totalU = document.getElementById('rack-viz-total-u');
+    if (usedU && totalU) {
+        var nodesU = nodeCount * 2;
+        var switchesU = torPerRack * rackCount;
+        usedU.textContent = (nodesU + switchesU) + 'U used';
+        totalU.textContent = (RACK.TOTAL_U * rackCount) + 'U total';
+    }
+
+    // Toggle rack-aware note visibility
+    var rackAwareNote = document.getElementById('rack-viz-rackaware-note');
+    if (rackAwareNote) {
+        rackAwareNote.style.display = isRackAware ? 'inline' : 'none';
+    }
+}
+
+// ── Toggle collapse ──────────────────────────
+
+function toggleRackViz() {
+    var container = document.getElementById('rack-viz-container');
+    var arrow = document.getElementById('rack-viz-toggle-arrow');
+    if (!container) return;
+    var isCollapsed = container.classList.toggle('collapsed');
+    if (arrow) {
+        arrow.classList.toggle('collapsed', isCollapsed);
+    }
+}
