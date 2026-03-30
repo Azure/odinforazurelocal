@@ -4177,13 +4177,21 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         section.style.display = 'none';
         // Still show 3D rack visualization with default config
         if (typeof renderRack3D === 'function') {
+            var isTieredEmpty = document.getElementById('storage-type') && document.getElementById('storage-type').value === 'tiered';
+            var emptyDiskCount = 8;
+            if (isTieredEmpty) {
+                emptyDiskCount = (parseInt(document.getElementById('cache-disk-count').value, 10) || 2)
+                               + (parseInt(document.getElementById('tiered-capacity-disk-count').value, 10) || 4);
+            } else {
+                emptyDiskCount = parseInt(document.getElementById('capacity-disk-count').value, 10) || 4;
+            }
             renderRack3D({
                 clusterType: document.getElementById('cluster-type').value || 'standard',
                 nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
                 hasGpu: false,
                 gpuModel: '',
                 perNodeWatts: 0,
-                diskCount: 8,
+                diskCount: emptyDiskCount,
                 portCount: _designerPortCount || 4
             });
         }
