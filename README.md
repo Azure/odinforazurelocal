@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.18.02 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.18.03 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -40,8 +40,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.18.02 - Latest Release
-- **Designer: Fix NIC `overrideAdapterProperty` ([#187](https://github.com/Azure/odinforazurelocal/issues/187))**: Fixed a bug where disabling RDMA on NICs assigned to the Management+Compute intent (e.g., in a switchless 4+ NIC configuration) would generate `"overrideAdapterProperty": false` in the ARM parameter JSON instead of `true` — the override flag now correctly activates when NIC-level RDMA is changed at Step 07 or auto-disabled at Step 08
+### 🎉 Version 0.18.03 - Latest Release
+- **ARM Parameters: Fix Custom Location Name ([#189](https://github.com/Azure/odinforazurelocal/issues/189))**: Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the `customLocation` value in the generated parameter JSON — the update code referenced a mismatched key (`customLocationName` instead of `customLocation`)
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -329,7 +329,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.18.01  
+**Version**: 0.18.03  
 **Last Updated**: March 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -344,6 +344,9 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.18.x Series (March 2026)
+
+#### 0.18.03 - ARM Parameters: Fix Custom Location Name (#189)
+- **Fix Custom Location Name ([#189](https://github.com/Azure/odinforazurelocal/issues/189))**: Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the `customLocation` value in the generated parameter JSON — the update code referenced a mismatched key (`customLocationName` instead of `customLocation`)
 
 #### 0.18.02 - Designer: Fix NIC overrideAdapterProperty (#187)
 - **Fix NIC `overrideAdapterProperty` ([#187](https://github.com/Azure/odinforazurelocal/issues/187))**: Fixed a bug where disabling RDMA on NICs assigned to the Management+Compute intent (e.g., in a switchless 4+ NIC configuration) would generate `"overrideAdapterProperty": false` in the ARM parameter JSON instead of `true`

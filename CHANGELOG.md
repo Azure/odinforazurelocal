@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.18.03] - 2026-03-30
+
+### Fixed
+
+#### ARM Parameters: Fix Custom Location Name (fixes #189)
+- **Fix `customLocation` parameter key**: Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the `customLocation` value in the generated parameter JSON — the update code referenced a mismatched key (`customLocationName` instead of `customLocation`)
+- **Pre-population fix**: The custom location input field also now correctly pre-populates from the parameter JSON when loading a template
+
+---
+
 ## [0.18.02] - 2026-03-26
 
 ### Fixed
