@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.18.04] - 2026-03-30
+
+### Added
+
+#### Sizer: 3D Rack Visualization
+- **Interactive 3D rack preview**: Renders 42U open-frame server cabinets using Three.js (MIT) with detailed 2U server nodes (disk bays with pull handles, status LEDs, Azure logo, dual PSUs, network ports, BMC port, ventilation grille) and 1U ToR switches (48-port ethernet in two rows, QSFP uplinks, fan vents)
+- **Rack-aware support**: Rack-aware deployments render two side-by-side cabinets with balanced node distribution
+- **Dynamic updates**: Visualization re-renders in real-time as sizer inputs change (node count, cluster type, GPU presence, disk configuration)
+- **Interactive controls**: Mouse drag to rotate, scroll to zoom, right-drag to pan; touch-device friendly
+- **Azure branding**: Microsoft Azure logo overlay in top-right corner, Azure "A" logo on each server node front panel
+- **Collapsible section**: Toggle visibility via header click; hidden during print/PDF export
+
+---
+
 ## [0.18.03] - 2026-03-30
 
 ### Fixed

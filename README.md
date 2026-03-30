@@ -1,6 +1,6 @@
 # Odin for Azure Local
 
-## Version 0.18.03 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.18.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates ARM parameters for deployment with automated deployment scripts. The Sizer Tool (preview) can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements.
 
@@ -40,8 +40,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.18.03 - Latest Release
-- **ARM Parameters: Fix Custom Location Name ([#189](https://github.com/Azure/odinforazurelocal/issues/189))**: Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the `customLocation` value in the generated parameter JSON — the update code referenced a mismatched key (`customLocationName` instead of `customLocation`)
+### 🎉 Version 0.18.04 - Latest Release
+- **Sizer: 3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays, LEDs, Azure logo, dual PSUs, network ports) and 1U ToR switches (48-port ethernet, QSFP uplinks). Rack-aware deployments show two cabinets with balanced node distribution. Supports mouse rotate/zoom/pan and touch controls.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -329,7 +329,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.18.03  
+**Version**: 0.18.04  
 **Last Updated**: March 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -344,6 +344,13 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.18.x Series (March 2026)
+
+#### 0.18.04 - Sizer: 3D Rack Visualization
+- **3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js (MIT) — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays with pull handles, status LEDs, Azure logo, dual PSUs, network ports, BMC port, ventilation grille) and 1U ToR switches (48-port ethernet in two rows, QSFP uplinks, fan vents)
+- **Rack-Aware Support**: Rack-aware deployments render two side-by-side cabinets with balanced node distribution
+- **Dynamic Updates**: Rack visualization updates in real-time as sizer inputs change (node count, cluster type, GPU, disk configuration)
+- **Interactive Controls**: Mouse drag to rotate, scroll to zoom, right-drag to pan; touch-friendly
+- **Azure Branding**: Microsoft Azure logo overlay and Azure "A" logo on each server node front panel
 
 #### 0.18.03 - ARM Parameters: Fix Custom Location Name (#189)
 - **Fix Custom Location Name ([#189](https://github.com/Azure/odinforazurelocal/issues/189))**: Fixed a bug where the "Custom Location Name" input field on the ARM Parameters page was not updating the `customLocation` value in the generated parameter JSON — the update code referenced a mismatched key (`customLocationName` instead of `customLocation`)

@@ -4167,6 +4167,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 
     if (workloads.length === 0) {
         section.style.display = 'none';
+        var rackVizSection = document.getElementById('rack-viz-section');
+        if (rackVizSection) rackVizSection.style.display = 'none';
         return;
     }
 
@@ -4228,6 +4230,27 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
     document.getElementById('rack-units').textContent = rackUnits + 'U';
     section.style.display = 'block';
+
+    // Update 3D rack visualization
+    if (typeof renderRack3D === 'function') {
+        var diskTotal = 0;
+        if (hwConfig.diskConfig) {
+            if (hwConfig.diskConfig.isTiered) {
+                diskTotal = (hwConfig.diskConfig.cache ? hwConfig.diskConfig.cache.count : 0)
+                          + (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.count : 0);
+            } else {
+                diskTotal = hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.count : 4;
+            }
+        }
+        renderRack3D({
+            clusterType: document.getElementById('cluster-type').value,
+            nodeCount: nodeCount,
+            hasGpu: hwConfig.gpuCount > 0,
+            gpuModel: hwConfig.gpuType || '',
+            perNodeWatts: perNodeW,
+            diskCount: diskTotal || 8
+        });
+    }
 }
 
 // Update sizing notes
