@@ -1295,6 +1295,9 @@ let _cpuConfigUserSet = false;
 // Track whether the user manually set the node count (prevents auto-node-recommendation from overriding)
 let _nodeCountUserSet = false;
 
+// Physical port count from Designer (default 4 if user hasn't come from Designer)
+let _designerPortCount = 4;
+
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
 let _diskSizeUserSet = false;
@@ -2203,6 +2206,11 @@ function checkForDesignerImport() {
         updateStorageForClusterType();
         updateResiliencyOptions();
         updateAldoWorkloadButtons();
+
+        // Store physical port count from Designer for 3D rack visualization
+        if (payload.ports) {
+            _designerPortCount = parseInt(payload.ports, 10) || 4;
+        }
 
         // Apply node count (after node options are updated for the cluster type)
         // Mark as MANUAL so auto-scaling does not override the Designer's node count
@@ -4167,8 +4175,18 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 
     if (workloads.length === 0) {
         section.style.display = 'none';
-        var rackVizSection = document.getElementById('rack-viz-section');
-        if (rackVizSection) rackVizSection.style.display = 'none';
+        // Still show 3D rack visualization with default config
+        if (typeof renderRack3D === 'function') {
+            renderRack3D({
+                clusterType: document.getElementById('cluster-type').value || 'standard',
+                nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
+                hasGpu: false,
+                gpuModel: '',
+                perNodeWatts: 0,
+                diskCount: 8,
+                portCount: _designerPortCount || 4
+            });
+        }
         return;
     }
 
@@ -4248,7 +4266,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             hasGpu: hwConfig.gpuCount > 0,
             gpuModel: hwConfig.gpuType || '',
             perNodeWatts: perNodeW,
-            diskCount: diskTotal || 8
+            diskCount: diskTotal || 8,
+            portCount: _designerPortCount || 4
         });
     }
 }

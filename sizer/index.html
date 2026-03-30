@@ -142,6 +142,7 @@
                         </svg>
                         <p>No workloads added yet</p>
                         <span>Click a workload type above to get started</span>
+                        <a href="#rack-viz-section" style="color: #60a5fa; text-decoration: underline; margin-top: 8px; display: inline-block;">View an example 3D visualization of the hardware below</a>
                     </div>
                 </div>
 
@@ -785,12 +786,15 @@
                 <img src="../images/microsoft-azure-logo-large.png" alt="Microsoft Azure" class="rack-viz-logo">
                 <div class="rack-viz-controls">
                     <div class="hint">
-                        🖱️ Drag to rotate · Scroll to zoom · Right-drag to pan
+                        &#128161; Tip: Left-click and hold to rotate · Scroll to zoom · Right-click and hold to move
                     </div>
                     <div class="rack-viz-legend">
-                        <span class="legend-item"><span class="legend-swatch" style="background:#0065b8;"></span> Server Node</span>
-                        <span class="legend-item"><span class="legend-swatch" style="background:#d97706;"></span> GPU Node</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#aaaaaa;"></span> Server Node</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#059669;"></span> ToR Switch</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#1a6fc4;"></span> Core Router</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#3399ff;"></span> Mgmt/Compute</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#ff66bb;"></span> SMB Trunk</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#ff9933;"></span> LAG</span>
                         <span class="legend-item" id="rack-viz-used-u"></span>
                         <span class="legend-item"> / </span>
                         <span class="legend-item" id="rack-viz-total-u"></span>
@@ -802,7 +806,7 @@
                     <circle cx="12" cy="12" r="10"/>
                     <path d="M12 16v-4M12 8h.01"/>
                 </svg>
-                <span>Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. Rack-aware deployments show balanced distribution across two cabinets.<br>⚠️ This is an approximate representation only, contact your preferred OEM hardware partner for accurate details and information.</span>
+                <span>Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.</span>
             </div>
         </section>
 
@@ -892,7 +896,7 @@
     <!-- Three.js (MIT) for 3D Rack Visualization -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="rack3d.js"></script>
+    <script src="rack3d.js?v=20260330y"></script>
     <script src="sizer.js"></script>
 </body>
 </html>

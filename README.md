@@ -41,7 +41,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 ### 🎉 Version 0.18.04 - Latest Release
-- **Sizer: 3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays, LEDs, Azure logo, dual PSUs, network ports) and 1U ToR switches (48-port ethernet, QSFP uplinks). Rack-aware deployments show two cabinets with balanced node distribution. Supports mouse rotate/zoom/pan and touch controls.
+- **Sizer: 3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays, LEDs, Azure logo, dual PSUs, network ports) and 1U ToR switches (48-port ethernet, QSFP uplinks). Rack-aware deployments show two cabinets with core switch/router, SMB trunk cables, LAG inter-switch links, and management/compute uplinks. Supports mouse rotate/zoom/pan and touch controls.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -347,9 +347,10 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 #### 0.18.04 - Sizer: 3D Rack Visualization
 - **3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js (MIT) — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays with pull handles, status LEDs, Azure logo, dual PSUs, network ports, BMC port, ventilation grille) and 1U ToR switches (48-port ethernet in two rows, QSFP uplinks, fan vents)
-- **Rack-Aware Support**: Rack-aware deployments render two side-by-side cabinets with balanced node distribution
-- **Dynamic Updates**: Rack visualization updates in real-time as sizer inputs change (node count, cluster type, GPU, disk configuration)
-- **Interactive Controls**: Mouse drag to rotate, scroll to zoom, right-drag to pan; touch-friendly
+- **Rack-Aware Support**: Rack-aware deployments render two side-by-side cabinets with balanced node distribution, blue core switch/router above racks
+- **Network Topology**: Rack-aware view includes management/compute uplink cables (blue) from each ToR to the core router, SMB storage trunk cables (pink) between cross-rack ToR pairs, and LAG inter-switch links (orange) between paired ToRs in each rack
+- **Dynamic Updates**: Rack visualization updates in real-time as sizer inputs change (node count, cluster type, disk configuration)
+- **Interactive Controls**: Left-click and hold to rotate, scroll to zoom, right-click and hold to move; touch-friendly
 - **Azure Branding**: Microsoft Azure logo overlay and Azure "A" logo on each server node front panel
 
 #### 0.18.03 - ARM Parameters: Fix Custom Location Name (#189)

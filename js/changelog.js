@@ -61,9 +61,10 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🖥️ Sizer: 3D Rack Visualization</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Interactive 3D rack preview:</strong> Renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays, LEDs, Azure logo, dual PSUs, network ports) and 1U ToR switches (48-port ethernet, QSFP uplinks).</li>
-                        <li><strong>Rack-aware support:</strong> Rack-aware deployments render two side-by-side cabinets with balanced node distribution.</li>
-                        <li><strong>Dynamic updates:</strong> Visualization re-renders in real-time as sizer inputs change (node count, cluster type, GPU, disk config).</li>
-                        <li><strong>Interactive controls:</strong> Mouse drag to rotate, scroll to zoom, right-drag to pan. Touch-device friendly.</li>
+                        <li><strong>Rack-aware support:</strong> Rack-aware deployments render two side-by-side cabinets with balanced node distribution and blue core switch/router.</li>
+                        <li><strong>Network topology:</strong> Management/compute uplinks (blue), SMB storage trunks (pink) between cross-rack ToR pairs, and LAG inter-switch links (orange) between paired ToRs.</li>
+                        <li><strong>Dynamic updates:</strong> Visualization re-renders in real-time as sizer inputs change (node count, cluster type, disk config).</li>
+                        <li><strong>Interactive controls:</strong> Left-click and hold to rotate, scroll to zoom, right-click and hold to move. Touch-device friendly.</li>
                         <li><strong>Azure branding:</strong> Microsoft Azure logo overlay and Azure "A" logo on each server node.</li>
                     </ul>
                 </div>
