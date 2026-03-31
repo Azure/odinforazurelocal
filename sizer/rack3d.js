@@ -3,8 +3,8 @@
    Uses Three.js (MIT) to render server cabinets
    ============================================ */
 
-// Module-scoped state
-var _rack3d = {
+// Module-scoped state (attach to globalThis to survive re-evaluation)
+var _rack3d = ((typeof window !== 'undefined' ? window : globalThis)._rack3d) || {
     scene: null,
     camera: null,
     renderer: null,
@@ -13,8 +13,11 @@ var _rack3d = {
     canvas: null,
     initialized: false,
     azureLogoTexture: null,
-    lastConfig: null
+    lastConfig: null,
+    visible: true,
+    intersectionObserver: null
 };
+(typeof window !== 'undefined' ? window : globalThis)._rack3d = _rack3d;
 
 // ── Constants ────────────────────────────────
 var RACK = {
@@ -927,6 +930,9 @@ function renderRack3D(config) {
                 renderRack3D(_rack3d.lastConfig);
             }
         };
+        svgImg.onerror = function(err) {
+            console.error('Failed to load Azure Local logo texture from ../images/azurelocal-machine.svg', err);
+        };
         svgImg.src = '../images/azurelocal-machine.svg';
 
         // OrbitControls
@@ -937,19 +943,41 @@ function renderRack3D(config) {
         _rack3d.controls.maxDistance = 6;
         _rack3d.controls.maxPolarAngle = Math.PI / 2 + 0.1; // slight below-horizon
 
-        // Resize observer
+        // Resize observer (debounced to avoid excessive updates)
+        var resizeTimeout;
         var ro = new ResizeObserver(function() {
-            var w = canvasEl.clientWidth;
-            var h = canvasEl.clientHeight;
-            if (w === 0 || h === 0) return;
-            _rack3d.camera.aspect = w / h;
-            _rack3d.camera.updateProjectionMatrix();
-            _rack3d.renderer.setSize(w, h);
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function() {
+                var w = canvasEl.clientWidth;
+                var h = canvasEl.clientHeight;
+                if (w === 0 || h === 0) return;
+                _rack3d.camera.aspect = w / h;
+                _rack3d.camera.updateProjectionMatrix();
+                _rack3d.renderer.setSize(w, h);
+            }, 50);
         });
         ro.observe(canvasEl);
 
-        // Animation loop
+        // Visibility observer — pause rendering when canvas is not visible
+        _rack3d.visible = true;
+        if ('IntersectionObserver' in window && !_rack3d.intersectionObserver) {
+            _rack3d.intersectionObserver = new IntersectionObserver(function(entries) {
+                var entry = entries[0];
+                if (!entry) return;
+                _rack3d.visible = !!entry.isIntersecting;
+                if (_rack3d.visible && _rack3d.animId === null) {
+                    animate();
+                }
+            }, { threshold: 0.01 });
+            _rack3d.intersectionObserver.observe(canvasEl);
+        }
+
+        // Animation loop (pauses when not visible)
         function animate() {
+            if (!_rack3d.visible) {
+                _rack3d.animId = null;
+                return;
+            }
             _rack3d.animId = requestAnimationFrame(animate);
             _rack3d.controls.update();
             _rack3d.renderer.render(_rack3d.scene, _rack3d.camera);

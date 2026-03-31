@@ -2752,8 +2752,10 @@ header .header-description {
     font-weight: 600;
 }
 
-.onboarding-btn-primary:hover {
-    transform: none;
+@media (hover: none) and (pointer: coarse) {
+    .onboarding-btn-primary:hover {
+        transform: none;
+    }
 }
 
 /* Ensure tap feedback */

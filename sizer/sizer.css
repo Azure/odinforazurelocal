@@ -574,21 +574,23 @@ header .header-description {
     align-items: center;
     justify-content: center;
     border-radius: 12px;
+    background: var(--workload-icon-bg, var(--subtle-bg));
+    color: var(--workload-icon-color, var(--text-primary));
 }
 
 .workload-icon.vm {
-    background: rgba(0, 120, 212, 0.15);
-    color: var(--accent-blue);
+    --workload-icon-bg: rgba(0, 120, 212, 0.15);
+    --workload-icon-color: var(--accent-blue);
 }
 
 .workload-icon.aks {
-    background: rgba(139, 92, 246, 0.15);
-    color: var(--accent-purple);
+    --workload-icon-bg: rgba(139, 92, 246, 0.15);
+    --workload-icon-color: var(--accent-purple);
 }
 
 .workload-icon.avd {
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--accent-green);
+    --workload-icon-bg: rgba(16, 185, 129, 0.15);
+    --workload-icon-color: var(--accent-green);
 }
 
 .workload-type-btn span {
