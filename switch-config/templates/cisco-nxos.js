@@ -523,16 +523,20 @@
             '[SNMP_COMMUNITY_RW]': infra.snmpRw
         };
         // Cisco uses generic [TACACS_SERVER_IP] for both servers
+        // Template has 4 occurrences: tacacs-server host ×2, aaa group server ×2
+        // Replace alternating: server1, server2, server1, server2
         if (infra.tacacsServer1 || infra.tacacsServer2) {
-            // Replace sequentially: first occurrence → server1, second → server2
             var s1 = infra.tacacsServer1 || infra.tacacsServer2;
             var s2 = infra.tacacsServer2 || infra.tacacsServer1;
-            var idx = text.indexOf('[TACACS_SERVER_IP]');
-            if (idx !== -1) {
-                text = text.substring(0, idx) + s1 + text.substring(idx + '[TACACS_SERVER_IP]'.length);
+            var tacacsToken = '[TACACS_SERVER_IP]';
+            var useFirst = true;
+            var idx = text.indexOf(tacacsToken);
+            while (idx !== -1) {
+                var replacement = useFirst ? s1 : s2;
+                text = text.substring(0, idx) + replacement + text.substring(idx + tacacsToken.length);
+                useFirst = !useFirst;
+                idx = text.indexOf(tacacsToken, idx + replacement.length);
             }
-            // Replace all remaining [TACACS_SERVER_IP] with s2
-            text = text.split('[TACACS_SERVER_IP]').join(s2);
         }
         // Cisco uses [PLACEHOLDER] for SNMP (from original template)
         if (infra.snmpRo || infra.snmpRw) {

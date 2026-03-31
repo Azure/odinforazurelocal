@@ -98,7 +98,7 @@
     // ── Draw a server node (2U) with optional GPU accent ──
     function drawServer(ox, oy, uStart, label, isGpu) {
         var parts = [];
-        var color = isGpu ? C.SERVER : C.SERVER;
+        var color = isGpu ? C.SERVER_GPU : C.SERVER;
         parts.push(drawDevice(ox, oy, uStart, 2, color, label, C.LABEL_LIGHT));
 
         // GPU accent stripe
@@ -198,10 +198,12 @@
         // Title
         parts.push('<text x="' + (svgW / 2) + '" y="20" text-anchor="middle" font-size="13" font-weight="600" fill="#ccc" font-family="Segoe UI, sans-serif">Rack Layout — Front View</text>');
         // Brand: instance icon + "Azure Local" text (top-right)
+        // Icon is inlined as a data URI so the exported SVG is standalone
+        var ICON_DATA_URI = 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMTI4IDEyOCIgY2xhc3M9IiIgcm9sZT0icHJlc2VudGF0aW9uIiBmb2N1c2FibGU9ImZhbHNlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiBpZD0iRnhTeW1ib2wwLTEyMyIgZGF0YS10eXBlPSIxIj48Zz48dGl0bGU+PC90aXRsZT48cGF0aCBkPSJNMTI1LjI1IDEwNy41MTNjLTEuMTMgNC45NzgtNy4zMTcgOS44MjctMTguNDg4IDEzLjYyNWExNTIuNTcxIDE1Mi41NzEgMCAwIDEtODUuNzA0LjEyMWMtMTAuMzAzLTMuNjQ4LTE1Ljg2NC04LjI2My0xNi43MzItMTMuMDIxLS4xNS0uODM5IDAtMTMuODk1IDAtMTMuODk1bDEyMS4xNTktMS4xMjNzLS4wOTIgMTMuNjgxLS4yMzUgMTQuMjkzWiIgZmlsbD0iIzVFQTBFRiI+PC9wYXRoPjxwYXRoIGQ9Ik02NS4wNCAxMTUuMDMxYzMzLjQ3OS0uMzM2IDYwLjUyNS05Ljk5MSA2MC40MDktMjEuNTY0LS4xMTYtMTEuNTczLTI3LjM1LTIwLjY4My02MC44My0yMC4zNDctMzMuNDc5LjMzNi02MC41MjUgOS45OS02MC40MDkgMjEuNTY0LjExNiAxMS41NzMgMjcuMzUgMjAuNjgzIDYwLjgzIDIwLjM0N1oiIGZpbGw9IiM1MEU2RkYiPjwvcGF0aD48cGF0aCBkPSJNMTA1Ljk4OSAxMUgyMi4wMTFBMy4wMTEgMy4wMTEgMCAwIDAgMTkgMTQuMDExdjE4LjU4NWEzLjAxMSAzLjAxMSAwIDAgMCAzLjAxMSAzLjAxMWg4My45NzhhMy4wMTEgMy4wMTEgMCAwIDAgMy4wMTEtMy4wMVYxNC4wMWEzLjAxMSAzLjAxMSAwIDAgMC0zLjAxMS0zLjAxWiIgZmlsbD0iI0I1OTZGNSI+PC9wYXRoPjxwYXRoIGQ9Ik0xMDAuMjMgMTUuMzA3aC0zLjcyYy0uODMgMC0xLjUwNC42NzMtMS41MDQgMS41MDN2My43MmMwIC44My42NzMgMS41MDMgMS41MDMgMS41MDNoMy43MjFjLjgzIDAgMS41MDItLjY3MyAxLjUwMi0xLjUwM3YtMy43MmMwLS44My0uNjcyLTEuNTAzLTEuNTAyLTEuNTAzWm0wIDkuMjczaC0zLjcyYy0uODMgMC0xLjUwNC42NzMtMS41MDQgMS41MDN2My43MmMwIC44My42NzMgMS41MDMgMS41MDMgMS41MDNoMy43MjFjLjgzIDAgMS41MDItLjY3MyAxLjUwMi0xLjUwM3YtMy43MmMwLS44My0uNjcyLTEuNTAzLTEuNTAyLTEuNTAzWiIgZmlsbD0iI0YyRjJGMiI+PC9wYXRoPjxwYXRoIGQ9Ik0xMDUuOTg5IDQwLjE2NkgyMi4wMTFBMy4wMTEgMy4wMTEgMCAwIDAgMTkgNDMuMTc2djE4LjU4NmEzLjAxMSAzLjAxMSAwIDAgMCAzLjAxMSAzLjAxMWg4My45NzhhMy4wMTEgMy4wMTEgMCAwIDAgMy4wMTEtMy4wMVY0My4xNzZhMy4wMSAzLjAxIDAgMCAwLTMuMDExLTMuMDExWiIgZmlsbD0iIzkyNjZFNiI+PC9wYXRoPjxwYXRoIGQ9Ik0xMDAuMjMgNDQuNDY3aC0zLjcyYy0uODMgMC0xLjUwNC42NzMtMS41MDQgMS41MDN2My43MmMwIC44My42NzMgMS41MDMgMS41MDMgMS41MDNoMy43MjFjLjgzIDAgMS41MDItLjY3MyAxLjUwMi0xLjUwM3YtMy43MmMwLS44My0uNjcyLTEuNTAzLTEuNTAyLTEuNTAzWm0wIDkuMjczaC0zLjcyYy0uODMgMC0xLjUwNC42NzMtMS41MDQgMS41MDN2My43MmMwIC44My42NzMgMS41MDMgMS41MDMgMS41MDNoMy43MjFjLjgzIDAgMS41MDItLjY3MyAxLjUwMi0xLjUwMnYtMy43MmMwLS44My0uNjcyLTEuNTA0LTEuNTAyLTEuNTA0WiIgZmlsbD0iI0YyRjJGMiI+PC9wYXRoPjxwYXRoIGQ9Ik0xMDUuOTg5IDY5LjMyNkgyMi4wMTFBMy4wMTEgMy4wMTEgMCAwIDAgMTkgNzIuMzM2djE4LjU4NmEzLjAxMSAzLjAxMSAwIDAgMCAzLjAxMSAzLjAxMWg4My45NzhhMy4wMSAzLjAxIDAgMCAwIDMuMDExLTMuMDFWNzIuMzM2YTMuMDExIDMuMDExIDAgMCAwLTMuMDExLTMuMDExWiIgZmlsbD0iIzU1MkY5OSI+PC9wYXRoPjxwYXRoIGQ9Ik0xMDAuMjMgNzMuNjI3aC0zLjcyYy0uODMgMC0xLjUwNC42NzMtMS41MDQgMS41MDN2My43MmMwIC44My42NzMgMS41MDMgMS41MDMgMS41MDNoMy43MjFjLjgzIDAgMS41MDItLjY3MyAxLjUwMi0xLjUwMlY3NS4xM2MwLS44My0uNjcyLTEuNTAzLTEuNTAyLTEuNTAzWm0wIDkuMjczaC0zLjcyYy0uODMgMC0xLjUwNC42NzMtMS41MDQgMS41MDN2My43MmMwIC44My42NzMgMS41MDMgMS41MDMgMS41MDNoMy43MjFjLjgzIDAgMS41MDItLjY3MiAxLjUwMi0xLjUwMnYtMy43MmMwLS44My0uNjcyLTEuNTA0LTEuNTAyLTEuNTA0WiIgZmlsbD0iI0YyRjJGMiI+PC9wYXRoPjwvZz48ZGVmcz4KPC9kZWZzPgo8L3N2Zz4=';
         var brandX = svgW - 20;
         var brandY = 8;
         var iconSize = 20;
-        parts.push('<image href="../images/azurelocal-instance.svg" x="' + (brandX - iconSize - 72) + '" y="' + brandY + '" width="' + iconSize + '" height="' + iconSize + '" opacity="0.85"/>');
+        parts.push('<image href="' + ICON_DATA_URI + '" x="' + (brandX - iconSize - 72) + '" y="' + brandY + '" width="' + iconSize + '" height="' + iconSize + '" opacity="0.85"/>');
         parts.push('<text x="' + (brandX - 68) + '" y="' + (brandY + 15) + '" font-size="12" font-weight="600" fill="#B596F5" font-family="Segoe UI, sans-serif">Azure Local</text>');
         // Core Switch / Router / Firewall above racks
         var coreW = Math.min(totalWidth, outerRackW * 1.2);
@@ -217,6 +219,14 @@
 
         // Rack top origin (below core switch)
         var rackTopY = titleH + coreH + coreGap;
+
+        // Connecting lines from core switch down to each rack
+        var coreBottomY = coreY + coreH;
+        for (var cl = 0; cl < rackCount; cl++) {
+            var clOx = 20 + cl * (outerRackW + RACK_GAP);
+            var rackCenterX = clOx + outerRackW / 2;
+            parts.push('<line x1="' + rackCenterX + '" y1="' + coreBottomY + '" x2="' + rackCenterX + '" y2="' + rackTopY + '" stroke="#2a8ad4" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>');
+        }
 
         // Draw racks — Rack 1 on left
         for (var r = 0; r < rackCount; r++) {

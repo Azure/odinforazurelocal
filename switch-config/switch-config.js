@@ -133,10 +133,10 @@
             setVal('sc-hostname-tor4', 'tor-2b');
             setVal('sc-loopback3', '10.0.255.3/32');
             setVal('sc-loopback4', '10.0.255.4/32');
-            setVal('sc-p2p-b1-tor3', '10.0.0.18/30');
-            setVal('sc-p2p-b1-tor4', '10.0.0.22/30');
-            setVal('sc-p2p-b2-tor3', '10.0.0.26/30');
-            setVal('sc-p2p-b2-tor4', '10.0.0.30/30');
+            setVal('sc-p2p-b1-tor3', '10.0.0.42/30');
+            setVal('sc-p2p-b1-tor4', '10.0.0.46/30');
+            setVal('sc-p2p-b2-tor3', '10.0.0.50/30');
+            setVal('sc-p2p-b2-tor4', '10.0.0.54/30');
             setVal('sc-ibgp-tor3', '10.0.0.33');
             setVal('sc-ibgp-tor4', '10.0.0.34');
         }

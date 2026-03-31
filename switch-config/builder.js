@@ -569,11 +569,11 @@
             if (n && !seenNet[n]) { networks.push(n); seenNet[n] = true; }
         }
 
-        // P2P Border subnets
+        // P2P Border subnets — advertise the connected /30 prefix, not the host address
         var b1Key = 'P2P_BORDER1_' + switchType.toUpperCase();
         var b2Key = 'P2P_BORDER2_' + switchType.toUpperCase();
-        if (ipMap[b1Key]) addNetwork(ipMap[b1Key]);
-        if (ipMap[b2Key]) addNetwork(ipMap[b2Key]);
+        if (ipMap[b1Key]) addNetwork(networkCidr(ipMap[b1Key].split('/')[0], 30));
+        if (ipMap[b2Key]) addNetwork(networkCidr(ipMap[b2Key].split('/')[0], 30));
 
         // Loopback
         if (loopback) addNetwork(loopback);

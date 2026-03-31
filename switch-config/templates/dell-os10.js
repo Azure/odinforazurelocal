@@ -53,7 +53,6 @@
         lines.push('! system.j2 - syslog');
         lines.push('logging server [LOG_SERVER_IP]');
         lines.push('logging source-interface [MGMT_VLAN]');
-        lines.push('logging source-interface vlan125');
         lines.push('logging audit enable');
         lines.push('logging console disable');
         lines.push('');
@@ -290,7 +289,7 @@
             lines.push('interface ' + (tIsRange ? 'range ' : '') + ti.intf_type + ' ' + tRange);
             lines.push('  description ' + ti.name);
             lines.push('  switchport mode trunk');
-            lines.push('  switchport access vlan ' + ti.native_vlan);
+            lines.push('  switchport trunk native vlan ' + ti.native_vlan);
             lines.push('  switchport trunk allowed vlan ' + ti.tagged_vlans);
             if (ti.pfc) {
                 lines.push('  flowcontrol receive off');
@@ -386,7 +385,7 @@
             if ((pc.type || '').toLowerCase() === 'trunk') {
                 lines.push('  no shutdown');
                 lines.push('  switchport mode trunk');
-                lines.push('  switchport access vlan ' + pc.native_vlan);
+                lines.push('  switchport trunk native vlan ' + pc.native_vlan);
                 if (pc.tagged_vlans) {
                     lines.push('  switchport trunk allowed vlan ' + pc.tagged_vlans);
                 }
