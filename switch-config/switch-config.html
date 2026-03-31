@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="no-referrer">
+    <link rel="icon" type="image/png" href="../images/odin-logo.png">
+    <title>Odin for Azure Local — TOR Switch Config</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="switch-config.css">
+</head>
+
+<body>
+    <div class="background-globes"></div>
+
+    <div class="page-header-bar">
+        <div class="page-header-container">
+            <a href="../" class="page-header-logo">
+                <img src="../images/odin-logo.png" alt="ODIN Logo">
+                <span>ODIN</span>
+            </a>
+            <span class="page-header-title"><abbr title="Top of Rack">TOR</abbr> Switch Configuration</span>
+        </div>
+    </div>
+
+    <main class="container">
+        <header>
+            <h1><abbr title="Top of Rack">TOR</abbr> Switch Configuration Generator</h1>
+            <p>Generate example <abbr title="Top of Rack">TOR</abbr>, <abbr title="Baseboard Management Controller">BMC</abbr>, and border switch configurations based on your Azure Local deployment design.</p>
+        </header>
+
+        <!-- No Data State (shown when no Designer data) -->
+        <div id="sc-no-data" class="sc-no-data" style="display: none;">
+            <h3>No Designer Data Found</h3>
+            <p>Use the ODIN Designer wizard to configure your deployment, then transfer to this page.<br>
+               <a href="../">← Go to Designer</a></p>
+        </div>
+
+        <!-- Main content (hidden until data available) -->
+        <div id="sc-main" style="display: none;">
+
+            <!-- Deployment Info Banner -->
+            <div id="sc-deployment-banner" class="sc-info-banner">
+                <span class="sc-icon">ℹ️</span>
+                <span id="sc-deployment-text">Loading deployment details...</span>
+            </div>
+
+            <!-- SC1: Switch Selection -->
+            <section class="step" style="margin-bottom: 1.5rem;">
+                <div class="step-header">
+                    <span class="step-number">SC1</span>
+                    <h2>Switch Selection</h2>
+                </div>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-tor-model"><abbr title="Top of Rack">TOR</abbr> Switch Model</label>
+                        <select id="sc-tor-model">
+                            <option value="">-- Select TOR Model --</option>
+                        </select>
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-bmc-model"><abbr title="Baseboard Management Controller">BMC</abbr> Switch Model (optional)</label>
+                        <select id="sc-bmc-model">
+                            <option value="">None (skip BMC config)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="sc-grid" style="margin-top: 1rem;">
+                    <div class="sc-field">
+                        <label for="sc-hostname-tor1"><abbr title="Top of Rack">TOR</abbr>1 Hostname</label>
+                        <input type="text" id="sc-hostname-tor1" placeholder="e.g. tor-1a" maxlength="63"
+                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-hostname-tor2"><abbr title="Top of Rack">TOR</abbr>2 Hostname</label>
+                        <input type="text" id="sc-hostname-tor2" placeholder="e.g. tor-1b" maxlength="63"
+                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                    </div>
+                </div>
+                <!-- Rack-aware TOR3/TOR4 hostnames (hidden by default) -->
+                <div id="sc-rack2-hostnames" class="sc-grid" style="margin-top: 1rem; display: none;">
+                    <div class="sc-field">
+                        <label for="sc-hostname-tor3"><abbr title="Top of Rack">TOR</abbr>3 Hostname (Rack 2)</label>
+                        <input type="text" id="sc-hostname-tor3" placeholder="e.g. tor-2a" maxlength="63"
+                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-hostname-tor4"><abbr title="Top of Rack">TOR</abbr>4 Hostname (Rack 2)</label>
+                        <input type="text" id="sc-hostname-tor4" placeholder="e.g. tor-2b" maxlength="63"
+                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                    </div>
+                </div>
+                <div class="sc-grid" style="margin-top: 1rem;">
+                    <div class="sc-field">
+                        <label for="sc-hostname-bmc"><abbr title="Baseboard Management Controller">BMC</abbr> Switch Hostname</label>
+                        <input type="text" id="sc-hostname-bmc" placeholder="e.g. bmc-1" maxlength="63"
+                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-site">Site / Location</label>
+                        <input type="text" id="sc-site" placeholder="e.g. Datacenter-A Rack-1">
+                    </div>
+                </div>
+            </section>
+
+            <!-- SC2: Network Parameters -->
+            <section class="step" style="margin-bottom: 1.5rem;">
+                <div class="step-header">
+                    <span class="step-number">SC2</span>
+                    <h2>Network Parameters</h2>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                    Values pre-populated from your Designer configuration. Adjust as needed.
+                </p>
+
+                <!-- Infrastructure VLAN -->
+                <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 1rem 0 0.5rem;">Infrastructure / Management Network</h4>
+                <div id="sc-infra-vlan-note" class="sc-hint" style="margin-bottom: 0.75rem; display: none;"></div>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-infra-vlan"><abbr title="Virtual Local Area Network">VLAN</abbr> ID</label>
+                        <input type="number" id="sc-infra-vlan" min="1" max="4094" placeholder="7">
+                        <span class="sc-hint">The switch-side VLAN for management traffic (not the host VLAN ID)</span>
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-infra-cidr">Subnet <abbr title="Classless Inter-Domain Routing">CIDR</abbr></label>
+                        <input type="text" id="sc-infra-cidr" placeholder="e.g. 24">
+                    </div>
+                </div>
+                <div class="sc-grid" style="margin-top: 0.75rem;">
+                    <div class="sc-field">
+                        <label for="sc-infra-gateway">Gateway (Virtual IP)</label>
+                        <input type="text" id="sc-infra-gateway" placeholder="e.g. 10.0.0.1"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address (e.g. 10.0.0.1)">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-infra-ip-tor1"><abbr title="Top of Rack">TOR</abbr>1 <abbr title="Switched Virtual Interface">SVI</abbr> IP</label>
+                        <input type="text" id="sc-infra-ip-tor1" placeholder="e.g. 10.0.0.2"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address (e.g. 10.0.0.2)">
+                    </div>
+                </div>
+                <div class="sc-grid" style="margin-top: 0.75rem;">
+                    <div class="sc-field">
+                        <label for="sc-infra-ip-tor2"><abbr title="Top of Rack">TOR</abbr>2 <abbr title="Switched Virtual Interface">SVI</abbr> IP</label>
+                        <input type="text" id="sc-infra-ip-tor2" placeholder="e.g. 10.0.0.3"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address (e.g. 10.0.0.3)">
+                    </div>
+                    <div class="sc-field"></div>
+                </div>
+
+                <hr class="sc-section-divider">
+
+                <!-- Compute / Tenant VLAN -->
+                <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Compute / Tenant Network</h4>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-compute-vlan"><abbr title="Virtual Local Area Network">VLAN</abbr> ID</label>
+                        <input type="number" id="sc-compute-vlan" min="1" max="4094" placeholder="201">
+                    </div>
+                    <div class="sc-field"></div>
+                </div>
+
+                <hr class="sc-section-divider">
+
+                <!-- Storage VLANs -->
+                <div id="sc-storage-section">
+                    <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Storage Networks</h4>
+                    <div class="sc-grid">
+                        <div class="sc-field">
+                            <label for="sc-storage1-vlan">Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 1 (<abbr title="Top of Rack">TOR</abbr>1)</label>
+                            <input type="number" id="sc-storage1-vlan" min="1" max="4094" placeholder="711">
+                        </div>
+                        <div class="sc-field">
+                            <label for="sc-storage2-vlan">Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 2 (<abbr title="Top of Rack">TOR</abbr>2)</label>
+                            <input type="number" id="sc-storage2-vlan" min="1" max="4094" placeholder="712">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="sc-section-divider">
+
+                <!-- BMC VLAN -->
+                <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;"><abbr title="Baseboard Management Controller">BMC</abbr> Management Network</h4>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-bmc-vlan"><abbr title="Virtual Local Area Network">VLAN</abbr> ID</label>
+                        <input type="number" id="sc-bmc-vlan" min="1" max="4094" value="125">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-bmc-gateway"><abbr title="Baseboard Management Controller">BMC</abbr> Gateway</label>
+                        <input type="text" id="sc-bmc-gateway" placeholder="e.g. 10.0.125.1"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address (e.g. 10.0.125.1)">
+                    </div>
+                </div>
+            </section>
+
+            <!-- SC3: BGP & Routing -->
+            <section class="step" style="margin-bottom: 1.5rem;">
+                <div class="step-header">
+                    <span class="step-number">SC3</span>
+                    <h2><abbr title="Border Gateway Protocol">BGP</abbr> &amp; Routing</h2>
+                </div>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-bgp-tor-asn"><abbr title="Top of Rack">TOR</abbr> <abbr title="Border Gateway Protocol">BGP</abbr> <abbr title="Autonomous System Number">ASN</abbr></label>
+                        <input type="number" id="sc-bgp-tor-asn" min="1" max="4294967295" value="65001">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-bgp-border-asn">Border Router <abbr title="Border Gateway Protocol">BGP</abbr> <abbr title="Autonomous System Number">ASN</abbr></label>
+                        <input type="number" id="sc-bgp-border-asn" min="1" max="4294967295" value="64512">
+                    </div>
+                </div>
+
+                <hr class="sc-section-divider">
+
+                <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Loopback Addresses</h4>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-loopback1"><abbr title="Top of Rack">TOR</abbr>1 Loopback0</label>
+                        <input type="text" id="sc-loopback1" placeholder="e.g. 10.0.255.1/32"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$" title="Enter IP/CIDR (e.g. 10.0.255.1/32)">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-loopback2"><abbr title="Top of Rack">TOR</abbr>2 Loopback0</label>
+                        <input type="text" id="sc-loopback2" placeholder="e.g. 10.0.255.2/32"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$" title="Enter IP/CIDR (e.g. 10.0.255.2/32)">
+                    </div>
+                </div>
+
+                <hr class="sc-section-divider">
+
+                    <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;"><abbr title="Point-to-Point">P2P</abbr> Links</h4>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-p2p-b1-tor1"><abbr title="Top of Rack">TOR</abbr>1 → Border1</label>
+                        <input type="text" id="sc-p2p-b1-tor1" placeholder="e.g. 10.0.0.2/30"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$" title="Enter IP/CIDR (e.g. 10.0.0.2/30)">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-p2p-b1-tor2"><abbr title="Top of Rack">TOR</abbr>2 → Border1</label>
+                        <input type="text" id="sc-p2p-b1-tor2" placeholder="e.g. 10.0.0.6/30"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$" title="Enter IP/CIDR (e.g. 10.0.0.6/30)">
+                    </div>
+                </div>
+                <div class="sc-grid" style="margin-top: 0.75rem;">
+                    <div class="sc-field">
+                        <label for="sc-p2p-b2-tor1"><abbr title="Top of Rack">TOR</abbr>1 → Border2</label>
+                        <input type="text" id="sc-p2p-b2-tor1" placeholder="e.g. 10.0.0.10/30"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$" title="Enter IP/CIDR (e.g. 10.0.0.10/30)">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-p2p-b2-tor2"><abbr title="Top of Rack">TOR</abbr>2 → Border2</label>
+                        <input type="text" id="sc-p2p-b2-tor2" placeholder="e.g. 10.0.0.14/30"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2}$" title="Enter IP/CIDR (e.g. 10.0.0.14/30)">
+                    </div>
+                </div>
+
+                <hr class="sc-section-divider">
+
+                    <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;"><abbr title="Internal Border Gateway Protocol">iBGP</abbr> Peering</h4>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-ibgp-tor1"><abbr title="Top of Rack">TOR</abbr>1 <abbr title="Internal Border Gateway Protocol">iBGP</abbr> IP</label>
+                        <input type="text" id="sc-ibgp-tor1" placeholder="e.g. 10.0.0.17"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(/\d{1,2})?$" title="Enter IPv4 address, optional /CIDR (e.g. 10.0.0.17)">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-ibgp-tor2"><abbr title="Top of Rack">TOR</abbr>2 <abbr title="Internal Border Gateway Protocol">iBGP</abbr> IP</label>
+                        <input type="text" id="sc-ibgp-tor2" placeholder="e.g. 10.0.0.18"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(/\d{1,2})?$" title="Enter IPv4 address, optional /CIDR (e.g. 10.0.0.18)">
+                    </div>
+                </div>
+
+                <!-- Rack-aware TOR3/TOR4 IPs (hidden by default) -->
+                <div id="sc-rack2-ips" style="display: none;">
+                    <hr class="sc-section-divider">
+                    <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Rack 2 — Loopback Addresses</h4>
+                    <div class="sc-grid">
+                        <div class="sc-field">
+                            <label for="sc-loopback3"><abbr title="Top of Rack">TOR</abbr>3 Loopback0</label>
+                            <input type="text" id="sc-loopback3" placeholder="e.g. 10.0.255.3/32">
+                        </div>
+                        <div class="sc-field">
+                            <label for="sc-loopback4"><abbr title="Top of Rack">TOR</abbr>4 Loopback0</label>
+                            <input type="text" id="sc-loopback4" placeholder="e.g. 10.0.255.4/32">
+                        </div>
+                    </div>
+
+                    <hr class="sc-section-divider">
+                    <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Rack 2 — <abbr title="Point-to-Point">P2P</abbr> Links</h4>
+                    <div class="sc-grid">
+                        <div class="sc-field">
+                            <label for="sc-p2p-b1-tor3"><abbr title="Top of Rack">TOR</abbr>3 → Border1</label>
+                            <input type="text" id="sc-p2p-b1-tor3" placeholder="e.g. 10.0.0.18/30">
+                        </div>
+                        <div class="sc-field">
+                            <label for="sc-p2p-b1-tor4"><abbr title="Top of Rack">TOR</abbr>4 → Border1</label>
+                            <input type="text" id="sc-p2p-b1-tor4" placeholder="e.g. 10.0.0.22/30">
+                        </div>
+                    </div>
+                    <div class="sc-grid" style="margin-top: 0.75rem;">
+                        <div class="sc-field">
+                            <label for="sc-p2p-b2-tor3"><abbr title="Top of Rack">TOR</abbr>3 → Border2</label>
+                            <input type="text" id="sc-p2p-b2-tor3" placeholder="e.g. 10.0.0.26/30">
+                        </div>
+                        <div class="sc-field">
+                            <label for="sc-p2p-b2-tor4"><abbr title="Top of Rack">TOR</abbr>4 → Border2</label>
+                            <input type="text" id="sc-p2p-b2-tor4" placeholder="e.g. 10.0.0.30/30">
+                        </div>
+                    </div>
+
+                    <hr class="sc-section-divider">
+                    <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Rack 2 — <abbr title="Internal Border Gateway Protocol">iBGP</abbr> Peering</h4>
+                    <div class="sc-grid">
+                        <div class="sc-field">
+                            <label for="sc-ibgp-tor3"><abbr title="Top of Rack">TOR</abbr>3 <abbr title="Internal Border Gateway Protocol">iBGP</abbr> IP</label>
+                            <input type="text" id="sc-ibgp-tor3" placeholder="e.g. 10.0.0.33">
+                        </div>
+                        <div class="sc-field">
+                            <label for="sc-ibgp-tor4"><abbr title="Top of Rack">TOR</abbr>4 <abbr title="Internal Border Gateway Protocol">iBGP</abbr> IP</label>
+                            <input type="text" id="sc-ibgp-tor4" placeholder="e.g. 10.0.0.34">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SC-Infra: Infrastructure Services (collapsible) -->
+            <details class="step sc-details" style="margin-bottom: 1.5rem;">
+                <summary class="step-header sc-summary">
+                    <span class="step-number">⚙️</span>
+                    <h2>Infrastructure Services <span style="font-size: 0.8rem; font-weight: 400; color: var(--text-secondary);">(optional)</span></h2>
+                </summary>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 1rem 0;">
+                    Provide values to replace placeholder tokens in the generated config. Leave blank to keep placeholders.
+                </p>
+
+                <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Time Zone, <abbr title="Network Time Protocol">NTP</abbr> &amp; Syslog</h4>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-timezone">Time Zone</label>
+                        <select id="sc-timezone">
+                            <option value="">-- Select Time Zone --</option>
+                            <option value="EST|-5|0|EDT|2 Sun Mar 02:00 1 Sun Nov 02:00 60|America/New_York">Eastern (EST/EDT)</option>
+                            <option value="CST|-6|0|CDT|2 Sun Mar 02:00 1 Sun Nov 02:00 60|America/Chicago">Central (CST/CDT)</option>
+                            <option value="MST|-7|0|MDT|2 Sun Mar 02:00 1 Sun Nov 02:00 60|America/Denver">Mountain (MST/MDT)</option>
+                            <option value="MST|-7|0|||America/Phoenix" >Arizona (MST, no DST)</option>
+                            <option value="PST|-8|0|PDT|2 Sun Mar 02:00 1 Sun Nov 02:00 60|America/Los_Angeles" selected>Pacific (PST/PDT)</option>
+                            <option value="AKST|-9|0|AKDT|2 Sun Mar 02:00 1 Sun Nov 02:00 60|America/Anchorage">Alaska (AKST/AKDT)</option>
+                            <option value="HST|-10|0|||Pacific/Honolulu">Hawaii (HST, no DST)</option>
+                            <option value="GMT|0|0|BST|5 Sun Mar 01:00 5 Sun Oct 02:00 60|Europe/London">UK (GMT/BST)</option>
+                            <option value="CET|1|0|CEST|5 Sun Mar 02:00 5 Sun Oct 03:00 60|Europe/Berlin">Central Europe (CET/CEST)</option>
+                            <option value="IST|5|30|||Asia/Kolkata">India (IST)</option>
+                            <option value="CST|8|0|||Asia/Shanghai">China (CST)</option>
+                            <option value="JST|9|0|||Asia/Tokyo">Japan (JST)</option>
+                            <option value="AEST|10|0|AEDT|1 Sun Oct 02:00 1 Sun Apr 03:00 60|Australia/Sydney">Australia Eastern (AEST/AEDT)</option>
+                            <option value="UTC|0|0|||Etc/UTC">UTC</option>
+                        </select>
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-mgmt-vlan">Management <abbr title="Virtual Local Area Network">VLAN</abbr> Interface</label>
+                        <input type="text" id="sc-mgmt-vlan" placeholder="e.g. vlan7 or mgmt0">
+                        <span class="sc-hint"><abbr title="Network Time Protocol">NTP</abbr>/logging/<abbr title="Terminal Access Controller Access-Control System">TACACS</abbr> source interface</span>
+                    </div>
+                </div>
+                <div class="sc-grid" style="margin-top: 0.75rem;">
+                    <div class="sc-field">
+                        <label for="sc-mgmt-gateway">Management Gateway IP</label>
+                        <input type="text" id="sc-mgmt-gateway" placeholder="e.g. 10.0.0.1"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address">
+                        <span class="sc-hint">Default route for management <abbr title="Virtual Routing and Forwarding">VRF</abbr> (Dell)</span>
+                    </div>
+                    <div class="sc-field"></div>
+                </div>
+                <div class="sc-grid" style="margin-top: 0.75rem;">
+                    <div class="sc-field">
+                        <label for="sc-ntp-server"><abbr title="Network Time Protocol">NTP</abbr> Server IP</label>
+                        <input type="text" id="sc-ntp-server" placeholder="e.g. 10.0.0.10"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-syslog-server">Syslog Server IP</label>
+                        <input type="text" id="sc-syslog-server" placeholder="e.g. 10.0.0.11"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address">
+                    </div>
+                </div>
+
+                <hr class="sc-section-divider">
+
+                <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;"><abbr title="Terminal Access Controller Access-Control System">TACACS</abbr>+</h4>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-tacacs-server1"><abbr title="Terminal Access Controller Access-Control System">TACACS</abbr> Server 1</label>
+                        <input type="text" id="sc-tacacs-server1" placeholder="e.g. 10.0.0.20"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-tacacs-server2"><abbr title="Terminal Access Controller Access-Control System">TACACS</abbr> Server 2</label>
+                        <input type="text" id="sc-tacacs-server2" placeholder="e.g. 10.0.0.21"
+                               pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$" title="Enter a valid IPv4 address">
+                    </div>
+                </div>
+                <div class="sc-grid" style="margin-top: 0.75rem;">
+                    <div class="sc-field">
+                        <label for="sc-tacacs-key"><abbr title="Terminal Access Controller Access-Control System">TACACS</abbr> Key</label>
+                        <input type="text" id="sc-tacacs-key" placeholder="Shared secret">
+                    </div>
+                    <div class="sc-field"></div>
+                </div>
+
+                <hr class="sc-section-divider">
+
+                <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;"><abbr title="Simple Network Management Protocol">SNMP</abbr></h4>
+                <div class="sc-grid">
+                    <div class="sc-field">
+                        <label for="sc-snmp-ro"><abbr title="Simple Network Management Protocol">SNMP</abbr> Community (RO)</label>
+                        <input type="text" id="sc-snmp-ro" placeholder="e.g. public">
+                    </div>
+                    <div class="sc-field">
+                        <label for="sc-snmp-rw"><abbr title="Simple Network Management Protocol">SNMP</abbr> Community (RW)</label>
+                        <input type="text" id="sc-snmp-rw" placeholder="e.g. private">
+                    </div>
+                </div>
+            </details>
+
+            <!-- Generate Button -->
+            <div style="text-align: center; margin: 2rem 0;">
+                <button id="sc-generate-btn" class="sc-generate-btn" onclick="generateConfigs()">
+                    ⚡ Generate Switch Configurations
+                </button>
+            </div>
+
+            <!-- SC4: Generated Output -->
+            <section id="sc-output-section" class="step" style="margin-bottom: 1.5rem; display: none;">
+                <div class="step-header">
+                    <span class="step-number">SC4</span>
+                    <h2>Generated Configurations</h2>
+                </div>
+
+                <div class="sc-tabs" id="sc-output-tabs"></div>
+                <div id="sc-output-panels"></div>
+            </section>
+
+            <!-- Credit -->
+            <div class="sc-credit">
+                <strong>Disclaimer:</strong> These are example switch configurations only — you should review and adapt for your environment, before applying to production switches.<br>
+                <strong>Credit:</strong> Generated using logic from the
+                <a href="https://github.com/microsoft/Azure_Local_Physical_Network_Config_Tool" target="_blank" rel="noopener noreferrer">
+                    Azure Local Physical Network Config Tool</a>.
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts (order matters: models → builder → templates → main) -->
+    <script src="models.js"></script>
+    <script src="builder.js"></script>
+    <script src="templates/cisco-nxos.js"></script>
+    <script src="templates/dell-os10.js"></script>
+    <script src="switch-config.js"></script>
+</body>
+
+</html>

@@ -37,7 +37,8 @@ var COLORS = {
     EMPTY_SLOT:  0x1a1a1a,
     SERVER:      0xaaaaaa,  // Light grey
     SERVER_GPU:  0xd97706,  // Amber for GPU nodes
-    TOR_SWITCH:  0x059669,  // Green
+    TOR_SWITCH:  0x444444,  // Dark grey
+    BMC_SWITCH:  0xe0e0e0,  // White / light grey
     LABEL_COLOR: '#ffffff',
     FLOOR:       0x111111
 };
@@ -316,7 +317,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
 
     // Labels — fixed to front and rear faces
     if (label) {
-        var frontLabel = makeFaceLabel(label + ' (Front)', 28, '#ffffff', 'front');
+        var frontLabel = makeFaceLabel(label, 28, '#ffffff', 'front');
         frontLabel.position.set(cx, y, frontZ - 0.008);
         scene.add(frontLabel);
         var rearLabel = makeFaceLabel(label + ' (Rear)', 28, '#ffffff', 'back');
@@ -424,7 +425,89 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
 
     // Labels — fixed to front and rear faces
     if (label) {
-        var frontLabel = makeFaceLabel(label + ' (Front)', 24, '#ffffff', 'front');
+        var frontLabel = makeFaceLabel(label, 24, '#ffffff', 'front');
+        frontLabel.position.set(cx, y, frontZ - 0.008);
+        scene.add(frontLabel);
+        var rearLabel = makeFaceLabel(label + ' (Rear)', 24, '#ffffff', 'back');
+        rearLabel.position.set(cx, y, backZ + 0.008);
+        scene.add(rearLabel);
+    }
+
+    return body;
+}
+
+// ── Place a 1U BMC switch ──
+
+function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
+    var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
+    var deviceHeight = 1 * RACK.U_HEIGHT - 0.004;
+    var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+    var frontZ = -deviceDepth / 2;
+    var backZ = deviceDepth / 2;
+    var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
+    var cx = rackGroup.position.x;
+
+    var bmcMat = new THREE.MeshStandardMaterial({ color: COLORS.BMC_SWITCH, roughness: 0.4, metalness: 0.3 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.8, metalness: 0.2 });
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, metalness: 0.5 });
+    var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.5 });
+
+    // Main chassis
+    var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
+    var body = new THREE.Mesh(bodyGeo, bmcMat);
+    body.position.set(cx, y, 0);
+    scene.add(body);
+
+    // Front face — clean panel with status LEDs
+    var frontPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.004, 0.003);
+    var frontPanel = new THREE.Mesh(frontPanelGeo, darkMat);
+    frontPanel.position.set(cx, y, frontZ - 0.002);
+    scene.add(frontPanel);
+
+    // Status LEDs
+    var ledGeo = new THREE.BoxGeometry(0.004, 0.004, 0.001);
+    for (var li = 0; li < 2; li++) {
+        var led = new THREE.Mesh(ledGeo, ledGreen);
+        led.position.set(cx + deviceWidth / 2 - 0.02 - li * 0.008, y + deviceHeight / 2 - 0.005, frontZ - 0.004);
+        scene.add(led);
+    }
+
+    // Back face — ethernet ports (fewer than ToR, single row of RJ45)
+    var backPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.004, 0.003);
+    var backPanel = new THREE.Mesh(backPanelGeo, darkMat);
+    backPanel.position.set(cx, y, backZ + 0.002);
+    scene.add(backPanel);
+
+    var ethW = 0.008;
+    var ethH = 0.006;
+    var ethGeo = new THREE.BoxGeometry(ethW, ethH, 0.003);
+    var ethInnerGeo = new THREE.BoxGeometry(ethW - 0.002, ethH - 0.002, 0.001);
+    var ethInnerMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+
+    var portsPerRow = 16;
+    var portSpacing = (deviceWidth - 0.08) / portsPerRow;
+    var rowStartX = cx - deviceWidth / 2 + 0.04;
+
+    for (var ep = 0; ep < portsPerRow; ep++) {
+        var epx = rowStartX + ep * portSpacing;
+        var ethPort = new THREE.Mesh(ethGeo, portMat);
+        ethPort.position.set(epx, y, backZ + 0.004);
+        scene.add(ethPort);
+        var ethInner = new THREE.Mesh(ethInnerGeo, ethInnerMat);
+        ethInner.position.set(epx, y, backZ + 0.006);
+        scene.add(ethInner);
+    }
+
+    // PSU (single module, right side of rear)
+    var psuGeo = new THREE.BoxGeometry(deviceWidth * 0.12, deviceHeight * 0.6, 0.006);
+    var psuMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 });
+    var psu = new THREE.Mesh(psuGeo, psuMat);
+    psu.position.set(cx + deviceWidth / 2 - 0.05, y, backZ + 0.005);
+    scene.add(psu);
+
+    // Labels
+    if (label) {
+        var frontLabel = makeFaceLabel(label, 24, '#ffffff', 'front');
         frontLabel.position.set(cx, y, frontZ - 0.008);
         scene.add(frontLabel);
         var rearLabel = makeFaceLabel(label + ' (Rear)', 24, '#ffffff', 'back');
@@ -761,27 +844,11 @@ function placeStandardCoreNetwork(scene, rackX, torCount, nodeCount) {
     }
 
     if (nodeCount === 1) {
-        // Single node: 2 uplink cables from server rear ports to router
-        var srvDeviceW = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
-        var srvDeviceH = 2 * RACK.U_HEIGHT - 0.004;
-        var srvDeviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
-        var srvBackZ = srvDeviceDepth / 2 + 0.005;
-        var srvU = RACK.TOTAL_U - 1; // server placed at U41 (serverStartU - 1) when no ToRs
-        var srvY = 0.06 + (srvU - 1) * RACK.U_HEIGHT + srvDeviceH / 2 + 0.002;
-        var srvPortW = 0.012;
-        var srvPortStartX = rackX - srvDeviceW / 2 + 0.03;
-        var srvPortY = srvY + srvDeviceH * 0.15;
-        // Cable from port 0
+        // Single node: 1 ToR — cable from ToR QSFP uplink to router
         makeStdCable(
-            { x: srvPortStartX + 0 * (srvPortW + 0.006) + srvPortW / 2, y: srvPortY, z: srvBackZ },
-            { x: routerX - rWidth / 4, y: routerBottomY, z: routerRearZ },
+            { x: stdQsfpX(2), y: stdTor1QsfpY, z: stdQsfpZ },
+            { x: routerX, y: routerBottomY, z: routerRearZ },
             blueMat, 0.12
-        );
-        // Cable from port 1
-        makeStdCable(
-            { x: srvPortStartX + 1 * (srvPortW + 0.006) + srvPortW / 2, y: srvPortY, z: srvBackZ },
-            { x: routerX + rWidth / 4, y: routerBottomY, z: routerRearZ },
-            blueMat, 0.10
         );
     } else {
         // ToR 1 → Router (QSFP port 2)
@@ -822,7 +889,7 @@ function renderRack3D(config) {
     var isRackAware = config.clusterType === 'rack-aware';
     var rackCount = isRackAware ? 2 : 1;
     var nodeCount = config.nodeCount || 2;
-    var torPerRack = nodeCount > 1 ? 2 : 0;
+    var torPerRack = nodeCount > 1 ? 2 : 1;  // 2 ToRs for multi-node, 1 ToR for single
 
     // Distribute nodes across racks
     var racks = [];
@@ -843,9 +910,15 @@ function renderRack3D(config) {
         _rack3d.renderer.setSize(canvasEl.clientWidth, canvasEl.clientHeight);
         _rack3d.renderer.setClearColor(0x0a0a0a);
 
-        // Load Azure logo texture
-        var loader = new THREE.TextureLoader();
-        loader.load('../images/azure-logo.png', function(tex) {
+        // Load Azure Local logo texture from SVG (render to canvas for Three.js)
+        var svgImg = new Image();
+        svgImg.onload = function() {
+            var canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(svgImg, 0, 0, 256, 256);
+            var tex = new THREE.CanvasTexture(canvas);
             tex.minFilter = THREE.LinearFilter;
             tex.magFilter = THREE.LinearFilter;
             _rack3d.azureLogoTexture = tex;
@@ -853,7 +926,8 @@ function renderRack3D(config) {
             if (_rack3d.lastConfig) {
                 renderRack3D(_rack3d.lastConfig);
             }
-        });
+        };
+        svgImg.src = '../images/azurelocal-machine.svg';
 
         // OrbitControls
         _rack3d.controls = new THREE.OrbitControls(_rack3d.camera, canvasEl);
@@ -923,19 +997,25 @@ function renderRack3D(config) {
         for (var t = 0; t < rackInfo.tor; t++) {
             var torU = RACK.TOTAL_U - t; // 42, 41
             var torNum = isRackAware ? (rackIndex * 2 + t + 1) : (t + 1);
-            var torLabel = 'TOR ' + torNum;
+            var torLabel = 'ToR ' + torNum;
             placeSwitch(_rack3d.scene, rack.group, rack.baseY, torU, torLabel);
         }
 
+        // Place BMC switch below ToR switches (1U)
+        var bmcU = RACK.TOTAL_U - rackInfo.tor;
+        var bmcNum = isRackAware ? (rackIndex + 1) : 1;
+        var bmcLabel = 'BMC ' + bmcNum;
+        placeBmcSwitch(_rack3d.scene, rack.group, rack.baseY, bmcU, bmcLabel);
+
         // Place server nodes below switches, from top down
-        var topServerU = RACK.TOTAL_U - rackInfo.tor; // first available U below switches
+        var topServerU = RACK.TOTAL_U - rackInfo.tor - 1; // first available U below switches + BMC
+        var nodeOffset = 0;
+        for (var pr = 0; pr < rackIndex; pr++) { nodeOffset += racks[pr].nodes; }
         for (var n = 0; n < rackInfo.nodes; n++) {
             var serverStartU = topServerU - (n * 2); // 2U per server, top-down
             if (serverStartU < 1) break;
             var color = COLORS.SERVER;
-            var nodeLabel = isRackAware
-                ? 'R' + (rackIndex + 1) + ' Node ' + (n + 1)
-                : 'Node ' + (n + 1);
+            var nodeLabel = 'Node ' + (nodeOffset + n + 1);
             placeServer(_rack3d.scene, rack.group, rack.baseY, serverStartU - 1, color,
                 nodeLabel, false, config.diskCount || 8, config.portCount || 4);
         }
@@ -1022,7 +1102,8 @@ function renderRack3D(config) {
     if (usedU && totalU) {
         var nodesU = nodeCount * 2;
         var switchesU = torPerRack * rackCount;
-        usedU.textContent = (nodesU + switchesU) + 'U used';
+        var bmcU_count = rackCount; // 1 BMC switch per rack
+        usedU.textContent = (nodesU + switchesU + bmcU_count) + 'U used';
         totalU.textContent = (RACK.TOTAL_U * rackCount) + 'U total';
     }
 

@@ -6936,6 +6936,58 @@
                 + escapeHtml(formatScenario(s.scenario, s));
         }
 
+        // Rack diagram (SVG) — shown when we know the topology
+        if (typeof generateRackSvg === 'function') {
+            var rackSection = document.getElementById('rack-diagram-section');
+            var rackContainer = document.getElementById('rack-diagram-container');
+            var rackActions = document.getElementById('rack-diagram-actions');
+            if (rackSection && rackContainer) {
+                var hw = s.sizerHardware || {};
+                var rackNodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 2;
+                var rackHasGpu = (hw.gpu && hw.gpu.countPerNode > 0) || false;
+
+                // Derive cluster type: prefer Sizer data, fall back to Designer scale
+                var rackClusterType = 'standard';
+                if (hw.clusterType) {
+                    rackClusterType = hw.clusterType;
+                } else if (s.scale === 'rack_aware') {
+                    rackClusterType = 'rack-aware';
+                } else if (s.scale === 'low_capacity' && rackNodeCount === 1) {
+                    rackClusterType = 'single';
+                }
+
+                var svgStr = generateRackSvg({
+                    clusterType: rackClusterType,
+                    nodeCount: rackNodeCount,
+                    hasGpu: rackHasGpu
+                });
+
+                rackContainer.innerHTML = svgStr;
+                rackSection.style.display = '';
+
+                // Download SVG button
+                if (rackActions) {
+                    rackActions.style.display = '';
+                    var dlBtn = document.createElement('button');
+                    dlBtn.type = 'button';
+                    dlBtn.className = 'report-action-button';
+                    dlBtn.textContent = 'Download Rack Diagram SVG';
+                    dlBtn.addEventListener('click', function () {
+                        var blob = new Blob([svgStr], { type: 'image/svg+xml' });
+                        var url = URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'rack-layout.svg';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    });
+                    rackActions.appendChild(dlBtn);
+                }
+            }
+        }
+
         if (sumEl) {
             sumEl.innerHTML = renderSummaryCards(s);
             // Fetch the outbound diagram SVG inline and apply cluster highlighting

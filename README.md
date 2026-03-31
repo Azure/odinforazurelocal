@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.18.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.18.50 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -40,13 +40,12 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
-### 🎉 Version 0.18.04 - Latest Release
-- **Azure Local - 3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js (MIT) — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays with pull handles, status LEDs, Azure logo, dual PSUs, network ports, BMC port, ventilation grille) and 1U ToR switches (48-port ethernet in two rows, QSFP uplinks, fan vents)
-- **Rack-Aware Support**: Rack-aware deployments render two side-by-side cabinets with balanced node distribution, blue core switch/router above racks
-- **Network Topology**: Rack-aware view includes management/compute uplink cables (blue) from each ToR to the core router, SMB storage trunk cables (pink) between cross-rack ToR pairs, and LAG inter-switch links (orange) between paired ToRs in each rack
-- **Dynamic Updates**: Rack visualization updates in real-time as sizer inputs change (node count, cluster type, disk configuration)
-- **Interactive Controls**: Left-click and hold to rotate, scroll to zoom, right-click and hold to move up and down; touch-friendly
-- **Azure Branding**: Microsoft Azure logo overlay and Azure "A" logo on each server node front panel
+### 🎉 Version 0.18.50 - Latest Release
+- **ToR Switch Config Generator**: New full-featured switch configuration page for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs with rack-aware 4-ToR support, infrastructure token replacement (timezone, NTP, syslog, TACACS+, SNMP), and JSON export
+- **Report: 2D SVG Rack Diagram**: Static front-view SVG rack diagram in the Report page with server nodes, ToR/BMC switches, core switch visualization, rack-aware layout with contiguous node numbering, Azure Local branding, and downloadable SVG export
+- **3D Rack Visualization Improvements**: Azure Local branding (replaced Azure logo), BMC switch added to every rack, ToR color changed to dark grey, single-node topology (1 ToR + 1 BMC), label cleanup (removed "(Front)", "TOR" → "ToR", contiguous numbering)
+- **Designer: Management VLAN Guidance**: Improved VLAN option descriptions and expanded info box explaining host-side vs switch-side VLAN configuration
+- **Designer → Switch Config Integration**: New "Generate ToR Switch Configuration" button on the Designer summary page transfers deployment state to the switch config generator
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -334,7 +333,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.18.04  
+**Version**: 0.18.50  
 **Last Updated**: March 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -349,6 +348,21 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.18.x Series (March 2026)
+
+#### 0.18.50 - ToR Switch Config Generator, SVG Rack Diagram & 3D Viz Improvements
+- **ToR Switch Config Generator**: New full-featured switch configuration page for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs from a JSON data model (`SwitchConfigBuilder` → `CiscoNxosRenderer` / `DellOs10Renderer`)
+- **Rack-aware 4-ToR support**: TOR1–TOR4 configurations with correct iBGP peering, loopback IPs, storage VLAN assignment, and per-rack HSRP/VRRP priorities
+- **BMC switch configs**: BMC switch config generation with access VLANs, trunks to ToRs, and static default route
+- **Infrastructure tokens**: Timezone (with DST), NTP, syslog, TACACS+, SNMP, management VLAN, and management gateway — all replaceable placeholders
+- **JSON export**: Export structured JSON data model for each switch section
+- **Designer → Switch Config**: New "Generate ToR Switch Configuration" button transfers deployment state to the switch config page
+- **Report: 2D SVG Rack Diagram**: Static front-view SVG rack diagram with server nodes, ToR/BMC switches, core switch box, rack-aware layout, contiguous node numbering, Azure Local branding, legend, and downloadable SVG
+- **3D Rack Viz: Azure Local branding**: Replaced Azure logo with Azure Local instance icon + "Azure Local" purple text; azurelocal-machine.svg on server fronts
+- **3D Rack Viz: BMC switch**: Added 1U BMC switch (white/light grey) below ToR switches in every rack
+- **3D Rack Viz: ToR color**: Changed from green to dark grey (#444444)
+- **3D Rack Viz: Single-node topology**: Single-node gets 1 ToR + 1 BMC with ToR-to-router cabling
+- **3D Rack Viz: Label cleanup**: Removed "(Front)", renamed "TOR" → "ToR", contiguous node numbering across racks
+- **Designer: Management VLAN guidance**: Improved VLAN option descriptions and expanded info box explaining host-side vs switch-side VLAN configuration
 
 #### 0.18.04 - Sizer: 3D Rack Visualization
 - **3D Rack Visualization**: Interactive 3D preview of the estimated rack layout using Three.js (MIT) — renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays with pull handles, status LEDs, Azure logo, dual PSUs, network ports, BMC port, ventilation grille) and 1U ToR switches (48-port ethernet in two rows, QSFP uplinks, fan vents)

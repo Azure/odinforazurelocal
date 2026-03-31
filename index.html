@@ -505,7 +505,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.18.04 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.18.50 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -1856,7 +1856,7 @@
                                     </svg>
                                 </div>
                                 <h3>Default VLAN</h3>
-                                <p>Use the default VLAN (typically ID 0).</p>
+                                <p>Untagged — management traffic uses the native VLAN (ID 0 on the host).</p>
                             </div>
                             <div class="option-card" data-value="custom" onclick="selectOption('infraVlan', 'custom')">
                                 <div class="icon">
@@ -1866,12 +1866,12 @@
                                     </svg>
                                 </div>
                                 <h3>Custom VLAN</h3>
-                                <p>Apply a specific management VLAN.</p>
+                                <p>Tag management traffic with a specific VLAN ID on the host NICs.</p>
                             </div>
                         </div>
                         <div id="infra-vlan-info" class="info-box hidden" style="margin-bottom:1rem;">
                             <strong style="color:var(--accent-blue);">How to configure management VLAN</strong>
-                            <p>We recommend that the management subnet of your Azure Local instance use the default VLAN, which in most cases is declared as VLAN ID 0. However, if your network requirements are to use a specific management VLAN for your infrastructure network, it must be configured on your physical network adapters that you plan to use for management traffic.<br><br>If you plan to use two physical network adapters for management, you need to set the VLAN on both adapters. This must be done as part of the bootstrap configuration of your machines, and before they're registered to Azure Arc, to ensure you successfully register the nodes using this VLAN.
+                            <p>We recommend that the management subnet of your Azure Local instance use the default VLAN, which in most cases is declared as VLAN ID 0 (untagged). This means the host sends management traffic without a VLAN tag — the TOR switch receives it on the native/access VLAN.<br><br><strong>Note:</strong> Even when the host uses untagged traffic (ID 0), your TOR switch still assigns this traffic to a VLAN internally (e.g. VLAN 7). The switch-side VLAN ID is configured separately in the Switch Config Generator.<br><br>If your network requirements are to use a specific management VLAN, it must be configured on your physical network adapters before they're registered to Azure Arc. If you plan to use two physical adapters for management, you need to set the VLAN on both adapters.
                                 <br><a href="https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511#management-vlan-id" target="_blank" style="color:var(--accent-blue); text-decoration:underline;">Read the VLAN guidance</a>
                             </p>
                         </div>
@@ -2474,6 +2474,13 @@
                         </button>
                         <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
                             Opens a page with Azure ARM parameters JSON, populated from your answers with placeholders for values not collected.
+                        </p>
+
+                        <button id="transfer-to-switch-config-btn" type="button" class="report-button" onclick="transferToSwitchConfig()" disabled style="margin-top:0.75rem; padding: 0.75rem 1.25rem; font-size: 0.9rem;">
+                            🔌 Generate ToR Switch Configuration
+                        </button>
+                        <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
+                            Generate example ToR, BMC and border switch configurations based on your deployment design.
                         </p>
 
                         <button id="transfer-to-sizer-btn" type="button" class="report-button" onclick="transferToSizer()" disabled style="margin-top:0.75rem; padding: 0.75rem 1.25rem; font-size: 0.9rem;">

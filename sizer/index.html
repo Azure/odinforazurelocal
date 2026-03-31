@@ -35,7 +35,7 @@
                 <div class="header-logo-wrapper">
                     <img src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.18.04 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.18.50 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -783,14 +783,18 @@
             </div>
             <div id="rack-viz-container">
                 <canvas id="rack-3d-canvas"></canvas>
-                <img src="../images/microsoft-azure-logo-large.png" alt="Microsoft Azure" class="rack-viz-logo">
+                <div class="rack-viz-brand">
+                    <img src="../images/azurelocal-instance.svg" alt="Azure Local" class="rack-viz-logo">
+                    <span class="rack-viz-brand-text">Azure Local</span>
+                </div>
                 <div class="rack-viz-controls">
                     <div class="hint">
                         &#128161; Tip: Left-click and hold to rotate · Scroll to zoom · Right-click and hold to move
                     </div>
                     <div class="rack-viz-legend">
                         <span class="legend-item"><span class="legend-swatch" style="background:#aaaaaa;"></span> Server Node</span>
-                        <span class="legend-item"><span class="legend-swatch" style="background:#059669;"></span> ToR Switch</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#444444;"></span> ToR Switch</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#e0e0e0;"></span> BMC Switch</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#1a6fc4;"></span> Core Router / Firewall</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#3399ff;"></span> Mgmt/Compute</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#ff66bb;"></span> SMB Trunk</span>
@@ -806,7 +810,7 @@
                     <circle cx="12" cy="12" r="10"/>
                     <path d="M12 16v-4M12 8h.01"/>
                 </svg>
-                <span>Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the TOR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.</span>
+                <span>Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.</span>
             </div>
         </section>
 

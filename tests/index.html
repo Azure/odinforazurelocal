@@ -123,6 +123,11 @@
     <!-- Enable test mode before loading sizer (skips DOMContentLoaded UI init) -->
     <script>window.__SIZER_TEST_MODE__ = true;</script>
     <script src="../sizer/sizer.js"></script>
+    <!-- Switch Config modules (load in dependency order) -->
+    <script src="../switch-config/models.js"></script>
+    <script src="../switch-config/builder.js"></script>
+    <script src="../switch-config/templates/cisco-nxos.js"></script>
+    <script src="../switch-config/templates/dell-os10.js"></script>
     <script>
         // ========================================================================
         // TEST FRAMEWORK
@@ -5335,6 +5340,1476 @@
                 }
             });
 
+            return results;
+        })());
+
+        // ========================================================================
+        // SWITCH CONFIG — MODELS.JS TESTS
+        // ========================================================================
+        sectionHeader('🔌 switch-config/models.js - Switch Model Definitions');
+
+        testSuite('SWITCH_MODELS global', 'models.js', [
+            assert(typeof window.SWITCH_MODELS === 'object' && window.SWITCH_MODELS !== null,
+                'SWITCH_MODELS is a non-null object', true,
+                typeof window.SWITCH_MODELS === 'object' && window.SWITCH_MODELS !== null),
+            assert(Object.keys(SWITCH_MODELS).length === 7,
+                'SWITCH_MODELS has 7 models', 7, Object.keys(SWITCH_MODELS).length)
+        ]);
+
+        testSuite('TOR Model Definitions', 'models.js', (() => {
+            const torKeys = ['cisco-93108TC-FX3P', 'cisco-93180YC-FX', 'cisco-93180YC-FX3', 'dell-S5248F-ON'];
+            const results = [];
+            torKeys.forEach(key => {
+                const m = SWITCH_MODELS[key];
+                results.push(assert(m !== undefined, key + ' exists', true, m !== undefined));
+                results.push(assert(m && m.type === 'TOR', key + ' type is TOR', 'TOR', m ? m.type : 'undefined'));
+                results.push(assert(m && m.firmware, key + ' has firmware defined',
+                    'nxos|os10', m ? m.firmware : 'undefined'));
+                results.push(assert(m && m.interface_templates && m.interface_templates.common,
+                    key + ' has common interface templates', true,
+                    !!(m && m.interface_templates && m.interface_templates.common)));
+                var hasFc = !!(m && m.interface_templates && (
+                    m.interface_templates.fully_converged || m.interface_templates.fully_converged1));
+                results.push(assert(hasFc,
+                    key + ' has fully_converged interface templates', true, hasFc));
+                results.push(assert(m && m.interface_templates && m.interface_templates.switched,
+                    key + ' has switched interface templates', true,
+                    !!(m && m.interface_templates && m.interface_templates.switched)));
+                results.push(assert(m && m.interface_templates && m.interface_templates.switchless,
+                    key + ' has switchless interface templates', true,
+                    !!(m && m.interface_templates && m.interface_templates.switchless)));
+                results.push(assert(m && Array.isArray(m.port_channels),
+                    key + ' has port_channels array', true,
+                    !!(m && Array.isArray(m.port_channels))));
+            });
+            return results;
+        })());
+
+        testSuite('BMC Model Definitions', 'models.js', (() => {
+            const bmcKeys = ['cisco-9348GC-FXP', 'cisco-9348GC-FX3', 'dell-N3248TE-ON'];
+            const results = [];
+            bmcKeys.forEach(key => {
+                const m = SWITCH_MODELS[key];
+                results.push(assert(m !== undefined, key + ' exists', true, m !== undefined));
+                results.push(assert(m && m.type === 'BMC', key + ' type is BMC', 'BMC', m ? m.type : 'undefined'));
+                results.push(assert(m && m.interface_templates && m.interface_templates.common,
+                    key + ' has common interface templates', true,
+                    !!(m && m.interface_templates && m.interface_templates.common)));
+            });
+            return results;
+        })());
+
+        testSuite('getTorModels() and getBmcModels() helpers', 'models.js', [
+            assert(typeof getTorModels === 'function', 'getTorModels is a function', true, typeof getTorModels === 'function'),
+            assert(typeof getBmcModels === 'function', 'getBmcModels is a function', true, typeof getBmcModels === 'function'),
+            assert(getTorModels().length === 4, 'getTorModels returns 4 entries', 4, getTorModels().length),
+            assert(getBmcModels().length === 3, 'getBmcModels returns 3 entries', 3, getBmcModels().length),
+            (() => {
+                const tor = getTorModels();
+                const allHaveKey = tor.every(t => t.key && typeof t.key === 'string');
+                const allHaveLabel = tor.every(t => t.label && typeof t.label === 'string');
+                return assert(allHaveKey && allHaveLabel,
+                    'All TOR model entries have key and label', true, allHaveKey && allHaveLabel);
+            })(),
+            (() => {
+                const bmc = getBmcModels();
+                const allHaveKey = bmc.every(t => t.key && typeof t.key === 'string');
+                const allHaveLabel = bmc.every(t => t.label && typeof t.label === 'string');
+                return assert(allHaveKey && allHaveLabel,
+                    'All BMC model entries have key and label', true, allHaveKey && allHaveLabel);
+            })()
+        ]);
+
+        testSuite('Cisco TOR Firmware Consistency', 'models.js', (() => {
+            const results = [];
+            ['cisco-93108TC-FX3P', 'cisco-93180YC-FX', 'cisco-93180YC-FX3'].forEach(key => {
+                const m = SWITCH_MODELS[key];
+                results.push(assert(m && m.firmware === 'nxos',
+                    key + ' firmware is nxos', 'nxos', m ? m.firmware : 'undefined'));
+                results.push(assert(m && m.make === 'Cisco',
+                    key + ' make is Cisco', 'Cisco', m ? m.make : 'undefined'));
+            });
+            return results;
+        })());
+
+        testSuite('Dell Model Firmware Consistency', 'models.js', (() => {
+            const results = [];
+            ['dell-S5248F-ON', 'dell-N3248TE-ON'].forEach(key => {
+                const m = SWITCH_MODELS[key];
+                results.push(assert(m && m.firmware === 'os10',
+                    key + ' firmware is os10', 'os10', m ? m.firmware : 'undefined'));
+                results.push(assert(m && m.make === 'DellEMC',
+                    key + ' make is DellEMC', 'DellEMC', m ? m.make : 'undefined'));
+            });
+            return results;
+        })());
+
+        testSuite('Dell TOR S5248F-ON fully_converged variants', 'models.js', [
+            assert(SWITCH_MODELS['dell-S5248F-ON'].interface_templates.fully_converged1 !== undefined,
+                'Dell S5248F-ON has fully_converged1 (trunk) template', true,
+                SWITCH_MODELS['dell-S5248F-ON'].interface_templates.fully_converged1 !== undefined),
+            assert(SWITCH_MODELS['dell-S5248F-ON'].interface_templates.fully_converged2 !== undefined,
+                'Dell S5248F-ON has fully_converged2 (access) template', true,
+                SWITCH_MODELS['dell-S5248F-ON'].interface_templates.fully_converged2 !== undefined)
+        ]);
+
+        // ========================================================================
+        // SWITCH CONFIG — BUILDER.JS TESTS
+        // ========================================================================
+        sectionHeader('🔌 switch-config/builder.js - Switch Config Builder');
+
+        testSuite('SwitchConfigBuilder constructor', 'builder.js', [
+            assert(typeof SwitchConfigBuilder === 'function',
+                'SwitchConfigBuilder is a function (constructor)', true,
+                typeof SwitchConfigBuilder === 'function'),
+            (() => {
+                const b = new SwitchConfigBuilder({
+                    designerState: { storage: 'switched', intent: 'mgmt_compute' },
+                    torModelKey: 'cisco-93108TC-FX3P'
+                });
+                return assert(b.deploymentPattern === 'switched',
+                    'Switched storage resolves to "switched" pattern', 'switched', b.deploymentPattern);
+            })(),
+            (() => {
+                const b = new SwitchConfigBuilder({
+                    designerState: { storage: 'switchless', intent: 'mgmt_compute' },
+                    torModelKey: 'cisco-93108TC-FX3P'
+                });
+                return assert(b.deploymentPattern === 'switchless',
+                    'Switchless storage resolves to "switchless" pattern', 'switchless', b.deploymentPattern);
+            })(),
+            (() => {
+                const b = new SwitchConfigBuilder({
+                    designerState: { intent: 'all_traffic' },
+                    torModelKey: 'cisco-93108TC-FX3P'
+                });
+                return assert(b.deploymentPattern === 'fully_converged',
+                    'All-traffic intent resolves to "fully_converged" pattern', 'fully_converged', b.deploymentPattern);
+            })(),
+            (() => {
+                const b = new SwitchConfigBuilder({
+                    designerState: { storage: 'network_switch', intent: 'mgmt_compute' },
+                    torModelKey: 'cisco-93108TC-FX3P'
+                });
+                return assert(b.deploymentPattern === 'switched',
+                    'network_switch storage resolves to "switched"', 'switched', b.deploymentPattern);
+            })()
+        ]);
+
+        testSuite('Builder: buildTor() — Cisco fully_converged', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3', storage: '' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'my-tor1', tor2: 'my-tor2' },
+                site: 'Test-Site',
+                bgp: { torAsn: 65001, borderAsn: 64512 },
+                ips: {
+                    loopback1: '10.0.255.1/32', loopback2: '10.0.255.2/32',
+                    p2pBorder1Tor1: '10.0.0.2/30', p2pBorder1Tor2: '10.0.0.6/30',
+                    p2pBorder2Tor1: '10.0.0.10/30', p2pBorder2Tor2: '10.0.0.14/30',
+                    ibgpTor1: '10.0.0.17', ibgpTor2: '10.0.0.18'
+                },
+                vlans: {
+                    infra: { id: '7', name: 'Infra_7', cidr: '24', gateway: '10.0.0.1',
+                             ip_tor1: '10.0.0.2', ip_tor2: '10.0.0.3' },
+                    compute: { id: '711', name: 'Tenant_711' },
+                    storage1: { id: '712', name: 'Storage_712_TOR1' },
+                    storage2: { id: '713', name: 'Storage_713_TOR2' },
+                    bmc: { id: '125', name: 'BMC_Mgmt_125' },
+                    hnvpa: null
+                }
+            });
+
+            const tor1 = b.buildTor('TOR1');
+            results.push(assert(tor1 !== null && typeof tor1 === 'object',
+                'buildTor(TOR1) returns an object', true, tor1 !== null && typeof tor1 === 'object'));
+            results.push(assert(tor1.switch.hostname === 'my-tor1',
+                'TOR1 hostname is my-tor1', 'my-tor1', tor1.switch.hostname));
+            results.push(assert(tor1.switch.make === 'cisco',
+                'TOR1 make is cisco', 'cisco', tor1.switch.make));
+            results.push(assert(tor1.switch.firmware === 'nxos',
+                'TOR1 firmware is nxos', 'nxos', tor1.switch.firmware));
+            results.push(assert(tor1.switch.site === 'Test-Site',
+                'TOR1 site is Test-Site', 'Test-Site', tor1.switch.site));
+
+            // VLANs
+            results.push(assert(Array.isArray(tor1.vlans),
+                'TOR1 vlans is an array', true, Array.isArray(tor1.vlans)));
+            const vlanIds = tor1.vlans.map(v => v.vlan_id);
+            results.push(assert(vlanIds.includes(2),
+                'TOR1 vlans include UNUSED (2)', true, vlanIds.includes(2)));
+            results.push(assert(vlanIds.includes(7),
+                'TOR1 vlans include Infra (7)', true, vlanIds.includes(7)));
+            results.push(assert(vlanIds.includes(711),
+                'TOR1 vlans include Tenant (711)', true, vlanIds.includes(711)));
+            results.push(assert(vlanIds.includes(712),
+                'TOR1 vlans include Storage1 (712)', true, vlanIds.includes(712)));
+            results.push(assert(vlanIds.includes(713),
+                'TOR1 vlans include Storage2 (713)', true, vlanIds.includes(713)));
+
+            // VLANs are sorted
+            const sortedVlans = [...vlanIds].sort((a, b) => a - b);
+            results.push(assert(JSON.stringify(vlanIds) === JSON.stringify(sortedVlans),
+                'VLANs are sorted by ID', JSON.stringify(sortedVlans), JSON.stringify(vlanIds)));
+
+            // Infra VLAN has HSRP (Cisco)
+            const infraVlan = tor1.vlans.find(v => v.vlan_id === 7);
+            results.push(assert(infraVlan && infraVlan.interface && infraVlan.interface.redundancy,
+                'Infra VLAN has redundancy config', true,
+                !!(infraVlan && infraVlan.interface && infraVlan.interface.redundancy)));
+            results.push(assert(infraVlan && infraVlan.interface.redundancy.type === 'hsrp',
+                'Cisco Infra VLAN redundancy is HSRP', 'hsrp',
+                infraVlan ? infraVlan.interface.redundancy.type : 'undefined'));
+            results.push(assert(infraVlan && infraVlan.interface.redundancy.priority === 150,
+                'TOR1 HSRP priority is 150', 150,
+                infraVlan ? infraVlan.interface.redundancy.priority : 'undefined'));
+
+            // Interfaces
+            results.push(assert(Array.isArray(tor1.interfaces),
+                'TOR1 interfaces is an array', true, Array.isArray(tor1.interfaces)));
+            results.push(assert(tor1.interfaces.length > 0,
+                'TOR1 has at least 1 interface', true, tor1.interfaces.length > 0));
+            const loopback = tor1.interfaces.find(i => i.name === 'Loopback0');
+            results.push(assert(loopback && loopback.ipv4 === '10.0.255.1/32',
+                'TOR1 Loopback0 has correct IP', '10.0.255.1/32',
+                loopback ? loopback.ipv4 : 'undefined'));
+
+            // Port channels
+            results.push(assert(Array.isArray(tor1.port_channels),
+                'TOR1 port_channels is an array', true, Array.isArray(tor1.port_channels)));
+
+            // BGP
+            results.push(assert(tor1.bgp && tor1.bgp.asn === 65001,
+                'TOR1 BGP ASN is 65001', 65001, tor1.bgp ? tor1.bgp.asn : 'undefined'));
+            results.push(assert(tor1.bgp && tor1.bgp.router_id === '10.0.255.1',
+                'TOR1 BGP router_id is from loopback', '10.0.255.1',
+                tor1.bgp ? tor1.bgp.router_id : 'undefined'));
+            results.push(assert(tor1.bgp && tor1.bgp.neighbors.length >= 3,
+                'TOR1 BGP has at least 3 neighbors (2 border + iBGP)', '>=3',
+                tor1.bgp ? String(tor1.bgp.neighbors.length) : '0'));
+
+            // Prefix lists
+            results.push(assert(tor1.prefix_lists && tor1.prefix_lists.DefaultRoute,
+                'TOR1 has DefaultRoute prefix list', true,
+                !!(tor1.prefix_lists && tor1.prefix_lists.DefaultRoute)));
+
+            // QoS
+            results.push(assert(tor1.qos === true,
+                'TOR1 has QoS enabled', true, tor1.qos));
+
+            // TOR2 differences
+            const tor2 = b.buildTor('TOR2');
+            results.push(assert(tor2.switch.hostname === 'my-tor2',
+                'TOR2 hostname is my-tor2', 'my-tor2', tor2.switch.hostname));
+            const tor2InfraVlan = tor2.vlans.find(v => v.vlan_id === 7);
+            results.push(assert(tor2InfraVlan && tor2InfraVlan.interface.redundancy.priority === 140,
+                'TOR2 HSRP priority is 140', 140,
+                tor2InfraVlan ? tor2InfraVlan.interface.redundancy.priority : 'undefined'));
+            const tor2Loopback = tor2.interfaces.find(i => i.name === 'Loopback0');
+            results.push(assert(tor2Loopback && tor2Loopback.ipv4 === '10.0.255.2/32',
+                'TOR2 Loopback0 has correct IP', '10.0.255.2/32',
+                tor2Loopback ? tor2Loopback.ipv4 : 'undefined'));
+
+            return results;
+        })());
+
+        testSuite('Builder: Switched pattern storage VLAN filtering', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { storage: 'switched', intent: 'mgmt_compute', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                vlans: {
+                    infra: { id: '7', name: 'Infra_7' },
+                    compute: { id: '711', name: 'Tenant_711' },
+                    storage1: { id: '712', name: 'Storage_712_TOR1' },
+                    storage2: { id: '713', name: 'Storage_713_TOR2' },
+                    bmc: { id: '125', name: 'BMC_125' },
+                    hnvpa: null
+                },
+                ips: {}, bgp: {}, hostnames: {}
+            });
+
+            const tor1 = b.buildTor('TOR1');
+            const tor2 = b.buildTor('TOR2');
+            const tor1VlanIds = tor1.vlans.map(v => v.vlan_id);
+            const tor2VlanIds = tor2.vlans.map(v => v.vlan_id);
+
+            results.push(assert(tor1VlanIds.includes(712),
+                'Switched TOR1 includes storage1 (712)', true, tor1VlanIds.includes(712)));
+            results.push(assert(!tor1VlanIds.includes(713),
+                'Switched TOR1 excludes storage2 (713)', false, tor1VlanIds.includes(713)));
+            results.push(assert(tor2VlanIds.includes(713),
+                'Switched TOR2 includes storage2 (713)', true, tor2VlanIds.includes(713)));
+            results.push(assert(!tor2VlanIds.includes(712),
+                'Switched TOR2 excludes storage1 (712)', false, tor2VlanIds.includes(712)));
+
+            return results;
+        })());
+
+        testSuite('Builder: Switchless pattern omits storage VLANs', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { storage: 'switchless', intent: 'mgmt_compute', nodes: '2' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                vlans: {
+                    infra: { id: '7', name: 'Infra_7' },
+                    compute: { id: '711', name: 'Tenant_711' },
+                    storage1: { id: '712', name: 'Storage_712' },
+                    storage2: { id: '713', name: 'Storage_713' },
+                    bmc: { id: '125', name: 'BMC_125' },
+                    hnvpa: null
+                },
+                ips: {}, bgp: {}, hostnames: {}
+            });
+
+            const tor1 = b.buildTor('TOR1');
+            const vlanIds = tor1.vlans.map(v => v.vlan_id);
+            results.push(assert(!vlanIds.includes(712),
+                'Switchless TOR1 has no storage1 VLAN', false, vlanIds.includes(712)));
+            results.push(assert(!vlanIds.includes(713),
+                'Switchless TOR1 has no storage2 VLAN', false, vlanIds.includes(713)));
+
+            return results;
+        })());
+
+        testSuite('Builder: Peer IP derivation from /30 addresses', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                ips: {
+                    p2pBorder1Tor1: '10.0.0.2/30',
+                    p2pBorder1Tor2: '10.0.0.6/30'
+                },
+                vlans: {}, bgp: {}, hostnames: {}
+            });
+
+            const tor1 = b.buildTor('TOR1');
+            // Border1 neighbor should be peer of 10.0.0.2/30 → 10.0.0.1
+            const border1Neighbor = tor1.bgp.neighbors.find(n => n.description === 'TO_Border1');
+            results.push(assert(border1Neighbor && border1Neighbor.ip === '10.0.0.1',
+                'Peer of 10.0.0.2/30 is 10.0.0.1', '10.0.0.1',
+                border1Neighbor ? border1Neighbor.ip : 'undefined'));
+
+            return results;
+        })());
+
+        testSuite('Builder: buildBmc() output structure', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                bmcModelKey: 'cisco-9348GC-FXP',
+                hostnames: { bmc: 'my-bmc' },
+                vlans: {
+                    infra: { id: '7' },
+                    bmc: { id: '125', name: 'BMC_125', ip_bmc: '10.0.125.1', cidr: '24', gateway: '10.0.125.254' },
+                    hnvpa: null
+                },
+                ips: { bmcGateway: '10.0.125.254' },
+                bgp: {}
+            });
+
+            const bmc = b.buildBmc();
+            results.push(assert(bmc !== null, 'buildBmc() returns non-null', true, bmc !== null));
+            results.push(assert(bmc.switch.hostname === 'my-bmc',
+                'BMC hostname is my-bmc', 'my-bmc', bmc.switch.hostname));
+            results.push(assert(bmc.switch.type === 'BMC',
+                'BMC switch type is BMC', 'BMC', bmc.switch.type));
+
+            // BMC VLANs
+            const vlanIds = bmc.vlans.map(v => v.vlan_id);
+            results.push(assert(vlanIds.includes(2), 'BMC has UNUSED VLAN (2)', true, vlanIds.includes(2)));
+            results.push(assert(vlanIds.includes(99), 'BMC has NATIVE VLAN (99)', true, vlanIds.includes(99)));
+            results.push(assert(vlanIds.includes(125), 'BMC has BMC VLAN (125)', true, vlanIds.includes(125)));
+
+            // SVI on BMC VLAN
+            const bmcVlan = bmc.vlans.find(v => v.vlan_id === 125);
+            results.push(assert(bmcVlan && bmcVlan.interface && bmcVlan.interface.ip === '10.0.125.1',
+                'BMC VLAN has SVI with correct IP', '10.0.125.1',
+                bmcVlan && bmcVlan.interface ? bmcVlan.interface.ip : 'undefined'));
+
+            // Static routes
+            results.push(assert(bmc.static_routes && bmc.static_routes.length > 0,
+                'BMC has static routes', true, !!(bmc.static_routes && bmc.static_routes.length > 0)));
+            results.push(assert(bmc.static_routes[0].prefix === '0.0.0.0/0',
+                'BMC default route prefix', '0.0.0.0/0', bmc.static_routes[0].prefix));
+            results.push(assert(bmc.static_routes[0].next_hop === '10.0.125.254',
+                'BMC default route next_hop', '10.0.125.254', bmc.static_routes[0].next_hop));
+
+            // No BGP on BMC
+            results.push(assert(bmc.bgp === undefined,
+                'BMC has no BGP section', true, bmc.bgp === undefined));
+
+            return results;
+        })());
+
+        testSuite('Builder: buildBmc() returns null without bmcModel', 'builder.js', [
+            (() => {
+                const b = new SwitchConfigBuilder({
+                    designerState: { intent: 'all_traffic' },
+                    torModelKey: 'cisco-93108TC-FX3P',
+                    vlans: {}, ips: {}, bgp: {}
+                });
+                const bmc = b.buildBmc();
+                return assert(bmc === null, 'No bmcModelKey → buildBmc() returns null', true, bmc === null);
+            })()
+        ]);
+
+        testSuite('Builder: Dell TOR fully_converged variant selection', 'builder.js', (() => {
+            const results = [];
+
+            // With compute + storage VLANs → fully_converged1 (trunk mode)
+            const b1 = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic' },
+                torModelKey: 'dell-S5248F-ON',
+                vlans: {
+                    infra: { id: '7' }, compute: { id: '711' },
+                    storage1: { id: '712' }, storage2: { id: '713' },
+                    bmc: { id: '125' }, hnvpa: null
+                },
+                ips: {}, bgp: {}, hostnames: {}
+            });
+            const tor1 = b1.buildTor('TOR1');
+            // Check that fully_converged1 interfaces are used (trunk mode has HyperConverged_To_Host)
+            const hasTrunkIface = tor1.interfaces.some(i =>
+                i.name === 'HyperConverged_To_Host' && i.type === 'Trunk');
+            results.push(assert(hasTrunkIface,
+                'Dell fc with C+S VLANs uses fully_converged1 (trunk) interfaces', true, hasTrunkIface));
+
+            // VRRP redundancy for Dell
+            const infraVlan = tor1.vlans.find(v => v.vlan_id === 7);
+            if (infraVlan && infraVlan.interface && infraVlan.interface.redundancy) {
+                results.push(assert(infraVlan.interface.redundancy.type === 'vrrp',
+                    'Dell uses VRRP for redundancy', 'vrrp', infraVlan.interface.redundancy.type));
+            }
+
+            return results;
+        })());
+
+        // ========================================================================
+        // SWITCH CONFIG — CISCO NX-OS TEMPLATE TESTS
+        // ========================================================================
+        sectionHeader('🔌 switch-config/templates/cisco-nxos.js — Cisco NX-OS Renderer');
+
+        testSuite('CiscoNxosRenderer global', 'cisco-nxos.js', [
+            assert(typeof CiscoNxosRenderer === 'object' && CiscoNxosRenderer !== null,
+                'CiscoNxosRenderer is a non-null object', true,
+                typeof CiscoNxosRenderer === 'object' && CiscoNxosRenderer !== null),
+            assert(typeof CiscoNxosRenderer.renderFullConfig === 'function',
+                'CiscoNxosRenderer.renderFullConfig is a function', true,
+                typeof CiscoNxosRenderer.renderFullConfig === 'function'),
+            assert(typeof CiscoNxosRenderer.renderSystem === 'function',
+                'renderSystem exists', true, typeof CiscoNxosRenderer.renderSystem === 'function'),
+            assert(typeof CiscoNxosRenderer.renderVlans === 'function',
+                'renderVlans exists', true, typeof CiscoNxosRenderer.renderVlans === 'function'),
+            assert(typeof CiscoNxosRenderer.renderInterfaces === 'function',
+                'renderInterfaces exists', true, typeof CiscoNxosRenderer.renderInterfaces === 'function'),
+            assert(typeof CiscoNxosRenderer.renderBgp === 'function',
+                'renderBgp exists', true, typeof CiscoNxosRenderer.renderBgp === 'function'),
+            assert(typeof CiscoNxosRenderer.renderQos === 'function',
+                'renderQos exists', true, typeof CiscoNxosRenderer.renderQos === 'function')
+        ]);
+
+        testSuite('Cisco NX-OS: renderSystem output', 'cisco-nxos.js', (() => {
+            const results = [];
+            const data = {
+                switch: { hostname: 'test-tor1', make: 'cisco', model: '93108tc-fx3p',
+                          firmware: 'nxos', site: 'TestSite' }
+            };
+            const output = CiscoNxosRenderer.renderSystem(data);
+
+            results.push(assert(typeof output === 'string',
+                'renderSystem returns a string', true, typeof output === 'string'));
+            results.push(assert(output.indexOf('hostname test-tor1') !== -1,
+                'Output contains hostname command', true, output.indexOf('hostname test-tor1') !== -1));
+            results.push(assert(output.indexOf('banner motd') !== -1,
+                'Output contains banner motd', true, output.indexOf('banner motd') !== -1));
+            results.push(assert(output.indexOf('feature bgp') !== -1,
+                'Output enables BGP feature', true, output.indexOf('feature bgp') !== -1));
+            results.push(assert(output.indexOf('feature scp-server') !== -1,
+                'Output enables SCP server', true, output.indexOf('feature scp-server') !== -1));
+
+            return results;
+        })());
+
+        testSuite('Cisco NX-OS: renderVlans output', 'cisco-nxos.js', (() => {
+            const results = [];
+            const data = {
+                vlans: [
+                    { vlan_id: 2, name: 'UNUSED_VLAN', shutdown: true },
+                    { vlan_id: 7, name: 'Infra_7', interface: {
+                        ip: '10.0.0.2', cidr: 24, mtu: 9216,
+                        redundancy: { type: 'hsrp', group: 7, priority: 150, virtual_ip: '10.0.0.1' }
+                    }},
+                    { vlan_id: 711, name: 'Tenant_711' }
+                ]
+            };
+            const output = CiscoNxosRenderer.renderVlans(data);
+
+            results.push(assert(output.indexOf('vlan 2') !== -1,
+                'Output defines VLAN 2', true, output.indexOf('vlan 2') !== -1));
+            results.push(assert(output.indexOf('UNUSED_VLAN') !== -1,
+                'Output names UNUSED_VLAN', true, output.indexOf('UNUSED_VLAN') !== -1));
+            results.push(assert(output.indexOf('shutdown') !== -1,
+                'UNUSED_VLAN is shutdown', true, output.indexOf('shutdown') !== -1));
+            results.push(assert(output.indexOf('interface vlan7') !== -1,
+                'Output creates SVI vlan7', true, output.indexOf('interface vlan7') !== -1));
+            results.push(assert(output.indexOf('ip address 10.0.0.2/24') !== -1,
+                'SVI has correct IP', true, output.indexOf('ip address 10.0.0.2/24') !== -1));
+            results.push(assert(output.indexOf('hsrp 7') !== -1,
+                'HSRP group configured', true, output.indexOf('hsrp 7') !== -1));
+            results.push(assert(output.indexOf('priority 150') !== -1,
+                'HSRP priority set', true, output.indexOf('priority 150') !== -1));
+            results.push(assert(output.indexOf('10.0.0.1') !== -1,
+                'HSRP virtual IP set', true, output.indexOf('10.0.0.1') !== -1));
+
+            return results;
+        })());
+
+        testSuite('Cisco NX-OS: renderBgp output', 'cisco-nxos.js', (() => {
+            const results = [];
+            const data = {
+                bgp: {
+                    asn: 65001,
+                    router_id: '10.0.255.1',
+                    networks: ['10.0.0.0/30', '10.0.255.1/32'],
+                    neighbors: [
+                        { ip: '10.0.0.1', description: 'TO_Border1', remote_as: 64512,
+                          af_ipv4_unicast: { prefix_list_in: 'DefaultRoute' } },
+                        { ip: '10.0.0.18', description: 'iBGP_PEER', remote_as: 65001,
+                          af_ipv4_unicast: {} }
+                    ]
+                }
+            };
+            const output = CiscoNxosRenderer.renderBgp(data);
+
+            results.push(assert(output.indexOf('router bgp 65001') !== -1,
+                'Output has router bgp 65001', true, output.indexOf('router bgp 65001') !== -1));
+            results.push(assert(output.indexOf('router-id 10.0.255.1') !== -1,
+                'Output has router-id', true, output.indexOf('router-id 10.0.255.1') !== -1));
+            results.push(assert(output.indexOf('neighbor 10.0.0.1') !== -1,
+                'Output has border neighbor', true, output.indexOf('neighbor 10.0.0.1') !== -1));
+            results.push(assert(output.indexOf('remote-as 64512') !== -1,
+                'Border neighbor has correct ASN', true, output.indexOf('remote-as 64512') !== -1));
+            results.push(assert(output.indexOf('neighbor 10.0.0.18') !== -1,
+                'Output has iBGP neighbor', true, output.indexOf('neighbor 10.0.0.18') !== -1));
+
+            return results;
+        })());
+
+        testSuite('Cisco NX-OS: renderQos output', 'cisco-nxos.js', (() => {
+            const results = [];
+            const data = { qos: true };
+            const output = CiscoNxosRenderer.renderQos(data);
+            results.push(assert(typeof output === 'string' && output.length > 0,
+                'renderQos produces non-empty output', true,
+                typeof output === 'string' && output.length > 0));
+            results.push(assert(output.indexOf('AZLOCAL') !== -1,
+                'QoS output references AZLOCAL policy', true, output.indexOf('AZLOCAL') !== -1));
+
+            // No QoS when disabled
+            const noQos = CiscoNxosRenderer.renderQos({ qos: false });
+            results.push(assert(noQos === '' || noQos.trim() === '',
+                'No QoS output when qos=false', true, noQos === '' || noQos.trim() === ''));
+            return results;
+        })());
+
+        testSuite('Cisco NX-OS: renderFullConfig end-to-end', 'cisco-nxos.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'full-test-tor1' },
+                bgp: { torAsn: 65001, borderAsn: 64512 },
+                ips: {
+                    loopback1: '10.0.255.1/32', p2pBorder1Tor1: '10.0.0.2/30',
+                    p2pBorder2Tor1: '10.0.0.10/30', ibgpTor1: '10.0.0.17', ibgpTor2: '10.0.0.18'
+                },
+                vlans: {
+                    infra: { id: '7', name: 'Infra_7', cidr: '24', gateway: '10.0.0.1',
+                             ip_tor1: '10.0.0.2' },
+                    compute: { id: '711' }, storage1: { id: '712' }, storage2: { id: '713' },
+                    bmc: { id: '125' }, hnvpa: null
+                }
+            });
+            const json = b.buildTor('TOR1');
+            const fullConfig = CiscoNxosRenderer.renderFullConfig(json);
+
+            results.push(assert(typeof fullConfig === 'string' && fullConfig.length > 100,
+                'renderFullConfig produces substantial output', true,
+                typeof fullConfig === 'string' && fullConfig.length > 100));
+            results.push(assert(fullConfig.indexOf('hostname full-test-tor1') !== -1,
+                'Full config contains hostname', true,
+                fullConfig.indexOf('hostname full-test-tor1') !== -1));
+            results.push(assert(fullConfig.indexOf('router bgp 65001') !== -1,
+                'Full config contains BGP section', true,
+                fullConfig.indexOf('router bgp 65001') !== -1));
+            results.push(assert(fullConfig.indexOf('vlan 7') !== -1,
+                'Full config contains VLAN 7', true,
+                fullConfig.indexOf('vlan 7') !== -1));
+            results.push(assert(fullConfig.indexOf('AZLOCAL') !== -1,
+                'Full config contains QoS section', true,
+                fullConfig.indexOf('AZLOCAL') !== -1));
+
+            return results;
+        })());
+
+        // ========================================================================
+        // SWITCH CONFIG — DELL OS10 TEMPLATE TESTS
+        // ========================================================================
+        sectionHeader('🔌 switch-config/templates/dell-os10.js — Dell OS10 Renderer');
+
+        testSuite('DellOs10Renderer global', 'dell-os10.js', [
+            assert(typeof DellOs10Renderer === 'object' && DellOs10Renderer !== null,
+                'DellOs10Renderer is a non-null object', true,
+                typeof DellOs10Renderer === 'object' && DellOs10Renderer !== null),
+            assert(typeof DellOs10Renderer.renderFullConfig === 'function',
+                'DellOs10Renderer.renderFullConfig is a function', true,
+                typeof DellOs10Renderer.renderFullConfig === 'function'),
+            assert(typeof DellOs10Renderer.renderVlt === 'function',
+                'renderVlt exists (Dell-specific)', true,
+                typeof DellOs10Renderer.renderVlt === 'function')
+        ]);
+
+        testSuite('Dell OS10: renderSystem output', 'dell-os10.js', (() => {
+            const results = [];
+            const data = {
+                switch: { hostname: 'dell-tor1', make: 'dell', model: 's5248f-on',
+                          firmware: 'os10', site: 'DellSite' }
+            };
+            const output = DellOs10Renderer.renderSystem(data);
+
+            results.push(assert(typeof output === 'string',
+                'renderSystem returns a string', true, typeof output === 'string'));
+            results.push(assert(output.indexOf('hostname dell-tor1') !== -1,
+                'Output contains hostname command', true, output.indexOf('hostname dell-tor1') !== -1));
+
+            return results;
+        })());
+
+        testSuite('Dell OS10: VRRP redundancy in renderVlans', 'dell-os10.js', (() => {
+            const results = [];
+            const data = {
+                vlans: [
+                    { vlan_id: 7, name: 'Infra_7', interface: {
+                        ip: '10.0.0.2', cidr: 24, mtu: 9216,
+                        redundancy: { type: 'vrrp', group: 7, priority: 150, virtual_ip: '10.0.0.1' }
+                    }}
+                ]
+            };
+            const output = DellOs10Renderer.renderVlans(data);
+
+            results.push(assert(output.indexOf('interface vlan7') !== -1,
+                'Output creates SVI for vlan7', true, output.indexOf('interface vlan7') !== -1));
+            results.push(assert(output.indexOf('vrrp') !== -1,
+                'Output uses VRRP (not HSRP)', true, output.indexOf('vrrp') !== -1));
+
+            return results;
+        })());
+
+        testSuite('Dell OS10: renderFullConfig end-to-end', 'dell-os10.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'dell-S5248F-ON',
+                hostnames: { tor1: 'dell-full-test' },
+                bgp: { torAsn: 65001, borderAsn: 64512 },
+                ips: {
+                    loopback1: '10.0.255.1/32', p2pBorder1Tor1: '10.0.0.2/30',
+                    p2pBorder2Tor1: '10.0.0.10/30', ibgpTor1: '10.0.0.17', ibgpTor2: '10.0.0.18'
+                },
+                vlans: {
+                    infra: { id: '7', name: 'Infra_7', cidr: '24', gateway: '10.0.0.1',
+                             ip_tor1: '10.0.0.2' },
+                    compute: { id: '711' }, storage1: { id: '712' }, storage2: { id: '713' },
+                    bmc: { id: '125' }, hnvpa: null
+                }
+            });
+            const json = b.buildTor('TOR1');
+            const fullConfig = DellOs10Renderer.renderFullConfig(json);
+
+            results.push(assert(typeof fullConfig === 'string' && fullConfig.length > 100,
+                'renderFullConfig produces substantial output', true,
+                typeof fullConfig === 'string' && fullConfig.length > 100));
+            results.push(assert(fullConfig.indexOf('hostname dell-full-test') !== -1,
+                'Full config contains hostname', true,
+                fullConfig.indexOf('hostname dell-full-test') !== -1));
+            results.push(assert(fullConfig.indexOf('router bgp 65001') !== -1,
+                'Full config contains BGP section', true,
+                fullConfig.indexOf('router bgp 65001') !== -1));
+
+            return results;
+        })());
+
+        testSuite('Dell OS10: BMC config with static routes', 'dell-os10.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'dell-S5248F-ON',
+                bmcModelKey: 'dell-N3248TE-ON',
+                hostnames: { bmc: 'dell-bmc' },
+                vlans: {
+                    infra: { id: '7' },
+                    bmc: { id: '125', name: 'BMC_125', gateway: '10.0.125.254' },
+                    hnvpa: null
+                },
+                ips: { bmcGateway: '10.0.125.254' },
+                bgp: {}
+            });
+            const bmcJson = b.buildBmc();
+            const bmcConfig = DellOs10Renderer.renderFullConfig(bmcJson);
+
+            results.push(assert(bmcConfig.indexOf('dell-bmc') !== -1,
+                'Dell BMC config has hostname', true, bmcConfig.indexOf('dell-bmc') !== -1));
+            results.push(assert(bmcConfig.indexOf('0.0.0.0/0') !== -1,
+                'Dell BMC config has default route', true, bmcConfig.indexOf('0.0.0.0/0') !== -1));
+
+            return results;
+        })());
+
+        // ========================================================================
+        // SWITCH CONFIG — CROSS-MODULE INTEGRATION TESTS
+        // ========================================================================
+        sectionHeader('🔌 Switch Config Integration Tests');
+
+        testSuite('Cisco + Builder Integration: Full pipeline', 'integration', (() => {
+            const results = [];
+            const ciscoModels = getTorModels().filter(m => SWITCH_MODELS[m.key].firmware === 'nxos');
+            ciscoModels.forEach(model => {
+                ['fully_converged', 'switched', 'switchless'].forEach(pattern => {
+                    const storage = pattern === 'fully_converged' ? '' :
+                                    pattern === 'switched' ? 'switched' : 'switchless';
+                    const intent = pattern === 'fully_converged' ? 'all_traffic' : 'mgmt_compute';
+                    try {
+                        const b = new SwitchConfigBuilder({
+                            designerState: { storage: storage, intent: intent, nodes: '3' },
+                            torModelKey: model.key,
+                            vlans: {
+                                infra: { id: '7' }, compute: { id: '711' },
+                                storage1: { id: '712' }, storage2: { id: '713' },
+                                bmc: { id: '125' }, hnvpa: null
+                            },
+                            ips: { loopback1: '10.0.255.1/32' },
+                            bgp: { torAsn: 65001, borderAsn: 64512 },
+                            hostnames: { tor1: 'ci-test' }
+                        });
+                        const json = b.buildTor('TOR1');
+                        const config = CiscoNxosRenderer.renderFullConfig(json);
+                        results.push(assert(typeof config === 'string' && config.length > 50,
+                            model.key + ' / ' + pattern + ' produces valid config', true, true));
+                    } catch (e) {
+                        results.push(assert(false,
+                            model.key + ' / ' + pattern + ' threw error: ' + e.message,
+                            'no error', e.message));
+                    }
+                });
+            });
+            return results;
+        })());
+
+        testSuite('Dell + Builder Integration: Full pipeline', 'integration', (() => {
+            const results = [];
+            const dellTorModels = getTorModels().filter(m => SWITCH_MODELS[m.key].firmware === 'os10');
+            dellTorModels.forEach(model => {
+                ['fully_converged', 'switched', 'switchless'].forEach(pattern => {
+                    const storage = pattern === 'fully_converged' ? '' :
+                                    pattern === 'switched' ? 'switched' : 'switchless';
+                    const intent = pattern === 'fully_converged' ? 'all_traffic' : 'mgmt_compute';
+                    try {
+                        const b = new SwitchConfigBuilder({
+                            designerState: { storage: storage, intent: intent, nodes: '3' },
+                            torModelKey: model.key,
+                            vlans: {
+                                infra: { id: '7' }, compute: { id: '711' },
+                                storage1: { id: '712' }, storage2: { id: '713' },
+                                bmc: { id: '125' }, hnvpa: null
+                            },
+                            ips: { loopback1: '10.0.255.1/32' },
+                            bgp: { torAsn: 65001, borderAsn: 64512 },
+                            hostnames: { tor1: 'ci-test' }
+                        });
+                        const json = b.buildTor('TOR1');
+                        const config = DellOs10Renderer.renderFullConfig(json);
+                        results.push(assert(typeof config === 'string' && config.length > 50,
+                            model.key + ' / ' + pattern + ' produces valid config', true, true));
+                    } catch (e) {
+                        results.push(assert(false,
+                            model.key + ' / ' + pattern + ' threw error: ' + e.message,
+                            'no error', e.message));
+                    }
+                });
+            });
+            return results;
+        })());
+
+        testSuite('BMC Integration: All BMC models', 'integration', (() => {
+            const results = [];
+            const bmcModels = getBmcModels();
+            bmcModels.forEach(model => {
+                try {
+                    const bmcModel = SWITCH_MODELS[model.key];
+                    const torKey = bmcModel.firmware === 'nxos' ? 'cisco-93108TC-FX3P' : 'dell-S5248F-ON';
+                    const b = new SwitchConfigBuilder({
+                        designerState: { intent: 'all_traffic', nodes: '3' },
+                        torModelKey: torKey,
+                        bmcModelKey: model.key,
+                        hostnames: { bmc: 'bmc-test' },
+                        vlans: {
+                            infra: { id: '7' },
+                            bmc: { id: '125', name: 'BMC_125', gateway: '10.0.125.254' },
+                            hnvpa: null
+                        },
+                        ips: { bmcGateway: '10.0.125.254' },
+                        bgp: {}
+                    });
+                    const json = b.buildBmc();
+                    const renderer = bmcModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
+                    const config = renderer.renderFullConfig(json);
+                    results.push(assert(typeof config === 'string' && config.length > 50,
+                        model.key + ' BMC produces valid config', true, true));
+                } catch (e) {
+                    results.push(assert(false,
+                        model.key + ' BMC threw error: ' + e.message,
+                        'no error', e.message));
+                }
+            });
+            return results;
+        })());
+
+        testSuite('transferToSwitchConfig function exists', 'script.js', [
+            assert(typeof transferToSwitchConfig === 'function',
+                'transferToSwitchConfig is a global function', true,
+                typeof transferToSwitchConfig === 'function')
+        ]);
+
+        // ========================================================================
+        // SWITCH CONFIG — REGRESSION TESTS (bug fixes)
+        // ========================================================================
+        sectionHeader('🔌 Switch Config Regression Tests');
+
+        testSuite('Loopback interface renders correctly (not doubled)', 'cisco-nxos.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'lb-test' },
+                ips: { loopback1: '10.0.255.1/32' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }
+            });
+            const json = b.buildTor('TOR1');
+            const config = CiscoNxosRenderer.renderFullConfig(json);
+
+            results.push(assert(config.indexOf('interface loopback0') !== -1,
+                'Cisco: Loopback renders as "interface loopback0"', true,
+                config.indexOf('interface loopback0') !== -1));
+            results.push(assert(config.indexOf('interface loopbackloopback0') === -1,
+                'Cisco: No doubled "interface loopbackloopback0"', true,
+                config.indexOf('interface loopbackloopback0') === -1));
+            return results;
+        })());
+
+        testSuite('Loopback interface renders correctly (Dell)', 'dell-os10.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'dell-S5248F-ON',
+                hostnames: { tor1: 'lb-test' },
+                ips: { loopback1: '10.0.255.1/32' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }
+            });
+            const json = b.buildTor('TOR1');
+            const config = DellOs10Renderer.renderFullConfig(json);
+
+            results.push(assert(config.indexOf('interface loopback0') !== -1,
+                'Dell: Loopback renders as "interface loopback0"', true,
+                config.indexOf('interface loopback0') !== -1));
+            results.push(assert(config.indexOf('interface loopbackloopback0') === -1,
+                'Dell: No doubled "interface loopbackloopback0"', true,
+                config.indexOf('interface loopbackloopback0') === -1));
+            return results;
+        })());
+
+        testSuite('iBGP port-channel has /30 mask', 'cisco-nxos.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'ibgp-test' },
+                ips: { loopback1: '10.0.255.1/32', ibgpTor1: '10.0.0.17', ibgpTor2: '10.0.0.18' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001, borderAsn: 64512 }
+            });
+            const json = b.buildTor('TOR1');
+            const config = CiscoNxosRenderer.renderFullConfig(json);
+
+            results.push(assert(config.indexOf('ip address 10.0.0.17/30') !== -1,
+                'Cisco: iBGP port-channel has ip address with /30 mask', true,
+                config.indexOf('ip address 10.0.0.17/30') !== -1));
+            results.push(assert(config.indexOf('ip address 10.0.0.17\n') === -1,
+                'Cisco: No bare iBGP IP without mask', true,
+                config.indexOf('ip address 10.0.0.17\n') === -1));
+            return results;
+        })());
+
+        testSuite('iBGP port-channel has /30 mask (Dell)', 'dell-os10.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'dell-S5248F-ON',
+                hostnames: { tor1: 'ibgp-test' },
+                ips: { loopback1: '10.0.255.1/32', ibgpTor1: '10.0.0.17', ibgpTor2: '10.0.0.18' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001, borderAsn: 64512 }
+            });
+            const json = b.buildTor('TOR1');
+            const config = DellOs10Renderer.renderFullConfig(json);
+
+            results.push(assert(config.indexOf('ip address 10.0.0.17/30') !== -1,
+                'Dell: iBGP port-channel has ip address with /30 mask', true,
+                config.indexOf('ip address 10.0.0.17/30') !== -1));
+            return results;
+        })());
+
+        testSuite('iBGP IP with existing CIDR does not double mask', 'cisco-nxos.js', (() => {
+            const results = [];
+            // If someone provides IP already with CIDR, don't add another /30
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                ips: { loopback1: '10.0.255.1/32', ibgpTor1: '10.0.0.17/30', ibgpTor2: '10.0.0.18/30' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, hostnames: {}
+            });
+            const json = b.buildTor('TOR1');
+            const config = CiscoNxosRenderer.renderFullConfig(json);
+
+            results.push(assert(config.indexOf('10.0.0.17/30/30') === -1,
+                'No doubled /30/30 when IP already has CIDR', true,
+                config.indexOf('10.0.0.17/30/30') === -1));
+            results.push(assert(config.indexOf('ip address 10.0.0.17/30') !== -1,
+                'IP renders correctly with single /30', true,
+                config.indexOf('ip address 10.0.0.17/30') !== -1));
+            return results;
+        })());
+
+        // ========================================================================
+        // SWITCH CONFIG — IMPROVEMENT TESTS (5 enhancements)
+        // ========================================================================
+
+        sectionHeader('🔌 Improvement #1: BMC VLAN Symbolic B Reference');
+
+        testSuite('Models use symbolic B for BMC VLAN', 'models.js', (() => {
+            const results = [];
+            // TOR models: BMC trunk should use 'B'
+            const torKeys = ['cisco-93108TC-FX3P', 'cisco-93180YC-FX', 'cisco-93180YC-FX3', 'dell-S5248F-ON'];
+            torKeys.forEach(key => {
+                const model = SWITCH_MODELS[key];
+                const bmcTrunk = model.interface_templates.common.find(i => i.name === 'Trunk_TO_BMC_SWITCH');
+                results.push(assert(bmcTrunk && bmcTrunk.tagged_vlans === 'B',
+                    `${key}: BMC trunk uses symbolic 'B'`, true,
+                    bmcTrunk ? bmcTrunk.tagged_vlans === 'B' : false));
+            });
+            // BMC models: Access interfaces should use 'B'
+            const bmcKeys = ['cisco-9348GC-FXP', 'cisco-9348GC-FX3', 'dell-N3248TE-ON'];
+            bmcKeys.forEach(key => {
+                const model = SWITCH_MODELS[key];
+                const hostBmc = model.interface_templates.common.find(i => i.name === 'Host_BMC');
+                results.push(assert(hostBmc && hostBmc.access_vlan === 'B',
+                    `${key}: Host_BMC access_vlan uses 'B'`, true,
+                    hostBmc ? hostBmc.access_vlan === 'B' : false));
+            });
+            // Dell BMC To_TORs trunk should use '7,B'
+            const dellBmc = SWITCH_MODELS['dell-N3248TE-ON'];
+            const toTors = dellBmc.interface_templates.common.find(i => i.name === 'To_TORs');
+            results.push(assert(toTors && toTors.tagged_vlans === '7,B',
+                'Dell BMC To_TORs uses "7,B"', true,
+                toTors ? toTors.tagged_vlans === '7,B' : false));
+            return results;
+        })());
+
+        testSuite('Builder resolves B to BMC VLAN ID in TOR output', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: {},
+                vlans: { infra: { id: '7' }, bmc: { id: '200' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: {}
+            });
+            const json = b.buildTor('TOR1');
+            // Find the BMC trunk interface
+            const bmcTrunk = json.interfaces.find(i => i.name === 'Trunk_TO_BMC_SWITCH');
+            results.push(assert(bmcTrunk !== undefined,
+                'BMC trunk interface exists in TOR output', true, bmcTrunk !== undefined));
+            results.push(assert(bmcTrunk && bmcTrunk.tagged_vlans === '200',
+                'BMC trunk tagged_vlans resolved B to "200"', true,
+                bmcTrunk ? bmcTrunk.tagged_vlans === '200' : false));
+            return results;
+        })());
+
+        testSuite('buildBmc resolves B in interfaces and port_channels', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                bmcModelKey: 'cisco-9348GC-FXP',
+                hostnames: {},
+                vlans: { infra: { id: '7' }, bmc: { id: '200' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: {}
+            });
+            const bmcJson = b.buildBmc();
+            // Host_BMC access_vlan should be '200'
+            const hostBmc = bmcJson.interfaces.find(i => i.name === 'Host_BMC');
+            results.push(assert(hostBmc && hostBmc.access_vlan === '200',
+                'BMC Host_BMC access_vlan resolved to "200"', true,
+                hostBmc ? hostBmc.access_vlan === '200' : false));
+            // Port channel tagged_vlans
+            if (bmcJson.port_channels.length > 0) {
+                const pc = bmcJson.port_channels[0];
+                results.push(assert(pc.tagged_vlans === '200',
+                    'BMC port_channel tagged_vlans resolved to "200"', true,
+                    pc.tagged_vlans === '200'));
+            }
+            return results;
+        })());
+
+        testSuite('B in vlanMap for TOR builds', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: {},
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: {}
+            });
+            const json = b.buildTor('TOR1');
+            // The BMC trunk should resolve B=125
+            const bmcTrunk = json.interfaces.find(i => i.name === 'Trunk_TO_BMC_SWITCH');
+            results.push(assert(bmcTrunk && bmcTrunk.tagged_vlans === '125',
+                'Default BMC VLAN 125 resolves correctly', true,
+                bmcTrunk ? bmcTrunk.tagged_vlans === '125' : false));
+            return results;
+        })());
+
+        sectionHeader('🔌 Improvement #2: Infrastructure Token Replacement');
+
+        testSuite('Cisco replaceInfraTokens replaces NTP/syslog tokens', 'cisco-nxos.js', (() => {
+            const results = [];
+            const text = 'ntp server [NTP_SERVER_IP]\nlogging server [LOG_SERVER_IP] 7';
+            const replaced = CiscoNxosRenderer.replaceInfraTokens(text, {
+                ntpServer: '10.1.1.1',
+                syslogServer: '10.1.1.2'
+            });
+            results.push(assert(replaced.indexOf('10.1.1.1') !== -1,
+                'NTP token replaced', true, replaced.indexOf('10.1.1.1') !== -1));
+            results.push(assert(replaced.indexOf('10.1.1.2') !== -1,
+                'Syslog token replaced', true, replaced.indexOf('10.1.1.2') !== -1));
+            results.push(assert(replaced.indexOf('[NTP_SERVER_IP]') === -1,
+                'NTP placeholder removed', true, replaced.indexOf('[NTP_SERVER_IP]') === -1));
+            return results;
+        })());
+
+        testSuite('Cisco replaceInfraTokens handles TACACS servers', 'cisco-nxos.js', (() => {
+            const results = [];
+            const text = 'tacacs-server host [TACACS_SERVER_IP]\ntacacs-server host [TACACS_SERVER_IP]\nkey [TACACS_KEY]';
+            const replaced = CiscoNxosRenderer.replaceInfraTokens(text, {
+                tacacsServer1: '10.2.2.1',
+                tacacsServer2: '10.2.2.2',
+                tacacsKey: 'mysecret'
+            });
+            results.push(assert(replaced.indexOf('10.2.2.1') !== -1,
+                'TACACS server 1 replaced', true, replaced.indexOf('10.2.2.1') !== -1));
+            results.push(assert(replaced.indexOf('10.2.2.2') !== -1,
+                'TACACS server 2 replaced', true, replaced.indexOf('10.2.2.2') !== -1));
+            results.push(assert(replaced.indexOf('mysecret') !== -1,
+                'TACACS key replaced', true, replaced.indexOf('mysecret') !== -1));
+            return results;
+        })());
+
+        testSuite('Cisco replaceInfraTokens handles SNMP placeholders', 'cisco-nxos.js', (() => {
+            const results = [];
+            const text = 'snmp-server community [PLACEHOLDER] ro\nsnmp-server community [PLACEHOLDER] rW';
+            const replaced = CiscoNxosRenderer.replaceInfraTokens(text, {
+                snmpRo: 'myReadOnly',
+                snmpRw: 'myReadWrite'
+            });
+            results.push(assert(replaced.indexOf('myReadOnly') !== -1,
+                'SNMP RO replaced', true, replaced.indexOf('myReadOnly') !== -1));
+            results.push(assert(replaced.indexOf('myReadWrite') !== -1,
+                'SNMP RW replaced', true, replaced.indexOf('myReadWrite') !== -1));
+            return results;
+        })());
+
+        testSuite('Cisco replaceInfraTokens preserves tokens when no value', 'cisco-nxos.js', (() => {
+            const results = [];
+            const text = 'ntp server [NTP_SERVER_IP]\nlogging server [LOG_SERVER_IP]';
+            const replaced = CiscoNxosRenderer.replaceInfraTokens(text, {});
+            results.push(assert(replaced.indexOf('[NTP_SERVER_IP]') !== -1,
+                'NTP placeholder preserved when empty', true, replaced.indexOf('[NTP_SERVER_IP]') !== -1));
+            return results;
+        })());
+
+        testSuite('Cisco replaceInfraTokens handles null infra', 'cisco-nxos.js', (() => {
+            const results = [];
+            const text = 'ntp server [NTP_SERVER_IP]';
+            const replaced = CiscoNxosRenderer.replaceInfraTokens(text, null);
+            results.push(assert(replaced === text,
+                'Returns original text when infra is null', true, replaced === text));
+            return results;
+        })());
+
+        testSuite('Dell replaceInfraTokens replaces tokens', 'dell-os10.js', (() => {
+            const results = [];
+            const text = 'ntp server [NTP_SERVER_IP]\nlogging server [LOG_SERVER_IP]\ntacacs-server host [TACACS_SERVER1] key [TACACS_KEY]\ntacacs-server host [TACACS_SERVER2] key [TACACS_KEY]';
+            const replaced = DellOs10Renderer.replaceInfraTokens(text, {
+                ntpServer: '10.1.1.1',
+                syslogServer: '10.1.1.2',
+                tacacsServer1: '10.2.2.1',
+                tacacsServer2: '10.2.2.2',
+                tacacsKey: 'secret123'
+            });
+            results.push(assert(replaced.indexOf('10.1.1.1') !== -1,
+                'Dell: NTP replaced', true, replaced.indexOf('10.1.1.1') !== -1));
+            results.push(assert(replaced.indexOf('10.2.2.1') !== -1,
+                'Dell: TACACS1 replaced', true, replaced.indexOf('10.2.2.1') !== -1));
+            results.push(assert(replaced.indexOf('10.2.2.2') !== -1,
+                'Dell: TACACS2 replaced', true, replaced.indexOf('10.2.2.2') !== -1));
+            results.push(assert(replaced.indexOf('secret123') !== -1,
+                'Dell: TACACS key replaced', true, replaced.indexOf('secret123') !== -1));
+            return results;
+        })());
+
+        testSuite('Full pipeline: infra tokens in Cisco config', 'cisco-nxos.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'test-tor' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: { loopback1: '10.0.255.1/32' }
+            });
+            const json = b.buildTor('TOR1');
+            json.infrastructure = { ntpServer: '10.10.10.10', syslogServer: '10.10.10.11' };
+            const config = CiscoNxosRenderer.renderFullConfig(json);
+            results.push(assert(config.indexOf('ntp server 10.10.10.10') !== -1,
+                'NTP server IP in full Cisco config', true,
+                config.indexOf('ntp server 10.10.10.10') !== -1));
+            results.push(assert(config.indexOf('logging server 10.10.10.11') !== -1,
+                'Syslog server IP in full Cisco config', true,
+                config.indexOf('logging server 10.10.10.11') !== -1));
+            return results;
+        })());
+
+        testSuite('Cisco replaceInfraTokens replaces timezone with DST', 'cisco-nxos.js', (() => {
+            const results = [];
+            const text = 'clock timezone [TZ_ABBR] [TZ_OFFSET_H] [TZ_OFFSET_M]\n[TZ_SUMMER_TIME]\nntp server [NTP_SERVER_IP]';
+            const replaced = CiscoNxosRenderer.replaceInfraTokens(text, {
+                timezone: { abbr: 'EST', offsetH: '-5', offsetM: '0', dstAbbr: 'EDT', dstRule: '2 Sun Mar 02:00 1 Sun Nov 02:00 60', iana: 'America/New_York' }
+            });
+            results.push(assert(replaced.indexOf('clock timezone EST -5 0') !== -1,
+                'Cisco timezone line replaced', true, replaced.indexOf('clock timezone EST -5 0') !== -1));
+            results.push(assert(replaced.indexOf('clock summer-time EDT 2 Sun Mar 02:00') !== -1,
+                'Cisco summer-time line generated', true, replaced.indexOf('clock summer-time EDT 2 Sun Mar 02:00') !== -1));
+            return results;
+        })());
+
+        testSuite('Cisco replaceInfraTokens removes DST line when no DST', 'cisco-nxos.js', (() => {
+            const results = [];
+            const text = 'clock timezone [TZ_ABBR] [TZ_OFFSET_H] [TZ_OFFSET_M]\n[TZ_SUMMER_TIME]\nntp server [NTP_SERVER_IP]';
+            const replaced = CiscoNxosRenderer.replaceInfraTokens(text, {
+                timezone: { abbr: 'HST', offsetH: '-10', offsetM: '0', dstAbbr: '', dstRule: '', iana: 'Pacific/Honolulu' }
+            });
+            results.push(assert(replaced.indexOf('clock timezone HST -10 0') !== -1,
+                'Cisco timezone line for Hawaii', true, replaced.indexOf('clock timezone HST -10 0') !== -1));
+            results.push(assert(replaced.indexOf('summer-time') === -1,
+                'No summer-time line for Hawaii', true, replaced.indexOf('summer-time') === -1));
+            return results;
+        })());
+
+        testSuite('Cisco replaceInfraTokens replaces MGMT_VLAN', 'cisco-nxos.js', (() => {
+            const results = [];
+            const text = 'ntp source-interface [MGMT_VLAN]\nlogging source-interface [MGMT_VLAN]\nip tacacs source-interface [MGMT_VLAN]';
+            const replaced = CiscoNxosRenderer.replaceInfraTokens(text, { mgmtVlan: 'vlan7' });
+            results.push(assert(replaced.indexOf('[MGMT_VLAN]') === -1,
+                'All MGMT_VLAN placeholders replaced', true, replaced.indexOf('[MGMT_VLAN]') === -1));
+            results.push(assert(replaced.indexOf('ntp source-interface vlan7') !== -1,
+                'NTP source set to vlan7', true, replaced.indexOf('ntp source-interface vlan7') !== -1));
+            results.push(assert(replaced.indexOf('logging source-interface vlan7') !== -1,
+                'Logging source set to vlan7', true, replaced.indexOf('logging source-interface vlan7') !== -1));
+            return results;
+        })());
+
+        testSuite('Dell replaceInfraTokens replaces timezone IANA name', 'dell-os10.js', (() => {
+            const results = [];
+            const text = 'clock timezone standard-timezone [TZ_IANA]\nntp source [MGMT_VLAN]';
+            const replaced = DellOs10Renderer.replaceInfraTokens(text, {
+                timezone: { abbr: 'EST', offsetH: '-5', offsetM: '0', dstAbbr: 'EDT', dstRule: '2 Sun Mar 02:00 1 Sun Nov 02:00 60', iana: 'America/New_York' },
+                mgmtVlan: 'vlan7'
+            });
+            results.push(assert(replaced.indexOf('standard-timezone America/New_York') !== -1,
+                'Dell timezone IANA name replaced', true, replaced.indexOf('standard-timezone America/New_York') !== -1));
+            results.push(assert(replaced.indexOf('ntp source vlan7') !== -1,
+                'Dell MGMT_VLAN replaced', true, replaced.indexOf('ntp source vlan7') !== -1));
+            return results;
+        })());
+
+        testSuite('Dell replaceInfraTokens replaces MGMT_GATEWAY_IP', 'dell-os10.js', (() => {
+            const results = [];
+            const text = 'management route 0.0.0.0/0 [MGMT_GATEWAY_IP]';
+            const replaced = DellOs10Renderer.replaceInfraTokens(text, { mgmtGateway: '10.0.0.1' });
+            results.push(assert(replaced.indexOf('management route 0.0.0.0/0 10.0.0.1') !== -1,
+                'Dell MGMT_GATEWAY_IP replaced', true, replaced.indexOf('management route 0.0.0.0/0 10.0.0.1') !== -1));
+            results.push(assert(replaced.indexOf('[MGMT_GATEWAY_IP]') === -1,
+                'Placeholder removed', true, replaced.indexOf('[MGMT_GATEWAY_IP]') === -1));
+            return results;
+        })());
+
+        testSuite('Full pipeline: timezone + MGMT_VLAN in Cisco config', 'cisco-nxos.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'tz-test' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: { loopback1: '10.0.255.1/32' }
+            });
+            const json = b.buildTor('TOR1');
+            json.infrastructure = {
+                timezone: { abbr: 'CST', offsetH: '-6', offsetM: '0', dstAbbr: 'CDT', dstRule: '2 Sun Mar 02:00 1 Sun Nov 02:00 60', iana: 'America/Chicago' },
+                mgmtVlan: 'vlan7'
+            };
+            const config = CiscoNxosRenderer.renderFullConfig(json);
+            results.push(assert(config.indexOf('clock timezone CST -6 0') !== -1,
+                'Central timezone in full Cisco config', true,
+                config.indexOf('clock timezone CST -6 0') !== -1));
+            results.push(assert(config.indexOf('clock summer-time CDT') !== -1,
+                'CDT summer-time in full Cisco config', true,
+                config.indexOf('clock summer-time CDT') !== -1));
+            results.push(assert(config.indexOf('ntp source-interface vlan7') !== -1,
+                'MGMT_VLAN in NTP source in full config', true,
+                config.indexOf('ntp source-interface vlan7') !== -1));
+            results.push(assert(config.indexOf('[MGMT_VLAN]') === -1,
+                'No MGMT_VLAN placeholders remain', true,
+                config.indexOf('[MGMT_VLAN]') === -1));
+            return results;
+        })());
+
+        sectionHeader('🔌 Improvement #3: Rack-Aware 4-TOR Support');
+
+        testSuite('Builder supports TOR3/TOR4 switch sections', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'tor-1a', tor2: 'tor-1b', tor3: 'tor-2a', tor4: 'tor-2b' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, compute: { id: '200' }, storage1: { id: '711' }, storage2: { id: '712' }, hnvpa: null },
+                bgp: { torAsn: 65001, borderAsn: 64512 },
+                ips: { loopback1: '10.0.255.1/32', loopback2: '10.0.255.2/32', loopback3: '10.0.255.3/32', loopback4: '10.0.255.4/32' }
+            });
+
+            const tor3 = b.buildTor('TOR3');
+            const tor4 = b.buildTor('TOR4');
+
+            results.push(assert(tor3.switch.hostname === 'tor-2a',
+                'TOR3 hostname is tor-2a', true, tor3.switch.hostname === 'tor-2a'));
+            results.push(assert(tor4.switch.hostname === 'tor-2b',
+                'TOR4 hostname is tor-2b', true, tor4.switch.hostname === 'tor-2b'));
+            results.push(assert(tor3.switch.type === 'TOR3',
+                'TOR3 type is TOR3', true, tor3.switch.type === 'TOR3'));
+            results.push(assert(tor4.switch.type === 'TOR4',
+                'TOR4 type is TOR4', true, tor4.switch.type === 'TOR4'));
+            return results;
+        })());
+
+        testSuite('TOR3/TOR4 loopback IPs resolve correctly', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor3: 'r2a', tor4: 'r2b' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 },
+                ips: { loopback3: '10.0.255.3/32', loopback4: '10.0.255.4/32' }
+            });
+
+            const tor3 = b.buildTor('TOR3');
+            const lb3 = tor3.interfaces.find(i => i.name === 'Loopback0');
+            results.push(assert(lb3 && lb3.ipv4 === '10.0.255.3/32',
+                'TOR3 Loopback0 = 10.0.255.3/32', true,
+                lb3 ? lb3.ipv4 === '10.0.255.3/32' : false));
+
+            const tor4 = b.buildTor('TOR4');
+            const lb4 = tor4.interfaces.find(i => i.name === 'Loopback0');
+            results.push(assert(lb4 && lb4.ipv4 === '10.0.255.4/32',
+                'TOR4 Loopback0 = 10.0.255.4/32', true,
+                lb4 ? lb4.ipv4 === '10.0.255.4/32' : false));
+            return results;
+        })());
+
+        testSuite('TOR3/TOR4 iBGP peers each other', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: {},
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001, borderAsn: 64512 },
+                ips: { loopback3: '10.0.255.3/32', loopback4: '10.0.255.4/32', ibgpTor3: '10.0.0.33', ibgpTor4: '10.0.0.34' }
+            });
+
+            const tor3 = b.buildTor('TOR3');
+            const ibgpNb3 = tor3.bgp.neighbors.find(n => n.description === 'iBGP_PEER');
+            results.push(assert(ibgpNb3 && ibgpNb3.ip === '10.0.0.34',
+                'TOR3 iBGP peer is TOR4 (10.0.0.34)', true,
+                ibgpNb3 ? ibgpNb3.ip === '10.0.0.34' : false));
+
+            const tor4 = b.buildTor('TOR4');
+            const ibgpNb4 = tor4.bgp.neighbors.find(n => n.description === 'iBGP_PEER');
+            results.push(assert(ibgpNb4 && ibgpNb4.ip === '10.0.0.33',
+                'TOR4 iBGP peer is TOR3 (10.0.0.33)', true,
+                ibgpNb4 ? ibgpNb4.ip === '10.0.0.33' : false));
+            return results;
+        })());
+
+        testSuite('TOR3 gets storage1, TOR4 gets storage2 in switched', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { storage: 'switched', nodes: '8', scale: 'rack-aware' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: {},
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, compute: { id: '200' }, storage1: { id: '711' }, storage2: { id: '712' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: {}
+            });
+
+            const tor3 = b.buildTor('TOR3');
+            const tor3VlanIds = tor3.vlans.map(v => v.vlan_id);
+            results.push(assert(tor3VlanIds.indexOf(711) !== -1,
+                'TOR3 has storage VLAN 711 (S1)', true, tor3VlanIds.indexOf(711) !== -1));
+            results.push(assert(tor3VlanIds.indexOf(712) === -1,
+                'TOR3 does NOT have storage VLAN 712 (S2)', true, tor3VlanIds.indexOf(712) === -1));
+
+            const tor4 = b.buildTor('TOR4');
+            const tor4VlanIds = tor4.vlans.map(v => v.vlan_id);
+            results.push(assert(tor4VlanIds.indexOf(712) !== -1,
+                'TOR4 has storage VLAN 712 (S2)', true, tor4VlanIds.indexOf(712) !== -1));
+            results.push(assert(tor4VlanIds.indexOf(711) === -1,
+                'TOR4 does NOT have storage VLAN 711 (S1)', true, tor4VlanIds.indexOf(711) === -1));
+            return results;
+        })());
+
+        testSuite('TOR3 HSRP priority is 150 (like TOR1)', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: {},
+                vlans: { infra: { id: '7', cidr: '24', gateway: '10.0.0.1', ip_tor1: '10.0.0.2', ip_tor3: '10.0.0.4' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: {}
+            });
+            const tor3 = b.buildTor('TOR3');
+            const infraVlan = tor3.vlans.find(v => v.vlan_id === 7);
+            results.push(assert(infraVlan && infraVlan.interface && infraVlan.interface.redundancy.priority === 150,
+                'TOR3 infra SVI HSRP priority = 150', true,
+                infraVlan && infraVlan.interface ? infraVlan.interface.redundancy.priority === 150 : false));
+            return results;
+        })());
+
+        testSuite('TOR3/TOR4 P2P border IPs resolve', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: {},
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 },
+                ips: {
+                    loopback3: '10.0.255.3/32', loopback4: '10.0.255.4/32',
+                    p2pBorder1Tor3: '10.0.0.18/30', p2pBorder1Tor4: '10.0.0.22/30'
+                }
+            });
+            const tor3 = b.buildTor('TOR3');
+            const p2p = tor3.interfaces.find(i => i.name === 'P2P_Border1');
+            results.push(assert(p2p && p2p.ipv4 === '10.0.0.18/30',
+                'TOR3 P2P_Border1 IP = 10.0.0.18/30', true,
+                p2p ? p2p.ipv4 === '10.0.0.18/30' : false));
+            return results;
+        })());
+
+        sectionHeader('🔌 Improvement #4: JSON Export');
+
+        testSuite('JSON export: builder output is serializable', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'export-test' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: { loopback1: '10.0.255.1/32' }
+            });
+            const json = b.buildTor('TOR1');
+            json.infrastructure = { ntpServer: '10.1.1.1' };
+            let roundTrip;
+            try { roundTrip = JSON.parse(JSON.stringify(json)); } catch(e) { roundTrip = null; }
+            results.push(assert(roundTrip !== null,
+                'Builder JSON survives JSON roundtrip', true, roundTrip !== null));
+            results.push(assert(roundTrip && roundTrip.infrastructure && roundTrip.infrastructure.ntpServer === '10.1.1.1',
+                'Infrastructure data preserved in JSON', true,
+                roundTrip ? roundTrip.infrastructure.ntpServer === '10.1.1.1' : false));
+            return results;
+        })());
+
+        testSuite('Builder JSON has expected structure for export', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '3' },
+                torModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'json-test' },
+                vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
+                bgp: { torAsn: 65001 }, ips: { loopback1: '10.0.255.1/32' }
+            });
+            const json = b.buildTor('TOR1');
+            // Verify the JSON can be serialized
+            const serialized = JSON.stringify(json, null, 2);
+            const parsed = JSON.parse(serialized);
+            results.push(assert(parsed.switch !== undefined,
+                'JSON has switch section', true, parsed.switch !== undefined));
+            results.push(assert(parsed.vlans !== undefined,
+                'JSON has vlans section', true, parsed.vlans !== undefined));
+            results.push(assert(parsed.interfaces !== undefined,
+                'JSON has interfaces section', true, parsed.interfaces !== undefined));
+            results.push(assert(parsed.bgp !== undefined,
+                'JSON has bgp section', true, parsed.bgp !== undefined));
+            return results;
+        })());
+
+        sectionHeader('🔌 Improvement #5: IP Input Validation');
+
+        testSuite('IP validation pattern matches valid IPs', 'validation', (() => {
+            const results = [];
+            const ipPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+            const cidrPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/;
+
+            results.push(assert(ipPattern.test('10.0.0.1'),
+                'Pattern matches 10.0.0.1', true, ipPattern.test('10.0.0.1')));
+            results.push(assert(ipPattern.test('192.168.1.255'),
+                'Pattern matches 192.168.1.255', true, ipPattern.test('192.168.1.255')));
+            results.push(assert(!ipPattern.test('10.0.0'),
+                'Pattern rejects 10.0.0', true, !ipPattern.test('10.0.0')));
+            results.push(assert(!ipPattern.test('not-an-ip'),
+                'Pattern rejects non-IP string', true, !ipPattern.test('not-an-ip')));
+            results.push(assert(!ipPattern.test('10.0.0.1/24'),
+                'Bare IP pattern rejects IP/CIDR', true, !ipPattern.test('10.0.0.1/24')));
+
+            results.push(assert(cidrPattern.test('10.0.0.1/24'),
+                'CIDR pattern matches 10.0.0.1/24', true, cidrPattern.test('10.0.0.1/24')));
+            results.push(assert(cidrPattern.test('10.0.255.1/32'),
+                'CIDR pattern matches 10.0.255.1/32', true, cidrPattern.test('10.0.255.1/32')));
+            results.push(assert(!cidrPattern.test('10.0.0.1'),
+                'CIDR pattern rejects bare IP', true, !cidrPattern.test('10.0.0.1')));
             return results;
         })());
 

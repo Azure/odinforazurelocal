@@ -357,6 +357,15 @@
             <div id="report-meta" class="info-box visible"></div>
         </section>
 
+        <section id="rack-diagram-section" class="step" style="margin-bottom:1.5rem; display:none;">
+            <div class="step-header">
+                <span class="step-number">&#128450;</span>
+                <h2>Rack Layout</h2>
+            </div>
+            <div id="rack-diagram-container" style="text-align:center; padding:0.5rem 0;"></div>
+            <div class="no-print" id="rack-diagram-actions" style="display:none; margin-top:0.5rem; text-align:center;"></div>
+        </section>
+
         <section class="step" style="margin-bottom:1.5rem;">
             <div class="step-header">
                 <span class="step-number">R2</span>
@@ -386,6 +395,7 @@
         </button>
     </main>
 
+    <script src="rack-svg.js"></script>
     <script src="report.js"></script>
     <script>
         // Apply saved theme on load

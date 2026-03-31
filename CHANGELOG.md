@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.18.50] - 2026-03-31
+
+### Added
+
+#### ToR Switch Config Generator
+- **New Switch Config page**: Full-featured ToR switch configuration generator for Cisco NX-OS and Dell OS10 platforms — accessible from the Designer summary page via "Generate ToR Switch Configuration" button, or directly via the switch-config page
+- **Multi-vendor support**: Switch model selector with Cisco (93108TC-FX3P, 93180YC-FX, 93180YC-FX3) and Dell (S5248F-ON) ToR models, plus BMC switch models (Cisco 9348GC-FXP/FX3, Dell N3248TE-ON)
+- **JSON data model**: Intermediate JSON data model (`SwitchConfigBuilder`) generates vendor-neutral structured config, rendered to platform-specific CLI by `CiscoNxosRenderer` and `DellOs10Renderer`
+- **Rack-aware 4-ToR support**: Rack-aware deployments generate TOR1–TOR4 configurations with correct iBGP peering, loopback IPs, storage VLAN assignment (TOR1/TOR3 get S1, TOR2/TOR4 get S2), and per-rack HSRP/VRRP priorities
+- **BMC switch configs**: Generates BMC switch configuration with access VLANs, trunks to ToRs, and static default route
+- **Infrastructure tokens**: Timezone (with DST/summer-time), NTP server, syslog server, TACACS+ servers/key, SNMP RO/RW communities, management VLAN source-interface, and management gateway IP — all replaceable placeholders in rendered configs
+- **JSON export**: Export the structured JSON data model for each switch section (TOR1, TOR2, TOR3, TOR4, BMC)
+- **Designer integration**: "Generate ToR Switch Configuration" button on the Designer summary page transfers deployment state (scenario, nodes, intent, storage mode, scale, infra VLAN) to the switch config page
+
+#### Report: 2D SVG Rack Diagram
+- **SVG rack layout**: Static 2D front-view SVG rack diagram in the Report page showing 42U rack frames with server nodes (2U), ToR switches (1U), BMC switches (1U), and U-position markers
+- **Core switch visualization**: Core Switch / Router / Firewall box rendered above racks with connecting vertical lines
+- **Rack-aware layout**: Multi-rack diagrams with Rack 1 on left, contiguous node numbering across racks (Node 1–4 in Rack 1, Node 5–8 in Rack 2)
+- **Azure Local branding**: Azure Local instance icon and "Azure Local" text in top-right of SVG
+- **Legend and U count**: Color-coded legend (Server, ToR, BMC, Core Switch) and total U count summary per rack
+- **Download**: "Download Rack Diagram SVG" button exports the diagram as a standalone SVG file
+
+### Changed
+
+#### 3D Rack Visualization Improvements
+- **Azure Local branding**: Replaced Microsoft Azure logo with Azure Local instance icon and "Azure Local" purple text; replaced Azure "A" logo on server fronts with azurelocal-machine.svg
+- **BMC switch**: Added 1U BMC switch (white/light grey) below ToR switches in every rack, including single-node deployments
+- **ToR switch color**: Changed from green to dark grey (#444444) for better visual contrast
+- **Single-node topology**: Single-node deployments now show 1 ToR switch and 1 BMC switch with ToR-to-router cabling
+- **Label cleanup**: Removed "(Front)" suffix from all device labels; renamed "TOR" to "ToR" throughout; contiguous node numbering across racks
+- **Legend updated**: Added BMC Switch swatch; updated ToR swatch color to dark grey
+
+#### Designer: Management VLAN Guidance
+- **Improved VLAN descriptions**: Default VLAN card clarified to "Untagged — management traffic uses the native VLAN (ID 0 on the host)"; Custom VLAN card updated to "Tag management traffic with a specific VLAN ID on the host NICs"
+- **Expanded info box**: Added explanation that even with untagged host traffic (ID 0), the ToR switch assigns it to a VLAN internally (e.g., VLAN 7), and the switch-side VLAN ID is configured separately in the Switch Config Generator
+
+---
+
 ## [0.18.04] - 2026-03-30
 
 ### Added

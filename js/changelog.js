@@ -53,12 +53,57 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.04</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">March 30, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.50</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">March 31, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🖥️ Sizer: 3D Rack Visualization</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 ToR Switch Config Generator</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New Switch Config page:</strong> Full-featured ToR switch configuration generator for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs from a structured JSON data model.</li>
+                        <li><strong>Rack-aware 4-ToR support:</strong> TOR1–TOR4 configurations with correct iBGP peering, loopback IPs, storage VLAN assignment, and per-rack HSRP/VRRP priorities.</li>
+                        <li><strong>BMC switch configs:</strong> BMC switch config with access VLANs, trunks to ToRs, and static default route.</li>
+                        <li><strong>Infrastructure tokens:</strong> Timezone (with DST), NTP, syslog, TACACS+, SNMP, management VLAN, and management gateway — all replaceable placeholders in rendered configs.</li>
+                        <li><strong>JSON export:</strong> Export structured JSON data model for each switch section (TOR1, TOR2, TOR3, TOR4, BMC).</li>
+                        <li><strong>Designer integration:</strong> New "Generate ToR Switch Configuration" button on the Designer summary page transfers deployment state to the switch config page.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📐 Report: 2D SVG Rack Diagram</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>SVG rack layout:</strong> Static 2D front-view SVG rack diagram in the Report page with 42U rack frames, server nodes (2U), ToR switches (1U), BMC switches (1U), and U-position markers.</li>
+                        <li><strong>Core switch visualization:</strong> Core Switch / Router / Firewall box rendered above racks.</li>
+                        <li><strong>Rack-aware layout:</strong> Multi-rack diagrams with contiguous node numbering across racks (Node 1–4 in Rack 1, Node 5–8 in Rack 2).</li>
+                        <li><strong>Azure Local branding:</strong> Azure Local instance icon and "Azure Local" text in top-right corner.</li>
+                        <li><strong>Download:</strong> "Download Rack Diagram SVG" button exports the diagram as a standalone SVG file.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🖥️ 3D Rack Visualization Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Azure Local branding:</strong> Replaced Microsoft Azure logo with Azure Local instance icon + "Azure Local" purple text; replaced Azure "A" on server fronts with azurelocal-machine.svg.</li>
+                        <li><strong>BMC switch:</strong> Added 1U BMC switch (white/light grey) below ToR switches in every rack, including single-node.</li>
+                        <li><strong>ToR switch color:</strong> Changed from green to dark grey (#444444) for better visual contrast.</li>
+                        <li><strong>Single-node topology:</strong> Single-node deployments now show 1 ToR switch and 1 BMC switch with ToR-to-router cabling.</li>
+                        <li><strong>Label cleanup:</strong> Removed "(Front)" suffix from all devices; renamed "TOR" → "ToR"; contiguous node numbering across racks.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📝 Designer: Management VLAN Guidance</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Improved VLAN descriptions:</strong> Default VLAN card now reads "Untagged — management traffic uses the native VLAN (ID 0 on the host)"; Custom VLAN card updated to "Tag management traffic with a specific VLAN ID on the host NICs".</li>
+                        <li><strong>Expanded info box:</strong> Explains that even with untagged host traffic (ID 0), the ToR switch assigns it to a VLAN internally, and the switch-side VLAN ID is configured separately in the Switch Config Generator.</li>
+                    </ul>
+                </div>
+
+                <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 24px 0;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.18.04</div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--text-secondary); margin: 0 0 12px 0;">🖥️ Sizer: 3D Rack Visualization</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Interactive 3D rack preview:</strong> Renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays, LEDs, Azure logo, dual PSUs, network ports) and 1U ToR switches (48-port ethernet, QSFP uplinks).</li>
                         <li><strong>Rack-aware support:</strong> Rack-aware deployments render two side-by-side cabinets with balanced node distribution and blue core switch/router.</li>

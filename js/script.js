@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.18.01';
+const WIZARD_VERSION = '0.18.50';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -3385,6 +3385,16 @@ function updateUI() {
         sizerBtn.disabled = !canTransfer;
         sizerBtn.title = canTransfer
             ? 'Open the Sizer pre-configured with this cluster to add workloads'
+            : 'Select a Deployment Type and Node count first';
+    }
+
+    // Switch Config transfer button gating — enabled once scenario and nodes are chosen
+    const switchCfgBtn = document.getElementById('transfer-to-switch-config-btn');
+    if (switchCfgBtn) {
+        const canTransfer = Boolean(state.scenario && state.nodes);
+        switchCfgBtn.disabled = !canTransfer;
+        switchCfgBtn.title = canTransfer
+            ? 'Generate example TOR/BMC switch configurations for this cluster'
             : 'Select a Deployment Type and Node count first';
     }
 
@@ -8520,6 +8530,42 @@ function transferToSizer() {
 
     // Navigate to Sizer page
     window.location.href = 'sizer/index.html?from=designer';
+}
+
+/**
+ * Transfer deployment state from the Designer to the TOR Switch Config page.
+ * Stores the full state in localStorage and navigates to the switch-config page.
+ */
+function transferToSwitchConfig() {
+    if (!state.scenario || !state.nodes) {
+        alert('Please complete the Designer wizard before generating switch configs.');
+        return;
+    }
+
+    var payload = {
+        source: 'designer',
+        timestamp: new Date().toISOString(),
+        scenario: state.scenario,
+        nodes: state.nodes,
+        ports: state.ports ? parseInt(state.ports, 10) : 4,
+        storage: state.storage,
+        intent: state.intent,
+        scale: state.scale,
+        clusterRole: state.clusterRole || null,
+        infraVlanId: state.infraVlanId || null,
+        infraVlan: state.infraVlan || null,
+        infraCidr: state.infraCidr || null,
+        infraGateway: state.infraGateway || null,
+        intentOverrides: state.intentOverrides || null
+    };
+
+    try {
+        localStorage.setItem('odinDesignerToSwitchConfig', JSON.stringify(payload));
+    } catch (e) {
+        console.warn('Failed to store designer-to-switch-config payload:', e);
+    }
+
+    window.location.href = 'switch-config/switch-config.html?from=designer';
 }
 
 // Show resume prompt on page load if saved state exists
