@@ -8542,7 +8542,7 @@ function transferToSwitchConfig() {
         return;
     }
 
-    var payload = {
+    const payload = {
         source: 'designer',
         timestamp: new Date().toISOString(),
         scenario: state.scenario,
