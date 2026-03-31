@@ -30,6 +30,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Step-by-Step Designer Wizard**: Guided decision flow for Azure Local instance configuration, including network configuration, outbound endpoints, security and storage deployment options
 - **Multiple Deployment Scenarios**: Hyperconverged, Multi-Rack, Disconnected, and M365 Local
 - **Hardware Sizer**: Workload-based hardware sizing for VMs, AKS, and AVD — calculates CPU, memory, storage, GPU, and node requirements with auto-scaling and power/rack-space estimates, and a 3D visualization of hardware in a 42U rack
+- **ToR Switch Configuration Generator**: Generate example Top of Rack switch configurations for Cisco NX-OS and Dell OS10 platforms — ToR, BMC, and border switch configs with rack-aware support, infrastructure token replacement, and JSON export
 - **Sizer-to-Designer Integration**: Size your hardware first, then transfer the configuration directly into the Designer wizard with one click
 - **Designer-to-Sizer Integration**: Design your cluster first, then transfer deployment type and node count to the Sizer to add workloads
 - **Cloud Witness Configuration**: Automatic witness type selection based on cluster topology
@@ -39,6 +40,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Intelligent Validation**: Real-time input validation with helpful error messages
 - **Visual Feedback**: Architecture diagrams and network topology visualizations
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
+
 
 ### 🎉 Version 0.18.50 - Latest Release
 - **ToR Switch Config Generator**: New full-featured switch configuration page for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs with rack-aware 4-ToR support, infrastructure token replacement (timezone, NTP, syslog, TACACS+, SNMP), and JSON export
