@@ -86,6 +86,16 @@ body {
     grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
+.sc-rack-heading {
+    grid-column: span 2;
+    margin: 0;
+    padding: 0.3rem 0 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent-blue);
+    border-bottom: 2px solid var(--accent-blue);
+}
+
 .sc-field {
     display: flex;
     flex-direction: column;

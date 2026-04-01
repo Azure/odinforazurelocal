@@ -239,6 +239,12 @@
         if (r2Host) r2Host.style.display = show ? '' : 'none';
         if (r2HostTor4) r2HostTor4.style.display = show ? '' : 'none';
 
+        // Rack headings
+        var rack1Heading = document.getElementById('sc-rack1-heading');
+        var rack2Heading = document.getElementById('sc-rack2-heading');
+        if (rack1Heading) rack1Heading.style.display = show ? '' : 'none';
+        if (rack2Heading) rack2Heading.style.display = show ? '' : 'none';
+
         // Switch hostname grid to 4 columns when rack-aware
         var hostGrid = document.getElementById('sc-hostname-grid');
         if (hostGrid) {
