@@ -9183,7 +9183,7 @@ function showTemplates() {
                 ],
                 storage: 'switched',
                 storagePoolConfiguration: 'Express',
-                intent: 'compute_storage',
+                intent: 'mgmt_compute',
                 storageAutoIp: 'enabled',
                 outbound: 'public',
                 arc: 'arc_gateway',

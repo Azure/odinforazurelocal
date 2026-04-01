@@ -105,19 +105,19 @@
             port_channels: portChannels,
             bgp: bgp,
             prefix_lists: prefixLists,
-            qos: true
+            qos: this.deploymentPattern !== 'switchless'
         };
     };
 
     // ── Build standard JSON for a BMC switch ─────────────────────────
-    SwitchConfigBuilder.prototype.buildBmc = function () {
+    SwitchConfigBuilder.prototype.buildBmc = function (hostnameOverride) {
         if (!this.bmcModel) return null;
 
         var sw = {
             make: this.bmcModel.make.toLowerCase(),
             model: this.bmcModel.model.toLowerCase(),
             type: 'BMC',
-            hostname: this.hostnames.bmc || 'bmc-switch',
+            hostname: hostnameOverride || this.hostnames.bmc || 'bmc-switch',
             version: '',
             firmware: this.bmcModel.firmware,
             site: this.site
@@ -266,11 +266,34 @@
             vlansOut.push(bmcEntry);
         }
 
-        // Compute / Tenant (C) VLAN
-        if (v.compute && v.compute.id) {
-            var compId = parseInt(v.compute.id, 10);
+        // Compute / Tenant (C) VLANs — supports single object (legacy) or array
+        var computeList = Array.isArray(v.compute) ? v.compute : (v.compute && v.compute.id ? [v.compute] : []);
+        for (var ci = 0; ci < computeList.length; ci++) {
+            var comp = computeList[ci];
+            if (!comp.id) continue;
+            var compId = parseInt(comp.id, 10);
             vlanMap.C.push(compId);
-            vlansOut.push({ vlan_id: compId, name: v.compute.name || 'Tenant_' + compId });
+            var compEntry = { vlan_id: compId, name: comp.name || 'Tenant_' + compId };
+            // If subnet info provided, create L3 SVI with HSRP/VRRP
+            if (comp.ip_tor1 && comp.cidr) {
+                var compIpMap = { TOR1: comp.ip_tor1, TOR2: comp.ip_tor2, TOR3: comp.ip_tor3, TOR4: comp.ip_tor4 };
+                var compIp = compIpMap[switchType];
+                var compPriority = (switchType === 'TOR1' || switchType === 'TOR3') ? 150 : 140;
+                if (compIp) {
+                    compEntry.interface = {
+                        ip: compIp,
+                        cidr: parseInt(comp.cidr, 10),
+                        mtu: JUMBO_MTU,
+                        redundancy: {
+                            type: this.torModel.firmware === 'nxos' ? 'hsrp' : 'vrrp',
+                            group: compId,
+                            priority: compPriority,
+                            virtual_ip: comp.gateway || ''
+                        }
+                    };
+                }
+            }
+            vlansOut.push(compEntry);
         }
 
         // HNVPA VLAN (also classified as C)

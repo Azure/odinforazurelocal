@@ -65,12 +65,12 @@
         var pattern = resolveDeploymentPattern(ds);
         var patternLabel = {
             fully_converged: 'Fully Converged (HyperConverged)',
-            switched: 'Switched (Compute + Storage)',
-            switchless: 'Switchless (Compute only on TOR)'
+            switched: 'Storage Switched',
+            switchless: 'Storage Switchless'
         };
         var bannerText = (patternLabel[pattern] || pattern) +
             ' · ' + (ds.nodes || '?') + ' nodes' +
-            (ds.scale === 'rack-aware' ? ' · Rack-Aware (2 racks)' : ' · Single Rack');
+            (ds.scale === 'rack_aware' || ds.scale === 'rack-aware' ? ' · Rack-Aware Cluster (2 racks)' : ' · Single Rack');
         document.getElementById('sc-deployment-text').textContent = bannerText;
 
         // Infrastructure VLAN
@@ -80,7 +80,7 @@
             if (infraVlanNote) {
                 infraVlanNote.style.display = 'block';
                 infraVlanNote.textContent = 'Your Designer chose a custom management VLAN (ID ' + ds.infraVlanId + '). ' +
-                    'This has been pre-filled below — the same VLAN must be configured on the TOR switch.';
+                    'This has been pre-filled below — the same VLAN must be configured on the ToR switch.';
             }
         } else {
             // Default (untagged) — host sends on native VLAN, switch must still define which VLAN that maps to
@@ -88,7 +88,7 @@
                 infraVlanNote.style.display = 'block';
                 infraVlanNote.textContent = 'Your Designer uses the default (untagged) management VLAN. ' +
                     'The hosts send management traffic without a VLAN tag. Enter the native VLAN ID ' +
-                    'configured on your TOR switch for this traffic (e.g. 7).';
+                    'configured on your ToR switch for this traffic (e.g. 7).';
             }
         }
         if (ds.infraCidr) {
@@ -98,6 +98,30 @@
             setVal('sc-infra-cidr', cidr);
         }
         if (ds.infraGateway) setVal('sc-infra-gateway', ds.infraGateway);
+
+        // Default infra VLAN values — only set if Designer didn't provide them
+        if (!getVal('sc-infra-vlan')) setVal('sc-infra-vlan', '7');
+        if (!getVal('sc-infra-cidr')) setVal('sc-infra-cidr', '24');
+
+        // Derive default SVI IPs from the infrastructure gateway
+        var isRackAware = ds.scale === 'rack-aware' || ds.scale === 'rack_aware';
+        var infraGw = getVal('sc-infra-gateway') || '10.0.1.1';
+        if (!getVal('sc-infra-gateway')) setVal('sc-infra-gateway', infraGw);
+        var infraSvis = deriveSviIps(infraGw, isRackAware ? 4 : 2);
+        if (infraSvis[0]) setVal('sc-infra-ip-tor1', infraSvis[0]);
+        if (infraSvis[1]) setVal('sc-infra-ip-tor2', infraSvis[1]);
+        if (isRackAware && infraSvis[2]) setVal('sc-infra-ip-tor3', infraSvis[2]);
+        if (isRackAware && infraSvis[3]) setVal('sc-infra-ip-tor4', infraSvis[3]);
+
+        // Default compute VLAN 1 — derive SVIs from gateway
+        setVal('sc-compute-vlan1-id', '201');
+        setVal('sc-compute-vlan1-cidr', '24');
+        setVal('sc-compute-vlan1-gw', '10.0.201.1');
+        var compSvis = deriveSviIps('10.0.201.1', isRackAware ? 4 : 2);
+        if (compSvis[0]) setVal('sc-compute-vlan1-tor1', compSvis[0]);
+        if (compSvis[1]) setVal('sc-compute-vlan1-tor2', compSvis[1]);
+        if (isRackAware && compSvis[2]) setVal('sc-compute-vlan1-tor3', compSvis[2]);
+        if (isRackAware && compSvis[3]) setVal('sc-compute-vlan1-tor4', compSvis[3]);
 
         // Storage VLANs
         if (pattern === 'switchless') {
@@ -112,6 +136,7 @@
         setVal('sc-hostname-tor1', 'tor-1a');
         setVal('sc-hostname-tor2', 'tor-1b');
         setVal('sc-hostname-bmc', 'bmc-1');
+        if (isRackAware) setVal('sc-hostname-bmc2', 'bmc-2');
 
         // Default example IPs
         setVal('sc-loopback1', '10.0.255.1/32');
@@ -123,12 +148,9 @@
         setVal('sc-ibgp-tor1', '10.0.0.17');
         setVal('sc-ibgp-tor2', '10.0.0.18');
 
-        // Rack-aware: show TOR3/TOR4 fields
-        if (ds.scale === 'rack-aware' || ds.scale === 'rack_aware') {
-            var r2Host = document.getElementById('sc-rack2-hostnames');
-            var r2Ips = document.getElementById('sc-rack2-ips');
-            if (r2Host) r2Host.style.display = '';
-            if (r2Ips) r2Ips.style.display = '';
+        // Rack-aware: show TOR3/TOR4 fields and set defaults
+        if (isRackAware) {
+            toggleRack2Sections(true);
             setVal('sc-hostname-tor3', 'tor-2a');
             setVal('sc-hostname-tor4', 'tor-2b');
             setVal('sc-loopback3', '10.0.255.3/32');
@@ -179,13 +201,202 @@
         return el ? el.value.trim() : '';
     }
 
+    /**
+     * Derive default SVI IPs from a gateway IP.
+     * Given gateway "10.0.1.1", returns ["10.0.1.2", "10.0.1.3", "10.0.1.4", "10.0.1.5"]
+     */
+    function deriveSviIps(gatewayIp, count) {
+        var parts = gatewayIp.split('.');
+        if (parts.length !== 4) return [];
+        var lastOctet = parseInt(parts[3], 10);
+        var prefix = parts[0] + '.' + parts[1] + '.' + parts[2] + '.';
+        var ips = [];
+        for (var i = 1; i <= count; i++) {
+            var val = lastOctet + i;
+            if (val > 254) break;
+            ips.push(prefix + val);
+        }
+        return ips;
+    }
+
+    /**
+     * Show or hide rack-2 SVI sections throughout the page based on rack-aware state.
+     */
+    function toggleRack2Sections(show) {
+        // Infra Rack 2 SVI fields
+        var r2Infra = document.getElementById('sc-rack2-infra');
+        if (r2Infra) r2Infra.style.display = show ? '' : 'none';
+
+        // Compute VLAN Rack 2 SVI fields (class-based toggle)
+        var r2Compute = document.querySelectorAll('.sc-rack2-compute');
+        for (var i = 0; i < r2Compute.length; i++) {
+            r2Compute[i].style.display = show ? '' : 'none';
+        }
+
+        // Rack-2 hostname fields (inline within the hostname grid)
+        var r2Host = document.getElementById('sc-rack2-hostnames');
+        var r2HostTor4 = document.getElementById('sc-rack2-hostnames-tor4');
+        if (r2Host) r2Host.style.display = show ? '' : 'none';
+        if (r2HostTor4) r2HostTor4.style.display = show ? '' : 'none';
+
+        // Switch hostname grid to 4 columns when rack-aware
+        var hostGrid = document.getElementById('sc-hostname-grid');
+        if (hostGrid) {
+            if (show) hostGrid.classList.add('sc-grid-4');
+            else hostGrid.classList.remove('sc-grid-4');
+        }
+
+        // Rack-2 BMC hostname
+        var r2Bmc = document.getElementById('sc-rack2-bmc');
+        if (r2Bmc) r2Bmc.style.display = show ? '' : 'none';
+
+        // Update BMC1 label to include "Rack 1" when rack-aware
+        var bmcLabel = document.querySelector('label[for="sc-hostname-bmc"]');
+        if (bmcLabel) {
+            bmcLabel.innerHTML = show
+                ? 'Rack 1 \u2014 <abbr title="Baseboard Management Controller">BMC</abbr> Switch Hostname'
+                : '<abbr title="Baseboard Management Controller">BMC</abbr> Switch Hostname';
+        }
+
+        // Existing rack-2 sections (loopback/P2P/iBGP)
+        var r2Ips = document.getElementById('sc-rack2-ips');
+        if (r2Ips) r2Ips.style.display = show ? '' : 'none';
+    }
+
+    // ── Read compute VLANs from form (up to 3) ──────────────────────
+    function readComputeVlans() {
+        var vlans = [];
+        for (var i = 1; i <= 3; i++) {
+            var block = document.getElementById('sc-compute-vlan-' + i);
+            if (!block || block.style.display === 'none') continue;
+            var id = getVal('sc-compute-vlan' + i + '-id');
+            if (!id) continue;
+            vlans.push({
+                id: id,
+                name: 'Tenant_' + id,
+                cidr: getVal('sc-compute-vlan' + i + '-cidr'),
+                gateway: getVal('sc-compute-vlan' + i + '-gw'),
+                ip_tor1: getVal('sc-compute-vlan' + i + '-tor1'),
+                ip_tor2: getVal('sc-compute-vlan' + i + '-tor2'),
+                ip_tor3: getVal('sc-compute-vlan' + i + '-tor3'),
+                ip_tor4: getVal('sc-compute-vlan' + i + '-tor4')
+            });
+        }
+        return vlans;
+    }
+
+    // ── Subnet validation helpers ──────────────────────────────────
+    function ipToInt(ip) {
+        var parts = ip.split('.');
+        return ((parseInt(parts[0], 10) << 24) |
+                (parseInt(parts[1], 10) << 16) |
+                (parseInt(parts[2], 10) << 8) |
+                parseInt(parts[3], 10)) >>> 0;
+    }
+
+    function sameSubnet(ip1, ip2, cidr) {
+        var mask = cidr === 0 ? 0 : (0xFFFFFFFF << (32 - cidr)) >>> 0;
+        return ((ipToInt(ip1) & mask) >>> 0) === ((ipToInt(ip2) & mask) >>> 0);
+    }
+
+    function isValidIp(ip) {
+        if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) return false;
+        var parts = ip.split('.');
+        for (var i = 0; i < 4; i++) {
+            var n = parseInt(parts[i], 10);
+            if (n < 0 || n > 255) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Validate that Gateway VIP and TOR SVI IPs are on the same subnet.
+     * Returns an error message string, or empty string if valid.
+     */
+    function validateSubnetGroups() {
+        var errors = [];
+        var cidrStr, cidr, gw, tor1, tor2, tor3, tor4;
+        var isRackAware = designerState && (designerState.scale === 'rack-aware' || designerState.scale === 'rack_aware');
+
+        // Infrastructure / Management
+        cidrStr = getVal('sc-infra-cidr');
+        gw = getVal('sc-infra-gateway');
+        tor1 = getVal('sc-infra-ip-tor1');
+        tor2 = getVal('sc-infra-ip-tor2');
+        tor3 = getVal('sc-infra-ip-tor3');
+        tor4 = getVal('sc-infra-ip-tor4');
+        cidr = parseInt(cidrStr, 10);
+        if (gw && tor1 && cidrStr && !isNaN(cidr)) {
+            if (!isValidIp(gw)) errors.push('Infrastructure: Gateway is not a valid IP address.');
+            else if (!isValidIp(tor1)) errors.push('Infrastructure: TOR1 SVI IP is not a valid IP address.');
+            else {
+                if (!sameSubnet(gw, tor1, cidr))
+                    errors.push('Infrastructure: Gateway (' + gw + ') and ToR1 SVI (' + tor1 + ') are not on the same /' + cidr + ' subnet.');
+                if (tor2 && isValidIp(tor2) && !sameSubnet(gw, tor2, cidr))
+                    errors.push('Infrastructure: Gateway (' + gw + ') and ToR2 SVI (' + tor2 + ') are not on the same /' + cidr + ' subnet.');
+                if (isRackAware && tor3 && isValidIp(tor3) && !sameSubnet(gw, tor3, cidr))
+                    errors.push('Infrastructure: Gateway (' + gw + ') and ToR3 SVI (' + tor3 + ') are not on the same /' + cidr + ' subnet.');
+                if (isRackAware && tor4 && isValidIp(tor4) && !sameSubnet(gw, tor4, cidr))
+                    errors.push('Infrastructure: Gateway (' + gw + ') and ToR4 SVI (' + tor4 + ') are not on the same /' + cidr + ' subnet.');
+            }
+        }
+
+        // Compute VLANs 1–3
+        for (var i = 1; i <= 3; i++) {
+            var block = document.getElementById('sc-compute-vlan-' + i);
+            if (!block || block.style.display === 'none') continue;
+            var vlanId = getVal('sc-compute-vlan' + i + '-id');
+            if (!vlanId) continue;
+
+            var label = 'Compute VLAN ' + i + ' (' + vlanId + ')';
+            cidrStr = getVal('sc-compute-vlan' + i + '-cidr');
+            gw = getVal('sc-compute-vlan' + i + '-gw');
+            tor1 = getVal('sc-compute-vlan' + i + '-tor1');
+            tor2 = getVal('sc-compute-vlan' + i + '-tor2');
+            tor3 = getVal('sc-compute-vlan' + i + '-tor3');
+            tor4 = getVal('sc-compute-vlan' + i + '-tor4');
+
+            // Require CIDR and Gateway when a compute VLAN ID is entered
+            if (!cidrStr) errors.push(label + ': Subnet prefix length (CIDR) is required.');
+            if (!gw) errors.push(label + ': Default gateway IP is required.');
+            if (!tor1) errors.push(label + ': ToR1 SVI IP is required.');
+            if (!tor2) errors.push(label + ': ToR2 SVI IP is required.');
+            if (isRackAware && !tor3) errors.push(label + ': ToR3 SVI IP is required.');
+            if (isRackAware && !tor4) errors.push(label + ': ToR4 SVI IP is required.');
+
+            cidr = parseInt(cidrStr, 10);
+            if (gw && tor1 && cidrStr && !isNaN(cidr)) {
+                if (!isValidIp(gw)) errors.push(label + ': Gateway is not a valid IP address.');
+                else if (!isValidIp(tor1)) errors.push(label + ': ToR1 SVI IP is not a valid IP address.');
+                else {
+                    if (!sameSubnet(gw, tor1, cidr))
+                        errors.push(label + ': Gateway (' + gw + ') and ToR1 SVI (' + tor1 + ') are not on the same /' + cidr + ' subnet.');
+                    if (tor2 && isValidIp(tor2) && !sameSubnet(gw, tor2, cidr))
+                        errors.push(label + ': Gateway (' + gw + ') and ToR2 SVI (' + tor2 + ') are not on the same /' + cidr + ' subnet.');
+                    if (isRackAware && tor3 && isValidIp(tor3) && !sameSubnet(gw, tor3, cidr))
+                        errors.push(label + ': Gateway (' + gw + ') and ToR3 SVI (' + tor3 + ') are not on the same /' + cidr + ' subnet.');
+                    if (isRackAware && tor4 && isValidIp(tor4) && !sameSubnet(gw, tor4, cidr))
+                        errors.push(label + ': Gateway (' + gw + ') and ToR4 SVI (' + tor4 + ') are not on the same /' + cidr + ' subnet.');
+                }
+            }
+        }
+
+        return errors.join('\n');
+    }
+
     // ── Generate Configs ─────────────────────────────────────────────
     window.generateConfigs = function () {
         var torModelKey = getVal('sc-tor-model');
         var bmcModelKey = getVal('sc-bmc-model');
 
         if (!torModelKey) {
-            alert('Please select a TOR switch model.');
+            alert('Please select a ToR switch model.');
+            return;
+        }
+
+        var validationErrors = validateSubnetGroups();
+        if (validationErrors) {
+            alert('Subnet validation failed:\n\n' + validationErrors);
             return;
         }
 
@@ -234,12 +445,11 @@
                     cidr: getVal('sc-infra-cidr'),
                     gateway: getVal('sc-infra-gateway'),
                     ip_tor1: getVal('sc-infra-ip-tor1'),
-                    ip_tor2: getVal('sc-infra-ip-tor2')
+                    ip_tor2: getVal('sc-infra-ip-tor2'),
+                    ip_tor3: getVal('sc-infra-ip-tor3'),
+                    ip_tor4: getVal('sc-infra-ip-tor4')
                 },
-                compute: {
-                    id: getVal('sc-compute-vlan'),
-                    name: 'Tenant_' + getVal('sc-compute-vlan')
-                },
+                compute: readComputeVlans(),
                 storage1: {
                     id: getVal('sc-storage1-vlan'),
                     name: 'Storage_' + getVal('sc-storage1-vlan') + '_TOR1'
@@ -286,7 +496,7 @@
         var tor1Json = builder.buildTor('TOR1');
         tor1Json.infrastructure = infrastructure;
         configs.push({
-            label: 'TOR1 (' + (getVal('sc-hostname-tor1') || 'tor-1a') + ')',
+            label: 'ToR1 (' + (getVal('sc-hostname-tor1') || 'tor-1a') + ')',
             id: 'tor1',
             config: renderer.renderFullConfig(tor1Json),
             json: tor1Json
@@ -296,7 +506,7 @@
         var tor2Json = builder.buildTor('TOR2');
         tor2Json.infrastructure = infrastructure;
         configs.push({
-            label: 'TOR2 (' + (getVal('sc-hostname-tor2') || 'tor-1b') + ')',
+            label: 'ToR2 (' + (getVal('sc-hostname-tor2') || 'tor-1b') + ')',
             id: 'tor2',
             config: renderer.renderFullConfig(tor2Json),
             json: tor2Json
@@ -307,7 +517,7 @@
             var tor3Json = builder.buildTor('TOR3');
             tor3Json.infrastructure = infrastructure;
             configs.push({
-                label: 'TOR3 (' + (getVal('sc-hostname-tor3') || 'tor-2a') + ')',
+                label: 'ToR3 (' + (getVal('sc-hostname-tor3') || 'tor-2a') + ')',
                 id: 'tor3',
                 config: renderer.renderFullConfig(tor3Json),
                 json: tor3Json
@@ -316,7 +526,7 @@
             var tor4Json = builder.buildTor('TOR4');
             tor4Json.infrastructure = infrastructure;
             configs.push({
-                label: 'TOR4 (' + (getVal('sc-hostname-tor4') || 'tor-2b') + ')',
+                label: 'ToR4 (' + (getVal('sc-hostname-tor4') || 'tor-2b') + ')',
                 id: 'tor4',
                 config: renderer.renderFullConfig(tor4Json),
                 json: tor4Json
@@ -325,17 +535,32 @@
 
         // BMC
         if (bmcModelKey) {
-            var bmcJson = builder.buildBmc();
+            var bmcModel = SWITCH_MODELS[bmcModelKey];
+            var bmcRenderer = bmcModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
+
+            var bmcJson = builder.buildBmc(getVal('sc-hostname-bmc') || 'bmc-1');
             if (bmcJson) {
                 bmcJson.infrastructure = infrastructure;
-                var bmcModel = SWITCH_MODELS[bmcModelKey];
-                var bmcRenderer = bmcModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
                 configs.push({
-                    label: 'BMC (' + (getVal('sc-hostname-bmc') || 'bmc-1') + ')',
+                    label: (isRackAware ? 'Rack 1 — ' : '') + 'BMC (' + (getVal('sc-hostname-bmc') || 'bmc-1') + ')',
                     id: 'bmc',
                     config: bmcRenderer.renderFullConfig(bmcJson),
                     json: bmcJson
                 });
+            }
+
+            // Rack-aware: second BMC switch for Rack 2
+            if (isRackAware) {
+                var bmc2Json = builder.buildBmc(getVal('sc-hostname-bmc2') || 'bmc-2');
+                if (bmc2Json) {
+                    bmc2Json.infrastructure = infrastructure;
+                    configs.push({
+                        label: 'Rack 2 — BMC (' + (getVal('sc-hostname-bmc2') || 'bmc-2') + ')',
+                        id: 'bmc2',
+                        config: bmcRenderer.renderFullConfig(bmc2Json),
+                        json: bmc2Json
+                    });
+                }
             }
         }
 
@@ -466,3 +691,56 @@
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 })();
+
+// ── Compute VLAN add/remove (global for onclick) ─────────────────
+/* global addComputeVlan, removeComputeVlan */
+window.addComputeVlan = function () {
+    for (var i = 2; i <= 3; i++) {
+        var block = document.getElementById('sc-compute-vlan-' + i);
+        if (block && block.style.display === 'none') {
+            block.style.display = '';
+            // Auto-populate SVI defaults for rack-aware deployments
+            var dsRaw = null;
+            try { dsRaw = JSON.parse(localStorage.getItem('odinDesignerToSwitchConfig')); } catch (e) { /* ignore */ }
+            var ra = dsRaw && (dsRaw.scale === 'rack-aware' || dsRaw.scale === 'rack_aware');
+            var gwField = document.getElementById('sc-compute-vlan' + i + '-gw');
+            if (gwField && gwField.value) {
+                var parts = gwField.value.split('.');
+                if (parts.length === 4) {
+                    var last = parseInt(parts[3], 10);
+                    var pfx = parts[0] + '.' + parts[1] + '.' + parts[2] + '.';
+                    var torCount = ra ? 4 : 2;
+                    var ids = ['tor1', 'tor2', 'tor3', 'tor4'];
+                    for (var j = 0; j < torCount; j++) {
+                        var v = last + j + 1;
+                        if (v > 254) break;
+                        var f = document.getElementById('sc-compute-vlan' + i + '-' + ids[j]);
+                        if (f && !f.value) f.value = pfx + v;
+                    }
+                }
+            }
+            break;
+        }
+    }
+    updateAddComputeBtn();
+};
+window.removeComputeVlan = function (n) {
+    var block = document.getElementById('sc-compute-vlan-' + n);
+    if (block) {
+        block.style.display = 'none';
+        // Clear values
+        var inputs = block.querySelectorAll('input');
+        for (var i = 0; i < inputs.length; i++) inputs[i].value = '';
+    }
+    updateAddComputeBtn();
+};
+function updateAddComputeBtn() {
+    var btn = document.getElementById('sc-add-compute-vlan');
+    if (!btn) return;
+    var allVisible = true;
+    for (var i = 2; i <= 3; i++) {
+        var block = document.getElementById('sc-compute-vlan-' + i);
+        if (block && block.style.display === 'none') { allVisible = false; break; }
+    }
+    btn.disabled = allVisible;
+}

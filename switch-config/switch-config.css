@@ -82,6 +82,10 @@ body {
     gap: 1rem;
 }
 
+.sc-grid-4 {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
 .sc-field {
     display: flex;
     flex-direction: column;
@@ -350,7 +354,8 @@ body {
 /* ── Responsive ───────────────────────────────────────────────────── */
 @media (max-width: 768px) {
     .sc-grid,
-    .sc-grid-3 {
+    .sc-grid-3,
+    .sc-grid.sc-grid-4 {
         grid-template-columns: 1fr;
     }
 
@@ -366,4 +371,36 @@ body {
     .page-header-bar {
         padding: 0 12px;
     }
+}
+
+/* Compute VLAN add/remove buttons */
+.sc-add-btn {
+    background: transparent;
+    color: var(--accent-blue, #4da6ff);
+    border: 1px dashed var(--accent-blue, #4da6ff);
+    border-radius: 6px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.sc-add-btn:hover {
+    background: rgba(77, 166, 255, 0.1);
+}
+.sc-add-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+.sc-remove-btn {
+    background: transparent;
+    color: #e06c75;
+    border: 1px solid #e06c75;
+    border-radius: 6px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.sc-remove-btn:hover {
+    background: rgba(224, 108, 117, 0.12);
 }

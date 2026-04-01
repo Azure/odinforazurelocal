@@ -9,37 +9,6 @@
 
 window.SWITCH_MODELS = {
     // ── Cisco TOR Models ─────────────────────────────────────────────
-    'cisco-93108TC-FX3P': {
-        make: 'Cisco',
-        model: '93108TC-FX3P',
-        type: 'TOR',
-        firmware: 'nxos',
-        label: 'Cisco Nexus 93108TC-FX3P',
-        interface_templates: {
-            common: [
-                { name: 'Unused', type: 'Access', description: 'initial unused for all interfaces then config as defined', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/54', access_vlan: '2', shutdown: true },
-                { name: 'Loopback0', type: 'L3', intf_type: 'loopback', intf: 'loopback0', ipv4: '' },
-                { name: 'P2P_Border1', type: 'L3', intf_type: 'Ethernet', intf: '1/48', ipv4: '' },
-                { name: 'P2P_Border2', type: 'L3', intf_type: 'Ethernet', intf: '1/47', ipv4: '' },
-                { name: 'Trunk_TO_BMC_SWITCH', type: 'Trunk', intf_type: 'Ethernet', intf: '1/49', native_vlan: '99', tagged_vlans: 'B' }
-            ],
-            fully_converged: [
-                { name: 'HyperConverged_To_Host', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/16', native_vlan: 'M', tagged_vlans: 'M,C,S', service_policy: { qos_input: 'AZLOCAL-QOS-MAP' } }
-            ],
-            switched: [
-                { name: 'Switched_Compute_To_Host', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/16', native_vlan: 'M', tagged_vlans: 'M,C' },
-                { name: 'Switched_Storage_To_Host', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/17', end_intf: '1/32', native_vlan: '99', tagged_vlans: 'S', service_policy: { qos_input: 'AZLOCAL-QOS-MAP' } }
-            ],
-            switchless: [
-                { name: 'Switchless_Compute_To_Host', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/16', native_vlan: 'M', tagged_vlans: 'M,C' }
-            ]
-        },
-        port_channels: [
-            { id: 50, description: 'P2P_IBGP', type: 'L3', ipv4: '', members: ['1/41', '1/42'] },
-            { id: 101, description: 'ToR_Peer_Link', type: 'Trunk', native_vlan: '99', tagged_vlans: '', members: ['1/49', '1/50', '1/51'] }
-        ]
-    },
-
     'cisco-93180YC-FX': {
         make: 'Cisco',
         model: '93180YC-FX',
@@ -139,6 +108,26 @@ window.SWITCH_MODELS = {
     },
 
     // ── Cisco BMC Models ─────────────────────────────────────────────
+    'cisco-93108TC-FX3P': {
+        make: 'Cisco',
+        model: '93108TC-FX3P',
+        type: 'BMC',
+        firmware: 'nxos',
+        label: 'Cisco Nexus 93108TC-FX3P',
+        interface_templates: {
+            common: [
+                { name: 'Unused', type: 'Access', description: 'initial unused for all interfaces then config as defined', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/54', access_vlan: '2', shutdown: true },
+                { name: 'Host_BMC', type: 'Access', description: 'Host BMC Connection', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/16', access_vlan: 'B' },
+                { name: 'HLH_BMC', type: 'Access', description: 'HLH BMC Connection', intf_type: 'Ethernet', intf: '1/46', access_vlan: 'B' },
+                { name: 'HLH_OS', type: 'Access', description: 'HLH OS Connection', intf_type: 'Ethernet', start_intf: '1/49', end_intf: '1/50', access_vlan: 'B' },
+                { name: 'To_TORs', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/51', end_intf: '1/52', native_vlan: '99', tagged_vlans: 'B' }
+            ]
+        },
+        port_channels: [
+            { id: 102, description: 'TOR_BMC', type: 'Trunk', native_vlan: '99', tagged_vlans: 'B', members: ['1/51', '1/52'] }
+        ]
+    },
+
     'cisco-9348GC-FXP': {
         make: 'Cisco',
         model: '9348GC-FXP',

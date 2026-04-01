@@ -5357,7 +5357,7 @@
         ]);
 
         testSuite('TOR Model Definitions', 'models.js', (() => {
-            const torKeys = ['cisco-93108TC-FX3P', 'cisco-93180YC-FX', 'cisco-93180YC-FX3', 'dell-S5248F-ON'];
+            const torKeys = ['cisco-93180YC-FX', 'cisco-93180YC-FX3', 'dell-S5248F-ON'];
             const results = [];
             torKeys.forEach(key => {
                 const m = SWITCH_MODELS[key];
@@ -5386,7 +5386,7 @@
         })());
 
         testSuite('BMC Model Definitions', 'models.js', (() => {
-            const bmcKeys = ['cisco-9348GC-FXP', 'cisco-9348GC-FX3', 'dell-N3248TE-ON'];
+            const bmcKeys = ['cisco-93108TC-FX3P', 'cisco-9348GC-FXP', 'cisco-9348GC-FX3', 'dell-N3248TE-ON'];
             const results = [];
             bmcKeys.forEach(key => {
                 const m = SWITCH_MODELS[key];
@@ -5402,8 +5402,8 @@
         testSuite('getTorModels() and getBmcModels() helpers', 'models.js', [
             assert(typeof getTorModels === 'function', 'getTorModels is a function', true, typeof getTorModels === 'function'),
             assert(typeof getBmcModels === 'function', 'getBmcModels is a function', true, typeof getBmcModels === 'function'),
-            assert(getTorModels().length === 4, 'getTorModels returns 4 entries', 4, getTorModels().length),
-            assert(getBmcModels().length === 3, 'getBmcModels returns 3 entries', 3, getBmcModels().length),
+            assert(getTorModels().length === 3, 'getTorModels returns 3 entries', 3, getTorModels().length),
+            assert(getBmcModels().length === 4, 'getBmcModels returns 4 entries', 4, getBmcModels().length),
             (() => {
                 const tor = getTorModels();
                 const allHaveKey = tor.every(t => t.key && typeof t.key === 'string');
@@ -5422,7 +5422,7 @@
 
         testSuite('Cisco TOR Firmware Consistency', 'models.js', (() => {
             const results = [];
-            ['cisco-93108TC-FX3P', 'cisco-93180YC-FX', 'cisco-93180YC-FX3'].forEach(key => {
+            ['cisco-93180YC-FX', 'cisco-93180YC-FX3'].forEach(key => {
                 const m = SWITCH_MODELS[key];
                 results.push(assert(m && m.firmware === 'nxos',
                     key + ' firmware is nxos', 'nxos', m ? m.firmware : 'undefined'));
@@ -5465,7 +5465,7 @@
             (() => {
                 const b = new SwitchConfigBuilder({
                     designerState: { storage: 'switched', intent: 'mgmt_compute' },
-                    torModelKey: 'cisco-93108TC-FX3P'
+                    torModelKey: 'cisco-93180YC-FX'
                 });
                 return assert(b.deploymentPattern === 'switched',
                     'Switched storage resolves to "switched" pattern', 'switched', b.deploymentPattern);
@@ -5473,7 +5473,7 @@
             (() => {
                 const b = new SwitchConfigBuilder({
                     designerState: { storage: 'switchless', intent: 'mgmt_compute' },
-                    torModelKey: 'cisco-93108TC-FX3P'
+                    torModelKey: 'cisco-93180YC-FX'
                 });
                 return assert(b.deploymentPattern === 'switchless',
                     'Switchless storage resolves to "switchless" pattern', 'switchless', b.deploymentPattern);
@@ -5481,7 +5481,7 @@
             (() => {
                 const b = new SwitchConfigBuilder({
                     designerState: { intent: 'all_traffic' },
-                    torModelKey: 'cisco-93108TC-FX3P'
+                    torModelKey: 'cisco-93180YC-FX'
                 });
                 return assert(b.deploymentPattern === 'fully_converged',
                     'All-traffic intent resolves to "fully_converged" pattern', 'fully_converged', b.deploymentPattern);
@@ -5489,7 +5489,7 @@
             (() => {
                 const b = new SwitchConfigBuilder({
                     designerState: { storage: 'network_switch', intent: 'mgmt_compute' },
-                    torModelKey: 'cisco-93108TC-FX3P'
+                    torModelKey: 'cisco-93180YC-FX'
                 });
                 return assert(b.deploymentPattern === 'switched',
                     'network_switch storage resolves to "switched"', 'switched', b.deploymentPattern);
@@ -5500,7 +5500,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3', storage: '' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'my-tor1', tor2: 'my-tor2' },
                 site: 'Test-Site',
                 bgp: { torAsn: 65001, borderAsn: 64512 },
@@ -5618,7 +5618,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { storage: 'switched', intent: 'mgmt_compute', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 vlans: {
                     infra: { id: '7', name: 'Infra_7' },
                     compute: { id: '711', name: 'Tenant_711' },
@@ -5651,7 +5651,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { storage: 'switchless', intent: 'mgmt_compute', nodes: '2' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 vlans: {
                     infra: { id: '7', name: 'Infra_7' },
                     compute: { id: '711', name: 'Tenant_711' },
@@ -5677,7 +5677,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 ips: {
                     p2pBorder1Tor1: '10.0.0.2/30',
                     p2pBorder1Tor2: '10.0.0.6/30'
@@ -5699,7 +5699,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 bmcModelKey: 'cisco-9348GC-FXP',
                 hostnames: { bmc: 'my-bmc' },
                 vlans: {
@@ -5749,7 +5749,7 @@
             (() => {
                 const b = new SwitchConfigBuilder({
                     designerState: { intent: 'all_traffic' },
-                    torModelKey: 'cisco-93108TC-FX3P',
+                    torModelKey: 'cisco-93180YC-FX',
                     vlans: {}, ips: {}, bgp: {}
                 });
                 const bmc = b.buildBmc();
@@ -5920,7 +5920,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'full-test-tor1' },
                 bgp: { torAsn: 65001, borderAsn: 64512 },
                 ips: {
@@ -6150,7 +6150,7 @@
             bmcModels.forEach(model => {
                 try {
                     const bmcModel = SWITCH_MODELS[model.key];
-                    const torKey = bmcModel.firmware === 'nxos' ? 'cisco-93108TC-FX3P' : 'dell-S5248F-ON';
+                    const torKey = bmcModel.firmware === 'nxos' ? 'cisco-93180YC-FX' : 'dell-S5248F-ON';
                     const b = new SwitchConfigBuilder({
                         designerState: { intent: 'all_traffic', nodes: '3' },
                         torModelKey: torKey,
@@ -6193,7 +6193,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'lb-test' },
                 ips: { loopback1: '10.0.255.1/32' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
@@ -6237,7 +6237,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'ibgp-test' },
                 ips: { loopback1: '10.0.255.1/32', ibgpTor1: '10.0.0.17', ibgpTor2: '10.0.0.18' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
@@ -6279,7 +6279,7 @@
             // If someone provides IP already with CIDR, don't add another /30
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 ips: { loopback1: '10.0.255.1/32', ibgpTor1: '10.0.0.17/30', ibgpTor2: '10.0.0.18/30' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, hostnames: {}
@@ -6305,7 +6305,7 @@
         testSuite('Models use symbolic B for BMC VLAN', 'models.js', (() => {
             const results = [];
             // TOR models: BMC trunk should use 'B'
-            const torKeys = ['cisco-93108TC-FX3P', 'cisco-93180YC-FX', 'cisco-93180YC-FX3', 'dell-S5248F-ON'];
+            const torKeys = ['cisco-93180YC-FX', 'cisco-93180YC-FX3', 'dell-S5248F-ON'];
             torKeys.forEach(key => {
                 const model = SWITCH_MODELS[key];
                 const bmcTrunk = model.interface_templates.common.find(i => i.name === 'Trunk_TO_BMC_SWITCH');
@@ -6314,7 +6314,7 @@
                     bmcTrunk ? bmcTrunk.tagged_vlans === 'B' : false));
             });
             // BMC models: Access interfaces should use 'B'
-            const bmcKeys = ['cisco-9348GC-FXP', 'cisco-9348GC-FX3', 'dell-N3248TE-ON'];
+            const bmcKeys = ['cisco-93108TC-FX3P', 'cisco-9348GC-FXP', 'cisco-9348GC-FX3', 'dell-N3248TE-ON'];
             bmcKeys.forEach(key => {
                 const model = SWITCH_MODELS[key];
                 const hostBmc = model.interface_templates.common.find(i => i.name === 'Host_BMC');
@@ -6335,7 +6335,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: {},
                 vlans: { infra: { id: '7' }, bmc: { id: '200' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, ips: {}
@@ -6355,7 +6355,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 bmcModelKey: 'cisco-9348GC-FXP',
                 hostnames: {},
                 vlans: { infra: { id: '7' }, bmc: { id: '200' }, hnvpa: null },
@@ -6381,7 +6381,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: {},
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, ips: {}
@@ -6487,7 +6487,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'test-tor' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, ips: { loopback1: '10.0.255.1/32' }
@@ -6572,7 +6572,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'tz-test' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, ips: { loopback1: '10.0.255.1/32' }
@@ -6604,7 +6604,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'tor-1a', tor2: 'tor-1b', tor3: 'tor-2a', tor4: 'tor-2b' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, compute: { id: '200' }, storage1: { id: '711' }, storage2: { id: '712' }, hnvpa: null },
                 bgp: { torAsn: 65001, borderAsn: 64512 },
@@ -6629,7 +6629,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor3: 'r2a', tor4: 'r2b' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 },
@@ -6654,7 +6654,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: {},
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001, borderAsn: 64512 },
@@ -6679,7 +6679,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { storage: 'switched', nodes: '8', scale: 'rack-aware' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: {},
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, compute: { id: '200' }, storage1: { id: '711' }, storage2: { id: '712' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, ips: {}
@@ -6705,7 +6705,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: {},
                 vlans: { infra: { id: '7', cidr: '24', gateway: '10.0.0.1', ip_tor1: '10.0.0.2', ip_tor3: '10.0.0.4' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, ips: {}
@@ -6722,7 +6722,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '8', scale: 'rack-aware' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: {},
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 },
@@ -6745,7 +6745,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'export-test' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, ips: { loopback1: '10.0.255.1/32' }
@@ -6766,7 +6766,7 @@
             const results = [];
             const b = new SwitchConfigBuilder({
                 designerState: { intent: 'all_traffic', nodes: '3' },
-                torModelKey: 'cisco-93108TC-FX3P',
+                torModelKey: 'cisco-93180YC-FX',
                 hostnames: { tor1: 'json-test' },
                 vlans: { infra: { id: '7' }, bmc: { id: '125' }, hnvpa: null },
                 bgp: { torAsn: 65001 }, ips: { loopback1: '10.0.255.1/32' }
