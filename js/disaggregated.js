@@ -254,7 +254,8 @@ function addDisaggWorkloadVlan() {
     while (usedVlans.indexOf(nextVlan) !== -1 && nextVlan < 4094) nextVlan++;
     var nextVni = 10000 + nextVlan;
 
-    state.disaggWorkloadVlans.push({ name: 'Workload ' + (state.disaggWorkloadVlans.length + 1), vlan: nextVlan, vni: nextVni });
+    var vrfName = 'TENANT' + (state.disaggWorkloadVlans.length + 1);
+    state.disaggWorkloadVlans.push({ name: 'Workload ' + (state.disaggWorkloadVlans.length + 1), vlan: nextVlan, vni: nextVni, vrf: vrfName });
     state.disaggVlanConfigConfirmed = false;
     renderDisaggWorkloadVlans();
     renderDisaggVlanConfirmState();
@@ -278,6 +279,8 @@ function updateDisaggWorkloadVlan(index, field, value) {
     } else if (field === 'vni') {
         var n = parseInt(value);
         if (n >= 1 && n <= 16777215) state.disaggWorkloadVlans[index].vni = n;
+    } else if (field === 'vrf') {
+        state.disaggWorkloadVlans[index].vrf = String(value || '').trim();
     }
     state.disaggVlanConfigConfirmed = false;
     renderDisaggVlanConfirmState();
@@ -295,7 +298,8 @@ function renderDisaggWorkloadVlans() {
     }
 
     list.innerHTML = wlVlans.map(function(w, i) {
-        return '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 10px 12px;">'
+        return '<div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px;">'
+            + '<div style="display: flex; align-items: center; gap: 8px;">'
             + '<div style="flex: 2;">'
             + '<span style="font-size: 0.75rem; color: var(--text-secondary);">Name</span>'
             + '<input type="text" value="' + (w.name || '') + '" placeholder="Workload name"'
@@ -318,6 +322,17 @@ function renderDisaggWorkloadVlans() {
             + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'vni\', this.value)">'
             + '</div>'
             + (confirmed ? '' : '<button type="button" onclick="removeDisaggWorkloadVlan(' + i + ')" style="align-self: flex-end; margin-bottom: 2px; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;" title="Remove">✕</button>')
+            + '</div>'
+            + '<div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">'
+            + '<div style="flex: 1;">'
+            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VRF Name</span>'
+            + '<input type="text" value="' + (w.vrf || '') + '" placeholder="e.g. TENANT1"'
+            + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+            + (confirmed ? ' disabled' : '')
+            + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'vrf\', this.value)">'
+            + '</div>'
+            + '<div style="flex: 2; font-size: 0.8rem; color: var(--text-secondary); padding-top: 14px;">Isolated routing domain for this tenant\'s workload traffic</div>'
+            + '</div>'
             + '</div>';
     }).join('');
 }
