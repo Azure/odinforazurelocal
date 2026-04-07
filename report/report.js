@@ -4519,8 +4519,9 @@
                 var arrayLeftX = aX;
                 var arrayMidY = aY + iscsiArrayH / 2;
 
-                // Leaf-A → Storage Array (line goes right from Leaf-A to above, then to array)
-                out += '<line x1="' + leafAcx + '" y1="' + (leafY + 12) + '" x2="' + arrayLeftX + '" y2="' + (aY + 16) + '" stroke="rgba(' + rgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
+                // Leaf-A → Storage Array (routed above Leaf-B to stay visible)
+                var routeY = leafY - 18;
+                out += '<polyline points="' + leafAcx + ',' + leafY + ' ' + leafAcx + ',' + routeY + ' ' + arrayLeftX + ',' + routeY + ' ' + arrayLeftX + ',' + (aY + 16) + '" fill="none" stroke="rgba(' + rgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
                 // Leaf-B → Storage Array
                 out += '<line x1="' + leafBcx + '" y1="' + (leafY + leafH - 12) + '" x2="' + arrayLeftX + '" y2="' + (aY + iscsiArrayH - 16) + '" stroke="rgba(' + rgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
 
