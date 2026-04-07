@@ -3540,8 +3540,18 @@ function updateUI() {
                     s.classList.add('hidden');
                 }
             });
-            // Show DA steps (disaggregated.js controls individual step visibility)
-            daSteps.forEach(s => s && s.classList.remove('hidden'));
+            // Show DA steps progressively based on state
+            if (daSteps[0]) daSteps[0].classList.remove('hidden'); // DA1 always visible
+            if (state.disaggStorageType && daSteps[1]) daSteps[1].classList.remove('hidden'); // DA2
+            if ((state.disaggStorageType === 'fc_san' || state.disaggBackupEnabled !== undefined) && daSteps[2]) daSteps[2].classList.remove('hidden'); // DA3
+            if (state.disaggRackCount && state.disaggNodesPerRack && daSteps[3]) daSteps[3].classList.remove('hidden'); // DA4
+            if (state.disaggSpineCount) {
+                if (daSteps[4]) daSteps[4].classList.remove('hidden'); // DA5
+                if (daSteps[5]) daSteps[5].classList.remove('hidden'); // DA6
+                if (daSteps[6]) daSteps[6].classList.remove('hidden'); // DA7
+                if (daSteps[7]) daSteps[7].classList.remove('hidden'); // DA8
+                if (daSteps[8]) daSteps[8].classList.remove('hidden'); // DA10
+            }
             // Shared steps (cloud, region, outbound, arc, proxy, PE, mgmt, infra VLAN, infra network, AD, security)
             // remain visible — they were un-hidden in the reset block above
         } else if (!state.architecture) {
@@ -10216,10 +10226,10 @@ function updateBreadcrumbs() {
                 case 'step-da2': isComplete = (state.disaggStorageType === 'fc_san') || (state.disaggBackupEnabled !== undefined && state.disaggBackupEnabled !== null); break;
                 case 'step-da3': isComplete = Boolean(state.disaggRackCount && state.disaggNodesPerRack); break;
                 case 'step-da4': isComplete = Boolean(state.disaggSpineCount); break;
-                case 'step-da5': isComplete = Boolean(state.disaggVlans && Object.keys(state.disaggVlans).length > 0); break;
-                case 'step-da6': isComplete = Boolean(stepEl && !stepEl.classList.contains('hidden')); break;
-                case 'step-da7': isComplete = Boolean(stepEl && !stepEl.classList.contains('hidden')); break;
-                case 'step-da8': isComplete = Boolean(stepEl && !stepEl.classList.contains('hidden')); break;
+                case 'step-da5': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da6': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da7': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da8': isComplete = Boolean(state.disaggOverridesConfirmed); break;
                 case 'step-da10': isComplete = Boolean(state.disaggPortConfigConfirmed); break;
             }
 
