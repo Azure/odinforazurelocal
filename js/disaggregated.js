@@ -1639,11 +1639,79 @@ function updateDisaggOverride(networkKey, fieldId, value) {
     } else if (type === 'subnet') {
         if (!state.disaggSubnets) state.disaggSubnets = {};
         state.disaggSubnets[netKey] = value.trim();
+        validateDisaggSubnets();
     }
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 
+function validateDisaggSubnets() {
+    var subnets = state.disaggSubnets || {};
+    var st = state.disaggStorageType || 'fc_san';
+    var backup = !!state.disaggBackupEnabled;
+    var hasDedicatedIscsi = (st === 'iscsi_6nic' && !backup);
+
+    // Collect all active subnet keys and their values
+    var entries = [
+        { key: 'cluster1', label: 'Cluster 1' },
+        { key: 'cluster2', label: 'Cluster 2' }
+    ];
+    if (hasDedicatedIscsi) {
+        entries.push({ key: 'iscsiA', label: 'iSCSI A' });
+        entries.push({ key: 'iscsiB', label: 'iSCSI B' });
+    }
+
+    // Find duplicates — compare each pair
+    var conflicts = {};
+    for (var i = 0; i < entries.length; i++) {
+        var valI = (subnets[entries[i].key] || '').trim();
+        if (!valI) continue;
+        for (var j = i + 1; j < entries.length; j++) {
+            var valJ = (subnets[entries[j].key] || '').trim();
+            if (!valJ) continue;
+            if (valI === valJ) {
+                conflicts[entries[i].key] = true;
+                conflicts[entries[j].key] = true;
+            }
+        }
+    }
+
+    // Apply/remove error styling on subnet inputs
+    var allKeys = ['cluster1', 'cluster2', 'iscsiA', 'iscsiB'];
+    for (var k = 0; k < allKeys.length; k++) {
+        var fieldId = allKeys[k] + '_subnet';
+        var inputs = document.querySelectorAll('input[oninput*="' + fieldId + '"]');
+        for (var m = 0; m < inputs.length; m++) {
+            var inp = inputs[m];
+            if (conflicts[allKeys[k]]) {
+                inp.style.borderColor = '#ef4444';
+                inp.style.boxShadow = '0 0 0 1px #ef444480';
+                // Add or update error hint after input
+                var hintId = 'subnet-err-' + allKeys[k];
+                var hint = document.getElementById(hintId);
+                if (!hint) {
+                    hint = document.createElement('div');
+                    hint.id = hintId;
+                    hint.style.cssText = 'color:#ef4444; font-size:0.78rem; margin-top:2px;';
+                    inp.parentNode.appendChild(hint);
+                }
+                hint.textContent = 'Subnet must be unique across all standalone networks';
+            } else {
+                inp.style.borderColor = '';
+                inp.style.boxShadow = '';
+                var hintId = 'subnet-err-' + allKeys[k];
+                var hint = document.getElementById(hintId);
+                if (hint) hint.remove();
+            }
+        }
+    }
+}
+
 function confirmDisaggOverrides() {
+    // Block confirm if there are duplicate subnets
+    if (document.querySelector('[id^="subnet-err-"]')) {
+        if (typeof showToast === 'function') showToast('Fix duplicate subnets before confirming', 'error');
+        return;
+    }
     state.disaggOverridesConfirmed = true;
     state.disaggNicConfigConfirmed = true;
     renderDisaggOverrides();
