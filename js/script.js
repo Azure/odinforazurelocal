@@ -1118,29 +1118,84 @@ function renderNodeSettings() {
     ensureNodeSettingsInitialized();
     container.innerHTML = '';
 
-    for (let i = 0; i < count; i++) {
-        const node = state.nodeSettings[i] || { name: '', ipCidr: '' };
+    // Determine rack grouping
+    var rackGroups = null;
+
+    if (state.architecture === 'disaggregated' && state.disaggRackCount > 1) {
+        // Disaggregated multi-rack: sequential groups of nodesPerRack
+        var npr = state.disaggNodesPerRack || 1;
+        var racks = state.disaggRackCount || 1;
+        rackGroups = [];
+        for (var r = 0; r < racks; r++) {
+            var nodes = [];
+            for (var n = 0; n < npr && (r * npr + n) < count; n++) {
+                nodes.push(r * npr + n);
+            }
+            rackGroups.push({ label: 'Rack ' + (r + 1), nodeIndices: nodes });
+        }
+    } else if (state.scale === 'rack_aware' && state.rackAwareZones && state.rackAwareZones.assignments) {
+        // Rack-aware HCI: group by zone assignment
+        var assignments = state.rackAwareZones.assignments;
+        var z1Name = (state.rackAwareZones.zone1Name || 'Zone 1').trim();
+        var z2Name = (state.rackAwareZones.zone2Name || 'Zone 2').trim();
+        var zone1Nodes = [], zone2Nodes = [];
+        for (var i = 0; i < count; i++) {
+            var zoneNum = Number(assignments[String(i + 1)]);
+            if (zoneNum === 2) {
+                zone2Nodes.push(i);
+            } else {
+                zone1Nodes.push(i);
+            }
+        }
+        rackGroups = [
+            { label: z1Name + ' (' + zone1Nodes.length + ' nodes)', nodeIndices: zone1Nodes },
+            { label: z2Name + ' (' + zone2Nodes.length + ' nodes)', nodeIndices: zone2Nodes }
+        ];
+    }
+
+    function renderNodeRow(nodeIndex) {
+        const node = state.nodeSettings[nodeIndex] || { name: '', ipCidr: '' };
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;';
 
         row.innerHTML = `
             <div style="flex:1; min-width:220px;">
-                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${i + 1} Name</label>
-                <input type="text" value="${escapeHtml(node.name)}" maxlength="15" placeholder="e.g. node${i + 1}"
+                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${nodeIndex + 1} Name</label>
+                <input type="text" value="${escapeHtml(node.name)}" maxlength="15" placeholder="e.g. node${nodeIndex + 1}"
                     title="SAM Account name (max 15 chars). Enter Node 1 name with a number suffix (e.g. server01) to auto-fill other nodes."
                     style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
-                    onchange="updateNodeName(${i}, this.value)">
+                    onchange="updateNodeName(${nodeIndex}, this.value)">
             </div>
             <div style="flex:1; min-width:220px;">
-                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${i + 1} IP (CIDR)</label>
-                <input type="text" value="${escapeHtml(node.ipCidr)}" placeholder="e.g. 192.168.1.${10 + i}/24"
+                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${nodeIndex + 1} IP (CIDR)</label>
+                <input type="text" value="${escapeHtml(node.ipCidr)}" placeholder="e.g. 192.168.1.${10 + nodeIndex}/24"
                     title="IPv4 CIDR (e.g. 192.168.1.10/24). Must be unique across nodes."
                     style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
-                    onchange="updateNodeIpCidr(${i}, this.value)">
+                    onchange="updateNodeIpCidr(${nodeIndex}, this.value)">
             </div>
         `;
+        return row;
+    }
 
-        container.appendChild(row);
+    if (rackGroups) {
+        // Render nodes grouped by rack/zone
+        for (var g = 0; g < rackGroups.length; g++) {
+            var group = rackGroups[g];
+            var header = document.createElement('div');
+            header.style.cssText = 'margin-top: ' + (g === 0 ? '0.5rem' : '1.5rem') + '; padding: 0.5rem 0.75rem; background: rgba(0,120,212,0.08); border: 1px solid rgba(0,120,212,0.25); border-radius: 6px; display: flex; align-items: center; gap: 0.5rem;';
+            header.innerHTML = '<span style="font-size: 1rem; color: var(--accent-primary); font-weight: 600;">' + escapeHtml(group.label) + '</span>'
+                + '<span style="font-size: 0.8rem; color: var(--text-secondary);">' + group.nodeIndices.length + ' node' + (group.nodeIndices.length !== 1 ? 's' : '') + '</span>';
+            container.appendChild(header);
+
+            for (var ni = 0; ni < group.nodeIndices.length; ni++) {
+                container.appendChild(renderNodeRow(group.nodeIndices[ni]));
+            }
+        }
+    } else {
+        // Single rack / no grouping
+        for (let i = 0; i < count; i++) {
+            container.appendChild(renderNodeRow(i));
+        }
     }
 
     validateNodeSettings();
