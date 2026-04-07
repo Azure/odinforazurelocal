@@ -375,28 +375,22 @@ function renderQosSummary() {
     if (!container) return;
 
     const isIscsi = state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic';
+    const isFcSan = state.disaggStorageType === 'fc_san';
     const exp = document.getElementById('da6-explanation');
 
-    if (state.disaggStorageType === 'fc_san' && !state.disaggBackupEnabled) {
-        container.innerHTML = '<div style="padding: 16px; background: var(--subtle-bg); border-radius: 6px; border: 1px solid var(--glass-border);"><p style="color: var(--text-secondary); margin: 0;">No QoS policy required — FC SAN traffic is on a separate fabric and does not share Ethernet leaf ports.</p></div>';
-        if (exp) { exp.innerHTML = ''; exp.classList.remove('visible'); }
-        return;
-    }
-
     let rows = [
-        { priority: 0, desc: 'Default Traffic', pfc: 'No', bw: '29%' },
+        { priority: 0, desc: 'Default Traffic', pfc: 'No', bw: '79%' },
         { priority: 3, desc: 'CSV / Live Migration', pfc: 'No', bw: '20%' },
         { priority: 7, desc: 'Cluster Heartbeat', pfc: 'No', bw: '1%' }
     ];
 
     if (isIscsi) {
         rows.push({ priority: 4, desc: 'iSCSI Storage', pfc: 'No', bw: '50%' });
-        rows[0].bw = '29%'; // adjust default
+        rows[0].bw = '29%';
     }
 
     if (state.disaggBackupEnabled) {
         rows.push({ priority: 5, desc: 'Backup Traffic', pfc: 'No', bw: '10%' });
-        // Re-balance: reduce default
         const defRow = rows.find(r => r.priority === 0);
         if (defRow) defRow.bw = isIscsi ? '19%' : '69%';
     }
@@ -427,7 +421,11 @@ function renderQosSummary() {
     `;
 
     if (exp) {
-        exp.innerHTML = '<strong style="color: var(--accent-purple);">WRR Scheduling</strong> — No PFC (Priority Flow Control) required. iSCSI is loss-tolerant unlike RDMA. 802.1p CoS marking with Weighted Round Robin bandwidth allocation.';
+        if (isFcSan) {
+            exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — QoS is required for CSV/Live Migration traffic even with FC SAN. Storage traffic runs on a separate Fibre Channel fabric and does not need Ethernet QoS, but cluster traffic sharing the leaf ports still needs traffic classification and bandwidth reservation.';
+        } else {
+            exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — No PFC (Priority Flow Control) required. iSCSI is loss-tolerant unlike RDMA. 802.1p CoS marking with Weighted Round Robin (WRR) bandwidth allocation ensures each traffic class gets guaranteed bandwidth.';
+        }
         exp.classList.add('visible');
     }
 }
