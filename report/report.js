@@ -2405,27 +2405,8 @@
         if (hasFc) {
             storageAdapters.push({ name: getNicNameD('fc', 1), speed: getPortSpeedD('fc', 1), target: 'A' });
             storageAdapters.push({ name: getNicNameD('fc', 2), speed: getPortSpeedD('fc', 2), target: 'B' });
-        } else if (hasDedicatedIscsi) {
-            // 6-NIC no backup: dedicated iSCSI from adapter mapping
-            for (var dsai = 0; dsai < portListD.length; dsai++) {
-                var dsaPort = portListD[dsai];
-                var dsaZone = adapterMapping[dsaPort.id];
-                if (dsaZone === 'iscsi_a' || dsaZone === 'iscsi_b') {
-                    var dsaSlot = dsaPort.id.replace(/_p\d+$/, '');
-                    var dsaIdx = parseInt(dsaPort.id.replace(/^.*_p/, ''), 10);
-                    storageAdapters.push({
-                        name: getNicNameD(dsaSlot, dsaIdx), speed: getPortSpeedD(dsaSlot, dsaIdx),
-                        target: (dsaZone === 'iscsi_a') ? 'A' : 'B'
-                    });
-                }
-            }
-            if (storageAdapters.length === 0) {
-                storageAdapters.push({ name: getNicNameD('pcie2', 1), speed: getPortSpeedD('pcie2', 1), target: 'A' });
-                storageAdapters.push({ name: getNicNameD('pcie2', 2), speed: getPortSpeedD('pcie2', 2), target: 'B' });
-            }
-        } else if (hasSharedIscsi) {
-            // Shared iSCSI — no separate storage adapters, traffic flows through leaf fabric
         }
+        // iSCSI scenarios: Storage Array shown at leaf level, no bottom storage adapters
 
         // Layout constants
         var portW = 62, portH = 38, portGap = 10, groupGap = 18, intentBoxPad = 12;
@@ -2454,19 +2435,19 @@
         var totalNodesW = n * nodeW + (n - 1) * nodeGap;
         var iscsiArrWD = 170, iscsiArrHD = 56, iscsiArrGapD = 50;
         var totalLeafW = 2 * leafW + leafGap;
-        var topRowWD = totalLeafW + (hasSharedIscsi ? (iscsiArrGapD + iscsiArrWD) : 0);
+        var topRowWD = totalLeafW + (hasIscsi ? (iscsiArrGapD + iscsiArrWD) : 0);
         var svgW = Math.max(totalNodesW + marginX * 2, topRowWD + marginX * 2);
 
         var leafY = marginY;
         var leafToNodeGap = 100;
         var nodesY = leafY + leafH + leafToNodeGap;
-        var leafBlockStartXD = hasSharedIscsi ? ((svgW - topRowWD) / 2) : ((svgW - totalLeafW) / 2);
+        var leafBlockStartXD = hasIscsi ? ((svgW - topRowWD) / 2) : ((svgW - totalLeafW) / 2);
         var nodesStartX = (svgW - totalNodesW) / 2;
         var leaf1X = leafBlockStartXD;
         var leaf2X = leaf1X + leafW + leafGap;
 
         var sanY = nodesY + nodeH + 60;
-        var pageH = (hasSharedIscsi ? (nodesY + nodeH + 80) : (sanY + sanH + 80));
+        var pageH = (hasIscsi ? (nodesY + nodeH + 80) : (sanY + sanH + 80));
 
         // Cell/edge builders
         var cells = [];
@@ -2508,7 +2489,7 @@
 
         // SAN / iSCSI targets — for shared iSCSI, show Storage Array at leaf level instead
         var sanAId, sanBId;
-        if (hasSharedIscsi) {
+        if (hasIscsi) {
             var iscsiArrXD = leaf2X + leafW + iscsiArrGapD;
             var iscsiArrYD = leafY - 3;
             sanAId = nextId();
@@ -4237,27 +4218,8 @@
             if (hasFc) {
                 storageAdapters.push({ id: 'fc_1', name: getNicName('fc', 1), speed: getPortSpeed('fc', 1), target: 'A', color: '#8b5cf6' });
                 storageAdapters.push({ id: 'fc_2', name: getNicName('fc', 2), speed: getPortSpeed('fc', 2), target: 'B', color: '#8b5cf6' });
-            } else if (hasDedicatedIscsi) {
-                // 6-NIC no backup: dedicated iSCSI adapters (find which ports are in iscsi_a/iscsi_b zones)
-                for (var sai = 0; sai < portList.length; sai++) {
-                    var saPort = portList[sai];
-                    var saZone = adapterMapping[saPort.id];
-                    if (saZone === 'iscsi_a' || saZone === 'iscsi_b') {
-                        var saSlotKey = saPort.id.replace(/_p\d+$/, '');
-                        var saIdx = parseInt(saPort.id.replace(/^.*_p/, ''), 10);
-                        storageAdapters.push({
-                            id: saPort.id, name: getNicName(saSlotKey, saIdx),
-                            speed: getPortSpeed(saSlotKey, saIdx),
-                            target: (saZone === 'iscsi_a') ? 'A' : 'B', color: '#8b5cf6'
-                        });
-                    }
-                }
-                // Fallback if no mapping found
-                if (storageAdapters.length === 0) {
-                    storageAdapters.push({ id: 'pcie2_1', name: getNicName('pcie2', 1), speed: getPortSpeed('pcie2', 1), target: 'A', color: '#8b5cf6' });
-                    storageAdapters.push({ id: 'pcie2_2', name: getNicName('pcie2', 2), speed: getPortSpeed('pcie2', 2), target: 'B', color: '#8b5cf6' });
-                }
             }
+            // iSCSI scenarios: Storage Array shown at leaf level, no bottom adapters
             // For shared iSCSI: no separate storage adapters — iSCSI traffic flows
             // through the same cluster standalone NICs up to the leaf switches,
             // then through the fabric to the iSCSI Storage Array.
@@ -4306,14 +4268,14 @@
             var nodesAreaW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
             var leafAreaH = leafH + leafToNodeGap;
             var totalLeafW = (2 * leafW) + leafGap;
-            // For shared iSCSI, widen SVG to fit the iSCSI Storage Array to the right of leaves
-            var topRowW = totalLeafW + (hasSharedIscsi ? (iscsiArrayGap + iscsiArrayW) : 0);
+            // For iSCSI, widen SVG to fit the iSCSI Storage Array to the right of leaves
+            var topRowW = totalLeafW + (hasIscsi ? (iscsiArrayGap + iscsiArrayW) : 0);
             var svgW = Math.max(nodesAreaW, topRowW + marginX * 2);
-            var svgH = marginTop + leafAreaH + nodeH + (hasSharedIscsi ? 0 : sanAreaH) + marginBottom + (totalNodes > 2 ? 40 : 0);
+            var svgH = marginTop + leafAreaH + nodeH + (hasIscsi ? 0 : sanAreaH) + marginBottom + (totalNodes > 2 ? 40 : 0);
 
             // Leaf switch positions — shift left if iSCSI Storage Array is shown
             var leafY = marginTop + 10;
-            var leafBlockStartX = hasSharedIscsi ? ((svgW - topRowW) / 2) : ((svgW - totalLeafW) / 2);
+            var leafBlockStartX = hasIscsi ? ((svgW - topRowW) / 2) : ((svgW - totalLeafW) / 2);
             var leaf1X = leafBlockStartX;
             var leaf2X = leaf1X + leafW + leafGap;
 
@@ -4534,8 +4496,9 @@
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                 + '<strong style="color:var(--text-primary);">Disaggregated (' + escapeHtml(storageLabel) + ')</strong> host networking diagram with Leaf-A / Leaf-B switches.'
                 + '<br>Intents: Management + Compute (SET), ' + (hasSharedIscsi ? 'CSV/LiveMig + iSCSI (Standalone)' : 'Cluster 1 &amp; 2 (Standalone)')
+                + (hasDedicatedIscsi ? ', iSCSI A &amp; B (Standalone)' : '')
                 + (backupEnabled ? ', In-Guest Backup (SET)' : '')
-                + (hasDedicatedIscsi ? '. Dedicated iSCSI storage adapters shown at bottom of each node.' : (hasSharedIscsi ? '. iSCSI shares cluster standalone NICs — traffic reaches storage array through leaf switch fabric.' : '. Storage adapters shown at bottom of each node.'))
+                + (hasDedicatedIscsi ? '. Dedicated iSCSI adapters connect through leaf switch fabric to storage array.' : (hasSharedIscsi ? '. iSCSI shares cluster standalone NICs — traffic reaches storage array through leaf switch fabric.' : '. Storage adapters shown at bottom of each node.'))
                 + (totalNodes > 2 ? '<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(totalNodes)) + ' nodes.</span>' : '')
                 + '</div>';
 
@@ -4574,9 +4537,9 @@
                 svg += renderUplinks();
             }
 
-            // Storage targets — render below nodes for FC/dedicated iSCSI, or
-            // render iSCSI Storage Array at leaf level for shared iSCSI
-            if (hasSharedIscsi) {
+            // Storage targets — render below nodes for FC, or
+            // render iSCSI Storage Array at leaf level for all iSCSI
+            if (hasIscsi) {
                 svg += renderSharedIscsiStorageArray();
             } else {
                 var sanY = nodeY + nodeH + 20;
@@ -4598,7 +4561,7 @@
 
             var note = '<div class="switchless-diagram__note">Note: Disaggregated ' + escapeHtml(storageLabel) + ' — Management + Compute intent (blue). '
                 + (hasSharedIscsi ? 'Standalone NICs (green) carry both CSV/Live Migration and iSCSI traffic on the same VLAN. iSCSI storage array is accessed through the leaf switch fabric (MPIO Active/Active, dual controllers). ' : 'Cluster networks are standalone NICs (green), one per leaf switch. ')
-                + (hasDedicatedIscsi ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to iSCSI targets. ' : '')
+                + (hasDedicatedIscsi ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to the iSCSI storage array (MPIO Active/Active, dual controllers). ' : '')
                 + (hasFc ? 'FC HBA connects to separate SAN fabric (dedicated FC network, not through leaf switches). ' : '')
                 + (backupEnabled ? 'In-Guest Backup uses a Compute Intent (orange). ' : '')
                 + '</div>';
