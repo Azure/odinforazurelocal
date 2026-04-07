@@ -1215,3 +1215,231 @@ if (s.architecture === 'disaggregated') {
 #### draw.io Export
 
 A new `generateDisaggregatedHostNetworkingDrawio(state)` function following the same draw.io XML cell pattern as `generateHostNetworkingDrawio()`, producing exportable `.drawio` files with the disaggregated NIC layout.
+
+---
+
+## Implementation Status — Completed Work
+
+> **Last Updated**: April 8, 2026
+> **Branch**: Disaggregated (local only)
+> **Best version as of**: Commit `65ff2fb`
+
+### Phase 1: Restructure Step 1 — COMPLETED
+
+All Phase 1 tasks were completed in earlier sessions:
+
+| Task | Status | Notes |
+|---|---|---|
+| 1.1 Rename scenario values | ✅ Done | `'connected'`, `'disconnected'`, `'rackscale'`, `'m365local'` |
+| 1.2 Add `state.architecture` | ✅ Done | `'hyperconverged'` or `'disaggregated'` |
+| 1.3 Update Step 1 HTML cards | ✅ Done | Connected, Disconnected, Rack Scale, M365 Local |
+| 1.4 Add Step 1b architecture selection | ✅ Done | Shown for Connected + Disconnected |
+| 1.5 Update `selectOption()` | ✅ Done | Handles architecture selection and downstream resets |
+| 1.6 Update `updateUI()` visibility | ✅ Done | DA steps shown/hidden based on architecture |
+| 1.7 Guard HCI-only steps | ✅ Done | Steps 2-6, 5-5, 14 hidden for disaggregated |
+| 1.8 Disconnected logic untouched | ✅ Done | `state.scenario === 'disconnected'` unchanged |
+
+### Phase 2: Disaggregated Wizard Steps — IN PROGRESS
+
+#### DA1: Storage Type — COMPLETED
+
+- Three option cards: FC SAN, iSCSI 4-NIC, iSCSI 6-NIC
+- Explanation text per selection
+- Resets all downstream state on change
+- Breadcrumb label: "Arch"
+
+#### DA2: Backup Network — COMPLETED
+
+- Toggle: Enable / Disable backup network
+- Warning for iSCSI 6-NIC + backup (vNIC mode explained)
+- Resets downstream state on change
+
+#### DA3: Scale (Racks + Nodes) — COMPLETED
+
+- Rack count selection (1-8 racks)
+- Nodes per rack slider (dynamic max based on storage type + backup)
+- Total node count display
+- Syncs `state.nodes` for shared steps
+
+#### DA4: Spine Count — COMPLETED
+
+- 2 or 4 spine selection with explanation
+- Visual card selection
+
+#### DA5: VLANs, VNI & VRF — COMPLETED
+
+All DA5 features implemented across multiple commits:
+
+| Feature | Commit | Description |
+|---|---|---|
+| Title + concept cards | `6cfa143` | "Network Switches — VLANs, VNI & VRF" with 3-card explainer grid (VLAN, VNI, VRF concepts) |
+| Switch port VLAN modes | `8e27081` | Purple callout explaining Cluster VLANs (access) and Management VLAN (access or trunk) |
+| VLAN/VNI grid | `107fce6` | Editable grid: Management, Cluster A/B, iSCSI A/B (conditional), Backup (conditional). Each row: VLAN ID + VNI |
+| Workload VLANs | `107fce6` | Add/remove workload VLANs with Name, VLAN, VNI fields |
+| Confirm/Edit buttons | `107fce6` | Confirm locks all inputs; Edit unlocks. State: `disaggVlanConfigConfirmed` |
+| VRF name | `107fce6` | Editable VRF name input (default: "AZLOCAL") |
+| Per-tenant VRF field | `4dee7e2` | Each workload VLAN now has its own VRF name (TENANT1, TENANT2, etc.) in two-row card layout |
+| VLAN mode labels | `567a906` | Infrastructure VLANs show "(Access)", workload VLANs show "(Trunk)" in purple text |
+| Mgmt VLAN mode toggle | `65ff2fb` | Management VLAN has Access/Trunk dropdown. Trunk mode is for customers who require tagged management traffic. Choice auto-configures Step 14 (Infrastructure VLAN) |
+
+**State properties for DA5:**
+- `state.disaggVlans` — `{ mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 }`
+- `state.disaggVnis` — `{ mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 }`
+- `state.disaggVrfName` — `'AZLOCAL'`
+- `state.disaggWorkloadVlans` — Array of `{ name, vlan, vni, vrf }`
+- `state.disaggVlanConfigConfirmed` — Boolean
+- `state.disaggMgmtVlanMode` — `'access'` or `'trunk'` (default: `'access'`)
+
+**DA5 → Step 14 integration (`65ff2fb`):**
+- Access mode on DA5 → Step 14 auto-selects "Default VLAN", greys out "Custom VLAN", shows native VLAN ID from DA5
+- Trunk mode on DA5 → Step 14 auto-selects "Custom VLAN" with VLAN ID pre-filled from DA5, greys out "Default VLAN"
+- Purple notice banner on Step 14 explains the pre-configured setting
+- VLAN ID input on Step 14 is read-only when disaggregated (value set from DA5)
+- Mode resets to 'access' when storage type or architecture changes
+
+#### DA6: QoS Policy — COMPLETED
+
+| Feature | Commit | Description |
+|---|---|---|
+| QoS summary table | Earlier session | Auto-derived from storage type: iSCSI → full QoS table, FC → QoS for CSV/LM |
+| FC SAN QoS fix | `8cc0a83` | Reference design guide confirmed FC SAN needs 802.1p + ETS for CSV/Live Migration. Removed "no QoS required" early return. Shows QoS table: default (79%), CSV/LM (20%), heartbeat (1%) |
+
+#### DA7: IP Routing Configuration — COMPLETED
+
+| Feature | Commit | Description |
+|---|---|---|
+| Title rename | `4bb945d` | "Leaf & Spine Network Switches — IP Routing Configuration" |
+| Clos topology diagram | `f11768b` | SVG showing spines (blue), service leafs (teal), rack leafs (gray) with BGP peering lines and ASN labels |
+| Confirm/Edit buttons | `f11768b` | State: `disaggIpConfigConfirmed` |
+| Diagram centering | `a673cf7` | `text-align: center` on diagram container |
+
+#### DA8: Rack Layout Diagram — COMPLETED
+
+| Feature | Commit | Description |
+|---|---|---|
+| Dynamic rack SVG | Earlier session | Multi-rack Clos layout with FC/iSCSI variants. Spine, service leaf, rack leaf, BMC, server nodes, FC switches (FC SAN only) |
+| SVG download button | `bbfe1cf` | `report-action-button` styled export |
+| Diagram centering | `a673cf7` | Centered container |
+
+#### DA9: Node Configuration — IN PROGRESS
+
+- Node names per rack, auto-populated defaults
+- Not fully implemented yet
+
+#### DA10: Network Adapter Configuration — COMPLETED
+
+| Feature | Notes |
+|---|---|
+| Host networking preview SVG | Leaf-A/B at top, node box with NIC groups, FC/iSCSI targets below |
+| NIC adapter name customization | OCP, Cluster, iSCSI, Backup, BMC NIC names |
+| Intent overrides | RDMA, Jumbo, SR-IOV for Mgmt+Compute and Backup |
+| Confirm/Edit buttons | State: `disaggOverridesConfirmed` |
+| SVG + Draw.io export | Download buttons for both formats |
+| Diagram centering | `28c6371` — inline-block SVG wrapper, centered buttons |
+| iSCSI 6-NIC + Backup vNIC mode | Full vNIC on SET implementation |
+
+### Breadcrumb Navigation — COMPLETED
+
+| Feature | Commit | Description |
+|---|---|---|
+| DA breadcrumb nav | `ff66de6` | Step progress breadcrumbs for DA1-DA10 |
+| Fix auto-completion | `ee84f05` | DA5→`disaggVlanConfigConfirmed`, DA7→`disaggIpConfigConfirmed`, DA6/DA8→`disaggOverridesConfirmed` |
+| DA1 label rename | `ee84f05` | DA1 renamed from "Storage" to "Arch" |
+| Switch Config group | `9cff5b1` | DA4-DA7 wrapped in `.breadcrumb-group` with purple-tinted border and "Switch Config" label |
+
+### Visual/UX Improvements — COMPLETED
+
+| Feature | Commit | Description |
+|---|---|---|
+| SVG button styling | `bbfe1cf` | Rack diagram download uses `report-action-button` class |
+| Center DA7/DA8/DA10 | `a673cf7` | `text-align: center` on all three diagram containers |
+| Center DA10 preview | `28c6371` | inline-block SVG wrapper, centered button row |
+
+### Phase 3: Output Artifacts — PARTIALLY COMPLETED
+
+| Artifact | Status |
+|---|---|
+| Rack layout SVG (DA8) | ✅ Done — dynamic multi-rack Clos with FC/iSCSI variants |
+| Host networking preview SVG (DA10) | ✅ Done — per-node NIC layout with Leaf switches |
+| Host networking Draw.io export | ✅ Done |
+| Clos topology diagram (DA7) | ✅ Done — spine/leaf/service-leaf with BGP peering |
+| QoS summary table (DA6) | ✅ Done — with FC SAN fix |
+| VLAN/VNI mapping table (DA5) | ✅ Done |
+| Cisco NX-OS reference configs | ❌ Not started |
+| ARM template (disaggregated) | ❌ Not started |
+| Full configuration report | ❌ Not started |
+
+### Phase 4: Code Structure — STATUS
+
+| File | Status | Notes |
+|---|---|---|
+| `index.html` | ✅ Modified | DA1-DA10 HTML sections, breadcrumb nav, Step 14 DA notice |
+| `js/script.js` | ✅ Modified | State properties, `selectOption()`, `updateUI()`, breadcrumb logic, DA5→Step 14 integration |
+| `js/disaggregated.js` | ✅ Created | ~2400+ lines — all DA step logic, VLAN grid, QoS, topology, NIC config, host networking preview |
+| `css/style.css` | ✅ Modified | `.breadcrumb-group` styles |
+| `js/nav.js` | ✅ Modified | DA step navigation |
+| `report/report.js` | ❌ Pending | Disaggregated report section |
+| `switch-config/templates/` | ❌ Pending | Clos topology switch config templates |
+| `js/disconnected.js` | ✅ No change needed | Works as-is with scenario/architecture split |
+
+### Commit Log (Disaggregated branch, this session)
+
+```
+65ff2fb Add Access/Trunk mode toggle for Management VLAN on DA5
+567a906 Add VLAN mode labels (Access/Trunk) to DA5 VLAN cards
+28c6371 Center DA10 host networking preview SVG and buttons
+a673cf7 Center DA7, DA8, and DA10 diagrams when narrower than container
+4dee7e2 Add per-workload VRF field to workload VLANs
+8cc0a83 Fix DA6: Show QoS for FC SAN per reference design guide
+f11768b Add Clos topology diagram and confirm button to DA7
+4bb945d Rename DA7 title to Leaf & Spine IP Routing Configuration
+107fce6 Add workload VLANs and confirm button to DA5
+8e27081 Add switch port VLAN mode guidance to DA5
+6cfa143 Update DA5 title and add VLAN/VNI/VRF concept explanations
+9cff5b1 Group DA4-DA7 breadcrumb steps as Switch Config
+bbfe1cf Match rack diagram SVG button style to host networking preview
+ee84f05 Fix DA breadcrumb auto-completion and rename DA1 label
+ff66de6 Add step progress breadcrumb navigation for disaggregated wizard flow
+```
+
+### Key State Properties Summary
+
+```javascript
+// DA flow state (added to state object in script.js)
+state.architecture              // 'hyperconverged' | 'disaggregated'
+state.disaggStorageType          // 'fc_san' | 'iscsi_4nic' | 'iscsi_6nic'
+state.disaggBackupEnabled        // true | false
+state.disaggPortCount            // derived from storage type + backup
+state.disaggRackCount            // 1-8
+state.disaggNodesPerRack         // dynamic max per storage type
+state.disaggSpineCount           // 2 | 4
+state.disaggVlans                // { mgmt, cluster1, cluster2, iscsiA, iscsiB, backup }
+state.disaggVnis                 // { mgmt, cluster1, cluster2, iscsiA, iscsiB, backup }
+state.disaggMgmtVlanMode         // 'access' | 'trunk' (default: 'access')
+state.disaggVrfName              // 'AZLOCAL'
+state.disaggWorkloadVlans        // [{ name, vlan, vni, vrf }]
+state.disaggVlanConfigConfirmed  // boolean
+state.disaggIpConfigConfirmed    // boolean
+state.disaggOverridesConfirmed   // boolean
+state.disaggPortSpeeds           // { ocp, pcie1, pcie2, backup, bmc }
+state.disaggIntentMapping        // { mgmt_compute: ['ocp_p1', 'ocp_p2'] }
+state.disaggClusterPortMapping   // { pcie1_p1: '711', pcie1_p2: '712', ... }
+state.disaggNicNames             // { ocp1, ocp2, cluster1, cluster2, iscsi1, iscsi2, backup1, backup2, bmc }
+state.disaggNicNamesConfirmed    // boolean
+state.disaggNicConfigConfirmed   // boolean
+state.disaggPortConfig           // per-port config
+state.disaggAdapterMapping       // adapter mapping
+state.disaggIntentOverrides      // RDMA, Jumbo, SR-IOV overrides
+state.disaggSubnets              // per-function subnets
+state.disaggIscsiTargets         // iSCSI target IPs for static routes
+```
+
+### Remaining Work
+
+1. **DA9: Node Configuration** — Node names per rack (partially implemented)
+2. **Report generation** — Disaggregated-specific report section in report.js
+3. **Switch config templates** — Cisco NX-OS configs for Clos topology
+4. **ARM template** — Disaggregated variant
+5. **Validation** — Complete validation rules for all DA steps
+6. **State persistence** — Verify localStorage save/restore for all new state properties
+7. **Service leaf integration** — External LB, FW, network controller options (DA8 or new step)
