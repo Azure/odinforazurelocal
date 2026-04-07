@@ -4572,6 +4572,8 @@
             // This version renders intent groups + port tiles + explicit cabling lines.
             var svgW = 1080;
             var svgH = 680;
+            var raMgmtVnicH = 30;
+            var raMgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
             var pad = 40;
             var roomGap = 26;
             var roomW = Math.floor((svgW - (pad * 2) - roomGap) / 2);
@@ -4590,7 +4592,7 @@
             var nodesY = torY + torH + 42;
             // Two nodes must fit within one room (roomW ~ 487). Keep cards compact.
             var nodeW = 232;
-            var nodeH = 240;
+            var nodeH = 240 + raMgmtVnicH;
             var nodeGap = 16;
 
             function torXsForRoom(roomX, torCount) {
@@ -4761,7 +4763,7 @@
                 var gapB = 10;
                 var boxW = Math.floor((nodeW - (padX * 2) - gapB) / 2);
                 var setW = boxW;
-                var setH = 114;
+                var setH = 114 + raMgmtVnicH;
                 var setX = placeOnLeft ? (nodeLeft + padX) : (nodeLeft + padX + boxW + gapB);
                 var setY = nodeTop + 74;
 
@@ -4773,7 +4775,7 @@
                 var nic1X = setX + Math.floor((setW - rowW) / 2);
                 var nic2X = nic1X + nicW + gap;
                 // Align NIC and SMB tiles to the same vertical level.
-                var nicY = setY + 28;
+                var nicY = setY + 28 + raMgmtVnicH;
 
                 var tilesBottomY = nicY + nicH;
                 var setLabelY = tilesBottomY + 22;
@@ -4784,6 +4786,16 @@
 
                 var out = '';
                 out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
+
+                // Mgmt vNIC card at the top of the SET box
+                var vaCardW = 72;
+                var vaCardH = 24;
+                var vaX = setX + Math.floor((setW - vaCardW) / 2);
+                var vaY = setY + 6;
+                out += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaCardW + '" height="' + vaCardH + '" rx="5" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="3 2" />';
+                out += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 10) + '" text-anchor="middle" font-size="7" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
+                out += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 20) + '" text-anchor="middle" font-size="6" fill="var(--text-secondary)">' + escapeHtml(raMgmtVlanLabel) + '</text>';
+
                 // Place intent text below the ports so cabling above stays readable.
                 out += '<text x="' + (setX + setW / 2) + '" y="' + setLabelY + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(setLabelText) + '</text>';
 
@@ -4831,13 +4843,13 @@
                 var cols2 = 2;
                 var rows2 = Math.max(1, Math.ceil(maxShown / cols2));
                 // Align SMB tiles with NIC tiles and place the Storage label below the tiles.
-                var tilesTopPad = 28;
+                var tilesTopPad = 28 + raMgmtVnicH;
                 var tilesH = (rows2 * tileH) + ((rows2 - 1) * gapY2);
                 var labelH = 22;
                 var padBottom = 12;
                 var gH = tilesTopPad + tilesH + labelH + padBottom;
                 // Ensure the storage box is at least as tall as SET for visual alignment.
-                gH = Math.max(gH, 114);
+                gH = Math.max(gH, 114 + raMgmtVnicH);
 
                 var totalRowW = (cols2 * tileW) + ((cols2 - 1) * gapX2);
                 var startX = gX + Math.floor((gW - totalRowW) / 2);
@@ -5386,6 +5398,21 @@
 
             var ports = parseInt(state.ports, 10) || 0;
 
+            var slMgmtVnicH = 38;
+            var slMgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+
+            function renderMgmtVnicSl(centerX, topY) {
+                var cardW = 80;
+                var cardH = 28;
+                var cx = centerX - cardW / 2;
+                var cy = topY;
+                var vo = '';
+                vo += '<rect x="' + cx + '" y="' + cy + '" width="' + cardW + '" height="' + cardH + '" rx="6" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="4 2" />';
+                vo += '<text x="' + centerX + '" y="' + (cy + 12) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
+                vo += '<text x="' + centerX + '" y="' + (cy + 22) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(slMgmtVlanLabel) + '</text>';
+                return vo;
+            }
+
             var REF_3NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-two-links?view=azloc-2511';
             var REF_3NODE_SWITCHLESS_SINGLE = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/three-node-switchless-two-switches-one-link?view=azloc-2511';
 
@@ -5407,11 +5434,11 @@
                 var REF_2NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/two-node-switchless-two-switches-two-links?view=azloc-2511';
 
                 var svgW2 = 760;
-                var svgH2 = 420;
+                var svgH2 = 420 + slMgmtVnicH;
 
                 // Node panels
                 var nodeW2 = 300;
-                var nodeH2 = 250;
+                var nodeH2 = 250 + slMgmtVnicH;
                 var nodeY2 = 100;
                 var nodeX2 = [70, 390];
 
@@ -5436,7 +5463,7 @@
                     var setW = 220;
                     var setH = 62;
                     var setX = nodeLeft + (nodeW2 - setW) / 2;
-                    var setY = nodeTop + 78;
+                    var setY = nodeTop + 78 + slMgmtVnicH;
 
                     var nicW = 76;
                     var nicH = 34;
@@ -5446,7 +5473,8 @@
                     var nicY = setY + 18;
 
                     var out = '';
-                    out += '<text x="' + (nodeLeft + nodeW2 / 2) + '" y="' + (nodeTop + 62) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
+                    out += renderMgmtVnicSl(nodeLeft + nodeW2 / 2, nodeTop + 50);
+                    out += '<text x="' + (nodeLeft + nodeW2 / 2) + '" y="' + (nodeTop + 62 + slMgmtVnicH) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
@@ -5474,7 +5502,7 @@
                 function storageGroupRect2(nodeIdx) {
                     var nodeLeft = nodeX2[nodeIdx];
                     var x = nodeLeft + (nodeW2 - storageGroupW2) / 2;
-                    var y = nodeY2 + 150;
+                    var y = nodeY2 + 150 + slMgmtVnicH;
                     return { x: x, y: y, w: storageGroupW2, h: storageGroupH2 };
                 }
 
@@ -5604,10 +5632,10 @@
                 // Single-link (one storage link per node-pair; 2 RDMA ports per node)
                 if (linkMode === 'single_link') {
                     var svgWS = 980;
-                    var svgHS = 490;
+                    var svgHS = 490 + slMgmtVnicH;
 
                     var nodeWS = 280;
-                    var nodeHS = 240;
+                    var nodeHS = 240 + slMgmtVnicH;
                     var nodeYS = 110;
                     var nodeXS = [60, 350, 640];
 
@@ -5625,7 +5653,7 @@
                         var setW = 210;
                         var setH = 62;
                         var setX = nodeLeft + (nodeWS - setW) / 2;
-                        var setY = nodeTop + 78;
+                        var setY = nodeTop + 78 + slMgmtVnicH;
 
                         var nicW = 70;
                         var nicH = 34;
@@ -5635,7 +5663,8 @@
                         var nicY = setY + 18;
 
                         var out = '';
-                        out += '<text x="' + (nodeLeft + nodeWS / 2) + '" y="' + (nodeTop + 62) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
+                        out += renderMgmtVnicSl(nodeLeft + nodeWS / 2, nodeTop + 50);
+                        out += '<text x="' + (nodeLeft + nodeWS / 2) + '" y="' + (nodeTop + 62 + slMgmtVnicH) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
                         out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                         out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
@@ -5656,7 +5685,7 @@
                     function storageGroupRectS(nodeIdx) {
                         var nodeLeft = nodeXS[nodeIdx];
                         var x = nodeLeft + (nodeWS - storageGroupWS) / 2;
-                        var y = nodeYS + 150;
+                        var y = nodeYS + 150 + slMgmtVnicH;
                         return { x: x, y: y, w: storageGroupWS, h: storageGroupHS };
                     }
 
@@ -5787,11 +5816,11 @@
 
                 var svgW3 = 980;
                 // Increase height so all subnet lanes remain visible.
-                var svgH3 = 520;
+                var svgH3 = 520 + slMgmtVnicH;
 
                 // Node panels
                 var nodeW = 280;
-                var nodeH = 240;
+                var nodeH = 240 + slMgmtVnicH;
                 var nodeY = 110;
                 var nodeX = [60, 350, 640];
 
@@ -5811,7 +5840,7 @@
                 function storageGroupRect(nodeIdx) {
                     var nodeLeft = nodeX[nodeIdx];
                     var x = nodeLeft + (nodeW - storageGroupW) / 2;
-                    var y = nodeY + 150;
+                    var y = nodeY + 150 + slMgmtVnicH;
                     return { x: x, y: y, w: storageGroupW, h: storageGroupH };
                 }
 
@@ -5836,7 +5865,7 @@
                     var setW = 210;
                     var setH = 62;
                     var setX = nodeLeft + (nodeW - setW) / 2;
-                    var setY = nodeTop + 78;
+                    var setY = nodeTop + 78 + slMgmtVnicH;
 
                     var nicW = 70;
                     var nicH = 34;
@@ -5846,7 +5875,8 @@
                     var nicY = setY + 18;
 
                     var out = '';
-                    out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (nodeTop + 62) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
+                    out += renderMgmtVnicSl(nodeLeft + nodeW / 2, nodeTop + 50);
+                    out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (nodeTop + 62 + slMgmtVnicH) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
@@ -6023,11 +6053,11 @@
                 var REF_4NODE_SWITCHLESS = 'https://learn.microsoft.com/en-us/azure/azure-local/plan/four-node-switchless-two-switches-two-links?view=azloc-2511';
 
                 var svgW4 = 1220;
-                var svgH4 = 700;
+                var svgH4 = 700 + slMgmtVnicH;
 
                 // Node panels (single row)
                 var nodeW4 = 260;
-                var nodeH4 = 270;
+                var nodeH4 = 270 + slMgmtVnicH;
                 var nodeY4 = 110;
                 var nodeX4 = [60, 340, 620, 900];
 
@@ -6040,7 +6070,7 @@
                     var setW = 210;
                     var setH = 62;
                     var setX = nodeLeft + (nodeW4 - setW) / 2;
-                    var setY = nodeTop + 78;
+                    var setY = nodeTop + 78 + slMgmtVnicH;
 
                     var nicW = 70;
                     var nicH = 34;
@@ -6050,7 +6080,8 @@
                     var nicY = setY + 18;
 
                     var out = '';
-                    out += '<text x="' + (nodeLeft + nodeW4 / 2) + '" y="' + (nodeTop + 62) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
+                    out += renderMgmtVnicSl(nodeLeft + nodeW4 / 2, nodeTop + 50);
+                    out += '<text x="' + (nodeLeft + nodeW4 / 2) + '" y="' + (nodeTop + 62 + slMgmtVnicH) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
                     out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="12" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 14) + '" text-anchor="middle" font-size="11" fill="var(--text-secondary)">SET (vSwitch)</text>';
 
@@ -6079,7 +6110,7 @@
                 function storageGroupRect4(nodeIdx) {
                     var nodeLeft = nodeX4[nodeIdx];
                     var x = nodeLeft + (nodeW4 - storageGroupW4) / 2;
-                    var y = nodeY4 + 150;
+                    var y = nodeY4 + 150 + slMgmtVnicH;
                     return { x: x, y: y, w: storageGroupW4, h: storageGroupH4 };
                 }
 
