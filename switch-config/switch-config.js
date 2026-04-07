@@ -223,6 +223,7 @@
      * Show or hide rack-2 SVI sections throughout the page based on rack-aware state.
      */
     function toggleRack2Sections(show) {
+        show = !!show;
         // Infra Rack 2 SVI fields
         var r2Infra = document.getElementById('sc-rack2-infra');
         if (r2Infra) r2Infra.style.display = show ? '' : 'none';
