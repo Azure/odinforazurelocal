@@ -11608,7 +11608,8 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
     var storageTileW = 50, storageTileH = 34, storageTileGap = 8;
     var storageColsPerNode = Math.min(storagePerNode, 3);
     var storageRowsPerNode = Math.ceil(storagePerNode / storageColsPerNode);
-    var storageGroupW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap + 30;
+    var staggerOffset = (storageRowsPerNode > 1 && storageColsPerNode > 1) ? (storageTileW + storageTileGap) / 2 : 0;
+    var storageGroupW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap + 30 + staggerOffset;
     var storageGroupH = storageRowsPerNode * storageTileH + (storageRowsPerNode - 1) * 8 + 38;
     var nodeW = Math.max(220, storageGroupW + 30);
     var nodeH = 195 + mgmtVnicH + storageGroupH;
@@ -11670,6 +11671,13 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
         var row = Math.floor(portIdx / storageColsPerNode);
         var totalW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap;
         var sx = sg.x + (storageGroupW - totalW) / 2 + col * (storageTileW + storageTileGap);
+        // Stagger second row so vertical connector segments don't overlap
+        if (row === 1 && storageColsPerNode > 1) {
+            var stagger = (storageTileW + storageTileGap) / 2;
+            sx += stagger;
+            var maxX = sg.x + storageGroupW - storageTileW - (storageGroupW - totalW) / 2;
+            if (sx > maxX) sx -= stagger;
+        }
         var sy = sg.y + 30 + row * (storageTileH + 8);
         return { x: sx, y: sy };
     }
