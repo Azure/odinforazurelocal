@@ -121,6 +121,35 @@ body {
     opacity: 0.5;
 }
 
+/* Breadcrumb Group (visual grouping of related steps) */
+.breadcrumb-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+}
+
+.breadcrumb-group-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-purple);
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.breadcrumb-group-items {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 24px;
+    background: rgba(139, 92, 246, 0.05);
+}
+
 /* Collapsible Sections */
 .step.collapsible .step-header {
     cursor: pointer;
