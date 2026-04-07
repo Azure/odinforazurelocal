@@ -4524,11 +4524,6 @@
                 // Leaf-B → Storage Array
                 out += '<line x1="' + leafBcx + '" y1="' + (leafY + leafH - 12) + '" x2="' + arrayLeftX + '" y2="' + (aY + iscsiArrayH - 16) + '" stroke="rgba(' + rgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
 
-                // Labels on connections
-                var midAx = (leafAcx + arrayLeftX) / 2;
-                out += '<text x="' + midAx + '" y="' + (aY + 4) + '" text-anchor="middle" font-size="7" fill="rgba(' + rgb + ',0.7)" font-style="italic">iSCSI Ctrl-A</text>';
-                out += '<text x="' + midAx + '" y="' + (aY + iscsiArrayH + 10) + '" text-anchor="middle" font-size="7" fill="rgba(' + rgb + ',0.7)" font-style="italic">iSCSI Ctrl-B</text>';
-
                 return out;
             }
 
