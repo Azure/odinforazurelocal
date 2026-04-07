@@ -434,7 +434,7 @@ function generateDisaggRackDiagram() {
         SPINE: '#1a6fc4',
         SERVICE_LEAF: '#14b8a6',
         LEAF: '#6b7280',
-        BMC: '#e0e0e0',
+        BMC: '#3b82f6',
         NODE: '#4a4a5a',
         NODE_STROKE: '#666680',
         FC: '#7c3aed',
@@ -499,25 +499,25 @@ function generateDisaggRackDiagram() {
         svg += `<rect x="${rx}" y="${oy}" width="${RACK_W}" height="${innerH + 10}" rx="2" fill="${C.RACK_BG}" stroke="${C.RACK_BORDER}" stroke-width="1" stroke-dasharray="4 2"/>`;
 
         // Draw device helper
-        function drawDev(uStart, heightU, label, color, isLight) {
+        function drawDev(uStart, heightU, label, color) {
             const pad = 6;
             const w = RACK_W - 2 * pad;
             const dy = oy + pad + innerH - uStart * U_H;
             const h = heightU * U_H - 2;
-            svg += `<rect x="${rx + pad}" y="${dy}" width="${w}" height="${h}" rx="2" fill="${color}" stroke="${isLight ? '#bbb' : 'rgba(255,255,255,0.1)'}" stroke-width="0.5"/>`;
-            svg += `<rect x="${rx + pad}" y="${dy}" width="${w}" height="${h}" rx="2" fill="rgba(${isLight ? '0,0,0,0.05' : '0,0,0,0.3'})" />`;
-            svg += `<text x="${rx + RACK_W/2}" y="${dy + h/2 + 3}" text-anchor="middle" fill="${isLight ? '#333' : C.TEXT}" font-size="8" font-weight="500">${label}</text>`;
-            // LEDs
-            for (let l = 0; l < 3; l++) svg += `<circle cx="${rx + RACK_W - pad - 8 + l*5}" cy="${dy + h/2}" r="1.2" fill="${C.LED_GREEN}" opacity="0.7"/>`;
+            svg += `<rect x="${rx + pad}" y="${dy}" width="${w}" height="${h}" rx="2" fill="${color}" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>`;
+            svg += `<text x="${rx + RACK_W/2}" y="${dy + h/2 + 3}" text-anchor="middle" fill="white" font-size="8" font-weight="600">${label}</text>`;
+            // Status LEDs
+            svg += `<circle cx="${rx + RACK_W - pad - 12}" cy="${dy + h/2}" r="2" fill="${C.LED_GREEN}" opacity="0.8"/>`;
+            svg += `<circle cx="${rx + RACK_W - pad - 6}" cy="${dy + h/2}" r="2" fill="${C.LED_GREEN}" opacity="0.6"/>`;
             return dy;
         }
 
         // Leaf-A: U42
-        drawDev(42, 1, `Leaf ${r+1}A`, C.LEAF, false);
+        drawDev(42, 1, `Leaf ${r+1}A`, C.LEAF);
         // Leaf-B: U41
-        drawDev(41, 1, `Leaf ${r+1}B`, C.LEAF, false);
+        drawDev(41, 1, `Leaf ${r+1}B`, C.LEAF);
         // BMC Switch: U40-U39 (2U for visibility)
-        drawDev(40, 2, `BMC Switch ${r+1}`, C.BMC, true);
+        drawDev(40, 2, `BMC Switch ${r+1}`, C.BMC);
 
         // Server nodes: U38 downward (shifted down 1U for 2U BMC)
         for (let n = 0; n < nodesPerRack; n++) {
@@ -530,28 +530,19 @@ function generateDisaggRackDiagram() {
             const h = 2 * U_H - 2;
 
             svg += `<rect x="${rx + pad}" y="${dy}" width="${w}" height="${h}" rx="2" fill="${C.NODE}" stroke="${C.NODE_STROKE}" stroke-width="0.5"/>`;
-            svg += `<rect x="${rx + pad}" y="${dy}" width="${w}" height="${h}" rx="2" fill="rgba(0,0,0,0.3)"/>`;
 
-            // Drive bays (4 wider bays, centered vertically)
-            const driveW = 15;
-            const driveGap = 3;
-            const drivePadY = 5;
-            for (let d = 0; d < 4; d++) {
-                svg += `<rect x="${rx + pad + 6 + d * (driveW + driveGap)}" y="${dy + drivePadY}" width="${driveW}" height="${h - 2 * drivePadY}" rx="1" fill="${C.DRIVE}" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>`;
-            }
+            // Node label (centered)
+            svg += `<text x="${rx + RACK_W/2}" y="${dy + h/2 + 3}" text-anchor="middle" fill="${C.TEXT}" font-size="8" font-weight="500">Node ${nodeNum}</text>`;
 
-            // Node label
-            svg += `<text x="${rx + RACK_W/2 + 10}" y="${dy + h/2 + 3}" text-anchor="middle" fill="${C.TEXT}" font-size="8" font-weight="500">Node ${nodeNum}</text>`;
-
-            // Status LEDs
-            svg += `<circle cx="${rx + RACK_W - pad - 8}" cy="${dy + h/2}" r="1.2" fill="${C.LED_GREEN}" opacity="0.7"/>`;
-            svg += `<circle cx="${rx + RACK_W - pad - 3}" cy="${dy + h/2}" r="1.2" fill="${C.LED_AMBER}" opacity="0.5"/>`;
+            // Status LEDs (right edge)
+            svg += `<circle cx="${rx + RACK_W - pad - 12}" cy="${dy + h/2}" r="2" fill="${C.LED_GREEN}" opacity="0.7"/>`;
+            svg += `<circle cx="${rx + RACK_W - pad - 6}" cy="${dy + h/2}" r="2" fill="${C.LED_AMBER}" opacity="0.5"/>`;
         }
 
         // FC switches at bottom of rack (U2, U1)
         if (hasFc) {
-            drawDev(2, 1, `FC Switch ${r+1}A`, C.FC, false);
-            drawDev(1, 1, `FC Switch ${r+1}B`, C.FC, false);
+            drawDev(2, 1, `FC Switch ${r+1}A`, C.FC);
+            drawDev(1, 1, `FC Switch ${r+1}B`, C.FC);
         }
     }
 
@@ -615,7 +606,7 @@ function generateDisaggRackDiagram() {
     const legendItems = [
         { color: C.NODE, label: 'Server Node', stroke: C.NODE_STROKE },
         { color: C.LEAF, label: 'Leaf Switch', stroke: '#888' },
-        { color: C.BMC, label: 'BMC Switch', stroke: '#bbb' },
+        { color: C.BMC, label: 'BMC Switch', stroke: '#60a5fa' },
     ];
     if (hasFc) legendItems.push({ color: C.FC, label: 'FC Switch', stroke: '#9333ea' });
     legendItems.push({ color: C.SPINE, label: 'Spine Switch', stroke: '#2a8ad4' });
