@@ -6269,57 +6269,126 @@ function updateSummary() {
 
     // Step 06–08: Host Networking
     let hostNetworkingRows = '';
-    if (state.storage) hostNetworkingRows += renderRow('Storage', escapeHtml(capitalize(state.storage)));
-    if (state.ports) hostNetworkingRows += renderRow('Ports', escapeHtml(state.ports), { mono: true });
-    if (state.storagePoolConfiguration) hostNetworkingRows += renderRow('Storage Pool', escapeHtml(state.storagePoolConfiguration));
-    if (state.intent) {
-        hostNetworkingRows += renderRow('Intent', escapeHtml(formatIntent(state.intent)));
 
-        // NIC mapping (render multiline)
-        if (state.ports && state.intent !== 'custom') {
-            const portCount = parseInt(state.ports);
-            const nicMapping = getNicMapping(state.intent, portCount, state.storage === 'switchless');
-            if (nicMapping) {
-                const lines = String(nicMapping).split('<br>').map(s => s.trim()).filter(Boolean);
+    if (state.architecture === 'disaggregated') {
+        // ── Disaggregated Host Networking summary ──
+        const storageTypeLabels = { fc_san: 'Fibre Channel SAN', iscsi_4nic: 'iSCSI SAN (4-NIC)', iscsi_6nic: 'iSCSI SAN (6-NIC)' };
+        if (state.disaggStorageType) hostNetworkingRows += renderRow('Storage Type', escapeHtml(storageTypeLabels[state.disaggStorageType] || state.disaggStorageType));
+        if (state.disaggPortCount) hostNetworkingRows += renderRow('Ports per Node', escapeHtml(String(state.disaggPortCount)), { mono: true });
+        hostNetworkingRows += renderRow('Backup Network', state.disaggBackupEnabled ? 'Enabled' : 'Disabled');
+
+        // Multi-rack scale
+        if (state.disaggRackCount && state.disaggNodesPerRack) {
+            hostNetworkingRows += renderRow('Racks', escapeHtml(String(state.disaggRackCount)), { mono: true });
+            hostNetworkingRows += renderRow('Nodes per Rack', escapeHtml(String(state.disaggNodesPerRack)), { mono: true });
+        }
+
+        // NIC Mapping
+        if (state.disaggPortCount && typeof getDisaggPortList === 'function') {
+            const dPorts = getDisaggPortList();
+            if (dPorts.length > 0) {
+                const slotGroups = {};
+                for (const dp of dPorts) {
+                    const slotLabel = dp.slot === 'ocp' ? 'OCP' : dp.slot === 'pcie1' ? 'PCIe1' : dp.slot === 'pcie2' ? 'PCIe2' : dp.slot === 'backup' ? 'Backup' : dp.slot === 'bmc' ? 'BMC' : dp.slot;
+                    if (!slotGroups[slotLabel]) slotGroups[slotLabel] = [];
+                    const displayName = (typeof getDisaggPortDisplayName === 'function') ? getDisaggPortDisplayName(dp) : dp.defaultName;
+                    slotGroups[slotLabel].push(displayName);
+                }
+                const nicLines = [];
+                for (const [slot, names] of Object.entries(slotGroups)) {
+                    nicLines.push(`${slot}: ${names.join(', ')}`);
+                }
                 hostNetworkingRows += `<div class="summary-row">
                     <div class="summary-label">NIC Mapping</div>
-                    ${renderMultilineValue(lines)}
-                </div>`;
-            }
-        } else if (state.intent === 'custom' && state.customIntents) {
-            const customMapping = getCustomNicMapping(state.customIntents, parseInt(state.ports));
-            if (customMapping) {
-                const lines = String(customMapping).split('<br>').map(s => s.trim()).filter(Boolean);
-                hostNetworkingRows += `<div class="summary-row">
-                    <div class="summary-label">NIC Mapping</div>
-                    ${renderMultilineValue(lines)}
+                    ${renderMultilineValue(nicLines)}
                 </div>`;
             }
         }
-    }
-    if (state.storageAutoIp) {
-        hostNetworkingRows += renderRow('Storage Auto IP', state.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled');
-    }
 
-    // Intent Overrides summary (per NIC set)
-    if (state.intentOverrides && state.intent && state.ports) {
-        const groups = getIntentNicGroups(state.intent, parseInt(state.ports));
-        for (const g of groups) {
-            const ov = state.intentOverrides[g.key];
-            if (!ov) continue;
-            if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${g.label}`, escapeHtml(ov.rdmaMode));
-            if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo Frames — ${g.label}`, escapeHtml(ov.jumboFrames));
+        // VLANs
+        const dv = state.disaggVlans;
+        if (dv) {
+            const vlanLines = [];
+            if (dv.mgmt != null) vlanLines.push(`Management: ${dv.mgmt}`);
+            if (dv.cluster1 != null) vlanLines.push(`Cluster 1: ${dv.cluster1}`);
+            if (dv.cluster2 != null) vlanLines.push(`Cluster 2: ${dv.cluster2}`);
+            if (state.disaggStorageType !== 'fc_san') {
+                if (dv.iscsiA != null) vlanLines.push(`iSCSI-A: ${dv.iscsiA}`);
+                if (dv.iscsiB != null) vlanLines.push(`iSCSI-B: ${dv.iscsiB}`);
+            }
+            if (state.disaggBackupEnabled && dv.backup != null) vlanLines.push(`Backup: ${dv.backup}`);
+            if (vlanLines.length > 0) {
+                hostNetworkingRows += `<div class="summary-row">
+                    <div class="summary-label">VLANs</div>
+                    ${renderMultilineValue(vlanLines, { mono: true })}
+                </div>`;
+            }
+        }
 
-            if (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') {
-                const count = getStorageVlanOverrideNetworkCount();
-                for (let n = 1; n <= count; n++) {
-                    const vlanKey = `storageNetwork${n}VlanId`;
-                    const legacyKey = n === 1 ? 'storageVlanNic1' : (n === 2 ? 'storageVlanNic2' : undefined);
-                    const vVal = (ov[vlanKey] !== undefined && ov[vlanKey] !== null)
-                        ? ov[vlanKey]
-                        : (legacyKey ? ov[legacyKey] : undefined);
-                    if (vVal !== undefined && vVal !== null) {
-                        hostNetworkingRows += renderRow(`Storage Network ${n} VLAN ID — ${g.label}`, escapeHtml(vVal), { mono: true });
+        // Intent Overrides
+        if (state.disaggIntentOverrides) {
+            const dov = state.disaggIntentOverrides;
+            for (const [key, ov] of Object.entries(dov)) {
+                if (!ov) continue;
+                const label = key === 'mgmt_compute' ? 'Mgmt+Compute' : key === 'backup' ? 'Backup' : key;
+                if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${label}`, escapeHtml(ov.rdmaMode));
+                if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo — ${label}`, escapeHtml(ov.jumboFrames));
+            }
+        }
+    } else {
+        // ── HCI Host Networking summary ──
+        if (state.storage) hostNetworkingRows += renderRow('Storage', escapeHtml(capitalize(state.storage)));
+        if (state.ports) hostNetworkingRows += renderRow('Ports', escapeHtml(state.ports), { mono: true });
+        if (state.storagePoolConfiguration) hostNetworkingRows += renderRow('Storage Pool', escapeHtml(state.storagePoolConfiguration));
+        if (state.intent) {
+            hostNetworkingRows += renderRow('Intent', escapeHtml(formatIntent(state.intent)));
+
+            // NIC mapping (render multiline)
+            if (state.ports && state.intent !== 'custom') {
+                const portCount = parseInt(state.ports);
+                const nicMapping = getNicMapping(state.intent, portCount, state.storage === 'switchless');
+                if (nicMapping) {
+                    const lines = String(nicMapping).split('<br>').map(s => s.trim()).filter(Boolean);
+                    hostNetworkingRows += `<div class="summary-row">
+                        <div class="summary-label">NIC Mapping</div>
+                        ${renderMultilineValue(lines)}
+                    </div>`;
+                }
+            } else if (state.intent === 'custom' && state.customIntents) {
+                const customMapping = getCustomNicMapping(state.customIntents, parseInt(state.ports));
+                if (customMapping) {
+                    const lines = String(customMapping).split('<br>').map(s => s.trim()).filter(Boolean);
+                    hostNetworkingRows += `<div class="summary-row">
+                        <div class="summary-label">NIC Mapping</div>
+                        ${renderMultilineValue(lines)}
+                    </div>`;
+                }
+            }
+        }
+        if (state.storageAutoIp) {
+            hostNetworkingRows += renderRow('Storage Auto IP', state.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled');
+        }
+
+        // Intent Overrides summary (per NIC set)
+        if (state.intentOverrides && state.intent && state.ports) {
+            const groups = getIntentNicGroups(state.intent, parseInt(state.ports));
+            for (const g of groups) {
+                const ov = state.intentOverrides[g.key];
+                if (!ov) continue;
+                if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${g.label}`, escapeHtml(ov.rdmaMode));
+                if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo Frames — ${g.label}`, escapeHtml(ov.jumboFrames));
+
+                if (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') {
+                    const count = getStorageVlanOverrideNetworkCount();
+                    for (let n = 1; n <= count; n++) {
+                        const vlanKey = `storageNetwork${n}VlanId`;
+                        const legacyKey = n === 1 ? 'storageVlanNic1' : (n === 2 ? 'storageVlanNic2' : undefined);
+                        const vVal = (ov[vlanKey] !== undefined && ov[vlanKey] !== null)
+                            ? ov[vlanKey]
+                            : (legacyKey ? ov[legacyKey] : undefined);
+                        if (vVal !== undefined && vVal !== null) {
+                            hostNetworkingRows += renderRow(`Storage Network ${n} VLAN ID — ${g.label}`, escapeHtml(vVal), { mono: true });
+                        }
                     }
                 }
             }
@@ -6455,7 +6524,105 @@ function renderDiagram() {
         return;
     }
 
-    // Simple visual: Host Box -> NICs
+    // ── Disaggregated mini node diagram ──
+    if (state.architecture === 'disaggregated') {
+        const dn = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
+        const isMultiRack = state.disaggRackCount && state.disaggRackCount > 1;
+        const nodesPerRack = state.disaggNodesPerRack || dn;
+        const rackCount = state.disaggRackCount || 1;
+        const totalNodes = isMultiRack ? (rackCount * nodesPerRack) : dn;
+
+        // Build port slot list with colors
+        const slotColors = {
+            ocp: { bg: 'var(--accent-blue)', label: 'Mgmt+Compute' },
+            pcie1: { bg: 'var(--accent-purple)', label: 'Cluster' },
+            pcie2: { bg: 'var(--success)', label: 'iSCSI Storage' },
+            backup: { bg: '#f59e0b', label: 'Backup' },
+            bmc: { bg: '#6b7280', label: 'BMC' }
+        };
+
+        // Determine which slots are present
+        const st = state.disaggStorageType || 'fc_san';
+        const hasBackup = state.disaggBackupEnabled;
+        const isVnicMode = (st === 'iscsi_6nic' && hasBackup);
+        const portSlots = ['ocp', 'pcie1'];
+        if (st === 'iscsi_6nic' && !isVnicMode) portSlots.push('pcie2');
+        if (hasBackup) portSlots.push('backup');
+        portSlots.push('bmc');
+
+        const renderDisaggNodeHtml = (idx) => {
+            let portsHtml = '<div style="display:flex; gap:3px; justify-content:center; margin-bottom:6px;">';
+            for (const slot of portSlots) {
+                const c = slotColors[slot] || slotColors.bmc;
+                if (slot === 'bmc') {
+                    // Single port, smaller
+                    portsHtml += `<div style="width:4px; height:12px; background:${c.bg}; border-radius:1px; opacity:0.5;" title="${c.label}"></div>`;
+                } else {
+                    // 2 ports per slot
+                    portsHtml += `<div style="display:flex; gap:1px;">`;
+                    portsHtml += `<div style="width:5px; height:12px; background:${c.bg}; border-radius:1px;" title="${c.label} P1"></div>`;
+                    portsHtml += `<div style="width:5px; height:12px; background:${c.bg}; border-radius:1px;" title="${c.label} P2"></div>`;
+                    portsHtml += `</div>`;
+                }
+            }
+            portsHtml += '</div>';
+
+            const nodeName = (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name)
+                ? String(state.nodeSettings[idx].name).trim() : '';
+            const rawLabel = nodeName || `Node ${idx + 1}`;
+            const safeLabel = rawLabel.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+            return `<div style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.5rem; border-radius:4px; text-align:center; min-width:60px;">
+                ${portsHtml}
+                <div style="font-size:0.7rem; color:var(--text-secondary);">${safeLabel}</div>
+            </div>`;
+        };
+
+        let html = '';
+        if (isMultiRack) {
+            html += '<div style="display:flex; flex-direction:column; gap:0.5rem; align-items:center; width:100%;">';
+            let nodeIdx = 0;
+            for (let r = 0; r < rackCount; r++) {
+                const showCount = Math.min(nodesPerRack, 4);
+                html += '<div style="border:1px dashed var(--glass-border); padding:0.5rem; border-radius:8px; text-align:center; width:100%; background:rgba(0,0,0,0.2);">';
+                html += `<div style="font-size:0.6rem; margin-bottom:0.5rem; color:var(--text-secondary);">Rack ${r + 1}</div>`;
+                html += '<div style="display:flex; gap:0.5rem; justify-content:center; align-items:flex-end; flex-wrap:wrap;">';
+                for (let i = 0; i < showCount; i++) {
+                    html += renderDisaggNodeHtml(nodeIdx + i);
+                }
+                if (nodesPerRack > 4) html += `<div style="font-size:0.65rem; color:var(--text-secondary); align-self:center;">+${nodesPerRack - 4}</div>`;
+                html += '</div></div>';
+                nodeIdx += nodesPerRack;
+            }
+            html += '</div>';
+        } else {
+            const showCount = Math.min(totalNodes, 4);
+            html += '<div style="display:flex; justify-content:center; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">';
+            for (let i = 0; i < showCount; i++) html += renderDisaggNodeHtml(i);
+            html += '</div>';
+            if (totalNodes > 4) html += `<div style="text-align:center; font-size:0.7rem; color:var(--text-secondary); margin-top:0.5rem;">+ ${totalNodes - 4} more nodes</div>`;
+        }
+
+        // Legend
+        const legendItems = [
+            { color: slotColors.ocp.bg, label: 'M+C' },
+            { color: slotColors.pcie1.bg, label: 'Cluster' }
+        ];
+        if (st === 'iscsi_6nic' && !isVnicMode) legendItems.push({ color: slotColors.pcie2.bg, label: 'iSCSI' });
+        if (hasBackup) legendItems.push({ color: slotColors.backup.bg, label: 'Backup' });
+        legendItems.push({ color: slotColors.bmc.bg, label: 'BMC' });
+
+        html += `<div style="display:flex; justify-content:center; gap:0.5rem; margin-top:0.75rem; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.05); font-size:0.6rem; color:var(--text-secondary);">`;
+        for (const item of legendItems) {
+            html += `<div style="display:flex; align-items:center; gap:3px;"><div style="width:6px; height:6px; background:${item.color}; border-radius:50%;"></div>${item.label}</div>`;
+        }
+        html += '</div>';
+
+        container.innerHTML = html;
+        return;
+    }
+
+    // ── HCI mini node diagram ──
     const n = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
     const isRackAware = state.scale === 'rack_aware';
 
