@@ -42,6 +42,7 @@ function selectDisaggOption(category, value) {
         state.disaggOverridesConfirmed = false;
         state.disaggVlanConfigConfirmed = false;
         state.disaggIpConfigConfirmed = false;
+        state.disaggMgmtVlanMode = 'access';
         state.disaggWorkloadVlans = [];
 
         // Show explanation
@@ -187,8 +188,9 @@ function renderVlanGrid() {
     const vnis = state.disaggVnis;
     const confirmed = state.disaggVlanConfigConfirmed === true;
 
+    var mgmtMode = state.disaggMgmtVlanMode === 'trunk' ? 'Trunk' : 'Access';
     let rows = [
-        { key: 'mgmt', label: 'Management (Infra)', vlan: vlans.mgmt, vni: vnis.mgmt, mode: 'Access' },
+        { key: 'mgmt', label: 'Management (Infra)', vlan: vlans.mgmt, vni: vnis.mgmt, mode: mgmtMode, modeToggle: true },
         { key: 'cluster1', label: 'Cluster (CSV/LM) A', vlan: vlans.cluster1, vni: vnis.cluster1, mode: 'Access' },
         { key: 'cluster2', label: 'Cluster (CSV/LM) B', vlan: vlans.cluster2, vni: vnis.cluster2, mode: 'Access' }
     ];
@@ -207,7 +209,10 @@ function renderVlanGrid() {
             <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">${r.label}</label>
             <div style="display: flex; gap: 8px;">
                 <div style="flex: 1;">
-                    <span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN <span style="color: var(--accent-purple);">(${r.mode})</span></span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN ${r.modeToggle
+                        ? `<select onchange="updateDisaggMgmtVlanMode(this.value)" style="font-size: 0.75rem; padding: 1px 4px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 3px; cursor: pointer;" ${confirmed ? 'disabled' : ''}><option value="access" ${r.mode === 'Access' ? 'selected' : ''}>Access</option><option value="trunk" ${r.mode === 'Trunk' ? 'selected' : ''}>Trunk</option></select>`
+                        : `<span style="color: var(--accent-purple);">(${r.mode})</span>`
+                    }</span>
                     <input type="number" value="${r.vlan}" min="1" max="4094"
                         style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"
                         ${confirmed ? 'disabled' : ''}
@@ -242,6 +247,15 @@ function updateDisaggVrf(value) {
     state.disaggVrfName = value;
     state.disaggVlanConfigConfirmed = false;
     renderDisaggVlanConfirmState();
+}
+
+function updateDisaggMgmtVlanMode(value) {
+    state.disaggMgmtVlanMode = (value === 'trunk') ? 'trunk' : 'access';
+    state.disaggVlanConfigConfirmed = false;
+    renderVlanGrid();
+    renderDisaggVlanConfirmState();
+    updateUI();
+    if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 
 // ── Workload VLANs ──────────────────────────────────────────────────────────

@@ -173,6 +173,7 @@ const state = {
     disaggSpineCount: null,
     disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 },
     disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
+    disaggMgmtVlanMode: 'access',
     disaggVrfName: 'AZLOCAL',
     disaggSubnets: {},
     disaggIscsiTargets: [],
@@ -2457,6 +2458,7 @@ function selectOption(category, value) {
         state.disaggRackCount = null;
         state.disaggNodesPerRack = null;
         state.disaggSpineCount = null;
+        state.disaggMgmtVlanMode = 'access';
         state.disaggQosCustomized = false;
     } else if (category === 'architecture') {
         state.architecture = value;
@@ -2478,6 +2480,7 @@ function selectOption(category, value) {
         state.disaggRackCount = null;
         state.disaggNodesPerRack = null;
         state.disaggSpineCount = null;
+        state.disaggMgmtVlanMode = 'access';
         state.disaggQosCustomized = false;
     } else if (category === 'region') {
         state.region = value;
@@ -4261,6 +4264,58 @@ function updateUI() {
         if (!state.infraVlan) {
             state.infraVlan = 'default';
         }
+    }
+
+    // Disaggregated: Auto-set Infrastructure VLAN from DA5 management VLAN mode
+    if (state.architecture === 'disaggregated' && state.ip) {
+        const mgmtVlanId = state.disaggVlans ? state.disaggVlans.mgmt : null;
+        const daNotice = document.getElementById('infra-vlan-da-notice');
+        const daNoticeText = document.getElementById('infra-vlan-da-notice-text');
+        if (daNotice) { daNotice.classList.remove('hidden'); }
+        if (state.disaggMgmtVlanMode === 'trunk') {
+            // Trunk → Custom VLAN with the VLAN ID from DA5
+            state.infraVlan = 'custom';
+            state.infraVlanId = mgmtVlanId;
+            if (cards.infraVlan['default']) {
+                cards.infraVlan['default'].classList.add('disabled');
+                cards.infraVlan['default'].classList.remove('selected');
+            }
+            if (cards.infraVlan['custom']) {
+                cards.infraVlan['custom'].classList.remove('disabled');
+                cards.infraVlan['custom'].classList.add('selected');
+            }
+            // Show custom VLAN input pre-filled and disabled
+            const vlanCustom = document.getElementById('infra-vlan-custom');
+            const vlanInput = document.getElementById('infra-vlan-id');
+            const vlanInfo = document.getElementById('infra-vlan-info');
+            if (vlanCustom) { vlanCustom.classList.remove('hidden'); vlanCustom.classList.add('visible'); }
+            if (vlanInput) { vlanInput.value = mgmtVlanId || ''; vlanInput.disabled = true; }
+            if (vlanInfo) { vlanInfo.classList.remove('hidden'); vlanInfo.classList.add('visible'); }
+            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Trunk mode on DA5. Custom VLAN ' + (mgmtVlanId || '') + ' is applied — the host NICs will tag management traffic with this VLAN ID.';
+        } else {
+            // Access → Default VLAN, show the native VLAN ID from DA5
+            state.infraVlan = 'default';
+            state.infraVlanId = null;
+            if (cards.infraVlan['custom']) {
+                cards.infraVlan['custom'].classList.add('disabled');
+                cards.infraVlan['custom'].classList.remove('selected');
+            }
+            if (cards.infraVlan['default']) {
+                cards.infraVlan['default'].classList.remove('disabled');
+                cards.infraVlan['default'].classList.add('selected');
+            }
+            // Hide custom VLAN input
+            const vlanCustom = document.getElementById('infra-vlan-custom');
+            const vlanInput = document.getElementById('infra-vlan-id');
+            const vlanInfo = document.getElementById('infra-vlan-info');
+            if (vlanCustom) { vlanCustom.classList.add('hidden'); vlanCustom.classList.remove('visible'); }
+            if (vlanInput) { vlanInput.value = ''; vlanInput.disabled = true; }
+            if (vlanInfo) { vlanInfo.classList.add('hidden'); vlanInfo.classList.remove('visible'); }
+            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Access mode on DA5. The host sends untagged traffic (VLAN ID 0) — the TOR switch assigns it to native VLAN ' + (mgmtVlanId || '') + ' internally.';
+        }
+    } else {
+        const daNotice = document.getElementById('infra-vlan-da-notice');
+        if (daNotice) daNotice.classList.add('hidden');
     }
 
     // Step 11 -> Step 13 (Active Directory)
