@@ -1881,7 +1881,8 @@ function renderDisaggHostNetworkingPreview() {
     var leaf2X = leaf1X + leafW + leafGap;
     var iscsiArrayX = leaf2X + leafW + iscsiArrayGap;
     var iscsiArrayY = leafY - 3;
-    var nodeX = (svgW - nodeW) / 2;
+    var leafCenterX = leaf1X + totalLeafW / 2;
+    var nodeX = leafCenterX - nodeW / 2;
     var nodeY = marginTop + leafAreaH + 10;
 
     var uplinkPositions = [];
