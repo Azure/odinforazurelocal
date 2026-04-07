@@ -11360,6 +11360,17 @@ function renderHciHostNetworkingPreview() {
         return parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16);
     }
 
+    var isSwitchless = state.storage === 'switchless';
+    var nodeCount = parseInt(state.nodes) || 1;
+
+    // For switchless 2-4 node, render multi-node switchless diagram
+    if (isSwitchless && nodeCount >= 2 && nodeCount <= 4) {
+        renderHciSwitchlessPreview(container, portCount, nodeCount);
+        return;
+    }
+
+    // --- Switched / single-node: single node with optional ToR switches ---
+
     var zoneColorMap = {
         'mgmt_compute': '#3b82f6', 'mgmt': '#3b82f6',
         'compute': '#22c55e', 'compute_1': '#22c55e', 'compute_2': '#10b981',
@@ -11547,6 +11558,204 @@ function renderHciHostNetworkingPreview() {
     container.innerHTML = '<div style="margin-top:1.5rem;">'
         + '<h4 style="color:var(--accent-purple); margin-bottom:0.75rem;">Host Networking Preview</h4>'
         + '<div class="switchless-diagram">' + svg + '</div>'
+        + '<div style="margin-top:0.75rem; display:flex; gap:0.5rem;">'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'light\')">Download SVG (Light)</button>'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'dark\')">Download SVG (Dark)</button>'
+        + '</div>'
+        + '</div>';
+}
+
+function renderHciSwitchlessPreview(container, portCount, nodeCount) {
+    var n = nodeCount;
+    var mgmtVnicH = 38;
+    var vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+
+    // Determine mgmt/compute vs storage port assignments
+    var mgmtPorts = [1, 2];
+    var storagePorts = [];
+    if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
+        mgmtPorts = [];
+        storagePorts = [];
+        for (var ami = 1; ami <= portCount; ami++) {
+            var amAssign = state.adapterMapping[ami] || 'pool';
+            if (amAssign === 'storage') storagePorts.push(ami);
+            else mgmtPorts.push(ami);
+        }
+    } else {
+        for (var si = 3; si <= portCount; si++) storagePorts.push(si);
+    }
+    var storagePerNode = storagePorts.length;
+
+    function getNodeLabel(idx) {
+        if (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name) {
+            return String(state.nodeSettings[idx].name).trim() || ('Node ' + (idx + 1));
+        }
+        return 'Node ' + (idx + 1);
+    }
+
+    // Layout sizing
+    var storageTileW = 50, storageTileH = 34, storageTileGap = 8;
+    var storageColsPerNode = Math.min(storagePerNode, 3);
+    var storageRowsPerNode = Math.ceil(storagePerNode / storageColsPerNode);
+    var storageGroupW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap + 30;
+    var storageGroupH = storageRowsPerNode * storageTileH + (storageRowsPerNode - 1) * 8 + 38;
+    var nodeW = Math.max(220, storageGroupW + 30);
+    var nodeH = 195 + mgmtVnicH + storageGroupH;
+    var nodeGap = n <= 3 ? 30 : 20;
+
+    var svgW = n * nodeW + (n - 1) * nodeGap + 100;
+    var nodeY = 90;
+
+    // Subnet edges
+    var edges = [];
+    var subnetNum = 1;
+    var linkMode = state.switchlessLinkMode || 'dual_link';
+    var linksPerPair = (n === 3 && linkMode === 'single_link') ? 1 : 2;
+
+    // Build port counters per node (which storage port index connects to which peer)
+    var portCounters = [];
+    for (var pc = 0; pc < n; pc++) portCounters.push(0);
+
+    for (var i = 0; i < n; i++) {
+        for (var j = i + 1; j < n; j++) {
+            for (var lk = 0; lk < linksPerPair; lk++) {
+                edges.push({
+                    subnet: subnetNum++,
+                    a: { n: i, p: portCounters[i]++ },
+                    b: { n: j, p: portCounters[j]++ }
+                });
+            }
+        }
+    }
+    var totalSubnets = subnetNum - 1;
+
+    // Subnet lane area
+    var laneGap = 16;
+    var laneAreaH = totalSubnets * laneGap + 40;
+    var svgH = nodeY + nodeH + laneAreaH + 30;
+
+    // Node X positions (centered)
+    var totalNodesW = n * nodeW + (n - 1) * nodeGap;
+    var startX = (svgW - totalNodesW) / 2;
+    var nodeXPositions = [];
+    for (var nx = 0; nx < n; nx++) nodeXPositions.push(startX + nx * (nodeW + nodeGap));
+
+    function subnetColor(num) {
+        var hues = [205, 235, 265, 295, 325, 355, 25, 55, 85, 115, 145, 175];
+        var h = hues[(num - 1) % hues.length];
+        return 'hsla(' + h + ', 78%, 62%, 0.92)';
+    }
+
+    function storageGroupRect(nodeIdx) {
+        var nLeft = nodeXPositions[nodeIdx];
+        var x = nLeft + (nodeW - storageGroupW) / 2;
+        var y = nodeY + 130 + mgmtVnicH;
+        return { x: x, y: y };
+    }
+
+    function storageTileRect(nodeIdx, portIdx) {
+        var sg = storageGroupRect(nodeIdx);
+        var col = portIdx % storageColsPerNode;
+        var row = Math.floor(portIdx / storageColsPerNode);
+        var totalW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap;
+        var sx = sg.x + (storageGroupW - totalW) / 2 + col * (storageTileW + storageTileGap);
+        var sy = sg.y + 30 + row * (storageTileH + 8);
+        return { x: sx, y: sy };
+    }
+
+    function storagePortBottom(nodeIdx, portIdx) {
+        var tr = storageTileRect(nodeIdx, portIdx);
+        return { x: tr.x + storageTileW / 2, y: tr.y + storageTileH };
+    }
+
+    // Build SVG
+    var autoIpLabel = state.storageAutoIp === 'enabled' ? 'AutoIP: True' : state.storageAutoIp === 'disabled' ? 'AutoIP: False' : 'AutoIP: -';
+    var linkLabel = (n === 3) ? (linkMode === 'single_link' ? ', Single-Link' : ', Dual-Link') : '';
+    var titleText = 'Storage Network ATC intent — Switchless=true' + linkLabel + ', ' + autoIpLabel;
+
+    var svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Switchless storage connectivity preview">';
+    svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
+    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="12" fill="var(--text-secondary)">' + escapeHtml(titleText) + '</text>';
+
+    // Render each node
+    for (var ni = 0; ni < n; ni++) {
+        var nLeft = nodeXPositions[ni];
+        svg += '<rect x="' + nLeft + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="14" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
+        svg += '<text x="' + (nLeft + nodeW / 2) + '" y="' + (nodeY + 26) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(ni)) + '</text>';
+
+        // Mgmt vNIC
+        var vnicW = 76, vnicHeight = 26;
+        var vnicX = nLeft + (nodeW - vnicW) / 2, vnicY2 = nodeY + 40;
+        svg += '<rect x="' + vnicX + '" y="' + vnicY2 + '" width="' + vnicW + '" height="' + vnicHeight + '" rx="5" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="4 2" />';
+        svg += '<text x="' + (vnicX + vnicW / 2) + '" y="' + (vnicY2 + 11) + '" text-anchor="middle" font-size="7.5" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
+        svg += '<text x="' + (vnicX + vnicW / 2) + '" y="' + (vnicY2 + 21) + '" text-anchor="middle" font-size="6.5" fill="var(--text-secondary)">' + escapeHtml(vlanLabel) + '</text>';
+
+        // Mgmt+Compute SET team
+        var setW = Math.min(nodeW - 20, mgmtPorts.length * 60 + 30);
+        var setH = 52;
+        var setX = nLeft + (nodeW - setW) / 2;
+        var setY = nodeY + 72 + mgmtVnicH / 2;
+        svg += '<text x="' + (nLeft + nodeW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
+        svg += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
+        svg += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 12) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">SET (vSwitch)</text>';
+        var mgmtTileW = 56, mgmtTileH = 28;
+        var mgmtTilesW = mgmtPorts.length * mgmtTileW + (mgmtPorts.length - 1) * 6;
+        var mgmtStartX = setX + (setW - mgmtTilesW) / 2;
+        for (var mi = 0; mi < mgmtPorts.length; mi++) {
+            var mx = mgmtStartX + mi * (mgmtTileW + 6), my = setY + 18;
+            var mLabel = getPortDisplayName(mgmtPorts[mi]);
+            svg += '<rect x="' + mx + '" y="' + my + '" width="' + mgmtTileW + '" height="' + mgmtTileH + '" rx="6" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
+            svg += '<text x="' + (mx + mgmtTileW / 2) + '" y="' + (my + 18) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(mLabel) + '</text>';
+        }
+
+        // Storage intent group
+        var sg = storageGroupRect(ni);
+        svg += '<rect x="' + sg.x + '" y="' + sg.y + '" width="' + storageGroupW + '" height="' + storageGroupH + '" rx="10" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
+        svg += '<text x="' + (sg.x + storageGroupW / 2) + '" y="' + (sg.y + 16) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Storage intent (RDMA)</text>';
+
+        for (var pi = 0; pi < storagePerNode; pi++) {
+            var tr = storageTileRect(ni, pi);
+            var sLabel = getPortDisplayName(storagePorts[pi]);
+            svg += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + storageTileW + '" height="' + storageTileH + '" rx="6" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
+            svg += '<text x="' + (tr.x + storageTileW / 2) + '" y="' + (tr.y + 21) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(sLabel) + '</text>';
+        }
+    }
+
+    // Subnet connection lines below nodes
+    var laneBaseY = nodeY + nodeH + 20;
+    var midXOffsets = [0, 12, -12, 16, -20, 24, -28, 30, -36, 38, -44, 46];
+    for (var ei = 0; ei < edges.length; ei++) {
+        var ed = edges[ei];
+        var a = storagePortBottom(ed.a.n, ed.a.p);
+        var b = storagePortBottom(ed.b.n, ed.b.p);
+        var busY = laneBaseY + ei * laneGap;
+        var midX = ((a.x + b.x) / 2) + (midXOffsets[ei] || 0);
+        var strokeColor = subnetColor(ed.subnet);
+
+        svg += '<path d="M ' + a.x + ' ' + a.y + ' L ' + a.x + ' ' + busY + ' L ' + midX + ' ' + busY + ' L ' + b.x + ' ' + busY + ' L ' + b.x + ' ' + b.y + '" fill="none" stroke="' + strokeColor + '" stroke-width="2.2" opacity="0.9" />';
+        svg += '<text x="' + midX + '" y="' + (busY - 5) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Subnet ' + ed.subnet + '</text>';
+    }
+
+    svg += '</svg>';
+
+    // Legend
+    var legendHtml = '<div class="switchless-diagram__legend" style="margin-top:0.75rem;">'
+        + '<div class="switchless-diagram__legend-title">Storage subnets</div>'
+        + '<div class="switchless-diagram__legend-grid">';
+    for (var li = 0; li < edges.length; li++) {
+        var led = edges[li];
+        var nodeA = getNodeLabel(led.a.n);
+        var nodeB = getNodeLabel(led.b.n);
+        legendHtml += '<div class="switchless-diagram__legend-item">'
+            + '<svg width="40" height="10" viewBox="0 0 40 10" aria-hidden="true"><line x1="0" y1="5" x2="40" y2="5" stroke="' + subnetColor(led.subnet) + '" stroke-width="2" /></svg>'
+            + '<span class="switchless-diagram__legend-text">Subnet ' + led.subnet + ' — ' + escapeHtml(nodeA) + ' ↔ ' + escapeHtml(nodeB) + '</span>'
+            + '</div>';
+    }
+    legendHtml += '</div></div>';
+
+    container.innerHTML = '<div style="margin-top:1.5rem;">'
+        + '<h4 style="color:var(--accent-purple); margin-bottom:0.75rem;">Host Networking Preview</h4>'
+        + '<div class="switchless-diagram">' + svg + legendHtml + '</div>'
         + '<div style="margin-top:0.75rem; display:flex; gap:0.5rem;">'
         + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'light\')">Download SVG (Light)</button>'
         + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'dark\')">Download SVG (Dark)</button>'
