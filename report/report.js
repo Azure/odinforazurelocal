@@ -1797,7 +1797,6 @@
     // Helper: get disaggregated port list for report rendering (top-level for drawio + diagram access)
     // Port IDs must match wizard format (ocp_p1, pcie1_p2, etc.) for config lookups
     function getDisaggPortListForReport(storageType, backupEnabled, portCount) {
-        var isVnicMode = (storageType === 'iscsi_6nic' && backupEnabled);
         var ports = [
             { id: 'ocp_p1', defaultName: 'OCP-NIC1', slot: 'ocp' },
             { id: 'ocp_p2', defaultName: 'OCP-NIC2', slot: 'ocp' },
@@ -1805,13 +1804,11 @@
             { id: 'pcie1_p2', defaultName: 'PCIe1-NIC4', slot: 'pcie1' }
         ];
         if (storageType === 'iscsi_6nic') {
-            // In vNIC mode, PCIe2 is the Backup SET (not iSCSI)
-            var pcie2Slot = isVnicMode ? 'backup' : 'pcie2';
+            var pcie2Slot = backupEnabled ? 'backup' : 'pcie2';
             ports.push({ id: 'pcie2_p1', defaultName: 'PCIe2-NIC5', slot: pcie2Slot });
             ports.push({ id: 'pcie2_p2', defaultName: 'PCIe2-NIC6', slot: pcie2Slot });
         }
-        // Separate backup ports only for non-vNIC mode scenarios
-        if (backupEnabled && !isVnicMode) {
+        if (backupEnabled && storageType !== 'iscsi_6nic') {
             ports.push({ id: 'backup_p1', defaultName: 'BK-NIC1', slot: 'backup' });
             ports.push({ id: 'backup_p2', defaultName: 'BK-NIC2', slot: 'backup' });
         }
@@ -2295,7 +2292,9 @@
         var n = Math.min(2, totalNodes);
         var hasFc = (storageType === 'fc_san');
         var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
-        var isVnicMode = (storageType === 'iscsi_6nic' && backupEnabled);
+        var hasDedicatedIscsi = (storageType === 'iscsi_6nic' && !backupEnabled);
+        var hasSharedIscsi = (storageType === 'iscsi_4nic' || (storageType === 'iscsi_6nic' && backupEnabled));
+        var adapterMapping = s.disaggAdapterMapping || {};
 
         function xmlEsc(str) {
             return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -2326,49 +2325,75 @@
             return '25GbE';
         }
 
-        // Build NIC groups
+        // Build NIC groups dynamically from adapter mapping
         var nicGroups = [];
-        nicGroups.push({
-            key: 'mgmt_compute', label: 'Mgmt + Compute',
-            color: 'blue',
-            vnicAbove: {
-                name: 'Mgmt vNIC',
-                vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7')
-            },
-            nics: [
-                { name: getNicNameD('ocp', 1), speed: getPortSpeedD('ocp', 1), leaf: 'A' },
-                { name: getNicNameD('ocp', 2), speed: getPortSpeedD('ocp', 2), leaf: 'B' }
-            ]
-        });
-        nicGroups.push({
-            key: 'cluster_1', label: 'Cluster 1',
-            color: 'green',
-            vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'),
-            nics: [{ name: getNicNameD('pcie1', 1), speed: getPortSpeedD('pcie1', 1), leaf: 'A' }]
-        });
-        nicGroups.push({
-            key: 'cluster_2', label: 'Cluster 2',
-            color: 'green',
-            vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'),
-            nics: [{ name: getNicNameD('pcie1', 2), speed: getPortSpeedD('pcie1', 2), leaf: 'B' }]
-        });
-        if (backupEnabled) {
-            var bkSlot = isVnicMode ? 'pcie2' : 'backup';
-            var backupGrp = {
-                key: 'backup', label: 'In-Guest Backup Compute Intent',
-                color: 'orange',
+        var zoneMeta = {
+            mgmt_compute: { label: 'Mgmt + Compute', color: 'blue', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7') } },
+            cluster_1: { label: 'Cluster 1', color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711') },
+            cluster_2: { label: 'Cluster 2', color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712') },
+            iscsi_a: { label: 'iSCSI Storage A', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiA) || '500') },
+            iscsi_b: { label: 'iSCSI Storage B', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiB) || '600') },
+            backup: { label: 'In-Guest Backup Compute Intent', color: 'orange' }
+        };
+        var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
+        var portListD = getDisaggPortListForReport(storageType, backupEnabled, portCount);
+        var groupsByZoneD = {};
+        var zoneLeafCountersD = {};
+
+        for (var dpi = 0; dpi < portListD.length; dpi++) {
+            var dPort = portListD[dpi];
+            var dZone = adapterMapping[dPort.id];
+            if (!dZone || dZone === 'pool' || dPort.slot === 'bmc') continue;
+            if (!groupsByZoneD[dZone]) groupsByZoneD[dZone] = [];
+            if (!zoneLeafCountersD[dZone]) zoneLeafCountersD[dZone] = 0;
+            var dLeaf = (zoneLeafCountersD[dZone] % 2 === 0) ? 'A' : 'B';
+            zoneLeafCountersD[dZone]++;
+            var dSlotKey = dPort.id.replace(/_p\d+$/, '');
+            var dIdx = parseInt(dPort.id.replace(/^.*_p/, ''), 10);
+            groupsByZoneD[dZone].push({ name: getNicNameD(dSlotKey, dIdx), speed: getPortSpeedD(dSlotKey, dIdx), leaf: dLeaf });
+        }
+
+        for (var dzi = 0; dzi < zoneOrder.length; dzi++) {
+            var dzk = zoneOrder[dzi];
+            if (!groupsByZoneD[dzk] || groupsByZoneD[dzk].length === 0) continue;
+            var dmeta = zoneMeta[dzk];
+            if (!dmeta) continue;
+            var dgrp = { key: dzk, label: dmeta.label, color: dmeta.color, nics: groupsByZoneD[dzk] };
+            if (dmeta.vnicAbove) dgrp.vnicAbove = dmeta.vnicAbove;
+            if (dmeta.vlanBelow) dgrp.vlanBelow = dmeta.vlanBelow;
+            nicGroups.push(dgrp);
+        }
+
+        // Fallback: if no adapter mapping, use hardcoded defaults
+        if (nicGroups.length === 0) {
+            nicGroups.push({
+                key: 'mgmt_compute', label: 'Mgmt + Compute', color: 'blue',
+                vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7') },
                 nics: [
-                    { name: getNicNameD(bkSlot, 1), speed: getPortSpeedD(bkSlot, 1), leaf: 'A' },
-                    { name: getNicNameD(bkSlot, 2), speed: getPortSpeedD(bkSlot, 2), leaf: 'B' }
+                    { name: getNicNameD('ocp', 1), speed: getPortSpeedD('ocp', 1), leaf: 'A' },
+                    { name: getNicNameD('ocp', 2), speed: getPortSpeedD('ocp', 2), leaf: 'B' }
                 ]
-            };
-            if (isVnicMode) {
-                backupGrp.vnicCards = [
-                    { name: 'iSCSI-A vNIC', detail: '\u2192 ' + getNicNameD('pcie2', 1), target: 'A' },
-                    { name: 'iSCSI-B vNIC', detail: '\u2192 ' + getNicNameD('pcie2', 2), target: 'B' }
-                ];
+            });
+            nicGroups.push({
+                key: 'cluster_1', label: 'Cluster 1', color: 'green',
+                vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'),
+                nics: [{ name: getNicNameD('pcie1', 1), speed: getPortSpeedD('pcie1', 1), leaf: 'A' }]
+            });
+            nicGroups.push({
+                key: 'cluster_2', label: 'Cluster 2', color: 'green',
+                vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'),
+                nics: [{ name: getNicNameD('pcie1', 2), speed: getPortSpeedD('pcie1', 2), leaf: 'B' }]
+            });
+            if (backupEnabled) {
+                var bkSlot = (storageType === 'iscsi_6nic') ? 'pcie2' : 'backup';
+                nicGroups.push({
+                    key: 'backup', label: 'In-Guest Backup Compute Intent', color: 'orange',
+                    nics: [
+                        { name: getNicNameD(bkSlot, 1), speed: getPortSpeedD(bkSlot, 1), leaf: 'A' },
+                        { name: getNicNameD(bkSlot, 2), speed: getPortSpeedD(bkSlot, 2), leaf: 'B' }
+                    ]
+                });
             }
-            nicGroups.push(backupGrp);
         }
 
         // Storage adapters
@@ -2376,12 +2401,36 @@
         if (hasFc) {
             storageAdapters.push({ name: getNicNameD('fc', 1), speed: getPortSpeedD('fc', 1), target: 'A' });
             storageAdapters.push({ name: getNicNameD('fc', 2), speed: getPortSpeedD('fc', 2), target: 'B' });
-        } else if (storageType === 'iscsi_6nic' && !isVnicMode) {
-            storageAdapters.push({ name: getNicNameD('pcie2', 1), speed: getPortSpeedD('pcie2', 1), target: 'A' });
-            storageAdapters.push({ name: getNicNameD('pcie2', 2), speed: getPortSpeedD('pcie2', 2), target: 'B' });
-        } else if (storageType === 'iscsi_4nic') {
-            storageAdapters.push({ name: 'iSCSI via ' + getNicNameD('pcie1', 1), speed: 'shared trunk', target: 'A' });
-            storageAdapters.push({ name: 'iSCSI via ' + getNicNameD('pcie1', 2), speed: 'shared trunk', target: 'B' });
+        } else if (hasDedicatedIscsi) {
+            // 6-NIC no backup: dedicated iSCSI from adapter mapping
+            for (var dsai = 0; dsai < portListD.length; dsai++) {
+                var dsaPort = portListD[dsai];
+                var dsaZone = adapterMapping[dsaPort.id];
+                if (dsaZone === 'iscsi_a' || dsaZone === 'iscsi_b') {
+                    var dsaSlot = dsaPort.id.replace(/_p\d+$/, '');
+                    var dsaIdx = parseInt(dsaPort.id.replace(/^.*_p/, ''), 10);
+                    storageAdapters.push({
+                        name: getNicNameD(dsaSlot, dsaIdx), speed: getPortSpeedD(dsaSlot, dsaIdx),
+                        target: (dsaZone === 'iscsi_a') ? 'A' : 'B'
+                    });
+                }
+            }
+            if (storageAdapters.length === 0) {
+                storageAdapters.push({ name: getNicNameD('pcie2', 1), speed: getPortSpeedD('pcie2', 1), target: 'A' });
+                storageAdapters.push({ name: getNicNameD('pcie2', 2), speed: getPortSpeedD('pcie2', 2), target: 'B' });
+            }
+        } else if (hasSharedIscsi) {
+            // Find cluster port names for shared indicator
+            var dCluster1Name = getNicNameD('pcie1', 1);
+            var dCluster2Name = getNicNameD('pcie1', 2);
+            for (var dcpi = 0; dcpi < portListD.length; dcpi++) {
+                var dcPort = portListD[dcpi];
+                var dcZone = adapterMapping[dcPort.id];
+                if (dcZone === 'cluster_1') { var dcSlot = dcPort.id.replace(/_p\d+$/, ''); var dcIdx = parseInt(dcPort.id.replace(/^.*_p/, ''), 10); dCluster1Name = getNicNameD(dcSlot, dcIdx); }
+                if (dcZone === 'cluster_2') { var dcSlot2 = dcPort.id.replace(/_p\d+$/, ''); var dcIdx2 = parseInt(dcPort.id.replace(/^.*_p/, ''), 10); dCluster2Name = getNicNameD(dcSlot2, dcIdx2); }
+            }
+            storageAdapters.push({ name: 'iSCSI via ' + dCluster1Name, speed: 'shared', target: 'A' });
+            storageAdapters.push({ name: 'iSCSI via ' + dCluster2Name, speed: 'shared', target: 'B' });
         }
 
         // Layout constants
@@ -2405,8 +2454,7 @@
         var maxRowW = Math.max(nicRowW, storageW);
         var nodeW = Math.max(440, maxRowW + 80);
         var mgmtVnicAreaHD = 48;
-        var vnicExtraHD = isVnicMode ? 70 : 0;
-        var nodeH = 220 + mgmtVnicAreaHD + (storageAdapters.length > 0 ? 80 : 0) + vnicExtraHD;
+        var nodeH = 220 + mgmtVnicAreaHD + (storageAdapters.length > 0 ? 80 : 0);
         var nodeGap = 60;
 
         var totalNodesW = n * nodeW + (n - 1) * nodeGap;
@@ -2504,11 +2552,9 @@
                 var cs = fillStroke(grp.color);
                 var grpW = grp.nics.length * portW + (grp.nics.length - 1) * portGap;
                 var grpBoxW = grpW + intentBoxPad * 2;
-                var hasVnicsD = grp.vnicCards && grp.vnicCards.length > 0;
                 var hasVnicAboveD = !!grp.vnicAbove;
-                var vnicAreaHD = hasVnicsD ? 60 : 0;
                 var vnicAboveAreaHD = hasVnicAboveD ? mgmtVnicAreaHD : 0;
-                var grpBoxH = portH + 30 + intentBoxPad * 2 + vnicAreaHD + vnicAboveAreaHD;
+                var grpBoxH = portH + 30 + intentBoxPad * 2 + vnicAboveAreaHD;
                 var grpBoxX = cursorX - intentBoxPad;
                 var grpBoxY = nicRowY - vnicAboveAreaHD;
 
@@ -2555,33 +2601,6 @@
                         'endArrow=none;html=1;strokeColor=' + edgeColor + ';strokeWidth=1.5;dashed=1;dashPattern=4 2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;');
                 }
 
-                // vNIC cards inside group (iSCSI vNICs in vNIC mode)
-                if (hasVnicsD) {
-                    var pcs = fillStroke('purple');
-                    // vNIC label
-                    var vnicLblId = nextId();
-                    addCell(vnicLblId, 'iSCSI vNICs', 0, portH + intentBoxPad + vnicAboveAreaHD + 6, grpBoxW, 14,
-                        'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#A78BFA;fontSize=7;fontStyle=2;',
-                        grpId);
-
-                    for (var vdi = 0; vdi < grp.vnicCards.length; vdi++) {
-                        var vcard = grp.vnicCards[vdi];
-                        var vpx = intentBoxPad + vdi * (portW + portGap);
-                        var vpy = portH + intentBoxPad + vnicAboveAreaHD + 20;
-
-                        var vnicId = nextId();
-                        addCell(vnicId, vcard.name + '\\n' + vcard.detail, vpx, vpy, portW, portH,
-                            'rounded=1;whiteSpace=wrap;html=1;fillColor=' + pcs.fill + ';strokeColor=' + pcs.stroke + ';fontColor=#FFFFFF;fontSize=7;fontStyle=1;arcSize=15;dashed=1;dashPattern=4 2;',
-                            grpId);
-
-                        // Connect vNIC to iSCSI target
-                        var targetSanV = (vcard.target === 'A') ? sanAId : sanBId;
-                        var vEdgeId = nextId();
-                        addEdge(vEdgeId, vnicId, targetSanV,
-                            'endArrow=none;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;dashed=1;dashPattern=5 3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;');
-                    }
-                }
-
                 cursorX += grpW + portGap + groupGap;
             }
 
@@ -2592,7 +2611,7 @@
                 var pcs = fillStroke('purple');
 
                 // Storage label
-                var storageLbl = hasFc ? 'FC HBA — SAN Fabric' : 'iSCSI Storage Adapters';
+                var storageLbl = hasFc ? 'FC HBA — SAN Fabric' : (hasDedicatedIscsi ? 'iSCSI Storage Adapters' : 'iSCSI — Shared with Cluster');
                 var stLblId = nextId();
                 addCell(stLblId, storageLbl, 20, saY - 22, nodeW - 40, 18,
                     'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#A78BFA;fontSize=9;fontStyle=1;',
@@ -4069,7 +4088,9 @@
             var n = Math.min(2, totalNodes);
             var hasFc = (storageType === 'fc_san');
             var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
-            var isVnicMode = (storageType === 'iscsi_6nic' && backupEnabled);
+            var hasDedicatedIscsi = (storageType === 'iscsi_6nic' && !backupEnabled);
+            var hasSharedIscsi = (storageType === 'iscsi_4nic' || (storageType === 'iscsi_6nic' && backupEnabled));
+            var adapterMapping = state.disaggAdapterMapping || {};
 
             // NIC name helper — port IDs must match wizard format: ocp_p1, pcie1_p2, etc.
             function getNicName(slotKey, idx) {
@@ -4100,57 +4121,93 @@
                 return parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16);
             }
 
-            // --- Build NIC groups in a SINGLE row (all intents together) ---
+            // --- Build NIC groups dynamically from adapter mapping ---
             var nicGroups = [];
 
-            // Management + Compute (blue)
-            nicGroups.push({
-                key: 'mgmt_compute', label: 'Mgmt + Compute',
-                color: '#3b82f6',
-                vnicAbove: {
-                    name: 'Mgmt vNIC',
-                    vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7')
-                },
-                nics: [
-                    { id: 'ocp_1', name: getNicName('ocp', 1), speed: getPortSpeed('ocp', 1), leaf: 'A' },
-                    { id: 'ocp_2', name: getNicName('ocp', 2), speed: getPortSpeed('ocp', 2), leaf: 'B' }
-                ]
-            });
+            // Define zone metadata
+            var zoneMeta = {
+                mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7') } },
+                cluster_1: { label: 'Cluster 1', color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711') },
+                cluster_2: { label: 'Cluster 2', color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712') },
+                iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiA) || '500') },
+                iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiB) || '600') },
+                backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
+            };
 
-            // Cluster Network 1 — standalone (green)
-            nicGroups.push({
-                key: 'cluster_1', label: 'Cluster 1',
-                color: '#22c55e',
-                vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711'),
-                nics: [{ id: 'pcie1_1', name: getNicName('pcie1', 1), speed: getPortSpeed('pcie1', 1), leaf: 'A' }]
-            });
+            // Leaf assignment rules: first adapter to Leaf-A, second to Leaf-B within each group
+            var zoneLeafCounters = {};
+            var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
+            var groupsByZone = {};
 
-            // Cluster Network 2 — standalone (green)
-            nicGroups.push({
-                key: 'cluster_2', label: 'Cluster 2',
-                color: '#22c55e',
-                vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'),
-                nics: [{ id: 'pcie1_2', name: getNicName('pcie1', 2), speed: getPortSpeed('pcie1', 2), leaf: 'B' }]
-            });
+            // Iterate adapter mapping and group ports by their assigned zone
+            var portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
+            for (var pi = 0; pi < portList.length; pi++) {
+                var port = portList[pi];
+                var zone = adapterMapping[port.id];
+                if (!zone || zone === 'pool' || port.slot === 'bmc') continue;
+                if (!groupsByZone[zone]) groupsByZone[zone] = [];
+                if (!zoneLeafCounters[zone]) zoneLeafCounters[zone] = 0;
+                var leafLabel = (zoneLeafCounters[zone] % 2 === 0) ? 'A' : 'B';
+                zoneLeafCounters[zone]++;
 
-            // Backup (orange) — after cluster
-            if (backupEnabled) {
-                var bkNicSlot = isVnicMode ? 'pcie2' : 'backup';
-                var backupGroup = {
-                    key: 'backup', label: 'In-Guest Backup Compute Intent',
-                    color: '#f97316',
-                    nics: [
-                        { id: bkNicSlot + '_1', name: getNicName(bkNicSlot, 1), speed: getPortSpeed(bkNicSlot, 1), leaf: 'A' },
-                        { id: bkNicSlot + '_2', name: getNicName(bkNicSlot, 2), speed: getPortSpeed(bkNicSlot, 2), leaf: 'B' }
-                    ]
+                var slotKey = port.id.replace(/_p\d+$/, '');
+                var idx = parseInt(port.id.replace(/^.*_p/, ''), 10);
+
+                groupsByZone[zone].push({
+                    id: port.id,
+                    name: getNicName(slotKey, idx),
+                    speed: getPortSpeed(slotKey, idx),
+                    leaf: leafLabel
+                });
+            }
+
+            // Build nicGroups in zone order
+            for (var zi = 0; zi < zoneOrder.length; zi++) {
+                var zk = zoneOrder[zi];
+                if (!groupsByZone[zk] || groupsByZone[zk].length === 0) continue;
+                var meta = zoneMeta[zk];
+                if (!meta) continue;
+                var grp = {
+                    key: zk,
+                    label: meta.label,
+                    color: meta.color,
+                    nics: groupsByZone[zk]
                 };
-                if (isVnicMode) {
-                    backupGroup.vnicCards = [
-                        { id: 'vnic_iscsi_a', name: 'iSCSI-A vNIC', detail: '\u2192 ' + getNicName('pcie2', 1), target: 'A' },
-                        { id: 'vnic_iscsi_b', name: 'iSCSI-B vNIC', detail: '\u2192 ' + getNicName('pcie2', 2), target: 'B' }
-                    ];
+                if (meta.vnicAbove) grp.vnicAbove = meta.vnicAbove;
+                if (meta.vlanBelow) grp.vlanBelow = meta.vlanBelow;
+                nicGroups.push(grp);
+            }
+
+            // Fallback: if no adapter mapping, use hardcoded defaults
+            if (nicGroups.length === 0) {
+                nicGroups.push({
+                    key: 'mgmt_compute', label: 'Mgmt + Compute', color: '#3b82f6',
+                    vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7') },
+                    nics: [
+                        { id: 'ocp_1', name: getNicName('ocp', 1), speed: getPortSpeed('ocp', 1), leaf: 'A' },
+                        { id: 'ocp_2', name: getNicName('ocp', 2), speed: getPortSpeed('ocp', 2), leaf: 'B' }
+                    ]
+                });
+                nicGroups.push({
+                    key: 'cluster_1', label: 'Cluster 1', color: '#22c55e',
+                    vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711'),
+                    nics: [{ id: 'pcie1_1', name: getNicName('pcie1', 1), speed: getPortSpeed('pcie1', 1), leaf: 'A' }]
+                });
+                nicGroups.push({
+                    key: 'cluster_2', label: 'Cluster 2', color: '#22c55e',
+                    vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'),
+                    nics: [{ id: 'pcie1_2', name: getNicName('pcie1', 2), speed: getPortSpeed('pcie1', 2), leaf: 'B' }]
+                });
+                if (backupEnabled) {
+                    var bkSlot = (storageType === 'iscsi_6nic') ? 'pcie2' : 'backup';
+                    nicGroups.push({
+                        key: 'backup', label: 'In-Guest Backup Compute Intent', color: '#f97316',
+                        nics: [
+                            { id: bkSlot + '_1', name: getNicName(bkSlot, 1), speed: getPortSpeed(bkSlot, 1), leaf: 'A' },
+                            { id: bkSlot + '_2', name: getNicName(bkSlot, 2), speed: getPortSpeed(bkSlot, 2), leaf: 'B' }
+                        ]
+                    });
                 }
-                nicGroups.push(backupGroup);
             }
 
             // --- Bottom storage adapters ---
@@ -4158,13 +4215,46 @@
             if (hasFc) {
                 storageAdapters.push({ id: 'fc_1', name: getNicName('fc', 1), speed: getPortSpeed('fc', 1), target: 'A', color: '#8b5cf6' });
                 storageAdapters.push({ id: 'fc_2', name: getNicName('fc', 2), speed: getPortSpeed('fc', 2), target: 'B', color: '#8b5cf6' });
-            } else if (storageType === 'iscsi_6nic' && !isVnicMode) {
-                storageAdapters.push({ id: 'pcie2_1', name: getNicName('pcie2', 1), speed: getPortSpeed('pcie2', 1), target: 'A', color: '#8b5cf6' });
-                storageAdapters.push({ id: 'pcie2_2', name: getNicName('pcie2', 2), speed: getPortSpeed('pcie2', 2), target: 'B', color: '#8b5cf6' });
-            } else if (storageType === 'iscsi_4nic') {
-                // 4-NIC iSCSI shares PCIe1 trunk — show logical indicators
-                storageAdapters.push({ id: 'pcie1_1_iscsi', name: 'iSCSI via ' + getNicName('pcie1', 1), speed: 'shared trunk', target: 'A', color: '#8b5cf6' });
-                storageAdapters.push({ id: 'pcie1_2_iscsi', name: 'iSCSI via ' + getNicName('pcie1', 2), speed: 'shared trunk', target: 'B', color: '#8b5cf6' });
+            } else if (hasDedicatedIscsi) {
+                // 6-NIC no backup: dedicated iSCSI adapters (find which ports are in iscsi_a/iscsi_b zones)
+                for (var sai = 0; sai < portList.length; sai++) {
+                    var saPort = portList[sai];
+                    var saZone = adapterMapping[saPort.id];
+                    if (saZone === 'iscsi_a' || saZone === 'iscsi_b') {
+                        var saSlotKey = saPort.id.replace(/_p\d+$/, '');
+                        var saIdx = parseInt(saPort.id.replace(/^.*_p/, ''), 10);
+                        storageAdapters.push({
+                            id: saPort.id, name: getNicName(saSlotKey, saIdx),
+                            speed: getPortSpeed(saSlotKey, saIdx),
+                            target: (saZone === 'iscsi_a') ? 'A' : 'B', color: '#8b5cf6'
+                        });
+                    }
+                }
+                // Fallback if no mapping found
+                if (storageAdapters.length === 0) {
+                    storageAdapters.push({ id: 'pcie2_1', name: getNicName('pcie2', 1), speed: getPortSpeed('pcie2', 1), target: 'A', color: '#8b5cf6' });
+                    storageAdapters.push({ id: 'pcie2_2', name: getNicName('pcie2', 2), speed: getPortSpeed('pcie2', 2), target: 'B', color: '#8b5cf6' });
+                }
+            } else if (hasSharedIscsi) {
+                // iSCSI 4-NIC or 6-NIC+backup: iSCSI shares cluster ports — show logical indicators
+                // Find which ports are mapped to cluster_1/cluster_2
+                var clusterPorts = { cluster_1: null, cluster_2: null };
+                for (var cpi = 0; cpi < portList.length; cpi++) {
+                    var cpPort = portList[cpi];
+                    var cpZone = adapterMapping[cpPort.id];
+                    if (cpZone === 'cluster_1' && !clusterPorts.cluster_1) {
+                        var cpSlot = cpPort.id.replace(/_p\d+$/, '');
+                        var cpIdx = parseInt(cpPort.id.replace(/^.*_p/, ''), 10);
+                        clusterPorts.cluster_1 = getNicName(cpSlot, cpIdx);
+                    }
+                    if (cpZone === 'cluster_2' && !clusterPorts.cluster_2) {
+                        var cpSlot2 = cpPort.id.replace(/_p\d+$/, '');
+                        var cpIdx2 = parseInt(cpPort.id.replace(/^.*_p/, ''), 10);
+                        clusterPorts.cluster_2 = getNicName(cpSlot2, cpIdx2);
+                    }
+                }
+                storageAdapters.push({ id: 'iscsi_shared_a', name: 'iSCSI via ' + (clusterPorts.cluster_1 || getNicName('pcie1', 1)), speed: 'shared', target: 'A', color: '#8b5cf6' });
+                storageAdapters.push({ id: 'iscsi_shared_b', name: 'iSCSI via ' + (clusterPorts.cluster_2 || getNicName('pcie1', 2)), speed: 'shared', target: 'B', color: '#8b5cf6' });
             }
 
             // BMC name
@@ -4192,8 +4282,7 @@
 
             var nodeW = Math.max(440, maxRowW + 60);
             var mgmtVnicAreaH = 48;
-            var vnicExtraH = isVnicMode ? 30 : 0;
-            var nodeH = 225 + mgmtVnicAreaH + (storageAdapters.length > 0 ? 70 : 0) + vnicExtraH;
+            var nodeH = 225 + mgmtVnicAreaH + (storageAdapters.length > 0 ? 70 : 0);
             var gapX = 50;
             var marginX = 50;
             var leafH = 50;
@@ -4218,10 +4307,9 @@
             var nodesStartX = (svgW - (n * nodeW) - ((n - 1) * gapX)) / 2;
             var nodeY = marginTop + leafAreaH + 10;
 
-            // Tracking for uplink lines (leaf-connected NICs), storage downlinks, and vNIC downlinks
+            // Tracking for uplink lines (leaf-connected NICs) and storage downlinks
             var uplinkPositions = [];
             var storagePositions = [];
-            var vnicPositions = [];
 
             function renderNicRow(groups, baseX, baseY, nodeLeft) {
                 var out = '';
@@ -4233,11 +4321,9 @@
                     var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
                     var boxX = currentX - 8;
                     var boxTotalW = grpW + 16;
-                    var hasVnics = grp.vnicCards && grp.vnicCards.length > 0;
-                    var vnicAreaH = hasVnics ? 56 : 0;
                     var hasVnicAbove = !!grp.vnicAbove;
                     var vnicAboveAreaH = hasVnicAbove ? mgmtVnicAreaH : 0;
-                    var boxH = adapterH + 28 + vnicAreaH + vnicAboveAreaH;
+                    var boxH = adapterH + 28 + vnicAboveAreaH;
                     var boxY = baseY - 14 - vnicAboveAreaH;
                     var rgb = colorRgb(grp.color);
 
@@ -4272,30 +4358,7 @@
                         uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
                     }
 
-                    // vNIC indicator cards (iSCSI vNICs inside Backup group in vNIC mode)
-                    if (hasVnics) {
-                        var vnicY = baseY + adapterH + 10;
-                        var vnicColor = '#8b5cf6';
-                        var vnicRgb = colorRgb(vnicColor);
-
-                        // Separator line + label
-                        out += '<line x1="' + (boxX + 6) + '" y1="' + (vnicY - 4) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (vnicY - 4) + '" stroke="rgba(' + vnicRgb + ',0.3)" stroke-dasharray="3 2" />';
-                        out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (vnicY + 5) + '" text-anchor="middle" font-size="7" fill="rgba(' + vnicRgb + ',0.7)" font-style="italic">iSCSI vNICs</text>';
-
-                        for (var vi = 0; vi < grp.vnicCards.length; vi++) {
-                            var vnic = grp.vnicCards[vi];
-                            var vx = currentX + vi * (adapterW + adapterGap);
-                            var vy = vnicY + 9;
-
-                            out += '<rect x="' + vx + '" y="' + vy + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + vnicRgb + ',0.10)" stroke="rgba(' + vnicRgb + ',0.55)" stroke-dasharray="4 2" />';
-                            out += '<text x="' + (vx + adapterW / 2) + '" y="' + (vy + 16) + '" text-anchor="middle" font-size="7.5" fill="var(--text-primary)" font-weight="600">' + escapeHtml(vnic.name) + '</text>';
-                            out += '<text x="' + (vx + adapterW / 2) + '" y="' + (vy + 28) + '" text-anchor="middle" font-size="6.5" fill="var(--text-secondary)">' + escapeHtml(vnic.detail) + '</text>';
-
-                            vnicPositions.push({ x: vx + adapterW / 2, y: vy + adapterH, target: vnic.target, color: vnicColor });
-                        }
-                    }
-
-                    // VLAN label below the port shape (for standalone cluster networks)
+                    // VLAN label below the port shape (for standalone cluster/iSCSI networks)
                     if (grp.vlanBelow) {
                         out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY + boxH + 12) + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
                     }
@@ -4312,7 +4375,7 @@
                 var saStartX = nodeLeft + (nodeW - storageW) / 2;
 
                 // Storage section label
-                var storageLabel2 = hasFc ? 'FC HBA — SAN Fabric' : 'iSCSI Storage Adapters';
+                var storageLabel2 = hasFc ? 'FC HBA — SAN Fabric' : (hasDedicatedIscsi ? 'iSCSI Storage Adapters' : 'iSCSI — Shared with Cluster');
                 var rgb = colorRgb('#8b5cf6');
                 out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (saY - 18) + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(storageLabel2) + '</text>';
 
@@ -4409,26 +4472,17 @@
                     out += '<line x1="' + sp.x + '" y1="' + sp.y + '" x2="' + targetCx + '" y2="' + sanY + '" stroke="rgba(' + spRgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
                 }
 
-                // vNIC downlink lines (iSCSI vNICs → iSCSI targets in vNIC mode)
-                for (var vi2 = 0; vi2 < vnicPositions.length; vi2++) {
-                    var vp = vnicPositions[vi2];
-                    var vpTargetCx = (vp.target === 'A') ? targetAcx : targetBcx;
-                    var vpRgb = colorRgb(vp.color);
-                    out += '<line x1="' + vp.x + '" y1="' + vp.y + '" x2="' + vpTargetCx + '" y2="' + sanY + '" stroke="rgba(' + vpRgb + ',0.45)" stroke-width="1.5" stroke-dasharray="5 3" />';
-                }
-
                 return out;
             }
 
             // Build intro text
             var storageLabel = storageType === 'fc_san' ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC';
-            var vnicLabel = isVnicMode ? ' (vNIC Mode)' : '';
             var intro = ''
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
-                + '<strong style="color:var(--text-primary);">Disaggregated (' + escapeHtml(storageLabel + vnicLabel) + ')</strong> host networking diagram with Leaf-A / Leaf-B switches.'
+                + '<strong style="color:var(--text-primary);">Disaggregated (' + escapeHtml(storageLabel) + ')</strong> host networking diagram with Leaf-A / Leaf-B switches.'
                 + '<br>Intents: Management + Compute (SET), Cluster 1 &amp; 2 (Standalone)'
                 + (backupEnabled ? ', In-Guest Backup (SET)' : '')
-                + (isVnicMode ? '. iSCSI vNICs hosted on Backup SET (PCIe2 ports).' : '. Storage adapters shown at bottom of each node.')
+                + (hasDedicatedIscsi ? '. Dedicated iSCSI storage adapters shown at bottom of each node.' : (hasSharedIscsi ? '. iSCSI shares cluster standalone ports.' : '. Storage adapters shown at bottom of each node.'))
                 + (totalNodes > 2 ? '<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(totalNodes)) + ' nodes.</span>' : '')
                 + '</div>';
 
@@ -4458,9 +4512,8 @@
             svg += '<line x1="' + ibgpX1 + '" y1="' + ibgpY2 + '" x2="' + ibgpX2 + '" y2="' + ibgpY2 + '" stroke="rgba(250,204,21,0.7)" stroke-width="2" stroke-dasharray="6 3" />';
             svg += '<text x="' + ibgpMidX + '" y="' + (ibgpY2 - 8) + '" text-anchor="middle" font-size="9" fill="rgba(250,204,21,0.9)">iBGP P49</text>';
 
-            // Render nodes — accumulate storagePositions and vnicPositions across all nodes for downlinks
+            // Render nodes — accumulate storagePositions across all nodes for downlinks
             storagePositions = [];
-            vnicPositions = [];
             for (var ni3 = 0; ni3 < n; ni3++) {
                 var posX = nodesStartX + ni3 * (nodeW + gapX);
                 uplinkPositions = [];
@@ -4486,9 +4539,8 @@
             svg += '</svg>';
 
             var note = '<div class="switchless-diagram__note">Note: Disaggregated ' + escapeHtml(storageLabel) + ' — Management + Compute intent (blue). Cluster networks are standalone NICs (green), one per leaf switch. '
-                + (storageType === 'iscsi_6nic' && !isVnicMode ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to iSCSI targets. ' : '')
-                + (isVnicMode ? 'iSCSI uses virtual NICs (vNICs) hosted on the Backup Compute Intent SET team (purple dashed cards inside orange group). PCIe2 physical NICs serve as the Backup SET, with iSCSI vNICs mapped to them. Requires DCB/QoS configuration (Priority 3, ETS bandwidth). ' : '')
-                + (storageType === 'iscsi_4nic' ? 'iSCSI shares PCIe1 trunk ports with Cluster/CSV traffic, reaching iSCSI targets through leaf switches. ' : '')
+                + (hasDedicatedIscsi ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to iSCSI targets. ' : '')
+                + (hasSharedIscsi ? 'iSCSI shares cluster standalone ports, same VLAN. ' : '')
                 + (hasFc ? 'FC HBA connects to separate SAN fabric (dedicated FC network, not through leaf switches). ' : '')
                 + (backupEnabled ? 'In-Guest Backup uses a Compute Intent (orange). ' : '')
                 + '</div>';
@@ -7573,26 +7625,38 @@
             if (s.disaggNodesPerRack) hostNetworkingRows += row('Nodes per Rack', String(s.disaggNodesPerRack), true);
             if (s.disaggSpineCount) hostNetworkingRows += row('Spine Switches', String(s.disaggSpineCount), true);
 
-            // Intent mapping
-            hostNetworkingRows += row('Mgmt + Compute Intent', 'SET Team (OCP ports)');
+            // Intent mapping — read from adapter mapping when available
+            var adapterMap = s.disaggAdapterMapping || {};
+            var hasMappingData = Object.keys(adapterMap).length > 0;
+
+            // Determine which ports are in mgmt_compute
+            var mgmtPorts = [];
+            var cluster1Ports = [];
+            var cluster2Ports = [];
+            if (hasMappingData) {
+                for (var mk in adapterMap) {
+                    if (adapterMap[mk] === 'mgmt_compute') mgmtPorts.push(mk.replace(/_p\d+$/, '').toUpperCase());
+                    else if (adapterMap[mk] === 'cluster_1') cluster1Ports.push(mk.replace(/_p\d+$/, '').toUpperCase());
+                    else if (adapterMap[mk] === 'cluster_2') cluster2Ports.push(mk.replace(/_p\d+$/, '').toUpperCase());
+                }
+            }
+            var mgmtDesc = mgmtPorts.length > 0 ? 'SET Team (' + mgmtPorts.filter(function(v, i, a) { return a.indexOf(v) === i; }).join(' + ') + ' ports)' : 'SET Team (OCP ports)';
+            hostNetworkingRows += row('Mgmt + Compute Intent', mgmtDesc);
             var clVlan1 = (s.disaggVlans && s.disaggVlans.cluster1) || '711';
             var clVlan2 = (s.disaggVlans && s.disaggVlans.cluster2) || '712';
             hostNetworkingRows += row('Cluster Network 1', 'Standalone, VLAN ' + clVlan1 + ' → Leaf-A');
             hostNetworkingRows += row('Cluster Network 2', 'Standalone, VLAN ' + clVlan2 + ' → Leaf-B');
 
             if (s.disaggStorageType === 'iscsi_4nic') {
-                hostNetworkingRows += row('iSCSI', 'Shared trunk on PCIe1 (with Cluster/CSV)');
+                hostNetworkingRows += row('iSCSI', 'Shared with Cluster standalone ports (same VLAN)');
             } else if (s.disaggStorageType === 'iscsi_6nic') {
                 var iscsiA = (s.disaggVlans && s.disaggVlans.iscsiA) || '500';
                 var iscsiB = (s.disaggVlans && s.disaggVlans.iscsiB) || '600';
-                var disaggVnicMode = (s.disaggStorageType === 'iscsi_6nic' && !!s.disaggBackupEnabled);
-                if (disaggVnicMode) {
-                    hostNetworkingRows += row('iSCSI Mode', 'vNIC on Backup Compute Intent SET');
-                    hostNetworkingRows += row('iSCSI-A vNIC', 'VLAN ' + iscsiA + ' · mapped → ' + (s.disaggPortConfig && s.disaggPortConfig.pcie2_p1 && (s.disaggPortConfig.pcie2_p1.customName || s.disaggPortConfig.pcie2_p1.name) || 'PCIe2-NIC5') + ' → Leaf-A');
-                    hostNetworkingRows += row('iSCSI-B vNIC', 'VLAN ' + iscsiB + ' · mapped → ' + (s.disaggPortConfig && s.disaggPortConfig.pcie2_p2 && (s.disaggPortConfig.pcie2_p2.customName || s.disaggPortConfig.pcie2_p2.name) || 'PCIe2-NIC6') + ' → Leaf-B');
-                    hostNetworkingRows += row('iSCSI 802.1p Priority', '3 (lossless, PFC enabled)');
-                    hostNetworkingRows += row('ETS Bandwidth', 'iSCSI 60% / Backup 40%');
+                if (s.disaggBackupEnabled) {
+                    // 6-NIC + backup: iSCSI shares cluster ports (falls back), PCIe2 = backup
+                    hostNetworkingRows += row('iSCSI Mode', 'Shared with Cluster standalone ports');
                 } else {
+                    // 6-NIC no backup: dedicated iSCSI
                     hostNetworkingRows += row('iSCSI Storage A', 'Standalone, VLAN ' + iscsiA + ' → Leaf-A');
                     hostNetworkingRows += row('iSCSI Storage B', 'Standalone, VLAN ' + iscsiB + ' → Leaf-B');
                 }
@@ -7876,70 +7940,8 @@
                 + '<div style="font-size: 0.8rem; color: var(--text-secondary); font-style: italic;">If using separate VLANs, bi-directional cross-VLAN connectivity is required between management network and AKS Arc VM logical network for all ports above.</div>';
         }
 
-        // vNIC Configuration section (Post-Deployment) — only for iSCSI 6-NIC + Backup
+        // vNIC Configuration section removed — no longer applicable
         var vnicConfigSection = '';
-        if (s.architecture === 'disaggregated' && s.disaggStorageType === 'iscsi_6nic' && s.disaggBackupEnabled) {
-            var vnicIscsiA = (s.disaggVlans && s.disaggVlans.iscsiA) || '500';
-            var vnicIscsiB = (s.disaggVlans && s.disaggVlans.iscsiB) || '600';
-            var vnicNic5 = (s.disaggPortConfig && s.disaggPortConfig.pcie2_p1 && (s.disaggPortConfig.pcie2_p1.customName || s.disaggPortConfig.pcie2_p1.name)) || 'PCIe2-NIC5';
-            var vnicNic6 = (s.disaggPortConfig && s.disaggPortConfig.pcie2_p2 && (s.disaggPortConfig.pcie2_p2.customName || s.disaggPortConfig.pcie2_p2.name)) || 'PCIe2-NIC6';
-
-            var vnicHtml = '<div style="margin-top: 0.5rem;">'
-                + '<div style="background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 0.8rem;">'
-                + '<strong style="color: #a78bfa;">&#9888; Post-Deployment Required</strong><br>'
-                + '<span style="color: var(--text-secondary); font-size: 0.85rem;">These PowerShell commands must be run on <strong>each node</strong> after Azure Local deployment to configure iSCSI vNICs on the Backup Compute Intent SET team.</span>'
-                + '</div>';
-
-            vnicHtml += '<h4 style="color: var(--text-primary); margin: 0.6rem 0 0.3rem;">Step 1: Create iSCSI vNICs</h4>'
-                + '<pre style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.6rem; font-size: 0.8rem; overflow-x: auto; color: var(--text-primary);">'
-                + '# Run on EACH node in the cluster\n'
-                + '$BackupSwitchName = &quot;BackupCompute&quot;  # Verify via Get-VMSwitch\n\n'
-                + 'Add-VMNetworkAdapter -ManagementOS -SwitchName $BackupSwitchName -Name &quot;iSCSI-A&quot;\n'
-                + 'Add-VMNetworkAdapter -ManagementOS -SwitchName $BackupSwitchName -Name &quot;iSCSI-B&quot;</pre>';
-
-            vnicHtml += '<h4 style="color: var(--text-primary); margin: 0.6rem 0 0.3rem;">Step 2: Set VLAN Access Mode</h4>'
-                + '<pre style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.6rem; font-size: 0.8rem; overflow-x: auto; color: var(--text-primary);">'
-                + 'Set-VMNetworkAdapterVlan -ManagementOS -VMNetworkAdapterName &quot;iSCSI-A&quot; -Access -VlanId ' + escapeHtml(vnicIscsiA) + '\n'
-                + 'Set-VMNetworkAdapterVlan -ManagementOS -VMNetworkAdapterName &quot;iSCSI-B&quot; -Access -VlanId ' + escapeHtml(vnicIscsiB) + '</pre>';
-
-            vnicHtml += '<h4 style="color: var(--text-primary); margin: 0.6rem 0 0.3rem;">Step 3: Pin Each vNIC to a Physical NIC (NIC Team Mapping)</h4>'
-                + '<pre style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.6rem; font-size: 0.8rem; overflow-x: auto; color: var(--text-primary);">'
-                + 'Set-VMNetworkAdapterTeamMapping -ManagementOS `\n'
-                + '    -VMNetworkAdapterName &quot;iSCSI-A&quot; `\n'
-                + '    -PhysicalNetAdapterName &quot;' + escapeHtml(vnicNic5) + '&quot;\n\n'
-                + 'Set-VMNetworkAdapterTeamMapping -ManagementOS `\n'
-                + '    -VMNetworkAdapterName &quot;iSCSI-B&quot; `\n'
-                + '    -PhysicalNetAdapterName &quot;' + escapeHtml(vnicNic6) + '&quot;</pre>';
-
-            vnicHtml += '<h4 style="color: var(--text-primary); margin: 0.6rem 0 0.3rem;">Step 4: Assign IP Addresses</h4>'
-                + '<pre style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.6rem; font-size: 0.8rem; overflow-x: auto; color: var(--text-primary);">'
-                + '# Replace X with node-specific host octet\n'
-                + 'New-NetIPAddress -InterfaceAlias &quot;vEthernet (iSCSI-A)&quot; -IPAddress &quot;10.50.1.X&quot; -PrefixLength 24\n'
-                + 'New-NetIPAddress -InterfaceAlias &quot;vEthernet (iSCSI-B)&quot; -IPAddress &quot;10.60.1.X&quot; -PrefixLength 24</pre>';
-
-            vnicHtml += '<h4 style="color: var(--text-primary); margin: 0.6rem 0 0.3rem;">Step 5: Configure DCB / QoS</h4>'
-                + '<pre style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.6rem; font-size: 0.8rem; overflow-x: auto; color: var(--text-primary);">'
-                + 'Enable-NetAdapterQos -Name &quot;' + escapeHtml(vnicNic5) + '&quot;\n'
-                + 'Enable-NetAdapterQos -Name &quot;' + escapeHtml(vnicNic6) + '&quot;\n\n'
-                + 'New-NetQosPolicy -Name &quot;iSCSI&quot; -NetworkDirect -PriorityValue8021Action 3\n'
-                + 'New-NetQosTrafficClass -Name &quot;iSCSI&quot; -Priority 3 -BandwidthPercentage 60 -Algorithm ETS\n\n'
-                + 'Enable-NetQosFlowControl -Priority 3\n'
-                + 'Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7</pre>';
-
-            vnicHtml += '<h4 style="color: var(--text-primary); margin: 0.6rem 0 0.3rem;">Step 6: Verify Configuration</h4>'
-                + '<pre style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.6rem; font-size: 0.8rem; overflow-x: auto; color: var(--text-primary);">'
-                + 'Get-VMNetworkAdapter -ManagementOS | Where-Object Name -like &quot;iSCSI*&quot; |\n'
-                + '    Select-Object Name, SwitchName, Status\n'
-                + 'Get-VMNetworkAdapterVlan -ManagementOS | Where-Object ParentAdapter -like &quot;*iSCSI*&quot;\n'
-                + 'Get-VMNetworkAdapterTeamMapping -ManagementOS |\n'
-                + '    Where-Object NetAdapterName -like &quot;*iSCSI*&quot;\n'
-                + 'Get-NetQosPolicy | Where-Object Name -eq &quot;iSCSI&quot;\n'
-                + 'Get-NetQosTrafficClass | Where-Object Name -eq &quot;iSCSI&quot;\n'
-                + 'Get-NetQosFlowControl | Format-Table Priority, Enabled</pre>';
-
-            vnicHtml += '</div>';
-            vnicConfigSection = sectionWithExtra('iSCSI vNIC Configuration (Post-Deployment)', 'summary-section-title--net', '', vnicHtml, 'vnic-config');
-        }
 
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
             + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')

@@ -14,25 +14,15 @@ function getMaxNodesPerRack(storageType, backupEnabled) {
     // Cluster NICs always use 1 port per leaf (PCIe1, ports 17-32 range)
     portsUsedPerNode += 1; // +1 cluster NIC per leaf
 
-    if (storageType === 'iscsi_6nic') {
-        portsUsedPerNode += 1; // +1 iSCSI NIC per leaf (ports 33-48 range)
+    if (storageType === 'iscsi_6nic' && !backupEnabled) {
+        portsUsedPerNode += 1; // +1 dedicated iSCSI NIC per leaf (ports 33-48 range)
     }
     if (backupEnabled) {
         portsUsedPerNode += 1; // +1 backup NIC per leaf (ports 33-48 range)
     }
 
     // Each "port range" block holds 16 ports (1-16, 17-32, 33-48)
-    // Max nodes = min of all port range blocks / ports per node in that range
-    if (storageType === 'iscsi_6nic' && backupEnabled) {
-        // vNIC mode: iSCSI uses vNICs on the Backup SET (PCIe2), NOT separate leaf ports.
-        // PCIe2 ports connect to leaf 33-48 range (1 per leaf per node) → max 16
-        return 16;
-    } else if (storageType === 'iscsi_6nic') {
-        // iSCSI uses ports 33-48 (1 per leaf per node) → max 16
-        return 16;
-    } else {
-        return 16; // FC and iSCSI 4-NIC: ports 33-48 available for backup or empty
-    }
+    return 16;
 }
 
 // ── DA Step Selection Handler ───────────────────────────────────────────────
@@ -56,8 +46,8 @@ function selectDisaggOption(category, value) {
         if (exp) {
             const explanations = {
                 fc_san: '<strong style="color: var(--accent-purple);">Fibre Channel SAN</strong> — Dedicated FC HBAs connect to separate FC switches. Storage traffic is completely isolated from the Ethernet leaf-spine fabric. Max 16 nodes per rack.',
-                iscsi_4nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (4-NIC)</strong> — iSCSI storage shares PCIe1 ports with CSV/Live Migration via trunk with tagged VLANs. No additional NICs required. Max 16 nodes per rack.',
-                iscsi_6nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (6-NIC)</strong> — Dedicated iSCSI NICs on PCIe2 slot, using leaf ports 33–48. MTU 9216 for jumbo frames. Max 15 nodes per rack.'
+                iscsi_4nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (4-NIC)</strong> — iSCSI storage shares cluster standalone ports and VLAN. No additional NICs required. Max 16 nodes per rack.',
+                iscsi_6nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (6-NIC)</strong> — Dedicated iSCSI NICs on PCIe2 slot with own VLANs and subnets. If backup is enabled, iSCSI falls back to sharing cluster ports and PCIe2 is used for backup. Max 16 nodes per rack.'
             };
             exp.innerHTML = explanations[value] || '';
             exp.classList.add('visible');
@@ -78,11 +68,11 @@ function selectDisaggOption(category, value) {
         state.disaggAdapterMappingConfirmed = false;
         state.disaggOverridesConfirmed = false;
 
-        // Show warning for iSCSI 6-NIC + backup conflict
+        // Show warning for iSCSI 6-NIC + backup
         const warning = document.getElementById('da2-warning');
         if (warning) {
             if (value && state.disaggStorageType === 'iscsi_6nic') {
-                warning.innerHTML = '<strong style="color: #a78bfa;">&#9432; vNIC Mode Activated</strong><p>iSCSI 6-NIC + Backup triggers <strong>vNIC mode</strong>: iSCSI traffic will use virtual NICs on the Backup Compute Intent SET team (PCIe2 ports) instead of separate physical leaf ports. Post-deployment configuration required (vNIC creation, NIC team mapping, DCB/QoS).</p>';
+                warning.innerHTML = '<strong style="color: #a78bfa;">&#9432; iSCSI Shared Mode</strong><p>With backup enabled, iSCSI 6-NIC loses its dedicated NICs. iSCSI traffic will <strong>share the cluster standalone ports and VLAN</strong> instead. The PCIe2 ports will be used for the <strong>Backup Compute Intent</strong>.</p>';
                 warning.classList.remove('hidden');
             } else {
                 warning.classList.add('hidden');
@@ -661,12 +651,16 @@ function getDisaggNicSlots() {
     // PCIe1: always present (2 ports) — Cluster (or Cluster+iSCSI in 4-NIC)
     const pcie1Label = st === 'iscsi_4nic' ? 'PCIe1 (Cluster + iSCSI Shared)' : 'PCIe1 (Cluster / CSV / Live Migration)';
     slots.push({ key: 'pcie1', label: pcie1Label, ports: 2, defaultSpeed: '25GbE', allowedSpeeds: ['10GbE', '25GbE', '100GbE'] });
-    // PCIe2: 6-NIC iSCSI only (2 ports)
-    if (st === 'iscsi_6nic') {
+    // PCIe2: 6-NIC iSCSI dedicated (only when no backup)
+    if (st === 'iscsi_6nic' && !backup) {
         slots.push({ key: 'pcie2', label: 'PCIe2 (iSCSI Dedicated)', ports: 2, defaultSpeed: '25GbE', allowedSpeeds: ['10GbE', '25GbE', '100GbE'] });
     }
-    // Backup: optional (2 ports)
-    if (backup) {
+    // PCIe2 as Backup: 6-NIC iSCSI + backup (iSCSI falls back to sharing cluster ports)
+    if (st === 'iscsi_6nic' && backup) {
+        slots.push({ key: 'pcie2', label: 'PCIe2 (Backup)', ports: 2, defaultSpeed: '25GbE', allowedSpeeds: ['10GbE', '25GbE', '100GbE'] });
+    }
+    // Backup: FC SAN or iSCSI 4-NIC with backup enabled
+    if (backup && st !== 'iscsi_6nic') {
         slots.push({ key: 'backup', label: 'Backup (In-Guest VM Backup)', ports: 2, defaultSpeed: '25GbE', allowedSpeeds: ['10GbE', '25GbE', '100GbE'] });
     }
     // BMC: always (1 port, fixed 1GbE)
@@ -766,7 +760,7 @@ function getDisaggPortCountOptions() {
         }
     } else if (st === 'iscsi_6nic') {
         if (backup) {
-            options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + Backup (2). iSCSI uses vNICs on Backup SET with NIC team mapping.', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
+            options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster/iSCSI shared (2) + Backup (2). iSCSI shares cluster ports.', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
         } else {
             options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2).', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
         }
@@ -840,26 +834,10 @@ function renderDisaggPortCountSelector() {
         grid.appendChild(card);
     }
 
-    // vNIC mode info banner
+    // vNIC mode info banner — no longer used
     var vnicBanner = document.getElementById('da10-vnic-mode-banner');
     if (vnicBanner) {
-        var isVnicMode = (state.disaggStorageType === 'iscsi_6nic' && !!state.disaggBackupEnabled);
-        if (isVnicMode) {
-            vnicBanner.innerHTML =
-                '<div class="info-box" style="margin-top: 1rem; border-left: 4px solid #8b5cf6; background: rgba(139,92,246,0.06);">' +
-                '<strong style="color: #a78bfa;">iSCSI vNIC Mode</strong><br>' +
-                'Because TOR leaf switches cannot accommodate 8 physical ports per node, iSCSI storage traffic will use <strong>virtual NICs (vNICs)</strong> ' +
-                'created on the <strong>Backup Compute Intent SET team</strong> (PCIe2 ports).<br><br>' +
-                '<span style="color: var(--text-secondary);">' +
-                '&bull; <strong>iSCSI-A vNIC</strong> → NIC team mapped (pinned) to PCIe2-NIC5 → always routes through Leaf-A → iSCSI Target A<br>' +
-                '&bull; <strong>iSCSI-B vNIC</strong> → NIC team mapped (pinned) to PCIe2-NIC6 → always routes through Leaf-B → iSCSI Target B<br><br>' +
-                '&bull; <strong>DCB/QoS required</strong>: iSCSI uses 802.1p priority 3 (lossless, PFC enabled) with 60% minimum ETS bandwidth. ' +
-                'Backup traffic uses default priority (lossy). Both host NICs and leaf switch ports must be configured.<br><br>' +
-                'Post-deployment steps (vNIC creation, team mapping, DCB/QoS) will be detailed in the configuration report.' +
-                '</span></div>';
-        } else {
-            vnicBanner.innerHTML = '';
-        }
+        vnicBanner.innerHTML = '';
     }
 
     // Show/hide downstream sections based on port count selection
@@ -918,25 +896,23 @@ function getDisaggPortList() {
     ports.push({ id: 'pcie1_p2', slot: 'pcie1', label: 'PCIe1 Port 2', defaultName: 'PCIe1-NIC4', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
 
     // PCIe2 ports
-    // In vNIC mode (iSCSI 6-NIC + backup), PCIe2 becomes the Backup Compute Intent SET
-    // and iSCSI uses vNICs on top of it. Otherwise PCIe2 = dedicated iSCSI.
-    var isVnicMode = (st === 'iscsi_6nic' && !!state.disaggBackupEnabled);
+    // iSCSI 6-NIC without backup: PCIe2 = dedicated iSCSI
+    // iSCSI 6-NIC with backup: PCIe2 = backup (iSCSI shares cluster ports)
     if (st === 'iscsi_6nic') {
-        if (isVnicMode) {
-            // vNIC mode: PCIe2 is Backup SET, iSCSI rides as vNICs (not physical ports)
+        if (backupEnabled) {
+            // 6-NIC + backup: PCIe2 is backup compute intent, iSCSI shares cluster
             ports.push({ id: 'pcie2_p1', slot: 'backup', label: 'PCIe2 Port 1 (Backup)', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-A' });
             ports.push({ id: 'pcie2_p2', slot: 'backup', label: 'PCIe2 Port 2 (Backup)', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
         } else {
-            // Standard: PCIe2 = dedicated iSCSI
+            // 6-NIC no backup: PCIe2 = dedicated iSCSI
             ports.push({ id: 'pcie2_p1', slot: 'pcie2', label: 'PCIe2 Port 1', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-A' });
             ports.push({ id: 'pcie2_p2', slot: 'pcie2', label: 'PCIe2 Port 2', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
         }
     }
 
-    // Backup ports — present when port count exceeds base (FC SAN + backup, iSCSI 4-NIC + backup)
-    // Not needed for iSCSI 6-NIC + backup (vNIC mode uses PCIe2 as backup above)
+    // Backup ports — present for FC SAN + backup or iSCSI 4-NIC + backup
     var baseCount = (st === 'iscsi_6nic') ? 6 : 4;
-    if (portCount > baseCount && !isVnicMode) {
+    if (portCount > baseCount && st !== 'iscsi_6nic') {
         ports.push({ id: 'backup_p1', slot: 'backup', label: 'Backup Port 1', defaultName: 'BK-NIC1', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-A' });
         ports.push({ id: 'backup_p2', slot: 'backup', label: 'Backup Port 2', defaultName: 'BK-NIC2', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
     }
@@ -1135,10 +1111,9 @@ function getDisaggIntentZones() {
         requiresRdma: false
     });
 
-    // iSCSI (6-NIC dedicated or 4-NIC shared)
-    var isVnicMode = (st === 'iscsi_6nic' && backup);
-    if (st === 'iscsi_6nic' && !isVnicMode) {
-        // Standard 6-NIC: separate physical iSCSI intent zones
+    // iSCSI zones: only show dedicated iSCSI zones for 6-NIC without backup
+    if (st === 'iscsi_6nic' && !backup) {
+        // 6-NIC no backup: separate physical iSCSI intent zones with own VLANs
         zones.push({
             key: 'iscsi_a',
             title: 'iSCSI Storage A (VLAN ' + (vlans.iscsiA || 500) + ')',
@@ -1159,36 +1134,20 @@ function getDisaggIntentZones() {
             maxAdapters: 1,
             requiresRdma: false
         });
-    } else if (st === 'iscsi_4nic') {
-        zones.push({
-            key: 'iscsi',
-            title: 'iSCSI Storage (Shared with Cluster)',
-            description: 'Shares PCIe1 trunk with Cluster. iSCSI VLANs ' + (vlans.iscsiA || 500) + ' / ' + (vlans.iscsiB || 600) + ' tagged.',
-            titleClass: 'storage',
-            cardClass: 'zone-storage',
-            minAdapters: 0,
-            requiresRdma: false
-        });
     }
+    // For iSCSI 4-NIC (any) or iSCSI 6-NIC + backup: iSCSI shares cluster ports/VLAN
+    // No separate iSCSI zones needed — traffic flows on the same cluster standalone NICs
 
     // Compute Intent for In-Guest Backup Network — orange
     if (backup) {
-        var backupDesc = isVnicMode
-            ? 'Backup + iSCSI vNIC host. PCIe2 NICs form the SET team. iSCSI-A/B vNICs are created on this vSwitch post-deployment (VLAN ' + (vlans.iscsiA || 500) + '/' + (vlans.iscsiB || 600) + '). Backup VLAN ' + (vlans.backup || 800) + '.'
-            : 'In-guest VM backup traffic over network, VLAN ' + (vlans.backup || 800) + '. SET team for redundancy.';
         zones.push({
             key: 'backup',
-            title: isVnicMode ? 'Backup + iSCSI vNIC Intent' : 'Compute Intent for In-Guest Backup Network',
-            description: backupDesc,
+            title: 'Compute Intent for In-Guest Backup Network',
+            description: 'In-guest VM backup traffic over network, VLAN ' + (vlans.backup || 800) + '. SET team for redundancy.',
             titleClass: 'backup',
             cardClass: 'zone-backup',
             minAdapters: 2,
-            requiresRdma: false,
-            vnicMode: isVnicMode,
-            vnicInfo: isVnicMode ? {
-                iscsiAVlan: vlans.iscsiA || 500,
-                iscsiBVlan: vlans.iscsiB || 600
-            } : null
+            requiresRdma: false
         });
     }
 
@@ -1205,16 +1164,17 @@ function getDisaggDefaultMapping() {
     mapping['pcie1_p1'] = 'cluster_1';
     mapping['pcie1_p2'] = 'cluster_2';
 
-    if (st === 'iscsi_6nic' && backup) {
-        // vNIC mode: PCIe2 ports go to backup intent (iSCSI uses vNICs on this vSwitch)
-        mapping['pcie2_p1'] = 'backup';
-        mapping['pcie2_p2'] = 'backup';
-    } else if (st === 'iscsi_6nic') {
+    if (st === 'iscsi_6nic' && !backup) {
+        // Dedicated iSCSI on PCIe2
         mapping['pcie2_p1'] = 'iscsi_a';
         mapping['pcie2_p2'] = 'iscsi_b';
+    } else if (st === 'iscsi_6nic' && backup) {
+        // iSCSI shares cluster ports; PCIe2 used for backup
+        mapping['pcie2_p1'] = 'backup';
+        mapping['pcie2_p2'] = 'backup';
     }
     if (backup && st !== 'iscsi_6nic') {
-        // Non-vNIC mode: separate backup ports
+        // FC SAN or iSCSI 4-NIC: separate backup ports
         mapping['backup_p1'] = 'backup';
         mapping['backup_p2'] = 'backup';
     }
@@ -1342,18 +1302,7 @@ function renderDisaggIntentZones(ports, confirmed) {
             '<div class="intent-zone-desc">' + zone.description + '</div>' +
             '<div id="da10-zone-drop-' + zone.key + '" class="intent-zone-drop" data-zone="' + zone.key + '"></div>' +
             (zone.minAdapters > 0 ? '<div class="intent-zone-min ' + (meetsMin ? 'met' : 'not-met') + '">' +
-                (meetsMin ? '' : '! ') + 'Minimum: ' + zone.minAdapters + ' adapter(s)</div>' : '') +
-            (zone.vnicMode ? '<div class="intent-zone-vnic-info" style="margin-top: 0.5rem; padding: 0.5rem 0.6rem; background: rgba(139,92,246,0.08); border: 1px dashed rgba(139,92,246,0.4); border-radius: 6px;">' +
-                '<div style="font-size: 0.75rem; color: #a78bfa; font-weight: 600; margin-bottom: 0.3rem;">&#128752; iSCSI vNICs (created post-deployment)</div>' +
-                '<div style="display: flex; gap: 0.5rem;">' +
-                    '<div style="flex: 1; padding: 0.3rem 0.5rem; background: rgba(139,92,246,0.10); border: 1px dashed rgba(139,92,246,0.35); border-radius: 4px; font-size: 0.7rem; color: var(--text-secondary);">' +
-                        '<strong style="color: #c4b5fd;">iSCSI-A vNIC</strong><br>VLAN ' + zone.vnicInfo.iscsiAVlan + ' &middot; Priority 3<br><em>→ mapped to NIC5</em>' +
-                    '</div>' +
-                    '<div style="flex: 1; padding: 0.3rem 0.5rem; background: rgba(139,92,246,0.10); border: 1px dashed rgba(139,92,246,0.35); border-radius: 4px; font-size: 0.7rem; color: var(--text-secondary);">' +
-                        '<strong style="color: #c4b5fd;">iSCSI-B vNIC</strong><br>VLAN ' + zone.vnicInfo.iscsiBVlan + ' &middot; Priority 3<br><em>→ mapped to NIC6</em>' +
-                    '</div>' +
-                '</div>' +
-            '</div>' : '');
+                (meetsMin ? '' : '! ') + 'Minimum: ' + zone.minAdapters + ' adapter(s)</div>' : '');
 
         grid.appendChild(card);
 
