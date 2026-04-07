@@ -74,6 +74,10 @@ function selectDisaggOption(category, value) {
         state.disaggBackupEnabled = value;
         state.disaggRackCount = null;
         state.disaggNodesPerRack = null;
+        // Reset adapter mapping when backup changes (vNIC mode affects port assignments)
+        state.disaggAdapterMapping = {};
+        state.disaggAdapterMappingConfirmed = false;
+        state.disaggOverridesConfirmed = false;
 
         // Show warning for iSCSI 6-NIC + backup conflict
         const warning = document.getElementById('da2-warning');
@@ -1141,7 +1145,9 @@ function getDisaggIntentZones() {
     });
 
     // iSCSI (6-NIC dedicated or 4-NIC shared)
-    if (st === 'iscsi_6nic') {
+    var isVnicMode = (st === 'iscsi_6nic' && backup);
+    if (st === 'iscsi_6nic' && !isVnicMode) {
+        // Standard 6-NIC: separate physical iSCSI intent zones
         zones.push({
             key: 'iscsi_a',
             title: 'iSCSI Storage A (VLAN ' + (vlans.iscsiA || 500) + ')',
@@ -1176,14 +1182,22 @@ function getDisaggIntentZones() {
 
     // Compute Intent for In-Guest Backup Network — orange
     if (backup) {
+        var backupDesc = isVnicMode
+            ? 'Backup + iSCSI vNIC host. PCIe2 NICs form the SET team. iSCSI-A/B vNICs are created on this vSwitch post-deployment (VLAN ' + (vlans.iscsiA || 500) + '/' + (vlans.iscsiB || 600) + '). Backup VLAN ' + (vlans.backup || 800) + '.'
+            : 'In-guest VM backup traffic over network, VLAN ' + (vlans.backup || 800) + '. SET team for redundancy.';
         zones.push({
             key: 'backup',
-            title: 'Compute Intent for In-Guest Backup Network',
-            description: 'In-guest VM backup traffic over network, VLAN ' + (vlans.backup || 800) + '. SET team for redundancy.',
+            title: isVnicMode ? 'Backup + iSCSI vNIC Intent' : 'Compute Intent for In-Guest Backup Network',
+            description: backupDesc,
             titleClass: 'backup',
             cardClass: 'zone-backup',
             minAdapters: 2,
-            requiresRdma: false
+            requiresRdma: false,
+            vnicMode: isVnicMode,
+            vnicInfo: isVnicMode ? {
+                iscsiAVlan: vlans.iscsiA || 500,
+                iscsiBVlan: vlans.iscsiB || 600
+            } : null
         });
     }
 
@@ -1200,11 +1214,16 @@ function getDisaggDefaultMapping() {
     mapping['pcie1_p1'] = 'cluster_1';
     mapping['pcie1_p2'] = 'cluster_2';
 
-    if (st === 'iscsi_6nic') {
+    if (st === 'iscsi_6nic' && backup) {
+        // vNIC mode: PCIe2 ports go to backup intent (iSCSI uses vNICs on this vSwitch)
+        mapping['pcie2_p1'] = 'backup';
+        mapping['pcie2_p2'] = 'backup';
+    } else if (st === 'iscsi_6nic') {
         mapping['pcie2_p1'] = 'iscsi_a';
         mapping['pcie2_p2'] = 'iscsi_b';
     }
-    if (backup) {
+    if (backup && st !== 'iscsi_6nic') {
+        // Non-vNIC mode: separate backup ports
         mapping['backup_p1'] = 'backup';
         mapping['backup_p2'] = 'backup';
     }
@@ -1332,7 +1351,18 @@ function renderDisaggIntentZones(ports, confirmed) {
             '<div class="intent-zone-desc">' + zone.description + '</div>' +
             '<div id="da10-zone-drop-' + zone.key + '" class="intent-zone-drop" data-zone="' + zone.key + '"></div>' +
             (zone.minAdapters > 0 ? '<div class="intent-zone-min ' + (meetsMin ? 'met' : 'not-met') + '">' +
-                (meetsMin ? '' : '! ') + 'Minimum: ' + zone.minAdapters + ' adapter(s)</div>' : '');
+                (meetsMin ? '' : '! ') + 'Minimum: ' + zone.minAdapters + ' adapter(s)</div>' : '') +
+            (zone.vnicMode ? '<div class="intent-zone-vnic-info" style="margin-top: 0.5rem; padding: 0.5rem 0.6rem; background: rgba(139,92,246,0.08); border: 1px dashed rgba(139,92,246,0.4); border-radius: 6px;">' +
+                '<div style="font-size: 0.75rem; color: #a78bfa; font-weight: 600; margin-bottom: 0.3rem;">&#128752; iSCSI vNICs (created post-deployment)</div>' +
+                '<div style="display: flex; gap: 0.5rem;">' +
+                    '<div style="flex: 1; padding: 0.3rem 0.5rem; background: rgba(139,92,246,0.10); border: 1px dashed rgba(139,92,246,0.35); border-radius: 4px; font-size: 0.7rem; color: var(--text-secondary);">' +
+                        '<strong style="color: #c4b5fd;">iSCSI-A vNIC</strong><br>VLAN ' + zone.vnicInfo.iscsiAVlan + ' &middot; Priority 3<br><em>→ mapped to NIC5</em>' +
+                    '</div>' +
+                    '<div style="flex: 1; padding: 0.3rem 0.5rem; background: rgba(139,92,246,0.10); border: 1px dashed rgba(139,92,246,0.35); border-radius: 4px; font-size: 0.7rem; color: var(--text-secondary);">' +
+                        '<strong style="color: #c4b5fd;">iSCSI-B vNIC</strong><br>VLAN ' + zone.vnicInfo.iscsiBVlan + ' &middot; Priority 3<br><em>→ mapped to NIC6</em>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' : '');
 
         grid.appendChild(card);
 
