@@ -886,6 +886,7 @@ function getDisaggPortList() {
     // Build flat list of all physical ports based on storage type + port count
     var st = state.disaggStorageType || 'fc_san';
     var portCount = state.disaggPortCount || 0;
+    var backupEnabled = !!state.disaggBackupEnabled;
     var ports = [];
 
     if (!portCount) return ports;
