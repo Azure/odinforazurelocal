@@ -7416,6 +7416,7 @@
         // Step 01–05: Scenario & Scale
         var scenarioScaleRows = '';
         if (s.scenario) scenarioScaleRows += row('Scenario', formatScenario(s.scenario, s));
+        scenarioScaleRows += row('Architecture', s.architecture === 'disaggregated' ? 'Disaggregated' : 'Hyperconverged (HCI)');
         if (s.scenario === 'disconnected' && s.clusterRole) {
             scenarioScaleRows += row('Cluster Role', s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster');
             scenarioScaleRows += row('Autonomous Cloud FQDN', s.autonomousCloudFqdn || 'Not configured');
