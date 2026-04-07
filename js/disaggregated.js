@@ -28,11 +28,6 @@ function getMaxNodesPerRack(storageType, backupEnabled) {
 // ── DA Step Selection Handler ───────────────────────────────────────────────
 function selectDisaggOption(category, value) {
     if (category === 'storageType') {
-        // Block iSCSI options — coming soon
-        if (value === 'iscsi_4nic' || value === 'iscsi_6nic') {
-            if (typeof showToast === 'function') showToast('iSCSI SAN is coming soon', 'info');
-            return;
-        }
         state.disaggStorageType = value;
         state.disaggBackupEnabled = false;
         state.disaggPortCount = null;
