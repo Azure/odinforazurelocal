@@ -529,7 +529,7 @@
                             <span class="breadcrumb-check" aria-hidden="true">✓</span>
                         </button>
                         <span class="breadcrumb-separator">›</span>
-                        <button type="button" class="breadcrumb-item" data-step="step-da5" onclick="navigateToStep('step-da5')" title="VLANs, VNI & VRF" aria-label="DA5: VLANs">
+                        <button type="button" class="breadcrumb-item" data-step="step-da5" onclick="navigateToStep('step-da5')" title="Network Switches VLANs, VNI & VRF" aria-label="DA5: VLANs">
                             <span class="breadcrumb-number">DA5</span>
                             <span class="breadcrumb-label">VLANs</span>
                             <span class="breadcrumb-check" aria-hidden="true">✓</span>
@@ -1005,11 +1005,25 @@
                 <section class="step hidden" id="step-da5">
                     <div class="step-header">
                         <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA5</span>
-                        <h2>VLANs, VNI & VRF</h2>
+                        <h2>Network Switches &mdash; VLANs, VNI & VRF</h2>
                     </div>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
                         Configure VLAN IDs, VXLAN Network Identifiers, and VRF name for the Clos fabric overlay.
                     </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                        <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px;">
+                            <h4 style="margin: 0 0 6px 0; color: var(--accent-blue); font-size: 0.9rem;">VLAN</h4>
+                            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>Virtual LAN</strong> segments a physical switch into isolated Layer 2 broadcast domains. Each traffic type (management, cluster, storage) gets its own VLAN ID (1&ndash;4094) so traffic is separated at the switch port level.</p>
+                        </div>
+                        <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px;">
+                            <h4 style="margin: 0 0 6px 0; color: var(--accent-purple); font-size: 0.9rem;">VNI</h4>
+                            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>VXLAN Network Identifier</strong> extends VLANs across the Clos fabric by encapsulating Layer 2 frames in UDP tunnels. Each VLAN maps to a unique VNI (up to 16 M), enabling the EVPN overlay to stretch subnets across racks.</p>
+                        </div>
+                        <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px;">
+                            <h4 style="margin: 0 0 6px 0; color: #14b8a6; font-size: 0.9rem;">VRF</h4>
+                            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>Virtual Routing and Forwarding</strong> instance creates an isolated routing table on each leaf switch. All Azure Local VLANs are placed into a single VRF so inter-VLAN routing stays within the tenant domain, separate from the fabric underlay.</p>
+                        </div>
+                    </div>
                     <div id="da5-vlan-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
                         <!-- Dynamically populated by disaggregated.js -->
                     </div>
