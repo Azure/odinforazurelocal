@@ -516,12 +516,12 @@ function generateDisaggRackDiagram() {
         drawDev(42, 1, `Leaf ${r+1}A`, C.LEAF, false);
         // Leaf-B: U41
         drawDev(41, 1, `Leaf ${r+1}B`, C.LEAF, false);
-        // BMC: U40
-        drawDev(40, 1, `BMC ${r+1}`, C.BMC, true);
+        // BMC Switch: U40-U39 (2U for visibility)
+        drawDev(40, 2, `BMC Switch ${r+1}`, C.BMC, true);
 
-        // Server nodes: U39 downward
+        // Server nodes: U38 downward (shifted down 1U for 2U BMC)
         for (let n = 0; n < nodesPerRack; n++) {
-            const nodeU = 39 - n * 2;
+            const nodeU = 38 - n * 2;
             if (nodeU < 1) break;
             const nodeNum = r * nodesPerRack + n + 1;
             const pad = 6;
@@ -532,9 +532,12 @@ function generateDisaggRackDiagram() {
             svg += `<rect x="${rx + pad}" y="${dy}" width="${w}" height="${h}" rx="2" fill="${C.NODE}" stroke="${C.NODE_STROKE}" stroke-width="0.5"/>`;
             svg += `<rect x="${rx + pad}" y="${dy}" width="${w}" height="${h}" rx="2" fill="rgba(0,0,0,0.3)"/>`;
 
-            // Drive bays
-            for (let d = 0; d < 6; d++) {
-                svg += `<rect x="${rx + pad + 4 + d * 14}" y="${dy + 3}" width="11" height="${h - 6}" rx="1" fill="${C.DRIVE}" stroke="rgba(255,255,255,0.1)" stroke-width="0.3"/>`;
+            // Drive bays (4 wider bays, centered vertically)
+            const driveW = 15;
+            const driveGap = 3;
+            const drivePadY = 5;
+            for (let d = 0; d < 4; d++) {
+                svg += `<rect x="${rx + pad + 6 + d * (driveW + driveGap)}" y="${dy + drivePadY}" width="${driveW}" height="${h - 2 * drivePadY}" rx="1" fill="${C.DRIVE}" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>`;
             }
 
             // Node label
@@ -627,7 +630,7 @@ function generateDisaggRackDiagram() {
     });
 
     // Summary line
-    const uPerRack = 3 + nodesPerRack * 2 + (hasFc ? 2 : 0);
+    const uPerRack = 4 + nodesPerRack * 2 + (hasFc ? 2 : 0);
     const totalU = rackCount * uPerRack;
     const totalNodes = rackCount * nodesPerRack;
     svg += `<text x="${totalW/2}" y="${legendY + 22}" text-anchor="middle" fill="${C.TEXT_DIM}" font-size="7">${totalU}U used / ${rackCount * RACK_US}U total | ${totalNodes} nodes | ${rackCount} racks | ${spineCount} spines | ${hasFc ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC'}</text>`;
