@@ -283,8 +283,11 @@ function computeWizardProgress() {
     add('Deployment Type', Boolean(state.scenario));
     add('Azure Cloud', Boolean(state.region));
     add('Azure Local Instance Region', Boolean(state.localInstanceRegion));
-    add('Cluster Scale', Boolean(state.scale));
-    add('Nodes', Boolean(state.nodes));
+
+    if (state.architecture !== 'disaggregated') {
+        add('Cluster Scale', Boolean(state.scale));
+        add('Nodes', Boolean(state.nodes));
+    }
 
     if (state.scale === 'rack_aware' && state.nodes) {
         const z = state.rackAwareZones;
