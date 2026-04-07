@@ -1559,8 +1559,8 @@ function renderDisaggOverrides() {
     html += '</div></div>';
     html += '</div>';
 
-    // ── iSCSI Overrides ──
-    if (st === 'iscsi_6nic' || st === 'iscsi_4nic') {
+    // ── iSCSI Overrides — only for dedicated iSCSI (6-NIC without backup) ──
+    if (st === 'iscsi_6nic' && !backup) {
         html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">';
         html += '<div style="padding: 12px; border: 1px solid #8b5cf640; border-left: 4px solid #8b5cf6; border-radius: 6px; background: #8b5cf608; min-width: 0; overflow: hidden;">';
         html += '<h5 style="margin: 0 0 8px 0; color: #8b5cf6;">iSCSI Network A (Standalone)</h5>';
