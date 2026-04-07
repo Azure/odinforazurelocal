@@ -916,12 +916,12 @@ function getDisaggPortList() {
     if (!portCount) return ports;
 
     // OCP ports (always present)
-    ports.push({ id: 'ocp_p1', slot: 'ocp', label: 'OCP Port 1', defaultName: 'OCP-NIC1', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
-    ports.push({ id: 'ocp_p2', slot: 'ocp', label: 'OCP Port 2', defaultName: 'OCP-NIC2', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
+    ports.push({ id: 'ocp_p1', slot: 'ocp', label: 'OCP Port 1', defaultName: 'OCP-NIC1', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-A' });
+    ports.push({ id: 'ocp_p2', slot: 'ocp', label: 'OCP Port 2', defaultName: 'OCP-NIC2', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
 
     // PCIe1 ports — Cluster (always present)
-    ports.push({ id: 'pcie1_p1', slot: 'pcie1', label: 'PCIe1 Port 1', defaultName: 'PCIe1-NIC3', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
-    ports.push({ id: 'pcie1_p2', slot: 'pcie1', label: 'PCIe1 Port 2', defaultName: 'PCIe1-NIC4', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
+    ports.push({ id: 'pcie1_p1', slot: 'pcie1', label: 'PCIe1 Port 1', defaultName: 'PCIe1-NIC3', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-A' });
+    ports.push({ id: 'pcie1_p2', slot: 'pcie1', label: 'PCIe1 Port 2', defaultName: 'PCIe1-NIC4', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
 
     // PCIe2 ports
     // In vNIC mode (iSCSI 6-NIC + backup), PCIe2 becomes the Backup Compute Intent SET
@@ -930,12 +930,12 @@ function getDisaggPortList() {
     if (st === 'iscsi_6nic') {
         if (isVnicMode) {
             // vNIC mode: PCIe2 is Backup SET, iSCSI rides as vNICs (not physical ports)
-            ports.push({ id: 'pcie2_p1', slot: 'backup', label: 'PCIe2 Port 1 (Backup)', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
-            ports.push({ id: 'pcie2_p2', slot: 'backup', label: 'PCIe2 Port 2 (Backup)', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
+            ports.push({ id: 'pcie2_p1', slot: 'backup', label: 'PCIe2 Port 1 (Backup)', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-A' });
+            ports.push({ id: 'pcie2_p2', slot: 'backup', label: 'PCIe2 Port 2 (Backup)', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
         } else {
             // Standard: PCIe2 = dedicated iSCSI
-            ports.push({ id: 'pcie2_p1', slot: 'pcie2', label: 'PCIe2 Port 1', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
-            ports.push({ id: 'pcie2_p2', slot: 'pcie2', label: 'PCIe2 Port 2', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
+            ports.push({ id: 'pcie2_p1', slot: 'pcie2', label: 'PCIe2 Port 1', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-A' });
+            ports.push({ id: 'pcie2_p2', slot: 'pcie2', label: 'PCIe2 Port 2', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
         }
     }
 
@@ -943,8 +943,8 @@ function getDisaggPortList() {
     // Not needed for iSCSI 6-NIC + backup (vNIC mode uses PCIe2 as backup above)
     var baseCount = (st === 'iscsi_6nic') ? 6 : 4;
     if (portCount > baseCount && !isVnicMode) {
-        ports.push({ id: 'backup_p1', slot: 'backup', label: 'Backup Port 1', defaultName: 'BK-NIC1', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
-        ports.push({ id: 'backup_p2', slot: 'backup', label: 'Backup Port 2', defaultName: 'BK-NIC2', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
+        ports.push({ id: 'backup_p1', slot: 'backup', label: 'Backup Port 1', defaultName: 'BK-NIC1', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-A' });
+        ports.push({ id: 'backup_p2', slot: 'backup', label: 'Backup Port 2', defaultName: 'BK-NIC2', defaultSpeed: '25GbE', rdmaDefault: true, connection: 'Leaf-B' });
     }
 
     // BMC port (always, separate fabric)
