@@ -493,6 +493,71 @@
             </div>
         </nav>
 
+        <!-- Disaggregated breadcrumb navigation -->
+        <nav id="breadcrumb-nav-da" class="breadcrumb-nav hidden" aria-label="Disaggregated wizard steps navigation">
+            <div class="breadcrumb-container">
+                <button type="button" class="breadcrumb-item" data-step="step-1" onclick="navigateToStep('step-1')" title="Deployment Type" aria-label="Step 1: Type">
+                    <span class="breadcrumb-number">1</span>
+                    <span class="breadcrumb-label">Type</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da1" onclick="navigateToStep('step-da1')" title="Storage Type" aria-label="DA1: Storage Type">
+                    <span class="breadcrumb-number">DA1</span>
+                    <span class="breadcrumb-label">Storage</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da2" onclick="navigateToStep('step-da2')" title="Backup Network" aria-label="DA2: Backup">
+                    <span class="breadcrumb-number">DA2</span>
+                    <span class="breadcrumb-label">Backup</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da3" onclick="navigateToStep('step-da3')" title="Cluster Scale" aria-label="DA3: Scale">
+                    <span class="breadcrumb-number">DA3</span>
+                    <span class="breadcrumb-label">Scale</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da4" onclick="navigateToStep('step-da4')" title="Spine Switches" aria-label="DA4: Spines">
+                    <span class="breadcrumb-number">DA4</span>
+                    <span class="breadcrumb-label">Spines</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da5" onclick="navigateToStep('step-da5')" title="VLANs, VNI & VRF" aria-label="DA5: VLANs">
+                    <span class="breadcrumb-number">DA5</span>
+                    <span class="breadcrumb-label">VLANs</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da6" onclick="navigateToStep('step-da6')" title="QoS Policy" aria-label="DA6: QoS">
+                    <span class="breadcrumb-number">DA6</span>
+                    <span class="breadcrumb-label">QoS</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da7" onclick="navigateToStep('step-da7')" title="IP Planning" aria-label="DA7: IPs">
+                    <span class="breadcrumb-number">DA7</span>
+                    <span class="breadcrumb-label">IPs</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da8" onclick="navigateToStep('step-da8')" title="Summary & Rack Layout" aria-label="DA8: Summary">
+                    <span class="breadcrumb-number">DA8</span>
+                    <span class="breadcrumb-label">Summary</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da10" onclick="navigateToStep('step-da10')" title="Network Adapter Ports" aria-label="DA10: Adapters">
+                    <span class="breadcrumb-number">DA10</span>
+                    <span class="breadcrumb-label">Adapters</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+            </div>
+        </nav>
+
         <div class="disclaimer-wrapper">
             <div class="disclaimer-banner">
                 <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.

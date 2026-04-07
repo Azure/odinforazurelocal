@@ -10161,16 +10161,25 @@ function navigateToStep(stepId) {
 
 function updateBreadcrumbs() {
     const breadcrumbNav = document.getElementById('breadcrumb-nav');
+    const breadcrumbNavDa = document.getElementById('breadcrumb-nav-da');
     if (!breadcrumbNav) return;
 
-    // Show breadcrumb when at least step 1 is complete AND architecture is HCI (not disaggregated)
-    if (state.scenario && state.architecture !== 'disaggregated') {
+    var isDisagg = state.architecture === 'disaggregated';
+
+    // Show the correct breadcrumb bar based on architecture
+    if (state.scenario && !isDisagg) {
         breadcrumbNav.classList.remove('hidden');
+        if (breadcrumbNavDa) breadcrumbNavDa.classList.add('hidden');
+    } else if (state.scenario && isDisagg && breadcrumbNavDa) {
+        breadcrumbNavDa.classList.remove('hidden');
+        breadcrumbNav.classList.add('hidden');
     } else {
         breadcrumbNav.classList.add('hidden');
+        if (breadcrumbNavDa) breadcrumbNavDa.classList.add('hidden');
         return;
     }
 
+    // Update HCI breadcrumb items
     const breadcrumbItems = breadcrumbNav.querySelectorAll('.breadcrumb-item');
     breadcrumbItems.forEach(item => {
         const stepId = item.dataset.step;
@@ -10192,6 +10201,32 @@ function updateBreadcrumbs() {
         item.classList.toggle('completed', isComplete);
         item.classList.toggle('active', stepEl && isElementInViewport(stepEl));
     });
+
+    // Update disaggregated breadcrumb items
+    if (breadcrumbNavDa) {
+        const daItems = breadcrumbNavDa.querySelectorAll('.breadcrumb-item');
+        daItems.forEach(item => {
+            const stepId = item.dataset.step;
+            const stepEl = document.getElementById(stepId);
+
+            let isComplete = false;
+            switch (stepId) {
+                case 'step-1': isComplete = Boolean(state.scenario); break;
+                case 'step-da1': isComplete = Boolean(state.disaggStorageType); break;
+                case 'step-da2': isComplete = (state.disaggStorageType === 'fc_san') || (state.disaggBackupEnabled !== undefined && state.disaggBackupEnabled !== null); break;
+                case 'step-da3': isComplete = Boolean(state.disaggRackCount && state.disaggNodesPerRack); break;
+                case 'step-da4': isComplete = Boolean(state.disaggSpineCount); break;
+                case 'step-da5': isComplete = Boolean(state.disaggVlans && Object.keys(state.disaggVlans).length > 0); break;
+                case 'step-da6': isComplete = Boolean(stepEl && !stepEl.classList.contains('hidden')); break;
+                case 'step-da7': isComplete = Boolean(stepEl && !stepEl.classList.contains('hidden')); break;
+                case 'step-da8': isComplete = Boolean(stepEl && !stepEl.classList.contains('hidden')); break;
+                case 'step-da10': isComplete = Boolean(state.disaggPortConfigConfirmed); break;
+            }
+
+            item.classList.toggle('completed', isComplete);
+            item.classList.toggle('active', stepEl && isElementInViewport(stepEl));
+        });
+    }
 }
 
 function isElementInViewport(el) {
