@@ -11606,7 +11606,10 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
 
     // Layout sizing
     var storageTileW = 50, storageTileH = 34, storageTileGap = 8;
-    var storageColsPerNode = Math.min(storagePerNode, 3);
+    // For 2/3-node, fit all storage ports in a single row (max 4-6 ports).
+    // For 4-node (6 ports), use 3-column grid with staggered second row.
+    var maxStorageCols = (n <= 3) ? storagePerNode : Math.min(storagePerNode, 3);
+    var storageColsPerNode = Math.max(1, maxStorageCols);
     var storageRowsPerNode = Math.ceil(storagePerNode / storageColsPerNode);
     var staggerOffset = (storageRowsPerNode > 1 && storageColsPerNode > 1) ? (storageTileW + storageTileGap) / 2 : 0;
     var storageGroupW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap + 30 + staggerOffset;
@@ -11653,9 +11656,20 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
     for (var nx = 0; nx < n; nx++) nodeXPositions.push(startX + nx * (nodeW + nodeGap));
 
     function subnetColor(num) {
-        var hues = [205, 235, 265, 295, 325, 355, 25, 55, 85, 115, 145, 175];
+        // Match the report's per-scenario color palettes
+        var hues;
+        if (n === 2) {
+            // 2-node: 2 distinct hues (report uses hsla(215) and hsla(330))
+            hues = [215, 330];
+        } else if (n === 3) {
+            // 3-node: 6 distinct hues matching the report
+            hues = [210, 250, 290, 330, 30, 160];
+        } else {
+            // 4-node: 12 distinct hues matching the report
+            hues = [205, 235, 265, 295, 325, 355, 25, 55, 85, 115, 145, 175];
+        }
         var h = hues[(num - 1) % hues.length];
-        return 'hsla(' + h + ', 78%, 62%, 0.92)';
+        return 'hsla(' + h + ', 78%, 62%, 0.95)';
     }
 
     function storageGroupRect(nodeIdx) {
