@@ -399,10 +399,10 @@
         
         // Test: formatScenario
         testSuite('formatScenario()', 'formatting.js', [
-            assert(formatScenario('hyperconverged') === 'Hyperconverged', 
-                'Hyperconverged', 'Hyperconverged', formatScenario('hyperconverged')),
-            assert(formatScenario('multirack') === 'Multi-Rack', 
-                'Multi-Rack', 'Multi-Rack', formatScenario('multirack')),
+            assert(formatScenario('connected') === 'Connected', 
+                'Connected', 'Connected', formatScenario('connected')),
+            assert(formatScenario('rackscale') === 'Rack Scale', 
+                'Rack Scale', 'Rack Scale', formatScenario('rackscale')),
             assert(formatScenario('disconnected') === 'Disconnected (Air Gapped)', 
                 'Disconnected', 'Disconnected (Air Gapped)', formatScenario('disconnected')),
             assert(formatScenario('m365local') === 'M365 Local', 
@@ -1934,7 +1934,38 @@
                     'privateEndpointsList',
                     // Sizer hardware (hidden, imported from Sizer tool)
                     'sizerHardware',
-                    'sizerWorkloads'
+                    'sizerWorkloads',
+                    // Disaggregated architecture state
+                    'architecture',
+                    'disaggStorageType',
+                    'disaggBackupEnabled',
+                    'disaggPortCount',
+                    'disaggRackCount',
+                    'disaggNodesPerRack',
+                    'disaggSpineCount',
+                    'disaggVlans',
+                    'disaggVnis',
+                    'disaggVrfName',
+                    'disaggSubnets',
+                    'disaggIscsiTargets',
+                    'disaggQosCustomized',
+                    'disaggPortSpeeds',
+                    'disaggIntentMapping',
+                    'disaggClusterPortMapping',
+                    'disaggNicNames',
+                    'disaggNicNamesConfirmed',
+                    'disaggNicConfigConfirmed',
+                    'disaggPortConfig',
+                    'disaggPortConfigConfirmed',
+                    'disaggAdapterMapping',
+                    'disaggAdapterMappingConfirmed',
+                    'disaggIntentOverrides',
+                    'disaggOverridesConfirmed',
+                    'disaggClusterSubnet1',
+                    'disaggClusterSubnet2',
+                    'disaggIscsiSubnet1',
+                    'disaggIscsiSubnet2',
+                    'disaggBackupSubnet'
                 ];
                 
                 const actualFields = Object.keys(state);
@@ -1974,7 +2005,18 @@
                     'adfsServerName', 'dnsServers', 'localDnsZone', 'dnsServiceExisting',
                     'sdnEnabled', 'sdnFeatures', 'sdnManagement', 'securityConfiguration',
                     'securitySettings', 'rdmaGuardMessage', 'privateEndpoints', 'privateEndpointsList',
-                    'sizerHardware', 'sizerWorkloads'
+                    'sizerHardware', 'sizerWorkloads',
+                    'architecture', 'disaggStorageType', 'disaggBackupEnabled', 'disaggPortCount', 'disaggRackCount',
+                    'disaggNodesPerRack', 'disaggSpineCount', 'disaggVlans', 'disaggVnis',
+                    'disaggVrfName', 'disaggSubnets', 'disaggIscsiTargets', 'disaggQosCustomized',
+                    'disaggPortSpeeds', 'disaggIntentMapping', 'disaggClusterPortMapping',
+                    'disaggNicNames', 'disaggNicNamesConfirmed', 'disaggNicConfigConfirmed',
+                    'disaggPortConfig', 'disaggPortConfigConfirmed',
+                    'disaggAdapterMapping', 'disaggAdapterMappingConfirmed',
+                    'disaggIntentOverrides',
+                    'disaggOverridesConfirmed',
+                    'disaggClusterSubnet1', 'disaggClusterSubnet2',
+                    'disaggIscsiSubnet1', 'disaggIscsiSubnet2', 'disaggBackupSubnet'
                 ];
                 
                 const actualFields = Object.keys(state);
@@ -2153,7 +2195,8 @@
                 window.open = function() {};
 
                 // Set up a 3-node custom intent with adapter mapping confirmed
-                state.scenario = 'hyperconverged';
+                state.scenario = 'connected';
+                state.architecture = 'hyperconverged';
                 state.region = 'eastus';
                 state.localInstanceRegion = 'East US';
                 state.scale = 'medium';
@@ -2244,7 +2287,8 @@
                 window.open = function() {}; // prevent opening new window
 
                 // Set up a fully-ready hyper-converged switched cluster
-                state.scenario = 'hyperconverged';
+                state.scenario = 'connected';
+                state.architecture = 'hyperconverged';
                 state.region = 'eastus';
                 state.localInstanceRegion = 'East US';
                 state.scale = 'medium';
@@ -2316,7 +2360,8 @@
                 const origOpen = window.open;
                 window.open = function() {};
 
-                state.scenario = 'hyperconverged';
+                state.scenario = 'connected';
+                state.architecture = 'hyperconverged';
                 state.region = 'eastus';
                 state.localInstanceRegion = 'East US';
                 state.scale = 'medium';
@@ -2392,7 +2437,8 @@
                 window.open = function() {};
 
                 // Set up a switchless 4-node cluster with 8 ports (2 mgmt + 6 storage)
-                state.scenario = 'hyperconverged';
+                state.scenario = 'connected';
+                state.architecture = 'hyperconverged';
                 state.region = 'eastus';
                 state.localInstanceRegion = 'East US';
                 state.scale = 'medium';

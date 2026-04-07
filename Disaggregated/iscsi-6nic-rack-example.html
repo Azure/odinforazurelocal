@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Disaggregated Rack Layout — 4 Racks × 16 Nodes, iSCSI 6-NIC</title>
+    <style>
+        body {
+            background: #111;
+            color: #ccc;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+        .subtitle { font-size: 13px; color: #888; margin-bottom: 20px; }
+        #diagram { max-width: 100%; overflow-x: auto; }
+        button {
+            margin-top: 16px;
+            padding: 10px 24px;
+            background: #1a1a1a;
+            color: #ccc;
+            border: 1px solid #444;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #2a2a2a; }
+    </style>
+</head>
+<body>
+    <h1>Disaggregated Azure Local — Rack Layout</h1>
+    <p class="subtitle">4 Racks × 16 Nodes | iSCSI 6-NIC (Dedicated PCIe2) | 2 Spines | Clos Leaf-Spine Fabric</p>
+    <div id="diagram"></div>
+    <button onclick="downloadSvg()">Download Rack Diagram SVG</button>
+
+<script>
+(function () {
+    'use strict';
+
+    var TOTAL_U = 42;
+    var RACK_W = 220;
+    var U_H = 14;
+    var POST_W = 8;
+    var RACK_GAP = 40;
+    var LABEL_FONT = 10;
+    var LEGEND_FONT = 10;
+
+    var C = {
+        RACK_FRAME:    '#2a2a2a',
+        RACK_RAIL:     '#3a3a3a',
+        EMPTY_SLOT:    '#1a1a1a',
+        SERVER:        '#aaaaaa',
+        LEAF_SWITCH:   '#444444',
+        BMC_SWITCH:    '#e0e0e0',
+        ISCSI_STORAGE: '#c2410c',
+        SPINE:         '#1a6fc4',
+        SERVICE_LEAF:  '#0d9488',
+        LABEL_LIGHT:   '#ffffff',
+        LABEL_DARK:    '#333333',
+        BACKGROUND:    '#0a0a0a'
+    };
+
+    function esc(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function drawRackFrame(ox, oy, rackLabel) {
+        var innerH = TOTAL_U * U_H;
+        var outerW = RACK_W + POST_W * 2;
+        var outerH = innerH + 12;
+        var parts = [];
+        parts.push('<rect x="' + ox + '" y="' + oy + '" width="' + outerW + '" height="' + outerH + '" rx="3" fill="' + C.RACK_FRAME + '" stroke="#555" stroke-width="0.5"/>');
+        parts.push('<rect x="' + (ox + POST_W) + '" y="' + (oy + 6) + '" width="' + RACK_W + '" height="' + innerH + '" fill="' + C.EMPTY_SLOT + '"/>');
+        parts.push('<rect x="' + ox + '" y="' + oy + '" width="' + POST_W + '" height="' + outerH + '" rx="1" fill="' + C.RACK_RAIL + '"/>');
+        parts.push('<rect x="' + (ox + POST_W + RACK_W) + '" y="' + oy + '" width="' + POST_W + '" height="' + outerH + '" rx="1" fill="' + C.RACK_RAIL + '"/>');
+        for (var u = 5; u <= TOTAL_U; u += 5) {
+            var markerY = oy + 6 + innerH - u * U_H + U_H / 2;
+            parts.push('<text x="' + (ox + POST_W / 2) + '" y="' + (markerY + 3) + '" text-anchor="middle" font-size="6" fill="#888" font-family="Segoe UI, sans-serif">' + u + '</text>');
+        }
+        if (rackLabel) {
+            parts.push('<text x="' + (ox + outerW / 2) + '" y="' + (oy - 6) + '" text-anchor="middle" font-size="' + (LABEL_FONT + 1) + '" font-weight="600" fill="#ccc" font-family="Segoe UI, sans-serif">' + esc(rackLabel) + '</text>');
+        }
+        return parts.join('\n');
+    }
+
+    function drawDevice(ox, oy, uStart, heightU, color, label, labelColor, isLight) {
+        var innerH = TOTAL_U * U_H;
+        var deviceW = RACK_W - 4;
+        var deviceH = heightU * U_H - 2;
+        var dx = ox + POST_W + 2;
+        var dy = oy + 6 + innerH - uStart * U_H + 1;
+        var parts = [];
+        parts.push('<rect x="' + dx + '" y="' + dy + '" width="' + deviceW + '" height="' + deviceH + '" rx="2" fill="' + color + '"/>');
+        var panelOpacity = isLight ? '0.15' : '0.5';
+        parts.push('<rect x="' + (dx + 3) + '" y="' + (dy + 1) + '" width="' + (deviceW - 6) + '" height="' + (deviceH - 2) + '" rx="1" fill="#0d0d0d" opacity="' + panelOpacity + '"/>');
+        if (label) {
+            var lc = labelColor || C.LABEL_LIGHT;
+            var ly = dy + deviceH / 2 + LABEL_FONT * 0.35;
+            parts.push('<text x="' + (dx + deviceW / 2) + '" y="' + ly + '" text-anchor="middle" font-size="' + LABEL_FONT + '" font-weight="500" fill="' + lc + '" font-family="Segoe UI, sans-serif">' + esc(label) + '</text>');
+        }
+        return parts.join('\n');
+    }
+
+    function drawSwitch(ox, oy, uStart, label, color, labelColor, isLight) {
+        var parts = [];
+        parts.push(drawDevice(ox, oy, uStart, 1, color, label, labelColor || C.LABEL_LIGHT, isLight));
+        var innerH = TOTAL_U * U_H;
+        var dx = ox + POST_W + 2;
+        var deviceW = RACK_W - 4;
+        var dy = oy + 6 + innerH - uStart * U_H + 1;
+        var deviceH = U_H - 2;
+        var ledX = dx + deviceW - 16;
+        var ledY = dy + deviceH / 2;
+        for (var i = 0; i < 3; i++) {
+            parts.push('<circle cx="' + (ledX + i * 5) + '" cy="' + ledY + '" r="1.5" fill="#00ff66" opacity="0.6"/>');
+        }
+        return parts.join('\n');
+    }
+
+    function drawServer(ox, oy, uStart, label) {
+        var parts = [];
+        parts.push(drawDevice(ox, oy, uStart, 2, C.SERVER, label, C.LABEL_LIGHT));
+        var innerH = TOTAL_U * U_H;
+        var dx = ox + POST_W + 2;
+        var dy = oy + 6 + innerH - uStart * U_H + 1;
+        var deviceH = 2 * U_H - 2;
+        var bayW = 8;
+        var bayH = deviceH * 0.4;
+        var bayY = dy + deviceH / 2 - bayH / 2;
+        var bayStartX = dx + 8;
+        for (var b = 0; b < 6; b++) {
+            parts.push('<rect x="' + (bayStartX + b * (bayW + 2)) + '" y="' + bayY + '" width="' + bayW + '" height="' + bayH + '" rx="1" fill="#333" opacity="0.4"/>');
+        }
+        var deviceW = RACK_W - 4;
+        var ledX = dx + deviceW - 16;
+        var ledY = dy + 5;
+        parts.push('<circle cx="' + ledX + '" cy="' + ledY + '" r="2" fill="#00ff66" opacity="0.7"/>');
+        parts.push('<circle cx="' + (ledX + 6) + '" cy="' + ledY + '" r="2" fill="#3399ff" opacity="0.7"/>');
+        return parts.join('\n');
+    }
+
+    function drawStandaloneBox(x, y, w, h, color, strokeColor, label, sublabel) {
+        var parts = [];
+        parts.push('<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="4" fill="' + color + '" stroke="' + strokeColor + '" stroke-width="0.5"/>');
+        parts.push('<rect x="' + (x + 3) + '" y="' + (y + 2) + '" width="' + (w - 6) + '" height="' + (h - 4) + '" rx="2" fill="#0d0d0d" opacity="0.4"/>');
+        if (label) {
+            var ly = sublabel ? (y + h / 2 - 2) : (y + h / 2 + 4);
+            parts.push('<text x="' + (x + w / 2) + '" y="' + ly + '" text-anchor="middle" font-size="10" font-weight="500" fill="#ffffff" font-family="Segoe UI, sans-serif">' + esc(label) + '</text>');
+        }
+        if (sublabel) {
+            parts.push('<text x="' + (x + w / 2) + '" y="' + (y + h / 2 + 10) + '" text-anchor="middle" font-size="8" fill="#aaa" font-family="Segoe UI, sans-serif">' + esc(sublabel) + '</text>');
+        }
+        for (var i = 0; i < 3; i++) {
+            parts.push('<circle cx="' + (x + w - 14 + i * 6) + '" cy="' + (y + 8) + '" r="2" fill="#00ff66" opacity="0.7"/>');
+        }
+        return parts.join('\n');
+    }
+
+    // Port range indicator on rack side
+    function drawPortRangeIndicator(ox, oy, uTop, uBottom, label, color) {
+        var innerH = TOTAL_U * U_H;
+        var topY = oy + 6 + innerH - uTop * U_H + 1;
+        var botY = oy + 6 + innerH - uBottom * U_H + U_H - 1;
+        var midY = (topY + botY) / 2;
+        var xRight = ox + RACK_W + POST_W * 2 + 4;
+        var parts = [];
+        // Vertical bracket line
+        parts.push('<line x1="' + xRight + '" y1="' + topY + '" x2="' + xRight + '" y2="' + botY + '" stroke="' + color + '" stroke-width="1" opacity="0.6"/>');
+        // Top/bottom ticks
+        parts.push('<line x1="' + (xRight - 3) + '" y1="' + topY + '" x2="' + (xRight + 3) + '" y2="' + topY + '" stroke="' + color + '" stroke-width="1" opacity="0.6"/>');
+        parts.push('<line x1="' + (xRight - 3) + '" y1="' + botY + '" x2="' + (xRight + 3) + '" y2="' + botY + '" stroke="' + color + '" stroke-width="1" opacity="0.6"/>');
+        // Label
+        parts.push('<text x="' + (xRight + 6) + '" y="' + (midY + 3) + '" font-size="7" fill="' + color + '" font-family="Segoe UI, sans-serif" opacity="0.8">' + esc(label) + '</text>');
+        return parts.join('\n');
+    }
+
+    function generateSvg() {
+        var rackCount = 4;
+        var nodesPerRack = 16;
+        var spineCount = 2;
+
+        var outerRackW = RACK_W + POST_W * 2;
+        var innerH = TOTAL_U * U_H;
+        var outerRackH = innerH + 12;
+
+        var paddingX = 30;
+        var rightAnnotation = 80; // extra space for port range annotations
+        var titleH = 30;
+        var spineH = 36;
+        var spineGap = 20;
+        var servicLeafH = 30;
+        var serviceLeafGap = 16;
+        var rackLabelGap = 26;
+        var sanH = 50;
+        var sanGap = 20;
+        var legendH = 60;
+        var bottomPad = 16;
+        var noteH = 55;
+
+        var totalRackWidth = rackCount * (outerRackW + rightAnnotation) + (rackCount - 1) * (RACK_GAP - rightAnnotation + 10);
+        var svgW = totalRackWidth + paddingX * 2;
+        var rackTopY = titleH + spineH + spineGap + servicLeafH + serviceLeafGap + rackLabelGap;
+        var svgH = rackTopY + outerRackH + sanGap + sanH + 10 + noteH + legendH + bottomPad;
+
+        // Recalculate rack positions with annotation space
+        var rackStride = outerRackW + rightAnnotation + 10;
+
+        var parts = [];
+        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" width="' + svgW + '" height="' + svgH + '" style="font-family: \'Segoe UI\', sans-serif;">');
+        parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="' + C.BACKGROUND + '" rx="6"/>');
+
+        // Title + Brand
+        parts.push('<text x="' + (svgW / 2) + '" y="20" text-anchor="middle" font-size="13" font-weight="600" fill="#ccc" font-family="Segoe UI, sans-serif">Rack Layout — Front View (Disaggregated, iSCSI 6-NIC)</text>');
+
+        var brandX = svgW - 20;
+        var brandY = 8;
+        parts.push('<text x="' + (brandX - 68) + '" y="' + (brandY + 15) + '" font-size="12" font-weight="600" fill="#B596F5" font-family="Segoe UI, sans-serif">Azure Local</text>');
+
+        // Spine switches
+        var spineY = titleH;
+        var spineW = 200;
+        var spineGapBetween = 40;
+        var spineGroupW = spineCount * spineW + (spineCount - 1) * spineGapBetween;
+        var spineStartX = (svgW - spineGroupW) / 2;
+
+        for (var s = 0; s < spineCount; s++) {
+            var sx = spineStartX + s * (spineW + spineGapBetween);
+            parts.push(drawStandaloneBox(sx, spineY, spineW, spineH, C.SPINE, '#2a8ad4', 'Spine ' + (s + 1), 'ASN 64841'));
+        }
+
+        // Service Leaf pair
+        var slY = spineY + spineH + spineGap;
+        var slW = 180;
+        var slGapBetween = 30;
+        var slGroupW = 2 * slW + slGapBetween;
+        var slStartX = (svgW - slGroupW) / 2;
+
+        parts.push(drawStandaloneBox(slStartX, slY, slW, servicLeafH, C.SERVICE_LEAF, '#14b8a6', 'Service Leaf A', 'ASN 65005'));
+        parts.push(drawStandaloneBox(slStartX + slW + slGapBetween, slY, slW, servicLeafH, C.SERVICE_LEAF, '#14b8a6', 'Service Leaf B', 'ASN 65005'));
+
+        // Spine → Service Leaf lines
+        var spineBotY = spineY + spineH;
+        for (var si = 0; si < spineCount; si++) {
+            var spineCX = spineStartX + si * (spineW + spineGapBetween) + spineW / 2;
+            for (var sli = 0; sli < 2; sli++) {
+                var slCX = slStartX + sli * (slW + slGapBetween) + slW / 2;
+                parts.push('<line x1="' + spineCX + '" y1="' + spineBotY + '" x2="' + slCX + '" y2="' + slY + '" stroke="#5eead4" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.25"/>');
+            }
+        }
+
+        // Compute Racks
+        var rackBaseASN = 64789;
+        var nodeGlobal = 0;
+
+        for (var r = 0; r < rackCount; r++) {
+            var ox = paddingX + r * rackStride;
+            var oy = rackTopY;
+            var rackASN = rackBaseASN + r;
+
+            parts.push(drawRackFrame(ox, oy, 'Rack ' + (r + 1) + ' (ASN ' + rackASN + ')'));
+
+            // Spine → Leaf lines
+            var leafAX = ox + outerRackW * 0.35;
+            var leafBX = ox + outerRackW * 0.65;
+            for (var si2 = 0; si2 < spineCount; si2++) {
+                var spineCX2 = spineStartX + si2 * (spineW + spineGapBetween) + spineW / 2;
+                parts.push('<line x1="' + spineCX2 + '" y1="' + (slY + servicLeafH) + '" x2="' + leafAX + '" y2="' + oy + '" stroke="#7dd3fc" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.25"/>');
+                parts.push('<line x1="' + spineCX2 + '" y1="' + (slY + servicLeafH) + '" x2="' + leafBX + '" y2="' + oy + '" stroke="#7dd3fc" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.25"/>');
+            }
+
+            // U42: Leaf-A
+            parts.push(drawSwitch(ox, oy, 42, 'Leaf ' + (r + 1) + 'A', C.LEAF_SWITCH, C.LABEL_LIGHT));
+            // U41: Leaf-B
+            parts.push(drawSwitch(ox, oy, 41, 'Leaf ' + (r + 1) + 'B', C.LEAF_SWITCH, C.LABEL_LIGHT));
+            // U40: BMC Switch
+            parts.push(drawSwitch(ox, oy, 40, 'BMC ' + (r + 1), C.BMC_SWITCH, C.LABEL_DARK, true));
+
+            // ── NO FC SWITCHES — iSCSI uses leaf ports 33–48 directly ──
+
+            // Server nodes: U39 down (2U each), 16 nodes → U39 to U8
+            var topServerU = 39;
+            for (var n = 0; n < nodesPerRack; n++) {
+                var serverStartU = topServerU - (n * 2);
+                if (serverStartU < 1) break;
+                nodeGlobal++;
+                parts.push(drawServer(ox, oy, serverStartU, 'Node ' + nodeGlobal));
+            }
+
+            // Port range annotations on the right side of each rack (only for rack 1 to avoid clutter, or all)
+            // Leaf ports 1-16 → OCP Compute/Mgmt (top 16 servers NIC1/NIC2)
+            // Leaf ports 17-32 → PCIe1 CSV/LM (top 16 servers NIC3/NIC4)
+            // Leaf ports 33-48 → PCIe2 iSCSI (top 16 servers NIC5/NIC6) — DEDICATED
+            if (r === 0) {
+                // Approximate: ports 1-16 cover the first 16 nodes (OCP)
+                drawPortRangeIndicator(ox, oy, 39, 8, 'P1-16: Compute', '#66bb6a');
+                // These map to same physical servers on different NIC adapter
+                // We annotate the leaf port usage conceptually
+            }
+        }
+
+        // iSCSI Storage Targets (below racks) — connected via Ethernet through Leaf ports 33-48
+        var rackAreaEndY = rackTopY + outerRackH;
+        var sanY = rackAreaEndY + sanGap;
+        var rackAreaW = rackCount * rackStride - 10;
+        var sanW = (rackAreaW - 40) / 2;
+        var sanStartX = paddingX + 10;
+
+        parts.push(drawStandaloneBox(sanStartX, sanY, sanW, sanH, C.ISCSI_STORAGE, '#ea580c', 'iSCSI Storage Array — Target A', 'iSCSI over Ethernet / Dedicated Leaf Ports 33-48, VLAN 500'));
+        parts.push(drawStandaloneBox(sanStartX + sanW + 20, sanY, sanW, sanH, C.ISCSI_STORAGE, '#ea580c', 'iSCSI Storage Array — Target B', 'iSCSI over Ethernet / Dedicated Leaf Ports 33-48, VLAN 600'));
+
+        // Dashed lines: Leaf switches → iSCSI Storage
+        var sanAcx = sanStartX + sanW / 2;
+        var sanBcx = sanStartX + sanW + 20 + sanW / 2;
+        for (var r2 = 0; r2 < rackCount; r2++) {
+            var rox = paddingX + r2 * rackStride;
+            var rackBotY = rackTopY + outerRackH;
+            var leafACx = rox + outerRackW * 0.35;
+            var leafBCx = rox + outerRackW * 0.65;
+            parts.push('<line x1="' + leafACx + '" y1="' + rackBotY + '" x2="' + sanAcx + '" y2="' + sanY + '" stroke="#fdba74" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.25"/>');
+            parts.push('<line x1="' + leafBCx + '" y1="' + rackBotY + '" x2="' + sanBcx + '" y2="' + sanY + '" stroke="#fdba74" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.25"/>');
+        }
+
+        // Note about 6-NIC topology
+        var noteY = sanY + sanH + 10;
+        parts.push('<rect x="' + (paddingX + 10) + '" y="' + noteY + '" width="' + (rackAreaW - 20) + '" height="' + 46 + '" rx="4" fill="#1a1a1a" stroke="#ea580c" stroke-width="0.5" stroke-dasharray="4,2"/>');
+        parts.push('<text x="' + (svgW / 2) + '" y="' + (noteY + 13) + '" text-anchor="middle" font-size="9" font-weight="500" fill="#fdba74" font-family="Segoe UI, sans-serif">iSCSI 6-NIC: Dedicated PCIe2 iSCSI NICs on Leaf Ports 33-48 (access VLAN 500/600, MTU 9216, MPIO)</text>');
+        parts.push('<text x="' + (svgW / 2) + '" y="' + (noteY + 25) + '" text-anchor="middle" font-size="9" fill="#aaa" font-family="Segoe UI, sans-serif">CSV/Live Migration on PCIe1 Ports 17-32 (access VLAN 711/712) | Compute/Mgmt on OCP Ports 1-16 (SET trunk)</text>');
+        parts.push('<text x="' + (svgW / 2) + '" y="' + (noteY + 37) + '" text-anchor="middle" font-size="8" fill="#f87171" font-family="Segoe UI, sans-serif">⚠ Ports 33-48 consumed by iSCSI — Backup network requires shared trunk or additional leaf capacity</text>');
+
+        // Legend
+        var legendY = noteY + 46 + 18;
+        var legendItems = [
+            { color: C.SERVER, label: 'Server Node' },
+            { color: C.LEAF_SWITCH, label: 'Leaf Switch' },
+            { color: C.BMC_SWITCH, label: 'BMC Switch', textColor: C.LABEL_DARK },
+            { color: C.ISCSI_STORAGE, label: 'iSCSI Storage' },
+            { color: C.SPINE, label: 'Spine Switch' },
+            { color: C.SERVICE_LEAF, label: 'Service Leaf' }
+        ];
+
+        var swatchW = 14;
+        var swatchH = 10;
+        var itemGap = 16;
+        var textWidthEstimate = function (s) { return s.length * 6.2; };
+
+        var legendTotalW = 0;
+        for (var li = 0; li < legendItems.length; li++) {
+            legendTotalW += swatchW + 4 + textWidthEstimate(legendItems[li].label);
+            if (li < legendItems.length - 1) legendTotalW += itemGap;
+        }
+
+        var legendX = (svgW - legendTotalW) / 2;
+        for (var lj = 0; lj < legendItems.length; lj++) {
+            var item = legendItems[lj];
+            parts.push('<rect x="' + legendX + '" y="' + (legendY - swatchH / 2) + '" width="' + swatchW + '" height="' + swatchH + '" rx="2" fill="' + item.color + '" stroke="#555" stroke-width="0.5"/>');
+            legendX += swatchW + 4;
+            parts.push('<text x="' + legendX + '" y="' + (legendY + LEGEND_FONT * 0.35) + '" font-size="' + LEGEND_FONT + '" fill="#aaa" font-family="Segoe UI, sans-serif">' + esc(item.label) + '</text>');
+            legendX += textWidthEstimate(item.label) + itemGap;
+        }
+
+        // Summary
+        var switchesPerRack = 3; // 2 Leaf + 1 BMC (no FC)
+        var nodesU = rackCount * nodesPerRack * 2;
+        var switchesU = rackCount * switchesPerRack;
+        var usedU = nodesU + switchesU;
+        var totalU = TOTAL_U * rackCount;
+        parts.push('<text x="' + (svgW / 2) + '" y="' + (legendY + 18) + '" text-anchor="middle" font-size="9" fill="#888" font-family="Segoe UI, sans-serif">' + usedU + 'U used / ' + totalU + 'U total  |  ' + (rackCount * nodesPerRack) + ' nodes  |  ' + rackCount + ' racks  |  ' + spineCount + ' spines  |  iSCSI 6-NIC</text>');
+
+        parts.push('</svg>');
+        return parts.join('\n');
+    }
+
+    var svg = generateSvg();
+    document.getElementById('diagram').innerHTML = svg;
+
+    window.downloadSvg = function () {
+        var svgEl = document.querySelector('#diagram svg');
+        var blob = new Blob([svgEl.outerHTML], { type: 'image/svg+xml' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'disaggregated-rack-layout-4rack-iscsi-6nic.svg';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Disaggregated Clos Topology — SVG Example</title>
+    <style>
+        body { margin: 0; padding: 20px; background: #1e1e2e; display: flex; justify-content: center; font-family: 'Segoe UI', sans-serif; }
+    </style>
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 920" width="1200" height="920" style="background:#1e1e2e;">
+    <defs>
+        <linearGradient id="spineGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#3b82f6"/>
+            <stop offset="100%" stop-color="#1d4ed8"/>
+        </linearGradient>
+        <linearGradient id="leafGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4b5563"/>
+            <stop offset="100%" stop-color="#374151"/>
+        </linearGradient>
+        <linearGradient id="svcLeafGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0d9488"/>
+            <stop offset="100%" stop-color="#0f766e"/>
+        </linearGradient>
+        <linearGradient id="fcGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#7c3aed"/>
+            <stop offset="100%" stop-color="#5b21b6"/>
+        </linearGradient>
+        <linearGradient id="bmcGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#6b7280"/>
+            <stop offset="100%" stop-color="#4b5563"/>
+        </linearGradient>
+        <linearGradient id="nodeGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#334155"/>
+            <stop offset="100%" stop-color="#1e293b"/>
+        </linearGradient>
+        <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.4"/>
+        </filter>
+    </defs>
+
+    <!-- Title -->
+    <text x="600" y="30" text-anchor="middle" fill="#e5e7eb" font-size="18" font-weight="600">
+        Disaggregated Clos Topology — 2 Racks, FC SAN + Backup (Optional)
+    </text>
+    <text x="600" y="50" text-anchor="middle" fill="#9ca3af" font-size="12">
+        Azure Local 2604+ | Up to 64 Nodes | Leaf-Spine Fabric
+    </text>
+
+    <!-- ═══════════ SPINE LAYER ═══════════ -->
+    <text x="600" y="78" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="600">SPINE LAYER</text>
+
+    <!-- Spine 1 -->
+    <rect x="380" y="88" width="180" height="50" rx="6" fill="url(#spineGrad)" filter="url(#shadow)"/>
+    <text x="470" y="110" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Spine 1</text>
+    <text x="470" y="126" text-anchor="middle" fill="#bfdbfe" font-size="9">N9K-9336C-FX2 · ASN 64841</text>
+
+    <!-- Spine 2 -->
+    <rect x="640" y="88" width="180" height="50" rx="6" fill="url(#spineGrad)" filter="url(#shadow)"/>
+    <text x="730" y="110" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">Spine 2</text>
+    <text x="730" y="126" text-anchor="middle" fill="#bfdbfe" font-size="9">N9K-9336C-FX2 · ASN 64841</text>
+
+    <!-- ═══════════ UPLINKS: Spine to Leaves (100G) ═══════════ -->
+    <!-- Rack 1 Leaf-A to Spines -->
+    <line x1="228" y1="230" x2="420" y2="138" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+    <line x1="228" y1="230" x2="680" y2="138" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+    <!-- Rack 1 Leaf-B to Spines -->
+    <line x1="372" y1="230" x2="520" y2="138" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+    <line x1="372" y1="230" x2="780" y2="138" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+    <!-- Rack 2 Leaf-A to Spines -->
+    <line x1="828" y1="230" x2="420" y2="138" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+    <line x1="828" y1="230" x2="680" y2="138" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+    <!-- Rack 2 Leaf-B to Spines -->
+    <line x1="972" y1="230" x2="520" y2="138" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+    <line x1="972" y1="230" x2="780" y2="138" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.6"/>
+
+    <!-- Service Leaf to Spines -->
+    <line x1="580" y1="195" x2="470" y2="138" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+    <line x1="620" y1="195" x2="730" y2="138" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>
+
+    <!-- ═══════════ SERVICE LEAF PAIR ═══════════ -->
+    <rect x="545" y="190" width="110" height="36" rx="5" fill="url(#svcLeafGrad)" filter="url(#shadow)"/>
+    <text x="600" y="206" text-anchor="middle" fill="#fff" font-size="10" font-weight="600">Service Leaves</text>
+    <text x="600" y="218" text-anchor="middle" fill="#ccfbf1" font-size="8">ASN 65005 · DC Core</text>
+
+    <!-- DC Core arrow -->
+    <line x1="600" y1="226" x2="600" y2="240" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+    <text x="600" y="252" text-anchor="middle" fill="#5eead4" font-size="9">↓ DC Core / WAN</text>
+
+    <!-- ═══════════ RACK 1 ═══════════ -->
+    <rect x="60" y="270" width="480" height="620" rx="8" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="8,4"/>
+    <text x="300" y="292" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="600">RACK 1 — ASN 64789</text>
+
+    <!-- Leaf-1A -->
+    <rect x="110" y="308" width="160" height="50" rx="5" fill="url(#leafGrad)" filter="url(#shadow)"/>
+    <text x="190" y="328" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Leaf-1A</text>
+    <text x="190" y="344" text-anchor="middle" fill="#d1d5db" font-size="8">93180YC-FX3</text>
+
+    <!-- Leaf-1B -->
+    <rect x="330" y="308" width="160" height="50" rx="5" fill="url(#leafGrad)" filter="url(#shadow)"/>
+    <text x="410" y="328" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Leaf-1B</text>
+    <text x="410" y="344" text-anchor="middle" fill="#d1d5db" font-size="8">93180YC-FX3</text>
+
+    <!-- iBGP link Rack 1 -->
+    <line x1="270" y1="333" x2="330" y2="333" stroke="#eab308" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="300" y="328" text-anchor="middle" fill="#fde047" font-size="7" font-weight="600">iBGP P49</text>
+
+    <!-- Port range labels - Leaf-1A -->
+    <rect x="110" y="365" width="160" height="14" rx="2" fill="#166534" opacity="0.8"/>
+    <text x="190" y="375" text-anchor="middle" fill="#86efac" font-size="8">P1-16: Compute/Mgmt (OCP)</text>
+
+    <rect x="110" y="381" width="160" height="14" rx="2" fill="#854d0e" opacity="0.8"/>
+    <text x="190" y="391" text-anchor="middle" fill="#fde68a" font-size="8">P17-32: CSV/LM (PCIe1)</text>
+
+    <rect x="110" y="397" width="160" height="14" rx="2" fill="#9a3412" opacity="0.7"/>
+    <text x="190" y="407" text-anchor="middle" fill="#fed7aa" font-size="8">P33-48: Backup (optional)</text>
+
+    <!-- Port range labels - Leaf-1B -->
+    <rect x="330" y="365" width="160" height="14" rx="2" fill="#166534" opacity="0.8"/>
+    <text x="410" y="375" text-anchor="middle" fill="#86efac" font-size="8">P1-16: Compute/Mgmt (OCP)</text>
+
+    <rect x="330" y="381" width="160" height="14" rx="2" fill="#854d0e" opacity="0.8"/>
+    <text x="410" y="391" text-anchor="middle" fill="#fde68a" font-size="8">P17-32: CSV/LM (PCIe1)</text>
+
+    <rect x="330" y="397" width="160" height="14" rx="2" fill="#9a3412" opacity="0.7"/>
+    <text x="410" y="407" text-anchor="middle" fill="#fed7aa" font-size="8">P33-48: Backup (optional)</text>
+
+    <!-- Uplink labels -->
+    <text x="190" y="360" text-anchor="middle" fill="#60a5fa" font-size="7">4× 100G ↑ Spines</text>
+    <text x="410" y="360" text-anchor="middle" fill="#60a5fa" font-size="7">4× 100G ↑ Spines</text>
+
+    <!-- Server Nodes Row 1: N1-N8 -->
+    <text x="300" y="435" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">Server Nodes (up to 16)</text>
+
+    <!-- Node row 1 -->
+    <rect x="90"  y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="115" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N1</text>
+    <text x="115" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="145" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="170" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N2</text>
+    <text x="170" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="200" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="225" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N3</text>
+    <text x="225" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="255" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="280" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N4</text>
+    <text x="280" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="310" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="335" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N5</text>
+    <text x="335" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="365" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="390" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N6</text>
+    <text x="390" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="420" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="445" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N7</text>
+    <text x="445" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="475" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="500" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N8</text>
+    <text x="500" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <!-- Node row 2 -->
+    <rect x="90"  y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="115" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N9</text>
+    <text x="115" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="145" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="170" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N10</text>
+    <text x="170" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="200" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="225" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N11</text>
+    <text x="225" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="255" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="280" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N12</text>
+    <text x="280" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="310" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="335" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N13</text>
+    <text x="335" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="365" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="390" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N14</text>
+    <text x="390" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="420" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="445" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N15</text>
+    <text x="445" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="475" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="500" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N16</text>
+    <text x="500" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <!-- Connection lines from nodes to leaves (simplified) -->
+    <line x1="190" y1="411" x2="190" y2="445" stroke="#4ade80" stroke-width="0.8" opacity="0.4"/>
+    <line x1="410" y1="411" x2="410" y2="445" stroke="#4ade80" stroke-width="0.8" opacity="0.4"/>
+    <text x="300" y="530" text-anchor="middle" fill="#64748b" font-size="8">Each node: OCP (25G×2) + PCIe1 (25G×2) + FC HBA (2-port) + Backup (25G×2 opt)</text>
+
+    <!-- FC Switches - Rack 1 -->
+    <text x="300" y="555" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">Fibre Channel Fabric</text>
+
+    <rect x="120" y="565" width="140" height="38" rx="5" fill="url(#fcGrad)" filter="url(#shadow)"/>
+    <text x="190" y="582" text-anchor="middle" fill="#fff" font-size="10" font-weight="600">FC Switch A</text>
+    <text x="190" y="595" text-anchor="middle" fill="#ddd6fe" font-size="8">SAN Fabric A · MPIO</text>
+
+    <rect x="340" y="565" width="140" height="38" rx="5" fill="url(#fcGrad)" filter="url(#shadow)"/>
+    <text x="410" y="582" text-anchor="middle" fill="#fff" font-size="10" font-weight="600">FC Switch B</text>
+    <text x="410" y="595" text-anchor="middle" fill="#ddd6fe" font-size="8">SAN Fabric B · MPIO</text>
+
+    <!-- FC connections to SAN storage (simplified) -->
+    <line x1="190" y1="603" x2="190" y2="625" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>
+    <line x1="410" y1="603" x2="410" y2="625" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>
+
+    <!-- SAN Storage -->
+    <rect x="130" y="625" width="340" height="32" rx="5" fill="#312e81" stroke="#6366f1" stroke-width="1" filter="url(#shadow)"/>
+    <text x="300" y="645" text-anchor="middle" fill="#c7d2fe" font-size="10" font-weight="600">External SAN Storage Array</text>
+
+    <!-- BMC Switch - Rack 1 -->
+    <rect x="170" y="672" width="260" height="32" rx="5" fill="url(#bmcGrad)" filter="url(#shadow)"/>
+    <text x="300" y="688" text-anchor="middle" fill="#fff" font-size="10" font-weight="600">BMC Switch · 9348GC-FXP</text>
+    <text x="300" y="700" text-anchor="middle" fill="#d1d5db" font-size="8">OOB Management · 1GbE per node</text>
+
+    <!-- NIC Detail Box - Rack 1 -->
+    <rect x="90" y="718" width="420" height="62" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="300" y="735" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Per-Node NIC Layout (FC SAN)</text>
+    <text x="105" y="750" fill="#86efac" font-size="8">■ OCP 25G×2 → Leaf-A/B (Compute+Mgmt SET trunk)</text>
+    <text x="105" y="762" fill="#fde68a" font-size="8">■ PCIe1 25G×2 → Leaf-A/B (CSV VLAN 711 / LM VLAN 712)</text>
+    <text x="105" y="774" fill="#c4b5fd" font-size="8">■ FC HBA ×2 → FC-A/FC-B (16/32/64G, separate fabric)</text>
+
+    <!-- ═══════════ RACK 2 ═══════════ -->
+    <rect x="660" y="270" width="480" height="620" rx="8" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="8,4"/>
+    <text x="900" y="292" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="600">RACK 2 — ASN 64790</text>
+
+    <!-- Leaf-2A -->
+    <rect x="710" y="308" width="160" height="50" rx="5" fill="url(#leafGrad)" filter="url(#shadow)"/>
+    <text x="790" y="328" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Leaf-2A</text>
+    <text x="790" y="344" text-anchor="middle" fill="#d1d5db" font-size="8">93180YC-FX3</text>
+
+    <!-- Leaf-2B -->
+    <rect x="930" y="308" width="160" height="50" rx="5" fill="url(#leafGrad)" filter="url(#shadow)"/>
+    <text x="1010" y="328" text-anchor="middle" fill="#fff" font-size="11" font-weight="600">Leaf-2B</text>
+    <text x="1010" y="344" text-anchor="middle" fill="#d1d5db" font-size="8">93180YC-FX3</text>
+
+    <!-- iBGP link Rack 2 -->
+    <line x1="870" y1="333" x2="930" y2="333" stroke="#eab308" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="900" y="328" text-anchor="middle" fill="#fde047" font-size="7" font-weight="600">iBGP P49</text>
+
+    <!-- Port range labels - Leaf-2A -->
+    <rect x="710" y="365" width="160" height="14" rx="2" fill="#166534" opacity="0.8"/>
+    <text x="790" y="375" text-anchor="middle" fill="#86efac" font-size="8">P1-16: Compute/Mgmt (OCP)</text>
+
+    <rect x="710" y="381" width="160" height="14" rx="2" fill="#854d0e" opacity="0.8"/>
+    <text x="790" y="391" text-anchor="middle" fill="#fde68a" font-size="8">P17-32: CSV/LM (PCIe1)</text>
+
+    <rect x="710" y="397" width="160" height="14" rx="2" fill="#9a3412" opacity="0.7"/>
+    <text x="790" y="407" text-anchor="middle" fill="#fed7aa" font-size="8">P33-48: Backup (optional)</text>
+
+    <!-- Port range labels - Leaf-2B -->
+    <rect x="930" y="365" width="160" height="14" rx="2" fill="#166534" opacity="0.8"/>
+    <text x="1010" y="375" text-anchor="middle" fill="#86efac" font-size="8">P1-16: Compute/Mgmt (OCP)</text>
+
+    <rect x="930" y="381" width="160" height="14" rx="2" fill="#854d0e" opacity="0.8"/>
+    <text x="1010" y="391" text-anchor="middle" fill="#fde68a" font-size="8">P17-32: CSV/LM (PCIe1)</text>
+
+    <rect x="930" y="397" width="160" height="14" rx="2" fill="#9a3412" opacity="0.7"/>
+    <text x="1010" y="407" text-anchor="middle" fill="#fed7aa" font-size="8">P33-48: Backup (optional)</text>
+
+    <!-- Uplink labels -->
+    <text x="790" y="360" text-anchor="middle" fill="#60a5fa" font-size="7">4× 100G ↑ Spines</text>
+    <text x="1010" y="360" text-anchor="middle" fill="#60a5fa" font-size="7">4× 100G ↑ Spines</text>
+
+    <!-- Server Nodes Rack 2 -->
+    <text x="900" y="435" text-anchor="middle" fill="#94a3b8" font-size="10" font-weight="600">Server Nodes (up to 16)</text>
+
+    <!-- Node row 1 -->
+    <rect x="690"  y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="715" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N17</text>
+    <text x="715" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="745" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="770" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N18</text>
+    <text x="770" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="800" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="825" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N19</text>
+    <text x="825" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="855" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="880" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N20</text>
+    <text x="880" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="910" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="935" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N21</text>
+    <text x="935" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="965" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="990" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N22</text>
+    <text x="990" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="1020" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="1045" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N23</text>
+    <text x="1045" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="1075" y="445" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="1100" y="458" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N24</text>
+    <text x="1100" y="470" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <!-- Node row 2 -->
+    <rect x="690"  y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="715" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N25</text>
+    <text x="715" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="745" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="770" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N26</text>
+    <text x="770" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="800" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="825" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N27</text>
+    <text x="825" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="855" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="880" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N28</text>
+    <text x="880" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="910" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="935" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N29</text>
+    <text x="935" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="965" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="990" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N30</text>
+    <text x="990" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="1020" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="1045" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N31</text>
+    <text x="1045" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <rect x="1075" y="482" width="50" height="32" rx="3" fill="url(#nodeGrad)" stroke="#475569" stroke-width="0.5"/>
+    <text x="1100" y="495" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="600">N32</text>
+    <text x="1100" y="507" text-anchor="middle" fill="#94a3b8" font-size="6">OCP+PCIe1+FC</text>
+
+    <!-- Connection lines from nodes to leaves (simplified) -->
+    <line x1="790" y1="411" x2="790" y2="445" stroke="#4ade80" stroke-width="0.8" opacity="0.4"/>
+    <line x1="1010" y1="411" x2="1010" y2="445" stroke="#4ade80" stroke-width="0.8" opacity="0.4"/>
+    <text x="900" y="530" text-anchor="middle" fill="#64748b" font-size="8">Each node: OCP (25G×2) + PCIe1 (25G×2) + FC HBA (2-port) + Backup (25G×2 opt)</text>
+
+    <!-- FC Switches - Rack 2 -->
+    <text x="900" y="555" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="600">Fibre Channel Fabric</text>
+
+    <rect x="720" y="565" width="140" height="38" rx="5" fill="url(#fcGrad)" filter="url(#shadow)"/>
+    <text x="790" y="582" text-anchor="middle" fill="#fff" font-size="10" font-weight="600">FC Switch C</text>
+    <text x="790" y="595" text-anchor="middle" fill="#ddd6fe" font-size="8">SAN Fabric A · MPIO</text>
+
+    <rect x="940" y="565" width="140" height="38" rx="5" fill="url(#fcGrad)" filter="url(#shadow)"/>
+    <text x="1010" y="582" text-anchor="middle" fill="#fff" font-size="10" font-weight="600">FC Switch D</text>
+    <text x="1010" y="595" text-anchor="middle" fill="#ddd6fe" font-size="8">SAN Fabric B · MPIO</text>
+
+    <!-- FC connections to SAN storage -->
+    <line x1="790" y1="603" x2="790" y2="625" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>
+    <line x1="1010" y1="603" x2="1010" y2="625" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>
+
+    <!-- SAN Storage - Rack 2 -->
+    <rect x="730" y="625" width="340" height="32" rx="5" fill="#312e81" stroke="#6366f1" stroke-width="1" filter="url(#shadow)"/>
+    <text x="900" y="645" text-anchor="middle" fill="#c7d2fe" font-size="10" font-weight="600">External SAN Storage Array</text>
+
+    <!-- BMC Switch - Rack 2 -->
+    <rect x="770" y="672" width="260" height="32" rx="5" fill="url(#bmcGrad)" filter="url(#shadow)"/>
+    <text x="900" y="688" text-anchor="middle" fill="#fff" font-size="10" font-weight="600">BMC Switch · 9348GC-FXP</text>
+    <text x="900" y="700" text-anchor="middle" fill="#d1d5db" font-size="8">OOB Management · 1GbE per node</text>
+
+    <!-- NIC Detail Box - Rack 2 -->
+    <rect x="690" y="718" width="420" height="62" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="900" y="735" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="600">Per-Node NIC Layout (FC SAN)</text>
+    <text x="705" y="750" fill="#86efac" font-size="8">■ OCP 25G×2 → Leaf-A/B (Compute+Mgmt SET trunk)</text>
+    <text x="705" y="762" fill="#fde68a" font-size="8">■ PCIe1 25G×2 → Leaf-A/B (CSV VLAN 711 / LM VLAN 712)</text>
+    <text x="705" y="774" fill="#c4b5fd" font-size="8">■ FC HBA ×2 → FC-A/FC-B (16/32/64G, separate fabric)</text>
+
+    <!-- ═══════════ LEGEND ═══════════ -->
+    <rect x="60" y="898" width="1080" height="16" rx="3" fill="#111827"/>
+    <text x="80" y="910" fill="#60a5fa" font-size="9">━━ 100G Spine Uplink</text>
+    <text x="250" y="910" fill="#4ade80" font-size="9">── 25G Server Access</text>
+    <text x="420" y="910" fill="#fde047" font-size="9">╌╌ iBGP Inter-Leaf</text>
+    <text x="580" y="910" fill="#a78bfa" font-size="9">┄┄ FC SAN Fabric</text>
+    <text x="740" y="910" fill="#9ca3af" font-size="9">╌╌ BMC OOB 1GbE</text>
+    <text x="910" y="910" fill="#0d9488" font-size="9">━━ Service Leaf → DC Core</text>
+
+</svg>
+
+</body>
+</html>

@@ -1794,6 +1794,27 @@
     }
 
 
+    // Helper: get disaggregated port list for report rendering (top-level for drawio + diagram access)
+    // Port IDs must match wizard format (ocp_p1, pcie1_p2, etc.) for config lookups
+    function getDisaggPortListForReport(storageType, backupEnabled, portCount) {
+        var ports = [
+            { id: 'ocp_p1', defaultName: 'OCP-NIC1', slot: 'ocp' },
+            { id: 'ocp_p2', defaultName: 'OCP-NIC2', slot: 'ocp' },
+            { id: 'pcie1_p1', defaultName: 'PCIe1-NIC3', slot: 'pcie1' },
+            { id: 'pcie1_p2', defaultName: 'PCIe1-NIC4', slot: 'pcie1' }
+        ];
+        if (storageType === 'iscsi_6nic') {
+            ports.push({ id: 'pcie2_p1', defaultName: 'PCIe2-NIC5', slot: 'pcie2' });
+            ports.push({ id: 'pcie2_p2', defaultName: 'PCIe2-NIC6', slot: 'pcie2' });
+        }
+        if (backupEnabled) {
+            ports.push({ id: 'backup_p1', defaultName: 'BK-NIC1', slot: 'backup' });
+            ports.push({ id: 'backup_p2', defaultName: 'BK-NIC2', slot: 'backup' });
+        }
+        ports.push({ id: 'bmc_p1', defaultName: 'BMC', slot: 'bmc' });
+        return ports;
+    }
+
     /**
      * Generate a draw.io (mxGraph XML) diagram from the current report state.
      * Mirrors the SVG diagram layout: ToR switches, nodes with intent-grouped ports, uplinks.
@@ -2240,11 +2261,323 @@
     }
 
     /**
+     * Generate a draw.io XML file for disaggregated host networking diagrams.
+     * Mirrors the SVG from renderDisaggregatedHostNetworkingDiagram.
+     */
+    function generateDisaggregatedHostNetworkingDrawio(s) {
+        if (!s || s.architecture !== 'disaggregated') return '';
+
+        var storageType = s.disaggStorageType || 'fc_san';
+        var backupEnabled = !!s.disaggBackupEnabled;
+        var portCount = parseInt(s.disaggPortCount, 10) || 4;
+        var totalNodes = parseInt(s.nodes, 10) || ((parseInt(s.disaggRackCount, 10) || 1) * (parseInt(s.disaggNodesPerRack, 10) || 1));
+        var n = Math.min(2, totalNodes);
+        var hasFc = (storageType === 'fc_san');
+        var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
+
+        function xmlEsc(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // NIC name helper
+        function getNicNameD(slotKey, idx) {
+            if (s.disaggPortConfig) {
+                var portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
+                for (var pi = 0; pi < portList.length; pi++) {
+                    if (portList[pi].id === slotKey + '_p' + idx) {
+                        var cfg = s.disaggPortConfig[portList[pi].id];
+                        return (cfg && (cfg.customName || cfg.name)) || portList[pi].defaultName;
+                    }
+                }
+            }
+            var defaults = { ocp: 'OCP-NIC', pcie1: 'PCIe1-NIC', pcie2: 'PCIe2-NIC', backup: 'BK-NIC', bmc: 'BMC', fc: 'FC-HBA' };
+            return (defaults[slotKey] || slotKey) + idx;
+        }
+
+        function getPortSpeedD(slotKey, idx) {
+            if (s.disaggPortConfig) {
+                var key = slotKey + '_p' + idx;
+                if (s.disaggPortConfig[key] && s.disaggPortConfig[key].speed) return s.disaggPortConfig[key].speed;
+            }
+            if (slotKey === 'bmc') return '1GbE';
+            if (slotKey === 'fc') return '32G FC';
+            return '25GbE';
+        }
+
+        // Build NIC groups
+        var nicGroups = [];
+        nicGroups.push({
+            key: 'mgmt_compute', label: 'Mgmt + Compute',
+            color: 'blue',
+            nics: [
+                { name: getNicNameD('ocp', 1), speed: getPortSpeedD('ocp', 1), leaf: 'A' },
+                { name: getNicNameD('ocp', 2), speed: getPortSpeedD('ocp', 2), leaf: 'B' }
+            ]
+        });
+        nicGroups.push({
+            key: 'cluster_1', label: 'Cluster 1',
+            color: 'green',
+            vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'),
+            nics: [{ name: getNicNameD('pcie1', 1), speed: getPortSpeedD('pcie1', 1), leaf: 'A' }]
+        });
+        nicGroups.push({
+            key: 'cluster_2', label: 'Cluster 2',
+            color: 'green',
+            vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'),
+            nics: [{ name: getNicNameD('pcie1', 2), speed: getPortSpeedD('pcie1', 2), leaf: 'B' }]
+        });
+        if (backupEnabled) {
+            nicGroups.push({
+                key: 'backup', label: 'In-Guest Backup Compute Intent',
+                color: 'orange',
+                nics: [
+                    { name: getNicNameD('backup', 1), speed: getPortSpeedD('backup', 1), leaf: 'A' },
+                    { name: getNicNameD('backup', 2), speed: getPortSpeedD('backup', 2), leaf: 'B' }
+                ]
+            });
+        }
+
+        // Storage adapters
+        var storageAdapters = [];
+        if (hasFc) {
+            storageAdapters.push({ name: getNicNameD('fc', 1), speed: getPortSpeedD('fc', 1), target: 'A' });
+            storageAdapters.push({ name: getNicNameD('fc', 2), speed: getPortSpeedD('fc', 2), target: 'B' });
+        } else if (storageType === 'iscsi_6nic') {
+            storageAdapters.push({ name: getNicNameD('pcie2', 1), speed: getPortSpeedD('pcie2', 1), target: 'A' });
+            storageAdapters.push({ name: getNicNameD('pcie2', 2), speed: getPortSpeedD('pcie2', 2), target: 'B' });
+        } else if (storageType === 'iscsi_4nic') {
+            storageAdapters.push({ name: 'iSCSI via ' + getNicNameD('pcie1', 1), speed: 'shared trunk', target: 'A' });
+            storageAdapters.push({ name: 'iSCSI via ' + getNicNameD('pcie1', 2), speed: 'shared trunk', target: 'B' });
+        }
+
+        // Layout constants
+        var portW = 62, portH = 38, portGap = 10, groupGap = 18, intentBoxPad = 12;
+        var leafW = 160, leafH = 50, leafGap = 80;
+        var sanW = 160, sanH = 40, sanGap = 60;
+        var marginX = 60, marginY = 40;
+
+        // Compute NIC row width
+        function rowWidth(groups) {
+            var w = 0;
+            for (var i = 0; i < groups.length; i++) {
+                w += groups[i].nics.length * portW + (groups[i].nics.length - 1) * portGap;
+                if (i < groups.length - 1) w += groupGap;
+            }
+            return w;
+        }
+
+        var nicRowW = rowWidth(nicGroups);
+        var storageW = storageAdapters.length * portW + Math.max(0, storageAdapters.length - 1) * portGap;
+        var maxRowW = Math.max(nicRowW, storageW);
+        var nodeW = Math.max(440, maxRowW + 80);
+        var nodeH = 220 + (storageAdapters.length > 0 ? 80 : 0);
+        var nodeGap = 60;
+
+        var totalNodesW = n * nodeW + (n - 1) * nodeGap;
+        var svgW = Math.max(totalNodesW + marginX * 2, (2 * leafW + leafGap) + marginX * 2);
+
+        var leafY = marginY;
+        var leafToNodeGap = 100;
+        var nodesY = leafY + leafH + leafToNodeGap;
+        var nodesStartX = (svgW - totalNodesW) / 2;
+        var totalLeafW = 2 * leafW + leafGap;
+        var leaf1X = (svgW - totalLeafW) / 2;
+        var leaf2X = leaf1X + leafW + leafGap;
+
+        var sanY = nodesY + nodeH + 60;
+        var pageH = sanY + sanH + 80;
+
+        // Cell/edge builders
+        var cells = [];
+        var edgesList = [];
+        var cellId = 2;
+        function nextId() { return String(cellId++); }
+
+        function addCell(id, value, x, y, w, h, style, parent) {
+            cells.push({ id: id, value: xmlEsc(value), x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), style: style, parent: parent || '1' });
+        }
+        function addEdge(id, source, target, style, label) {
+            edgesList.push({ id: id, source: source, target: target, style: style, label: label || '' });
+        }
+
+        // Color maps
+        function fillStroke(color) {
+            if (color === 'blue') return { fill: '#1E3A5F', stroke: '#3B82F6', portFill: '#0055A4', portStroke: '#005A9E' };
+            if (color === 'green') return { fill: '#064E3B', stroke: '#10B981', portFill: '#047857', portStroke: '#059669' };
+            if (color === 'orange') return { fill: '#7C2D12', stroke: '#F97316', portFill: '#C2410C', portStroke: '#EA580C' };
+            if (color === 'purple') return { fill: '#2D1B69', stroke: '#8B5CF6', portFill: '#5B3ABF', portStroke: '#7C3AED' };
+            return { fill: '#1E3A5F', stroke: '#0078D4', portFill: '#0055A4', portStroke: '#005A9E' };
+        }
+
+        // Leaf-A
+        var leaf1Id = nextId();
+        addCell(leaf1Id, 'Leaf-A', leaf1X, leafY, leafW, leafH,
+            'rounded=1;whiteSpace=wrap;html=1;fillColor=#1E3A5F;strokeColor=#3B82F6;fontColor=#FFFFFF;fontSize=13;fontStyle=1;arcSize=20;strokeWidth=2;');
+
+        // Leaf-B
+        var leaf2Id = nextId();
+        addCell(leaf2Id, 'Leaf-B', leaf2X, leafY, leafW, leafH,
+            'rounded=1;whiteSpace=wrap;html=1;fillColor=#1E3A5F;strokeColor=#3B82F6;fontColor=#FFFFFF;fontSize=13;fontStyle=1;arcSize=20;strokeWidth=2;');
+
+        // iBGP link between leaves
+        var ibgpId = nextId();
+        addEdge(ibgpId, leaf1Id, leaf2Id,
+            'endArrow=none;html=1;strokeColor=#FACC15;strokeWidth=2;dashed=1;dashPattern=6 3;fontColor=#FACC15;fontSize=10;labelBackgroundColor=none;',
+            'iBGP P49');
+
+        // SAN / iSCSI targets
+        var storageLabel = hasFc ? 'FC SAN' : 'iSCSI';
+        var targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
+        var targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
+        var totalSanW = 2 * sanW + sanGap;
+        var sanStartX = (svgW - totalSanW) / 2;
+
+        var sanAId = nextId();
+        addCell(sanAId, targetLabelA, sanStartX, sanY, sanW, sanH,
+            'rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B69;strokeColor=#8B5CF6;fontColor=#C4B5FD;fontSize=11;fontStyle=1;arcSize=20;strokeWidth=1.5;');
+        var sanBId = nextId();
+        addCell(sanBId, targetLabelB, sanStartX + sanW + sanGap, sanY, sanW, sanH,
+            'rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B69;strokeColor=#8B5CF6;fontColor=#C4B5FD;fontSize=11;fontStyle=1;arcSize=20;strokeWidth=1.5;');
+
+        // Render nodes
+        for (var ni = 0; ni < n; ni++) {
+            var nodeX = nodesStartX + ni * (nodeW + nodeGap);
+
+            // Node container
+            var nodeContainerId = nextId();
+            var nodeName = 'Node ' + (ni + 1);
+            if (s.nodeSettings && s.nodeSettings[ni] && s.nodeSettings[ni].name) {
+                nodeName = String(s.nodeSettings[ni].name).trim() || nodeName;
+            }
+            addCell(nodeContainerId, nodeName, nodeX, nodesY, nodeW, nodeH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#1A1A2E;strokeColor=#334155;fontColor=#FFFFFF;fontSize=14;fontStyle=1;arcSize=8;verticalAlign=top;spacingTop=8;container=1;collapsible=0;');
+
+            // BMC (top-right)
+            var bmcId = nextId();
+            addCell(bmcId, getNicNameD('bmc', 1), nodeW - 75, 8, 60, 24,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#333333;strokeColor=#666666;fontColor=#AAAAAA;fontSize=8;arcSize=15;',
+                nodeContainerId);
+
+            // NIC groups row
+            var rw = rowWidth(nicGroups);
+            var cursorX = (nodeW - rw) / 2;
+            var nicRowY = 60;
+
+            for (var gi = 0; gi < nicGroups.length; gi++) {
+                var grp = nicGroups[gi];
+                var cs = fillStroke(grp.color);
+                var grpW = grp.nics.length * portW + (grp.nics.length - 1) * portGap;
+                var grpBoxW = grpW + intentBoxPad * 2;
+                var grpBoxH = portH + 30 + intentBoxPad * 2;
+                var grpBoxX = cursorX - intentBoxPad;
+                var grpBoxY = nicRowY;
+
+                // Group box
+                var grpId = nextId();
+                addCell(grpId, '', grpBoxX, grpBoxY, grpBoxW, grpBoxH,
+                    'rounded=1;whiteSpace=wrap;html=1;fillColor=' + cs.fill + ';strokeColor=' + cs.stroke + ';strokeWidth=1;dashed=1;dashPattern=5 3;arcSize=12;container=1;collapsible=0;verticalAlign=top;',
+                    nodeContainerId);
+
+                // Group label
+                var lblId = nextId();
+                addCell(lblId, grp.label, 0, grpBoxH - 22, grpBoxW, 20,
+                    'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#BBBBBB;fontSize=9;',
+                    grpId);
+
+                // Port cards
+                for (var pi = 0; pi < grp.nics.length; pi++) {
+                    var nic = grp.nics[pi];
+                    var px = intentBoxPad + pi * (portW + portGap);
+                    var py = intentBoxPad;
+
+                    var portId = nextId();
+                    addCell(portId, nic.name + '\\n' + nic.speed, px, py, portW, portH,
+                        'rounded=1;whiteSpace=wrap;html=1;fillColor=' + cs.portFill + ';strokeColor=' + cs.portStroke + ';fontColor=#FFFFFF;fontSize=8;fontStyle=1;arcSize=15;',
+                        grpId);
+
+                    // Connect to leaf
+                    var targetLeaf = (nic.leaf === 'A') ? leaf1Id : leaf2Id;
+                    var edgeColor = cs.stroke;
+                    var eid = nextId();
+                    addEdge(eid, portId, targetLeaf,
+                        'endArrow=none;html=1;strokeColor=' + edgeColor + ';strokeWidth=1.5;dashed=1;dashPattern=4 2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;');
+                }
+
+                cursorX += grpW + portGap + groupGap;
+            }
+
+            // Storage adapters at bottom of node
+            if (storageAdapters.length > 0) {
+                var saY = nodeH - portH - 30;
+                var saStartX2 = (nodeW - storageW) / 2;
+                var pcs = fillStroke('purple');
+
+                // Storage label
+                var storageLbl = hasFc ? 'FC HBA — SAN Fabric' : 'iSCSI Storage Adapters';
+                var stLblId = nextId();
+                addCell(stLblId, storageLbl, 20, saY - 22, nodeW - 40, 18,
+                    'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#A78BFA;fontSize=9;fontStyle=1;',
+                    nodeContainerId);
+
+                for (var si = 0; si < storageAdapters.length; si++) {
+                    var sa = storageAdapters[si];
+                    var sx = saStartX2 + si * (portW + portGap);
+
+                    var saId = nextId();
+                    addCell(saId, sa.name + '\\n' + sa.speed, sx, saY, portW, portH,
+                        'rounded=1;whiteSpace=wrap;html=1;fillColor=' + pcs.fill + ';strokeColor=' + pcs.stroke + ';fontColor=#FFFFFF;fontSize=7;fontStyle=1;arcSize=15;dashed=1;dashPattern=4 2;',
+                        nodeContainerId);
+
+                    // Connect to SAN target
+                    var targetSan = (sa.target === 'A') ? sanAId : sanBId;
+                    var saEdgeId = nextId();
+                    addEdge(saEdgeId, saId, targetSan,
+                        'endArrow=none;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;dashed=1;dashPattern=5 3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;');
+                }
+            }
+        }
+
+        // Build XML
+        var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        xml += '<mxfile host="app.diagrams.net" type="device">\n';
+        xml += '  <diagram name="Disaggregated Host Networking" id="odin-disagg-host-networking">\n';
+        xml += '    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="' + Math.round(svgW + 100) + '" pageHeight="' + Math.round(pageH) + '" math="0" shadow="0">\n';
+        xml += '      <root>\n';
+        xml += '        <mxCell id="0" />\n';
+        xml += '        <mxCell id="1" parent="0" />\n';
+
+        for (var vi = 0; vi < cells.length; vi++) {
+            var c = cells[vi];
+            xml += '        <mxCell id="' + c.id + '" value="' + c.value + '" style="' + c.style + '" vertex="1" parent="' + c.parent + '">\n';
+            xml += '          <mxGeometry x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h + '" as="geometry" />\n';
+            xml += '        </mxCell>\n';
+        }
+
+        for (var ei = 0; ei < edgesList.length; ei++) {
+            var e = edgesList[ei];
+            var lbl = e.label ? (' value="' + xmlEsc(e.label) + '"') : '';
+            xml += '        <mxCell id="' + e.id + '"' + lbl + ' style="' + e.style + '" edge="1" source="' + e.source + '" target="' + e.target + '" parent="1">\n';
+            xml += '          <mxGeometry relative="1" as="geometry" />\n';
+            xml += '        </mxCell>\n';
+        }
+
+        xml += '      </root>\n';
+        xml += '    </mxGraphModel>\n';
+        xml += '  </diagram>\n';
+        xml += '</mxfile>';
+
+        return xml;
+    }
+
+    /**
      * Download the host networking diagram as a .drawio file.
      */
     function downloadHostNetworkingDrawio() {
         if (!CURRENT_REPORT_STATE) return;
-        var drawioXml = generateHostNetworkingDrawio(CURRENT_REPORT_STATE);
+        var s = CURRENT_REPORT_STATE;
+        var drawioXml = (s.architecture === 'disaggregated')
+            ? generateDisaggregatedHostNetworkingDrawio(s)
+            : generateHostNetworkingDrawio(s);
         if (!drawioXml) return;
 
         var blob = new Blob([drawioXml], { type: 'application/xml' });
@@ -3612,6 +3945,384 @@
 
             return '<div class="switchless-diagram">' + intro + svg + note + '</div>';
         }
+
+        /**
+         * Render disaggregated host networking diagram showing Leaf-A/B switches,
+         * per-node intent groups (SET + standalone), and uplinks.
+         * Follows the exact same SVG pattern as renderSwitchedIntentDiagram.
+         */
+        function renderDisaggregatedHostNetworkingDiagram(state) {
+            if (!state || state.architecture !== 'disaggregated') return '';
+
+            var storageType = state.disaggStorageType || 'fc_san';
+            var backupEnabled = !!state.disaggBackupEnabled;
+            var portCount = parseInt(state.disaggPortCount, 10) || 4;
+            var totalNodes = parseInt(state.nodes, 10) || ((parseInt(state.disaggRackCount, 10) || 1) * (parseInt(state.disaggNodesPerRack, 10) || 1));
+            var n = Math.min(2, totalNodes);
+            var hasFc = (storageType === 'fc_san');
+            var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
+
+            // NIC name helper — port IDs must match wizard format: ocp_p1, pcie1_p2, etc.
+            function getNicName(slotKey, idx) {
+                if (state.disaggPortConfig) {
+                    var portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
+                    for (var pi = 0; pi < portList.length; pi++) {
+                        if (portList[pi].id === slotKey + '_p' + idx) {
+                            var cfg = state.disaggPortConfig[portList[pi].id];
+                            return (cfg && (cfg.customName || cfg.name)) || portList[pi].defaultName;
+                        }
+                    }
+                }
+                var defaults = { ocp: 'OCP-NIC', pcie1: 'PCIe1-NIC', pcie2: 'PCIe2-NIC', backup: 'BK-NIC', bmc: 'BMC', fc: 'FC-HBA' };
+                return (defaults[slotKey] || slotKey) + idx;
+            }
+
+            function getPortSpeed(slotKey, idx) {
+                if (state.disaggPortConfig) {
+                    var key = slotKey + '_p' + idx;
+                    if (state.disaggPortConfig[key] && state.disaggPortConfig[key].speed) return state.disaggPortConfig[key].speed;
+                }
+                if (slotKey === 'bmc') return '1GbE';
+                if (slotKey === 'fc') return '32G FC';
+                return '25GbE';
+            }
+
+            function colorRgb(hex) {
+                return parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16);
+            }
+
+            // --- Build NIC groups in a SINGLE row (all intents together) ---
+            var nicGroups = [];
+
+            // Management + Compute (blue)
+            nicGroups.push({
+                key: 'mgmt_compute', label: 'Mgmt + Compute',
+                color: '#3b82f6',
+                nics: [
+                    { id: 'ocp_1', name: getNicName('ocp', 1), speed: getPortSpeed('ocp', 1), leaf: 'A' },
+                    { id: 'ocp_2', name: getNicName('ocp', 2), speed: getPortSpeed('ocp', 2), leaf: 'B' }
+                ]
+            });
+
+            // Cluster Network 1 — standalone (green)
+            nicGroups.push({
+                key: 'cluster_1', label: 'Cluster 1',
+                color: '#22c55e',
+                vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711'),
+                nics: [{ id: 'pcie1_1', name: getNicName('pcie1', 1), speed: getPortSpeed('pcie1', 1), leaf: 'A' }]
+            });
+
+            // Cluster Network 2 — standalone (green)
+            nicGroups.push({
+                key: 'cluster_2', label: 'Cluster 2',
+                color: '#22c55e',
+                vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'),
+                nics: [{ id: 'pcie1_2', name: getNicName('pcie1', 2), speed: getPortSpeed('pcie1', 2), leaf: 'B' }]
+            });
+
+            // Backup (orange) — after cluster
+            if (backupEnabled) {
+                nicGroups.push({
+                    key: 'backup', label: 'In-Guest Backup Compute Intent',
+                    color: '#f97316',
+                    nics: [
+                        { id: 'backup_1', name: getNicName('backup', 1), speed: getPortSpeed('backup', 1), leaf: 'A' },
+                        { id: 'backup_2', name: getNicName('backup', 2), speed: getPortSpeed('backup', 2), leaf: 'B' }
+                    ]
+                });
+            }
+
+            // --- Bottom storage adapters ---
+            var storageAdapters = [];
+            if (hasFc) {
+                storageAdapters.push({ id: 'fc_1', name: getNicName('fc', 1), speed: getPortSpeed('fc', 1), target: 'A', color: '#8b5cf6' });
+                storageAdapters.push({ id: 'fc_2', name: getNicName('fc', 2), speed: getPortSpeed('fc', 2), target: 'B', color: '#8b5cf6' });
+            } else if (storageType === 'iscsi_6nic') {
+                storageAdapters.push({ id: 'pcie2_1', name: getNicName('pcie2', 1), speed: getPortSpeed('pcie2', 1), target: 'A', color: '#8b5cf6' });
+                storageAdapters.push({ id: 'pcie2_2', name: getNicName('pcie2', 2), speed: getPortSpeed('pcie2', 2), target: 'B', color: '#8b5cf6' });
+            } else if (storageType === 'iscsi_4nic') {
+                // 4-NIC iSCSI shares PCIe1 trunk — show logical indicators
+                storageAdapters.push({ id: 'pcie1_1_iscsi', name: 'iSCSI via ' + getNicName('pcie1', 1), speed: 'shared trunk', target: 'A', color: '#8b5cf6' });
+                storageAdapters.push({ id: 'pcie1_2_iscsi', name: 'iSCSI via ' + getNicName('pcie1', 2), speed: 'shared trunk', target: 'B', color: '#8b5cf6' });
+            }
+
+            // BMC name
+            var bmcName = getNicName('bmc', 1);
+
+            // --- Layout constants ---
+            var adapterW = 62;
+            var adapterH = 38;
+            var adapterGap = 10;
+            var groupGap = 18;
+
+            // Compute single row width
+            function rowWidth(groups) {
+                var w = 0;
+                for (var i = 0; i < groups.length; i++) {
+                    w += groups[i].nics.length * adapterW + (groups[i].nics.length - 1) * adapterGap;
+                    if (i < groups.length - 1) w += groupGap;
+                }
+                return w;
+            }
+
+            var nicRowW = rowWidth(nicGroups);
+            var storageW = storageAdapters.length * adapterW + Math.max(0, storageAdapters.length - 1) * adapterGap;
+            var maxRowW = Math.max(nicRowW, storageW);
+
+            var nodeW = Math.max(440, maxRowW + 60);
+            var nodeH = 225 + (storageAdapters.length > 0 ? 70 : 0);
+            var gapX = 50;
+            var marginX = 50;
+            var leafH = 50;
+            var leafW = 160;
+            var leafGap = 70;
+            var leafToNodeGap = 90;
+            var marginTop = 90;
+            var marginBottom = 80;
+            var sanAreaH = 70;
+
+            var svgW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
+            var leafAreaH = leafH + leafToNodeGap;
+            var svgH = marginTop + leafAreaH + nodeH + sanAreaH + marginBottom + (totalNodes > 2 ? 40 : 0);
+
+            // Leaf switch positions
+            var leafY = marginTop + 10;
+            var totalLeafW = (2 * leafW) + leafGap;
+            var leaf1X = (svgW - totalLeafW) / 2;
+            var leaf2X = leaf1X + leafW + leafGap;
+
+            // Node positions
+            var nodesStartX = (svgW - (n * nodeW) - ((n - 1) * gapX)) / 2;
+            var nodeY = marginTop + leafAreaH + 10;
+
+            // Tracking for uplink lines (leaf-connected NICs) and storage downlinks
+            var uplinkPositions = [];
+            var storagePositions = [];
+
+            function renderNicRow(groups, baseX, baseY, nodeLeft) {
+                var out = '';
+                var rw = rowWidth(groups);
+                var currentX = nodeLeft + (nodeW - rw) / 2;
+
+                for (var gi = 0; gi < groups.length; gi++) {
+                    var grp = groups[gi];
+                    var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
+                    var boxX = currentX - 8;
+                    var boxTotalW = grpW + 16;
+                    var boxH = adapterH + 28;
+                    var boxY = baseY - 14;
+                    var rgb = colorRgb(grp.color);
+
+                    // Group box
+                    out += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
+
+                    // Label above the box
+                    out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY - 5) + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
+
+                    // NIC adapter cards
+                    for (var ni = 0; ni < grp.nics.length; ni++) {
+                        var nic = grp.nics[ni];
+                        var x = currentX + ni * (adapterW + adapterGap);
+                        var y = baseY;
+
+                        out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + rgb + ',0.20)" stroke="rgba(' + rgb + ',0.60)" />';
+                        out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
+                        out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(nic.speed) + '</text>';
+
+                        uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
+                    }
+
+                    // VLAN label below the port shape (for standalone cluster networks)
+                    if (grp.vlanBelow) {
+                        out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY + boxH + 12) + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
+                    }
+
+                    currentX += grpW + groupGap;
+                }
+                return out;
+            }
+
+            function renderStorageAdapters(nodeLeft, nodeTop) {
+                if (storageAdapters.length === 0) return '';
+                var out = '';
+                var saY = nodeTop + nodeH - adapterH - 20;
+                var saStartX = nodeLeft + (nodeW - storageW) / 2;
+
+                // Storage section label
+                var storageLabel2 = hasFc ? 'FC HBA — SAN Fabric' : 'iSCSI Storage Adapters';
+                var rgb = colorRgb('#8b5cf6');
+                out += '<text x="' + (nodeLeft + nodeW / 2) + '" y="' + (saY - 18) + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(storageLabel2) + '</text>';
+
+                // Separator line
+                out += '<line x1="' + (nodeLeft + 20) + '" y1="' + (saY - 24) + '" x2="' + (nodeLeft + nodeW - 20) + '" y2="' + (saY - 24) + '" stroke="rgba(' + rgb + ',0.2)" stroke-dasharray="4 3" />';
+
+                for (var si = 0; si < storageAdapters.length; si++) {
+                    var sa = storageAdapters[si];
+                    var x = saStartX + si * (adapterW + adapterGap);
+                    var y = saY;
+                    var saRgb = colorRgb(sa.color);
+
+                    out += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + saRgb + ',0.15)" stroke="rgba(' + saRgb + ',0.55)" stroke-dasharray="4 2" />';
+                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="7.5" fill="var(--text-primary)" font-weight="600">' + escapeHtml(sa.name) + '</text>';
+                    out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(sa.speed) + '</text>';
+
+                    // Track position for downlink lines to SAN/target
+                    storagePositions.push({ x: x + adapterW / 2, y: y + adapterH, target: sa.target, color: sa.color });
+                }
+
+                return out;
+            }
+
+            function renderNode(posX, nodeTop, nodeIdx) {
+                var out = '';
+                // Node box
+                out += '<rect x="' + posX + '" y="' + nodeTop + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
+
+                // Node name
+                var nodeLabel = 'Node ' + (nodeIdx + 1);
+                if (state.nodeSettings && state.nodeSettings[nodeIdx] && state.nodeSettings[nodeIdx].name) {
+                    nodeLabel = String(state.nodeSettings[nodeIdx].name).trim() || nodeLabel;
+                }
+                out += '<text x="' + (posX + nodeW / 2) + '" y="' + (nodeTop + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(nodeLabel) + '</text>';
+
+                // BMC (top-right corner)
+                var bmcX = posX + nodeW - 75;
+                var bmcY = nodeTop + 12;
+                out += '<rect x="' + bmcX + '" y="' + bmcY + '" width="' + 55 + '" height="' + 22 + '" rx="5" fill="rgba(160,160,160,0.12)" stroke="rgba(160,160,160,0.4)" />';
+                out += '<text x="' + (bmcX + 27) + '" y="' + (bmcY + 14) + '" text-anchor="middle" font-size="7.5" fill="var(--text-secondary)">' + escapeHtml(bmcName) + '</text>';
+                out += '<text x="' + (bmcX + 27) + '" y="' + (bmcY + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
+
+                // Single NIC row: all intents (Mgmt+Compute, Cluster 1, Cluster 2, Backup)
+                var nicRowY = nodeTop + 80;
+                out += renderNicRow(nicGroups, posX, nicRowY, posX);
+
+                // Bottom: Storage adapters (FC HBA or iSCSI) — below NIC row
+                out += renderStorageAdapters(posX, nodeTop);
+
+                return out;
+            }
+
+            function renderUplinks() {
+                var out = '';
+                var leafBottomY = leafY + leafH;
+                for (var ai = 0; ai < uplinkPositions.length; ai++) {
+                    var ap = uplinkPositions[ai];
+                    var targetX = (ap.leaf === 'A') ? (leaf1X + leafW / 2) : (leaf2X + leafW / 2);
+                    var rgb = colorRgb(ap.color);
+                    out += '<line x1="' + ap.x + '" y1="' + ap.y + '" x2="' + targetX + '" y2="' + leafBottomY + '" stroke="rgba(' + rgb + ',0.35)" stroke-width="1.5" stroke-dasharray="4 2" />';
+                }
+                return out;
+            }
+
+            function renderStorageDownlinks(sanY) {
+                var out = '';
+                // SAN / iSCSI target shapes
+                var sanW = 160;
+                var sanH = 36;
+                var sanGap = 60;
+                var totalSanW = 2 * sanW + sanGap;
+                var sanStartX = (svgW - totalSanW) / 2;
+                var targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
+                var targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
+                var sanColor = '#8b5cf6';
+                var rgb = colorRgb(sanColor);
+
+                // Target A
+                out += '<rect x="' + sanStartX + '" y="' + sanY + '" width="' + sanW + '" height="' + sanH + '" rx="10" fill="rgba(' + rgb + ',0.12)" stroke="rgba(' + rgb + ',0.55)" stroke-width="1.5" />';
+                out += '<text x="' + (sanStartX + sanW / 2) + '" y="' + (sanY + 22) + '" text-anchor="middle" font-size="11" fill="rgba(' + rgb + ',0.9)" font-weight="600">' + escapeHtml(targetLabelA) + '</text>';
+
+                // Target B
+                var sanBX = sanStartX + sanW + sanGap;
+                out += '<rect x="' + sanBX + '" y="' + sanY + '" width="' + sanW + '" height="' + sanH + '" rx="10" fill="rgba(' + rgb + ',0.12)" stroke="rgba(' + rgb + ',0.55)" stroke-width="1.5" />';
+                out += '<text x="' + (sanBX + sanW / 2) + '" y="' + (sanY + 22) + '" text-anchor="middle" font-size="11" fill="rgba(' + rgb + ',0.9)" font-weight="600">' + escapeHtml(targetLabelB) + '</text>';
+
+                // Connection lines from storage adapter positions to targets
+                var targetAcx = sanStartX + sanW / 2;
+                var targetBcx = sanBX + sanW / 2;
+                for (var si2 = 0; si2 < storagePositions.length; si2++) {
+                    var sp = storagePositions[si2];
+                    var targetCx = (sp.target === 'A') ? targetAcx : targetBcx;
+                    var spRgb = colorRgb(sp.color);
+                    out += '<line x1="' + sp.x + '" y1="' + sp.y + '" x2="' + targetCx + '" y2="' + sanY + '" stroke="rgba(' + spRgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
+                }
+
+                return out;
+            }
+
+            // Build intro text
+            var storageLabel = storageType === 'fc_san' ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC';
+            var intro = ''
+                + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
+                + '<strong style="color:var(--text-primary);">Disaggregated (' + escapeHtml(storageLabel) + ')</strong> host networking diagram with Leaf-A / Leaf-B switches.'
+                + '<br>Intents: Management + Compute (SET), Cluster 1 &amp; 2 (Standalone)'
+                + (backupEnabled ? ', In-Guest Backup (SET)' : '')
+                + '. Storage adapters shown at bottom of each node.'
+                + (totalNodes > 2 ? '<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(totalNodes)) + ' nodes.</span>' : '')
+                + '</div>';
+
+            var svg = '';
+            svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="Disaggregated host networking diagram">';
+
+            // Outer container
+            svg += '<rect x="30" y="55" width="' + (svgW - 60) + '" height="' + (svgH - 85) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
+
+            // Title
+            var titleText = 'Disaggregated ' + storageLabel + ' connectivity — ' + portCount + ' ports' + (backupEnabled ? ' + Backup' : '') + ' — Total nodes: ' + totalNodes;
+            svg += '<text x="' + (svgW / 2) + '" y="42" text-anchor="middle" font-size="13" fill="var(--text-secondary)">' + escapeHtml(titleText) + '</text>';
+
+            // Leaf-A
+            svg += '<rect x="' + leaf1X + '" y="' + leafY + '" width="' + leafW + '" height="' + leafH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+            svg += '<text x="' + (leaf1X + leafW / 2) + '" y="' + (leafY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">Leaf-A</text>';
+
+            // Leaf-B
+            svg += '<rect x="' + leaf2X + '" y="' + leafY + '" width="' + leafW + '" height="' + leafH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+            svg += '<text x="' + (leaf2X + leafW / 2) + '" y="' + (leafY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">Leaf-B</text>';
+
+            // iBGP link between leaves (Port 49)
+            var ibgpX1 = leaf1X + leafW;
+            var ibgpX2 = leaf2X;
+            var ibgpY2 = leafY + leafH / 2;
+            var ibgpMidX = (ibgpX1 + ibgpX2) / 2;
+            svg += '<line x1="' + ibgpX1 + '" y1="' + ibgpY2 + '" x2="' + ibgpX2 + '" y2="' + ibgpY2 + '" stroke="rgba(250,204,21,0.7)" stroke-width="2" stroke-dasharray="6 3" />';
+            svg += '<text x="' + ibgpMidX + '" y="' + (ibgpY2 - 8) + '" text-anchor="middle" font-size="9" fill="rgba(250,204,21,0.9)">iBGP P49</text>';
+
+            // Render nodes — accumulate storagePositions across all nodes for downlinks
+            storagePositions = [];
+            for (var ni3 = 0; ni3 < n; ni3++) {
+                var posX = nodesStartX + ni3 * (nodeW + gapX);
+                uplinkPositions = [];
+                svg += renderNode(posX, nodeY, ni3);
+                svg += renderUplinks();
+            }
+
+            // SAN / iSCSI target shapes below nodes
+            var sanY = nodeY + nodeH + 20;
+            svg += renderStorageDownlinks(sanY);
+
+            // "+N more nodes" badge — inside the outer container
+            if (totalNodes > 2) {
+                var more = totalNodes - 2;
+                var badgeW = 180;
+                var badgeH = 26;
+                var badgeX = svgW - 60 - badgeW;
+                var badgeY = svgH - 85 - badgeH + 15;
+                svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
+                svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + more + ' more node' + (more === 1 ? '' : 's') + '</text>';
+            }
+
+            svg += '</svg>';
+
+            var note = '<div class="switchless-diagram__note">Note: Disaggregated ' + escapeHtml(storageLabel) + ' — Management + Compute intent (blue). Cluster networks are standalone NICs (green), one per leaf switch. '
+                + (storageType === 'iscsi_6nic' ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to iSCSI targets. ' : '')
+                + (storageType === 'iscsi_4nic' ? 'iSCSI shares PCIe1 trunk ports with Cluster/CSV traffic, reaching iSCSI targets through leaf switches. ' : '')
+                + (hasFc ? 'FC HBA connects to separate SAN fabric (dedicated FC network, not through leaf switches). ' : '')
+                + (backupEnabled ? 'In-Guest Backup uses a Compute Intent (orange). ' : '')
+                + '</div>';
+
+            return '<div class="switchless-diagram">' + intro + svg + note + '</div>';
+        }
+
+        // getDisaggPortListForReport is defined at IIFE top level (shared with drawio generator)
 
         function renderRackAwareTorArchitectureDiagram(state) {
             if (!state || state.scale !== 'rack_aware') return '';
@@ -5642,6 +6353,13 @@
             ));
         }
 
+        // Disaggregated host networking diagram
+        if (s.architecture === 'disaggregated') {
+            sections.push(block('Disaggregated Host Networking (Diagram)',
+                renderDisaggregatedHostNetworkingDiagram(s)
+            ));
+        }
+
         // Intent + Mapping
         var intentNotes = [];
         if (s.intent === 'all_traffic') intentNotes.push('Fully converged simplifies adapter mapping but combines all traffic types into one SET team.');
@@ -6639,6 +7357,49 @@
             hostNetworkingRows += row('Storage Pool Configuration', spConfig);
         }
 
+        // Disaggregated host networking summary
+        if (s.architecture === 'disaggregated') {
+            var stLabel = s.disaggStorageType === 'fc_san' ? 'FC SAN' : s.disaggStorageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : s.disaggStorageType === 'iscsi_6nic' ? 'iSCSI 6-NIC' : '';
+            if (stLabel) hostNetworkingRows += row('Storage Type', stLabel);
+            if (s.disaggPortCount) hostNetworkingRows += row('Ports per Node', s.disaggPortCount, true);
+            if (s.disaggBackupEnabled) hostNetworkingRows += row('Backup Network', 'Enabled');
+            if (s.disaggRackCount) hostNetworkingRows += row('Racks', String(s.disaggRackCount), true);
+            if (s.disaggNodesPerRack) hostNetworkingRows += row('Nodes per Rack', String(s.disaggNodesPerRack), true);
+            if (s.disaggSpineCount) hostNetworkingRows += row('Spine Switches', String(s.disaggSpineCount), true);
+
+            // Intent mapping
+            hostNetworkingRows += row('Mgmt + Compute Intent', 'SET Team (OCP ports)');
+            var clVlan1 = (s.disaggVlans && s.disaggVlans.cluster1) || '711';
+            var clVlan2 = (s.disaggVlans && s.disaggVlans.cluster2) || '712';
+            hostNetworkingRows += row('Cluster Network 1', 'Standalone, VLAN ' + clVlan1 + ' → Leaf-A');
+            hostNetworkingRows += row('Cluster Network 2', 'Standalone, VLAN ' + clVlan2 + ' → Leaf-B');
+
+            if (s.disaggStorageType === 'iscsi_4nic') {
+                hostNetworkingRows += row('iSCSI', 'Shared trunk on PCIe1 (with Cluster/CSV)');
+            } else if (s.disaggStorageType === 'iscsi_6nic') {
+                var iscsiA = (s.disaggVlans && s.disaggVlans.iscsiA) || '500';
+                var iscsiB = (s.disaggVlans && s.disaggVlans.iscsiB) || '600';
+                hostNetworkingRows += row('iSCSI Storage A', 'Standalone, VLAN ' + iscsiA + ' → Leaf-A');
+                hostNetworkingRows += row('iSCSI Storage B', 'Standalone, VLAN ' + iscsiB + ' → Leaf-B');
+            } else if (s.disaggStorageType === 'fc_san') {
+                hostNetworkingRows += row('FC SAN', 'FC HBA → Separate SAN Fabric (MPIO)');
+            }
+
+            if (s.disaggBackupEnabled) {
+                var bkVlan = (s.disaggVlans && s.disaggVlans.backup) || '800';
+                hostNetworkingRows += row('Backup Intent', 'Compute Intent (SET), VLAN ' + bkVlan);
+            }
+
+            // Standalone NIC subnets
+            if (s.disaggSubnets) {
+                if (s.disaggSubnets.cluster1) hostNetworkingRows += row('Cluster 1 Subnet', s.disaggSubnets.cluster1, true);
+                if (s.disaggSubnets.cluster2) hostNetworkingRows += row('Cluster 2 Subnet', s.disaggSubnets.cluster2, true);
+                if (s.disaggSubnets.iscsiA) hostNetworkingRows += row('iSCSI A Subnet', s.disaggSubnets.iscsiA, true);
+                if (s.disaggSubnets.iscsiB) hostNetworkingRows += row('iSCSI B Subnet', s.disaggSubnets.iscsiB, true);
+                if (s.disaggSubnets.backup) hostNetworkingRows += row('Backup Subnet', s.disaggSubnets.backup, true);
+            }
+        }
+
         // Step 09–11: Connectivity
         var connectivityRows = '';
         if (s.outbound) connectivityRows += row('Outbound', formatOutbound(s.outbound));
@@ -6942,25 +7703,38 @@
             var rackContainer = document.getElementById('rack-diagram-container');
             var rackActions = document.getElementById('rack-diagram-actions');
             if (rackSection && rackContainer) {
-                var hw = s.sizerHardware || {};
-                var rackNodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 2;
-                var rackHasGpu = (hw.gpu && hw.gpu.countPerNode > 0) || false;
+                var svgStr;
 
-                // Derive cluster type: prefer Sizer data, fall back to Designer scale
-                var rackClusterType = 'standard';
-                if (hw.clusterType) {
-                    rackClusterType = hw.clusterType;
-                } else if (s.scale === 'rack_aware') {
-                    rackClusterType = 'rack-aware';
-                } else if (s.scale === 'low_capacity' && rackNodeCount === 1) {
-                    rackClusterType = 'single';
+                if (s.architecture === 'disaggregated' && typeof generateDisaggregatedRackSvg === 'function') {
+                    // Disaggregated: use dynamic Clos topology diagram
+                    svgStr = generateDisaggregatedRackSvg({
+                        storageType: s.disaggStorageType || 'fc_san',
+                        backupEnabled: s.disaggBackupEnabled || false,
+                        rackCount: parseInt(s.disaggRackCount, 10) || 4,
+                        nodesPerRack: parseInt(s.disaggNodesPerRack, 10) || 16,
+                        spineCount: parseInt(s.disaggSpineCount, 10) || 2
+                    });
+                } else {
+                    // HCI: existing rack diagram
+                    var hw = s.sizerHardware || {};
+                    var rackNodeCount = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 2;
+                    var rackHasGpu = (hw.gpu && hw.gpu.countPerNode > 0) || false;
+
+                    var rackClusterType = 'standard';
+                    if (hw.clusterType) {
+                        rackClusterType = hw.clusterType;
+                    } else if (s.scale === 'rack_aware') {
+                        rackClusterType = 'rack-aware';
+                    } else if (s.scale === 'low_capacity' && rackNodeCount === 1) {
+                        rackClusterType = 'single';
+                    }
+
+                    svgStr = generateRackSvg({
+                        clusterType: rackClusterType,
+                        nodeCount: rackNodeCount,
+                        hasGpu: rackHasGpu
+                    });
                 }
-
-                var svgStr = generateRackSvg({
-                    clusterType: rackClusterType,
-                    nodeCount: rackNodeCount,
-                    hasGpu: rackHasGpu
-                });
 
                 rackContainer.innerHTML = svgStr;
                 rackSection.style.display = '';
@@ -6977,7 +7751,7 @@
                         var url = URL.createObjectURL(blob);
                         var a = document.createElement('a');
                         a.href = url;
-                        a.download = 'rack-layout.svg';
+                        a.download = s.architecture === 'disaggregated' ? 'disaggregated-rack-layout.svg' : 'rack-layout.svg';
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
@@ -7043,7 +7817,8 @@
                 var swd = extractDiagramBodyByTitle('Switched Connectivity (Diagram)');
                 var snc = extractDiagramBodyByTitle('Network Connectivity (Diagram)');  // Single-node clusters
                 var rac = extractDiagramBodyByTitle('Rack Aware TOR Architecture (Diagram)');
-                movedDiagramInnerHtml = (swl || rac || swd || snc || '');
+                var dag = extractDiagramBodyByTitle('Disaggregated Host Networking (Diagram)');
+                movedDiagramInnerHtml = (swl || rac || swd || snc || dag || '');
 
                 ratEl.innerHTML = wrap ? wrap.innerHTML : rationaleHtml;
             } catch (e) {

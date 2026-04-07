@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 const state = {
     scenario: null,
+    architecture: null, // 'hyperconverged' | 'disaggregated' — selected in Step 1b
     region: null,
     localInstanceRegion: null,
     scale: null,
@@ -162,7 +163,58 @@ const state = {
     privateEndpoints: null, // 'pe_enabled' or 'pe_disabled'
     privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
     sizerHardware: null, // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
-    sizerWorkloads: null // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
+    sizerWorkloads: null, // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
+    // Disaggregated architecture state
+    disaggStorageType: null, // 'fc_san' | 'iscsi_4nic' | 'iscsi_6nic'
+    disaggBackupEnabled: false,
+    disaggPortCount: null,
+    disaggRackCount: null,
+    disaggNodesPerRack: null,
+    disaggSpineCount: null,
+    disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 },
+    disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
+    disaggVrfName: 'AZLOCAL',
+    disaggSubnets: {},
+    disaggIscsiTargets: [],
+    disaggQosCustomized: false,
+    // DA9: Node configuration
+
+    // DA10: NIC / Adapter configuration
+    disaggPortSpeeds: {  // Speed per NIC slot
+        ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE'
+    },
+    disaggIntentMapping: { // Port-to-intent mapping (SET team)
+        mgmt_compute: ['ocp_p1', 'ocp_p2']  // Default: OCP ports form Mgmt+Compute SET
+    },
+    disaggClusterPortMapping: { // Standalone port-to-VLAN mapping
+        pcie1_p1: '711', pcie1_p2: '712',   // Cluster NICs
+        pcie2_p1: '500', pcie2_p2: '600'    // iSCSI NICs (6-NIC only)
+    },
+    disaggNicNames: {
+        ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2',           // Compute+Mgmt SET team
+        cluster1: 'PCIe1-NIC3', cluster2: 'PCIe1-NIC4', // Cluster standalone
+        iscsi1: 'PCIe2-NIC5', iscsi2: 'PCIe2-NIC6',     // iSCSI standalone (6-NIC only)
+        backup1: 'Backup-NIC7', backup2: 'Backup-NIC8',  // Backup standalone (optional)
+        bmc: 'BMC'
+    },
+    disaggNicNamesConfirmed: false,
+    disaggNicConfigConfirmed: false,
+    // Per-port config (mirrors HCI portConfig)
+    disaggPortConfig: {},
+    disaggPortConfigConfirmed: false,
+    // Adapter mapping (mirrors HCI adapterMapping)
+    disaggAdapterMapping: {},
+    disaggAdapterMappingConfirmed: false,
+    // Intent overrides (RDMA, Jumbo, SR-IOV for Mgmt+Compute and Backup intents)
+    disaggIntentOverrides: {},
+    // Overrides confirmed
+    disaggOverridesConfirmed: false,
+    // Standalone NIC subnets (not managed by intents)
+    disaggClusterSubnet1: null, // Cluster NIC1 subnet (VLAN 711)
+    disaggClusterSubnet2: null, // Cluster NIC2 subnet (VLAN 712)
+    disaggIscsiSubnet1: null,   // iSCSI NIC1 subnet (VLAN 500)
+    disaggIscsiSubnet2: null,   // iSCSI NIC2 subnet (VLAN 600)
+    disaggBackupSubnet: null    // Backup subnet (VLAN 800)
 };
 
 // Auto-save state to localStorage
@@ -279,9 +331,9 @@ function computeWizardProgress() {
     // Security Configuration
     add('Security Configuration', Boolean(state.securityConfiguration));
 
-    // SDN management becomes required only when SDN features are selected.
+    // SDN: features are the only user choice; management is auto-set to Arc
     if (state.sdnFeatures && state.sdnFeatures.length > 0) {
-        add('SDN Management', Boolean(state.sdnManagement));
+        add('SDN Features', true);
     }
 
     const total = checks.length;
@@ -351,7 +403,6 @@ const missingSectionToStep = {
     'Security Configuration': 'step-13-5',
     'SDN Enabled/Disabled': 'step-14',
     'SDN Features': 'step-14',
-    'SDN Management': 'step-14',
     'Confirm Autonomous Cloud FQDN': 'step-fqdn',
     'Confirm adapter mapping for Custom intent': 'step-6',
     'RDMA: At least': 'step-5',
@@ -450,19 +501,52 @@ window.addEventListener('unhandledrejection', (e) => {
 function getReportReadiness() {
     const missing = [];
 
-    // If Multi-Rack, wizard intentionally stops early.
-    if (state.scenario === 'multirack') {
-        missing.push('Scenario must not be Multi-Rack (report is not available for Multi-Rack flow)');
+    // If Rack Scale, wizard intentionally stops early.
+    if (state.scenario === 'rackscale') {
+        missing.push('Scenario must not be Rack Scale (report is not available for Rack Scale flow)');
         return { ready: false, missing };
     }
 
     if (!state.scenario) missing.push('Deployment Type');
+    if (!state.architecture) missing.push('Architecture');
 
     // Disconnected: require confirmed Autonomous Cloud FQDN
     if (state.scenario === 'disconnected' && state.clusterRole && !state.fqdnConfirmed) {
         missing.push('Confirm Autonomous Cloud FQDN');
     }
 
+    // Disaggregated architecture has its own readiness checks
+    if (state.architecture === 'disaggregated') {
+        // DA1-DA4: Core disaggregated config
+        if (!state.disaggStorageType) missing.push('Storage Type (DA1)');
+        if (!state.disaggRackCount) missing.push('Rack Count (DA3)');
+        if (!state.disaggNodesPerRack) missing.push('Nodes Per Rack (DA3)');
+        if (!state.disaggSpineCount) missing.push('Spine Count (DA4)');
+        // DA10: Port count + NIC configuration
+        if (!state.disaggPortCount) missing.push('Network Port Count (DA10)');
+        if (!state.disaggNicConfigConfirmed) missing.push('Network Adapter Configuration (DA10)');
+        // Shared steps — same as HCI
+        if (!state.region) missing.push('Azure Cloud');
+        if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
+        if (!state.outbound) missing.push('Outbound Connectivity');
+        if (!state.arc) missing.push('Azure Arc Gateway');
+        if (!state.proxy) missing.push('Proxy');
+        if (!state.privateEndpoints) missing.push('Private Endpoints');
+        if (!state.ip) missing.push('IP Assignment');
+        if (state.ip === 'static' && !state.infraGateway) missing.push('Default Gateway');
+        if (!state.infraVlan) missing.push('Infrastructure VLAN');
+        if (!state.activeDirectory) {
+            missing.push('Identity (Active Directory / Local Identity)');
+        } else {
+            if (state.activeDirectory === 'azure_ad' && !state.adDomain) missing.push('Active Directory Domain Name');
+            if (!state.dnsServers || state.dnsServers.length <= 0) missing.push('DNS Servers');
+            if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
+        }
+        if (!state.securityConfiguration) missing.push('Security Configuration');
+        return { ready: missing.length === 0, missing };
+    }
+
+    // HCI-specific readiness checks below
     if (!state.region) missing.push('Azure Cloud');
     if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
     if (!state.scale) missing.push('Scale');
@@ -554,15 +638,12 @@ function getReportReadiness() {
         missing.push('Security Configuration');
     }
 
-    // SDN: user must select enabled or disabled; if enabled, features and management required
+    // SDN: user must select enabled or disabled; if enabled, at least one feature required
     if (!state.sdnEnabled) {
         missing.push('SDN Enabled/Disabled');
     } else if (state.sdnEnabled === 'yes') {
         if (!state.sdnFeatures || state.sdnFeatures.length === 0) {
             missing.push('SDN Features');
-        }
-        if (!state.sdnManagement) {
-            missing.push('SDN Management');
         }
     }
 
@@ -907,6 +988,11 @@ function tryAutoFillSequentialNodeIpsFromFirst() {
 }
 
 function ensureNodeSettingsInitialized() {
+    // For disaggregated, ensure state.nodes is synced from DA3 before computing count
+    if (state.architecture === 'disaggregated') {
+        const total = (state.disaggRackCount || 0) * (state.disaggNodesPerRack || 0);
+        if (total > 0 && state.nodes !== String(total)) state.nodes = String(total);
+    }
     const count = getNumericNodeCount();
     if (!count) return;
 
@@ -1012,6 +1098,13 @@ function renderNodeSettings() {
     const section = document.getElementById('node-config-section');
     const container = document.getElementById('node-config-container');
     if (!section || !container) return;
+
+    // For disaggregated, re-sync node count from DA3 (racks × nodesPerRack)
+    // in case a downstream reset handler cleared state.nodes
+    if (state.architecture === 'disaggregated') {
+        const total = (state.disaggRackCount || 0) * (state.disaggNodesPerRack || 0);
+        if (total > 0) state.nodes = String(total);
+    }
 
     // Only show after node count and IP assignment selection are known.
     const count = getNumericNodeCount();
@@ -2195,11 +2288,11 @@ function generateReport() {
 function selectOption(category, value) {
     // Special handling for M365 Local - stop workflow and show documentation
     if (category === 'scenario' && value === 'm365local') {
-        // Hide Multi-Rack message when switching to M365 Local
-        const multiRackMsg = document.getElementById('multirack-message');
-        if (multiRackMsg) {
-            multiRackMsg.classList.add('hidden');
-            multiRackMsg.classList.remove('visible');
+        // Hide Rack Scale message when switching to M365 Local
+        const rackScaleMsg = document.getElementById('rackscale-message');
+        if (rackScaleMsg) {
+            rackScaleMsg.classList.add('hidden');
+            rackScaleMsg.classList.remove('visible');
         }
         showM365LocalInfo();
         return;
@@ -2214,12 +2307,12 @@ function selectOption(category, value) {
         }
     }
 
-    // Hide Multi-Rack message when switching to another scenario option
-    if (category === 'scenario' && value !== 'multirack') {
-        const multiRackMsg = document.getElementById('multirack-message');
-        if (multiRackMsg) {
-            multiRackMsg.classList.add('hidden');
-            multiRackMsg.classList.remove('visible');
+    // Hide Rack Scale message when switching to another scenario option
+    if (category === 'scenario' && value !== 'rackscale') {
+        const rackScaleMsg = document.getElementById('rackscale-message');
+        if (rackScaleMsg) {
+            rackScaleMsg.classList.add('hidden');
+            rackScaleMsg.classList.remove('visible');
         }
     }
 
@@ -2260,6 +2353,7 @@ function selectOption(category, value) {
     // Reset chains
     if (category === 'scenario') {
         state.scenario = value;
+        state.architecture = null; // Reset architecture when scenario changes
         state.region = null;
         state.localInstanceRegion = null;
         state.scale = null;
@@ -2287,11 +2381,40 @@ function selectOption(category, value) {
         state.infraVlanId = null;
         state.storageAutoIp = null;
         state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
+        // Reset disaggregated state
+        state.disaggStorageType = null;
+        state.disaggBackupEnabled = false;
+        state.disaggPortCount = null;
+        state.disaggRackCount = null;
+        state.disaggNodesPerRack = null;
+        state.disaggSpineCount = null;
+        state.disaggQosCustomized = false;
+    } else if (category === 'architecture') {
+        state.architecture = value;
+        // Management cluster is always HCI — clear if switching to disaggregated
+        if (value === 'disaggregated' && state.clusterRole === 'management') {
+            state.clusterRole = null;
+        }
+        // Reset downstream state when architecture changes
+        state.region = null;
+        state.localInstanceRegion = null;
+        state.scale = null;
+        state.nodes = null;
+        state.ports = null;
+        state.storage = null;
+        state.intent = null;
+        state.disaggStorageType = null;
+        state.disaggBackupEnabled = false;
+        state.disaggPortCount = null;
+        state.disaggRackCount = null;
+        state.disaggNodesPerRack = null;
+        state.disaggSpineCount = null;
+        state.disaggQosCustomized = false;
     } else if (category === 'region') {
         state.region = value;
         state.localInstanceRegion = null;
         state.scale = null;
-        state.nodes = null;
+        if (state.architecture !== 'disaggregated') { state.nodes = null; }
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -2318,7 +2441,7 @@ function selectOption(category, value) {
     } else if (category === 'localInstanceRegion') {
         state.localInstanceRegion = value;
         state.scale = null;
-        state.nodes = null;
+        if (state.architecture !== 'disaggregated') { state.nodes = null; }
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -3244,41 +3367,61 @@ function updateUI() {
         document.getElementById('step-5-5'),
         document.getElementById('step-13'),
         document.getElementById('step-13-5'),
-        document.getElementById('step-14')
+        document.getElementById('step-14'),
+        document.getElementById('step-report-actions')
     ];
 
     try {
     // 1. SCENARIO LOGIC & VISIBILITY
         const scenarioExp = document.getElementById('scenario-explanation');
-        const multiRackMsg = document.getElementById('multirack-message');
+        const rackScaleMsg = document.getElementById('rackscale-message');
+        const archSelection = document.getElementById('architecture-selection');
+        const archExp = document.getElementById('architecture-explanation');
+
+        // Disaggregated step elements
+        const daSteps = [
+            document.getElementById('step-da1'),
+            document.getElementById('step-da2'),
+            document.getElementById('step-da3'),
+            document.getElementById('step-da4'),
+            document.getElementById('step-da5'),
+            document.getElementById('step-da6'),
+            document.getElementById('step-da7'),
+            document.getElementById('step-da8'),
+            document.getElementById('step-da10')
+        ];
 
         // Reset Visibility first
         steps.forEach(s => s && s.classList.remove('hidden'));
-        if (multiRackMsg) {
-            multiRackMsg.classList.add('hidden');
-            multiRackMsg.classList.remove('visible');
+        daSteps.forEach(s => s && s.classList.add('hidden'));
+        if (rackScaleMsg) {
+            rackScaleMsg.classList.add('hidden');
+            rackScaleMsg.classList.remove('visible');
         }
         if (scenarioExp) scenarioExp.classList.remove('visible');
+        if (archSelection) archSelection.classList.add('hidden');
+        if (archExp) archExp.classList.remove('visible');
 
-        if (state.scenario === 'multirack') {
-        // Multi-Rack Logic: Hide everything, show message
+        // Restore scenario card selection
+        document.querySelectorAll('.option-card').forEach(card => {
+            const clickFn = card.getAttribute('onclick') || '';
+            if (clickFn.includes("selectOption('scenario'")) {
+                const value = card.getAttribute('data-value');
+                card.classList.toggle('selected', state.scenario === value);
+            } else if (clickFn.includes("selectOption('architecture'")) {
+                const value = card.getAttribute('data-value');
+                card.classList.toggle('selected', state.architecture === value);
+            }
+        });
+
+        if (state.scenario === 'rackscale') {
+        // Rack Scale Logic: Hide everything, show message
             steps.forEach(s => s && s.classList.add('hidden'));
-            if (multiRackMsg) {
-                multiRackMsg.classList.remove('hidden');
-                multiRackMsg.classList.add('visible');
+            if (rackScaleMsg) {
+                rackScaleMsg.classList.remove('hidden');
+                rackScaleMsg.classList.add('visible');
             }
 
-            // Keep Scenario option visually selected even though we stop the flow early.
-            // (The normal card selection pass runs later in updateUI.)
-            document.querySelectorAll('.option-card').forEach(card => {
-                const clickFn = card.getAttribute('onclick') || '';
-                if (!clickFn.includes("selectOption('scenario'")) return;
-                const value = card.getAttribute('data-value');
-                if (state.scenario === value) card.classList.add('selected');
-                else card.classList.remove('selected');
-            });
-
-            // Summary hidden?
             const summaryPanel = document.getElementById('summary-panel');
             if (summaryPanel) summaryPanel.classList.add('hidden');
             return; // STOP FLOW
@@ -3295,12 +3438,46 @@ function updateUI() {
         <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">📘 More information on M365 Local</a>`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
-        } else if (state.scenario === 'hyperconverged') {
+        } else if (state.scenario === 'connected') {
             if (scenarioExp) {
-                scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">Hyperconverged Infrastructure</strong>
-        Consolidated compute and storage in a single rack. Supports Low Capacity and Standard Scale configurations.`;
+                scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">Connected Deployment</strong>
+        Cloud-connected deployment with full Azure Arc integration. Select the architecture below.`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
+        }
+
+        // Show architecture selection for Connected + Disconnected scenarios
+        if (state.scenario === 'connected' || state.scenario === 'disconnected') {
+            if (archSelection) archSelection.classList.remove('hidden');
+
+            // Show architecture explanation
+            if (state.architecture === 'hyperconverged' && archExp) {
+                archExp.innerHTML = `<strong style="color: var(--accent-blue);">Hyperconverged Infrastructure</strong>
+        S2D storage with RDMA, 2-switch TOR pair, up to 16 nodes per rack. Supports Low Capacity and Standard Scale configurations.`;
+                archExp.classList.add('visible');
+            } else if (state.architecture === 'disaggregated' && archExp) {
+                archExp.innerHTML = `<strong style="color: var(--accent-purple);">Disaggregated Architecture</strong>
+        External SAN storage (FC or iSCSI), Clos leaf-spine fabric with VXLAN EVPN overlay, up to 64 nodes across multiple racks.`;
+                archExp.classList.add('visible');
+            }
+        }
+
+        // Architecture-based step visibility
+        if (state.architecture === 'disaggregated') {
+            // Hide HCI-only steps
+            const hciOnlyIds = ['step-2', 'step-3', 'step-3-5', 'step-4', 'step-5', 'step-6', 'step-5-5', 'step-14'];
+            steps.forEach(s => {
+                if (s && hciOnlyIds.includes(s.id)) {
+                    s.classList.add('hidden');
+                }
+            });
+            // Show DA steps (disaggregated.js controls individual step visibility)
+            daSteps.forEach(s => s && s.classList.remove('hidden'));
+            // Shared steps (cloud, region, outbound, arc, proxy, PE, mgmt, infra VLAN, infra network, AD, security)
+            // remain visible — they were un-hidden in the reset block above
+        } else if (!state.architecture) {
+            // No architecture selected yet - hide all downstream steps
+            steps.forEach(s => s && s.classList.add('hidden'));
         }
 
         // Outbound visibility logic (Step 7) moved later or handled here?
@@ -3922,7 +4099,7 @@ function updateUI() {
         }
     }
 
-    if (!state.intent) {
+    if (!state.intent && state.architecture !== 'disaggregated') {
         document.querySelectorAll('#outbound-connected .option-card').forEach(c => c.classList.add('disabled'));
         document.querySelectorAll('#outbound-disconnected .option-card').forEach(c => c.classList.add('disabled'));
     }
@@ -6187,16 +6364,11 @@ function updateSummary() {
     if (state.sdnFeatures && state.sdnFeatures.length > 0) {
         const featureNames = {
             'lnet': 'LNET',
-            'nsg': 'NSG',
-            'vnet': 'VNET',
-            'slb': 'Load Balancers'
+            'nsg': 'NSG'
         };
         const features = state.sdnFeatures.map(f => featureNames[f] || f).join(', ');
         sdnRows += renderRow('SDN Features', escapeHtml(features));
-        if (state.sdnManagement) {
-            const mgmtType = state.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed';
-            sdnRows += renderRow('SDN Management', escapeHtml(mgmtType));
-        }
+        sdnRows += renderRow('SDN Management', 'Arc Managed');
     }
 
     const scenarioScaleHtml = renderSection('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows);
@@ -7169,7 +7341,7 @@ function resetAll() {
 
     renderDnsServers();
 
-    const ids = ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success', 'china-warning', 'disconnected-region-info', 'disconnected-cloud-context', 'proxy-warning', 'dhcp-warning', 'ip-subnet-warning', 'multirack-message'];
+    const ids = ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success', 'china-warning', 'disconnected-region-info', 'disconnected-cloud-context', 'proxy-warning', 'dhcp-warning', 'ip-subnet-warning', 'rackscale-message'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -7356,68 +7528,16 @@ function toggleSdnFeature(feature, checked) {
 
 function updateSdnManagementOptions() {
     const managementSection = document.getElementById('sdn-management-section');
-    const arcCard = document.getElementById('sdn-arc-card');
-    const onpremCard = document.getElementById('sdn-onprem-card');
-    const infoText = document.getElementById('sdn-info-text');
 
-    if (!managementSection || !arcCard || !onpremCard || !infoText) return;
+    if (!managementSection) return;
 
-    // Show management section if any features are selected
+    // Show management info and auto-select Arc when any features are selected
     if (state.sdnFeatures.length > 0) {
         managementSection.classList.remove('hidden');
-
-        const hasVnet = state.sdnFeatures.includes('vnet');
-        const hasSlb = state.sdnFeatures.includes('slb');
-        const hasLnet = state.sdnFeatures.includes('lnet');
-        const hasNsg = state.sdnFeatures.includes('nsg');
-
-        // Logic: LNET and/or NSG only -> Arc management enabled
-        // VNET and/or SLB -> On-premises management only
-        const onlyLnetNsg = (hasLnet || hasNsg) && !hasVnet && !hasSlb;
-        const hasVnetOrSlb = hasVnet || hasSlb;
-
-        if (onlyLnetNsg) {
-            // Enable Arc, disable On-premises
-            arcCard.classList.remove('disabled');
-            onpremCard.classList.add('disabled');
-            infoText.innerHTML = '<strong>SDN Managed by Arc</strong><br>' +
-                'With SDN enabled by Azure Arc, the Network Controller runs as a Failover Cluster service and integrates with the Azure Arc control plane. ' +
-                'This allows you to centrally configure and manage logical networks (LNET) and network security groups (NSG) via the Azure portal and Azure CLI. ' +
-                'Currently, only LNET and NSG are supported with Arc management as this is a newer approach available with Azure Local 2506 or later. ' +
-                'Virtual Networks (VNET) and Software Load Balancers (SLB) require the full SDN infrastructure components.';
-
-            // Reset if on-prem was selected
-            if (state.sdnManagement === 'onprem_managed') {
-                state.sdnManagement = null;
-                onpremCard.classList.remove('selected');
-            }
-        } else if (hasVnetOrSlb) {
-            // Enable On-premises, disable Arc
-            arcCard.classList.add('disabled');
-            onpremCard.classList.remove('disabled');
-            infoText.innerHTML = '<strong>SDN Managed by On-Premises Tools</strong><br>' +
-                'Virtual Networks (VNET) and Software Load Balancers (SLB) require the full SDN infrastructure with Network Controller, SLB, and Gateway components running on VMs. ' +
-                'These advanced features must be deployed and managed using on-premises tools like Windows Admin Center or SDN Express scripts. ' +
-                'This approach provides complete SDN functionality including switching, routing, and load balancing capabilities, ' +
-                'but requires additional infrastructure components beyond what Arc-managed SDN currently supports.';
-
-            // Reset if Arc was selected
-            if (state.sdnManagement === 'arc_managed') {
-                state.sdnManagement = null;
-                arcCard.classList.remove('selected');
-            }
-        } else {
-            // No features selected or invalid combination
-            arcCard.classList.add('disabled');
-            onpremCard.classList.add('disabled');
-            infoText.textContent = 'Select SDN features above to see available management options.';
-        }
+        state.sdnManagement = 'arc_managed';
     } else {
-        // No features selected, hide management section
         managementSection.classList.add('hidden');
         state.sdnManagement = null;
-        arcCard.classList.remove('selected');
-        onpremCard.classList.remove('selected');
     }
 }
 
@@ -7521,7 +7641,7 @@ function parseArmTemplateToState(armTemplate) {
     // Map ARM parameters to Odin state
 
     // Scenario - detect from template structure
-    result.scenario = 'hyperconverged'; // Default
+    result.scenario = 'connected'; // Default
 
     // Node count from arcNodeResourceIds or physicalNodesSettings
     if (params.arcNodeResourceIds && Array.isArray(params.arcNodeResourceIds)) {
@@ -8044,15 +8164,7 @@ function showArmImportOptionsDialog(armState) {
                     </label>
                     <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                         <input type="radio" name="import-sdn" value="arc_lnet_nsg" style="margin-right:8px;">
-                        <span style="color:var(--text-primary);">SDN Managed by Arc - Logical Networks & NSGs only</span>
-                    </label>
-                    <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
-                        <input type="radio" name="import-sdn" value="arc_full" style="margin-right:8px;">
-                        <span style="color:var(--text-primary);">SDN Managed by Arc - Full (VNets, LNets, NSGs, SLBs)</span>
-                    </label>
-                    <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
-                        <input type="radio" name="import-sdn" value="legacy" style="margin-right:8px;">
-                        <span style="color:var(--text-primary);">SDN Legacy (Windows Admin Center managed)</span>
+                        <span style="color:var(--text-primary);">SDN Managed by Arc - Logical Networks & NSGs</span>
                     </label>
                 </div>
             </div>
@@ -8115,7 +8227,6 @@ function showArmImportOptionsDialog(armState) {
         }
 
         // Map SDN selection to state properties
-        // Valid sdnManagement values: 'arc_managed' or 'onprem_managed'
         if (sdn === 'none') {
             armState.sdnEnabled = 'no';
             armState.sdnFeatures = [];
@@ -8124,14 +8235,6 @@ function showArmImportOptionsDialog(armState) {
             armState.sdnEnabled = 'yes';
             armState.sdnFeatures = ['lnet', 'nsg'];
             armState.sdnManagement = 'arc_managed';
-        } else if (sdn === 'arc_full') {
-            armState.sdnEnabled = 'yes';
-            armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
-            armState.sdnManagement = 'arc_managed';
-        } else if (sdn === 'legacy') {
-            armState.sdnEnabled = 'yes';
-            armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
-            armState.sdnManagement = 'onprem_managed';
         }
 
         overlay.remove();
@@ -8361,9 +8464,13 @@ function checkForSizerImport() {
             state.sizerWorkloads = payload.sizerWorkloads;
         }
 
-        // Step 01: Scenario (Disconnected for ALDO, Hyperconverged for others)
-        const scenario = payload.scenario || 'hyperconverged';
+        // Step 01: Scenario (Disconnected for ALDO, Connected for others)
+        const scenario = payload.scenario === 'disconnected' ? 'disconnected' : (payload.scenario || 'connected');
         selectOption('scenario', scenario);
+
+        // Set architecture (default to hyperconverged for imported configs)
+        const architecture = payload.architecture || 'hyperconverged';
+        selectOption('architecture', architecture);
 
         // Disconnected operations: set cluster role and FQDN
         if (scenario === 'disconnected' && payload.clusterRole) {
@@ -8623,6 +8730,19 @@ function resumeSavedState() {
     if (saved && saved.data) {
         Object.assign(state, saved.data);
 
+        // Migrate legacy scenario values from old saved states
+        if (state.scenario === 'hyperconverged') {
+            state.scenario = 'connected';
+            state.architecture = state.architecture || 'hyperconverged';
+        }
+        if (state.scenario === 'multirack') {
+            state.scenario = 'rackscale';
+        }
+        // Ensure architecture defaults for connected/disconnected if missing
+        if ((state.scenario === 'connected' || state.scenario === 'disconnected') && !state.architecture) {
+            state.architecture = 'hyperconverged';
+        }
+
         // Restore SDN enabled card selection
         if (state.sdnEnabled) {
             const sdnEnabledCard = document.getElementById(state.sdnEnabled === 'yes' ? 'sdn-enabled-yes' : 'sdn-enabled-no');
@@ -8633,6 +8753,17 @@ function resumeSavedState() {
                 if (yesCard) yesCard.classList.remove('selected');
                 if (noCard) noCard.classList.remove('selected');
                 sdnEnabledCard.classList.add('selected');
+            }
+        }
+
+        // Migrate legacy SDN features (vnet, slb) from saved state — only LNET and NSG supported
+        if (state.sdnFeatures && state.sdnFeatures.length > 0) {
+            state.sdnFeatures = state.sdnFeatures.filter(f => f === 'lnet' || f === 'nsg');
+            if (state.sdnFeatures.length > 0) {
+                state.sdnManagement = 'arc_managed';
+            } else {
+                state.sdnEnabled = 'no';
+                state.sdnManagement = null;
             }
         }
 
@@ -8658,18 +8789,10 @@ function resumeSavedState() {
         updateSdnManagementOptions();
 
         // Restore SDN management selection AFTER updateSdnManagementOptions
-        // This ensures the management section is visible and cards are properly enabled
-        if (state.sdnManagement) {
-            const arcCard = document.getElementById('sdn-arc-card');
-            const onpremCard = document.getElementById('sdn-onprem-card');
-            // Clear any existing selection
-            if (arcCard) arcCard.classList.remove('selected');
-            if (onpremCard) onpremCard.classList.remove('selected');
-            // Apply the saved selection
-            const card = document.getElementById(state.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
-            if (card && !card.classList.contains('disabled')) {
-                card.classList.add('selected');
-            }
+        // Arc management is now auto-selected when features are present
+        if (state.sdnManagement && state.sdnManagement !== 'arc_managed') {
+            // Migrate legacy on-prem selection to arc_managed
+            state.sdnManagement = state.sdnFeatures.length > 0 ? 'arc_managed' : null;
         }
 
         updateUI();
@@ -8734,9 +8857,29 @@ function startFresh() {
                 smbSigningEnforced: true,
                 smbClusterEncryption: true
             };
-        } else if (key === 'infra' || key === 'intentOverrides' || key === 'customIntents' || key === 'adapterMapping') {
+        } else if (key === 'infra' || key === 'intentOverrides' || key === 'customIntents' || key === 'adapterMapping' || key === 'disaggSubnets' || key === 'disaggPortConfig' || key === 'disaggAdapterMapping' || key === 'disaggIntentOverrides') {
             // These object properties should be null or empty object initially
             state[key] = (key === 'infra') ? null : {};
+        } else if (key === 'disaggVlans') {
+            state[key] = { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 };
+        } else if (key === 'disaggVnis') {
+            state[key] = { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 };
+        } else if (key === 'disaggVrfName') {
+            state[key] = 'AZLOCAL';
+        } else if (key === 'disaggNicNames') {
+            state[key] = {
+                ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2',
+                cluster1: 'PCIe1-NIC3', cluster2: 'PCIe1-NIC4',
+                iscsi1: 'PCIe2-NIC5', iscsi2: 'PCIe2-NIC6',
+                backup1: 'Backup-NIC7', backup2: 'Backup-NIC8',
+                bmc: 'BMC'
+            };
+        } else if (key === 'disaggPortSpeeds') {
+            state[key] = { ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE' };
+        } else if (key === 'disaggIntentMapping') {
+            state[key] = { mgmt_compute: ['ocp_p1', 'ocp_p2'] };
+        } else if (key === 'disaggClusterPortMapping') {
+            state[key] = { pcie1_p1: '711', pcie1_p2: '712', pcie2_p1: '500', pcie2_p2: '600' };
         } else if (typeof state[key] === 'boolean') {
             state[key] = key === 'infraCidrAuto' ? true : false;
         } else {
@@ -9126,7 +9269,8 @@ function showTemplates() {
             name: '2-Node Standard Cluster',
             description: 'Small production cluster with cloud witness, ideal for branch offices',
             config: {
-                scenario: 'hyperconverged',
+                scenario: 'connected',
+                architecture: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
@@ -9168,7 +9312,8 @@ function showTemplates() {
             name: '4-Node High Performance',
             description: 'Medium cluster with dedicated storage network for production workloads',
             config: {
-                scenario: 'hyperconverged',
+                scenario: 'connected',
+                architecture: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
@@ -9214,7 +9359,8 @@ function showTemplates() {
             name: '8-Node Rack Aware',
             description: 'Large rack-aware cluster for production with high availability',
             config: {
-                scenario: 'hyperconverged',
+                scenario: 'connected',
+                architecture: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'rack_aware',
@@ -9319,7 +9465,8 @@ function showTemplates() {
             name: 'Edge 2-Node Switchless',
             description: 'Cost-optimized edge deployment without storage switches',
             config: {
-                scenario: 'hyperconverged',
+                scenario: 'connected',
+                architecture: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'low_capacity',
@@ -9779,9 +9926,12 @@ function updateBreadcrumbs() {
     const breadcrumbNav = document.getElementById('breadcrumb-nav');
     if (!breadcrumbNav) return;
 
-    // Show breadcrumb when at least step 1 is complete
-    if (state.scenario) {
+    // Show breadcrumb when at least step 1 is complete AND architecture is HCI (not disaggregated)
+    if (state.scenario && state.architecture !== 'disaggregated') {
         breadcrumbNav.classList.remove('hidden');
+    } else {
+        breadcrumbNav.classList.add('hidden');
+        return;
     }
 
     const breadcrumbItems = breadcrumbNav.querySelectorAll('.breadcrumb-item');
@@ -9955,7 +10105,8 @@ function exportToPDF() {
 
     const getDisplayName = (key, value) => {
         const displayNames = {
-            scenario: { hyperconverged: 'Hyperconverged', disconnected: 'Disconnected', m365local: 'M365 Local', multirack: 'Multi-Rack' },
+            scenario: { connected: 'Connected', disconnected: 'Disconnected', m365local: 'M365 Local', rackscale: 'Rack Scale' },
+            architecture: { hyperconverged: 'Hyperconverged', disaggregated: 'Disaggregated' },
             region: { azure_commercial: 'Azure Commercial', azure_government: 'Azure Government', azure_china: 'Azure China' },
             scale: { low_capacity: 'Hyperconverged Low Capacity', medium: 'Hyperconverged', rack_aware: 'Hyperconverged Rack Aware' },
             storage: { switched: 'Switched Storage', switchless: 'Switchless Storage' },
