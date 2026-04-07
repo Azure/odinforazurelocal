@@ -24,9 +24,10 @@ function getMaxNodesPerRack(storageType, backupEnabled) {
     // Each "port range" block holds 16 ports (1-16, 17-32, 33-48)
     // Max nodes = min of all port range blocks / ports per node in that range
     if (storageType === 'iscsi_6nic' && backupEnabled) {
-        // iSCSI uses 33-48, backup also needs 33-48 → conflict
-        // Both share ports 33-48: each node needs 2 ports in this range = max 8 nodes
-        return 8;
+        // vNIC mode: iSCSI uses vNICs on the Backup SET (PCIe2), NOT separate leaf ports.
+        // PCIe2 ports connect to leaf 33-48 range (1 per leaf per node) → max 16
+        // but keep same headroom as iscsi_6nic without backup
+        return 15;
     } else if (storageType === 'iscsi_6nic') {
         // iSCSI uses ports 33-48 (1 per leaf per node) → max 16 but limited by total
         return 15; // conservative: leave headroom
@@ -78,7 +79,7 @@ function selectDisaggOption(category, value) {
         const warning = document.getElementById('da2-warning');
         if (warning) {
             if (value && state.disaggStorageType === 'iscsi_6nic') {
-                warning.innerHTML = '<strong style="color: #ef4444;">⚠ Port Conflict</strong><p>iSCSI 6-NIC uses leaf ports 33–48 for dedicated iSCSI NICs. Enabling backup requires sharing these ports, reducing max nodes per rack to 8.</p>';
+                warning.innerHTML = '<strong style="color: #a78bfa;">&#9432; vNIC Mode Activated</strong><p>iSCSI 6-NIC + Backup triggers <strong>vNIC mode</strong>: iSCSI traffic will use virtual NICs on the Backup Compute Intent SET team (PCIe2 ports) instead of separate physical leaf ports. Post-deployment configuration required (vNIC creation, NIC team mapping, DCB/QoS).</p>';
                 warning.classList.remove('hidden');
             } else {
                 warning.classList.add('hidden');
