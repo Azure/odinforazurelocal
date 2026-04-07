@@ -10228,7 +10228,7 @@ function updateBreadcrumbs() {
                 case 'step-da4': isComplete = Boolean(state.disaggSpineCount); break;
                 case 'step-da5': isComplete = Boolean(state.disaggVlanConfigConfirmed); break;
                 case 'step-da6': isComplete = Boolean(state.disaggOverridesConfirmed); break;
-                case 'step-da7': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da7': isComplete = Boolean(state.disaggIpConfigConfirmed); break;
                 case 'step-da8': isComplete = Boolean(state.disaggOverridesConfirmed); break;
                 case 'step-da10': isComplete = Boolean(state.disaggPortConfigConfirmed); break;
             }

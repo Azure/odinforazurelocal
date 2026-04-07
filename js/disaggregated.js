@@ -41,6 +41,7 @@ function selectDisaggOption(category, value) {
         state.disaggAdapterMappingConfirmed = false;
         state.disaggOverridesConfirmed = false;
         state.disaggVlanConfigConfirmed = false;
+        state.disaggIpConfigConfirmed = false;
         state.disaggWorkloadVlans = [];
 
         // Show explanation
@@ -131,6 +132,7 @@ function selectDisaggOption(category, value) {
 
     } else if (category === 'spines') {
         state.disaggSpineCount = value;
+        state.disaggIpConfigConfirmed = false;
 
         const exp = document.getElementById('da4-explanation');
         if (exp) {
@@ -431,13 +433,146 @@ function renderQosSummary() {
 }
 
 // ── IP Planning (DA7) ───────────────────────────────────────────────────────
+
+function renderDisaggTopologyDiagram() {
+    var container = document.getElementById('da7-topology-diagram');
+    if (!container) return;
+
+    var rackCount = state.disaggRackCount || 1;
+    var spineCount = state.disaggSpineCount || 2;
+
+    // Layout
+    var SPINE_W = 160, SPINE_H = 36;
+    var SL_W = 140, SL_H = 30;
+    var LEAF_W = 110, LEAF_H = 26;
+    var RACK_PAD = 30;
+
+    var rackGroupW = rackCount * (2 * LEAF_W + 20) + (rackCount - 1) * RACK_PAD;
+    var spinesGroupW = spineCount * SPINE_W + (spineCount - 1) * 24;
+    var slGroupW = 2 * SL_W + 24;
+    var totalW = Math.max(rackGroupW + 80, spinesGroupW + 80, slGroupW + 80, 500);
+
+    var SPINE_Y = 40, SL_Y = 110, LEAF_Y = 210, BOTTOM_PAD = 30;
+    var totalH = LEAF_Y + LEAF_H + BOTTOM_PAD + 30;
+
+    var C = {
+        BG: '#1a1a2e', SPINE: '#1a6fc4', SL: '#14b8a6', LEAF: '#6b7280',
+        LINK: 'rgba(255,255,255,0.15)', LINK_ACTIVE: 'rgba(255,255,255,0.35)',
+        TEXT: '#e0e0e0', TEXT_DIM: '#999', RACK_BORDER: '#444466'
+    };
+
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + totalW + ' ' + totalH + '" style="width:100%;max-width:' + totalW + 'px;background:' + C.BG + ';font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;border-radius:6px;">';
+
+    // Title
+    svg += '<text x="' + (totalW / 2) + '" y="22" text-anchor="middle" fill="' + C.TEXT + '" font-size="13" font-weight="600">Clos Fabric Topology — BGP Peering &amp; Loopback Map</text>';
+
+    // Spine positions
+    var spineStartX = (totalW - spinesGroupW) / 2;
+    var spinePositions = [];
+    for (var s = 0; s < spineCount; s++) {
+        var sx = spineStartX + s * (SPINE_W + 24);
+        spinePositions.push({ x: sx, cx: sx + SPINE_W / 2, y: SPINE_Y });
+    }
+
+    // Service leaf positions
+    var slStartX = (totalW - slGroupW) / 2;
+    var slPositions = [];
+    for (var sl = 0; sl < 2; sl++) {
+        var slx = slStartX + sl * (SL_W + 24);
+        slPositions.push({ x: slx, cx: slx + SL_W / 2, y: SL_Y });
+    }
+
+    // Rack leaf positions
+    var rackStartX = (totalW - rackGroupW) / 2;
+    var leafPositions = []; // [{x, cx, y, rack, idx}]
+    for (var r = 0; r < rackCount; r++) {
+        var rx = rackStartX + r * (2 * LEAF_W + 20 + RACK_PAD);
+        for (var li = 0; li < 2; li++) {
+            var lx = rx + li * (LEAF_W + 20);
+            leafPositions.push({ x: lx, cx: lx + LEAF_W / 2, y: LEAF_Y, rack: r, idx: li });
+        }
+    }
+
+    // Draw connections: each spine connects to every service leaf and every rack leaf
+    // Spine → Service Leafs
+    for (var si = 0; si < spinePositions.length; si++) {
+        for (var sli = 0; sli < slPositions.length; sli++) {
+            svg += '<line x1="' + spinePositions[si].cx + '" y1="' + (SPINE_Y + SPINE_H) + '" x2="' + slPositions[sli].cx + '" y2="' + SL_Y + '" stroke="' + C.LINK_ACTIVE + '" stroke-width="1.5" stroke-dasharray="4,3"/>';
+        }
+    }
+    // Spine → Rack Leafs
+    for (var si2 = 0; si2 < spinePositions.length; si2++) {
+        for (var li2 = 0; li2 < leafPositions.length; li2++) {
+            svg += '<line x1="' + spinePositions[si2].cx + '" y1="' + (SPINE_Y + SPINE_H) + '" x2="' + leafPositions[li2].cx + '" y2="' + LEAF_Y + '" stroke="' + C.LINK + '" stroke-width="1"/>';
+        }
+    }
+    // Service Leafs → Spines already drawn; Service Leafs don't connect to rack leafs
+
+    // Draw spine boxes
+    for (var s2 = 0; s2 < spinePositions.length; s2++) {
+        var sp = spinePositions[s2];
+        svg += '<rect x="' + sp.x + '" y="' + sp.y + '" width="' + SPINE_W + '" height="' + SPINE_H + '" rx="5" fill="' + C.SPINE + '" stroke="#2a8ad4" stroke-width="1.5"/>';
+        svg += '<text x="' + sp.cx + '" y="' + (sp.y + 15) + '" text-anchor="middle" fill="white" font-size="11" font-weight="600">Spine ' + (s2 + 1) + '</text>';
+        svg += '<text x="' + sp.cx + '" y="' + (sp.y + 28) + '" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="9">ASN 64841</text>';
+    }
+
+    // Draw service leaf boxes
+    for (var s3 = 0; s3 < slPositions.length; s3++) {
+        var slp = slPositions[s3];
+        svg += '<rect x="' + slp.x + '" y="' + slp.y + '" width="' + SL_W + '" height="' + SL_H + '" rx="4" fill="' + C.SL + '" stroke="#0d9488" stroke-width="1.5"/>';
+        svg += '<text x="' + slp.cx + '" y="' + (slp.y + 13) + '" text-anchor="middle" fill="white" font-size="10" font-weight="600">Service Leaf ' + (s3 === 0 ? 'A' : 'B') + '</text>';
+        svg += '<text x="' + slp.cx + '" y="' + (slp.y + 25) + '" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8">ASN 65005</text>';
+    }
+
+    // Draw rack groups and leaf boxes
+    for (var r2 = 0; r2 < rackCount; r2++) {
+        var asn = 64789 + r2;
+        var rackLeafs = leafPositions.filter(function(l) { return l.rack === r2; });
+        var groupX = rackLeafs[0].x - 8;
+        var groupW = 2 * LEAF_W + 20 + 16;
+
+        // Rack group outline
+        svg += '<rect x="' + groupX + '" y="' + (LEAF_Y - 18) + '" width="' + groupW + '" height="' + (LEAF_H + 32) + '" rx="6" fill="none" stroke="' + C.RACK_BORDER + '" stroke-width="1" stroke-dasharray="4,2"/>';
+        svg += '<text x="' + (groupX + groupW / 2) + '" y="' + (LEAF_Y - 5) + '" text-anchor="middle" fill="' + C.TEXT_DIM + '" font-size="9">Rack ' + (r2 + 1) + ' (ASN ' + asn + ')</text>';
+
+        for (var li3 = 0; li3 < rackLeafs.length; li3++) {
+            var lp = rackLeafs[li3];
+            svg += '<rect x="' + lp.x + '" y="' + lp.y + '" width="' + LEAF_W + '" height="' + LEAF_H + '" rx="4" fill="' + C.LEAF + '" stroke="#888" stroke-width="1"/>';
+            svg += '<text x="' + lp.cx + '" y="' + (lp.y + 11) + '" text-anchor="middle" fill="white" font-size="9" font-weight="600">Leaf ' + (r2 + 1) + (li3 === 0 ? 'A' : 'B') + '</text>';
+            svg += '<text x="' + lp.cx + '" y="' + (lp.y + 22) + '" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="7">Loopback</text>';
+        }
+    }
+
+    // Legend
+    var legY = totalH - 18;
+    var legItems = [
+        { color: C.SPINE, label: 'Spine' },
+        { color: C.SL, label: 'Service Leaf' },
+        { color: C.LEAF, label: 'Rack Leaf' }
+    ];
+    var legStartX = totalW / 2 - legItems.length * 55;
+    for (var lg = 0; lg < legItems.length; lg++) {
+        var lx2 = legStartX + lg * 110;
+        svg += '<rect x="' + lx2 + '" y="' + (legY - 6) + '" width="10" height="10" rx="2" fill="' + legItems[lg].color + '"/>';
+        svg += '<text x="' + (lx2 + 14) + '" y="' + (legY + 3) + '" fill="' + C.TEXT_DIM + '" font-size="9">' + legItems[lg].label + '</text>';
+    }
+
+    svg += '</svg>';
+    container.innerHTML = svg;
+}
+
 function renderIpPlanning() {
-    const grid = document.getElementById('da7-ip-grid');
+    var grid = document.getElementById('da7-ip-grid');
     if (!grid) return;
 
-    const rackCount = state.disaggRackCount || 1;
+    // Render topology diagram
+    renderDisaggTopologyDiagram();
 
-    let html = '';
+    var rackCount = state.disaggRackCount || 1;
+    var confirmed = state.disaggIpConfigConfirmed === true;
+
+    var html = '';
+    var disabledAttr = confirmed ? ' disabled' : '';
 
     // Spine loopbacks
     html += `
@@ -447,7 +582,7 @@ function renderIpPlanning() {
             ${Array.from({length: state.disaggSpineCount || 2}, (_, i) => `
                 <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
                     <span style="font-size: 0.8rem; color: var(--text-secondary); min-width: 60px;">Spine ${i+1}:</span>
-                    <input type="text" value="10.255.0.${i+1}" placeholder="Loopback IP"
+                    <input type="text" value="10.255.0.${i+1}" placeholder="Loopback IP"${disabledAttr}
                         style="flex: 1; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
                 </div>
             `).join('')}
@@ -461,32 +596,32 @@ function renderIpPlanning() {
             <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">ASN 65005</p>
             <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
                 <span style="font-size: 0.8rem; color: var(--text-secondary); min-width: 80px;">Svc Leaf A:</span>
-                <input type="text" value="10.255.1.1" placeholder="Loopback IP"
+                <input type="text" value="10.255.1.1" placeholder="Loopback IP"${disabledAttr}
                     style="flex: 1; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
             </div>
             <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
                 <span style="font-size: 0.8rem; color: var(--text-secondary); min-width: 80px;">Svc Leaf B:</span>
-                <input type="text" value="10.255.1.2" placeholder="Loopback IP"
+                <input type="text" value="10.255.1.2" placeholder="Loopback IP"${disabledAttr}
                     style="flex: 1; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
             </div>
         </div>
     `;
 
     // Per-rack leaf loopbacks
-    for (let r = 0; r < rackCount; r++) {
-        const asn = 64789 + r;
+    for (var r = 0; r < rackCount; r++) {
+        var asn = 64789 + r;
         html += `
             <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 12px;">
                 <h4 style="margin: 0 0 8px 0; color: var(--accent-purple); font-size: 0.9rem;">Rack ${r+1} Leaf Loopbacks</h4>
                 <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">ASN ${asn}</p>
                 <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
                     <span style="font-size: 0.8rem; color: var(--text-secondary); min-width: 60px;">Leaf ${r+1}A:</span>
-                    <input type="text" value="10.255.${10+r}.1" placeholder="Loopback IP"
+                    <input type="text" value="10.255.${10+r}.1" placeholder="Loopback IP"${disabledAttr}
                         style="flex: 1; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
                     <span style="font-size: 0.8rem; color: var(--text-secondary); min-width: 60px;">Leaf ${r+1}B:</span>
-                    <input type="text" value="10.255.${10+r}.2" placeholder="Loopback IP"
+                    <input type="text" value="10.255.${10+r}.2" placeholder="Loopback IP"${disabledAttr}
                         style="flex: 1; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.85rem;">
                 </div>
             </div>
@@ -494,6 +629,31 @@ function renderIpPlanning() {
     }
 
     grid.innerHTML = html;
+    renderDisaggIpConfirmState();
+}
+
+function confirmDisaggIpConfig() {
+    state.disaggIpConfigConfirmed = true;
+    renderIpPlanning();
+    if (typeof showToast === 'function') showToast('IP routing configuration confirmed', 'success');
+    if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+}
+
+function editDisaggIpConfig() {
+    state.disaggIpConfigConfirmed = false;
+    renderIpPlanning();
+    if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+}
+
+function renderDisaggIpConfirmState() {
+    var confirmContainer = document.getElementById('da7-confirm-container');
+    var confirmedMsg = document.getElementById('da7-confirmed-msg');
+    var confirmed = state.disaggIpConfigConfirmed === true;
+
+    if (confirmContainer) confirmContainer.classList.toggle('hidden', confirmed);
+    if (confirmedMsg) confirmedMsg.classList.toggle('hidden', !confirmed);
+
+    if (typeof updateBreadcrumbs === 'function') updateBreadcrumbs();
 }
 
 // ── Summary & Rack Diagram (DA8) ───────────────────────────────────────────
