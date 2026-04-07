@@ -1873,6 +1873,11 @@ function renderDisaggHostNetworkingPreview() {
     var totalLeafW = 2 * leafW + leafGap;
     var topRowW = totalLeafW + (hasIscsi ? (iscsiArrayGap + iscsiArrayW) : 0);
     var svgW = Math.max(nodeW + marginX * 2, topRowW + marginX * 2);
+    // When iSCSI array shifts leaf block left, ensure node centered on leafs still fits
+    if (hasIscsi) {
+        var minSvgWForNode = topRowW - totalLeafW + nodeW + marginX * 2;
+        if (svgW < minSvgWForNode) svgW = minSvgWForNode;
+    }
     var svgH = marginTop + leafAreaH + nodeH + sanAreaH + marginBottom;
 
     var leafY = marginTop + 10;
