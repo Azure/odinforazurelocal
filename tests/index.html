@@ -5352,12 +5352,12 @@
             assert(typeof window.SWITCH_MODELS === 'object' && window.SWITCH_MODELS !== null,
                 'SWITCH_MODELS is a non-null object', true,
                 typeof window.SWITCH_MODELS === 'object' && window.SWITCH_MODELS !== null),
-            assert(Object.keys(SWITCH_MODELS).length === 7,
-                'SWITCH_MODELS has 7 models', 7, Object.keys(SWITCH_MODELS).length)
+            assert(Object.keys(SWITCH_MODELS).length === 8,
+                'SWITCH_MODELS has 8 models', 8, Object.keys(SWITCH_MODELS).length)
         ]);
 
         testSuite('TOR Model Definitions', 'models.js', (() => {
-            const torKeys = ['cisco-93180YC-FX', 'cisco-93180YC-FX3', 'dell-S5248F-ON'];
+            const torKeys = ['cisco-93180YC-FX', 'cisco-93180YC-FX3', 'cisco-93108TC-FX3P-TOR', 'dell-S5248F-ON'];
             const results = [];
             torKeys.forEach(key => {
                 const m = SWITCH_MODELS[key];
@@ -5402,7 +5402,7 @@
         testSuite('getTorModels() and getBmcModels() helpers', 'models.js', [
             assert(typeof getTorModels === 'function', 'getTorModels is a function', true, typeof getTorModels === 'function'),
             assert(typeof getBmcModels === 'function', 'getBmcModels is a function', true, typeof getBmcModels === 'function'),
-            assert(getTorModels().length === 3, 'getTorModels returns 3 entries', 3, getTorModels().length),
+            assert(getTorModels().length === 4, 'getTorModels returns 4 entries', 4, getTorModels().length),
             assert(getBmcModels().length === 4, 'getBmcModels returns 4 entries', 4, getBmcModels().length),
             (() => {
                 const tor = getTorModels();
@@ -6305,7 +6305,7 @@
         testSuite('Models use symbolic B for BMC VLAN', 'models.js', (() => {
             const results = [];
             // TOR models: BMC trunk should use 'B'
-            const torKeys = ['cisco-93180YC-FX', 'cisco-93180YC-FX3', 'dell-S5248F-ON'];
+            const torKeys = ['cisco-93180YC-FX', 'cisco-93180YC-FX3', 'cisco-93108TC-FX3P-TOR', 'dell-S5248F-ON'];
             torKeys.forEach(key => {
                 const model = SWITCH_MODELS[key];
                 const bmcTrunk = model.interface_templates.common.find(i => i.name === 'Trunk_TO_BMC_SWITCH');

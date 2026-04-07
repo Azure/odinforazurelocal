@@ -71,6 +71,37 @@ window.SWITCH_MODELS = {
         ]
     },
 
+    'cisco-93108TC-FX3P-TOR': {
+        make: 'Cisco',
+        model: '93108TC-FX3P',
+        type: 'TOR',
+        firmware: 'nxos',
+        label: 'Cisco Nexus 93108TC-FX3P (10GBASE-T)',
+        interface_templates: {
+            common: [
+                { name: 'Unused', type: 'Access', description: 'initial unused for all interfaces then config as defined', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/54', access_vlan: '2', shutdown: true },
+                { name: 'Loopback0', type: 'L3', intf_type: 'loopback', intf: 'loopback0', ipv4: '' },
+                { name: 'P2P_Border1', type: 'L3', intf_type: 'Ethernet', intf: '1/48', ipv4: '' },
+                { name: 'P2P_Border2', type: 'L3', intf_type: 'Ethernet', intf: '1/47', ipv4: '' },
+                { name: 'Trunk_TO_BMC_SWITCH', type: 'Trunk', intf_type: 'Ethernet', intf: '1/49', native_vlan: '99', tagged_vlans: 'B' }
+            ],
+            fully_converged: [
+                { name: 'HyperConverged_To_Host', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/16', native_vlan: 'M', tagged_vlans: 'M,C,S', service_policy: { qos_input: 'AZLOCAL-QOS-MAP' } }
+            ],
+            switched: [
+                { name: 'Switched_Compute_To_Host', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/16', native_vlan: 'M', tagged_vlans: 'M,C' },
+                { name: 'Switched_Storage_To_Host', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/17', end_intf: '1/32', native_vlan: '99', tagged_vlans: 'S', service_policy: { qos_input: 'AZLOCAL-QOS-MAP' } }
+            ],
+            switchless: [
+                { name: 'Switchless_Compute_To_Host', type: 'Trunk', intf_type: 'Ethernet', start_intf: '1/1', end_intf: '1/16', native_vlan: 'M', tagged_vlans: 'M,C' }
+            ]
+        },
+        port_channels: [
+            { id: 50, description: 'P2P_IBGP', type: 'L3', ipv4: '', members: ['1/41', '1/42'] },
+            { id: 101, description: 'ToR_Peer_Link', type: 'Trunk', native_vlan: '99', members: ['1/49', '1/50', '1/51'] }
+        ]
+    },
+
     // ── Dell EMC TOR Model ───────────────────────────────────────────
     'dell-S5248F-ON': {
         make: 'DellEMC',
