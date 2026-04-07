@@ -188,18 +188,18 @@ function renderVlanGrid() {
     const confirmed = state.disaggVlanConfigConfirmed === true;
 
     let rows = [
-        { key: 'mgmt', label: 'Management (Infra)', vlan: vlans.mgmt, vni: vnis.mgmt },
-        { key: 'cluster1', label: 'Cluster (CSV/LM) A', vlan: vlans.cluster1, vni: vnis.cluster1 },
-        { key: 'cluster2', label: 'Cluster (CSV/LM) B', vlan: vlans.cluster2, vni: vnis.cluster2 }
+        { key: 'mgmt', label: 'Management (Infra)', vlan: vlans.mgmt, vni: vnis.mgmt, mode: 'Access' },
+        { key: 'cluster1', label: 'Cluster (CSV/LM) A', vlan: vlans.cluster1, vni: vnis.cluster1, mode: 'Access' },
+        { key: 'cluster2', label: 'Cluster (CSV/LM) B', vlan: vlans.cluster2, vni: vnis.cluster2, mode: 'Access' }
     ];
 
     if (state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic') {
-        rows.push({ key: 'iscsiA', label: 'iSCSI Fabric A', vlan: vlans.iscsiA, vni: vnis.iscsiA });
-        rows.push({ key: 'iscsiB', label: 'iSCSI Fabric B', vlan: vlans.iscsiB, vni: vnis.iscsiB });
+        rows.push({ key: 'iscsiA', label: 'iSCSI Fabric A', vlan: vlans.iscsiA, vni: vnis.iscsiA, mode: 'Access' });
+        rows.push({ key: 'iscsiB', label: 'iSCSI Fabric B', vlan: vlans.iscsiB, vni: vnis.iscsiB, mode: 'Access' });
     }
 
     if (state.disaggBackupEnabled) {
-        rows.push({ key: 'backup', label: 'Backup Network', vlan: vlans.backup, vni: vnis.backup });
+        rows.push({ key: 'backup', label: 'Backup Network', vlan: vlans.backup, vni: vnis.backup, mode: 'Access' });
     }
 
     grid.innerHTML = rows.map(r => `
@@ -207,7 +207,7 @@ function renderVlanGrid() {
             <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">${r.label}</label>
             <div style="display: flex; gap: 8px;">
                 <div style="flex: 1;">
-                    <span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN <span style="color: var(--accent-purple);">(${r.mode})</span></span>
                     <input type="number" value="${r.vlan}" min="1" max="4094"
                         style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"
                         ${confirmed ? 'disabled' : ''}
@@ -308,7 +308,7 @@ function renderDisaggWorkloadVlans() {
             + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'name\', this.value)">'
             + '</div>'
             + '<div style="flex: 1;">'
-            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN</span>'
+            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN <span style="color: var(--accent-purple);">(Trunk)</span></span>'
             + '<input type="number" value="' + w.vlan + '" min="1" max="4094"'
             + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
             + (confirmed ? ' disabled' : '')
