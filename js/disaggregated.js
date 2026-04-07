@@ -847,7 +847,7 @@ function renderDisaggPortCountSelector() {
     // vNIC mode info banner
     var vnicBanner = document.getElementById('da10-vnic-mode-banner');
     if (vnicBanner) {
-        var isVnicMode = (st === 'iscsi_6nic' && backup);
+        var isVnicMode = (state.disaggStorageType === 'iscsi_6nic' && !!state.disaggBackupEnabled);
         if (isVnicMode) {
             vnicBanner.innerHTML =
                 '<div class="info-box" style="margin-top: 1rem; border-left: 4px solid #8b5cf6; background: rgba(139,92,246,0.06);">' +
