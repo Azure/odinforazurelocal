@@ -767,9 +767,12 @@ function getDisaggPortCountOptions() {
             options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster/iSCSI shared (2) + Backup (2).', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
         }
     } else if (st === 'iscsi_6nic') {
-        options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2).', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
         if (backup) {
-            options.push({ value: 8, label: '8 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2) + Backup (2).', dots: [5, 9, 15, 19, 5, 9, 15, 19], twoRow: true });
+            options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + Backup (2). iSCSI uses vNICs on Backup SET with NIC team mapping.', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
+            options.push({ value: 8, label: '8 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2) + Backup (2).', dots: [5, 9, 15, 19, 5, 9, 15, 19], twoRow: true, disabled: true, disabledReason: 'TOR port limit — iSCSI uses vNICs on Backup Compute Intent with NIC team mapping' });
+        } else {
+            options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2).', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
+            options.push({ value: 8, label: '8 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2) + Backup (2).', dots: [5, 9, 15, 19, 5, 9, 15, 19], twoRow: true, disabled: true, disabledReason: 'Enable backup network on step DA2 to use 8 ports' });
         }
     }
 
@@ -841,6 +844,28 @@ function renderDisaggPortCountSelector() {
         grid.appendChild(card);
     }
 
+    // vNIC mode info banner
+    var vnicBanner = document.getElementById('da10-vnic-mode-banner');
+    if (vnicBanner) {
+        var isVnicMode = (st === 'iscsi_6nic' && backup);
+        if (isVnicMode) {
+            vnicBanner.innerHTML =
+                '<div class="info-box" style="margin-top: 1rem; border-left: 4px solid #8b5cf6; background: rgba(139,92,246,0.06);">' +
+                '<strong style="color: #a78bfa;">iSCSI vNIC Mode</strong><br>' +
+                'Because TOR leaf switches cannot accommodate 8 physical ports per node, iSCSI storage traffic will use <strong>virtual NICs (vNICs)</strong> ' +
+                'created on the <strong>Backup Compute Intent SET team</strong> (PCIe2 ports).<br><br>' +
+                '<span style="color: var(--text-secondary);">' +
+                '&bull; <strong>iSCSI-A vNIC</strong> → NIC team mapped (pinned) to PCIe2-NIC5 → always routes through Leaf-A → iSCSI Target A<br>' +
+                '&bull; <strong>iSCSI-B vNIC</strong> → NIC team mapped (pinned) to PCIe2-NIC6 → always routes through Leaf-B → iSCSI Target B<br><br>' +
+                '&bull; <strong>DCB/QoS required</strong>: iSCSI uses 802.1p priority 3 (lossless, PFC enabled) with 60% minimum ETS bandwidth. ' +
+                'Backup traffic uses default priority (lossy). Both host NICs and leaf switch ports must be configured.<br><br>' +
+                'Post-deployment steps (vNIC creation, team mapping, DCB/QoS) will be detailed in the configuration report.' +
+                '</span></div>';
+        } else {
+            vnicBanner.innerHTML = '';
+        }
+    }
+
     // Show/hide downstream sections based on port count selection
     var portConfigSection = document.getElementById('da10-port-configuration');
     var intentSection = document.getElementById('da10-intent-section');
@@ -896,15 +921,26 @@ function getDisaggPortList() {
     ports.push({ id: 'pcie1_p1', slot: 'pcie1', label: 'PCIe1 Port 1', defaultName: 'PCIe1-NIC3', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
     ports.push({ id: 'pcie1_p2', slot: 'pcie1', label: 'PCIe1 Port 2', defaultName: 'PCIe1-NIC4', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
 
-    // PCIe2 ports — iSCSI dedicated (iSCSI 6-NIC only)
+    // PCIe2 ports
+    // In vNIC mode (iSCSI 6-NIC + backup), PCIe2 becomes the Backup Compute Intent SET
+    // and iSCSI uses vNICs on top of it. Otherwise PCIe2 = dedicated iSCSI.
+    var isVnicMode = (st === 'iscsi_6nic' && !!state.disaggBackupEnabled);
     if (st === 'iscsi_6nic') {
-        ports.push({ id: 'pcie2_p1', slot: 'pcie2', label: 'PCIe2 Port 1', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
-        ports.push({ id: 'pcie2_p2', slot: 'pcie2', label: 'PCIe2 Port 2', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
+        if (isVnicMode) {
+            // vNIC mode: PCIe2 is Backup SET, iSCSI rides as vNICs (not physical ports)
+            ports.push({ id: 'pcie2_p1', slot: 'backup', label: 'PCIe2 Port 1 (Backup)', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
+            ports.push({ id: 'pcie2_p2', slot: 'backup', label: 'PCIe2 Port 2 (Backup)', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
+        } else {
+            // Standard: PCIe2 = dedicated iSCSI
+            ports.push({ id: 'pcie2_p1', slot: 'pcie2', label: 'PCIe2 Port 1', defaultName: 'PCIe2-NIC5', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
+            ports.push({ id: 'pcie2_p2', slot: 'pcie2', label: 'PCIe2 Port 2', defaultName: 'PCIe2-NIC6', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
+        }
     }
 
-    // Backup ports — present when port count exceeds base
+    // Backup ports — present when port count exceeds base (FC SAN + backup, iSCSI 4-NIC + backup)
+    // Not needed for iSCSI 6-NIC + backup (vNIC mode uses PCIe2 as backup above)
     var baseCount = (st === 'iscsi_6nic') ? 6 : 4;
-    if (portCount > baseCount) {
+    if (portCount > baseCount && !isVnicMode) {
         ports.push({ id: 'backup_p1', slot: 'backup', label: 'Backup Port 1', defaultName: 'BK-NIC1', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-A' });
         ports.push({ id: 'backup_p2', slot: 'backup', label: 'Backup Port 2', defaultName: 'BK-NIC2', defaultSpeed: '25GbE', rdmaDefault: false, connection: 'Leaf-B' });
     }

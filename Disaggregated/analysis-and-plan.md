@@ -805,6 +805,186 @@ if (config.storageType === 'fc_san') {
     drawConnector(fcSwitchBottom, sanArrayTop, '#c4b5fd');
 
 } else { // iscsi_4nic or iscsi_6nic
+
+---
+
+## Edge Case: iSCSI 6-NIC + In-Guest Backup Compute Intent (vNIC Mode)
+
+> **Date**: April 7, 2026
+> **Status**: Implementation in progress
+> **Trigger**: `state.disaggStorageType === 'iscsi_6nic' && state.disaggBackupEnabled === true`
+> **Derived flag**: `state.disaggIscsiVnicMode = true`
+
+### Problem Statement
+
+The iSCSI 6-NIC topology normally uses 6 physical ports: OCP(2) + Cluster(2) + iSCSI dedicated PCIe2(2). Adding a backup network would require 8 physical ports: OCP(2) + Cluster(2) + iSCSI PCIe2(2) + Backup(2). However, TOR leaf switches cannot accommodate 8 network ports per node. The solution is to consolidate iSCSI and backup traffic onto the same physical ports using virtual NICs.
+
+### Architecture
+
+**6 physical ports per node:**
+
+| Port | Physical NIC | Intent | Leaf Connection |
+|---|---|---|---|
+| OCP_P1 | OCP-NIC1 | Management + Compute Intent (SET) | Leaf-A |
+| OCP_P2 | OCP-NIC2 | Management + Compute Intent (SET) | Leaf-B |
+| PCIe1_P1 | PCIe1-NIC3 | Cluster 1 (Standalone) | Leaf-A |
+| PCIe1_P2 | PCIe1-NIC4 | Cluster 2 (Standalone) | Leaf-B |
+| PCIe2_P1 | PCIe2-NIC5 | **Backup Compute Intent (SET)** | Leaf-A |
+| PCIe2_P2 | PCIe2-NIC6 | **Backup Compute Intent (SET)** | Leaf-B |
+
+**iSCSI vNICs on the Backup Compute Intent SET:**
+
+| vNIC | NIC Team Mapping | VLAN | 802.1p Priority | Target |
+|---|---|---|---|---|
+| iSCSI-A | pinned → PCIe2-NIC5 (PCIe2_P1) | iSCSI VLAN A (e.g., 500) | 3 (lossless) | iSCSI Target A via Leaf-A |
+| iSCSI-B | pinned → PCIe2-NIC6 (PCIe2_P2) | iSCSI VLAN B (e.g., 600) | 3 (lossless) | iSCSI Target B via Leaf-B |
+
+NIC team mapping (pinning) ensures deterministic pathing: iSCSI-A always routes through PCIe2_P1 → Leaf-A → Target A, and iSCSI-B through PCIe2_P2 → Leaf-B → Target B.
+
+### Comparison: iSCSI 6-NIC With vs Without Backup
+
+| Aspect | Without Backup | With Backup (vNIC mode) |
+|---|---|---|
+| Physical ports | 6 | 6 |
+| PCIe2 slot role | iSCSI dedicated (standalone) | Backup SET team |
+| iSCSI NIC type | Physical (standalone) | Virtual (vNIC on SET) |
+| iSCSI path control | Direct physical → Leaf | NIC team mapping (pinned) → Leaf |
+| DCB/QoS required on PCIe2 | No (single traffic type) | **Yes** (shared link) |
+| Post-deployment steps | None | vNIC creation, team mapping, DCB/QoS |
+
+### DCB / QoS Configuration Requirements
+
+When iSCSI and backup traffic share the same physical ports, DCB (Data Center Bridging) and QoS (Quality of Service) are critical to prevent iSCSI storage starvation.
+
+#### Traffic Classes
+
+| Traffic Class | Priority | Traffic Type | Min Bandwidth | PFC (Priority Flow Control) |
+|---|---|---|---|---|
+| TC 0 | 0-2, 4-7 | Backup / Default | 40% | Disabled (lossy) |
+| TC 3 | 3 | iSCSI Storage | 60% | **Enabled (lossless)** |
+
+#### Why Lossless iSCSI
+
+- iSCSI carries block storage I/O — packet drops cause SCSI retries, latency spikes, and potential cluster CSV heartbeat failures
+- Backup traffic is TCP-based and tolerates drops (retransmit handles it)
+- Without PFC on priority 3, a backup storm can drop iSCSI frames and destabilize the cluster
+
+#### VLAN 802.1p Priority Tagging
+
+| vNIC / Traffic | VLAN | 802.1p Priority |
+|---|---|---|
+| iSCSI-A vNIC | iSCSI VLAN A (e.g., 500) | 3 |
+| iSCSI-B vNIC | iSCSI VLAN B (e.g., 600) | 3 |
+| Backup traffic | Backup VLAN (e.g., 800) | 0 (default) |
+
+#### Switch-Side Requirements (Leaf-A & Leaf-B ports connected to PCIe2)
+
+- DCB: Enabled
+- PFC: Priority 3 = Enabled, all others = Disabled
+- ETS: Priority 3 = 60% minimum, Default = 40%
+- Trust mode: dot1p (802.1p)
+- VLANs: Trunk allowing iSCSI VLAN A, iSCSI VLAN B, Backup VLAN
+
+### Post-Deployment PowerShell Commands
+
+#### Step 1: Create iSCSI vNICs
+
+```powershell
+# Run on EACH node in the cluster
+$BackupSwitchName = "BackupCompute"  # Verify via Get-VMSwitch
+
+Add-VMNetworkAdapter -ManagementOS -SwitchName $BackupSwitchName -Name "iSCSI-A"
+Add-VMNetworkAdapter -ManagementOS -SwitchName $BackupSwitchName -Name "iSCSI-B"
+```
+
+#### Step 2: Set VLAN Access Mode
+
+```powershell
+Set-VMNetworkAdapterVlan -ManagementOS -VMNetworkAdapterName "iSCSI-A" -Access -VlanId 500
+Set-VMNetworkAdapterVlan -ManagementOS -VMNetworkAdapterName "iSCSI-B" -Access -VlanId 600
+```
+
+#### Step 3: Pin Each vNIC to a Specific Physical NIC (NIC Team Mapping)
+
+```powershell
+Set-VMNetworkAdapterTeamMapping -ManagementOS `
+    -VMNetworkAdapterName "iSCSI-A" `
+    -PhysicalNetAdapterName "PCIe2-NIC5"
+
+Set-VMNetworkAdapterTeamMapping -ManagementOS `
+    -VMNetworkAdapterName "iSCSI-B" `
+    -PhysicalNetAdapterName "PCIe2-NIC6"
+```
+
+#### Step 4: Assign IP Addresses
+
+```powershell
+# Replace X with node-specific host octet
+New-NetIPAddress -InterfaceAlias "vEthernet (iSCSI-A)" -IPAddress "10.50.1.X" -PrefixLength 24
+New-NetIPAddress -InterfaceAlias "vEthernet (iSCSI-B)" -IPAddress "10.60.1.X" -PrefixLength 24
+```
+
+#### Step 5: Configure DCB / QoS
+
+```powershell
+Enable-NetAdapterQos -Name "PCIe2-NIC5"
+Enable-NetAdapterQos -Name "PCIe2-NIC6"
+
+New-NetQosPolicy -Name "iSCSI" -NetworkDirect -PriorityValue8021Action 3
+New-NetQosTrafficClass -Name "iSCSI" -Priority 3 -BandwidthPercentage 60 -Algorithm ETS
+
+Enable-NetQosFlowControl -Priority 3
+Disable-NetQosFlowControl -Priority 0,1,2,4,5,6,7
+```
+
+#### Step 6: Verify Configuration
+
+```powershell
+Get-VMNetworkAdapter -ManagementOS | Where-Object Name -like "iSCSI*" |
+    Select-Object Name, SwitchName, Status
+Get-VMNetworkAdapterVlan -ManagementOS | Where-Object ParentAdapter -like "*iSCSI*"
+Get-VMNetworkAdapterTeamMapping -ManagementOS |
+    Where-Object NetAdapterName -like "*iSCSI*"
+Get-NetQosPolicy | Where-Object Name -eq "iSCSI"
+Get-NetQosTrafficClass | Where-Object Name -eq "iSCSI"
+Get-NetQosFlowControl | Format-Table Priority, Enabled
+```
+
+### Implementation Plan — Wizard (js/disaggregated.js)
+
+1. **DA10 port count**: iSCSI 6-NIC + backup = 6 ports only. Show 8-port greyed out with reason: "TOR port limit — iSCSI uses vNICs on Backup Compute Intent with NIC team mapping"
+2. **Port list (`getDisaggPortList`)**: When `iscsi_6nic + backup`, PCIe2 slots become backup NICs (not iSCSI). No iSCSI physical ports in the list.
+3. **DA10 info banner**: Callout explaining vNIC mode with team mapping details
+4. **Overrides section**: iSCSI VLAN/Subnet overrides still shown, labeled as "iSCSI vNIC A" / "iSCSI vNIC B"
+
+### Implementation Plan — Report Host Networking Diagram (report/report.js)
+
+**SVG diagram (`renderDisaggregatedHostNetworkingDiagram`) when vNIC mode:**
+
+- Backup group box (orange) contains 2 physical NIC cards (top) + 2 iSCSI vNIC cards (below)
+- Physical NIC cards: solid orange fill/stroke, orange dashed lines UP to Leaf-A/B
+- iSCSI vNIC cards: dashed/dotted border, purple tint, smaller size
+  - Line 1: "iSCSI-A vNIC" (bold)
+  - Line 2: "VLAN 500 · Priority 3"
+  - Line 3: "mapped → PCIe2-NIC5" (italic, smaller)
+- Purple dashed lines from vNICs DOWN to iSCSI Target A/B shapes
+- Node box and Backup box grow taller to fit
+- Note below diagram explains vNIC approach
+
+**Draw.io export (`generateDisaggregatedHostNetworkingDrawio`):**
+- Same layout mirrored in mxGraph XML
+
+**Report summary table additions:**
+- iSCSI Mode: vNIC on Backup Compute Intent
+- iSCSI-A vNIC: VLAN 500 · mapped → PCIe2-NIC5 → Leaf-A
+- iSCSI-B vNIC: VLAN 600 · mapped → PCIe2-NIC6 → Leaf-B
+- iSCSI 802.1p Priority: 3 (lossless, PFC enabled)
+- ETS Bandwidth: iSCSI 60% / Backup 40%
+
+**Dedicated report section: "iSCSI vNIC Configuration (Post-Deployment)":**
+- Full PowerShell commands (Steps 1-6 above)
+- Switch-side DCB requirements
+- Warning callout about storage stability
     // No FC switches in rack
     switchesPerRack = 3; // 2 Leaf + 1 BMC
 
