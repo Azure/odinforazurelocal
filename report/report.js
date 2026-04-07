@@ -2327,12 +2327,12 @@
 
         // Build NIC groups dynamically from adapter mapping
         var nicGroups = [];
-        var dClusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 1';
-        var dClusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 2';
+        var dClusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 1';
+        var dClusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 2';
         var zoneMeta = {
             mgmt_compute: { label: 'Mgmt + Compute', color: 'blue', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7') } },
-            cluster_1: { label: dClusterLabel1, color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
-            cluster_2: { label: dClusterLabel2, color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
+            cluster_1: { label: dClusterLabel1, color: 'green', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
+            cluster_2: { label: dClusterLabel2, color: 'green', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
             iscsi_a: { label: 'iSCSI Storage A', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiA) || '500'), forcedLeaf: 'A' },
             iscsi_b: { label: 'iSCSI Storage B', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiB) || '600'), forcedLeaf: 'B' },
             backup: { label: 'In-Guest Backup Compute Intent', color: 'orange' }
@@ -2581,7 +2581,9 @@
 
                 // Group label
                 var lblId = nextId();
-                addCell(lblId, grp.label, 0, grpBoxH - 22, grpBoxW, 20,
+                var lblText = grp.subLabel ? (grp.label + '\\n' + grp.subLabel) : grp.label;
+                var lblHeight = grp.subLabel ? 30 : 20;
+                addCell(lblId, lblText, 0, grpBoxH - lblHeight, grpBoxW, lblHeight,
                     'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#BBBBBB;fontSize=9;',
                     grpId);
 
@@ -4140,12 +4142,12 @@
             var nicGroups = [];
 
             // Define zone metadata — for shared iSCSI, cluster groups carry CSV/LiveMig + iSCSI traffic
-            var clusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 1';
-            var clusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 2';
+            var clusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 1';
+            var clusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 2';
             var zoneMeta = {
                 mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7') } },
-                cluster_1: { label: clusterLabel1, color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
-                cluster_2: { label: clusterLabel2, color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
+                cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
+                cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
                 iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiA) || '500'), forcedLeaf: 'A' },
                 iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiB) || '600'), forcedLeaf: 'B' },
                 backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
@@ -4348,6 +4350,11 @@
                     var labelY = hasIscsi ? (boxY + boxH + 12) : (boxY - 5);
                     out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
 
+                    // Sub-label (e.g., "+ iSCSI") on a second line below the intent label
+                    if (grp.subLabel) {
+                        out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (labelY + 11) + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.70)">' + escapeHtml(grp.subLabel) + '</text>';
+                    }
+
                     // vNIC above physical NICs (e.g., Management vNIC)
                     if (hasVnicAbove) {
                         var vaCardW = 80;
@@ -4375,7 +4382,7 @@
 
                     // VLAN label below the port shape (for standalone cluster/iSCSI networks)
                     if (grp.vlanBelow) {
-                        var vlanY = hasIscsi ? (boxY + boxH + 24) : (boxY + boxH + 12);
+                        var vlanY = grp.subLabel ? (boxY + boxH + 34) : (hasIscsi ? (boxY + boxH + 24) : (boxY + boxH + 12));
                         out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
                     }
 
