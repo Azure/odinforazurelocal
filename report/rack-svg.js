@@ -111,11 +111,18 @@
             parts.push('<rect x="' + (dx + 4) + '" y="' + (dy + U_H * 2 - stripeH - 3) + '" width="' + (deviceW - 8) + '" height="' + stripeH + '" rx="1" fill="' + C.GPU_ACCENT + '" opacity="0.8"/>');
         }
 
-        // Status LEDs (right side)
+        // Drive bays (left side)
         var innerH2 = TOTAL_U * U_H;
         var dx2 = ox + POST_W + 2;
         var dy2 = oy + 6 + innerH2 - uStart * U_H - U_H + 1;
         var deviceH2 = 2 * U_H - 2;
+        var bayW = 8, bayH = deviceH2 * 0.4;
+        var bayY = dy2 + deviceH2 / 2 - bayH / 2;
+        for (var b = 0; b < 6; b++) {
+            parts.push('<rect x="' + (dx2 + 8 + b * (bayW + 2)) + '" y="' + bayY + '" width="' + bayW + '" height="' + bayH + '" rx="1" fill="#333" opacity="0.4"/>');
+        }
+
+        // Status LEDs (right side, vertically centered)
         var ledX = dx2 + (RACK_W - 4) - 12;
         var ledY = dy2 + deviceH2 / 2;
         parts.push('<circle cx="' + ledX + '" cy="' + ledY + '" r="2" fill="#00ff66" opacity="0.7"/>');
@@ -413,19 +420,27 @@
                 parts.push('<circle cx="' + (ledBaseX + bled * 6) + '" cy="' + (bmcDy + (U_H - 2) / 2) + '" r="2" fill="#00ff66" opacity="0.7"/>');
             }
 
-            // Server nodes starting from U39, going down (2U each)
+            // Server nodes starting from U38, going down (2U each)
+            // Note: drawDevice for 2U extends upward by 1U, so U38 occupies U38-U39 visually
             var nodeStart = r * nodesPerRack + 1;
             for (var n = 0; n < nodesPerRack; n++) {
-                var uPos = 39 - n * 2;
+                var uPos = 38 - n * 2;
                 if (uPos < 3) break;  // Don't overlap with FC switches
                 var nodeLabel = 'Node ' + (nodeStart + n);
                 parts.push(drawDevice(rx, racksY, uPos, 2, C.SERVER, nodeLabel, C.LABEL_LIGHT));
 
-                // Status LEDs
+                // Drive bays (left side of node)
                 var dx = rx + POST_W + 2;
-                var dy = racksY + 6 + innerH - uPos * U_H + 1;
+                var dy = racksY + 6 + innerH - uPos * U_H - U_H + 1;
                 var devH = 2 * U_H - 2;
                 var devW = RACK_W - 4;
+                var bayW = 8, bayH = devH * 0.4;
+                var bayY = dy + devH / 2 - bayH / 2;
+                for (var b = 0; b < 6; b++) {
+                    parts.push('<rect x="' + (dx + 8 + b * (bayW + 2)) + '" y="' + bayY + '" width="' + bayW + '" height="' + bayH + '" rx="1" fill="#333" opacity="0.4"/>');
+                }
+
+                // Status LEDs (right side, vertically centered)
                 parts.push('<circle cx="' + (dx + devW - 12) + '" cy="' + (dy + devH / 2) + '" r="2" fill="#00ff66" opacity="0.6"/>');
                 parts.push('<circle cx="' + (dx + devW - 6) + '" cy="' + (dy + devH / 2) + '" r="2" fill="#f59e0b" opacity="0.5"/>');
             }
