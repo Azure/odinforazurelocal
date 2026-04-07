@@ -1919,7 +1919,8 @@
 
         // --- Layout constants ---
         var torW = 160, torH = 50;
-        var nodeW = 300, nodeH = 200;
+        var mgmtVnicAreaHD = 48;
+        var nodeW = 300, nodeH = 200 + mgmtVnicAreaHD;
         var portW = 56, portH = 34;
         var portGap = 10;
         var nodeGap = 60;
@@ -2058,12 +2059,16 @@
             var totalIntentW = totalGroupPorts * portW + (totalGroupPorts - 1) * portGap + (groups.length - 1) * intentGapBetween;
             var intentStartX = (nodeW - totalIntentW) / 2;
 
+            var mgmtVlanLabelD = (s.infraVlan === 'custom' && s.infraVlanId) ? ('VLAN ' + s.infraVlanId) : 'Default VLAN';
+
             var portXCursor = intentStartX;
             for (var gi = 0; gi < groups.length; gi++) {
                 var grp = groups[gi];
+                var isMgmtGrp = (grp.color === 'blue');
+                var grpVnicH = isMgmtGrp ? mgmtVnicAreaHD : 0;
                 var grpW = grp.ports.length * portW + (grp.ports.length - 1) * portGap;
                 var grpBoxW = grpW + intentBoxPad * 2;
-                var grpBoxH = portH + 30 + intentBoxPad * 2;
+                var grpBoxH = portH + 30 + intentBoxPad * 2 + grpVnicH;
                 var grpBoxX = portXCursor - intentBoxPad;
                 var grpBoxY = nodeH - grpBoxH - 16;
 
@@ -2091,11 +2096,23 @@
                     'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#BBBBBB;fontSize=10;',
                     grpId);
 
+                // Mgmt vNIC card inside management group
+                if (isMgmtGrp) {
+                    var vaCardW = 80;
+                    var vaCardH = 30;
+                    var vaX = (grpBoxW - vaCardW) / 2;
+                    var vaY = intentBoxPad;
+                    var vnicCellId = nextId();
+                    addCell(vnicCellId, 'Mgmt vNIC\\n' + mgmtVlanLabelD, vaX, vaY, vaCardW, vaCardH,
+                        'rounded=1;whiteSpace=wrap;html=1;fillColor=#1E3A5F;strokeColor=#0078D4;fontColor=#FFFFFF;fontSize=8;fontStyle=1;arcSize=15;dashed=1;dashPattern=4 2;',
+                        grpId);
+                }
+
                 // Port blocks
                 for (var ppi = 0; ppi < grp.ports.length; ppi++) {
                     var portNum = grp.ports[ppi];
                     var px = intentBoxPad + ppi * (portW + portGap);
-                    var py = intentBoxPad;
+                    var py = intentBoxPad + grpVnicH;
 
                     var portId = nextId();
                     var portLabel = getPortName(portNum);
@@ -3546,7 +3563,8 @@
 
             // Layout constants
             var nodeW = 320;
-            var nodeH = 180;
+            var mgmtVnicAreaH = 48;
+            var nodeH = 180 + mgmtVnicAreaH;
             var gapX = 40;
             var marginX = 50;
             var torSwitchH = 50;
@@ -3596,6 +3614,21 @@
             // Collect all adapter positions for drawing uplinks later
             var adapterPositions = [];
 
+            var mgmtVlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+
+            function renderMgmtVnicCard(boxX, boxTotalW, boxTopY) {
+                var vaCardW = 80;
+                var vaCardH = 30;
+                var vaX = boxX + (boxTotalW - vaCardW) / 2;
+                var vaY = boxTopY + 6;
+                var vo = '';
+                vo += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaCardW + '" height="' + vaCardH + '" rx="6" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="4 2" />';
+                vo += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
+                vo += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(mgmtVlanLabel) + '</text>';
+                vo += '<line x1="' + (boxX + 6) + '" y1="' + (boxTopY + mgmtVnicAreaH - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (boxTopY + mgmtVnicAreaH - 6) + '" stroke="rgba(0,120,212,0.3)" stroke-dasharray="3 2" />';
+                return vo;
+            }
+
             function renderAdaptersHorizontal(nodeLeft, nodeTop, nodeIdx) {
                 var out = '';
                 var adaptersY = nodeTop + nodeH - adapterH - 20;
@@ -3635,8 +3668,11 @@
                     if (mgmtPorts.length > 0) {
                         var mgmtBoxW = (mgmtPorts.length * adapterW) + ((mgmtPorts.length - 1) * adapterGap) + 12;
                         var mgmtBoxX = startX - 6;
-                        out += '<rect x="' + mgmtBoxX + '" y="' + setY + '" width="' + mgmtBoxW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
+                        var mgmtBoxFullY = setY - mgmtVnicAreaH;
+                        var mgmtBoxFullH = setH + mgmtVnicAreaH;
+                        out += '<rect x="' + mgmtBoxX + '" y="' + mgmtBoxFullY + '" width="' + mgmtBoxW + '" height="' + mgmtBoxFullH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
                         out += '<text x="' + (mgmtBoxX + mgmtBoxW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">Management + Compute</text>';
+                        out += renderMgmtVnicCard(mgmtBoxX, mgmtBoxW, mgmtBoxFullY);
                     }
                     
                     // Draw Storage box (second group)
@@ -3695,11 +3731,14 @@
                     // Management + Compute box (first 2 NICs)
                     var setW = (2 * adapterW) + adapterGap + 12;
                     var setX = startX - 6;
-                    out += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
+                    var mgmtSetY = setY - mgmtVnicAreaH;
+                    var mgmtSetH = setH + mgmtVnicAreaH;
+                    out += '<rect x="' + setX + '" y="' + mgmtSetY + '" width="' + setW + '" height="' + mgmtSetH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="5 3" />';
                     
                     // Label for Mgmt + Compute group
                     var mgmtLabel = (state.intent === 'all_traffic') ? 'Management + Compute + Storage' : 'Management + Compute';
                     out += '<text x="' + (setX + setW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(mgmtLabel) + '</text>';
+                    out += renderMgmtVnicCard(setX, setW, mgmtSetY);
                     
                     // Storage box (NICs 3+) if applicable - add gap between boxes
                     if (showStorageGroup && storagePortCount > 0) {
@@ -3820,8 +3859,15 @@
                         boxStroke = 'rgba(0,120,212,0.45)';
                     }
                     
-                    out += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
+                    var isMgmtCustom = (grp.key === 'mgmt_compute' || grp.key === 'mgmt' || grp.key === 'all');
+                    var customVnicH = isMgmtCustom ? mgmtVnicAreaH : 0;
+                    var customBoxY = boxY - customVnicH;
+                    var customBoxH = boxH + customVnicH;
+                    out += '<rect x="' + boxX + '" y="' + customBoxY + '" width="' + boxTotalW + '" height="' + customBoxH + '" rx="10" fill="' + boxFill + '" stroke="' + boxStroke + '" stroke-dasharray="5 3" />';
                     out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY - 4) + '" text-anchor="middle" font-size="10" fill="var(--text-secondary)">' + escapeHtml(grp.label) + '</text>';
+                    if (isMgmtCustom) {
+                        out += renderMgmtVnicCard(boxX, boxTotalW, customBoxY);
+                    }
                     
                     // Assign positions to ports in this group
                     for (var pi = 0; pi < grpPorts.length; pi++) {
