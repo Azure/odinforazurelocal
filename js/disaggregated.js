@@ -2026,8 +2026,113 @@ function renderDisaggHostNetworkingPreview() {
     container.innerHTML = '<div style="margin-top:1.5rem;">'
         + '<h4 style="color:var(--accent-purple); margin-bottom:0.75rem;">Host Networking Preview</h4>'
         + '<div class="switchless-diagram">' + svg + '</div>'
+        + '<div style="margin-top:0.75rem; display:flex; gap:0.5rem;">'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHostNetworkingSvg(\'light\')">Download SVG (Light)</button>'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHostNetworkingSvg(\'dark\')">Download SVG (Dark)</button>'
+        + '</div>'
         + '</div>';
 }
+
+window.downloadWizardHostNetworkingSvg = function(variant) {
+    try {
+        var container = document.getElementById('da10-nic-layout-diagram');
+        if (!container) return;
+        var svg = container.querySelector('svg.switchless-diagram__svg');
+        if (!svg) return;
+
+        var theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
+        var clone = svg.cloneNode(true);
+        if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        var exportBg = '#000000';
+        try {
+            var rootStyle = window.getComputedStyle(document.documentElement);
+            var themeVars = {
+                '--bg-dark': (rootStyle.getPropertyValue('--bg-dark') || '').trim(),
+                '--card-bg': (rootStyle.getPropertyValue('--card-bg') || '').trim(),
+                '--text-primary': (rootStyle.getPropertyValue('--text-primary') || '').trim(),
+                '--text-secondary': (rootStyle.getPropertyValue('--text-secondary') || '').trim(),
+                '--accent-blue': (rootStyle.getPropertyValue('--accent-blue') || '').trim(),
+                '--accent-purple': (rootStyle.getPropertyValue('--accent-purple') || '').trim(),
+                '--success': (rootStyle.getPropertyValue('--success') || '').trim(),
+                '--glass-border': (rootStyle.getPropertyValue('--glass-border') || '').trim()
+            };
+            if (theme === 'light') {
+                themeVars['--bg-dark'] = '#ffffff';
+                themeVars['--card-bg'] = '#ffffff';
+                themeVars['--text-primary'] = '#0b0b0b';
+                themeVars['--text-secondary'] = '#404040';
+                themeVars['--glass-border'] = 'rgba(0, 0, 0, 0.14)';
+            }
+            exportBg = (theme === 'light') ? '#ffffff' : (themeVars['--bg-dark'] || '#000000');
+
+            var decls = Object.keys(themeVars).map(function(k) {
+                var v = (themeVars[k] || '').trim();
+                return v ? (k + ': ' + v + ';') : '';
+            }).filter(Boolean).join(' ');
+
+            if (decls) {
+                var defs = clone.querySelector('defs');
+                if (!defs) {
+                    defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                    clone.insertBefore(defs, clone.firstChild);
+                }
+                var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                styleEl.textContent = ':root { ' + decls + ' }';
+                defs.appendChild(styleEl);
+            }
+        } catch (eVars) { /* ignore */ }
+
+        try {
+            var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('fill', exportBg);
+            var vb = (clone.getAttribute('viewBox') || '').trim();
+            if (vb) {
+                var parts = vb.split(/\s+/).map(function(p) { return parseFloat(p); });
+                if (parts.length === 4 && parts.every(function(n) { return Number.isFinite(n); })) {
+                    rect.setAttribute('x', String(parts[0]));
+                    rect.setAttribute('y', String(parts[1]));
+                    rect.setAttribute('width', String(parts[2]));
+                    rect.setAttribute('height', String(parts[3]));
+                } else {
+                    rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+                    rect.setAttribute('width', '100%'); rect.setAttribute('height', '100%');
+                }
+            } else {
+                rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+                rect.setAttribute('width', '100%'); rect.setAttribute('height', '100%');
+            }
+            var defsNode = clone.querySelector('defs');
+            if (defsNode && defsNode.nextSibling) {
+                clone.insertBefore(rect, defsNode.nextSibling);
+            } else {
+                clone.insertBefore(rect, clone.firstChild);
+            }
+        } catch (eBg) { /* ignore */ }
+
+        var serializer = new XMLSerializer();
+        var svgText = serializer.serializeToString(clone);
+        if (svgText.indexOf('<?xml') !== 0) {
+            svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgText;
+        }
+
+        var blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var ts = new Date();
+        var pad2 = function(n) { return String(n).padStart(2, '0'); };
+        var fileName = 'host-networking-preview-' + theme + '-'
+            + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
+            + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes()) + '.svg';
+
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    } catch (e) { /* ignore */ }
+};
 
 function validateDisaggNicConfig() {
     var errorEl = document.getElementById('da10-nic-error');
