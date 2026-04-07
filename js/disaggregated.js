@@ -754,9 +754,12 @@ function getDisaggPortCountOptions() {
             options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + Backup (2). FC HBA handles storage separately.', dots: [6, 10, 14, 6, 10, 14], twoRow: true, disabled: true, disabledReason: 'Enable backup network on step DA2 to use 6 ports' });
         }
     } else if (st === 'iscsi_4nic') {
-        options.push({ value: 4, label: '4 Ports', desc: 'OCP (2) + Cluster/iSCSI shared (2). iSCSI shares trunk with cluster NICs.', dots: [5, 9, 15, 19] });
         if (backup) {
+            options.push({ value: 4, label: '4 Ports', desc: 'OCP (2) + Cluster/iSCSI shared (2). Not enough ports for backup.', dots: [5, 9, 15, 19], disabled: true, disabledReason: 'Backup network requires 6 ports' });
             options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster/iSCSI shared (2) + Backup (2).', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
+        } else {
+            options.push({ value: 4, label: '4 Ports', desc: 'OCP (2) + Cluster/iSCSI shared (2). iSCSI shares standalone ports with cluster.', dots: [5, 9, 15, 19] });
+            options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster/iSCSI shared (2) + Backup (2). Requires backup enabled.', dots: [6, 10, 14, 6, 10, 14], twoRow: true, disabled: true, disabledReason: 'Enable backup network on step DA2 to use 6 ports' });
         }
     } else if (st === 'iscsi_6nic') {
         if (backup) {
