@@ -516,7 +516,10 @@ function generateDisaggRackDiagram() {
         drawDev(42, 1, `Leaf ${r+1}A`, C.LEAF);
         // Leaf-B: U41
         drawDev(41, 1, `Leaf ${r+1}B`, C.LEAF);
-        // Server nodes: U38 downward (shifted down 1U for 2U BMC)
+        // BMC Switch: U40-U39 (2U for visibility)
+        drawDev(40, 2, `BMC Switch ${r+1}`, C.BMC);
+
+        // Server nodes: U38 downward
         for (let n = 0; n < nodesPerRack; n++) {
             const nodeU = 38 - n * 2;
             if (nodeU < 1) break;
@@ -534,16 +537,6 @@ function generateDisaggRackDiagram() {
             // Status LEDs (right edge)
             svg += `<circle cx="${rx + RACK_W - pad - 12}" cy="${dy + h/2}" r="2" fill="${C.LED_GREEN}" opacity="0.7"/>`;
             svg += `<circle cx="${rx + RACK_W - pad - 6}" cy="${dy + h/2}" r="2" fill="${C.LED_AMBER}" opacity="0.5"/>`;
-        }
-
-        // BMC Switch: draw AFTER nodes so it renders on top (U40-U39, 2U)
-        {
-            const bmcPad = 6;
-            const bmcW = RACK_W - 2 * bmcPad;
-            const bmcY = oy + bmcPad + innerH - 40 * U_H;
-            const bmcH = 2 * U_H - 2;
-            svg += `<rect x="${rx + bmcPad}" y="${bmcY}" width="${bmcW}" height="${bmcH}" rx="2" fill="#3b82f6" stroke="#93c5fd" stroke-width="1.5"/>`;
-            svg += `<text x="${rx + RACK_W/2}" y="${bmcY + bmcH/2 + 3}" text-anchor="middle" fill="white" font-size="8" font-weight="700">BMC Switch ${r+1}</text>`;
         }
 
         // FC switches at bottom of rack (U2, U1)

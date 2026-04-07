@@ -24,7 +24,7 @@
         SERVER:      '#aaaaaa',
         SERVER_GPU:  '#d97706',
         TOR_SWITCH:  '#444444',
-        BMC_SWITCH:  '#e0e0e0',
+        BMC_SWITCH:  '#3b82f6',
         GPU_ACCENT:  '#fbbf24',
         LABEL_LIGHT: '#ffffff',
         LABEL_DARK:  '#333333',
@@ -80,9 +80,9 @@
         var parts = [];
         parts.push('<rect x="' + dx + '" y="' + dy + '" width="' + deviceW + '" height="' + deviceH + '" rx="2" fill="' + color + '"/>');
 
-        // Front panel inset (dark face) — lighter overlay for light-colored devices
+        // Front panel inset (dark face)
         var panelInset = 3;
-        var panelOpacity = isLight ? '0.15' : '0.5';
+        var panelOpacity = '0.3';
         parts.push('<rect x="' + (dx + panelInset) + '" y="' + (dy + 1) + '" width="' + (deviceW - panelInset * 2) + '" height="' + (deviceH - 2) + '" rx="1" fill="#0d0d0d" opacity="' + panelOpacity + '"/>');
 
         // Label
@@ -111,23 +111,13 @@
             parts.push('<rect x="' + (dx + 4) + '" y="' + (dy + U_H * 2 - stripeH - 3) + '" width="' + (deviceW - 8) + '" height="' + stripeH + '" rx="1" fill="' + C.GPU_ACCENT + '" opacity="0.8"/>');
         }
 
-        // Drive bays (small rectangles on left side)
+        // Status LEDs (right side)
         var innerH2 = TOTAL_U * U_H;
         var dx2 = ox + POST_W + 2;
         var dy2 = oy + 6 + innerH2 - uStart * U_H - U_H + 1;
         var deviceH2 = 2 * U_H - 2;
-        var bayW = 8;
-        var bayH = deviceH2 * 0.4;
-        var bayY = dy2 + deviceH2 / 2 - bayH / 2;
-        var numBays = 6;
-        var bayStartX = dx2 + 8;
-        for (var b = 0; b < numBays; b++) {
-            parts.push('<rect x="' + (bayStartX + b * (bayW + 2)) + '" y="' + bayY + '" width="' + bayW + '" height="' + bayH + '" rx="1" fill="#333" opacity="0.4"/>');
-        }
-
-        // Status LEDs (right side, small circles)
-        var ledX = dx2 + (RACK_W - 4) - 16;
-        var ledY = dy2 + 5;
+        var ledX = dx2 + (RACK_W - 4) - 12;
+        var ledY = dy2 + deviceH2 / 2;
         parts.push('<circle cx="' + ledX + '" cy="' + ledY + '" r="2" fill="#00ff66" opacity="0.7"/>');
         parts.push('<circle cx="' + (ledX + 6) + '" cy="' + ledY + '" r="2" fill="#3399ff" opacity="0.7"/>');
 
@@ -250,7 +240,7 @@
             if (bmcPerRack > 0) {
                 var bmcU = TOTAL_U - rackInfo.tor;
                 var bmcNum = isRackAware ? (rackIndex + 1) : 1;
-                parts.push(drawSwitch(ox, oy, bmcU, 'BMC ' + bmcNum, C.BMC_SWITCH, C.LABEL_DARK, true));
+                parts.push(drawSwitch(ox, oy, bmcU, 'BMC ' + bmcNum, C.BMC_SWITCH, C.LABEL_LIGHT));
             }
 
             // Place server nodes below BMC, from top down (2U each)
@@ -270,7 +260,7 @@
         var legendItems = [
             { color: C.SERVER, label: 'Server Node' },
             { color: C.TOR_SWITCH, label: 'ToR Switch' },
-            { color: C.BMC_SWITCH, label: 'BMC Switch', textColor: C.LABEL_DARK },
+            { color: C.BMC_SWITCH, label: 'BMC Switch' },
             { color: '#1a6fc4', label: 'Core Switch' }
         ];
         if (hasGpu) {
@@ -323,7 +313,7 @@
         // Colors for disaggregated-specific components
         var DC = {
             LEAF_SWITCH: '#444444',
-            BMC_SWITCH:  '#e0e0e0',
+            BMC_SWITCH:  '#3b82f6',
             FC_SWITCH:   '#7c3aed',
             SAN_ARRAY:   '#6d28d9',
             ISCSI_ARRAY: '#ea580c',
@@ -417,10 +407,10 @@
             }
 
             // BMC switch at U40
-            parts.push(drawDevice(rx, racksY, 40, 1, DC.BMC_SWITCH, 'BMC ' + (r + 1), C.LABEL_DARK, true));
+            parts.push(drawDevice(rx, racksY, 40, 1, DC.BMC_SWITCH, 'BMC Switch ' + (r + 1), C.LABEL_LIGHT, false));
             var bmcDy = racksY + 6 + innerH - 40 * U_H + 1;
-            for (var bled = 0; bled < 3; bled++) {
-                parts.push('<circle cx="' + (ledBaseX + bled * 5) + '" cy="' + (bmcDy + (U_H - 2) / 2) + '" r="1.5" fill="#00ff66" opacity="0.6"/>');
+            for (var bled = 0; bled < 2; bled++) {
+                parts.push('<circle cx="' + (ledBaseX + bled * 6) + '" cy="' + (bmcDy + (U_H - 2) / 2) + '" r="2" fill="#00ff66" opacity="0.7"/>');
             }
 
             // Server nodes starting from U39, going down (2U each)
@@ -431,19 +421,13 @@
                 var nodeLabel = 'Node ' + (nodeStart + n);
                 parts.push(drawDevice(rx, racksY, uPos, 2, C.SERVER, nodeLabel, C.LABEL_LIGHT));
 
-                // Drive bays
+                // Status LEDs
                 var dx = rx + POST_W + 2;
                 var dy = racksY + 6 + innerH - uPos * U_H + 1;
                 var devH = 2 * U_H - 2;
-                var bayW = 8, bayH = devH * 0.4;
-                var bayY = dy + devH / 2 - bayH / 2;
-                for (var b = 0; b < 6; b++) {
-                    parts.push('<rect x="' + (dx + 8 + b * (bayW + 2)) + '" y="' + bayY + '" width="' + bayW + '" height="' + bayH + '" rx="1" fill="#333" opacity="0.4"/>');
-                }
-                // Status LEDs
                 var devW = RACK_W - 4;
-                parts.push('<circle cx="' + (dx + devW - 10) + '" cy="' + (dy + devH / 2 - 3) + '" r="1.5" fill="#00ff66" opacity="0.5"/>');
-                parts.push('<circle cx="' + (dx + devW - 10) + '" cy="' + (dy + devH / 2 + 3) + '" r="1.5" fill="#3b82f6" opacity="0.5"/>');
+                parts.push('<circle cx="' + (dx + devW - 12) + '" cy="' + (dy + devH / 2) + '" r="2" fill="#00ff66" opacity="0.6"/>');
+                parts.push('<circle cx="' + (dx + devW - 6) + '" cy="' + (dy + devH / 2) + '" r="2" fill="#f59e0b" opacity="0.5"/>');
             }
 
             // FC switches at bottom U2, U1 (only for FC SAN)
@@ -515,7 +499,7 @@
         var legendItems = [
             { color: C.SERVER, label: 'Server Node' },
             { color: DC.LEAF_SWITCH, label: 'Leaf Switch' },
-            { color: DC.BMC_SWITCH, label: 'BMC Switch', textColor: '#666' }
+            { color: DC.BMC_SWITCH, label: 'BMC Switch' }
         ];
         if (hasFC) legendItems.push({ color: DC.FC_SWITCH, label: 'FC Switch' });
         if (hasIscsi) legendItems.push({ color: DC.ISCSI_ARRAY, label: 'iSCSI Storage' });
