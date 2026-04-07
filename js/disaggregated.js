@@ -1741,6 +1741,7 @@ function confirmDisaggOverrides() {
     state.disaggOverridesConfirmed = true;
     state.disaggNicConfigConfirmed = true;
     renderDisaggOverrides();
+    renderDisaggHostNetworkingPreview();
     if (typeof showToast === 'function') showToast('Network configuration confirmed', 'success');
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
@@ -1749,12 +1750,280 @@ function editDisaggOverrides() {
     state.disaggOverridesConfirmed = false;
     state.disaggNicConfigConfirmed = false;
     renderDisaggOverrides();
+    var previewEl = document.getElementById('da10-nic-layout-diagram');
+    if (previewEl) previewEl.innerHTML = '';
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// VALIDATION
+// HOST NETWORKING DIAGRAM PREVIEW (shown after DA10 overrides confirmed)
 // ═══════════════════════════════════════════════════════════════════════════
+
+function renderDisaggHostNetworkingPreview() {
+    var container = document.getElementById('da10-nic-layout-diagram');
+    if (!container) return;
+    if (!state.disaggOverridesConfirmed) { container.innerHTML = ''; return; }
+
+    var storageType = state.disaggStorageType || 'fc_san';
+    var backupEnabled = !!state.disaggBackupEnabled;
+    var portCount = parseInt(state.disaggPortCount, 10) || 4;
+    var totalNodes = (parseInt(state.disaggRackCount, 10) || 1) * (parseInt(state.disaggNodesPerRack, 10) || 1);
+    var hasFc = (storageType === 'fc_san');
+    var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
+    var hasDedicatedIscsi = (storageType === 'iscsi_6nic' && !backupEnabled);
+    var hasSharedIscsi = (storageType === 'iscsi_4nic' || (storageType === 'iscsi_6nic' && backupEnabled));
+    var adapterMapping = state.disaggAdapterMapping || {};
+
+    function colorRgb(hex) {
+        return parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16);
+    }
+
+    // Port list and NIC name helpers
+    var portList = getDisaggPortList();
+
+    function getNicName(port) {
+        var cfg = state.disaggPortConfig && state.disaggPortConfig[port.id];
+        return (cfg && (cfg.customName || cfg.name)) || port.defaultName;
+    }
+    function getPortSpeed(port) {
+        var cfg = state.disaggPortConfig && state.disaggPortConfig[port.id];
+        return (cfg && cfg.speed) || port.defaultSpeed || '25GbE';
+    }
+
+    // Zone metadata
+    var clusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 1';
+    var clusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 2';
+    var vlans = state.disaggVlans || {};
+    var zoneMeta = {
+        mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlans.mgmt || '7') } },
+        cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + (vlans.cluster1 || '711'), forcedLeaf: 'A' },
+        cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + (vlans.cluster2 || '712'), forcedLeaf: 'B' },
+        iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlans.iscsiA || '500'), forcedLeaf: 'A' },
+        iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlans.iscsiB || '600'), forcedLeaf: 'B' },
+        backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
+    };
+    var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
+
+    // Group ports by zone
+    var groupsByZone = {};
+    var zoneLeafCounters = {};
+    for (var pi = 0; pi < portList.length; pi++) {
+        var port = portList[pi];
+        var zone = adapterMapping[port.id];
+        if (!zone || zone === 'pool' || port.slot === 'bmc') continue;
+        if (!groupsByZone[zone]) groupsByZone[zone] = [];
+        if (!zoneLeafCounters[zone]) zoneLeafCounters[zone] = 0;
+        var zmeta = zoneMeta[zone];
+        var leafLabel = (zmeta && zmeta.forcedLeaf) ? zmeta.forcedLeaf : ((zoneLeafCounters[zone] % 2 === 0) ? 'A' : 'B');
+        zoneLeafCounters[zone]++;
+        groupsByZone[zone].push({ name: getNicName(port), speed: getPortSpeed(port), leaf: leafLabel });
+    }
+
+    // Build nicGroups in zone order
+    var nicGroups = [];
+    for (var zi = 0; zi < zoneOrder.length; zi++) {
+        var zk = zoneOrder[zi];
+        if (!groupsByZone[zk] || groupsByZone[zk].length === 0) continue;
+        var meta = zoneMeta[zk];
+        if (!meta) continue;
+        var grp = { key: zk, label: meta.label, color: meta.color, nics: groupsByZone[zk] };
+        if (meta.vnicAbove) grp.vnicAbove = meta.vnicAbove;
+        if (meta.vlanBelow) grp.vlanBelow = meta.vlanBelow;
+        if (meta.subLabel) grp.subLabel = meta.subLabel;
+        nicGroups.push(grp);
+    }
+    if (nicGroups.length === 0) return;
+
+    // Storage adapters (FC only — iSCSI shown at leaf level)
+    var storageAdapters = [];
+    if (hasFc) {
+        for (var fi = 0; fi < portList.length; fi++) {
+            if (portList[fi].slot === 'fc') {
+                storageAdapters.push({ name: getNicName(portList[fi]), speed: getPortSpeed(portList[fi]), target: portList[fi].connection === 'Leaf-A' ? 'A' : 'B', color: '#8b5cf6' });
+            }
+        }
+    }
+
+    // Layout constants
+    var adapterW = 62, adapterH = 38, adapterGap = 10, groupGap = 18;
+    var mgmtVnicAreaH = 48;
+    var leafH = 50, leafW = 160, leafGap = 70;
+    var iscsiArrayW = 170, iscsiArrayH = 56, iscsiArrayGap = 50;
+
+    function rowWidth(groups) {
+        var w = 0;
+        for (var i = 0; i < groups.length; i++) {
+            w += groups[i].nics.length * adapterW + (groups[i].nics.length - 1) * adapterGap;
+            if (i < groups.length - 1) w += groupGap;
+        }
+        return w;
+    }
+
+    var nicRowW = rowWidth(nicGroups);
+    var storageW = storageAdapters.length * adapterW + Math.max(0, storageAdapters.length - 1) * adapterGap;
+    var nodeW = Math.max(440, Math.max(nicRowW, storageW) + 60);
+    var nodeH = 225 + mgmtVnicAreaH + (storageAdapters.length > 0 ? 70 : 0);
+    var marginX = 50, marginTop = 90, marginBottom = 60;
+    var leafToNodeGap = 90;
+    var sanAreaH = storageAdapters.length > 0 ? 70 : 0;
+    var leafAreaH = leafH + leafToNodeGap;
+    var totalLeafW = 2 * leafW + leafGap;
+    var topRowW = totalLeafW + (hasIscsi ? (iscsiArrayGap + iscsiArrayW) : 0);
+    var svgW = Math.max(nodeW + marginX * 2, topRowW + marginX * 2);
+    var svgH = marginTop + leafAreaH + nodeH + sanAreaH + marginBottom;
+
+    var leafY = marginTop + 10;
+    var leafBlockStartX = hasIscsi ? ((svgW - topRowW) / 2) : ((svgW - totalLeafW) / 2);
+    var leaf1X = leafBlockStartX;
+    var leaf2X = leaf1X + leafW + leafGap;
+    var iscsiArrayX = leaf2X + leafW + iscsiArrayGap;
+    var iscsiArrayY = leafY - 3;
+    var nodeX = (svgW - nodeW) / 2;
+    var nodeY = marginTop + leafAreaH + 10;
+
+    var uplinkPositions = [];
+    var storagePositions = [];
+
+    // Build SVG — single node preview
+    var svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Host networking preview">';
+    svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
+
+    // Title
+    var storageLabel = storageType === 'fc_san' ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC';
+    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Host Networking — ' + escapeHtml(storageLabel) + ' — ' + portCount + ' ports' + (backupEnabled ? ' + Backup' : '') + '</text>';
+
+    // Leaf switches
+    svg += '<rect x="' + leaf1X + '" y="' + leafY + '" width="' + leafW + '" height="' + leafH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+    svg += '<text x="' + (leaf1X + leafW / 2) + '" y="' + (leafY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">Leaf-A</text>';
+    svg += '<rect x="' + leaf2X + '" y="' + leafY + '" width="' + leafW + '" height="' + leafH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+    svg += '<text x="' + (leaf2X + leafW / 2) + '" y="' + (leafY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">Leaf-B</text>';
+
+    // iBGP link
+    var ibgpX1 = leaf1X + leafW, ibgpX2 = leaf2X, ibgpMidY = leafY + leafH / 2;
+    svg += '<line x1="' + ibgpX1 + '" y1="' + ibgpMidY + '" x2="' + ibgpX2 + '" y2="' + ibgpMidY + '" stroke="rgba(250,204,21,0.7)" stroke-width="2" stroke-dasharray="6 3" />';
+    svg += '<text x="' + ((ibgpX1 + ibgpX2) / 2) + '" y="' + (ibgpMidY - 8) + '" text-anchor="middle" font-size="9" fill="rgba(250,204,21,0.9)">iBGP P49</text>';
+
+    // Node box
+    svg += '<rect x="' + nodeX + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
+    var nodeName = (state.nodeSettings && state.nodeSettings[0] && state.nodeSettings[0].name) ? state.nodeSettings[0].name : 'Node 1';
+    svg += '<text x="' + (nodeX + nodeW / 2) + '" y="' + (nodeY + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(nodeName) + '</text>';
+
+    // BMC
+    var bmcX = nodeX + nodeW - 75, bmcY = nodeY + 12;
+    svg += '<rect x="' + bmcX + '" y="' + bmcY + '" width="55" height="22" rx="5" fill="rgba(160,160,160,0.12)" stroke="rgba(160,160,160,0.4)" />';
+    svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY + 14) + '" text-anchor="middle" font-size="7.5" fill="var(--text-secondary)">BMC</text>';
+    svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
+
+    // NIC groups
+    var nicRowY = nodeY + 80 + mgmtVnicAreaH;
+    var rw = rowWidth(nicGroups);
+    var currentX = nodeX + (nodeW - rw) / 2;
+    for (var gi = 0; gi < nicGroups.length; gi++) {
+        var grp = nicGroups[gi];
+        var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
+        var boxX = currentX - 8, boxTotalW = grpW + 16;
+        var hasVnic = !!grp.vnicAbove;
+        var vnicH = hasVnic ? mgmtVnicAreaH : 0;
+        var boxH = adapterH + 28 + vnicH;
+        var boxY = nicRowY - 14 - vnicH;
+        var rgb = colorRgb(grp.color);
+
+        svg += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
+
+        var labelY = hasIscsi ? (boxY + boxH + 12) : (boxY - 5);
+        svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
+        if (grp.subLabel) {
+            svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (labelY + 11) + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.70)">' + escapeHtml(grp.subLabel) + '</text>';
+        }
+
+        if (hasVnic) {
+            var vaW = 80, vaH = 30;
+            var vaX = boxX + (boxTotalW - vaW) / 2, vaY2 = boxY + 10;
+            svg += '<rect x="' + vaX + '" y="' + vaY2 + '" width="' + vaW + '" height="' + vaH + '" rx="6" fill="rgba(' + rgb + ',0.10)" stroke="rgba(' + rgb + ',0.55)" stroke-dasharray="4 2" />';
+            svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY2 + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(grp.vnicAbove.name) + '</text>';
+            svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY2 + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(grp.vnicAbove.vlan) + '</text>';
+            svg += '<line x1="' + (boxX + 6) + '" y1="' + (nicRowY - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (nicRowY - 6) + '" stroke="rgba(' + rgb + ',0.3)" stroke-dasharray="3 2" />';
+        }
+
+        for (var ni = 0; ni < grp.nics.length; ni++) {
+            var nic = grp.nics[ni];
+            var x = currentX + ni * (adapterW + adapterGap), y = nicRowY;
+            svg += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + rgb + ',0.20)" stroke="rgba(' + rgb + ',0.60)" />';
+            svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
+            svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(nic.speed) + '</text>';
+            uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
+        }
+
+        if (grp.vlanBelow) {
+            var vlanY = grp.subLabel ? (boxY + boxH + 34) : (hasIscsi ? (boxY + boxH + 24) : (boxY + boxH + 12));
+            svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
+        }
+        currentX += grpW + groupGap;
+    }
+
+    // Storage adapters (FC only)
+    if (storageAdapters.length > 0) {
+        var saY = nodeY + nodeH - adapterH - 20;
+        var saStartX = nodeX + (nodeW - storageW) / 2;
+        var saRgb = colorRgb('#8b5cf6');
+        svg += '<text x="' + (nodeX + nodeW / 2) + '" y="' + (saY - 18) + '" text-anchor="middle" font-size="9" fill="rgba(' + saRgb + ',0.85)" font-weight="600">FC HBA — SAN Fabric</text>';
+        svg += '<line x1="' + (nodeX + 20) + '" y1="' + (saY - 24) + '" x2="' + (nodeX + nodeW - 20) + '" y2="' + (saY - 24) + '" stroke="rgba(' + saRgb + ',0.2)" stroke-dasharray="4 3" />';
+        for (var si = 0; si < storageAdapters.length; si++) {
+            var sa = storageAdapters[si];
+            var sx = saStartX + si * (adapterW + adapterGap);
+            svg += '<rect x="' + sx + '" y="' + saY + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + saRgb + ',0.15)" stroke="rgba(' + saRgb + ',0.55)" stroke-dasharray="4 2" />';
+            svg += '<text x="' + (sx + adapterW / 2) + '" y="' + (saY + 16) + '" text-anchor="middle" font-size="7.5" fill="var(--text-primary)" font-weight="600">' + escapeHtml(sa.name) + '</text>';
+            svg += '<text x="' + (sx + adapterW / 2) + '" y="' + (saY + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(sa.speed) + '</text>';
+            storagePositions.push({ x: sx + adapterW / 2, y: saY + adapterH, target: sa.target, color: sa.color });
+        }
+    }
+
+    // Uplink lines from NICs to leaf switches
+    var leafBottomY = leafY + leafH;
+    for (var ai = 0; ai < uplinkPositions.length; ai++) {
+        var ap = uplinkPositions[ai];
+        var targetLX = (ap.leaf === 'A') ? (leaf1X + leafW / 2) : (leaf2X + leafW / 2);
+        var uRgb = colorRgb(ap.color);
+        svg += '<line x1="' + ap.x + '" y1="' + ap.y + '" x2="' + targetLX + '" y2="' + leafBottomY + '" stroke="rgba(' + uRgb + ',0.35)" stroke-width="1.5" stroke-dasharray="4 2" />';
+    }
+
+    // iSCSI Storage Array or FC SAN targets
+    if (hasIscsi) {
+        var arrRgb = colorRgb('#8b5cf6');
+        svg += '<rect x="' + iscsiArrayX + '" y="' + iscsiArrayY + '" width="' + iscsiArrayW + '" height="' + iscsiArrayH + '" rx="10" fill="rgba(' + arrRgb + ',0.12)" stroke="rgba(' + arrRgb + ',0.6)" stroke-width="2" />';
+        svg += '<text x="' + (iscsiArrayX + iscsiArrayW / 2) + '" y="' + (iscsiArrayY + 22) + '" text-anchor="middle" font-size="11" fill="rgba(' + arrRgb + ',0.95)" font-weight="700">iSCSI Storage Array</text>';
+        svg += '<text x="' + (iscsiArrayX + iscsiArrayW / 2) + '" y="' + (iscsiArrayY + 38) + '" text-anchor="middle" font-size="8" fill="var(--text-secondary)">Dual Controllers (A + B)</text>';
+        svg += '<text x="' + (iscsiArrayX + iscsiArrayW / 2) + '" y="' + (iscsiArrayY + 50) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">MPIO Active/Active</text>';
+        var routeY2 = leafY - 18;
+        svg += '<polyline points="' + (leaf1X + leafW) + ',' + leafY + ' ' + (leaf1X + leafW) + ',' + routeY2 + ' ' + iscsiArrayX + ',' + routeY2 + ' ' + iscsiArrayX + ',' + (iscsiArrayY + 16) + '" fill="none" stroke="rgba(' + arrRgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
+        svg += '<line x1="' + (leaf2X + leafW) + '" y1="' + (leafY + leafH - 12) + '" x2="' + iscsiArrayX + '" y2="' + (iscsiArrayY + iscsiArrayH - 16) + '" stroke="rgba(' + arrRgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
+    } else if (storagePositions.length > 0) {
+        var sanY2 = nodeY + nodeH + 20;
+        var sanW2 = 160, sanH2 = 36, sanGap2 = 60;
+        var totSanW = 2 * sanW2 + sanGap2;
+        var sanStartX2 = (svgW - totSanW) / 2;
+        var sanRgb = colorRgb('#8b5cf6');
+        svg += '<rect x="' + sanStartX2 + '" y="' + sanY2 + '" width="' + sanW2 + '" height="' + sanH2 + '" rx="10" fill="rgba(' + sanRgb + ',0.12)" stroke="rgba(' + sanRgb + ',0.55)" stroke-width="1.5" />';
+        svg += '<text x="' + (sanStartX2 + sanW2 / 2) + '" y="' + (sanY2 + 22) + '" text-anchor="middle" font-size="11" fill="rgba(' + sanRgb + ',0.9)" font-weight="600">SAN Fabric A</text>';
+        var sanBX2 = sanStartX2 + sanW2 + sanGap2;
+        svg += '<rect x="' + sanBX2 + '" y="' + sanY2 + '" width="' + sanW2 + '" height="' + sanH2 + '" rx="10" fill="rgba(' + sanRgb + ',0.12)" stroke="rgba(' + sanRgb + ',0.55)" stroke-width="1.5" />';
+        svg += '<text x="' + (sanBX2 + sanW2 / 2) + '" y="' + (sanY2 + 22) + '" text-anchor="middle" font-size="11" fill="rgba(' + sanRgb + ',0.9)" font-weight="600">SAN Fabric B</text>';
+        var tAcx = sanStartX2 + sanW2 / 2, tBcx = sanBX2 + sanW2 / 2;
+        for (var sp = 0; sp < storagePositions.length; sp++) {
+            var spp = storagePositions[sp];
+            var tCx = (spp.target === 'A') ? tAcx : tBcx;
+            var spRgb = colorRgb(spp.color);
+            svg += '<line x1="' + spp.x + '" y1="' + spp.y + '" x2="' + tCx + '" y2="' + sanY2 + '" stroke="rgba(' + spRgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
+        }
+    }
+
+    svg += '</svg>';
+
+    container.innerHTML = '<div style="margin-top:1.5rem;">'
+        + '<h4 style="color:var(--accent-purple); margin-bottom:0.75rem;">Host Networking Preview</h4>'
+        + '<div class="switchless-diagram">' + svg + '</div>'
+        + '</div>';
+}
 
 function validateDisaggNicConfig() {
     var errorEl = document.getElementById('da10-nic-error');
