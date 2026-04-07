@@ -2331,10 +2331,10 @@
         var dClusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 2';
         var zoneMeta = {
             mgmt_compute: { label: 'Mgmt + Compute', color: 'blue', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7') } },
-            cluster_1: { label: dClusterLabel1, color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711') },
-            cluster_2: { label: dClusterLabel2, color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712') },
-            iscsi_a: { label: 'iSCSI Storage A', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiA) || '500') },
-            iscsi_b: { label: 'iSCSI Storage B', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiB) || '600') },
+            cluster_1: { label: dClusterLabel1, color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
+            cluster_2: { label: dClusterLabel2, color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
+            iscsi_a: { label: 'iSCSI Storage A', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiA) || '500'), forcedLeaf: 'A' },
+            iscsi_b: { label: 'iSCSI Storage B', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiB) || '600'), forcedLeaf: 'B' },
             backup: { label: 'In-Guest Backup Compute Intent', color: 'orange' }
         };
         var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
@@ -2348,7 +2348,8 @@
             if (!dZone || dZone === 'pool' || dPort.slot === 'bmc') continue;
             if (!groupsByZoneD[dZone]) groupsByZoneD[dZone] = [];
             if (!zoneLeafCountersD[dZone]) zoneLeafCountersD[dZone] = 0;
-            var dLeaf = (zoneLeafCountersD[dZone] % 2 === 0) ? 'A' : 'B';
+            var dzmeta = zoneMeta[dZone];
+            var dLeaf = (dzmeta && dzmeta.forcedLeaf) ? dzmeta.forcedLeaf : ((zoneLeafCountersD[dZone] % 2 === 0) ? 'A' : 'B');
             zoneLeafCountersD[dZone]++;
             var dSlotKey = dPort.id.replace(/_p\d+$/, '');
             var dIdx = parseInt(dPort.id.replace(/^.*_p/, ''), 10);
@@ -4143,10 +4144,10 @@
             var clusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 2';
             var zoneMeta = {
                 mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7') } },
-                cluster_1: { label: clusterLabel1, color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711') },
-                cluster_2: { label: clusterLabel2, color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712') },
-                iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiA) || '500') },
-                iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiB) || '600') },
+                cluster_1: { label: clusterLabel1, color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
+                cluster_2: { label: clusterLabel2, color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
+                iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiA) || '500'), forcedLeaf: 'A' },
+                iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiB) || '600'), forcedLeaf: 'B' },
                 backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
             };
 
@@ -4163,7 +4164,8 @@
                 if (!zone || zone === 'pool' || port.slot === 'bmc') continue;
                 if (!groupsByZone[zone]) groupsByZone[zone] = [];
                 if (!zoneLeafCounters[zone]) zoneLeafCounters[zone] = 0;
-                var leafLabel = (zoneLeafCounters[zone] % 2 === 0) ? 'A' : 'B';
+                var zmeta = zoneMeta[zone];
+                var leafLabel = (zmeta && zmeta.forcedLeaf) ? zmeta.forcedLeaf : ((zoneLeafCounters[zone] % 2 === 0) ? 'A' : 'B');
                 zoneLeafCounters[zone]++;
 
                 var slotKey = port.id.replace(/_p\d+$/, '');
