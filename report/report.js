@@ -2327,10 +2327,12 @@
 
         // Build NIC groups dynamically from adapter mapping
         var nicGroups = [];
+        var dClusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 1';
+        var dClusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 2';
         var zoneMeta = {
             mgmt_compute: { label: 'Mgmt + Compute', color: 'blue', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7') } },
-            cluster_1: { label: 'Cluster 1', color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711') },
-            cluster_2: { label: 'Cluster 2', color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712') },
+            cluster_1: { label: dClusterLabel1, color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711') },
+            cluster_2: { label: dClusterLabel2, color: 'green', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712') },
             iscsi_a: { label: 'iSCSI Storage A', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiA) || '500') },
             iscsi_b: { label: 'iSCSI Storage B', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiB) || '600') },
             backup: { label: 'In-Guest Backup Compute Intent', color: 'orange' }
@@ -2375,12 +2377,12 @@
                 ]
             });
             nicGroups.push({
-                key: 'cluster_1', label: 'Cluster 1', color: 'green',
+                key: 'cluster_1', label: dClusterLabel1, color: 'green',
                 vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'),
                 nics: [{ name: getNicNameD('pcie1', 1), speed: getPortSpeedD('pcie1', 1), leaf: 'A' }]
             });
             nicGroups.push({
-                key: 'cluster_2', label: 'Cluster 2', color: 'green',
+                key: 'cluster_2', label: dClusterLabel2, color: 'green',
                 vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'),
                 nics: [{ name: getNicNameD('pcie1', 2), speed: getPortSpeedD('pcie1', 2), leaf: 'B' }]
             });
@@ -2420,17 +2422,7 @@
                 storageAdapters.push({ name: getNicNameD('pcie2', 2), speed: getPortSpeedD('pcie2', 2), target: 'B' });
             }
         } else if (hasSharedIscsi) {
-            // Find cluster port names for shared indicator
-            var dCluster1Name = getNicNameD('pcie1', 1);
-            var dCluster2Name = getNicNameD('pcie1', 2);
-            for (var dcpi = 0; dcpi < portListD.length; dcpi++) {
-                var dcPort = portListD[dcpi];
-                var dcZone = adapterMapping[dcPort.id];
-                if (dcZone === 'cluster_1') { var dcSlot = dcPort.id.replace(/_p\d+$/, ''); var dcIdx = parseInt(dcPort.id.replace(/^.*_p/, ''), 10); dCluster1Name = getNicNameD(dcSlot, dcIdx); }
-                if (dcZone === 'cluster_2') { var dcSlot2 = dcPort.id.replace(/_p\d+$/, ''); var dcIdx2 = parseInt(dcPort.id.replace(/^.*_p/, ''), 10); dCluster2Name = getNicNameD(dcSlot2, dcIdx2); }
-            }
-            storageAdapters.push({ name: 'iSCSI via ' + dCluster1Name, speed: 'shared', target: 'A' });
-            storageAdapters.push({ name: 'iSCSI via ' + dCluster2Name, speed: 'shared', target: 'B' });
+            // Shared iSCSI — no separate storage adapters, traffic flows through leaf fabric
         }
 
         // Layout constants
@@ -2458,18 +2450,21 @@
         var nodeGap = 60;
 
         var totalNodesW = n * nodeW + (n - 1) * nodeGap;
-        var svgW = Math.max(totalNodesW + marginX * 2, (2 * leafW + leafGap) + marginX * 2);
+        var iscsiArrWD = 170, iscsiArrHD = 56, iscsiArrGapD = 50;
+        var totalLeafW = 2 * leafW + leafGap;
+        var topRowWD = totalLeafW + (hasSharedIscsi ? (iscsiArrGapD + iscsiArrWD) : 0);
+        var svgW = Math.max(totalNodesW + marginX * 2, topRowWD + marginX * 2);
 
         var leafY = marginY;
         var leafToNodeGap = 100;
         var nodesY = leafY + leafH + leafToNodeGap;
+        var leafBlockStartXD = hasSharedIscsi ? ((svgW - topRowWD) / 2) : ((svgW - totalLeafW) / 2);
         var nodesStartX = (svgW - totalNodesW) / 2;
-        var totalLeafW = 2 * leafW + leafGap;
-        var leaf1X = (svgW - totalLeafW) / 2;
+        var leaf1X = leafBlockStartXD;
         var leaf2X = leaf1X + leafW + leafGap;
 
         var sanY = nodesY + nodeH + 60;
-        var pageH = sanY + sanH + 80;
+        var pageH = (hasSharedIscsi ? (nodesY + nodeH + 80) : (sanY + sanH + 80));
 
         // Cell/edge builders
         var cells = [];
@@ -2509,19 +2504,38 @@
             'endArrow=none;html=1;strokeColor=#FACC15;strokeWidth=2;dashed=1;dashPattern=6 3;fontColor=#FACC15;fontSize=10;labelBackgroundColor=none;',
             'iBGP P49');
 
-        // SAN / iSCSI targets
-        var storageLabel = hasFc ? 'FC SAN' : 'iSCSI';
-        var targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
-        var targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
-        var totalSanW = 2 * sanW + sanGap;
-        var sanStartX = (svgW - totalSanW) / 2;
+        // SAN / iSCSI targets — for shared iSCSI, show Storage Array at leaf level instead
+        var sanAId, sanBId;
+        if (hasSharedIscsi) {
+            var iscsiArrXD = leaf2X + leafW + iscsiArrGapD;
+            var iscsiArrYD = leafY - 3;
+            sanAId = nextId();
+            addCell(sanAId, 'iSCSI Storage Array\nDual Controllers (A + B)\nMPIO Active/Active', iscsiArrXD, iscsiArrYD, iscsiArrWD, iscsiArrHD,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B69;strokeColor=#8B5CF6;fontColor=#C4B5FD;fontSize=9;fontStyle=1;arcSize=20;strokeWidth=2;');
+            // Connect Leaf-A and Leaf-B to Storage Array
+            var saEdgeA = nextId();
+            addEdge(saEdgeA, leaf1Id, sanAId,
+                'endArrow=none;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;dashed=1;dashPattern=5 3;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;',
+                'Ctrl-A');
+            var saEdgeB = nextId();
+            addEdge(saEdgeB, leaf2Id, sanAId,
+                'endArrow=none;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;dashed=1;dashPattern=5 3;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;',
+                'Ctrl-B');
+            sanBId = sanAId; // single target for shared
+        } else {
+            var storageLabel = hasFc ? 'FC SAN' : 'iSCSI';
+            var targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
+            var targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
+            var totalSanW = 2 * sanW + sanGap;
+            var sanStartX = (svgW - totalSanW) / 2;
 
-        var sanAId = nextId();
-        addCell(sanAId, targetLabelA, sanStartX, sanY, sanW, sanH,
-            'rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B69;strokeColor=#8B5CF6;fontColor=#C4B5FD;fontSize=11;fontStyle=1;arcSize=20;strokeWidth=1.5;');
-        var sanBId = nextId();
-        addCell(sanBId, targetLabelB, sanStartX + sanW + sanGap, sanY, sanW, sanH,
-            'rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B69;strokeColor=#8B5CF6;fontColor=#C4B5FD;fontSize=11;fontStyle=1;arcSize=20;strokeWidth=1.5;');
+            sanAId = nextId();
+            addCell(sanAId, targetLabelA, sanStartX, sanY, sanW, sanH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B69;strokeColor=#8B5CF6;fontColor=#C4B5FD;fontSize=11;fontStyle=1;arcSize=20;strokeWidth=1.5;');
+            sanBId = nextId();
+            addCell(sanBId, targetLabelB, sanStartX + sanW + sanGap, sanY, sanW, sanH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#2D1B69;strokeColor=#8B5CF6;fontColor=#C4B5FD;fontSize=11;fontStyle=1;arcSize=20;strokeWidth=1.5;');
+        }
 
         // Render nodes
         for (var ni = 0; ni < n; ni++) {
@@ -4124,11 +4138,13 @@
             // --- Build NIC groups dynamically from adapter mapping ---
             var nicGroups = [];
 
-            // Define zone metadata
+            // Define zone metadata — for shared iSCSI, cluster groups carry CSV/LiveMig + iSCSI traffic
+            var clusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 1';
+            var clusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig + iSCSI' : 'Cluster 2';
             var zoneMeta = {
                 mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7') } },
-                cluster_1: { label: 'Cluster 1', color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711') },
-                cluster_2: { label: 'Cluster 2', color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712') },
+                cluster_1: { label: clusterLabel1, color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711') },
+                cluster_2: { label: clusterLabel2, color: '#22c55e', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712') },
                 iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiA) || '500') },
                 iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiB) || '600') },
                 backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
@@ -4189,12 +4205,12 @@
                     ]
                 });
                 nicGroups.push({
-                    key: 'cluster_1', label: 'Cluster 1', color: '#22c55e',
+                    key: 'cluster_1', label: clusterLabel1, color: '#22c55e',
                     vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711'),
                     nics: [{ id: 'pcie1_1', name: getNicName('pcie1', 1), speed: getPortSpeed('pcie1', 1), leaf: 'A' }]
                 });
                 nicGroups.push({
-                    key: 'cluster_2', label: 'Cluster 2', color: '#22c55e',
+                    key: 'cluster_2', label: clusterLabel2, color: '#22c55e',
                     vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'),
                     nics: [{ id: 'pcie1_2', name: getNicName('pcie1', 2), speed: getPortSpeed('pcie1', 2), leaf: 'B' }]
                 });
@@ -4235,27 +4251,10 @@
                     storageAdapters.push({ id: 'pcie2_1', name: getNicName('pcie2', 1), speed: getPortSpeed('pcie2', 1), target: 'A', color: '#8b5cf6' });
                     storageAdapters.push({ id: 'pcie2_2', name: getNicName('pcie2', 2), speed: getPortSpeed('pcie2', 2), target: 'B', color: '#8b5cf6' });
                 }
-            } else if (hasSharedIscsi) {
-                // iSCSI 4-NIC or 6-NIC+backup: iSCSI shares cluster ports — show logical indicators
-                // Find which ports are mapped to cluster_1/cluster_2
-                var clusterPorts = { cluster_1: null, cluster_2: null };
-                for (var cpi = 0; cpi < portList.length; cpi++) {
-                    var cpPort = portList[cpi];
-                    var cpZone = adapterMapping[cpPort.id];
-                    if (cpZone === 'cluster_1' && !clusterPorts.cluster_1) {
-                        var cpSlot = cpPort.id.replace(/_p\d+$/, '');
-                        var cpIdx = parseInt(cpPort.id.replace(/^.*_p/, ''), 10);
-                        clusterPorts.cluster_1 = getNicName(cpSlot, cpIdx);
-                    }
-                    if (cpZone === 'cluster_2' && !clusterPorts.cluster_2) {
-                        var cpSlot2 = cpPort.id.replace(/_p\d+$/, '');
-                        var cpIdx2 = parseInt(cpPort.id.replace(/^.*_p/, ''), 10);
-                        clusterPorts.cluster_2 = getNicName(cpSlot2, cpIdx2);
-                    }
-                }
-                storageAdapters.push({ id: 'iscsi_shared_a', name: 'iSCSI via ' + (clusterPorts.cluster_1 || getNicName('pcie1', 1)), speed: 'shared', target: 'A', color: '#8b5cf6' });
-                storageAdapters.push({ id: 'iscsi_shared_b', name: 'iSCSI via ' + (clusterPorts.cluster_2 || getNicName('pcie1', 2)), speed: 'shared', target: 'B', color: '#8b5cf6' });
             }
+            // For shared iSCSI: no separate storage adapters — iSCSI traffic flows
+            // through the same cluster standalone NICs up to the leaf switches,
+            // then through the fabric to the iSCSI Storage Array.
 
             // BMC name
             var bmcName = getNicName('bmc', 1);
@@ -4293,15 +4292,28 @@
             var marginBottom = 80;
             var sanAreaH = 70;
 
-            var svgW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
-            var leafAreaH = leafH + leafToNodeGap;
-            var svgH = marginTop + leafAreaH + nodeH + sanAreaH + marginBottom + (totalNodes > 2 ? 40 : 0);
+            // iSCSI Storage Array dimensions (shown at leaf level for shared iSCSI)
+            var iscsiArrayW = 170;
+            var iscsiArrayH = 56;
+            var iscsiArrayGap = 50;
 
-            // Leaf switch positions
-            var leafY = marginTop + 10;
+            var nodesAreaW = marginX * 2 + (n * nodeW) + ((n - 1) * gapX);
+            var leafAreaH = leafH + leafToNodeGap;
             var totalLeafW = (2 * leafW) + leafGap;
-            var leaf1X = (svgW - totalLeafW) / 2;
+            // For shared iSCSI, widen SVG to fit the iSCSI Storage Array to the right of leaves
+            var topRowW = totalLeafW + (hasSharedIscsi ? (iscsiArrayGap + iscsiArrayW) : 0);
+            var svgW = Math.max(nodesAreaW, topRowW + marginX * 2);
+            var svgH = marginTop + leafAreaH + nodeH + (hasSharedIscsi ? 0 : sanAreaH) + marginBottom + (totalNodes > 2 ? 40 : 0);
+
+            // Leaf switch positions — shift left if iSCSI Storage Array is shown
+            var leafY = marginTop + 10;
+            var leafBlockStartX = hasSharedIscsi ? ((svgW - topRowW) / 2) : ((svgW - totalLeafW) / 2);
+            var leaf1X = leafBlockStartX;
             var leaf2X = leaf1X + leafW + leafGap;
+
+            // iSCSI Storage Array position (right of Leaf-B, same level)
+            var iscsiArrayX = leaf2X + leafW + iscsiArrayGap;
+            var iscsiArrayY = leafY - 3;
 
             // Node positions
             var nodesStartX = (svgW - (n * nodeW) - ((n - 1) * gapX)) / 2;
@@ -4475,14 +4487,46 @@
                 return out;
             }
 
+            function renderSharedIscsiStorageArray() {
+                var out = '';
+                var rgb = colorRgb('#8b5cf6');
+                var aX = iscsiArrayX;
+                var aY = iscsiArrayY;
+
+                // Storage Array box
+                out += '<rect x="' + aX + '" y="' + aY + '" width="' + iscsiArrayW + '" height="' + iscsiArrayH + '" rx="10" fill="rgba(' + rgb + ',0.12)" stroke="rgba(' + rgb + ',0.6)" stroke-width="2" />';
+                out += '<text x="' + (aX + iscsiArrayW / 2) + '" y="' + (aY + 22) + '" text-anchor="middle" font-size="11" fill="rgba(' + rgb + ',0.95)" font-weight="700">iSCSI Storage Array</text>';
+                out += '<text x="' + (aX + iscsiArrayW / 2) + '" y="' + (aY + 38) + '" text-anchor="middle" font-size="8" fill="var(--text-secondary)">Dual Controllers (A + B)</text>';
+                out += '<text x="' + (aX + iscsiArrayW / 2) + '" y="' + (aY + 50) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">MPIO Active/Active</text>';
+
+                // Connection lines from Leaf-A and Leaf-B to Storage Array
+                var leafAcx = leaf1X + leafW;
+                var leafBcx = leaf2X + leafW;
+                var leafMidY = leafY + leafH / 2;
+                var arrayLeftX = aX;
+                var arrayMidY = aY + iscsiArrayH / 2;
+
+                // Leaf-A → Storage Array (line goes right from Leaf-A to above, then to array)
+                out += '<line x1="' + leafAcx + '" y1="' + (leafY + 12) + '" x2="' + arrayLeftX + '" y2="' + (aY + 16) + '" stroke="rgba(' + rgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
+                // Leaf-B → Storage Array
+                out += '<line x1="' + leafBcx + '" y1="' + (leafY + leafH - 12) + '" x2="' + arrayLeftX + '" y2="' + (aY + iscsiArrayH - 16) + '" stroke="rgba(' + rgb + ',0.4)" stroke-width="1.5" stroke-dasharray="5 3" />';
+
+                // Labels on connections
+                var midAx = (leafAcx + arrayLeftX) / 2;
+                out += '<text x="' + midAx + '" y="' + (aY + 4) + '" text-anchor="middle" font-size="7" fill="rgba(' + rgb + ',0.7)" font-style="italic">iSCSI Ctrl-A</text>';
+                out += '<text x="' + midAx + '" y="' + (aY + iscsiArrayH + 10) + '" text-anchor="middle" font-size="7" fill="rgba(' + rgb + ',0.7)" font-style="italic">iSCSI Ctrl-B</text>';
+
+                return out;
+            }
+
             // Build intro text
             var storageLabel = storageType === 'fc_san' ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC';
             var intro = ''
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                 + '<strong style="color:var(--text-primary);">Disaggregated (' + escapeHtml(storageLabel) + ')</strong> host networking diagram with Leaf-A / Leaf-B switches.'
-                + '<br>Intents: Management + Compute (SET), Cluster 1 &amp; 2 (Standalone)'
+                + '<br>Intents: Management + Compute (SET), ' + (hasSharedIscsi ? 'CSV/LiveMig + iSCSI (Standalone)' : 'Cluster 1 &amp; 2 (Standalone)')
                 + (backupEnabled ? ', In-Guest Backup (SET)' : '')
-                + (hasDedicatedIscsi ? '. Dedicated iSCSI storage adapters shown at bottom of each node.' : (hasSharedIscsi ? '. iSCSI shares cluster standalone ports.' : '. Storage adapters shown at bottom of each node.'))
+                + (hasDedicatedIscsi ? '. Dedicated iSCSI storage adapters shown at bottom of each node.' : (hasSharedIscsi ? '. iSCSI shares cluster standalone NICs — traffic reaches storage array through leaf switch fabric.' : '. Storage adapters shown at bottom of each node.'))
                 + (totalNodes > 2 ? '<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(totalNodes)) + ' nodes.</span>' : '')
                 + '</div>';
 
@@ -4521,9 +4565,14 @@
                 svg += renderUplinks();
             }
 
-            // SAN / iSCSI target shapes below nodes
-            var sanY = nodeY + nodeH + 20;
-            svg += renderStorageDownlinks(sanY);
+            // Storage targets — render below nodes for FC/dedicated iSCSI, or
+            // render iSCSI Storage Array at leaf level for shared iSCSI
+            if (hasSharedIscsi) {
+                svg += renderSharedIscsiStorageArray();
+            } else {
+                var sanY = nodeY + nodeH + 20;
+                svg += renderStorageDownlinks(sanY);
+            }
 
             // "+N more nodes" badge — inside the outer container
             if (totalNodes > 2) {
@@ -4538,9 +4587,9 @@
 
             svg += '</svg>';
 
-            var note = '<div class="switchless-diagram__note">Note: Disaggregated ' + escapeHtml(storageLabel) + ' — Management + Compute intent (blue). Cluster networks are standalone NICs (green), one per leaf switch. '
+            var note = '<div class="switchless-diagram__note">Note: Disaggregated ' + escapeHtml(storageLabel) + ' — Management + Compute intent (blue). '
+                + (hasSharedIscsi ? 'Standalone NICs (green) carry both CSV/Live Migration and iSCSI traffic on the same VLAN. iSCSI storage array is accessed through the leaf switch fabric (MPIO Active/Active, dual controllers). ' : 'Cluster networks are standalone NICs (green), one per leaf switch. ')
                 + (hasDedicatedIscsi ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to iSCSI targets. ' : '')
-                + (hasSharedIscsi ? 'iSCSI shares cluster standalone ports, same VLAN. ' : '')
                 + (hasFc ? 'FC HBA connects to separate SAN fabric (dedicated FC network, not through leaf switches). ' : '')
                 + (backupEnabled ? 'In-Guest Backup uses a Compute Intent (orange). ' : '')
                 + '</div>';
