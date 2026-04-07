@@ -1712,6 +1712,32 @@ function confirmDisaggOverrides() {
         if (typeof showToast === 'function') showToast('Fix duplicate subnets before confirming', 'error');
         return;
     }
+
+    // Validate required fields are not empty
+    var vlans = state.disaggVlans || {};
+    var subnets = state.disaggSubnets || {};
+    var st = state.disaggStorageType || 'fc_san';
+    var backup = !!state.disaggBackupEnabled;
+    var hasDedicatedIscsi = (st === 'iscsi_6nic' && !backup);
+    var missing = [];
+
+    if (!vlans.cluster1) missing.push('Cluster 1 VLAN');
+    if (!(subnets.cluster1 || '').trim()) missing.push('Cluster 1 Subnet');
+    if (!vlans.cluster2) missing.push('Cluster 2 VLAN');
+    if (!(subnets.cluster2 || '').trim()) missing.push('Cluster 2 Subnet');
+
+    if (hasDedicatedIscsi) {
+        if (!vlans.iscsiA) missing.push('iSCSI A VLAN');
+        if (!(subnets.iscsiA || '').trim()) missing.push('iSCSI A Subnet');
+        if (!vlans.iscsiB) missing.push('iSCSI B VLAN');
+        if (!(subnets.iscsiB || '').trim()) missing.push('iSCSI B Subnet');
+    }
+
+    if (missing.length > 0) {
+        if (typeof showToast === 'function') showToast('Missing required fields: ' + missing.join(', '), 'error');
+        return;
+    }
+
     state.disaggOverridesConfirmed = true;
     state.disaggNicConfigConfirmed = true;
     renderDisaggOverrides();
