@@ -11665,7 +11665,6 @@ function confirmOverrides() {
         state.overridesConfirmed = true;
         renderHciHostNetworkingPreview();
     }
-    }
     updateOverridesUI();
     updateUI();
 }
