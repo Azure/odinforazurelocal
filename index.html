@@ -1024,6 +1024,13 @@
                             <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>Virtual Routing and Forwarding</strong> instance creates an isolated routing table on each leaf switch. All Azure Local VLANs are placed into a single VRF so inter-VLAN routing stays within the tenant domain, separate from the fabric underlay.</p>
                         </div>
                     </div>
+                    <div style="margin-top: 16px; margin-bottom: 20px; background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 6px; padding: 14px;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--accent-purple); font-size: 0.9rem;">Switch Port VLAN Modes</h4>
+                        <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
+                            <li><strong>Cluster VLANs</strong> &mdash; Configure switch ports in <strong>access mode</strong> using the default VLAN ID. This means no VLAN tagging is needed at the host NIC level; the switch handles VLAN assignment for cluster traffic.</li>
+                            <li><strong>Management VLAN</strong> &mdash; Can be configured as the <strong>default VLAN ID</strong> (access/native) or as a <strong>trunk VLAN</strong>. Using trunk mode is common because additional workload VLANs share the same vSwitch and must be configured in trunk mode.</li>
+                        </ul>
+                    </div>
                     <div id="da5-vlan-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
                         <!-- Dynamically populated by disaggregated.js -->
                     </div>
