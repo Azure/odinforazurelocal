@@ -26,11 +26,10 @@ function getMaxNodesPerRack(storageType, backupEnabled) {
     if (storageType === 'iscsi_6nic' && backupEnabled) {
         // vNIC mode: iSCSI uses vNICs on the Backup SET (PCIe2), NOT separate leaf ports.
         // PCIe2 ports connect to leaf 33-48 range (1 per leaf per node) → max 16
-        // but keep same headroom as iscsi_6nic without backup
-        return 15;
+        return 16;
     } else if (storageType === 'iscsi_6nic') {
-        // iSCSI uses ports 33-48 (1 per leaf per node) → max 16 but limited by total
-        return 15; // conservative: leave headroom
+        // iSCSI uses ports 33-48 (1 per leaf per node) → max 16
+        return 16;
     } else {
         return 16; // FC and iSCSI 4-NIC: ports 33-48 available for backup or empty
     }
@@ -774,10 +773,8 @@ function getDisaggPortCountOptions() {
     } else if (st === 'iscsi_6nic') {
         if (backup) {
             options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + Backup (2). iSCSI uses vNICs on Backup SET with NIC team mapping.', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
-            options.push({ value: 8, label: '8 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2) + Backup (2).', dots: [5, 9, 15, 19, 5, 9, 15, 19], twoRow: true, disabled: true, disabledReason: 'TOR port limit — iSCSI uses vNICs on Backup Compute Intent with NIC team mapping' });
         } else {
             options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2).', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
-            options.push({ value: 8, label: '8 Ports', desc: 'OCP (2) + Cluster (2) + iSCSI dedicated (2) + Backup (2).', dots: [5, 9, 15, 19, 5, 9, 15, 19], twoRow: true, disabled: true, disabledReason: 'Enable backup network on step DA2 to use 8 ports' });
         }
     }
 
