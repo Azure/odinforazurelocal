@@ -11369,7 +11369,9 @@ function renderHciHostNetworkingPreview() {
         return;
     }
 
-    // --- Switched / single-node: single node with optional ToR switches ---
+    // --- Switched / single-node ---
+    // Show up to 2 nodes for multi-node switched scenarios (like the report)
+    var displayNodes = (nodeCount > 1) ? Math.min(2, nodeCount) : 1;
 
     var zoneColorMap = {
         'mgmt_compute': '#3b82f6', 'mgmt': '#3b82f6',
@@ -11437,6 +11439,7 @@ function renderHciHostNetworkingPreview() {
     var nodeW = Math.max(440, nicRowW + 60);
     var nodeH = 225 + mgmtVnicAreaH;
     var marginX = 50, marginTop = 90, marginBottom = 60;
+    var nodeGapX = 40;
 
     var isSwitched = state.storage === 'switched' || state.nodes === '1';
     var torCount = (state.torSwitchCount === 'single') ? 1 : 2;
@@ -11444,23 +11447,17 @@ function renderHciHostNetworkingPreview() {
 
     var switchAreaH = showToR ? (switchH + 90) : 0;
     var totalSwitchW = torCount === 2 ? (2 * switchW + switchGap) : switchW;
-    var svgW = Math.max(nodeW + marginX * 2, totalSwitchW + marginX * 2);
-    var svgH = marginTop + switchAreaH + nodeH + marginBottom;
+    var allNodesW = displayNodes * nodeW + (displayNodes - 1) * nodeGapX;
+    var svgW = Math.max(allNodesW + marginX * 2, totalSwitchW + marginX * 2);
+    var svgH = marginTop + switchAreaH + nodeH + marginBottom + (nodeCount > 2 ? 40 : 0);
 
     var switchY = marginTop + 10;
     var switchBlockStartX = (svgW - totalSwitchW) / 2;
     var switch1X = switchBlockStartX;
     var switch2X = switch1X + switchW + switchGap;
 
-    var nodeX, nodeY;
-    if (showToR) {
-        var switchCenterX = switchBlockStartX + totalSwitchW / 2;
-        nodeX = switchCenterX - nodeW / 2;
-        nodeY = marginTop + switchAreaH + 10;
-    } else {
-        nodeX = (svgW - nodeW) / 2;
-        nodeY = marginTop + 10;
-    }
+    var nodesStartX = (svgW - allNodesW) / 2;
+    var nodeY = showToR ? (marginTop + switchAreaH + 10) : (marginTop + 10);
 
     var uplinkPositions = [];
 
@@ -11471,7 +11468,7 @@ function renderHciHostNetworkingPreview() {
 
     var svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Host networking preview">';
     svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
-    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Host Networking — ' + escapeHtml(intentLabel) + ' — ' + portCount + ' ports — ' + escapeHtml(storageLabel) + '</text>';
+    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Host Networking — ' + escapeHtml(intentLabel) + ' — ' + portCount + ' ports — ' + escapeHtml(storageLabel) + (nodeCount > 2 ? (' — Showing 2 of ' + nodeCount + ' nodes') : '') + '</text>';
 
     if (showToR) {
         svg += '<rect x="' + switch1X + '" y="' + switchY + '" width="' + switchW + '" height="' + switchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
@@ -11485,57 +11482,71 @@ function renderHciHostNetworkingPreview() {
         }
     }
 
-    svg += '<rect x="' + nodeX + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
-    var nodeName = (state.nodeSettings && state.nodeSettings[0] && state.nodeSettings[0].name) ? state.nodeSettings[0].name : 'Node 1';
-    svg += '<text x="' + (nodeX + nodeW / 2) + '" y="' + (nodeY + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(nodeName) + '</text>';
+    // Render nodes
+    for (var dn = 0; dn < displayNodes; dn++) {
+        var nodeX = nodesStartX + dn * (nodeW + nodeGapX);
+        svg += '<rect x="' + nodeX + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
+        var nodeName = (state.nodeSettings && state.nodeSettings[dn] && state.nodeSettings[dn].name) ? state.nodeSettings[dn].name : ('Node ' + (dn + 1));
+        svg += '<text x="' + (nodeX + nodeW / 2) + '" y="' + (nodeY + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(nodeName) + '</text>';
 
-    var bmcX = nodeX + nodeW - 75, bmcY2 = nodeY + 12;
-    svg += '<rect x="' + bmcX + '" y="' + bmcY2 + '" width="55" height="22" rx="5" fill="rgba(160,160,160,0.12)" stroke="rgba(160,160,160,0.4)" />';
-    svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 14) + '" text-anchor="middle" font-size="7.5" fill="var(--text-secondary)">BMC</text>';
-    svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
+        var bmcX = nodeX + nodeW - 75, bmcY2 = nodeY + 12;
+        svg += '<rect x="' + bmcX + '" y="' + bmcY2 + '" width="55" height="22" rx="5" fill="rgba(160,160,160,0.12)" stroke="rgba(160,160,160,0.4)" />';
+        svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 14) + '" text-anchor="middle" font-size="7.5" fill="var(--text-secondary)">BMC</text>';
+        svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
 
-    var nicRowY = nodeY + 80 + mgmtVnicAreaH;
-    var rw = rowWidth(nicGroups);
-    var currentX = nodeX + (nodeW - rw) / 2;
-    for (var g2 = 0; g2 < nicGroups.length; g2++) {
-        var grp = nicGroups[g2];
-        var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
-        var boxX = currentX - 8, boxTotalW = grpW + 16;
-        var hasVnicG = !!grp.vnicAbove;
-        var vnicH2 = hasVnicG ? mgmtVnicAreaH : 0;
-        var boxH = adapterH + 28 + vnicH2;
-        var boxY = nicRowY - 14 - vnicH2;
-        var rgb = colorRgb(grp.color);
+        var nicRowY = nodeY + 80 + mgmtVnicAreaH;
+        var rw = rowWidth(nicGroups);
+        var currentX = nodeX + (nodeW - rw) / 2;
+        for (var g2 = 0; g2 < nicGroups.length; g2++) {
+            var grp = nicGroups[g2];
+            var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
+            var boxX = currentX - 8, boxTotalW = grpW + 16;
+            var hasVnicG = !!grp.vnicAbove;
+            var vnicH2 = hasVnicG ? mgmtVnicAreaH : 0;
+            var boxH = adapterH + 28 + vnicH2;
+            var boxY = nicRowY - 14 - vnicH2;
+            var rgb = colorRgb(grp.color);
 
-        svg += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
-        var labelY = boxY + boxH + 12;
-        svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
+            svg += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
+            var labelY = boxY + boxH + 12;
+            svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
 
-        if (hasVnicG) {
-            var vaW = 80, vaH = 30;
-            var vaX = boxX + (boxTotalW - vaW) / 2, vaY = boxY + 10;
-            svg += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaW + '" height="' + vaH + '" rx="6" fill="rgba(' + rgb + ',0.10)" stroke="rgba(' + rgb + ',0.55)" stroke-dasharray="4 2" />';
-            svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(grp.vnicAbove.name) + '</text>';
-            svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(grp.vnicAbove.vlan) + '</text>';
-            svg += '<line x1="' + (boxX + 6) + '" y1="' + (nicRowY - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (nicRowY - 6) + '" stroke="rgba(' + rgb + ',0.3)" stroke-dasharray="3 2" />';
-        }
-
-        for (var n2 = 0; n2 < grp.nics.length; n2++) {
-            var nic = grp.nics[n2];
-            var x = currentX + n2 * (adapterW + adapterGap), y = nicRowY;
-            svg += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + rgb + ',0.20)" stroke="rgba(' + rgb + ',0.60)" />';
-            svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
-            svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(nic.speed) + '</text>';
-            if (showToR) {
-                uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
+            if (hasVnicG) {
+                var vaW = 80, vaH = 30;
+                var vaX = boxX + (boxTotalW - vaW) / 2, vaY = boxY + 10;
+                svg += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaW + '" height="' + vaH + '" rx="6" fill="rgba(' + rgb + ',0.10)" stroke="rgba(' + rgb + ',0.55)" stroke-dasharray="4 2" />';
+                svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(grp.vnicAbove.name) + '</text>';
+                svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(grp.vnicAbove.vlan) + '</text>';
+                svg += '<line x1="' + (boxX + 6) + '" y1="' + (nicRowY - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (nicRowY - 6) + '" stroke="rgba(' + rgb + ',0.3)" stroke-dasharray="3 2" />';
             }
-        }
 
-        if (grp.vlanBelow) {
-            var vlanY2 = labelY + 13;
-            svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY2 + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
+            for (var n2 = 0; n2 < grp.nics.length; n2++) {
+                var nic = grp.nics[n2];
+                var x = currentX + n2 * (adapterW + adapterGap), y = nicRowY;
+                svg += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + rgb + ',0.20)" stroke="rgba(' + rgb + ',0.60)" />';
+                svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
+                svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(nic.speed) + '</text>';
+                if (showToR) {
+                    uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
+                }
+            }
+
+            if (grp.vlanBelow) {
+                var vlanY2 = labelY + 13;
+                svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY2 + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
+            }
+            currentX += grpW + groupGap;
         }
-        currentX += grpW + groupGap;
+    }
+
+    // "+N more nodes" badge
+    if (nodeCount > 2) {
+        var moreCount = nodeCount - 2;
+        var badgeW = 180, badgeH = 26;
+        var badgeX = svgW - 50 - badgeW;
+        var badgeY = svgH - 60;
+        svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
+        svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + moreCount + ' more node' + (moreCount === 1 ? '' : 's') + '</text>';
     }
 
     if (showToR) {
