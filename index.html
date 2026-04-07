@@ -1040,6 +1040,39 @@
                             style="width: 200px; padding: 0.5rem; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.95rem;"
                             oninput="updateDisaggVrf(this.value)">
                     </div>
+
+                    <!-- Workload VLANs -->
+                    <div style="margin-top: 24px;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.95rem;">Workload VLANs <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span></h4>
+                        <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.85rem;">
+                            Add trunk VLANs for VM workloads that share the management vSwitch. These are configured as trunk VLANs on the switch ports.
+                        </p>
+                        <div id="da5-workload-vlan-list">
+                            <!-- Dynamically populated -->
+                        </div>
+                        <button type="button" id="da5-add-workload-btn" onclick="addDisaggWorkloadVlan()" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Add Workload VLAN
+                        </button>
+                    </div>
+
+                    <!-- Confirm DA5 -->
+                    <div id="da5-confirm-container" style="margin-top: 1.5rem; text-align: center;">
+                        <button id="da5-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggVlanConfig()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Confirm VLAN Configuration
+                        </button>
+                        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                            Click to confirm your VLAN, VNI, VRF, and workload VLAN configuration.
+                        </p>
+                    </div>
+                    <div id="da5-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">
+                        <span style="color: var(--accent-green); font-weight: 600;">✓ VLAN configuration confirmed</span>
+                        <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editDisaggVlanConfig()">Edit</button>
+                    </div>
+
                     <div id="da5-explanation" class="info-box"></div>
                 </section>
 

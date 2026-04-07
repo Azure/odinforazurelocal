@@ -10226,7 +10226,7 @@ function updateBreadcrumbs() {
                 case 'step-da2': isComplete = (state.disaggStorageType === 'fc_san') || (state.disaggBackupEnabled !== undefined && state.disaggBackupEnabled !== null); break;
                 case 'step-da3': isComplete = Boolean(state.disaggRackCount && state.disaggNodesPerRack); break;
                 case 'step-da4': isComplete = Boolean(state.disaggSpineCount); break;
-                case 'step-da5': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da5': isComplete = Boolean(state.disaggVlanConfigConfirmed); break;
                 case 'step-da6': isComplete = Boolean(state.disaggOverridesConfirmed); break;
                 case 'step-da7': isComplete = Boolean(state.disaggOverridesConfirmed); break;
                 case 'step-da8': isComplete = Boolean(state.disaggOverridesConfirmed); break;

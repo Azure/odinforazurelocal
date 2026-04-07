@@ -40,6 +40,8 @@ function selectDisaggOption(category, value) {
         state.disaggAdapterMapping = {};
         state.disaggAdapterMappingConfirmed = false;
         state.disaggOverridesConfirmed = false;
+        state.disaggVlanConfigConfirmed = false;
+        state.disaggWorkloadVlans = [];
 
         // Show explanation
         const exp = document.getElementById('da1-explanation');
@@ -67,6 +69,7 @@ function selectDisaggOption(category, value) {
         state.disaggAdapterMapping = {};
         state.disaggAdapterMappingConfirmed = false;
         state.disaggOverridesConfirmed = false;
+        state.disaggVlanConfigConfirmed = false;
 
         // Show warning for iSCSI 6-NIC + backup
         const warning = document.getElementById('da2-warning');
@@ -180,6 +183,7 @@ function renderVlanGrid() {
 
     const vlans = state.disaggVlans;
     const vnis = state.disaggVnis;
+    const confirmed = state.disaggVlanConfigConfirmed === true;
 
     let rows = [
         { key: 'mgmt', label: 'Management (Infra)', vlan: vlans.mgmt, vni: vnis.mgmt },
@@ -204,27 +208,163 @@ function renderVlanGrid() {
                     <span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN</span>
                     <input type="number" value="${r.vlan}" min="1" max="4094"
                         style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"
+                        ${confirmed ? 'disabled' : ''}
                         onchange="updateDisaggVlan('${r.key}', parseInt(this.value))">
                 </div>
                 <div style="flex: 1;">
                     <span style="font-size: 0.75rem; color: var(--text-secondary);">VNI</span>
                     <input type="number" value="${r.vni}" min="1" max="16777215"
                         style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"
+                        ${confirmed ? 'disabled' : ''}
                         onchange="updateDisaggVni('${r.key}', parseInt(this.value))">
                 </div>
             </div>
         </div>
     `).join('');
+
+    renderDisaggWorkloadVlans();
+    renderDisaggVlanConfirmState();
 }
 
 function updateDisaggVlan(key, value) {
     if (value >= 1 && value <= 4094) state.disaggVlans[key] = value;
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggVlanConfirmState();
 }
 function updateDisaggVni(key, value) {
     if (value >= 1 && value <= 16777215) state.disaggVnis[key] = value;
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggVlanConfirmState();
 }
 function updateDisaggVrf(value) {
     state.disaggVrfName = value;
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggVlanConfirmState();
+}
+
+// ── Workload VLANs ──────────────────────────────────────────────────────────
+
+function addDisaggWorkloadVlan() {
+    if (!state.disaggWorkloadVlans) state.disaggWorkloadVlans = [];
+    // Find next available VLAN ID
+    var usedVlans = state.disaggWorkloadVlans.map(function(w) { return w.vlan; });
+    var nextVlan = 100;
+    while (usedVlans.indexOf(nextVlan) !== -1 && nextVlan < 4094) nextVlan++;
+    var nextVni = 10000 + nextVlan;
+
+    state.disaggWorkloadVlans.push({ name: 'Workload ' + (state.disaggWorkloadVlans.length + 1), vlan: nextVlan, vni: nextVni });
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggWorkloadVlans();
+    renderDisaggVlanConfirmState();
+}
+
+function removeDisaggWorkloadVlan(index) {
+    if (!state.disaggWorkloadVlans) return;
+    state.disaggWorkloadVlans.splice(index, 1);
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggWorkloadVlans();
+    renderDisaggVlanConfirmState();
+}
+
+function updateDisaggWorkloadVlan(index, field, value) {
+    if (!state.disaggWorkloadVlans || !state.disaggWorkloadVlans[index]) return;
+    if (field === 'name') {
+        state.disaggWorkloadVlans[index].name = value;
+    } else if (field === 'vlan') {
+        var v = parseInt(value);
+        if (v >= 1 && v <= 4094) state.disaggWorkloadVlans[index].vlan = v;
+    } else if (field === 'vni') {
+        var n = parseInt(value);
+        if (n >= 1 && n <= 16777215) state.disaggWorkloadVlans[index].vni = n;
+    }
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggVlanConfirmState();
+}
+
+function renderDisaggWorkloadVlans() {
+    var list = document.getElementById('da5-workload-vlan-list');
+    if (!list) return;
+    var wlVlans = state.disaggWorkloadVlans || [];
+    var confirmed = state.disaggVlanConfigConfirmed === true;
+
+    if (wlVlans.length === 0) {
+        list.innerHTML = '';
+        return;
+    }
+
+    list.innerHTML = wlVlans.map(function(w, i) {
+        return '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 10px 12px;">'
+            + '<div style="flex: 2;">'
+            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">Name</span>'
+            + '<input type="text" value="' + (w.name || '') + '" placeholder="Workload name"'
+            + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+            + (confirmed ? ' disabled' : '')
+            + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'name\', this.value)">'
+            + '</div>'
+            + '<div style="flex: 1;">'
+            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN</span>'
+            + '<input type="number" value="' + w.vlan + '" min="1" max="4094"'
+            + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+            + (confirmed ? ' disabled' : '')
+            + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'vlan\', this.value)">'
+            + '</div>'
+            + '<div style="flex: 1;">'
+            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VNI</span>'
+            + '<input type="number" value="' + w.vni + '" min="1" max="16777215"'
+            + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+            + (confirmed ? ' disabled' : '')
+            + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'vni\', this.value)">'
+            + '</div>'
+            + (confirmed ? '' : '<button type="button" onclick="removeDisaggWorkloadVlan(' + i + ')" style="align-self: flex-end; margin-bottom: 2px; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;" title="Remove">✕</button>')
+            + '</div>';
+    }).join('');
+}
+
+function confirmDisaggVlanConfig() {
+    // Validate all VLAN IDs are filled
+    var vlans = state.disaggVlans || {};
+    var missing = [];
+    if (!vlans.mgmt) missing.push('Management VLAN');
+    if (!vlans.cluster1) missing.push('Cluster A VLAN');
+    if (!vlans.cluster2) missing.push('Cluster B VLAN');
+    if ((state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic') && !vlans.iscsiA) missing.push('iSCSI A VLAN');
+    if ((state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic') && !vlans.iscsiB) missing.push('iSCSI B VLAN');
+    if (state.disaggBackupEnabled && !vlans.backup) missing.push('Backup VLAN');
+
+    if (missing.length > 0) {
+        if (typeof showToast === 'function') showToast('Missing required fields: ' + missing.join(', '), 'error');
+        return;
+    }
+
+    state.disaggVlanConfigConfirmed = true;
+    renderDisaggVlanConfirmState();
+    renderVlanGrid();
+    renderDisaggWorkloadVlans();
+    if (typeof showToast === 'function') showToast('VLAN configuration confirmed', 'success');
+    if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+}
+
+function editDisaggVlanConfig() {
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggVlanConfirmState();
+    renderVlanGrid();
+    renderDisaggWorkloadVlans();
+    if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+}
+
+function renderDisaggVlanConfirmState() {
+    var confirmContainer = document.getElementById('da5-confirm-container');
+    var confirmedMsg = document.getElementById('da5-confirmed-msg');
+    var addBtn = document.getElementById('da5-add-workload-btn');
+    var vrfInput = document.getElementById('da-vrf-name');
+    var confirmed = state.disaggVlanConfigConfirmed === true;
+
+    if (confirmContainer) confirmContainer.classList.toggle('hidden', confirmed);
+    if (confirmedMsg) confirmedMsg.classList.toggle('hidden', !confirmed);
+    if (addBtn) addBtn.style.display = confirmed ? 'none' : '';
+    if (vrfInput) vrfInput.disabled = confirmed;
+
+    if (typeof updateBreadcrumbs === 'function') updateBreadcrumbs();
 }
 
 // ── QoS Summary (DA6) ──────────────────────────────────────────────────────
