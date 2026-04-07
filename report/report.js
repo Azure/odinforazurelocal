@@ -4344,8 +4344,9 @@
                     // Group box
                     out += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
 
-                    // Label above the box
-                    out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY - 5) + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
+                    // Label: below the box for iSCSI scenarios, above otherwise
+                    var labelY = hasIscsi ? (boxY + boxH + 12) : (boxY - 5);
+                    out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
 
                     // vNIC above physical NICs (e.g., Management vNIC)
                     if (hasVnicAbove) {
@@ -4374,7 +4375,8 @@
 
                     // VLAN label below the port shape (for standalone cluster/iSCSI networks)
                     if (grp.vlanBelow) {
-                        out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY + boxH + 12) + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
+                        var vlanY = hasIscsi ? (boxY + boxH + 24) : (boxY + boxH + 12);
+                        out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
                     }
 
                     currentX += grpW + groupGap;
