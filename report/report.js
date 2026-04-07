@@ -2364,6 +2364,7 @@
             var dgrp = { key: dzk, label: dmeta.label, color: dmeta.color, nics: groupsByZoneD[dzk] };
             if (dmeta.vnicAbove) dgrp.vnicAbove = dmeta.vnicAbove;
             if (dmeta.vlanBelow) dgrp.vlanBelow = dmeta.vlanBelow;
+            if (dmeta.subLabel) dgrp.subLabel = dmeta.subLabel;
             nicGroups.push(dgrp);
         }
 
@@ -4195,6 +4196,7 @@
                 };
                 if (meta.vnicAbove) grp.vnicAbove = meta.vnicAbove;
                 if (meta.vlanBelow) grp.vlanBelow = meta.vlanBelow;
+                if (meta.subLabel) grp.subLabel = meta.subLabel;
                 nicGroups.push(grp);
             }
 
