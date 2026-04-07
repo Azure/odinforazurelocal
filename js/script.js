@@ -11675,7 +11675,7 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
         if (row === 1 && storageColsPerNode > 1) {
             var stagger = (storageTileW + storageTileGap) / 2;
             sx += stagger;
-            var maxX = sg.x + storageGroupW - storageTileW - (storageGroupW - totalW) / 2;
+            var maxX = sg.x + storageGroupW - storageTileW;
             if (sx > maxX) sx -= stagger;
         }
         var sy = sg.y + 30 + row * (storageTileH + 8);
