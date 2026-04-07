@@ -48,7 +48,8 @@
     //    .torModelKey     — Key into SWITCH_MODELS for TOR switch
     //    .bmcModelKey     — Key into SWITCH_MODELS for BMC switch
     //    .hostnames       — { tor1: '', tor2: '', bmc: '' }
-    //    .site            — Free-text site/location string
+    //    .site            — Free-text site/location string (Rack 1 or single-rack)
+    //    .site2           — Free-text site/location string for Rack 2 (rack-aware only)
     //    .bgp             — { torAsn: Number, borderAsn: Number, muxAsn: Number|null }
     //    .ips             — { loopback1: '', loopback2: '', p2pBorder1Tor1: '',
     //                         p2pBorder1Tor2: '', p2pBorder2Tor1: '', p2pBorder2Tor2: '',
@@ -64,6 +65,7 @@
         this.bmcModel = params.bmcModelKey ? SWITCH_MODELS[params.bmcModelKey] : null;
         this.hostnames = params.hostnames || {};
         this.site = params.site || '';
+        this.site2 = params.site2 || '';
         this.bgp = params.bgp || {};
         this.ips = params.ips || {};
         this.vlans = params.vlans || {};
@@ -110,7 +112,7 @@
     };
 
     // ── Build standard JSON for a BMC switch ─────────────────────────
-    SwitchConfigBuilder.prototype.buildBmc = function (hostnameOverride) {
+    SwitchConfigBuilder.prototype.buildBmc = function (hostnameOverride, siteOverride) {
         if (!this.bmcModel) return null;
 
         var sw = {
@@ -120,7 +122,7 @@
             hostname: hostnameOverride || this.hostnames.bmc || 'bmc-switch',
             version: '',
             firmware: this.bmcModel.firmware,
-            site: this.site
+            site: siteOverride || this.site
         };
 
         // BMC VLANs: hardcoded Unused(2) + Native(99) + BMC VLAN (125 or user-defined)
@@ -194,6 +196,7 @@
     // ── Private: build switch section ────────────────────────────────
     SwitchConfigBuilder.prototype._buildSwitchSection = function (switchType) {
         var hostnameMap = { TOR1: this.hostnames.tor1, TOR2: this.hostnames.tor2, TOR3: this.hostnames.tor3, TOR4: this.hostnames.tor4 };
+        var siteValue = (switchType === 'TOR3' || switchType === 'TOR4') ? (this.site2 || this.site) : this.site;
         return {
             make: this.torModel.make.toLowerCase(),
             model: this.torModel.model.toLowerCase(),
@@ -201,7 +204,7 @@
             hostname: hostnameMap[switchType] || switchType.toLowerCase(),
             version: '',
             firmware: this.torModel.firmware,
-            site: this.site
+            site: siteValue
         };
     };
 

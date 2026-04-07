@@ -256,6 +256,16 @@
         var r2Bmc = document.getElementById('sc-rack2-bmc');
         if (r2Bmc) r2Bmc.style.display = show ? '' : 'none';
 
+        // Rack-2 Site / Location field
+        var r2Site = document.getElementById('sc-rack2-site');
+        if (r2Site) r2Site.style.display = show ? '' : 'none';
+
+        // Update Site label to include "Rack 1" when rack-aware
+        var siteLabel = document.getElementById('sc-site-label');
+        if (siteLabel) {
+            siteLabel.textContent = show ? 'Rack 1 \u2014 Site / Location' : 'Site / Location';
+        }
+
         // Update BMC1 label to include "Rack 1" when rack-aware
         var bmcLabel = document.querySelector('label[for="sc-hostname-bmc"]');
         if (bmcLabel) {
@@ -420,6 +430,7 @@
                 bmc: getVal('sc-hostname-bmc') || 'bmc-1'
             },
             site: getVal('sc-site'),
+            site2: getVal('sc-site2'),
             bgp: {
                 torAsn: parseInt(getVal('sc-bgp-tor-asn'), 10) || 65001,
                 borderAsn: parseInt(getVal('sc-bgp-border-asn'), 10) || 64512,
@@ -544,7 +555,7 @@
             var bmcModel = SWITCH_MODELS[bmcModelKey];
             var bmcRenderer = bmcModel.firmware === 'nxos' ? CiscoNxosRenderer : DellOs10Renderer;
 
-            var bmcJson = builder.buildBmc(getVal('sc-hostname-bmc') || 'bmc-1');
+            var bmcJson = builder.buildBmc(getVal('sc-hostname-bmc') || 'bmc-1', getVal('sc-site'));
             if (bmcJson) {
                 bmcJson.infrastructure = infrastructure;
                 configs.push({
@@ -557,7 +568,7 @@
 
             // Rack-aware: second BMC switch for Rack 2
             if (isRackAware) {
-                var bmc2Json = builder.buildBmc(getVal('sc-hostname-bmc2') || 'bmc-2');
+                var bmc2Json = builder.buildBmc(getVal('sc-hostname-bmc2') || 'bmc-2', getVal('sc-site2'));
                 if (bmc2Json) {
                     bmc2Json.infrastructure = infrastructure;
                     configs.push({

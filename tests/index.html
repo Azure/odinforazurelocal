@@ -5695,6 +5695,41 @@
             return results;
         })());
 
+        testSuite('Builder: per-rack site for TOR3/TOR4 and BMC', 'builder.js', (() => {
+            const results = [];
+            const b = new SwitchConfigBuilder({
+                designerState: { intent: 'all_traffic', nodes: '4', storage: '', scale: 'rack-aware' },
+                torModelKey: 'cisco-93180YC-FX',
+                bmcModelKey: 'cisco-93108TC-FX3P',
+                hostnames: { tor1: 'tor-1a', tor2: 'tor-1b', tor3: 'tor-2a', tor4: 'tor-2b', bmc: 'bmc-1' },
+                site: 'DC-A Rack-1',
+                site2: 'DC-A Rack-2',
+                bgp: { torAsn: 65001, borderAsn: 64512 },
+                ips: {},
+                vlans: {
+                    infra: { id: '7' }, compute: { id: '711' },
+                    storage1: { id: '712' }, storage2: { id: '713' },
+                    bmc: { id: '125', name: 'BMC_Mgmt_125' }
+                }
+            });
+
+            const tor1 = b.buildTor('TOR1');
+            const tor3 = b.buildTor('TOR3');
+            results.push(assert(tor1.switch.site === 'DC-A Rack-1',
+                'TOR1 uses site (Rack 1)', 'DC-A Rack-1', tor1.switch.site));
+            results.push(assert(tor3.switch.site === 'DC-A Rack-2',
+                'TOR3 uses site2 (Rack 2)', 'DC-A Rack-2', tor3.switch.site));
+
+            const bmc1 = b.buildBmc('bmc-1', 'DC-A Rack-1');
+            const bmc2 = b.buildBmc('bmc-2', 'DC-A Rack-2');
+            results.push(assert(bmc1.switch.site === 'DC-A Rack-1',
+                'BMC1 uses siteOverride (Rack 1)', 'DC-A Rack-1', bmc1.switch.site));
+            results.push(assert(bmc2.switch.site === 'DC-A Rack-2',
+                'BMC2 uses siteOverride (Rack 2)', 'DC-A Rack-2', bmc2.switch.site));
+
+            return results;
+        })());
+
         testSuite('Builder: buildBmc() output structure', 'builder.js', (() => {
             const results = [];
             const b = new SwitchConfigBuilder({
