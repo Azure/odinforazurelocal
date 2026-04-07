@@ -2314,6 +2314,10 @@
         nicGroups.push({
             key: 'mgmt_compute', label: 'Mgmt + Compute',
             color: 'blue',
+            vnicAbove: {
+                name: 'Mgmt vNIC',
+                vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7')
+            },
             nics: [
                 { name: getNicNameD('ocp', 1), speed: getPortSpeedD('ocp', 1), leaf: 'A' },
                 { name: getNicNameD('ocp', 2), speed: getPortSpeedD('ocp', 2), leaf: 'B' }
@@ -2383,8 +2387,9 @@
         var storageW = storageAdapters.length * portW + Math.max(0, storageAdapters.length - 1) * portGap;
         var maxRowW = Math.max(nicRowW, storageW);
         var nodeW = Math.max(440, maxRowW + 80);
+        var mgmtVnicAreaHD = 48;
         var vnicExtraHD = isVnicMode ? 70 : 0;
-        var nodeH = 220 + (storageAdapters.length > 0 ? 80 : 0) + vnicExtraHD;
+        var nodeH = 220 + mgmtVnicAreaHD + (storageAdapters.length > 0 ? 80 : 0) + vnicExtraHD;
         var nodeGap = 60;
 
         var totalNodesW = n * nodeW + (n - 1) * nodeGap;
@@ -2475,7 +2480,7 @@
             // NIC groups row
             var rw = rowWidth(nicGroups);
             var cursorX = (nodeW - rw) / 2;
-            var nicRowY = 60;
+            var nicRowY = 60 + mgmtVnicAreaHD;
 
             for (var gi = 0; gi < nicGroups.length; gi++) {
                 var grp = nicGroups[gi];
@@ -2483,10 +2488,12 @@
                 var grpW = grp.nics.length * portW + (grp.nics.length - 1) * portGap;
                 var grpBoxW = grpW + intentBoxPad * 2;
                 var hasVnicsD = grp.vnicCards && grp.vnicCards.length > 0;
+                var hasVnicAboveD = !!grp.vnicAbove;
                 var vnicAreaHD = hasVnicsD ? 60 : 0;
-                var grpBoxH = portH + 30 + intentBoxPad * 2 + vnicAreaHD;
+                var vnicAboveAreaHD = hasVnicAboveD ? mgmtVnicAreaHD : 0;
+                var grpBoxH = portH + 30 + intentBoxPad * 2 + vnicAreaHD + vnicAboveAreaHD;
                 var grpBoxX = cursorX - intentBoxPad;
-                var grpBoxY = nicRowY;
+                var grpBoxY = nicRowY - vnicAboveAreaHD;
 
                 // Group box
                 var grpId = nextId();
@@ -2500,11 +2507,23 @@
                     'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#BBBBBB;fontSize=9;',
                     grpId);
 
+                // vNIC above physical NICs (e.g., Management vNIC)
+                if (hasVnicAboveD) {
+                    var vaCardW = 80;
+                    var vaCardH = 30;
+                    var vaX = (grpBoxW - vaCardW) / 2;
+                    var vaY = intentBoxPad;
+                    var vnicAboveId = nextId();
+                    addCell(vnicAboveId, grp.vnicAbove.name + '\\n' + grp.vnicAbove.vlan, vaX, vaY, vaCardW, vaCardH,
+                        'rounded=1;whiteSpace=wrap;html=1;fillColor=' + cs.fill + ';strokeColor=' + cs.stroke + ';fontColor=#FFFFFF;fontSize=8;fontStyle=1;arcSize=15;dashed=1;dashPattern=4 2;',
+                        grpId);
+                }
+
                 // Port cards
                 for (var pi = 0; pi < grp.nics.length; pi++) {
                     var nic = grp.nics[pi];
                     var px = intentBoxPad + pi * (portW + portGap);
-                    var py = intentBoxPad;
+                    var py = intentBoxPad + vnicAboveAreaHD;
 
                     var portId = nextId();
                     addCell(portId, nic.name + '\\n' + nic.speed, px, py, portW, portH,
@@ -2524,14 +2543,14 @@
                     var pcs = fillStroke('purple');
                     // vNIC label
                     var vnicLblId = nextId();
-                    addCell(vnicLblId, 'iSCSI vNICs', 0, portH + intentBoxPad + 6, grpBoxW, 14,
+                    addCell(vnicLblId, 'iSCSI vNICs', 0, portH + intentBoxPad + vnicAboveAreaHD + 6, grpBoxW, 14,
                         'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#A78BFA;fontSize=7;fontStyle=2;',
                         grpId);
 
                     for (var vdi = 0; vdi < grp.vnicCards.length; vdi++) {
                         var vcard = grp.vnicCards[vdi];
                         var vpx = intentBoxPad + vdi * (portW + portGap);
-                        var vpy = portH + intentBoxPad + 20;
+                        var vpy = portH + intentBoxPad + vnicAboveAreaHD + 20;
 
                         var vnicId = nextId();
                         addCell(vnicId, vcard.name + '\\n' + vcard.detail, vpx, vpy, portW, portH,
@@ -4042,6 +4061,10 @@
             nicGroups.push({
                 key: 'mgmt_compute', label: 'Mgmt + Compute',
                 color: '#3b82f6',
+                vnicAbove: {
+                    name: 'Mgmt vNIC',
+                    vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7')
+                },
                 nics: [
                     { id: 'ocp_1', name: getNicName('ocp', 1), speed: getPortSpeed('ocp', 1), leaf: 'A' },
                     { id: 'ocp_2', name: getNicName('ocp', 2), speed: getPortSpeed('ocp', 2), leaf: 'B' }
@@ -4122,8 +4145,9 @@
             var maxRowW = Math.max(nicRowW, storageW);
 
             var nodeW = Math.max(440, maxRowW + 60);
+            var mgmtVnicAreaH = 48;
             var vnicExtraH = isVnicMode ? 30 : 0;
-            var nodeH = 225 + (storageAdapters.length > 0 ? 70 : 0) + vnicExtraH;
+            var nodeH = 225 + mgmtVnicAreaH + (storageAdapters.length > 0 ? 70 : 0) + vnicExtraH;
             var gapX = 50;
             var marginX = 50;
             var leafH = 50;
@@ -4165,8 +4189,10 @@
                     var boxTotalW = grpW + 16;
                     var hasVnics = grp.vnicCards && grp.vnicCards.length > 0;
                     var vnicAreaH = hasVnics ? 56 : 0;
-                    var boxH = adapterH + 28 + vnicAreaH;
-                    var boxY = baseY - 14;
+                    var hasVnicAbove = !!grp.vnicAbove;
+                    var vnicAboveAreaH = hasVnicAbove ? mgmtVnicAreaH : 0;
+                    var boxH = adapterH + 28 + vnicAreaH + vnicAboveAreaH;
+                    var boxY = baseY - 14 - vnicAboveAreaH;
                     var rgb = colorRgb(grp.color);
 
                     // Group box
@@ -4174,6 +4200,18 @@
 
                     // Label above the box
                     out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (boxY - 5) + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
+
+                    // vNIC above physical NICs (e.g., Management vNIC)
+                    if (hasVnicAbove) {
+                        var vaCardW = 80;
+                        var vaCardH = 30;
+                        var vaX = boxX + (boxTotalW - vaCardW) / 2;
+                        var vaY = boxY + 10;
+                        out += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaCardW + '" height="' + vaCardH + '" rx="6" fill="rgba(' + rgb + ',0.10)" stroke="rgba(' + rgb + ',0.55)" stroke-dasharray="4 2" />';
+                        out += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(grp.vnicAbove.name) + '</text>';
+                        out += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(grp.vnicAbove.vlan) + '</text>';
+                        out += '<line x1="' + (boxX + 6) + '" y1="' + (baseY - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (baseY - 6) + '" stroke="rgba(' + rgb + ',0.3)" stroke-dasharray="3 2" />';
+                    }
 
                     // NIC adapter cards
                     for (var ni = 0; ni < grp.nics.length; ni++) {
@@ -4272,7 +4310,7 @@
                 out += '<text x="' + (bmcX + 27) + '" y="' + (bmcY + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
 
                 // Single NIC row: all intents (Mgmt+Compute, Cluster 1, Cluster 2, Backup)
-                var nicRowY = nodeTop + 80;
+                var nicRowY = nodeTop + 80 + mgmtVnicAreaH;
                 out += renderNicRow(nicGroups, posX, nicRowY, posX);
 
                 // Bottom: Storage adapters (FC HBA or iSCSI) — below NIC row
