@@ -1835,13 +1835,16 @@ function renderDisaggHostNetworkingPreview() {
     if (nicGroups.length === 0) return;
 
     // Storage adapters (FC only — iSCSI shown at leaf level)
+    // FC HBAs are separate hardware not in the wizard port list, so add them directly
     var storageAdapters = [];
     if (hasFc) {
-        for (var fi = 0; fi < portList.length; fi++) {
-            if (portList[fi].slot === 'fc') {
-                storageAdapters.push({ name: getNicName(portList[fi]), speed: getPortSpeed(portList[fi]), target: portList[fi].connection === 'Leaf-A' ? 'A' : 'B', color: '#8b5cf6' });
-            }
+        var fcName1 = 'FC-HBA1', fcName2 = 'FC-HBA2', fcSpeed = '32G FC';
+        if (state.disaggPortConfig) {
+            if (state.disaggPortConfig['fc_p1']) { fcName1 = state.disaggPortConfig['fc_p1'].customName || state.disaggPortConfig['fc_p1'].name || fcName1; if (state.disaggPortConfig['fc_p1'].speed) fcSpeed = state.disaggPortConfig['fc_p1'].speed; }
+            if (state.disaggPortConfig['fc_p2']) { fcName2 = state.disaggPortConfig['fc_p2'].customName || state.disaggPortConfig['fc_p2'].name || fcName2; if (state.disaggPortConfig['fc_p2'].speed) fcSpeed = state.disaggPortConfig['fc_p2'].speed; }
         }
+        storageAdapters.push({ name: fcName1, speed: fcSpeed, target: 'A', color: '#8b5cf6' });
+        storageAdapters.push({ name: fcName2, speed: fcSpeed, target: 'B', color: '#8b5cf6' });
     }
 
     // Layout constants
