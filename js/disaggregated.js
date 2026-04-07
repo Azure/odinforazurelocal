@@ -1640,19 +1640,11 @@ function renderDisaggOverrides() {
         html += '</div>';
     }
 
-    // ── Backup / Compute Intent Overrides (RDMA, Jumbo, SR-IOV + VLAN + Subnet) ──
+    // ── Backup / Compute Intent Overrides (RDMA, Jumbo, SR-IOV only — no VLAN/Subnet for Compute Intents) ──
     if (backup) {
         var bkNicHint = 'Backup NICs (SET Team)';
         html += '<div class="override-card" style="padding: 12px; border: 1px solid #f9731640; border-left: 4px solid #f97316; border-radius: 6px; background: #f9731608; margin-bottom: 12px; min-width: 0; overflow: hidden;">';
         html += '<h5 style="margin: 0 0 8px 0; display:flex; flex-wrap:wrap; gap:6px;"><span style="color: #f97316;">Compute Intent for In-Guest Backup Network</span> <span class="override-hint" style="font-size:0.8rem; color:var(--text-secondary);">' + bkNicHint + '</span></h5>';
-        html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 10px;">';
-        html += '<div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN</label>';
-        html += renderInput('backup', 'backup_vlan', vlans.backup || 800, '', 'number', confirmed);
-        html += '</div>';
-        html += '<div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
-        html += renderInput('backup', 'backup_subnet', subnets.backup || '', '10.80.1.0/24', 'text', confirmed);
-        html += '</div>';
-        html += '</div>';
         html += '<div class="config-row" style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">';
         html += '<span class="config-label" style="min-width:120px;">RDMA</span>';
         html += renderSelect('backup', 'rdmaMode', rdmaOptions, backupOv.rdmaMode || 'Disabled', !backupRdma);
