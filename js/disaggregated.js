@@ -2341,10 +2341,10 @@ function renderDisaggHostNetworkingPreview() {
 
     svg += '</svg>';
 
-    container.innerHTML = '<div style="margin-top:1.5rem;">'
+    container.innerHTML = '<div style="margin-top:1.5rem; text-align:center;">'
         + '<h4 style="color:var(--accent-purple); margin-bottom:0.75rem;">Host Networking Preview</h4>'
-        + '<div class="switchless-diagram">' + svg + '</div>'
-        + '<div style="margin-top:0.75rem; display:flex; gap:0.5rem;">'
+        + '<div class="switchless-diagram" style="display:inline-block; text-align:left;">' + svg + '</div>'
+        + '<div style="margin-top:0.75rem; display:flex; gap:0.5rem; justify-content:center;">'
         + '<button type="button" class="report-action-button" onclick="window.downloadWizardHostNetworkingSvg(\'light\')">Download SVG (Light)</button>'
         + '<button type="button" class="report-action-button" onclick="window.downloadWizardHostNetworkingSvg(\'dark\')">Download SVG (Dark)</button>'
         + '</div>'
