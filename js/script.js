@@ -292,10 +292,18 @@ function computeWizardProgress() {
         add('TOR switch architecture', Boolean(state.rackAwareTorsPerRoom && state.rackAwareTorArchitecture));
     }
 
-    add('Ports', Boolean(state.ports));
-    add('Storage Connectivity', Boolean(state.storage));
-    add('Storage Pool Configuration', Boolean(state.storagePoolConfiguration));
-    add('Traffic Intent', Boolean(state.intent));
+    if (state.architecture === 'disaggregated') {
+        add('Storage Type', Boolean(state.disaggStorageType));
+        add('Port Count', Boolean(state.disaggPortCount));
+        if (state.disaggRackCount) {
+            add('Rack Scale', Boolean(state.disaggRackCount && state.disaggNodesPerRack));
+        }
+    } else {
+        add('Ports', Boolean(state.ports));
+        add('Storage Connectivity', Boolean(state.storage));
+        add('Storage Pool Configuration', Boolean(state.storagePoolConfiguration));
+        add('Traffic Intent', Boolean(state.intent));
+    }
     add('Outbound Connectivity', Boolean(state.outbound));
     add('Arc Gateway', Boolean(state.arc));
     add('Proxy', Boolean(state.proxy));
@@ -377,6 +385,9 @@ const missingSectionToStep = {
     'ToR switch architecture': 'step-3-5',
     'TOR switch architecture': 'step-3-5',
     'Storage Connectivity': 'step-4',
+    'Storage Type': 'step-da1',
+    'Port Count': 'step-da4',
+    'Rack Scale': 'step-da3',
     'Ports': 'step-5',
     'Storage Pool Configuration': 'step-5-5',
     'Traffic Intent': 'step-6',
