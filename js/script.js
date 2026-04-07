@@ -11348,12 +11348,323 @@ function resetAdapterMapping() {
     renderAdapterMappingUi();
 }
 
+function renderHciHostNetworkingPreview() {
+    var container = document.getElementById('hci-nic-layout-diagram');
+    if (!container) return;
+    container.innerHTML = '';
+
+    var portCount = parseInt(state.ports) || 0;
+    if (portCount <= 0) return;
+
+    function colorRgb(hex) {
+        return parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16);
+    }
+
+    var zoneColorMap = {
+        'mgmt_compute': '#3b82f6', 'mgmt': '#3b82f6',
+        'compute': '#22c55e', 'compute_1': '#22c55e', 'compute_2': '#10b981',
+        'storage': '#8b5cf6', 'compute_storage': '#8b5cf6', 'all': '#3b82f6'
+    };
+    var zoneLabelMap = {
+        'mgmt_compute': 'Mgmt + Compute', 'mgmt': 'Management',
+        'compute': 'Compute', 'compute_1': 'Compute 1', 'compute_2': 'Compute 2',
+        'storage': 'Storage', 'compute_storage': 'Compute + Storage', 'all': 'All Traffic'
+    };
+
+    var groups = getIntentNicGroups(state.intent, portCount);
+    if (groups.length === 0) return;
+
+    var nicGroups = [];
+    for (var gi = 0; gi < groups.length; gi++) {
+        var g = groups[gi];
+        var baseKey = String(g.key || '').startsWith('custom_') ? String(g.key).substring('custom_'.length) : String(g.key || '');
+        var color = zoneColorMap[baseKey] || '#3b82f6';
+        var label = zoneLabelMap[baseKey] || g.label;
+        var nics = [];
+        for (var ni = 0; ni < g.nics.length; ni++) {
+            var portIdx = g.nics[ni];
+            var portName = getPortDisplayName(portIdx);
+            var speed = (state.portConfig && state.portConfig[portIdx - 1] && state.portConfig[portIdx - 1].speed) || '25GbE';
+            nics.push({ name: portName, speed: speed, leaf: (ni % 2 === 0) ? 'A' : 'B' });
+        }
+        var hasVnic = (baseKey === 'mgmt_compute' || baseKey === 'mgmt' || baseKey === 'all');
+        var vnicAbove = null;
+        if (hasVnic) {
+            var vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+            vnicAbove = { name: 'Mgmt vNIC', vlan: vlanLabel };
+        }
+        var vlanBelow = null;
+        if (baseKey === 'storage' || baseKey === 'all') {
+            var ov = state.intentOverrides && state.intentOverrides[g.key];
+            if (ov) {
+                var vlans = [];
+                for (var vi = 1; vi <= 4; vi++) {
+                    var vk = 'storageNetwork' + vi + 'VlanId';
+                    if (ov[vk]) vlans.push('VLAN ' + ov[vk]);
+                }
+                if (vlans.length > 0) vlanBelow = vlans.join(' / ');
+            }
+        }
+        nicGroups.push({ label: label, color: color, nics: nics, vnicAbove: vnicAbove, vlanBelow: vlanBelow });
+    }
+    if (nicGroups.length === 0) return;
+
+    var adapterW = 62, adapterH = 38, adapterGap = 10, groupGap = 18;
+    var mgmtVnicAreaH = 48;
+    var switchH = 50, switchW = 160, switchGap = 70;
+
+    function rowWidth(grps) {
+        var w = 0;
+        for (var i = 0; i < grps.length; i++) {
+            w += grps[i].nics.length * adapterW + (grps[i].nics.length - 1) * adapterGap;
+            if (i < grps.length - 1) w += groupGap;
+        }
+        return w;
+    }
+
+    var nicRowW = rowWidth(nicGroups);
+    var nodeW = Math.max(440, nicRowW + 60);
+    var nodeH = 225 + mgmtVnicAreaH;
+    var marginX = 50, marginTop = 90, marginBottom = 60;
+
+    var isSwitched = state.storage === 'switched' || state.nodes === '1';
+    var torCount = (state.torSwitchCount === 'single') ? 1 : 2;
+    var showToR = isSwitched && !!state.torSwitchCount;
+
+    var switchAreaH = showToR ? (switchH + 90) : 0;
+    var totalSwitchW = torCount === 2 ? (2 * switchW + switchGap) : switchW;
+    var svgW = Math.max(nodeW + marginX * 2, totalSwitchW + marginX * 2);
+    var svgH = marginTop + switchAreaH + nodeH + marginBottom;
+
+    var switchY = marginTop + 10;
+    var switchBlockStartX = (svgW - totalSwitchW) / 2;
+    var switch1X = switchBlockStartX;
+    var switch2X = switch1X + switchW + switchGap;
+
+    var nodeX, nodeY;
+    if (showToR) {
+        var switchCenterX = switchBlockStartX + totalSwitchW / 2;
+        nodeX = switchCenterX - nodeW / 2;
+        nodeY = marginTop + switchAreaH + 10;
+    } else {
+        nodeX = (svgW - nodeW) / 2;
+        nodeY = marginTop + 10;
+    }
+
+    var uplinkPositions = [];
+
+    var intentLabel = state.intent === 'all_traffic' ? 'Fully Converged' :
+                      state.intent === 'mgmt_compute' ? 'Mgmt+Compute / Storage' :
+                      state.intent === 'compute_storage' ? 'Mgmt / Compute+Storage' : 'Custom';
+    var storageLabel = state.storage === 'switchless' ? 'Switchless' : 'Switched';
+
+    var svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Host networking preview">';
+    svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
+    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Host Networking — ' + escapeHtml(intentLabel) + ' — ' + portCount + ' ports — ' + escapeHtml(storageLabel) + '</text>';
+
+    if (showToR) {
+        svg += '<rect x="' + switch1X + '" y="' + switchY + '" width="' + switchW + '" height="' + switchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+        svg += '<text x="' + (switch1X + switchW / 2) + '" y="' + (switchY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch' + (torCount === 2 ? ' A' : '') + '</text>';
+        if (torCount === 2) {
+            svg += '<rect x="' + switch2X + '" y="' + switchY + '" width="' + switchW + '" height="' + switchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+            svg += '<text x="' + (switch2X + switchW / 2) + '" y="' + (switchY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch B</text>';
+            var ibgpX1 = switch1X + switchW, ibgpX2 = switch2X, ibgpMidY = switchY + switchH / 2;
+            svg += '<line x1="' + ibgpX1 + '" y1="' + ibgpMidY + '" x2="' + ibgpX2 + '" y2="' + ibgpMidY + '" stroke="rgba(250,204,21,0.7)" stroke-width="2" stroke-dasharray="6 3" />';
+            svg += '<text x="' + ((ibgpX1 + ibgpX2) / 2) + '" y="' + (ibgpMidY - 8) + '" text-anchor="middle" font-size="9" fill="rgba(250,204,21,0.9)">iBGP</text>';
+        }
+    }
+
+    svg += '<rect x="' + nodeX + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
+    var nodeName = (state.nodeSettings && state.nodeSettings[0] && state.nodeSettings[0].name) ? state.nodeSettings[0].name : 'Node 1';
+    svg += '<text x="' + (nodeX + nodeW / 2) + '" y="' + (nodeY + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(nodeName) + '</text>';
+
+    var bmcX = nodeX + nodeW - 75, bmcY2 = nodeY + 12;
+    svg += '<rect x="' + bmcX + '" y="' + bmcY2 + '" width="55" height="22" rx="5" fill="rgba(160,160,160,0.12)" stroke="rgba(160,160,160,0.4)" />';
+    svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 14) + '" text-anchor="middle" font-size="7.5" fill="var(--text-secondary)">BMC</text>';
+    svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
+
+    var nicRowY = nodeY + 80 + mgmtVnicAreaH;
+    var rw = rowWidth(nicGroups);
+    var currentX = nodeX + (nodeW - rw) / 2;
+    for (var g2 = 0; g2 < nicGroups.length; g2++) {
+        var grp = nicGroups[g2];
+        var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
+        var boxX = currentX - 8, boxTotalW = grpW + 16;
+        var hasVnicG = !!grp.vnicAbove;
+        var vnicH2 = hasVnicG ? mgmtVnicAreaH : 0;
+        var boxH = adapterH + 28 + vnicH2;
+        var boxY = nicRowY - 14 - vnicH2;
+        var rgb = colorRgb(grp.color);
+
+        svg += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
+        var labelY = boxY + boxH + 12;
+        svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
+
+        if (hasVnicG) {
+            var vaW = 80, vaH = 30;
+            var vaX = boxX + (boxTotalW - vaW) / 2, vaY = boxY + 10;
+            svg += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaW + '" height="' + vaH + '" rx="6" fill="rgba(' + rgb + ',0.10)" stroke="rgba(' + rgb + ',0.55)" stroke-dasharray="4 2" />';
+            svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(grp.vnicAbove.name) + '</text>';
+            svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(grp.vnicAbove.vlan) + '</text>';
+            svg += '<line x1="' + (boxX + 6) + '" y1="' + (nicRowY - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (nicRowY - 6) + '" stroke="rgba(' + rgb + ',0.3)" stroke-dasharray="3 2" />';
+        }
+
+        for (var n2 = 0; n2 < grp.nics.length; n2++) {
+            var nic = grp.nics[n2];
+            var x = currentX + n2 * (adapterW + adapterGap), y = nicRowY;
+            svg += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + rgb + ',0.20)" stroke="rgba(' + rgb + ',0.60)" />';
+            svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
+            svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(nic.speed) + '</text>';
+            if (showToR) {
+                uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
+            }
+        }
+
+        if (grp.vlanBelow) {
+            var vlanY2 = labelY + 13;
+            svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY2 + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
+        }
+        currentX += grpW + groupGap;
+    }
+
+    if (showToR) {
+        var switchBottomY = switchY + switchH;
+        for (var ai = 0; ai < uplinkPositions.length; ai++) {
+            var ap = uplinkPositions[ai];
+            var targetLX;
+            if (torCount === 1) {
+                targetLX = switch1X + switchW / 2;
+            } else {
+                targetLX = (ap.leaf === 'A') ? (switch1X + switchW / 2) : (switch2X + switchW / 2);
+            }
+            var uRgb = colorRgb(ap.color);
+            svg += '<line x1="' + ap.x + '" y1="' + ap.y + '" x2="' + targetLX + '" y2="' + switchBottomY + '" stroke="rgba(' + uRgb + ',0.35)" stroke-width="1.5" stroke-dasharray="4 2" />';
+        }
+    }
+
+    svg += '</svg>';
+
+    container.innerHTML = '<div style="margin-top:1.5rem;">'
+        + '<h4 style="color:var(--accent-purple); margin-bottom:0.75rem;">Host Networking Preview</h4>'
+        + '<div class="switchless-diagram">' + svg + '</div>'
+        + '<div style="margin-top:0.75rem; display:flex; gap:0.5rem;">'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'light\')">Download SVG (Light)</button>'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'dark\')">Download SVG (Dark)</button>'
+        + '</div>'
+        + '</div>';
+}
+
+window.downloadWizardHciHostNetworkingSvg = function(variant) {
+    try {
+        var container = document.getElementById('hci-nic-layout-diagram');
+        if (!container) return;
+        var svgEl = container.querySelector('svg.switchless-diagram__svg');
+        if (!svgEl) return;
+
+        var theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
+        var clone = svgEl.cloneNode(true);
+        if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        var exportBg = '#000000';
+        try {
+            var rootStyle = window.getComputedStyle(document.documentElement);
+            var themeVars = {
+                '--bg-dark': (rootStyle.getPropertyValue('--bg-dark') || '').trim(),
+                '--card-bg': (rootStyle.getPropertyValue('--card-bg') || '').trim(),
+                '--text-primary': (rootStyle.getPropertyValue('--text-primary') || '').trim(),
+                '--text-secondary': (rootStyle.getPropertyValue('--text-secondary') || '').trim(),
+                '--accent-blue': (rootStyle.getPropertyValue('--accent-blue') || '').trim(),
+                '--accent-purple': (rootStyle.getPropertyValue('--accent-purple') || '').trim(),
+                '--success': (rootStyle.getPropertyValue('--success') || '').trim(),
+                '--glass-border': (rootStyle.getPropertyValue('--glass-border') || '').trim()
+            };
+            if (theme === 'light') {
+                themeVars['--bg-dark'] = '#ffffff';
+                themeVars['--card-bg'] = '#ffffff';
+                themeVars['--text-primary'] = '#0b0b0b';
+                themeVars['--text-secondary'] = '#404040';
+                themeVars['--glass-border'] = 'rgba(0, 0, 0, 0.14)';
+            }
+            exportBg = (theme === 'light') ? '#ffffff' : (themeVars['--bg-dark'] || '#000000');
+
+            var decls = Object.keys(themeVars).map(function(k) {
+                var v = (themeVars[k] || '').trim();
+                return v ? (k + ': ' + v + ';') : '';
+            }).filter(Boolean).join(' ');
+
+            if (decls) {
+                var defs = clone.querySelector('defs');
+                if (!defs) {
+                    defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                    clone.insertBefore(defs, clone.firstChild);
+                }
+                var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                styleEl.textContent = ':root { ' + decls + ' }';
+                defs.appendChild(styleEl);
+            }
+        } catch (eVars) { /* ignore */ }
+
+        try {
+            var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('fill', exportBg);
+            var vb = (clone.getAttribute('viewBox') || '').trim();
+            if (vb) {
+                var parts = vb.split(/\s+/).map(function(p) { return parseFloat(p); });
+                if (parts.length === 4 && parts.every(function(nn) { return Number.isFinite(nn); })) {
+                    rect.setAttribute('x', String(parts[0]));
+                    rect.setAttribute('y', String(parts[1]));
+                    rect.setAttribute('width', String(parts[2]));
+                    rect.setAttribute('height', String(parts[3]));
+                } else {
+                    rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+                    rect.setAttribute('width', '100%'); rect.setAttribute('height', '100%');
+                }
+            } else {
+                rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+                rect.setAttribute('width', '100%'); rect.setAttribute('height', '100%');
+            }
+            var defsNode = clone.querySelector('defs');
+            if (defsNode && defsNode.nextSibling) {
+                clone.insertBefore(rect, defsNode.nextSibling);
+            } else {
+                clone.insertBefore(rect, clone.firstChild);
+            }
+        } catch (eBg) { /* ignore */ }
+
+        var serializer = new XMLSerializer();
+        var svgText = serializer.serializeToString(clone);
+        if (svgText.indexOf('<?xml') !== 0) {
+            svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgText;
+        }
+
+        var blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var ts = new Date();
+        var pad2 = function(n3) { return String(n3).padStart(2, '0'); };
+        var fileName = 'hci-host-networking-preview-' + theme + '-'
+            + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
+            + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes()) + '.svg';
+
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    } catch (e) { /* ignore */ }
+};
+
 function confirmOverrides() {
     if (state.overridesConfirmed) {
         // Toggle to edit mode
         state.overridesConfirmed = false;
+        var previewEl = document.getElementById('hci-nic-layout-diagram');
+        if (previewEl) previewEl.innerHTML = '';
     } else {
         state.overridesConfirmed = true;
+        renderHciHostNetworkingPreview();
+    }
     }
     updateOverridesUI();
     updateUI();
