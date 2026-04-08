@@ -869,7 +869,7 @@ function generateDisaggRackDiagram() {
         svg += `<rect x="${rx}" y="${oy}" width="${RACK_W}" height="${innerH + 10}" rx="2" fill="${C.RACK_BG}" stroke="${C.RACK_BORDER}" stroke-width="1" stroke-dasharray="4 2"/>`;
 
         // Draw device helper
-        function drawDev(uStart, heightU, label, color) {
+        var drawDev = function(uStart, heightU, label, color) {
             const pad = 6;
             const w = RACK_W - 2 * pad;
             const dy = oy + pad + innerH - uStart * U_H;
@@ -880,7 +880,7 @@ function generateDisaggRackDiagram() {
             svg += `<circle cx="${rx + RACK_W - pad - 12}" cy="${dy + h/2}" r="2" fill="${C.LED_GREEN}" opacity="0.8"/>`;
             svg += `<circle cx="${rx + RACK_W - pad - 6}" cy="${dy + h/2}" r="2" fill="${C.LED_GREEN}" opacity="0.6"/>`;
             return dy;
-        }
+        };
 
         // Leaf-A: U42
         drawDev(42, 1, `Leaf ${r+1}A`, C.LEAF);
