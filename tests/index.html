@@ -128,6 +128,7 @@
     <script src="../switch-config/builder.js"></script>
     <script src="../switch-config/templates/cisco-nxos.js"></script>
     <script src="../switch-config/templates/dell-os10.js"></script>
+    <script src="../switch-config/qos-audit.js"></script>
     <script>
         // ========================================================================
         // TEST FRAMEWORK
@@ -6845,6 +6846,274 @@
                 'CIDR pattern matches 10.0.255.1/32', true, cidrPattern.test('10.0.255.1/32')));
             results.push(assert(!cidrPattern.test('10.0.0.1'),
                 'CIDR pattern rejects bare IP', true, !cidrPattern.test('10.0.0.1')));
+            return results;
+        })());
+
+        sectionHeader('🔍 QoS Configuration Audit — Parser & Validator');
+
+        testSuite('QosAudit module exports exist', 'qos-audit.js', [
+            assert(typeof QosAudit === 'object', 'QosAudit namespace exists', true, typeof QosAudit === 'object'),
+            assert(typeof QosAudit.detectPlatform === 'function', 'detectPlatform exists', true, typeof QosAudit.detectPlatform === 'function'),
+            assert(typeof QosAudit.parseNxos === 'function', 'parseNxos exists', true, typeof QosAudit.parseNxos === 'function'),
+            assert(typeof QosAudit.parseOs10 === 'function', 'parseOs10 exists', true, typeof QosAudit.parseOs10 === 'function'),
+            assert(typeof QosAudit.validate === 'function', 'validate exists', true, typeof QosAudit.validate === 'function'),
+            assert(typeof window.runQosAudit === 'function', 'runQosAudit is global', true, typeof window.runQosAudit === 'function')
+        ]);
+
+        testSuite('detectPlatform: identifies NX-OS', 'qos-audit.js', (() => {
+            const results = [];
+            const nxosConfig = 'feature bgp\nfeature lldp\nhostname tor-1a\ninterface Ethernet1/1\n  switchport\n';
+            results.push(assert(QosAudit.detectPlatform(nxosConfig) === 'nxos',
+                'Detects NX-OS from feature commands', 'nxos', QosAudit.detectPlatform(nxosConfig)));
+            return results;
+        })());
+
+        testSuite('detectPlatform: identifies OS10', 'qos-audit.js', (() => {
+            const results = [];
+            const os10Config = 'interface ethernet1/1/1\n  switchport mode trunk\ntrust dot1p-map MY_MAP\n';
+            results.push(assert(QosAudit.detectPlatform(os10Config) === 'os10',
+                'Detects OS10 from ethernet1/1/x interface', 'os10', QosAudit.detectPlatform(os10Config)));
+            return results;
+        })());
+
+        testSuite('detectPlatform: returns null for unknown', 'qos-audit.js', [
+            assert(QosAudit.detectPlatform('totally random text') === null,
+                'Returns null for unrecognizable config', null, QosAudit.detectPlatform('totally random text'))
+        ]);
+
+        testSuite('parseNxos: extracts PFC, class-maps, ETS, ECN, system QoS', 'qos-audit.js', (() => {
+            const results = [];
+            const config = [
+                'policy-map type network-qos QOS_NETWORK',
+                '  class type network-qos c-8q-nq3',
+                '    mtu 9216',
+                '    pause pfc-cos 3',
+                '  class type network-qos c-8q-nq-default',
+                '    mtu 9216',
+                '  class type network-qos c-8q-nq7',
+                '    mtu 9216',
+                '',
+                'class-map type qos match-all RDMA',
+                '  match cos 3',
+                'class-map type qos match-all CLUSTER',
+                '  match cos 7',
+                '',
+                'policy-map type queuing QOS_EGRESS_PORT',
+                '  class type queuing c-out-8q-q3',
+                '    bandwidth remaining percent 50',
+                '    random-detect minimum-threshold 300 kbytes maximum-threshold 300 kbytes drop-probability 100 weight 0 ecn',
+                '  class type queuing c-out-8q-q-default',
+                '    bandwidth remaining percent 48',
+                '  class type queuing c-out-8q-q7',
+                '    bandwidth percent 2',
+                '',
+                'system qos',
+                '  service-policy type network-qos QOS_NETWORK',
+                '  service-policy type queuing output QOS_EGRESS_PORT',
+                ''
+            ].join('\n');
+            const p = QosAudit.parseNxos(config);
+            results.push(assert(p.pfcCos.indexOf(3) !== -1, 'PFC CoS 3 found', true, p.pfcCos.indexOf(3) !== -1));
+            results.push(assert(p.classMapCos3 === true, 'CoS 3 class-map found', true, p.classMapCos3));
+            results.push(assert(p.classMapCos7 === true, 'CoS 7 class-map found', true, p.classMapCos7));
+            results.push(assert(p.etsBandwidthQueue3 === 50, 'Queue 3 bandwidth = 50%', 50, p.etsBandwidthQueue3));
+            results.push(assert(p.etsBandwidthQueue7 === 2, 'Queue 7 bandwidth = 2%', 2, p.etsBandwidthQueue7));
+            results.push(assert(p.etsBandwidthDefault === 48, 'Default bandwidth = 48%', 48, p.etsBandwidthDefault));
+            results.push(assert(p.ecnOnStorageQueue === true, 'ECN on storage queue', true, p.ecnOnStorageQueue));
+            results.push(assert(p.mtu9216 === true, 'MTU 9216 detected', true, p.mtu9216));
+            results.push(assert(p.systemQosNetworkPolicy === true, 'System network-qos policy bound', true, p.systemQosNetworkPolicy));
+            results.push(assert(p.systemQosQueuingPolicy === true, 'System queuing policy bound', true, p.systemQosQueuingPolicy));
+            return results;
+        })());
+
+        testSuite('parseNxos: extracts interface PFC and trunk info', 'qos-audit.js', (() => {
+            const results = [];
+            const config = [
+                'interface Ethernet1/1',
+                '  switchport mode trunk',
+                '  switchport trunk allowed vlan 7,711',
+                '  priority-flow-control mode on send-tlv',
+                '  service-policy type qos input AZLocal_SERVICES',
+                '  mtu 9216',
+                '  no shutdown',
+                '',
+                'interface Ethernet1/2',
+                '  switchport mode trunk',
+                '  priority-flow-control mode on',
+                '  no shutdown',
+                '',
+                'interface Ethernet1/48',
+                '  shutdown',
+                ''
+            ].join('\n');
+            const p = QosAudit.parseNxos(config);
+            results.push(assert(p.interfacePfc.length === 2,
+                '2 interfaces with PFC', 2, p.interfacePfc.length));
+            results.push(assert(p.interfaceTrunks.length === 2,
+                '2 trunk interfaces', 2, p.interfaceTrunks.length));
+            results.push(assert(p.interfaceQosPolicy.length === 1,
+                '1 interface with QoS policy', 1, p.interfaceQosPolicy.length));
+            results.push(assert(p.interfacePfc.indexOf('Ethernet1/48') === -1,
+                'Shutdown interface excluded from PFC', true, p.interfacePfc.indexOf('Ethernet1/48') === -1));
+            return results;
+        })());
+
+        testSuite('parseOs10: extracts PFC, class-maps, ETS, ECN, system QoS', 'qos-audit.js', (() => {
+            const results = [];
+            const config = [
+                'class-map type network-qos AZLOCAL_COS3',
+                '  match qos-group 3',
+                '',
+                'class-map type network-qos AZLOCAL_COS7',
+                '  match qos-group 7',
+                '',
+                'policy-map type network-qos AZLOCAL_PFC',
+                '  class AZLOCAL_COS3',
+                '    pause',
+                '    pfc-cos 3',
+                '',
+                'policy-map type queuing AZLOCAL_ETS',
+                '  class AZLOCAL_QUEUE0',
+                '    bandwidth percent 48',
+                '',
+                '  class AZLOCAL_QUEUE3',
+                '    bandwidth percent 50',
+                '    random-detect ecn',
+                '',
+                '  class AZLOCAL_QUEUE7',
+                '    bandwidth percent 2',
+                '',
+                'system qos',
+                '  trust-map dot1p AZLOCAL_DOT1P_TRUST',
+                '  ets mode on',
+                ''
+            ].join('\n');
+            const p = QosAudit.parseOs10(config);
+            results.push(assert(p.pfcCos.indexOf(3) !== -1, 'PFC CoS 3 found', true, p.pfcCos.indexOf(3) !== -1));
+            results.push(assert(p.classMapCos3 === true, 'CoS 3 class-map found', true, p.classMapCos3));
+            results.push(assert(p.classMapCos7 === true, 'CoS 7 class-map found', true, p.classMapCos7));
+            results.push(assert(p.etsBandwidthQueue3 === 50, 'Queue 3 bandwidth = 50%', 50, p.etsBandwidthQueue3));
+            results.push(assert(p.etsBandwidthQueue7 === 2, 'Queue 7 bandwidth = 2%', 2, p.etsBandwidthQueue7));
+            results.push(assert(p.etsBandwidthDefault === 48, 'Default bandwidth = 48%', 48, p.etsBandwidthDefault));
+            results.push(assert(p.ecnOnStorageQueue === true, 'ECN on storage queue', true, p.ecnOnStorageQueue));
+            results.push(assert(p.systemQosEts === true, 'System ETS enabled', true, p.systemQosEts));
+            results.push(assert(p.systemQosTrustMap === true, 'System trust-map configured', true, p.systemQosTrustMap));
+            return results;
+        })());
+
+        testSuite('validate: all-pass Cisco NX-OS config', 'qos-audit.js', (() => {
+            const results = [];
+            const parsed = {
+                platform: 'nxos',
+                pfcCos: [3],
+                classMapCos3: true,
+                classMapCos7: true,
+                etsBandwidthQueue3: 50,
+                etsBandwidthQueue7: 2,
+                etsBandwidthDefault: 48,
+                ecnOnStorageQueue: true,
+                mtu9216: true,
+                systemQosNetworkPolicy: true,
+                systemQosQueuingPolicy: true,
+                interfacePfc: ['Ethernet1/1', 'Ethernet1/2'],
+                interfaceQosPolicy: ['Ethernet1/1'],
+                interfaceTrunks: ['Ethernet1/1', 'Ethernet1/2'],
+                interfaceMtu: []
+            };
+            const checks = QosAudit.validate(parsed);
+            const failedChecks = checks.filter(c => c.status === 'fail');
+            results.push(assert(checks.length === 11,
+                'Validator returns 11 checks', 11, checks.length));
+            results.push(assert(failedChecks.length === 0,
+                'All checks pass for compliant config', 0, failedChecks.length));
+            return results;
+        })());
+
+        testSuite('validate: detects missing PFC and low ETS', 'qos-audit.js', (() => {
+            const results = [];
+            const parsed = {
+                platform: 'nxos',
+                pfcCos: [],
+                classMapCos3: true,
+                classMapCos7: true,
+                etsBandwidthQueue3: 30,
+                etsBandwidthQueue7: 5,
+                etsBandwidthDefault: 65,
+                ecnOnStorageQueue: false,
+                mtu9216: false,
+                systemQosNetworkPolicy: false,
+                systemQosQueuingPolicy: false,
+                interfacePfc: [],
+                interfaceQosPolicy: [],
+                interfaceTrunks: ['Ethernet1/1'],
+                interfaceMtu: []
+            };
+            const checks = QosAudit.validate(parsed);
+            const pfcCheck = checks.find(c => c.id === 'pfc-cos3');
+            results.push(assert(pfcCheck.status === 'fail',
+                'Missing PFC correctly flagged as fail', 'fail', pfcCheck.status));
+            const etsCheck = checks.find(c => c.id === 'ets-storage');
+            results.push(assert(etsCheck.status === 'fail',
+                'Low storage bandwidth flagged as fail', 'fail', etsCheck.status));
+            const clusterCheck = checks.find(c => c.id === 'ets-cluster');
+            results.push(assert(clusterCheck.status === 'warn',
+                'Non-standard cluster bandwidth flagged as warn', 'warn', clusterCheck.status));
+            const ecnCheck = checks.find(c => c.id === 'ecn-storage');
+            results.push(assert(ecnCheck.status === 'fail',
+                'Missing ECN flagged as fail', 'fail', ecnCheck.status));
+            return results;
+        })());
+
+        testSuite('validate: warns on borderline storage bandwidth (40-49%)', 'qos-audit.js', (() => {
+            const results = [];
+            const parsed = {
+                platform: 'nxos',
+                pfcCos: [3],
+                classMapCos3: true,
+                classMapCos7: true,
+                etsBandwidthQueue3: 45,
+                etsBandwidthQueue7: 2,
+                etsBandwidthDefault: 53,
+                ecnOnStorageQueue: true,
+                mtu9216: true,
+                systemQosNetworkPolicy: true,
+                systemQosQueuingPolicy: true,
+                interfacePfc: ['Ethernet1/1'],
+                interfaceQosPolicy: ['Ethernet1/1'],
+                interfaceTrunks: ['Ethernet1/1'],
+                interfaceMtu: []
+            };
+            const checks = QosAudit.validate(parsed);
+            const etsCheck = checks.find(c => c.id === 'ets-storage');
+            results.push(assert(etsCheck.status === 'warn',
+                '45% storage bandwidth triggers warning', 'warn', etsCheck.status));
+            return results;
+        })());
+
+        testSuite('validate: Dell OS10 all-pass', 'qos-audit.js', (() => {
+            const results = [];
+            const parsed = {
+                platform: 'os10',
+                pfcCos: [3],
+                classMapCos3: true,
+                classMapCos7: true,
+                etsBandwidthQueue3: 50,
+                etsBandwidthQueue7: 2,
+                etsBandwidthDefault: 48,
+                ecnOnStorageQueue: true,
+                mtu9216: true,
+                systemQosEts: true,
+                systemQosTrustMap: true,
+                interfacePfc: ['ethernet1/1/1'],
+                interfaceEts: ['ethernet1/1/1'],
+                interfaceQosPolicy: ['ethernet1/1/1'],
+                interfaceTrunks: ['ethernet1/1/1'],
+                interfaceMtu: []
+            };
+            const checks = QosAudit.validate(parsed);
+            const failedChecks = checks.filter(c => c.status === 'fail');
+            results.push(assert(failedChecks.length === 0,
+                'All checks pass for compliant Dell config', 0, failedChecks.length));
             return results;
         })());
 

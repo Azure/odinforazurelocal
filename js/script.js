@@ -8565,7 +8565,7 @@ function transferToSwitchConfig() {
         console.warn('Failed to store designer-to-switch-config payload:', e);
     }
 
-    window.location.href = 'switch-config/switch-config.html?from=designer';
+    window.open('switch-config/switch-config.html?from=designer', '_blank');
 }
 
 // Show resume prompt on page load if saved state exists

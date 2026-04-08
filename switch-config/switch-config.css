@@ -414,3 +414,106 @@ body {
 .sc-remove-btn:hover {
     background: rgba(224, 108, 117, 0.12);
 }
+
+/* ── QoS Audit Results ────────────────────────────────────────────── */
+.qa-summary {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    border: 1px solid;
+}
+
+.qa-summary.qa-pass {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.qa-summary.qa-warn {
+    background: rgba(234, 179, 8, 0.08);
+    border-color: rgba(234, 179, 8, 0.3);
+}
+
+.qa-summary.qa-fail {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.qa-summary-status {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    color: var(--text-primary);
+}
+
+.qa-summary-detail {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.qa-stat-pass { color: #22c55e; }
+.qa-stat-warn { color: #eab308; }
+.qa-stat-fail { color: #ef4444; }
+
+.qa-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.qa-table thead th {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 2px solid var(--glass-border);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.qa-table tbody tr {
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.qa-table tbody td {
+    padding: 0.65rem 0.75rem;
+    vertical-align: top;
+    color: var(--text-primary);
+}
+
+.qa-icon {
+    width: 2rem;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.qa-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.qa-mono {
+    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    font-size: 0.8rem;
+    word-break: break-word;
+}
+
+.qa-row-pass { }
+.qa-row-warn { background: rgba(234, 179, 8, 0.04); }
+.qa-row-fail { background: rgba(239, 68, 68, 0.04); }
+
+.qa-reference {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.75rem;
+}
+
+.qa-reference a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.qa-reference a:hover {
+    text-decoration: underline;
+}

@@ -628,11 +628,52 @@
         </div>
     </main>
 
-    <!-- Scripts (order matters: models → builder → templates → main) -->
+    <!-- ── QoS Configuration Audit (always visible, independent of Designer data) ── -->
+    <div class="container" style="margin-top: 0;">
+        <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 2rem 0;">
+
+        <section class="step" id="sc-qos-audit-section" style="margin-bottom: 1.5rem;">
+            <div class="step-header">
+                <span class="step-number">QA</span>
+                <h2>Validate Existing <abbr title="Top of Rack">ToR</abbr> Switch Configuration</h2>
+            </div>
+
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.75rem;">
+                Paste the output of <code>show running-config</code> from a Cisco NX-OS or Dell OS10 <abbr title="Top of Rack">ToR</abbr> switch to validate that <abbr title="Quality of Service">QoS</abbr> settings meet Azure Local requirements for storage (<abbr title="Remote Direct Memory Access">RDMA</abbr>) and cluster heartbeat traffic.
+            </p>
+
+            <div class="sc-info-banner" style="margin-bottom: 1rem;">
+                <span class="sc-icon">✅</span>
+                <span>This audit checks: <strong><abbr title="Priority Flow Control">PFC</abbr></strong> (IEEE 802.1Qbb) on CoS 3 for lossless storage, <strong><abbr title="Enhanced Transmission Selection">ETS</abbr></strong> (IEEE 802.1Qaz) bandwidth reservations (Storage ≥50%, Cluster 1–2%), <strong><abbr title="Explicit Congestion Notification">ECN</abbr></strong> on the storage queue, <strong>MTU 9216</strong> (jumbo frames), <strong>system <abbr title="Quality of Service">QoS</abbr> policy</strong> application, <strong>VLAN trunking</strong> on host-facing interfaces, and <strong>interface-level <abbr title="Priority Flow Control">PFC</abbr></strong> enablement.</span>
+            </div>
+
+            <div class="sc-info-banner" style="margin-bottom: 1rem; background: rgba(234, 179, 8, 0.08); border-color: rgba(234, 179, 8, 0.25);">
+                <span class="sc-icon">🔒</span>
+                <span><strong>Privacy:</strong> All processing is performed entirely in your browser. No switch configuration data is stored, transmitted, or sent to any external service. Sanitize any passwords or shared secrets before pasting.</span>
+            </div>
+
+            <div class="sc-field" style="margin-bottom: 1rem;">
+                <label for="sc-qos-audit-input">Switch Running Configuration</label>
+                <textarea id="sc-qos-audit-input" rows="12" placeholder="Paste the full output of 'show running-config' here..."
+                          style="width:100%; padding:0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:0.82rem; line-height:1.5; resize:vertical;"></textarea>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <button id="sc-qos-audit-btn" class="sc-generate-btn" onclick="window.runQosAudit()" style="background: linear-gradient(135deg, #22c55e, #16a34a);">
+                    🔍 Analyze QoS Configuration
+                </button>
+            </div>
+
+            <div id="sc-qos-audit-results" style="display: none;"></div>
+        </section>
+    </div>
+
+    <!-- Scripts (order matters: models → builder → templates → qos-audit → main) -->
     <script src="models.js"></script>
     <script src="builder.js"></script>
     <script src="templates/cisco-nxos.js"></script>
     <script src="templates/dell-os10.js"></script>
+    <script src="qos-audit.js"></script>
     <script src="switch-config.js"></script>
     <footer style="text-align:center;padding:2rem 1rem 1rem;font-size:0.85rem;color:#aaa;">
         🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.
