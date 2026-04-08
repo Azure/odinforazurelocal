@@ -52,8 +52,8 @@ function getProxyLabel() {
  */
 function formatScenario(val) {
     if (!val) return '';
-    if (val === 'hyperconverged') return 'Hyperconverged';
-    if (val === 'multirack') return 'Multi-Rack';
+    if (val === 'connected') return 'Connected';
+    if (val === 'rackscale') return 'Rack Scale';
     if (val === 'disconnected') {
         if (typeof state !== 'undefined' && state.outbound === 'limited') return 'Disconnected (Limited Connectivity)';
         return 'Disconnected (Air Gapped)';

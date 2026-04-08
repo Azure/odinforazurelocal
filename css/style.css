@@ -121,6 +121,35 @@ body {
     opacity: 0.5;
 }
 
+/* Breadcrumb Group (visual grouping of related steps) */
+.breadcrumb-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+}
+
+.breadcrumb-group-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-purple);
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.breadcrumb-group-items {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 24px;
+    background: rgba(139, 92, 246, 0.05);
+}
+
 /* Collapsible Sections */
 .step.collapsible .step-header {
     cursor: pointer;
@@ -1806,7 +1835,7 @@ header .header-description {
 
 .intent-overrides-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1rem;
 }
 
@@ -1815,6 +1844,8 @@ header .header-description {
     border: 1px solid var(--glass-border);
     border-radius: 12px;
     padding: 0.9rem;
+    overflow: hidden;
+    min-width: 0;
 }
 
 .override-card h5 {
@@ -1823,8 +1854,8 @@ header .header-description {
     color: var(--text-primary);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .override-hint {
@@ -2113,6 +2144,43 @@ header .header-description {
     background: rgba(34, 197, 94, 0.05);
 }
 
+/* Type-specific zone colors for disaggregated */
+.intent-zone-card.zone-mgmt {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.05);
+}
+.intent-zone-card.zone-mgmt.is-complete {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.intent-zone-card.zone-cluster {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.05);
+}
+.intent-zone-card.zone-cluster.is-complete {
+    border-color: rgba(34, 197, 94, 0.5);
+    background: rgba(34, 197, 94, 0.08);
+}
+
+.intent-zone-card.zone-storage {
+    border-color: rgba(139, 92, 246, 0.3);
+    background: rgba(139, 92, 246, 0.05);
+}
+.intent-zone-card.zone-storage.is-complete {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.intent-zone-card.zone-backup {
+    border-color: rgba(249, 115, 22, 0.3);
+    background: rgba(249, 115, 22, 0.05);
+}
+.intent-zone-card.zone-backup.is-complete {
+    border-color: rgba(249, 115, 22, 0.5);
+    background: rgba(249, 115, 22, 0.08);
+}
+
 .intent-zone-card.has-error {
     border-color: rgba(239, 68, 68, 0.4);
     background: rgba(239, 68, 68, 0.05);
@@ -2141,6 +2209,10 @@ header .header-description {
 
 .intent-zone-title.storage {
     color: #8b5cf6;
+}
+
+.intent-zone-title.backup {
+    color: #f97316;
 }
 
 .intent-zone-badge {
