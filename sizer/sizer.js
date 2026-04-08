@@ -1329,6 +1329,9 @@ let _diskCountUserSet = false;
 // Track whether the user manually set GPU count per node (prevents GPU auto-scaling from overriding)
 let _gpuCountUserSet = false;
 
+// Track whether auto-upgrade from Standard → Disaggregated has already fired (prevents re-triggering)
+let _disaggAutoUpgraded = false;
+
 // Track disk bay consolidation details for sizing notes
 let _diskConsolidationInfo = null;
 
@@ -2544,6 +2547,40 @@ function dismissSizerResumeBanner() {
     }
 }
 
+// Show a toast notification in the Sizer
+function showSizerToast(message, type) {
+    // Remove any existing toast
+    var existing = document.getElementById('sizer-toast');
+    if (existing) existing.remove();
+
+    var bgColor = type === 'info' ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))'
+                : type === 'success' ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95))'
+                : type === 'error' ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95))'
+                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))';
+
+    var icon = type === 'info' ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M10 9v5M10 6.5v0" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>'
+             : type === 'success' ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+             : '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M10 6v5M10 13.5v0" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+    var toast = document.createElement('div');
+    toast.id = 'sizer-toast';
+    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:14px 24px;background:' + bgColor + ';color:white;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:12px;animation:slideDown 0.3s ease;max-width:600px;cursor:pointer;';
+    toast.innerHTML = icon + '<span>' + message + '</span>';
+    toast.onclick = function() {
+        toast.style.animation = 'slideUp 0.3s ease';
+        setTimeout(function() { toast.remove(); }, 300);
+    };
+    document.body.appendChild(toast);
+
+    // Auto-dismiss after 6 seconds
+    setTimeout(function() {
+        if (toast.parentNode) {
+            toast.style.animation = 'slideUp 0.3s ease';
+            setTimeout(function() { toast.remove(); }, 300);
+        }
+    }, 6000);
+}
+
 // ============================================
 // Workload Configuration
 // ============================================
@@ -2655,6 +2692,9 @@ function onClusterTypeChange() {
     const wasAldo = workloads.some(w => w.isAldoFixed);
     const isAldo = clusterType === 'aldo-mgmt';
     const isDisagg = clusterType === 'disaggregated';
+
+    // Reset auto-upgrade flag when user manually changes cluster type
+    _disaggAutoUpgraded = false;
 
     // Switching TO aldo-mgmt: clear workloads and add IRVM1
     if (isAldo && !wasAldo) {
@@ -4215,6 +4255,53 @@ function calculateRequirements(options) {
             if (getVcpuRatio() !== initialVcpuRatio) {
                 _vcpuRatioAutoEscalated = true;
             }
+
+            // --- Auto-upgrade Standard → Disaggregated when maxed out ---
+            // If cluster type is standard and any resource is still ≥ 90% at
+            // 16 nodes with max hardware, automatically switch to disaggregated
+            // storage deployment and re-run the full calculation cycle.
+            const curClusterType = document.getElementById('cluster-type').value;
+            if (curClusterType === 'standard' && !_disaggAutoUpgraded) {
+                const chkEffNodes = nodeCount > 1 ? nodeCount - 1 : 1;
+                const chkVcpuToCore = getVcpuRatio();
+                const chkPhysCores = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
+                const chkMemPerNode = hwConfig.memoryGB || 512;
+                let chkRawGBPerNode = 0;
+                if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+                    chkRawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
+                }
+                const chkRawTBPerNode = chkRawGBPerNode / 1024 || DEFAULT_RAW_TB_PER_NODE;
+
+                const chkAvailVcpus = chkPhysCores * chkEffNodes * chkVcpuToCore - ARB_VCPU_OVERHEAD;
+                const chkAvailMem = Math.max(chkMemPerNode - 32, 0) * chkEffNodes - ARB_MEMORY_OVERHEAD_GB;
+                const chkDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
+                const chkS2dRepairTB = getS2dRepairReservedGB(nodeCount, chkDiskSizeGB) / 1024;
+                const chkAvailStorage = Math.max((chkRawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - chkS2dRepairTB / resiliencyMultiplier, 0);
+
+                const chkCpuPct = chkAvailVcpus > 0 ? Math.round((totalVcpus / chkAvailVcpus) * 100) : 0;
+                const chkMemPct = chkAvailMem > 0 ? Math.round((totalMemory / chkAvailMem) * 100) : 0;
+                const chkStoPct = chkAvailStorage > 0 ? Math.round(((totalStorage / 1000) / chkAvailStorage) * 100) : 0;
+
+                if (nodeCount >= 16 && (chkCpuPct >= 90 || chkMemPct >= 90 || chkStoPct >= 90)) {
+                    // Switch to disaggregated
+                    _disaggAutoUpgraded = true;
+                    document.getElementById('cluster-type').value = 'disaggregated';
+                    updateNodeOptionsForClusterType();
+                    updateStorageForClusterType();
+                    updateResiliencyOptions();
+                    updateClusterInfo();
+                    updateDisaggregatedUI(true);
+                    _nodeCountUserSet = false;
+
+                    // Show notification toast
+                    showSizerToast('Workload exceeds 16-node standard cluster capacity — automatically upgraded to Disaggregated Storage deployment type.', 'info');
+
+                    // Re-run calculation with disaggregated type
+                    isCalculating = false;
+                    calculateRequirements();
+                    return;
+                }
+            }
         }
 
         // N+1: effective nodes for capacity sizing (drain one node during updates)
@@ -5516,6 +5603,7 @@ function resetScenario() {
     _gpuCountUserSet = false;
     _nodeCountUserSet = false;
     _repairDisksUserSet = false;
+    _disaggAutoUpgraded = false;
     clearManualBadges();
     
     // Reset hardware config
