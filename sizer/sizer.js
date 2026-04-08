@@ -1306,6 +1306,7 @@ let _nodeCountUserSet = false;
 
 // Physical port count from Designer (default 4 if user hasn't come from Designer)
 let _designerPortCount = 4;
+let _designerSpineCount = 2;
 
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
@@ -2116,6 +2117,7 @@ function getSizerState() {
     return {
         clusterType: document.getElementById('cluster-type').value,
         disaggRackCount: (document.getElementById('disagg-rack-count') || {}).value || null,
+        disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || null,
         nodeCount: document.getElementById('node-count').value,
         nodeCountUserSet: _nodeCountUserSet,
         futureGrowth: document.getElementById('future-growth').value,
@@ -2144,7 +2146,8 @@ function getSizerState() {
         repairDiskCount: document.getElementById('repair-disk-count').value,
         repairDisksUserSet: _repairDisksUserSet,
         workloads: workloads,
-        workloadIdCounter: workloadIdCounter
+        workloadIdCounter: workloadIdCounter,
+        designerSpineCount: _designerSpineCount
     };
 }
 
@@ -2230,6 +2233,15 @@ function checkForDesignerImport() {
         // Store physical port count from Designer for 3D rack visualization
         if (payload.ports) {
             _designerPortCount = parseInt(payload.ports, 10) || 4;
+        }
+        if (payload.spineCount) {
+            _designerSpineCount = parseInt(payload.spineCount, 10) || 2;
+            var spineSelect = document.getElementById('disagg-spine-count');
+            if (spineSelect) spineSelect.value = String(_designerSpineCount);
+        }
+        if (payload.disaggStorageType) {
+            var storageTypeSelect = document.getElementById('disagg-storage-type');
+            if (storageTypeSelect) storageTypeSelect.value = payload.disaggStorageType;
         }
 
         // Apply node count (after node options are updated for the cluster type)
@@ -2443,6 +2455,7 @@ function resumeSizerState() {
     // Restore workloads
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
+    if (d.designerSpineCount) _designerSpineCount = d.designerSpineCount;
 
     // Restore all MANUAL override flags
     _nodeCountUserSet = !!d.nodeCountUserSet;
@@ -2664,11 +2677,47 @@ function onDisaggRackCountChange() { // eslint-disable-line no-unused-vars
     calculateRequirements();
 }
 
+// Handle disaggregated spine count change
+function onDisaggSpineCountChange() { // eslint-disable-line no-unused-vars
+    _designerSpineCount = parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || 2;
+    calculateRequirements();
+}
+
+// Handle disaggregated storage type change
+function onDisaggStorageTypeChange() { // eslint-disable-line no-unused-vars
+    updateDisaggLegend();
+    calculateRequirements();
+}
+
+// Update legend items for disaggregated vs rack-aware
+function updateDisaggLegend() {
+    var clusterType = document.getElementById('cluster-type').value;
+    var isDisagg = clusterType === 'disaggregated';
+    var storageType = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
+    var smbEl = document.getElementById('legend-smb-trunk');
+    var lagEl = document.getElementById('legend-lag');
+    var fcEl = document.getElementById('legend-fc-switch');
+    if (smbEl) smbEl.style.display = isDisagg ? 'none' : '';
+    if (lagEl) lagEl.style.display = isDisagg ? 'none' : '';
+    if (fcEl) fcEl.style.display = (isDisagg && storageType === 'fc_san') ? '' : 'none';
+}
+
 // Show/hide disaggregated-specific UI and disable storage fields
 function updateDisaggregatedUI(isDisagg) {
     // Show/hide rack count row
     var rackRow = document.getElementById('disagg-rack-count-row');
     if (rackRow) rackRow.style.display = isDisagg ? '' : 'none';
+
+    // Show/hide spine count row
+    var spineRow = document.getElementById('disagg-spine-count-row');
+    if (spineRow) spineRow.style.display = isDisagg ? '' : 'none';
+
+    // Show/hide storage type row
+    var storageTypeRow = document.getElementById('disagg-storage-type-row');
+    if (storageTypeRow) storageTypeRow.style.display = isDisagg ? '' : 'none';
+
+    // Update legend for disaggregated
+    updateDisaggLegend();
 
     // Storage section fields to disable
     var storageFieldIds = [
@@ -4302,6 +4351,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
                 clusterType: document.getElementById('cluster-type').value || 'standard',
                 nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
                 disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
+                spineCount: _designerSpineCount || 2,
                 hasGpu: false,
                 gpuModel: '',
                 perNodeWatts: 0,
@@ -4386,6 +4436,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             clusterType: document.getElementById('cluster-type').value || 'standard',
             nodeCount: nodeCount,
             disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
+            disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
+            spineCount: _designerSpineCount || 2,
             hasGpu: hwConfig.gpuCount > 0,
             gpuModel: hwConfig.gpuType || '',
             perNodeWatts: perNodeW,
@@ -5335,6 +5387,7 @@ function applyImportedSizerState(d) {
     // Restore workloads
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
+    if (d.designerSpineCount) _designerSpineCount = d.designerSpineCount;
 
     // Restore all MANUAL override flags
     _nodeCountUserSet = !!d.nodeCountUserSet;
@@ -5516,19 +5569,19 @@ document.addEventListener('DOMContentLoaded', function() {
 // ONBOARDING WALKTHROUGH
 // ============================================
 
-const SIZER_ONBOARDING_KEY = 'odin_sizer_onboarding_complete';
+const SIZER_ONBOARDING_KEY = 'odin_sizer_onboarding_v0_20_06';
 
 const sizerOnboardingSteps = [
     {
-        icon: '<img src="../images/odin-logo.png" alt="Odin Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
         isImage: true,
         title: 'Welcome to the ODIN Sizer',
         description: 'Plan your Azure Local hardware requirements by modelling workloads, resiliency, and capacity — before you buy.',
         features: [
             { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, and AVD workloads with CPU, memory, and storage needs' },
-            { icon: '⚖️', title: 'Resiliency Options', text: 'Choose mirror types and see the real impact on usable storage' },
-            { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, and storage utilization update in real time' },
-            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved to your browser — export your config as JSON to share or back up, and import it later to resume' }
+            { icon: '⚖️', title: 'Deployment Types', text: 'Standard, Rack-Aware, Disaggregated Storage, Single Node, and ALDO clusters' },
+            { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, storage, and GPU utilization update in real time' },
+            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved — export your config as JSON to share or back up' }
         ]
     },
     {
@@ -5536,10 +5589,10 @@ const sizerOnboardingSteps = [
         title: 'How It Works',
         description: 'Configure your cluster, add workloads, and let the sizer recommend the right hardware.',
         features: [
-            { icon: '1️⃣', title: 'Choose Cluster Type', text: 'Standard, Rack-Aware, or Single Node — each with its own constraints' },
+            { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Standard, Rack-Aware, Disaggregated, or Single Node — each with its own constraints' },
             { icon: '2️⃣', title: 'Add Workloads', text: 'Click VM, AKS, or AVD buttons to define your workload scenarios' },
             { icon: '3️⃣', title: 'Review Sizing', text: 'Auto-sizing recommends nodes, cores, memory, and disks' },
-            { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config into the deployment wizard' }
+            { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config (opens in new tab)' }
         ]
     },
     {
@@ -5549,8 +5602,8 @@ const sizerOnboardingSteps = [
         features: [
             { icon: '📈', title: 'Growth Factor', text: 'Plan for future growth — the sizer applies your growth % to all workloads' },
             { icon: '🔄', title: 'Auto-Scaling', text: 'The engine scales up cores, memory, and disks before adding nodes' },
-            { icon: '🚫', title: 'Utilization Guard', text: 'Configurations above 90% utilization are flagged with warnings' },
-            { icon: '📄', title: 'Export Results', text: 'Download your sizing as PDF or Word for stakeholder review' }
+            { icon: '🏗️', title: 'Disaggregated Storage', text: 'External SAN mode with 1–4 racks, up to 64 nodes, no S2D storage' },
+            { icon: '📷', title: '3D Rack Visualization', text: 'Interactive 3D preview of your rack layout with multi-rack support' }
         ]
     }
 ];

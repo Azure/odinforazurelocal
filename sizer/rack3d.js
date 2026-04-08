@@ -521,10 +521,78 @@ function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
     return body;
 }
 
-// ── Core network for rack-aware topology ─────
+// ── FC Switch — 1U Fibre Channel switch in purple ──
 
-function placeCoreNetwork(scene, rack1X, rack2X) {
-    var routerY = RACK.OUTER_HEIGHT + 0.35;
+function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
+    var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
+    var deviceHeight = 1 * RACK.U_HEIGHT - 0.004;
+    var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+    var frontZ = -deviceDepth / 2;
+    var backZ = deviceDepth / 2;
+    var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
+    var cx = rackGroup.position.x;
+
+    var fcMat = new THREE.MeshStandardMaterial({ color: 0x9933cc, roughness: 0.4, metalness: 0.4 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0033, roughness: 0.8, metalness: 0.2 });
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.5, metalness: 0.5 });
+    var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.5 });
+
+    // Main chassis
+    var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
+    var body = new THREE.Mesh(bodyGeo, fcMat);
+    body.position.set(cx, y, 0);
+    scene.add(body);
+
+    // Front face
+    var frontPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.004, 0.003);
+    var frontPanel = new THREE.Mesh(frontPanelGeo, darkMat);
+    frontPanel.position.set(cx, y, frontZ - 0.002);
+    scene.add(frontPanel);
+
+    // Status LEDs
+    var ledGeo = new THREE.BoxGeometry(0.004, 0.004, 0.001);
+    for (var li = 0; li < 3; li++) {
+        var led = new THREE.Mesh(ledGeo, ledGreen);
+        led.position.set(cx + deviceWidth / 2 - 0.02 - li * 0.008, y + deviceHeight / 2 - 0.005, frontZ - 0.004);
+        scene.add(led);
+    }
+
+    // Back face
+    var backPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.004, 0.003);
+    var backPanel = new THREE.Mesh(backPanelGeo, darkMat);
+    backPanel.position.set(cx, y, backZ + 0.002);
+    scene.add(backPanel);
+
+    // FC ports (SFP style, smaller than ethernet)
+    var sfpW = 0.010;
+    var sfpH = 0.006;
+    var sfpGeo = new THREE.BoxGeometry(sfpW, sfpH, 0.003);
+    var portsPerRow = 16;
+    var portSpacing = (deviceWidth - 0.08) / portsPerRow;
+    var rowStartX = cx - deviceWidth / 2 + 0.04;
+    for (var fp = 0; fp < portsPerRow; fp++) {
+        var fpx = rowStartX + fp * portSpacing;
+        var sfp = new THREE.Mesh(sfpGeo, portMat);
+        sfp.position.set(fpx, y, backZ + 0.004);
+        scene.add(sfp);
+    }
+
+    // Labels
+    if (label) {
+        var frontLabel = makeFaceLabel(label, 22, '#ffffff', 'front');
+        frontLabel.position.set(cx, y, frontZ - 0.008);
+        scene.add(frontLabel);
+    }
+
+    return body;
+}
+
+// ── Core network for rack-aware and disaggregated topologies ──
+
+function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackStartX, isDisaggLayout) {
+    spineCount = spineCount || 2;
+    allRackCount = allRackCount || 2;
+    rackStartX = rackStartX || rack1X;
     var routerX = (rack1X + rack2X) / 2;
     var routerZ = 0;
 
@@ -536,59 +604,69 @@ function placeCoreNetwork(scene, rack1X, rack2X) {
     var pinkMat = new THREE.MeshBasicMaterial({ color: 0xff66bb, transparent: true, opacity: 0.7 });
     var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.5 });
 
-    // ── Core Switch/Router — wider 1U box ──
+    // ── Spine switches — stack vertically above the racks ──
     var rWidth = RACK.WIDTH * 1.2;
     var rHeight = RACK.U_HEIGHT * 1.5;
     var rDepth = RACK.DEPTH * 0.6;
+    var spineGap = rHeight * 0.4; // vertical gap between stacked spine switches
+    var baseY = RACK.OUTER_HEIGHT + 0.35;
 
-    var routerGeo = new THREE.BoxGeometry(rWidth, rHeight, rDepth);
-    var router = new THREE.Mesh(routerGeo, routerMat);
-    router.position.set(routerX, routerY, routerZ);
-    scene.add(router);
+    for (var si = 0; si < spineCount; si++) {
+        var spineY = baseY + si * (rHeight + spineGap);
 
-    // Front panel — clean panel with LEDs (ports face rear)
-    var frontZ = routerZ - rDepth / 2;
-    var backRZ = routerZ + rDepth / 2;
-    var rpGeo = new THREE.BoxGeometry(rWidth - 0.004, rHeight - 0.004, 0.003);
-    var rPanelFront = new THREE.Mesh(rpGeo, darkMat);
-    rPanelFront.position.set(routerX, routerY, frontZ - 0.002);
-    scene.add(rPanelFront);
+        var routerGeo = new THREE.BoxGeometry(rWidth, rHeight, rDepth);
+        var router = new THREE.Mesh(routerGeo, routerMat);
+        router.position.set(routerX, spineY, routerZ);
+        scene.add(router);
 
-    // Status LEDs on front
-    var rLedGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
-    for (var rl = 0; rl < 3; rl++) {
-        var rLed = new THREE.Mesh(rLedGeo, ledGreen);
-        rLed.position.set(routerX + rWidth / 2 - 0.02 - rl * 0.01, routerY + rHeight / 2 - 0.006, frontZ - 0.003);
-        scene.add(rLed);
+        // Front panel
+        var frontZ = routerZ - rDepth / 2;
+        var backRZ = routerZ + rDepth / 2;
+        var rpGeo = new THREE.BoxGeometry(rWidth - 0.004, rHeight - 0.004, 0.003);
+        var rPanelFront = new THREE.Mesh(rpGeo, darkMat);
+        rPanelFront.position.set(routerX, spineY, frontZ - 0.002);
+        scene.add(rPanelFront);
+
+        // Status LEDs on front
+        var rLedGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
+        for (var rl = 0; rl < 3; rl++) {
+            var rLed = new THREE.Mesh(rLedGeo, ledGreen);
+            rLed.position.set(routerX + rWidth / 2 - 0.02 - rl * 0.01, spineY + rHeight / 2 - 0.006, frontZ - 0.003);
+            scene.add(rLed);
+        }
+
+        // Rear panel
+        var rPanelBack = new THREE.Mesh(rpGeo.clone(), darkMat);
+        rPanelBack.position.set(routerX, spineY, backRZ + 0.002);
+        scene.add(rPanelBack);
+
+        // Router ports (rear — 8 ports)
+        var rpW = 0.014;
+        var rpH = 0.012;
+        var rpGeoPort = new THREE.BoxGeometry(rpW, rpH, 0.003);
+        for (var rp = 0; rp < 8; rp++) {
+            var rpx = routerX - rWidth / 2 + 0.04 + rp * (rpW + 0.008);
+            var port = new THREE.Mesh(rpGeoPort, portMat);
+            port.position.set(rpx, spineY, backRZ + 0.004);
+            scene.add(port);
+        }
+
+        // Label
+        var spineLabel = spineCount > 1 ? 'Spine ' + (si + 1) : 'Core Switch / Router / Firewall';
+        var routerLabel = makeFaceLabel(spineLabel, 28, '#ffffff', 'front');
+        routerLabel.position.set(routerX, spineY, frontZ - 0.008);
+        scene.add(routerLabel);
+
+        // Small shelf/platform under spine switch
+        var shelfGeo = new THREE.BoxGeometry(rWidth + 0.06, 0.01, rDepth + 0.06);
+        var shelfMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.7, metalness: 0.4 });
+        var shelf = new THREE.Mesh(shelfGeo, shelfMat);
+        shelf.position.set(routerX, spineY - rHeight / 2 - 0.005, routerZ);
+        scene.add(shelf);
     }
 
-    // Rear panel — ports face rear
-    var rPanelBack = new THREE.Mesh(rpGeo.clone(), darkMat);
-    rPanelBack.position.set(routerX, routerY, backRZ + 0.002);
-    scene.add(rPanelBack);
-
-    // Router ports (rear — 8 ports)
-    var rpW = 0.014;
-    var rpH = 0.012;
-    var rpGeoPort = new THREE.BoxGeometry(rpW, rpH, 0.003);
-    for (var rp = 0; rp < 8; rp++) {
-        var rpx = routerX - rWidth / 2 + 0.04 + rp * (rpW + 0.008);
-        var port = new THREE.Mesh(rpGeoPort, portMat);
-        port.position.set(rpx, routerY, backRZ + 0.004);
-        scene.add(port);
-    }
-
-    // Label: "Core Switch / Router / Firewall" on front face of switch
-    var routerLabel = makeFaceLabel('Core Switch / Router / Firewall', 28, '#ffffff', 'front');
-    routerLabel.position.set(routerX, routerY, frontZ - 0.008);
-    scene.add(routerLabel);
-
-    // ── Small shelf/platform under router ──
-    var shelfGeo = new THREE.BoxGeometry(rWidth + 0.06, 0.01, rDepth + 0.06);
-    var shelfMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.7, metalness: 0.4 });
-    var shelf = new THREE.Mesh(shelfGeo, shelfMat);
-    shelf.position.set(routerX, routerY - rHeight / 2 - 0.005, routerZ);
-    scene.add(shelf);
+    // Use the bottom spine switch for cable attachment
+    var routerY = baseY;
 
     // ── Cable runs ──
     var cableRadius = 0.004;
@@ -636,33 +714,25 @@ function placeCoreNetwork(scene, rack1X, rack2X) {
         return rackCx - torDeviceW / 2 + 0.04 + portIdx * (qsfpW + 0.008);
     }
 
-    // ── Blue cables: Management/Compute Trunks (each rack's ToRs → Router) ──
-    // Rack 1 ToR 1 → Router (use QSFP port 2)
-    makeCable(
-        { x: qsfpX(rack1X, 2), y: tor1QsfpY, z: torQsfpZ },
-        { x: routerX - rWidth / 4, y: routerBottomY, z: routerRearZ },
-        blueMat, 0.12
-    );
-    // Rack 1 ToR 2 → Router (use QSFP port 3)
-    makeCable(
-        { x: qsfpX(rack1X, 3), y: tor2QsfpY, z: torQsfpZ },
-        { x: routerX - rWidth / 8, y: routerBottomY, z: routerRearZ },
-        blueMat, 0.10
-    );
-    // Rack 2 ToR 3 → Router (use QSFP port 2)
-    makeCable(
-        { x: qsfpX(rack2X, 2), y: tor1QsfpY, z: torQsfpZ },
-        { x: routerX + rWidth / 8, y: routerBottomY, z: routerRearZ },
-        blueMat, 0.10
-    );
-    // Rack 2 ToR 4 → Router (use QSFP port 3)
-    makeCable(
-        { x: qsfpX(rack2X, 3), y: tor2QsfpY, z: torQsfpZ },
-        { x: routerX + rWidth / 4, y: routerBottomY, z: routerRearZ },
-        blueMat, 0.12
-    );
+    // ── Blue cables: Management/Compute Trunks (each rack's ToRs → Spine) ──
+    // Connect every rack's ToR to the bottom spine switch
+    for (var ri = 0; ri < allRackCount; ri++) {
+        var rackX_i = rackStartX + ri * (RACK.WIDTH + RACK.GAP_BETWEEN);
+        var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
+        makeCable(
+            { x: qsfpX(rackX_i, 2), y: tor1QsfpY, z: torQsfpZ },
+            { x: routerX + routerSlot * rWidth * 0.4, y: routerBottomY, z: routerRearZ },
+            blueMat, 0.12 + ri * 0.02
+        );
+        makeCable(
+            { x: qsfpX(rackX_i, 3), y: tor2QsfpY, z: torQsfpZ },
+            { x: routerX + routerSlot * rWidth * 0.2, y: routerBottomY, z: routerRearZ },
+            blueMat, 0.10 + ri * 0.02
+        );
+    }
 
-    // ── Pink/Magenta cables: SMB Storage Trunks (cross-rack ToR ↔ ToR, rear) ──
+    // ── Pink/Magenta cables: SMB Storage Trunks — rack-aware only (not disaggregated) ──
+    if (!isDisaggLayout) {
     // Calculate actual TOR switch center Y positions (reuse torDeviceH from above)
     var tor1CenterY = 0.06 + (42 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002; // U42
     var tor2CenterY = 0.06 + (41 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002; // U41
@@ -740,6 +810,7 @@ function placeCoreNetwork(scene, rack1X, rack2X) {
     lag2Label.position.set(rack2X + 0.115, (tor1CenterY + tor2CenterY) / 2, torBackZ + 0.03);
     lag2Label.scale.set(0.14, 0.04, 1);
     scene.add(lag2Label);
+    } // end if (!isDisaggLayout)
 }
 
 // ── Core Switch/Router for standard (single-rack) clusters ──
@@ -1049,8 +1120,21 @@ function renderRack3D(config) {
         var bmcLabel = 'BMC ' + bmcNum;
         placeBmcSwitch(_rack3d.scene, rack.group, rack.baseY, bmcU, bmcLabel);
 
+        // Place FC switches for disaggregated + Fibre Channel (2 per rack, below BMC)
+        var fcSwitchCount = 0;
+        if (isDisaggregated && config.disaggStorageType === 'fc_san') {
+            fcSwitchCount = 2;
+            var fcBaseU = bmcU - 1;
+            for (var fc = 0; fc < fcSwitchCount; fc++) {
+                var fcU = fcBaseU - fc;
+                var fcNum = (rackIndex * 2) + fc + 1;
+                var fcLabel = 'FC ' + fcNum;
+                placeFcSwitch(_rack3d.scene, rack.group, rack.baseY, fcU, fcLabel);
+            }
+        }
+
         // Place server nodes below switches, from top down
-        var topServerU = RACK.TOTAL_U - rackInfo.tor - 1; // first available U below switches + BMC
+        var topServerU = RACK.TOTAL_U - rackInfo.tor - 1 - fcSwitchCount; // first available U below switches + BMC + FC
         var nodeOffset = 0;
         for (var pr = 0; pr < rackIndex; pr++) { nodeOffset += racks[pr].nodes; }
         for (var n = 0; n < rackInfo.nodes; n++) {
@@ -1075,7 +1159,8 @@ function renderRack3D(config) {
     if (isRackAware || isDisaggregated) {
         var rack1X = startX;
         var rack2X = startX + (RACK.WIDTH + RACK.GAP_BETWEEN) * (rackCount - 1);
-        placeCoreNetwork(_rack3d.scene, rack1X, rack2X);
+        var spineCount = config.spineCount || 2;
+        placeCoreNetwork(_rack3d.scene, rack1X, rack2X, spineCount, rackCount, startX, isDisaggregated);
     } else {
         // Core switch/router for standard (single-rack) clusters
         placeStandardCoreNetwork(_rack3d.scene, startX, torPerRack, nodeCount);
@@ -1113,9 +1198,14 @@ function renderRack3D(config) {
     // Camera position — front-left, tight on rack body (minimal floor)
     var camDist, camTargetY;
     if (isRackAware || isDisaggregated) {
-        // Front-left view, slight downward angle onto racks + core router
-        var routerTopY = RACK.OUTER_HEIGHT + 0.35 + 0.05; // top of core router
+        // Front-left view, slight downward angle onto racks + spine switches
+        var spCount = config.spineCount || 2;
+        var spineH = RACK.U_HEIGHT * 1.5;
+        var spineGapH = spineH * 0.4;
+        var routerTopY = RACK.OUTER_HEIGHT + 0.35 + (spCount - 1) * (spineH + spineGapH) + spineH / 2 + 0.05;
         camDist = rackCount <= 2 ? 1.95 : 1.95 + (rackCount - 2) * 0.7;
+        // Bump camera distance for 4-spine to fit the taller stack
+        if (spCount >= 4) camDist += 0.3;
         camTargetY = RACK.OUTER_HEIGHT * 0.85;
         _rack3d.camera.position.set(0.65, routerTopY * 1.1, -camDist);
     } else {

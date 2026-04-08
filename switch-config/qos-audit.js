@@ -47,6 +47,7 @@
             pfcCos: [],
             classMapCos3: false,
             classMapCos7: false,
+            cosValues: [],
             etsBandwidthQueue3: null,
             etsBandwidthQueue7: null,
             etsBandwidthDefault: null,
@@ -139,6 +140,7 @@
                     var cos = parseInt(cosMatch[1], 10);
                     if (cos === 3) result.classMapCos3 = true;
                     if (cos === 7) result.classMapCos7 = true;
+                    if (result.cosValues.indexOf(cos) === -1) result.cosValues.push(cos);
                 }
                 continue;
             }
@@ -270,6 +272,7 @@
             pfcCos: [],
             classMapCos3: false,
             classMapCos7: false,
+            cosValues: [],
             etsBandwidthQueue3: null,
             etsBandwidthQueue7: null,
             etsBandwidthDefault: null,
@@ -349,6 +352,7 @@
                     var qg = parseInt(qgMatch[1], 10);
                     if (qg === 3) result.classMapCos3 = true;
                     if (qg === 7) result.classMapCos7 = true;
+                    if (result.cosValues.indexOf(qg) === -1) result.cosValues.push(qg);
                 }
                 continue;
             }
@@ -432,12 +436,14 @@
     function validate(parsed) {
         var checks = [];
         var isNxos = parsed.platform === 'nxos';
+        var detectedCos = parsed.cosValues && parsed.cosValues.length > 0 ? parsed.cosValues.sort(function(a,b){return a-b;}) : [];
+        var cosNote = detectedCos.length > 0 ? ' (detected CoS values: ' + detectedCos.join(', ') + ')' : '';
 
-        // 1. PFC on CoS 3
+        // 1. PFC on CoS 3 (or custom storage CoS)
         checks.push({
             id: 'pfc-cos3',
             name: 'PFC on CoS 3 (Lossless Storage/RDMA)',
-            description: 'Priority Flow Control (IEEE 802.1Qbb) must be enabled for CoS 3 to provide lossless transport for storage (RDMA) traffic.',
+            description: 'Priority Flow Control (IEEE 802.1Qbb) must be enabled for the storage CoS (default: 3) to provide lossless transport for RDMA traffic' + cosNote + '.',
             status: parsed.pfcCos.indexOf(3) !== -1 ? 'pass' : 'fail',
             expected: 'pfc-cos 3 / pause pfc-cos 3',
             found: parsed.pfcCos.length > 0 ? 'pfc-cos ' + parsed.pfcCos.join(', ') : 'Not found'
@@ -446,10 +452,10 @@
         // 2. CoS 3 class-map (RDMA classification)
         checks.push({
             id: 'classmap-cos3',
-            name: 'CoS 3 Class-Map (RDMA Classification)',
+            name: 'Storage CoS Class-Map (RDMA Classification)',
             description: isNxos
-                ? 'A class-map matching CoS 3 must exist to classify storage/RDMA traffic (match cos 3).'
-                : 'A network-qos class-map matching qos-group 3 must exist to classify storage/RDMA traffic.',
+                ? 'A class-map matching the storage CoS (default: 3) must exist to classify storage/RDMA traffic' + cosNote + '.'
+                : 'A network-qos class-map matching the storage qos-group (default: 3) must exist to classify storage/RDMA traffic' + cosNote + '.',
             status: parsed.classMapCos3 ? 'pass' : 'fail',
             expected: isNxos ? 'match cos 3' : 'match qos-group 3',
             found: parsed.classMapCos3 ? 'Present' : 'Not found'
@@ -458,10 +464,10 @@
         // 3. CoS 7 class-map (Cluster Heartbeat)
         checks.push({
             id: 'classmap-cos7',
-            name: 'CoS 7 Class-Map (Cluster Heartbeat)',
+            name: 'Cluster CoS Class-Map (Cluster Heartbeat)',
             description: isNxos
-                ? 'A class-map matching CoS 7 must exist to classify cluster heartbeat traffic (match cos 7).'
-                : 'A network-qos class-map matching qos-group 7 must exist to classify cluster heartbeat traffic.',
+                ? 'A class-map matching the cluster CoS (default: 7) must exist to classify cluster heartbeat traffic' + cosNote + '.'
+                : 'A network-qos class-map matching the cluster qos-group (default: 7) must exist to classify cluster heartbeat traffic' + cosNote + '.',
             status: parsed.classMapCos7 ? 'pass' : 'fail',
             expected: isNxos ? 'match cos 7' : 'match qos-group 7',
             found: parsed.classMapCos7 ? 'Present' : 'Not found'
@@ -478,7 +484,7 @@
             description: 'Enhanced Transmission Selection (IEEE 802.1Qaz) must reserve at least 50% of interface bandwidth for the storage queue (queue 3).',
             status: q3Status,
             expected: '\u226550%',
-            found: q3bw !== null ? q3bw + '%' : 'Not found'
+            found: q3bw !== null ? q3bw + '%' + (q3Status === 'warn' ? ' \u2014 below recommended 50% but functional; verify this meets your performance requirements' : '') : 'Not found'
         });
 
         // 5. ETS: Cluster queue 1–2%
@@ -492,7 +498,7 @@
             description: 'Cluster heartbeat traffic (queue 7) must be reserved 1\u20132% of interface bandwidth (2% for 10G, 1% for 25G+).',
             status: q7Status,
             expected: '1\u20132%',
-            found: q7bw !== null ? q7bw + '%' : 'Not found'
+            found: q7bw !== null ? q7bw + '%' + (q7Status === 'warn' ? ' \u2014 outside recommended 1\u20132% range; verify this is appropriate for your interface speed' : '') : 'Not found'
         });
 
         // 6. ECN on storage queue
@@ -533,19 +539,54 @@
             found: sysQosOk ? 'Present' : 'Not found'
         });
 
-        // 9. Interface PFC enabled on trunks
+        // 9. Interface PFC enabled on storage-facing interfaces
+        // The QoS service-policy is the definitive marker — interfaces with the QoS input
+        // policy are the ones that classify storage traffic and MUST have PFC.
+        // Interfaces without the policy (uplinks, BMC trunks, etc.) don't need PFC.
         var trunkCount = parsed.interfaceTrunks.length;
         var pfcCount = parsed.interfacePfc.length;
+        var qosPolicyInterfaces = parsed.interfaceQosPolicy;
         var intfPfcStatus = 'fail';
-        if (pfcCount > 0 && pfcCount >= trunkCount && trunkCount > 0) intfPfcStatus = 'pass';
-        else if (pfcCount > 0) intfPfcStatus = 'warn';
+        var intfPfcFound;
+
+        if (qosPolicyInterfaces.length > 0) {
+            // Smart check: compare PFC against QoS-policy interfaces (storage-facing)
+            var storageMissingPfc = qosPolicyInterfaces.filter(function (intf) { return parsed.interfacePfc.indexOf(intf) === -1; });
+            var nonStorageTrunks = parsed.interfaceTrunks.filter(function (t) { return qosPolicyInterfaces.indexOf(t) === -1; });
+
+            if (storageMissingPfc.length === 0 && qosPolicyInterfaces.length > 0) {
+                intfPfcStatus = 'pass';
+                intfPfcFound = 'All ' + qosPolicyInterfaces.length + ' storage-facing interface(s) have PFC: ' + qosPolicyInterfaces.join(', ');
+                if (nonStorageTrunks.length > 0) {
+                    intfPfcFound += '. ' + nonStorageTrunks.length + ' non-storage trunk(s) correctly omit PFC: ' + nonStorageTrunks.join(', ');
+                }
+            } else if (pfcCount > 0) {
+                intfPfcStatus = 'warn';
+                intfPfcFound = storageMissingPfc.length + ' of ' + qosPolicyInterfaces.length + ' storage-facing interface(s) are MISSING PFC: ' + storageMissingPfc.join(', ') + '. These interfaces have the QoS service-policy and need priority-flow-control mode on';
+            } else {
+                intfPfcFound = 'Not found on any interface \u2014 ' + qosPolicyInterfaces.length + ' interface(s) have QoS service-policy and require PFC';
+            }
+        } else {
+            // Fallback: no QoS policy detected, use simple trunk-based check
+            if (pfcCount > 0 && pfcCount >= trunkCount && trunkCount > 0) intfPfcStatus = 'pass';
+            else if (pfcCount > 0) intfPfcStatus = 'warn';
+
+            if (pfcCount === 0) {
+                intfPfcFound = 'Not found on any interface';
+            } else if (intfPfcStatus === 'warn') {
+                var nonPfcTrunks = parsed.interfaceTrunks.filter(function (t) { return parsed.interfacePfc.indexOf(t) === -1; });
+                intfPfcFound = pfcCount + ' of ' + trunkCount + ' trunk interface(s) have PFC. Enabled: ' + parsed.interfacePfc.join(', ') + '. Missing (requires validation): ' + nonPfcTrunks.join(', ');
+            } else {
+                intfPfcFound = 'All ' + trunkCount + ' trunk interface(s) have PFC: ' + parsed.interfacePfc.join(', ');
+            }
+        }
         checks.push({
             id: 'intf-pfc',
             name: 'Interface-Level PFC Enabled',
             description: 'priority-flow-control mode on must be configured on host-facing trunk interfaces that carry storage traffic.',
             status: intfPfcStatus,
             expected: 'priority-flow-control mode on',
-            found: pfcCount > 0 ? pfcCount + ' interface(s): ' + parsed.interfacePfc.join(', ') : 'Not found on any interface'
+            found: intfPfcFound
         });
 
         // 10. Interface QoS service-policy

@@ -5020,23 +5020,32 @@
         testSuite('Template Data Completeness', 'script.js', [
             (() => {
                 const templates = window.configTemplates || [];
-                return assert(templates.length === 5, 'showTemplates() provides exactly 5 templates', 5, templates.length);
+                return assert(templates.length === 6, 'showTemplates() provides exactly 6 templates', 6, templates.length);
             })(),
             (() => {
                 const requiredFields = [
-                    'scenario', 'region', 'localInstanceRegion', 'scale', 'nodes',
-                    'ports', 'storage', 'storagePoolConfiguration', 'intent', 'outbound',
-                    'arc', 'proxy', 'privateEndpoints', 'ip', 'infraCidr',
+                    'scenario', 'region', 'localInstanceRegion', 'nodes',
+                    'outbound', 'arc', 'proxy', 'privateEndpoints', 'ip', 'infraCidr',
                     'infraVlan', 'activeDirectory', 'dnsServers', 'securityConfiguration'
                 ];
+                // HCI-only fields not required for disaggregated templates
+                const hciOnlyFields = ['scale', 'ports', 'storage', 'storagePoolConfiguration', 'intent'];
                 const templates = window.configTemplates || [];
                 const missing = [];
                 templates.forEach((t, i) => {
+                    var isDisagg = t.config.architecture === 'disaggregated';
                     requiredFields.forEach(f => {
                         if (t.config[f] === undefined || t.config[f] === null) {
                             missing.push(t.name + ': ' + f);
                         }
                     });
+                    if (!isDisagg) {
+                        hciOnlyFields.forEach(f => {
+                            if (t.config[f] === undefined || t.config[f] === null) {
+                                missing.push(t.name + ': ' + f);
+                            }
+                        });
+                    }
                 });
                 return assert(missing.length === 0,
                     'All templates have all required base fields',

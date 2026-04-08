@@ -8932,8 +8932,10 @@ function transferToSizer() {
         timestamp: new Date().toISOString(),
         clusterType: mapDesignerToSizerClusterType(),
         nodeCount: String(state.nodes),
-        // Disaggregated rack count
+        // Disaggregated rack and spine count
         disaggRackCount: state.disaggRackCount || null,
+        spineCount: state.disaggSpineCount || null,
+        disaggStorageType: state.disaggStorageType || null,
         // Pass through scenario details for context
         scenario: state.scenario,
         scale: state.scale,
@@ -9579,6 +9581,72 @@ function showComparison(category) {
 function showTemplates() {
     const templates = [
         {
+            name: '64-Node Disaggregated Storage Cluster',
+            description: 'Large-scale disaggregated deployment with Fibre Channel SAN across 4 racks, Clos leaf-spine fabric, 2 spine switches',
+            config: {
+                scenario: 'connected',
+                architecture: 'disaggregated',
+                region: 'azure_commercial',
+                localInstanceRegion: 'east_us',
+                nodes: '64',
+                outbound: 'public',
+                arc: 'arc_gateway',
+                proxy: 'proxy',
+                ip: 'static',
+                infraCidr: '192.168.1.0/24',
+                infra: { start: '192.168.1.66', end: '192.168.1.71' },
+                infraGateway: '192.168.1.1',
+                infraGatewayManual: true,
+                infraCidrAuto: true,
+                nodeSettings: Array.from({ length: 64 }, function (_, i) {
+                    return { name: 'node' + (i + 1), ipCidr: '192.168.1.' + (i + 2) + '/24' };
+                }),
+                infraVlan: 'default',
+                activeDirectory: 'azure_ad',
+                adDomain: 'datacenter.local',
+                adOuPath: 'OU=AzureLocal,DC=datacenter,DC=local',
+                dnsServers: ['192.168.1.254'],
+                privateEndpoints: 'pe_disabled',
+                securityConfiguration: 'recommended',
+                disaggStorageType: 'fc_san',
+                disaggBackupEnabled: false,
+                disaggPortCount: 4,
+                disaggRackCount: 4,
+                disaggNodesPerRack: 16,
+                disaggSpineCount: 2,
+                disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 },
+                disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
+                disaggMgmtVlanMode: 'access',
+                disaggVrfName: 'AZLOCALINFRA',
+                disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' },
+                disaggQosCustomized: false,
+                disaggPortSpeeds: { ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE' },
+                disaggIntentMapping: { mgmt_compute: ['ocp_p1', 'ocp_p2'] },
+                disaggClusterPortMapping: { pcie1_p1: '711', pcie1_p2: '712', pcie2_p1: '500', pcie2_p2: '600' },
+                disaggNicNames: { ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2', cluster1: 'PCIe1-NIC3', cluster2: 'PCIe1-NIC4', iscsi1: 'PCIe2-NIC5', iscsi2: 'PCIe2-NIC6', backup1: 'Backup-NIC7', backup2: 'Backup-NIC8', bmc: 'BMC' },
+                disaggNicNamesConfirmed: true,
+                disaggNicConfigConfirmed: true,
+                disaggPortConfig: {
+                    ocp_p1: { customName: null, speed: '25GbE', rdma: true },
+                    ocp_p2: { customName: null, speed: '25GbE', rdma: true },
+                    pcie1_p1: { customName: null, speed: '25GbE', rdma: true },
+                    pcie1_p2: { customName: null, speed: '25GbE', rdma: true },
+                    bmc_p1: { customName: null, speed: '1GbE', rdma: false }
+                },
+                disaggPortConfigConfirmed: true,
+                disaggAdapterMapping: { ocp_p1: 'mgmt_compute', ocp_p2: 'mgmt_compute', pcie1_p1: 'cluster_1', pcie1_p2: 'cluster_2', bmc_p1: 'pool' },
+                disaggAdapterMappingConfirmed: true,
+                disaggIntentOverrides: {
+                    mgmt_compute: { rdmaMode: 'Disabled', jumboFrames: '1514', enableIov: '' },
+                    backup: { rdmaMode: 'Disabled', jumboFrames: '1514', enableIov: '' }
+                },
+                disaggOverridesConfirmed: true,
+                disaggVlanConfigConfirmed: true,
+                disaggIpConfigConfirmed: true,
+                disaggTenantNetworks: []
+            }
+        },
+        {
             name: '2-Node Standard Cluster',
             description: 'Small production cluster with cloud witness, ideal for branch offices',
             config: {
@@ -9909,8 +9977,17 @@ function loadTemplate(templateIndex) {
             }
         }
 
+        // Restore architecture after scenario selection (scenario resets it to null)
+        if (config.architecture) {
+            state.architecture = config.architecture;
+            if (config.architecture === 'disaggregated') {
+                selectOption('architecture', 'disaggregated');
+            }
+        }
+
         if (config.region) selectOption('region', config.region);
         if (config.localInstanceRegion) selectOption('localInstanceRegion', config.localInstanceRegion);
+
         if (config.scale) selectOption('scale', config.scale);
         if (config.nodes) selectOption('nodes', config.nodes);
         if (config.witnessType) selectOption('witnessType', config.witnessType);
@@ -10016,6 +10093,12 @@ function loadTemplate(templateIndex) {
         }
 
         if (config.securityConfiguration) selectOption('securityConfiguration', config.securityConfiguration);
+
+        // Re-apply disaggregated state fields (selectOption calls may have reset them)
+        if (config.architecture === 'disaggregated') {
+            var disaggKeys = Object.keys(config).filter(function (k) { return k.indexOf('disagg') === 0; });
+            disaggKeys.forEach(function (k) { state[k] = config[k]; });
+        }
 
         // Apply SDN settings
         if (config.sdnEnabled) selectOption('sdnEnabled', config.sdnEnabled);
@@ -10213,7 +10296,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check if first time user for onboarding
     setTimeout(() => {
-        if (!localStorage.getItem('odin_onboarding_complete')) {
+        if (!localStorage.getItem('odin_onboarding_v0_20_06')) {
             showOnboarding();
         }
     }, 2000);
@@ -10613,37 +10696,37 @@ function exportToPDF() {
 
 const onboardingSteps = [
     {
-        icon: '<img src="images/odin-logo.png" alt="Odin Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        icon: '<img src="images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
         isImage: true,
-        title: 'Welcome to Odin for Azure Local',
-        description: 'Your intelligent guide for planning Azure Local deployments. This wizard helps you make informed decisions and generates deployment-ready configurations.',
+        title: 'Welcome to ODIN for Azure Local',
+        description: 'Your intelligent guide for planning and configuring Azure Local deployments — from hardware sizing to deployment-ready ARM templates.',
         features: [
-            { icon: '🧭', title: 'Guided Workflow', text: 'Step-by-step configuration with intelligent defaults' },
-            { icon: '💾', title: 'Auto-Save', text: 'Progress is automatically saved to your browser' },
-            { icon: '📊', title: 'Visual Reports', text: 'Generate detailed deployment reports and diagrams' },
-            { icon: '⚡', title: 'ARM Templates', text: 'Export Azure Resource Manager parameters' }
+            { icon: '⚖️', title: 'Sizer', text: 'Calculate hardware requirements based on your workloads (VMs, AKS, AVD)' },
+            { icon: '🧭', title: 'Designer', text: 'Step-by-step wizard for cluster configuration with intelligent defaults' },
+            { icon: '🔌', title: 'Switch Config', text: 'Generate ToR switch configs and validate QoS for Cisco / Dell' },
+            { icon: '📊', title: 'Reports & ARM', text: 'Generate deployment reports, rack diagrams, and ARM parameter files' }
         ]
     },
     {
         icon: '🔧',
         title: 'How It Works',
-        description: 'Follow the numbered steps on the left to configure your Azure Local deployment. The summary panel on the right shows your progress.',
+        description: 'Choose your starting point based on where you are in your planning process.',
         features: [
-            { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Select Hyperconverged, Disconnected, or other options' },
-            { icon: '2️⃣', title: 'Configure Cluster', text: 'Set up nodes, storage, and network settings' },
-            { icon: '3️⃣', title: 'Set Identity & Security', text: 'Configure AD, DNS, and security policies' },
-            { icon: '4️⃣', title: 'Generate Outputs', text: 'Create reports and ARM parameter files' }
+            { icon: '⚖️', title: 'Start with Sizer', text: 'Add workloads, review hardware recommendations, then transfer to Designer' },
+            { icon: '🧭', title: 'Start with Designer', text: 'Configure deployment type, network, identity, and security settings' },
+            { icon: '🏗️', title: 'Disaggregated', text: 'Use the Disaggregated Architecture wizard for external SAN with Clos fabric' },
+            { icon: '📚', title: 'Knowledge', text: 'Explore outbound connectivity guides and architecture diagrams' }
         ]
     },
     {
         icon: '⌨️',
         title: 'Pro Tips',
-        description: 'Make the most of Odin with these helpful features.',
+        description: 'Make the most of ODIN with these helpful features.',
         features: [
-            { icon: '📋', title: 'Templates', text: 'Load pre-configured templates for common scenarios' },
+            { icon: '📋', title: 'Templates', text: 'Load pre-configured templates for common scenarios (incl. disaggregated)' },
             { icon: '🔄', title: 'Import/Export', text: 'Save and share configurations as JSON files' },
             { icon: '🎨', title: 'Customization', text: 'Adjust font size and toggle dark/light theme' },
-            { icon: '⌨️', title: 'Shortcuts', text: 'Press Alt+? anytime to see keyboard shortcuts' }
+            { icon: '💾', title: 'Auto-Save', text: 'Progress is automatically saved — resume anytime from where you left off' }
         ]
     }
 ];
@@ -10717,12 +10800,12 @@ function nextOnboardingStep() {
 }
 
 function skipOnboarding() {
-    localStorage.setItem('odin_onboarding_complete', 'true');
+    localStorage.setItem('odin_onboarding_v0_20_06', 'true');
     document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
 }
 
 function finishOnboarding() {
-    localStorage.setItem('odin_onboarding_complete', 'true');
+    localStorage.setItem('odin_onboarding_v0_20_06', 'true');
     document.querySelectorAll('.onboarding-overlay').forEach(el => el.remove());
     showToast('Welcome! Start by selecting a Deployment Type.', 'success', 4000);
 }
