@@ -1,5 +1,5 @@
 ﻿// Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.18.50';
+const WIZARD_VERSION = '0.26.04';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 const state = {
     scenario: null,
+    architecture: null, // 'hyperconverged' | 'disaggregated' — selected in Step 1b
     region: null,
     localInstanceRegion: null,
     scale: null,
@@ -162,7 +163,59 @@ const state = {
     privateEndpoints: null, // 'pe_enabled' or 'pe_disabled'
     privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
     sizerHardware: null, // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
-    sizerWorkloads: null // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
+    sizerWorkloads: null, // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
+    // Disaggregated architecture state
+    disaggStorageType: null, // 'fc_san' | 'iscsi_4nic' | 'iscsi_6nic'
+    disaggBackupEnabled: false,
+    disaggPortCount: null,
+    disaggRackCount: null,
+    disaggNodesPerRack: null,
+    disaggSpineCount: null,
+    disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 },
+    disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
+    disaggMgmtVlanMode: 'access',
+    disaggVrfName: 'AZLOCALINFRA',
+    disaggSubnets: {},
+    disaggIscsiTargets: [],
+    disaggQosCustomized: false,
+    // DA9: Node configuration
+
+    // DA10: NIC / Adapter configuration
+    disaggPortSpeeds: {  // Speed per NIC slot
+        ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE'
+    },
+    disaggIntentMapping: { // Port-to-intent mapping (SET team)
+        mgmt_compute: ['ocp_p1', 'ocp_p2']  // Default: OCP ports form Mgmt+Compute SET
+    },
+    disaggClusterPortMapping: { // Standalone port-to-VLAN mapping
+        pcie1_p1: '711', pcie1_p2: '712',   // Cluster NICs
+        pcie2_p1: '500', pcie2_p2: '600'    // iSCSI NICs (6-NIC only)
+    },
+    disaggNicNames: {
+        ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2',           // Compute+Mgmt SET team
+        cluster1: 'PCIe1-NIC3', cluster2: 'PCIe1-NIC4', // Cluster standalone
+        iscsi1: 'PCIe2-NIC5', iscsi2: 'PCIe2-NIC6',     // iSCSI standalone (6-NIC only)
+        backup1: 'Backup-NIC7', backup2: 'Backup-NIC8',  // Backup standalone (optional)
+        bmc: 'BMC'
+    },
+    disaggNicNamesConfirmed: false,
+    disaggNicConfigConfirmed: false,
+    // Per-port config (mirrors HCI portConfig)
+    disaggPortConfig: {},
+    disaggPortConfigConfirmed: false,
+    // Adapter mapping (mirrors HCI adapterMapping)
+    disaggAdapterMapping: {},
+    disaggAdapterMappingConfirmed: false,
+    // Intent overrides (RDMA, Jumbo, SR-IOV for Mgmt+Compute and Backup intents)
+    disaggIntentOverrides: {},
+    // Overrides confirmed
+    disaggOverridesConfirmed: false,
+    // Standalone NIC subnets (not managed by intents)
+    disaggClusterSubnet1: null, // Cluster NIC1 subnet (VLAN 711)
+    disaggClusterSubnet2: null, // Cluster NIC2 subnet (VLAN 712)
+    disaggIscsiSubnet1: null,   // iSCSI NIC1 subnet (VLAN 500)
+    disaggIscsiSubnet2: null,   // iSCSI NIC2 subnet (VLAN 600)
+    disaggBackupSubnet: null    // Backup subnet (VLAN 800)
 };
 
 // Auto-save state to localStorage
@@ -231,8 +284,11 @@ function computeWizardProgress() {
     add('Deployment Type', Boolean(state.scenario));
     add('Azure Cloud', Boolean(state.region));
     add('Azure Local Instance Region', Boolean(state.localInstanceRegion));
-    add('Cluster Scale', Boolean(state.scale));
-    add('Nodes', Boolean(state.nodes));
+
+    if (state.architecture !== 'disaggregated') {
+        add('Cluster Scale', Boolean(state.scale));
+        add('Nodes', Boolean(state.nodes));
+    }
 
     if (state.scale === 'rack_aware' && state.nodes) {
         const z = state.rackAwareZones;
@@ -240,10 +296,18 @@ function computeWizardProgress() {
         add('TOR switch architecture', Boolean(state.rackAwareTorsPerRoom && state.rackAwareTorArchitecture));
     }
 
-    add('Ports', Boolean(state.ports));
-    add('Storage Connectivity', Boolean(state.storage));
-    add('Storage Pool Configuration', Boolean(state.storagePoolConfiguration));
-    add('Traffic Intent', Boolean(state.intent));
+    if (state.architecture === 'disaggregated') {
+        add('Storage Type', Boolean(state.disaggStorageType));
+        add('Port Count', Boolean(state.disaggPortCount));
+        if (state.disaggRackCount) {
+            add('Rack Scale', Boolean(state.disaggRackCount && state.disaggNodesPerRack));
+        }
+    } else {
+        add('Ports', Boolean(state.ports));
+        add('Storage Connectivity', Boolean(state.storage));
+        add('Storage Pool Configuration', Boolean(state.storagePoolConfiguration));
+        add('Traffic Intent', Boolean(state.intent));
+    }
     add('Outbound Connectivity', Boolean(state.outbound));
     add('Arc Gateway', Boolean(state.arc));
     add('Proxy', Boolean(state.proxy));
@@ -279,9 +343,9 @@ function computeWizardProgress() {
     // Security Configuration
     add('Security Configuration', Boolean(state.securityConfiguration));
 
-    // SDN management becomes required only when SDN features are selected.
+    // SDN: features are the only user choice; management is auto-set to Arc
     if (state.sdnFeatures && state.sdnFeatures.length > 0) {
-        add('SDN Management', Boolean(state.sdnManagement));
+        add('SDN Features', true);
     }
 
     const total = checks.length;
@@ -325,6 +389,9 @@ const missingSectionToStep = {
     'ToR switch architecture': 'step-3-5',
     'TOR switch architecture': 'step-3-5',
     'Storage Connectivity': 'step-4',
+    'Storage Type': 'step-da1',
+    'Port Count': 'step-da4',
+    'Rack Scale': 'step-da3',
     'Ports': 'step-5',
     'Storage Pool Configuration': 'step-5-5',
     'Traffic Intent': 'step-6',
@@ -351,7 +418,6 @@ const missingSectionToStep = {
     'Security Configuration': 'step-13-5',
     'SDN Enabled/Disabled': 'step-14',
     'SDN Features': 'step-14',
-    'SDN Management': 'step-14',
     'Confirm Autonomous Cloud FQDN': 'step-fqdn',
     'Confirm adapter mapping for Custom intent': 'step-6',
     'RDMA: At least': 'step-5',
@@ -450,19 +516,52 @@ window.addEventListener('unhandledrejection', (e) => {
 function getReportReadiness() {
     const missing = [];
 
-    // If Multi-Rack, wizard intentionally stops early.
-    if (state.scenario === 'multirack') {
-        missing.push('Scenario must not be Multi-Rack (report is not available for Multi-Rack flow)');
+    // If Rack Scale, wizard intentionally stops early.
+    if (state.scenario === 'rackscale') {
+        missing.push('Scenario must not be Rack Scale (report is not available for Rack Scale flow)');
         return { ready: false, missing };
     }
 
     if (!state.scenario) missing.push('Deployment Type');
+    if (!state.architecture) missing.push('Architecture');
 
     // Disconnected: require confirmed Autonomous Cloud FQDN
     if (state.scenario === 'disconnected' && state.clusterRole && !state.fqdnConfirmed) {
         missing.push('Confirm Autonomous Cloud FQDN');
     }
 
+    // Disaggregated architecture has its own readiness checks
+    if (state.architecture === 'disaggregated') {
+        // DA1-DA4: Core disaggregated config
+        if (!state.disaggStorageType) missing.push('Storage Type (DA1)');
+        if (!state.disaggRackCount) missing.push('Rack Count (DA3)');
+        if (!state.disaggNodesPerRack) missing.push('Nodes Per Rack (DA3)');
+        if (!state.disaggSpineCount) missing.push('Spine Count (DA4)');
+        // DA10: Port count + NIC configuration
+        if (!state.disaggPortCount) missing.push('Network Port Count (DA10)');
+        if (!state.disaggNicConfigConfirmed) missing.push('Network Adapter Configuration (DA10)');
+        // Shared steps — same as HCI
+        if (!state.region) missing.push('Azure Cloud');
+        if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
+        if (!state.outbound) missing.push('Outbound Connectivity');
+        if (!state.arc) missing.push('Azure Arc Gateway');
+        if (!state.proxy) missing.push('Proxy');
+        if (!state.privateEndpoints) missing.push('Private Endpoints');
+        if (!state.ip) missing.push('IP Assignment');
+        if (state.ip === 'static' && !state.infraGateway) missing.push('Default Gateway');
+        if (!state.infraVlan) missing.push('Infrastructure VLAN');
+        if (!state.activeDirectory) {
+            missing.push('Identity (Active Directory / Local Identity)');
+        } else {
+            if (state.activeDirectory === 'azure_ad' && !state.adDomain) missing.push('Active Directory Domain Name');
+            if (!state.dnsServers || state.dnsServers.length <= 0) missing.push('DNS Servers');
+            if (state.activeDirectory === 'local_identity' && !state.localDnsZone) missing.push('Local DNS Zone Name');
+        }
+        if (!state.securityConfiguration) missing.push('Security Configuration');
+        return { ready: missing.length === 0, missing };
+    }
+
+    // HCI-specific readiness checks below
     if (!state.region) missing.push('Azure Cloud');
     if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
     if (!state.scale) missing.push('Scale');
@@ -554,15 +653,12 @@ function getReportReadiness() {
         missing.push('Security Configuration');
     }
 
-    // SDN: user must select enabled or disabled; if enabled, features and management required
+    // SDN: user must select enabled or disabled; if enabled, at least one feature required
     if (!state.sdnEnabled) {
         missing.push('SDN Enabled/Disabled');
     } else if (state.sdnEnabled === 'yes') {
         if (!state.sdnFeatures || state.sdnFeatures.length === 0) {
             missing.push('SDN Features');
-        }
-        if (!state.sdnManagement) {
-            missing.push('SDN Management');
         }
     }
 
@@ -907,6 +1003,11 @@ function tryAutoFillSequentialNodeIpsFromFirst() {
 }
 
 function ensureNodeSettingsInitialized() {
+    // For disaggregated, ensure state.nodes is synced from DA3 before computing count
+    if (state.architecture === 'disaggregated') {
+        const total = (state.disaggRackCount || 0) * (state.disaggNodesPerRack || 0);
+        if (total > 0 && state.nodes !== String(total)) state.nodes = String(total);
+    }
     const count = getNumericNodeCount();
     if (!count) return;
 
@@ -1013,6 +1114,13 @@ function renderNodeSettings() {
     const container = document.getElementById('node-config-container');
     if (!section || !container) return;
 
+    // For disaggregated, re-sync node count from DA3 (racks × nodesPerRack)
+    // in case a downstream reset handler cleared state.nodes
+    if (state.architecture === 'disaggregated') {
+        const total = (state.disaggRackCount || 0) * (state.disaggNodesPerRack || 0);
+        if (total > 0) state.nodes = String(total);
+    }
+
     // Only show after node count and IP assignment selection are known.
     const count = getNumericNodeCount();
     if (!count || !state.ip) {
@@ -1025,29 +1133,84 @@ function renderNodeSettings() {
     ensureNodeSettingsInitialized();
     container.innerHTML = '';
 
-    for (let i = 0; i < count; i++) {
-        const node = state.nodeSettings[i] || { name: '', ipCidr: '' };
+    // Determine rack grouping
+    var rackGroups = null;
+
+    if (state.architecture === 'disaggregated' && state.disaggRackCount > 1) {
+        // Disaggregated multi-rack: sequential groups of nodesPerRack
+        var npr = state.disaggNodesPerRack || 1;
+        var racks = state.disaggRackCount || 1;
+        rackGroups = [];
+        for (var r = 0; r < racks; r++) {
+            var nodes = [];
+            for (var n = 0; n < npr && (r * npr + n) < count; n++) {
+                nodes.push(r * npr + n);
+            }
+            rackGroups.push({ label: 'Rack ' + (r + 1), nodeIndices: nodes });
+        }
+    } else if (state.scale === 'rack_aware' && state.rackAwareZones && state.rackAwareZones.assignments) {
+        // Rack-aware HCI: group by zone assignment
+        var assignments = state.rackAwareZones.assignments;
+        var z1Name = (state.rackAwareZones.zone1Name || 'Zone 1').trim();
+        var z2Name = (state.rackAwareZones.zone2Name || 'Zone 2').trim();
+        var zone1Nodes = [], zone2Nodes = [];
+        for (var i = 0; i < count; i++) {
+            var zoneNum = Number(assignments[String(i + 1)]);
+            if (zoneNum === 2) {
+                zone2Nodes.push(i);
+            } else {
+                zone1Nodes.push(i);
+            }
+        }
+        rackGroups = [
+            { label: z1Name + ' (' + zone1Nodes.length + ' nodes)', nodeIndices: zone1Nodes },
+            { label: z2Name + ' (' + zone2Nodes.length + ' nodes)', nodeIndices: zone2Nodes }
+        ];
+    }
+
+    function renderNodeRow(nodeIndex) {
+        const node = state.nodeSettings[nodeIndex] || { name: '', ipCidr: '' };
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;';
 
         row.innerHTML = `
             <div style="flex:1; min-width:220px;">
-                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${i + 1} Name</label>
-                <input type="text" value="${escapeHtml(node.name)}" maxlength="15" placeholder="e.g. node${i + 1}"
+                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${nodeIndex + 1} Name</label>
+                <input type="text" value="${escapeHtml(node.name)}" maxlength="15" placeholder="e.g. node${nodeIndex + 1}"
                     title="SAM Account name (max 15 chars). Enter Node 1 name with a number suffix (e.g. server01) to auto-fill other nodes."
                     style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
-                    onchange="updateNodeName(${i}, this.value)">
+                    onchange="updateNodeName(${nodeIndex}, this.value)">
             </div>
             <div style="flex:1; min-width:220px;">
-                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${i + 1} IP (CIDR)</label>
-                <input type="text" value="${escapeHtml(node.ipCidr)}" placeholder="e.g. 192.168.1.${10 + i}/24"
+                <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Node ${nodeIndex + 1} IP (CIDR)</label>
+                <input type="text" value="${escapeHtml(node.ipCidr)}" placeholder="e.g. 192.168.1.${10 + nodeIndex}/24"
                     title="IPv4 CIDR (e.g. 192.168.1.10/24). Must be unique across nodes."
                     style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
-                    onchange="updateNodeIpCidr(${i}, this.value)">
+                    onchange="updateNodeIpCidr(${nodeIndex}, this.value)">
             </div>
         `;
+        return row;
+    }
 
-        container.appendChild(row);
+    if (rackGroups) {
+        // Render nodes grouped by rack/zone
+        for (var g = 0; g < rackGroups.length; g++) {
+            var group = rackGroups[g];
+            var header = document.createElement('div');
+            header.style.cssText = 'margin-top: ' + (g === 0 ? '0.5rem' : '1.5rem') + '; padding: 0.5rem 0.75rem; background: rgba(0,120,212,0.08); border: 1px solid rgba(0,120,212,0.25); border-radius: 6px; display: flex; align-items: center; gap: 0.5rem;';
+            header.innerHTML = '<span style="font-size: 1rem; color: var(--accent-primary); font-weight: 600;">' + escapeHtml(group.label) + '</span>'
+                + '<span style="font-size: 0.8rem; color: var(--text-secondary);">' + group.nodeIndices.length + ' node' + (group.nodeIndices.length !== 1 ? 's' : '') + '</span>';
+            container.appendChild(header);
+
+            for (var ni = 0; ni < group.nodeIndices.length; ni++) {
+                container.appendChild(renderNodeRow(group.nodeIndices[ni]));
+            }
+        }
+    } else {
+        // Single rack / no grouping
+        for (let i = 0; i < count; i++) {
+            container.appendChild(renderNodeRow(i));
+        }
     }
 
     validateNodeSettings();
@@ -2195,11 +2358,11 @@ function generateReport() {
 function selectOption(category, value) {
     // Special handling for M365 Local - stop workflow and show documentation
     if (category === 'scenario' && value === 'm365local') {
-        // Hide Multi-Rack message when switching to M365 Local
-        const multiRackMsg = document.getElementById('multirack-message');
-        if (multiRackMsg) {
-            multiRackMsg.classList.add('hidden');
-            multiRackMsg.classList.remove('visible');
+        // Hide Rack Scale message when switching to M365 Local
+        const rackScaleMsg = document.getElementById('rackscale-message');
+        if (rackScaleMsg) {
+            rackScaleMsg.classList.add('hidden');
+            rackScaleMsg.classList.remove('visible');
         }
         showM365LocalInfo();
         return;
@@ -2214,12 +2377,12 @@ function selectOption(category, value) {
         }
     }
 
-    // Hide Multi-Rack message when switching to another scenario option
-    if (category === 'scenario' && value !== 'multirack') {
-        const multiRackMsg = document.getElementById('multirack-message');
-        if (multiRackMsg) {
-            multiRackMsg.classList.add('hidden');
-            multiRackMsg.classList.remove('visible');
+    // Hide Rack Scale message when switching to another scenario option
+    if (category === 'scenario' && value !== 'rackscale') {
+        const rackScaleMsg = document.getElementById('rackscale-message');
+        if (rackScaleMsg) {
+            rackScaleMsg.classList.add('hidden');
+            rackScaleMsg.classList.remove('visible');
         }
     }
 
@@ -2260,6 +2423,7 @@ function selectOption(category, value) {
     // Reset chains
     if (category === 'scenario') {
         state.scenario = value;
+        state.architecture = null; // Reset architecture when scenario changes
         state.region = null;
         state.localInstanceRegion = null;
         state.scale = null;
@@ -2287,11 +2451,42 @@ function selectOption(category, value) {
         state.infraVlanId = null;
         state.storageAutoIp = null;
         state.customIntents = {}; state.adapterMapping = {}; state.adapterMappingConfirmed = false; state.adapterMappingSelection = null;
+        // Reset disaggregated state
+        state.disaggStorageType = null;
+        state.disaggBackupEnabled = false;
+        state.disaggPortCount = null;
+        state.disaggRackCount = null;
+        state.disaggNodesPerRack = null;
+        state.disaggSpineCount = null;
+        state.disaggMgmtVlanMode = 'access';
+        state.disaggQosCustomized = false;
+    } else if (category === 'architecture') {
+        state.architecture = value;
+        // Management cluster is always HCI — clear if switching to disaggregated
+        if (value === 'disaggregated' && state.clusterRole === 'management') {
+            state.clusterRole = null;
+        }
+        // Reset downstream state when architecture changes
+        state.region = null;
+        state.localInstanceRegion = null;
+        state.scale = null;
+        state.nodes = null;
+        state.ports = null;
+        state.storage = null;
+        state.intent = null;
+        state.disaggStorageType = null;
+        state.disaggBackupEnabled = false;
+        state.disaggPortCount = null;
+        state.disaggRackCount = null;
+        state.disaggNodesPerRack = null;
+        state.disaggSpineCount = null;
+        state.disaggMgmtVlanMode = 'access';
+        state.disaggQosCustomized = false;
     } else if (category === 'region') {
         state.region = value;
         state.localInstanceRegion = null;
         state.scale = null;
-        state.nodes = null;
+        if (state.architecture !== 'disaggregated') { state.nodes = null; }
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -2318,7 +2513,7 @@ function selectOption(category, value) {
     } else if (category === 'localInstanceRegion') {
         state.localInstanceRegion = value;
         state.scale = null;
-        state.nodes = null;
+        if (state.architecture !== 'disaggregated') { state.nodes = null; }
         state.ports = null;
         state.storage = null;
         state.switchlessLinkMode = null;
@@ -3244,41 +3439,61 @@ function updateUI() {
         document.getElementById('step-5-5'),
         document.getElementById('step-13'),
         document.getElementById('step-13-5'),
-        document.getElementById('step-14')
+        document.getElementById('step-14'),
+        document.getElementById('step-report-actions')
     ];
 
     try {
     // 1. SCENARIO LOGIC & VISIBILITY
         const scenarioExp = document.getElementById('scenario-explanation');
-        const multiRackMsg = document.getElementById('multirack-message');
+        const rackScaleMsg = document.getElementById('rackscale-message');
+        const archSelection = document.getElementById('architecture-selection');
+        const archExp = document.getElementById('architecture-explanation');
+
+        // Disaggregated step elements
+        const daSteps = [
+            document.getElementById('step-da1'),
+            document.getElementById('step-da2'),
+            document.getElementById('step-da3'),
+            document.getElementById('step-da4'),
+            document.getElementById('step-da5'),
+            document.getElementById('step-da6'),
+            document.getElementById('step-da7'),
+            document.getElementById('step-da8'),
+            document.getElementById('step-da10')
+        ];
 
         // Reset Visibility first
         steps.forEach(s => s && s.classList.remove('hidden'));
-        if (multiRackMsg) {
-            multiRackMsg.classList.add('hidden');
-            multiRackMsg.classList.remove('visible');
+        daSteps.forEach(s => s && s.classList.add('hidden'));
+        if (rackScaleMsg) {
+            rackScaleMsg.classList.add('hidden');
+            rackScaleMsg.classList.remove('visible');
         }
         if (scenarioExp) scenarioExp.classList.remove('visible');
+        if (archSelection) archSelection.classList.add('hidden');
+        if (archExp) archExp.classList.remove('visible');
 
-        if (state.scenario === 'multirack') {
-        // Multi-Rack Logic: Hide everything, show message
+        // Restore scenario card selection
+        document.querySelectorAll('.option-card').forEach(card => {
+            const clickFn = card.getAttribute('onclick') || '';
+            if (clickFn.includes("selectOption('scenario'")) {
+                const value = card.getAttribute('data-value');
+                card.classList.toggle('selected', state.scenario === value);
+            } else if (clickFn.includes("selectOption('architecture'")) {
+                const value = card.getAttribute('data-value');
+                card.classList.toggle('selected', state.architecture === value);
+            }
+        });
+
+        if (state.scenario === 'rackscale') {
+        // Rack Scale Logic: Hide everything, show message
             steps.forEach(s => s && s.classList.add('hidden'));
-            if (multiRackMsg) {
-                multiRackMsg.classList.remove('hidden');
-                multiRackMsg.classList.add('visible');
+            if (rackScaleMsg) {
+                rackScaleMsg.classList.remove('hidden');
+                rackScaleMsg.classList.add('visible');
             }
 
-            // Keep Scenario option visually selected even though we stop the flow early.
-            // (The normal card selection pass runs later in updateUI.)
-            document.querySelectorAll('.option-card').forEach(card => {
-                const clickFn = card.getAttribute('onclick') || '';
-                if (!clickFn.includes("selectOption('scenario'")) return;
-                const value = card.getAttribute('data-value');
-                if (state.scenario === value) card.classList.add('selected');
-                else card.classList.remove('selected');
-            });
-
-            // Summary hidden?
             const summaryPanel = document.getElementById('summary-panel');
             if (summaryPanel) summaryPanel.classList.add('hidden');
             return; // STOP FLOW
@@ -3295,12 +3510,56 @@ function updateUI() {
         <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">📘 More information on M365 Local</a>`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
-        } else if (state.scenario === 'hyperconverged') {
+        } else if (state.scenario === 'connected') {
             if (scenarioExp) {
-                scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">Hyperconverged Infrastructure</strong>
-        Consolidated compute and storage in a single rack. Supports Low Capacity and Standard Scale configurations.`;
+                scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">Connected Deployment</strong>
+        Cloud-connected deployment with full Azure Arc integration. Select the architecture below.`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
+        }
+
+        // Show architecture selection for Connected + Disconnected scenarios
+        if (state.scenario === 'connected' || state.scenario === 'disconnected') {
+            if (archSelection) archSelection.classList.remove('hidden');
+
+            // Show architecture explanation
+            if (state.architecture === 'hyperconverged' && archExp) {
+                archExp.innerHTML = `<strong style="color: var(--accent-blue);">Hyperconverged Infrastructure</strong>
+        S2D storage with RDMA, 2-switch TOR pair, up to 16 nodes per rack. Supports Low Capacity and Standard Scale configurations.`;
+                archExp.classList.add('visible');
+            } else if (state.architecture === 'disaggregated' && archExp) {
+                archExp.innerHTML = `<strong style="color: var(--accent-purple);">Disaggregated Architecture</strong>
+        External SAN storage (FC or iSCSI), Clos leaf-spine fabric with VXLAN EVPN overlay, up to 64 nodes across multiple racks.`;
+                archExp.classList.add('visible');
+            }
+        }
+
+        // Architecture-based step visibility
+        if (state.architecture === 'disaggregated') {
+            // Hide HCI-only steps
+            const hciOnlyIds = ['step-2', 'step-3', 'step-3-5', 'step-4', 'step-5', 'step-6', 'step-5-5', 'step-14'];
+            steps.forEach(s => {
+                if (s && hciOnlyIds.includes(s.id)) {
+                    s.classList.add('hidden');
+                }
+            });
+            // Show DA steps progressively based on state
+            if (daSteps[0]) daSteps[0].classList.remove('hidden'); // DA1 always visible
+            if (state.disaggStorageType && daSteps[1]) daSteps[1].classList.remove('hidden'); // DA2
+            if ((state.disaggStorageType === 'fc_san' || state.disaggBackupEnabled !== undefined) && daSteps[2]) daSteps[2].classList.remove('hidden'); // DA3
+            if (state.disaggRackCount && state.disaggNodesPerRack && daSteps[3]) daSteps[3].classList.remove('hidden'); // DA4
+            if (state.disaggSpineCount) {
+                if (daSteps[4]) daSteps[4].classList.remove('hidden'); // DA5
+                if (daSteps[5]) daSteps[5].classList.remove('hidden'); // DA6
+                if (daSteps[6]) daSteps[6].classList.remove('hidden'); // DA7
+                if (daSteps[7]) daSteps[7].classList.remove('hidden'); // DA8
+                if (daSteps[8]) daSteps[8].classList.remove('hidden'); // DA10
+            }
+            // Shared steps (cloud, region, outbound, arc, proxy, PE, mgmt, infra VLAN, infra network, AD, security)
+            // remain visible — they were un-hidden in the reset block above
+        } else if (!state.architecture) {
+            // No architecture selected yet - hide all downstream steps
+            steps.forEach(s => s && s.classList.add('hidden'));
         }
 
         // Outbound visibility logic (Step 7) moved later or handled here?
@@ -3922,7 +4181,7 @@ function updateUI() {
         }
     }
 
-    if (!state.intent) {
+    if (!state.intent && state.architecture !== 'disaggregated') {
         document.querySelectorAll('#outbound-connected .option-card').forEach(c => c.classList.add('disabled'));
         document.querySelectorAll('#outbound-disconnected .option-card').forEach(c => c.classList.add('disabled'));
     }
@@ -4005,6 +4264,58 @@ function updateUI() {
         if (!state.infraVlan) {
             state.infraVlan = 'default';
         }
+    }
+
+    // Disaggregated: Auto-set Infrastructure VLAN from DA5 management VLAN mode
+    if (state.architecture === 'disaggregated' && state.ip) {
+        const mgmtVlanId = state.disaggVlans ? state.disaggVlans.mgmt : null;
+        const daNotice = document.getElementById('infra-vlan-da-notice');
+        const daNoticeText = document.getElementById('infra-vlan-da-notice-text');
+        if (daNotice) { daNotice.classList.remove('hidden'); }
+        if (state.disaggMgmtVlanMode === 'trunk') {
+            // Trunk → Custom VLAN with the VLAN ID from DA5
+            state.infraVlan = 'custom';
+            state.infraVlanId = mgmtVlanId;
+            if (cards.infraVlan['default']) {
+                cards.infraVlan['default'].classList.add('disabled');
+                cards.infraVlan['default'].classList.remove('selected');
+            }
+            if (cards.infraVlan['custom']) {
+                cards.infraVlan['custom'].classList.remove('disabled');
+                cards.infraVlan['custom'].classList.add('selected');
+            }
+            // Show custom VLAN input pre-filled and disabled
+            const vlanCustom = document.getElementById('infra-vlan-custom');
+            const vlanInput = document.getElementById('infra-vlan-id');
+            const vlanInfo = document.getElementById('infra-vlan-info');
+            if (vlanCustom) { vlanCustom.classList.remove('hidden'); vlanCustom.classList.add('visible'); }
+            if (vlanInput) { vlanInput.value = mgmtVlanId || ''; vlanInput.disabled = true; }
+            if (vlanInfo) { vlanInfo.classList.remove('hidden'); vlanInfo.classList.add('visible'); }
+            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Trunk mode on DA5. Custom VLAN ' + (mgmtVlanId || '') + ' is applied — the host NICs will tag management traffic with this VLAN ID.';
+        } else {
+            // Access → Default VLAN, show the native VLAN ID from DA5
+            state.infraVlan = 'default';
+            state.infraVlanId = null;
+            if (cards.infraVlan['custom']) {
+                cards.infraVlan['custom'].classList.add('disabled');
+                cards.infraVlan['custom'].classList.remove('selected');
+            }
+            if (cards.infraVlan['default']) {
+                cards.infraVlan['default'].classList.remove('disabled');
+                cards.infraVlan['default'].classList.add('selected');
+            }
+            // Hide custom VLAN input
+            const vlanCustom = document.getElementById('infra-vlan-custom');
+            const vlanInput = document.getElementById('infra-vlan-id');
+            const vlanInfo = document.getElementById('infra-vlan-info');
+            if (vlanCustom) { vlanCustom.classList.add('hidden'); vlanCustom.classList.remove('visible'); }
+            if (vlanInput) { vlanInput.value = ''; vlanInput.disabled = true; }
+            if (vlanInfo) { vlanInfo.classList.add('hidden'); vlanInfo.classList.remove('visible'); }
+            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Access mode on DA5. The host sends untagged traffic (VLAN ID 0) — the TOR switch assigns it to native VLAN ' + (mgmtVlanId || '') + ' internally.';
+        }
+    } else {
+        const daNotice = document.getElementById('infra-vlan-da-notice');
+        if (daNotice) daNotice.classList.add('hidden');
     }
 
     // Step 11 -> Step 13 (Active Directory)
@@ -5979,6 +6290,7 @@ function updateSummary() {
     // Step 01–05: Scenario and Scale
     let scenarioScaleRows = '';
     if (state.scenario) scenarioScaleRows += renderRow('Scenario', escapeHtml(formatScenario(state.scenario)));
+    scenarioScaleRows += renderRow('Architecture', state.architecture === 'disaggregated' ? 'Disaggregated' : 'Hyperconverged (HCI)');
     if (state.scenario === 'disconnected' && state.clusterRole) {
         scenarioScaleRows += renderRow('Cluster Role', escapeHtml(state.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'));
         const _fqdn = state.autonomousCloudFqdn || '(not set)';
@@ -6037,57 +6349,126 @@ function updateSummary() {
 
     // Step 06–08: Host Networking
     let hostNetworkingRows = '';
-    if (state.storage) hostNetworkingRows += renderRow('Storage', escapeHtml(capitalize(state.storage)));
-    if (state.ports) hostNetworkingRows += renderRow('Ports', escapeHtml(state.ports), { mono: true });
-    if (state.storagePoolConfiguration) hostNetworkingRows += renderRow('Storage Pool', escapeHtml(state.storagePoolConfiguration));
-    if (state.intent) {
-        hostNetworkingRows += renderRow('Intent', escapeHtml(formatIntent(state.intent)));
 
-        // NIC mapping (render multiline)
-        if (state.ports && state.intent !== 'custom') {
-            const portCount = parseInt(state.ports);
-            const nicMapping = getNicMapping(state.intent, portCount, state.storage === 'switchless');
-            if (nicMapping) {
-                const lines = String(nicMapping).split('<br>').map(s => s.trim()).filter(Boolean);
+    if (state.architecture === 'disaggregated') {
+        // ── Disaggregated Host Networking summary ──
+        const storageTypeLabels = { fc_san: 'Fibre Channel SAN', iscsi_4nic: 'iSCSI SAN (4-NIC)', iscsi_6nic: 'iSCSI SAN (6-NIC)' };
+        if (state.disaggStorageType) hostNetworkingRows += renderRow('Storage Type', escapeHtml(storageTypeLabels[state.disaggStorageType] || state.disaggStorageType));
+        if (state.disaggPortCount) hostNetworkingRows += renderRow('Ports per Node', escapeHtml(String(state.disaggPortCount)), { mono: true });
+        hostNetworkingRows += renderRow('Backup Network', state.disaggBackupEnabled ? 'Enabled' : 'Disabled');
+
+        // Multi-rack scale
+        if (state.disaggRackCount && state.disaggNodesPerRack) {
+            hostNetworkingRows += renderRow('Racks', escapeHtml(String(state.disaggRackCount)), { mono: true });
+            hostNetworkingRows += renderRow('Nodes per Rack', escapeHtml(String(state.disaggNodesPerRack)), { mono: true });
+        }
+
+        // NIC Mapping
+        if (state.disaggPortCount && typeof getDisaggPortList === 'function') {
+            const dPorts = getDisaggPortList();
+            if (dPorts.length > 0) {
+                const slotGroups = {};
+                for (const dp of dPorts) {
+                    const slotLabel = dp.slot === 'ocp' ? 'OCP' : dp.slot === 'pcie1' ? 'PCIe1' : dp.slot === 'pcie2' ? 'PCIe2' : dp.slot === 'backup' ? 'Backup' : dp.slot === 'bmc' ? 'BMC' : dp.slot;
+                    if (!slotGroups[slotLabel]) slotGroups[slotLabel] = [];
+                    const displayName = (typeof getDisaggPortDisplayName === 'function') ? getDisaggPortDisplayName(dp) : dp.defaultName;
+                    slotGroups[slotLabel].push(displayName);
+                }
+                const nicLines = [];
+                for (const [slot, names] of Object.entries(slotGroups)) {
+                    nicLines.push(`${slot}: ${names.join(', ')}`);
+                }
                 hostNetworkingRows += `<div class="summary-row">
                     <div class="summary-label">NIC Mapping</div>
-                    ${renderMultilineValue(lines)}
-                </div>`;
-            }
-        } else if (state.intent === 'custom' && state.customIntents) {
-            const customMapping = getCustomNicMapping(state.customIntents, parseInt(state.ports));
-            if (customMapping) {
-                const lines = String(customMapping).split('<br>').map(s => s.trim()).filter(Boolean);
-                hostNetworkingRows += `<div class="summary-row">
-                    <div class="summary-label">NIC Mapping</div>
-                    ${renderMultilineValue(lines)}
+                    ${renderMultilineValue(nicLines)}
                 </div>`;
             }
         }
-    }
-    if (state.storageAutoIp) {
-        hostNetworkingRows += renderRow('Storage Auto IP', state.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled');
-    }
 
-    // Intent Overrides summary (per NIC set)
-    if (state.intentOverrides && state.intent && state.ports) {
-        const groups = getIntentNicGroups(state.intent, parseInt(state.ports));
-        for (const g of groups) {
-            const ov = state.intentOverrides[g.key];
-            if (!ov) continue;
-            if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${g.label}`, escapeHtml(ov.rdmaMode));
-            if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo Frames — ${g.label}`, escapeHtml(ov.jumboFrames));
+        // VLANs
+        const dv = state.disaggVlans;
+        if (dv) {
+            const vlanLines = [];
+            if (dv.mgmt != null) vlanLines.push(`Management: ${dv.mgmt}`);
+            if (dv.cluster1 != null) vlanLines.push(`Cluster 1: ${dv.cluster1}`);
+            if (dv.cluster2 != null) vlanLines.push(`Cluster 2: ${dv.cluster2}`);
+            if (state.disaggStorageType !== 'fc_san') {
+                if (dv.iscsiA != null) vlanLines.push(`iSCSI-A: ${dv.iscsiA}`);
+                if (dv.iscsiB != null) vlanLines.push(`iSCSI-B: ${dv.iscsiB}`);
+            }
+            if (state.disaggBackupEnabled && dv.backup != null) vlanLines.push(`Backup: ${dv.backup}`);
+            if (vlanLines.length > 0) {
+                hostNetworkingRows += `<div class="summary-row">
+                    <div class="summary-label">VLANs</div>
+                    ${renderMultilineValue(vlanLines, { mono: true })}
+                </div>`;
+            }
+        }
 
-            if (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') {
-                const count = getStorageVlanOverrideNetworkCount();
-                for (let n = 1; n <= count; n++) {
-                    const vlanKey = `storageNetwork${n}VlanId`;
-                    const legacyKey = n === 1 ? 'storageVlanNic1' : (n === 2 ? 'storageVlanNic2' : undefined);
-                    const vVal = (ov[vlanKey] !== undefined && ov[vlanKey] !== null)
-                        ? ov[vlanKey]
-                        : (legacyKey ? ov[legacyKey] : undefined);
-                    if (vVal !== undefined && vVal !== null) {
-                        hostNetworkingRows += renderRow(`Storage Network ${n} VLAN ID — ${g.label}`, escapeHtml(vVal), { mono: true });
+        // Intent Overrides
+        if (state.disaggIntentOverrides) {
+            const dov = state.disaggIntentOverrides;
+            for (const [key, ov] of Object.entries(dov)) {
+                if (!ov) continue;
+                const label = key === 'mgmt_compute' ? 'Mgmt+Compute' : key === 'backup' ? 'Backup' : key;
+                if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${label}`, escapeHtml(ov.rdmaMode));
+                if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo — ${label}`, escapeHtml(ov.jumboFrames));
+            }
+        }
+    } else {
+        // ── HCI Host Networking summary ──
+        if (state.storage) hostNetworkingRows += renderRow('Storage', escapeHtml(capitalize(state.storage)));
+        if (state.ports) hostNetworkingRows += renderRow('Ports', escapeHtml(state.ports), { mono: true });
+        if (state.storagePoolConfiguration) hostNetworkingRows += renderRow('Storage Pool', escapeHtml(state.storagePoolConfiguration));
+        if (state.intent) {
+            hostNetworkingRows += renderRow('Intent', escapeHtml(formatIntent(state.intent)));
+
+            // NIC mapping (render multiline)
+            if (state.ports && state.intent !== 'custom') {
+                const portCount = parseInt(state.ports);
+                const nicMapping = getNicMapping(state.intent, portCount, state.storage === 'switchless');
+                if (nicMapping) {
+                    const lines = String(nicMapping).split('<br>').map(s => s.trim()).filter(Boolean);
+                    hostNetworkingRows += `<div class="summary-row">
+                        <div class="summary-label">NIC Mapping</div>
+                        ${renderMultilineValue(lines)}
+                    </div>`;
+                }
+            } else if (state.intent === 'custom' && state.customIntents) {
+                const customMapping = getCustomNicMapping(state.customIntents, parseInt(state.ports));
+                if (customMapping) {
+                    const lines = String(customMapping).split('<br>').map(s => s.trim()).filter(Boolean);
+                    hostNetworkingRows += `<div class="summary-row">
+                        <div class="summary-label">NIC Mapping</div>
+                        ${renderMultilineValue(lines)}
+                    </div>`;
+                }
+            }
+        }
+        if (state.storageAutoIp) {
+            hostNetworkingRows += renderRow('Storage Auto IP', state.storageAutoIp === 'enabled' ? 'Enabled' : 'Disabled');
+        }
+
+        // Intent Overrides summary (per NIC set)
+        if (state.intentOverrides && state.intent && state.ports) {
+            const groups = getIntentNicGroups(state.intent, parseInt(state.ports));
+            for (const g of groups) {
+                const ov = state.intentOverrides[g.key];
+                if (!ov) continue;
+                if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${g.label}`, escapeHtml(ov.rdmaMode));
+                if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo Frames — ${g.label}`, escapeHtml(ov.jumboFrames));
+
+                if (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') {
+                    const count = getStorageVlanOverrideNetworkCount();
+                    for (let n = 1; n <= count; n++) {
+                        const vlanKey = `storageNetwork${n}VlanId`;
+                        const legacyKey = n === 1 ? 'storageVlanNic1' : (n === 2 ? 'storageVlanNic2' : undefined);
+                        const vVal = (ov[vlanKey] !== undefined && ov[vlanKey] !== null)
+                            ? ov[vlanKey]
+                            : (legacyKey ? ov[legacyKey] : undefined);
+                        if (vVal !== undefined && vVal !== null) {
+                            hostNetworkingRows += renderRow(`Storage Network ${n} VLAN ID — ${g.label}`, escapeHtml(vVal), { mono: true });
+                        }
                     }
                 }
             }
@@ -6187,16 +6568,11 @@ function updateSummary() {
     if (state.sdnFeatures && state.sdnFeatures.length > 0) {
         const featureNames = {
             'lnet': 'LNET',
-            'nsg': 'NSG',
-            'vnet': 'VNET',
-            'slb': 'Load Balancers'
+            'nsg': 'NSG'
         };
         const features = state.sdnFeatures.map(f => featureNames[f] || f).join(', ');
         sdnRows += renderRow('SDN Features', escapeHtml(features));
-        if (state.sdnManagement) {
-            const mgmtType = state.sdnManagement === 'arc_managed' ? 'Arc Managed' : 'On-Premises Managed';
-            sdnRows += renderRow('SDN Management', escapeHtml(mgmtType));
-        }
+        sdnRows += renderRow('SDN Management', 'Arc Managed');
     }
 
     const scenarioScaleHtml = renderSection('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows);
@@ -6228,7 +6604,105 @@ function renderDiagram() {
         return;
     }
 
-    // Simple visual: Host Box -> NICs
+    // ── Disaggregated mini node diagram ──
+    if (state.architecture === 'disaggregated') {
+        const dn = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
+        const isMultiRack = state.disaggRackCount && state.disaggRackCount > 1;
+        const nodesPerRack = state.disaggNodesPerRack || dn;
+        const rackCount = state.disaggRackCount || 1;
+        const totalNodes = isMultiRack ? (rackCount * nodesPerRack) : dn;
+
+        // Build port slot list with colors
+        const slotColors = {
+            ocp: { bg: 'var(--accent-blue)', label: 'Mgmt+Compute' },
+            pcie1: { bg: 'var(--accent-purple)', label: 'Cluster' },
+            pcie2: { bg: 'var(--success)', label: 'iSCSI Storage' },
+            backup: { bg: '#f59e0b', label: 'Backup' },
+            bmc: { bg: '#6b7280', label: 'BMC' }
+        };
+
+        // Determine which slots are present
+        const st = state.disaggStorageType || 'fc_san';
+        const hasBackup = state.disaggBackupEnabled;
+        const isVnicMode = (st === 'iscsi_6nic' && hasBackup);
+        const portSlots = ['ocp', 'pcie1'];
+        if (st === 'iscsi_6nic' && !isVnicMode) portSlots.push('pcie2');
+        if (hasBackup) portSlots.push('backup');
+        portSlots.push('bmc');
+
+        const renderDisaggNodeHtml = (idx) => {
+            let portsHtml = '<div style="display:flex; gap:3px; justify-content:center; margin-bottom:6px;">';
+            for (const slot of portSlots) {
+                const c = slotColors[slot] || slotColors.bmc;
+                if (slot === 'bmc') {
+                    // Single port, smaller
+                    portsHtml += `<div style="width:4px; height:12px; background:${c.bg}; border-radius:1px; opacity:0.5;" title="${c.label}"></div>`;
+                } else {
+                    // 2 ports per slot
+                    portsHtml += `<div style="display:flex; gap:1px;">`;
+                    portsHtml += `<div style="width:5px; height:12px; background:${c.bg}; border-radius:1px;" title="${c.label} P1"></div>`;
+                    portsHtml += `<div style="width:5px; height:12px; background:${c.bg}; border-radius:1px;" title="${c.label} P2"></div>`;
+                    portsHtml += `</div>`;
+                }
+            }
+            portsHtml += '</div>';
+
+            const nodeName = (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name)
+                ? String(state.nodeSettings[idx].name).trim() : '';
+            const rawLabel = nodeName || `Node ${idx + 1}`;
+            const safeLabel = rawLabel.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+            return `<div style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); padding:0.5rem; border-radius:4px; text-align:center; min-width:60px;">
+                ${portsHtml}
+                <div style="font-size:0.7rem; color:var(--text-secondary);">${safeLabel}</div>
+            </div>`;
+        };
+
+        let html = '';
+        if (isMultiRack) {
+            html += '<div style="display:flex; flex-direction:column; gap:0.5rem; align-items:center; width:100%;">';
+            let nodeIdx = 0;
+            for (let r = 0; r < rackCount; r++) {
+                const showCount = Math.min(nodesPerRack, 4);
+                html += '<div style="border:1px dashed var(--glass-border); padding:0.5rem; border-radius:8px; text-align:center; width:100%; background:rgba(0,0,0,0.2);">';
+                html += `<div style="font-size:0.6rem; margin-bottom:0.5rem; color:var(--text-secondary);">Rack ${r + 1}</div>`;
+                html += '<div style="display:flex; gap:0.5rem; justify-content:center; align-items:flex-end; flex-wrap:wrap;">';
+                for (let i = 0; i < showCount; i++) {
+                    html += renderDisaggNodeHtml(nodeIdx + i);
+                }
+                if (nodesPerRack > 4) html += `<div style="font-size:0.65rem; color:var(--text-secondary); align-self:center;">+${nodesPerRack - 4}</div>`;
+                html += '</div></div>';
+                nodeIdx += nodesPerRack;
+            }
+            html += '</div>';
+        } else {
+            const showCount = Math.min(totalNodes, 4);
+            html += '<div style="display:flex; justify-content:center; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">';
+            for (let i = 0; i < showCount; i++) html += renderDisaggNodeHtml(i);
+            html += '</div>';
+            if (totalNodes > 4) html += `<div style="text-align:center; font-size:0.7rem; color:var(--text-secondary); margin-top:0.5rem;">+ ${totalNodes - 4} more nodes</div>`;
+        }
+
+        // Legend
+        const legendItems = [
+            { color: slotColors.ocp.bg, label: 'M+C' },
+            { color: slotColors.pcie1.bg, label: 'Cluster' }
+        ];
+        if (st === 'iscsi_6nic' && !isVnicMode) legendItems.push({ color: slotColors.pcie2.bg, label: 'iSCSI' });
+        if (hasBackup) legendItems.push({ color: slotColors.backup.bg, label: 'Backup' });
+        legendItems.push({ color: slotColors.bmc.bg, label: 'BMC' });
+
+        html += `<div style="display:flex; justify-content:center; gap:0.5rem; margin-top:0.75rem; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.05); font-size:0.6rem; color:var(--text-secondary);">`;
+        for (const item of legendItems) {
+            html += `<div style="display:flex; align-items:center; gap:3px;"><div style="width:6px; height:6px; background:${item.color}; border-radius:50%;"></div>${item.label}</div>`;
+        }
+        html += '</div>';
+
+        container.innerHTML = html;
+        return;
+    }
+
+    // ── HCI mini node diagram ──
     const n = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
     const isRackAware = state.scale === 'rack_aware';
 
@@ -7169,7 +7643,7 @@ function resetAll() {
 
     renderDnsServers();
 
-    const ids = ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success', 'china-warning', 'disconnected-region-info', 'disconnected-cloud-context', 'proxy-warning', 'dhcp-warning', 'ip-subnet-warning', 'multirack-message'];
+    const ids = ['infra-ip-error', 'infra-ip-success', 'infra-gateway-error', 'infra-gateway-success', 'china-warning', 'disconnected-region-info', 'disconnected-cloud-context', 'proxy-warning', 'dhcp-warning', 'ip-subnet-warning', 'rackscale-message'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -7356,68 +7830,16 @@ function toggleSdnFeature(feature, checked) {
 
 function updateSdnManagementOptions() {
     const managementSection = document.getElementById('sdn-management-section');
-    const arcCard = document.getElementById('sdn-arc-card');
-    const onpremCard = document.getElementById('sdn-onprem-card');
-    const infoText = document.getElementById('sdn-info-text');
 
-    if (!managementSection || !arcCard || !onpremCard || !infoText) return;
+    if (!managementSection) return;
 
-    // Show management section if any features are selected
+    // Show management info and auto-select Arc when any features are selected
     if (state.sdnFeatures.length > 0) {
         managementSection.classList.remove('hidden');
-
-        const hasVnet = state.sdnFeatures.includes('vnet');
-        const hasSlb = state.sdnFeatures.includes('slb');
-        const hasLnet = state.sdnFeatures.includes('lnet');
-        const hasNsg = state.sdnFeatures.includes('nsg');
-
-        // Logic: LNET and/or NSG only -> Arc management enabled
-        // VNET and/or SLB -> On-premises management only
-        const onlyLnetNsg = (hasLnet || hasNsg) && !hasVnet && !hasSlb;
-        const hasVnetOrSlb = hasVnet || hasSlb;
-
-        if (onlyLnetNsg) {
-            // Enable Arc, disable On-premises
-            arcCard.classList.remove('disabled');
-            onpremCard.classList.add('disabled');
-            infoText.innerHTML = '<strong>SDN Managed by Arc</strong><br>' +
-                'With SDN enabled by Azure Arc, the Network Controller runs as a Failover Cluster service and integrates with the Azure Arc control plane. ' +
-                'This allows you to centrally configure and manage logical networks (LNET) and network security groups (NSG) via the Azure portal and Azure CLI. ' +
-                'Currently, only LNET and NSG are supported with Arc management as this is a newer approach available with Azure Local 2506 or later. ' +
-                'Virtual Networks (VNET) and Software Load Balancers (SLB) require the full SDN infrastructure components.';
-
-            // Reset if on-prem was selected
-            if (state.sdnManagement === 'onprem_managed') {
-                state.sdnManagement = null;
-                onpremCard.classList.remove('selected');
-            }
-        } else if (hasVnetOrSlb) {
-            // Enable On-premises, disable Arc
-            arcCard.classList.add('disabled');
-            onpremCard.classList.remove('disabled');
-            infoText.innerHTML = '<strong>SDN Managed by On-Premises Tools</strong><br>' +
-                'Virtual Networks (VNET) and Software Load Balancers (SLB) require the full SDN infrastructure with Network Controller, SLB, and Gateway components running on VMs. ' +
-                'These advanced features must be deployed and managed using on-premises tools like Windows Admin Center or SDN Express scripts. ' +
-                'This approach provides complete SDN functionality including switching, routing, and load balancing capabilities, ' +
-                'but requires additional infrastructure components beyond what Arc-managed SDN currently supports.';
-
-            // Reset if Arc was selected
-            if (state.sdnManagement === 'arc_managed') {
-                state.sdnManagement = null;
-                arcCard.classList.remove('selected');
-            }
-        } else {
-            // No features selected or invalid combination
-            arcCard.classList.add('disabled');
-            onpremCard.classList.add('disabled');
-            infoText.textContent = 'Select SDN features above to see available management options.';
-        }
+        state.sdnManagement = 'arc_managed';
     } else {
-        // No features selected, hide management section
         managementSection.classList.add('hidden');
         state.sdnManagement = null;
-        arcCard.classList.remove('selected');
-        onpremCard.classList.remove('selected');
     }
 }
 
@@ -7521,7 +7943,7 @@ function parseArmTemplateToState(armTemplate) {
     // Map ARM parameters to Odin state
 
     // Scenario - detect from template structure
-    result.scenario = 'hyperconverged'; // Default
+    result.scenario = 'connected'; // Default
 
     // Node count from arcNodeResourceIds or physicalNodesSettings
     if (params.arcNodeResourceIds && Array.isArray(params.arcNodeResourceIds)) {
@@ -8044,15 +8466,7 @@ function showArmImportOptionsDialog(armState) {
                     </label>
                     <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                         <input type="radio" name="import-sdn" value="arc_lnet_nsg" style="margin-right:8px;">
-                        <span style="color:var(--text-primary);">SDN Managed by Arc - Logical Networks & NSGs only</span>
-                    </label>
-                    <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
-                        <input type="radio" name="import-sdn" value="arc_full" style="margin-right:8px;">
-                        <span style="color:var(--text-primary);">SDN Managed by Arc - Full (VNets, LNets, NSGs, SLBs)</span>
-                    </label>
-                    <label style="padding:12px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
-                        <input type="radio" name="import-sdn" value="legacy" style="margin-right:8px;">
-                        <span style="color:var(--text-primary);">SDN Legacy (Windows Admin Center managed)</span>
+                        <span style="color:var(--text-primary);">SDN Managed by Arc - Logical Networks & NSGs</span>
                     </label>
                 </div>
             </div>
@@ -8115,7 +8529,6 @@ function showArmImportOptionsDialog(armState) {
         }
 
         // Map SDN selection to state properties
-        // Valid sdnManagement values: 'arc_managed' or 'onprem_managed'
         if (sdn === 'none') {
             armState.sdnEnabled = 'no';
             armState.sdnFeatures = [];
@@ -8124,14 +8537,6 @@ function showArmImportOptionsDialog(armState) {
             armState.sdnEnabled = 'yes';
             armState.sdnFeatures = ['lnet', 'nsg'];
             armState.sdnManagement = 'arc_managed';
-        } else if (sdn === 'arc_full') {
-            armState.sdnEnabled = 'yes';
-            armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
-            armState.sdnManagement = 'arc_managed';
-        } else if (sdn === 'legacy') {
-            armState.sdnEnabled = 'yes';
-            armState.sdnFeatures = ['vnet', 'lnet', 'nsg', 'slb'];
-            armState.sdnManagement = 'onprem_managed';
         }
 
         overlay.remove();
@@ -8361,9 +8766,13 @@ function checkForSizerImport() {
             state.sizerWorkloads = payload.sizerWorkloads;
         }
 
-        // Step 01: Scenario (Disconnected for ALDO, Hyperconverged for others)
-        const scenario = payload.scenario || 'hyperconverged';
+        // Step 01: Scenario (Disconnected for ALDO, Connected for others)
+        const scenario = payload.scenario === 'disconnected' ? 'disconnected' : (payload.scenario || 'connected');
         selectOption('scenario', scenario);
+
+        // Set architecture (default to hyperconverged for imported configs)
+        const architecture = payload.architecture || 'hyperconverged';
+        selectOption('architecture', architecture);
 
         // Disconnected operations: set cluster role and FQDN
         if (scenario === 'disconnected' && payload.clusterRole) {
@@ -8623,6 +9032,19 @@ function resumeSavedState() {
     if (saved && saved.data) {
         Object.assign(state, saved.data);
 
+        // Migrate legacy scenario values from old saved states
+        if (state.scenario === 'hyperconverged') {
+            state.scenario = 'connected';
+            state.architecture = state.architecture || 'hyperconverged';
+        }
+        if (state.scenario === 'multirack') {
+            state.scenario = 'rackscale';
+        }
+        // Ensure architecture defaults for connected/disconnected if missing
+        if ((state.scenario === 'connected' || state.scenario === 'disconnected') && !state.architecture) {
+            state.architecture = 'hyperconverged';
+        }
+
         // Restore SDN enabled card selection
         if (state.sdnEnabled) {
             const sdnEnabledCard = document.getElementById(state.sdnEnabled === 'yes' ? 'sdn-enabled-yes' : 'sdn-enabled-no');
@@ -8633,6 +9055,17 @@ function resumeSavedState() {
                 if (yesCard) yesCard.classList.remove('selected');
                 if (noCard) noCard.classList.remove('selected');
                 sdnEnabledCard.classList.add('selected');
+            }
+        }
+
+        // Migrate legacy SDN features (vnet, slb) from saved state — only LNET and NSG supported
+        if (state.sdnFeatures && state.sdnFeatures.length > 0) {
+            state.sdnFeatures = state.sdnFeatures.filter(f => f === 'lnet' || f === 'nsg');
+            if (state.sdnFeatures.length > 0) {
+                state.sdnManagement = 'arc_managed';
+            } else {
+                state.sdnEnabled = 'no';
+                state.sdnManagement = null;
             }
         }
 
@@ -8658,18 +9091,10 @@ function resumeSavedState() {
         updateSdnManagementOptions();
 
         // Restore SDN management selection AFTER updateSdnManagementOptions
-        // This ensures the management section is visible and cards are properly enabled
-        if (state.sdnManagement) {
-            const arcCard = document.getElementById('sdn-arc-card');
-            const onpremCard = document.getElementById('sdn-onprem-card');
-            // Clear any existing selection
-            if (arcCard) arcCard.classList.remove('selected');
-            if (onpremCard) onpremCard.classList.remove('selected');
-            // Apply the saved selection
-            const card = document.getElementById(state.sdnManagement === 'arc_managed' ? 'sdn-arc-card' : 'sdn-onprem-card');
-            if (card && !card.classList.contains('disabled')) {
-                card.classList.add('selected');
-            }
+        // Arc management is now auto-selected when features are present
+        if (state.sdnManagement && state.sdnManagement !== 'arc_managed') {
+            // Migrate legacy on-prem selection to arc_managed
+            state.sdnManagement = state.sdnFeatures.length > 0 ? 'arc_managed' : null;
         }
 
         updateUI();
@@ -8734,9 +9159,29 @@ function startFresh() {
                 smbSigningEnforced: true,
                 smbClusterEncryption: true
             };
-        } else if (key === 'infra' || key === 'intentOverrides' || key === 'customIntents' || key === 'adapterMapping') {
+        } else if (key === 'infra' || key === 'intentOverrides' || key === 'customIntents' || key === 'adapterMapping' || key === 'disaggSubnets' || key === 'disaggPortConfig' || key === 'disaggAdapterMapping' || key === 'disaggIntentOverrides') {
             // These object properties should be null or empty object initially
             state[key] = (key === 'infra') ? null : {};
+        } else if (key === 'disaggVlans') {
+            state[key] = { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 };
+        } else if (key === 'disaggVnis') {
+            state[key] = { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 };
+        } else if (key === 'disaggVrfName') {
+            state[key] = 'AZLOCALINFRA';
+        } else if (key === 'disaggNicNames') {
+            state[key] = {
+                ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2',
+                cluster1: 'PCIe1-NIC3', cluster2: 'PCIe1-NIC4',
+                iscsi1: 'PCIe2-NIC5', iscsi2: 'PCIe2-NIC6',
+                backup1: 'Backup-NIC7', backup2: 'Backup-NIC8',
+                bmc: 'BMC'
+            };
+        } else if (key === 'disaggPortSpeeds') {
+            state[key] = { ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE' };
+        } else if (key === 'disaggIntentMapping') {
+            state[key] = { mgmt_compute: ['ocp_p1', 'ocp_p2'] };
+        } else if (key === 'disaggClusterPortMapping') {
+            state[key] = { pcie1_p1: '711', pcie1_p2: '712', pcie2_p1: '500', pcie2_p2: '600' };
         } else if (typeof state[key] === 'boolean') {
             state[key] = key === 'infraCidrAuto' ? true : false;
         } else {
@@ -9126,7 +9571,8 @@ function showTemplates() {
             name: '2-Node Standard Cluster',
             description: 'Small production cluster with cloud witness, ideal for branch offices',
             config: {
-                scenario: 'hyperconverged',
+                scenario: 'connected',
+                architecture: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
@@ -9168,7 +9614,8 @@ function showTemplates() {
             name: '4-Node High Performance',
             description: 'Medium cluster with dedicated storage network for production workloads',
             config: {
-                scenario: 'hyperconverged',
+                scenario: 'connected',
+                architecture: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'medium',
@@ -9214,7 +9661,8 @@ function showTemplates() {
             name: '8-Node Rack Aware',
             description: 'Large rack-aware cluster for production with high availability',
             config: {
-                scenario: 'hyperconverged',
+                scenario: 'connected',
+                architecture: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'rack_aware',
@@ -9319,7 +9767,8 @@ function showTemplates() {
             name: 'Edge 2-Node Switchless',
             description: 'Cost-optimized edge deployment without storage switches',
             config: {
-                scenario: 'hyperconverged',
+                scenario: 'connected',
+                architecture: 'hyperconverged',
                 region: 'azure_commercial',
                 localInstanceRegion: 'east_us',
                 scale: 'low_capacity',
@@ -9777,13 +10226,25 @@ function navigateToStep(stepId) {
 
 function updateBreadcrumbs() {
     const breadcrumbNav = document.getElementById('breadcrumb-nav');
+    const breadcrumbNavDa = document.getElementById('breadcrumb-nav-da');
     if (!breadcrumbNav) return;
 
-    // Show breadcrumb when at least step 1 is complete
-    if (state.scenario) {
+    var isDisagg = state.architecture === 'disaggregated';
+
+    // Show the correct breadcrumb bar based on architecture
+    if (state.scenario && !isDisagg) {
         breadcrumbNav.classList.remove('hidden');
+        if (breadcrumbNavDa) breadcrumbNavDa.classList.add('hidden');
+    } else if (state.scenario && isDisagg && breadcrumbNavDa) {
+        breadcrumbNavDa.classList.remove('hidden');
+        breadcrumbNav.classList.add('hidden');
+    } else {
+        breadcrumbNav.classList.add('hidden');
+        if (breadcrumbNavDa) breadcrumbNavDa.classList.add('hidden');
+        return;
     }
 
+    // Update HCI breadcrumb items
     const breadcrumbItems = breadcrumbNav.querySelectorAll('.breadcrumb-item');
     breadcrumbItems.forEach(item => {
         const stepId = item.dataset.step;
@@ -9805,6 +10266,32 @@ function updateBreadcrumbs() {
         item.classList.toggle('completed', isComplete);
         item.classList.toggle('active', stepEl && isElementInViewport(stepEl));
     });
+
+    // Update disaggregated breadcrumb items
+    if (breadcrumbNavDa) {
+        const daItems = breadcrumbNavDa.querySelectorAll('.breadcrumb-item');
+        daItems.forEach(item => {
+            const stepId = item.dataset.step;
+            const stepEl = document.getElementById(stepId);
+
+            let isComplete = false;
+            switch (stepId) {
+                case 'step-1': isComplete = Boolean(state.scenario); break;
+                case 'step-da1': isComplete = Boolean(state.disaggStorageType); break;
+                case 'step-da2': isComplete = (state.disaggStorageType === 'fc_san') || (state.disaggBackupEnabled !== undefined && state.disaggBackupEnabled !== null); break;
+                case 'step-da3': isComplete = Boolean(state.disaggRackCount && state.disaggNodesPerRack); break;
+                case 'step-da4': isComplete = Boolean(state.disaggSpineCount); break;
+                case 'step-da5': isComplete = Boolean(state.disaggVlanConfigConfirmed); break;
+                case 'step-da6': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da7': isComplete = Boolean(state.disaggIpConfigConfirmed); break;
+                case 'step-da8': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da10': isComplete = Boolean(state.disaggPortConfigConfirmed); break;
+            }
+
+            item.classList.toggle('completed', isComplete);
+            item.classList.toggle('active', stepEl && isElementInViewport(stepEl));
+        });
+    }
 }
 
 function isElementInViewport(el) {
@@ -9955,7 +10442,8 @@ function exportToPDF() {
 
     const getDisplayName = (key, value) => {
         const displayNames = {
-            scenario: { hyperconverged: 'Hyperconverged', disconnected: 'Disconnected', m365local: 'M365 Local', multirack: 'Multi-Rack' },
+            scenario: { connected: 'Connected', disconnected: 'Disconnected', m365local: 'M365 Local', rackscale: 'Rack Scale' },
+            architecture: { hyperconverged: 'Hyperconverged', disaggregated: 'Disaggregated' },
             region: { azure_commercial: 'Azure Commercial', azure_government: 'Azure Government', azure_china: 'Azure China' },
             scale: { low_capacity: 'Hyperconverged Low Capacity', medium: 'Hyperconverged', rack_aware: 'Hyperconverged Rack Aware' },
             storage: { switched: 'Switched Storage', switchless: 'Switchless Storage' },
@@ -10960,12 +11448,564 @@ function resetAdapterMapping() {
     renderAdapterMappingUi();
 }
 
+function renderHciHostNetworkingPreview() {
+    var container = document.getElementById('hci-nic-layout-diagram');
+    if (!container) return;
+    container.innerHTML = '';
+
+    var portCount = parseInt(state.ports) || 0;
+    if (portCount <= 0) return;
+
+    function colorRgb(hex) {
+        return parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16);
+    }
+
+    var isSwitchless = state.storage === 'switchless';
+    var nodeCount = parseInt(state.nodes) || 1;
+
+    // For switchless 2-4 node, render multi-node switchless diagram
+    if (isSwitchless && nodeCount >= 2 && nodeCount <= 4) {
+        renderHciSwitchlessPreview(container, portCount, nodeCount);
+        return;
+    }
+
+    // --- Switched / single-node ---
+    // Show up to 2 nodes for multi-node switched scenarios (like the report)
+    var displayNodes = (nodeCount > 1) ? Math.min(2, nodeCount) : 1;
+
+    var zoneColorMap = {
+        'mgmt_compute': '#3b82f6', 'mgmt': '#3b82f6',
+        'compute': '#22c55e', 'compute_1': '#22c55e', 'compute_2': '#10b981',
+        'storage': '#8b5cf6', 'compute_storage': '#8b5cf6', 'all': '#3b82f6'
+    };
+    var zoneLabelMap = {
+        'mgmt_compute': 'Mgmt + Compute', 'mgmt': 'Management',
+        'compute': 'Compute', 'compute_1': 'Compute 1', 'compute_2': 'Compute 2',
+        'storage': 'Storage', 'compute_storage': 'Compute + Storage', 'all': 'All Traffic'
+    };
+
+    var groups = getIntentNicGroups(state.intent, portCount);
+    if (groups.length === 0) return;
+
+    var nicGroups = [];
+    for (var gi = 0; gi < groups.length; gi++) {
+        var g = groups[gi];
+        var baseKey = String(g.key || '').startsWith('custom_') ? String(g.key).substring('custom_'.length) : String(g.key || '');
+        var color = zoneColorMap[baseKey] || '#3b82f6';
+        var label = zoneLabelMap[baseKey] || g.label;
+        var nics = [];
+        for (var ni = 0; ni < g.nics.length; ni++) {
+            var portIdx = g.nics[ni];
+            var portName = getPortDisplayName(portIdx);
+            var speed = (state.portConfig && state.portConfig[portIdx - 1] && state.portConfig[portIdx - 1].speed) || '25GbE';
+            nics.push({ name: portName, speed: speed, leaf: (ni % 2 === 0) ? 'A' : 'B' });
+        }
+        var hasVnic = (baseKey === 'mgmt_compute' || baseKey === 'mgmt' || baseKey === 'all');
+        var vnicAbove = null;
+        if (hasVnic) {
+            var vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+            vnicAbove = { name: 'Mgmt vNIC', vlan: vlanLabel };
+        }
+        var vlanBelow = null;
+        if (baseKey === 'storage' || baseKey === 'all') {
+            var ov = state.intentOverrides && state.intentOverrides[g.key];
+            if (ov) {
+                var vlans = [];
+                for (var vi = 1; vi <= 4; vi++) {
+                    var vk = 'storageNetwork' + vi + 'VlanId';
+                    if (ov[vk]) vlans.push('VLAN ' + ov[vk]);
+                }
+                if (vlans.length > 0) vlanBelow = vlans.join(' / ');
+            }
+        }
+        nicGroups.push({ label: label, color: color, nics: nics, vnicAbove: vnicAbove, vlanBelow: vlanBelow });
+    }
+    if (nicGroups.length === 0) return;
+
+    var adapterW = 62, adapterH = 38, adapterGap = 10, groupGap = 18;
+    var mgmtVnicAreaH = 48;
+    var switchH = 50, switchW = 160, switchGap = 70;
+
+    function rowWidth(grps) {
+        var w = 0;
+        for (var i = 0; i < grps.length; i++) {
+            w += grps[i].nics.length * adapterW + (grps[i].nics.length - 1) * adapterGap;
+            if (i < grps.length - 1) w += groupGap;
+        }
+        return w;
+    }
+
+    var nicRowW = rowWidth(nicGroups);
+    var nodeW = Math.max(440, nicRowW + 60);
+    var nodeH = 225 + mgmtVnicAreaH;
+    var marginX = 50, marginTop = 90, marginBottom = 60;
+    var nodeGapX = 40;
+
+    var isSwitched = state.storage === 'switched' || state.nodes === '1';
+    var torCount = (state.torSwitchCount === 'single') ? 1 : 2;
+    var showToR = isSwitched && !!state.torSwitchCount;
+
+    var switchAreaH = showToR ? (switchH + 90) : 0;
+    var totalSwitchW = torCount === 2 ? (2 * switchW + switchGap) : switchW;
+    var allNodesW = displayNodes * nodeW + (displayNodes - 1) * nodeGapX;
+    var svgW = Math.max(allNodesW + marginX * 2, totalSwitchW + marginX * 2);
+    var svgH = marginTop + switchAreaH + nodeH + marginBottom + (nodeCount > 2 ? 40 : 0);
+
+    var switchY = marginTop + 10;
+    var switchBlockStartX = (svgW - totalSwitchW) / 2;
+    var switch1X = switchBlockStartX;
+    var switch2X = switch1X + switchW + switchGap;
+
+    var nodesStartX = (svgW - allNodesW) / 2;
+    var nodeY = showToR ? (marginTop + switchAreaH + 10) : (marginTop + 10);
+
+    var uplinkPositions = [];
+
+    var intentLabel = state.intent === 'all_traffic' ? 'Fully Converged' :
+                      state.intent === 'mgmt_compute' ? 'Mgmt+Compute / Storage' :
+                      state.intent === 'compute_storage' ? 'Mgmt / Compute+Storage' : 'Custom';
+    var storageLabel = state.storage === 'switchless' ? 'Switchless' : 'Switched';
+
+    var svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Host networking preview">';
+    svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
+    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Host Networking — ' + escapeHtml(intentLabel) + ' — ' + portCount + ' ports — ' + escapeHtml(storageLabel) + (nodeCount > 2 ? (' — Showing 2 of ' + nodeCount + ' nodes') : '') + '</text>';
+
+    if (showToR) {
+        svg += '<rect x="' + switch1X + '" y="' + switchY + '" width="' + switchW + '" height="' + switchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+        svg += '<text x="' + (switch1X + switchW / 2) + '" y="' + (switchY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch' + (torCount === 2 ? ' A' : '') + '</text>';
+        if (torCount === 2) {
+            svg += '<rect x="' + switch2X + '" y="' + switchY + '" width="' + switchW + '" height="' + switchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
+            svg += '<text x="' + (switch2X + switchW / 2) + '" y="' + (switchY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch B</text>';
+            var ibgpX1 = switch1X + switchW, ibgpX2 = switch2X, ibgpMidY = switchY + switchH / 2;
+            svg += '<line x1="' + ibgpX1 + '" y1="' + ibgpMidY + '" x2="' + ibgpX2 + '" y2="' + ibgpMidY + '" stroke="rgba(250,204,21,0.7)" stroke-width="2" stroke-dasharray="6 3" />';
+            svg += '<text x="' + ((ibgpX1 + ibgpX2) / 2) + '" y="' + (ibgpMidY - 8) + '" text-anchor="middle" font-size="9" fill="rgba(250,204,21,0.9)">iBGP</text>';
+        }
+    }
+
+    // Render nodes
+    for (var dn = 0; dn < displayNodes; dn++) {
+        var nodeX = nodesStartX + dn * (nodeW + nodeGapX);
+        svg += '<rect x="' + nodeX + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
+        var nodeName = (state.nodeSettings && state.nodeSettings[dn] && state.nodeSettings[dn].name) ? state.nodeSettings[dn].name : ('Node ' + (dn + 1));
+        svg += '<text x="' + (nodeX + nodeW / 2) + '" y="' + (nodeY + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(nodeName) + '</text>';
+
+        var bmcX = nodeX + nodeW - 75, bmcY2 = nodeY + 12;
+        svg += '<rect x="' + bmcX + '" y="' + bmcY2 + '" width="55" height="22" rx="5" fill="rgba(160,160,160,0.12)" stroke="rgba(160,160,160,0.4)" />';
+        svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 14) + '" text-anchor="middle" font-size="7.5" fill="var(--text-secondary)">BMC</text>';
+        svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
+
+        var nicRowY = nodeY + 80 + mgmtVnicAreaH;
+        var rw = rowWidth(nicGroups);
+        var currentX = nodeX + (nodeW - rw) / 2;
+        for (var g2 = 0; g2 < nicGroups.length; g2++) {
+            var grp = nicGroups[g2];
+            var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
+            var boxX = currentX - 8, boxTotalW = grpW + 16;
+            var hasVnicG = !!grp.vnicAbove;
+            var vnicH2 = hasVnicG ? mgmtVnicAreaH : 0;
+            var boxH = adapterH + 28 + vnicH2;
+            var boxY = nicRowY - 14 - vnicH2;
+            var rgb = colorRgb(grp.color);
+
+            svg += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
+            var labelY = boxY + boxH + 12;
+            svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
+
+            if (hasVnicG) {
+                var vaW = 80, vaH = 30;
+                var vaX = boxX + (boxTotalW - vaW) / 2, vaY = boxY + 10;
+                svg += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaW + '" height="' + vaH + '" rx="6" fill="rgba(' + rgb + ',0.10)" stroke="rgba(' + rgb + ',0.55)" stroke-dasharray="4 2" />';
+                svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(grp.vnicAbove.name) + '</text>';
+                svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(grp.vnicAbove.vlan) + '</text>';
+                svg += '<line x1="' + (boxX + 6) + '" y1="' + (nicRowY - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (nicRowY - 6) + '" stroke="rgba(' + rgb + ',0.3)" stroke-dasharray="3 2" />';
+            }
+
+            for (var n2 = 0; n2 < grp.nics.length; n2++) {
+                var nic = grp.nics[n2];
+                var x = currentX + n2 * (adapterW + adapterGap), y = nicRowY;
+                svg += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + rgb + ',0.20)" stroke="rgba(' + rgb + ',0.60)" />';
+                svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
+                svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(nic.speed) + '</text>';
+                if (showToR) {
+                    uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
+                }
+            }
+
+            if (grp.vlanBelow) {
+                var vlanY2 = labelY + 13;
+                svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY2 + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
+            }
+            currentX += grpW + groupGap;
+        }
+    }
+
+    // "+N more nodes" badge
+    if (nodeCount > 2) {
+        var moreCount = nodeCount - 2;
+        var badgeW = 180, badgeH = 26;
+        var badgeX = svgW - 50 - badgeW;
+        var badgeY = svgH - 60;
+        svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
+        svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + moreCount + ' more node' + (moreCount === 1 ? '' : 's') + '</text>';
+    }
+
+    if (showToR) {
+        var switchBottomY = switchY + switchH;
+        for (var ai = 0; ai < uplinkPositions.length; ai++) {
+            var ap = uplinkPositions[ai];
+            var targetLX;
+            if (torCount === 1) {
+                targetLX = switch1X + switchW / 2;
+            } else {
+                targetLX = (ap.leaf === 'A') ? (switch1X + switchW / 2) : (switch2X + switchW / 2);
+            }
+            var uRgb = colorRgb(ap.color);
+            svg += '<line x1="' + ap.x + '" y1="' + ap.y + '" x2="' + targetLX + '" y2="' + switchBottomY + '" stroke="rgba(' + uRgb + ',0.35)" stroke-width="1.5" stroke-dasharray="4 2" />';
+        }
+    }
+
+    svg += '</svg>';
+
+    container.innerHTML = '<div style="margin-top:1.5rem;">'
+        + '<h4 style="color:var(--accent-purple); margin-bottom:0.75rem;">Host Networking Preview</h4>'
+        + '<div class="switchless-diagram">' + svg + '</div>'
+        + '<div style="margin-top:0.75rem; display:flex; gap:0.5rem;">'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'light\')">Download SVG (Light)</button>'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'dark\')">Download SVG (Dark)</button>'
+        + '</div>'
+        + '</div>';
+}
+
+function renderHciSwitchlessPreview(container, portCount, nodeCount) {
+    var n = nodeCount;
+    var mgmtVnicH = 38;
+    var vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+
+    // Determine mgmt/compute vs storage port assignments
+    var mgmtPorts = [1, 2];
+    var storagePorts = [];
+    if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
+        mgmtPorts = [];
+        storagePorts = [];
+        for (var ami = 1; ami <= portCount; ami++) {
+            var amAssign = state.adapterMapping[ami] || 'pool';
+            if (amAssign === 'storage') storagePorts.push(ami);
+            else mgmtPorts.push(ami);
+        }
+    } else {
+        for (var si = 3; si <= portCount; si++) storagePorts.push(si);
+    }
+    var storagePerNode = storagePorts.length;
+
+    function getNodeLabel(idx) {
+        if (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name) {
+            return String(state.nodeSettings[idx].name).trim() || ('Node ' + (idx + 1));
+        }
+        return 'Node ' + (idx + 1);
+    }
+
+    // Layout sizing
+    var storageTileW = 50, storageTileH = 34, storageTileGap = 8;
+    // For 2/3-node, fit all storage ports in a single row (max 4-6 ports).
+    // For 4-node (6 ports), use 3-column grid with staggered second row.
+    var maxStorageCols = (n <= 3) ? storagePerNode : Math.min(storagePerNode, 3);
+    var storageColsPerNode = Math.max(1, maxStorageCols);
+    var storageRowsPerNode = Math.ceil(storagePerNode / storageColsPerNode);
+    var staggerOffset = (storageRowsPerNode > 1 && storageColsPerNode > 1) ? (storageTileW + storageTileGap) / 2 : 0;
+    var storageGroupW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap + 30 + staggerOffset;
+    var storageGroupH = storageRowsPerNode * storageTileH + (storageRowsPerNode - 1) * 8 + 38;
+    var nodeW = Math.max(220, storageGroupW + 30);
+    var nodeH = 195 + mgmtVnicH + storageGroupH;
+    var nodeGap = n <= 3 ? 30 : 20;
+
+    var svgW = n * nodeW + (n - 1) * nodeGap + 100;
+    var nodeY = 90;
+
+    // Subnet edges
+    var edges = [];
+    var subnetNum = 1;
+    var linkMode = state.switchlessLinkMode || 'dual_link';
+    var linksPerPair = (n === 3 && linkMode === 'single_link') ? 1 : 2;
+
+    // Build port counters per node (which storage port index connects to which peer)
+    var portCounters = [];
+    for (var pc = 0; pc < n; pc++) portCounters.push(0);
+
+    for (var i = 0; i < n; i++) {
+        for (var j = i + 1; j < n; j++) {
+            for (var lk = 0; lk < linksPerPair; lk++) {
+                edges.push({
+                    subnet: subnetNum++,
+                    a: { n: i, p: portCounters[i]++ },
+                    b: { n: j, p: portCounters[j]++ }
+                });
+            }
+        }
+    }
+    var totalSubnets = subnetNum - 1;
+
+    // Subnet lane area
+    var laneGap = 16;
+    var laneAreaH = totalSubnets * laneGap + 40;
+    var svgH = nodeY + nodeH + laneAreaH + 30;
+
+    // Node X positions (centered)
+    var totalNodesW = n * nodeW + (n - 1) * nodeGap;
+    var startX = (svgW - totalNodesW) / 2;
+    var nodeXPositions = [];
+    for (var nx = 0; nx < n; nx++) nodeXPositions.push(startX + nx * (nodeW + nodeGap));
+
+    function subnetColor(num) {
+        // Match the report's per-scenario color palettes
+        var hues;
+        if (n === 2) {
+            // 2-node: 2 distinct hues (report uses hsla(215) and hsla(330))
+            hues = [215, 330];
+        } else if (n === 3) {
+            // 3-node: 6 distinct hues matching the report
+            hues = [210, 250, 290, 330, 30, 160];
+        } else {
+            // 4-node: 12 distinct hues matching the report
+            hues = [205, 235, 265, 295, 325, 355, 25, 55, 85, 115, 145, 175];
+        }
+        var h = hues[(num - 1) % hues.length];
+        return 'hsla(' + h + ', 78%, 62%, 0.95)';
+    }
+
+    function storageGroupRect(nodeIdx) {
+        var nLeft = nodeXPositions[nodeIdx];
+        var x = nLeft + (nodeW - storageGroupW) / 2;
+        var y = nodeY + 130 + mgmtVnicH;
+        return { x: x, y: y };
+    }
+
+    function storageTileRect(nodeIdx, portIdx) {
+        var sg = storageGroupRect(nodeIdx);
+        var col = portIdx % storageColsPerNode;
+        var row = Math.floor(portIdx / storageColsPerNode);
+        var totalW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap;
+        var sx = sg.x + (storageGroupW - totalW) / 2 + col * (storageTileW + storageTileGap);
+        // Stagger second row so vertical connector segments don't overlap
+        if (row === 1 && storageColsPerNode > 1) {
+            var stagger = (storageTileW + storageTileGap) / 2;
+            sx += stagger;
+            var maxX = sg.x + storageGroupW - storageTileW;
+            if (sx > maxX) sx -= stagger;
+        }
+        var sy = sg.y + 30 + row * (storageTileH + 8);
+        return { x: sx, y: sy };
+    }
+
+    function storagePortBottom(nodeIdx, portIdx) {
+        var tr = storageTileRect(nodeIdx, portIdx);
+        return { x: tr.x + storageTileW / 2, y: tr.y + storageTileH };
+    }
+
+    // Build SVG
+    var autoIpLabel = state.storageAutoIp === 'enabled' ? 'AutoIP: True' : state.storageAutoIp === 'disabled' ? 'AutoIP: False' : 'AutoIP: -';
+    var linkLabel = (n === 3) ? (linkMode === 'single_link' ? ', Single-Link' : ', Dual-Link') : '';
+    var titleText = 'Storage Network ATC intent — Switchless=true' + linkLabel + ', ' + autoIpLabel;
+
+    var svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Switchless storage connectivity preview">';
+    svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
+    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="12" fill="var(--text-secondary)">' + escapeHtml(titleText) + '</text>';
+
+    // Render each node
+    for (var ni = 0; ni < n; ni++) {
+        var nLeft = nodeXPositions[ni];
+        svg += '<rect x="' + nLeft + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="14" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
+        svg += '<text x="' + (nLeft + nodeW / 2) + '" y="' + (nodeY + 26) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(ni)) + '</text>';
+
+        // Mgmt vNIC
+        var vnicW = 76, vnicHeight = 26;
+        var vnicX = nLeft + (nodeW - vnicW) / 2, vnicY2 = nodeY + 40;
+        svg += '<rect x="' + vnicX + '" y="' + vnicY2 + '" width="' + vnicW + '" height="' + vnicHeight + '" rx="5" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="4 2" />';
+        svg += '<text x="' + (vnicX + vnicW / 2) + '" y="' + (vnicY2 + 11) + '" text-anchor="middle" font-size="7.5" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
+        svg += '<text x="' + (vnicX + vnicW / 2) + '" y="' + (vnicY2 + 21) + '" text-anchor="middle" font-size="6.5" fill="var(--text-secondary)">' + escapeHtml(vlanLabel) + '</text>';
+
+        // Mgmt+Compute SET team
+        var setW = Math.min(nodeW - 20, mgmtPorts.length * 60 + 30);
+        var setH = 52;
+        var setX = nLeft + (nodeW - setW) / 2;
+        var setY = nodeY + 72 + mgmtVnicH / 2;
+        svg += '<text x="' + (nLeft + nodeW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
+        svg += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
+        svg += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 12) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">SET (vSwitch)</text>';
+        var mgmtTileW = 56, mgmtTileH = 28;
+        var mgmtTilesW = mgmtPorts.length * mgmtTileW + (mgmtPorts.length - 1) * 6;
+        var mgmtStartX = setX + (setW - mgmtTilesW) / 2;
+        for (var mi = 0; mi < mgmtPorts.length; mi++) {
+            var mx = mgmtStartX + mi * (mgmtTileW + 6), my = setY + 18;
+            var mLabel = getPortDisplayName(mgmtPorts[mi]);
+            svg += '<rect x="' + mx + '" y="' + my + '" width="' + mgmtTileW + '" height="' + mgmtTileH + '" rx="6" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
+            svg += '<text x="' + (mx + mgmtTileW / 2) + '" y="' + (my + 18) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(mLabel) + '</text>';
+        }
+
+        // Storage intent group
+        var sg = storageGroupRect(ni);
+        svg += '<rect x="' + sg.x + '" y="' + sg.y + '" width="' + storageGroupW + '" height="' + storageGroupH + '" rx="10" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
+        svg += '<text x="' + (sg.x + storageGroupW / 2) + '" y="' + (sg.y + 16) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Storage intent (RDMA)</text>';
+
+        for (var pi = 0; pi < storagePerNode; pi++) {
+            var tr = storageTileRect(ni, pi);
+            var sLabel = getPortDisplayName(storagePorts[pi]);
+            svg += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + storageTileW + '" height="' + storageTileH + '" rx="6" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
+            svg += '<text x="' + (tr.x + storageTileW / 2) + '" y="' + (tr.y + 21) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(sLabel) + '</text>';
+        }
+    }
+
+    // Subnet connection lines below nodes
+    var laneBaseY = nodeY + nodeH + 20;
+    var midXOffsets = [0, 12, -12, 16, -20, 24, -28, 30, -36, 38, -44, 46];
+    for (var ei = 0; ei < edges.length; ei++) {
+        var ed = edges[ei];
+        var a = storagePortBottom(ed.a.n, ed.a.p);
+        var b = storagePortBottom(ed.b.n, ed.b.p);
+        var busY = laneBaseY + ei * laneGap;
+        var midX = ((a.x + b.x) / 2) + (midXOffsets[ei] || 0);
+        var strokeColor = subnetColor(ed.subnet);
+
+        svg += '<path d="M ' + a.x + ' ' + a.y + ' L ' + a.x + ' ' + busY + ' L ' + midX + ' ' + busY + ' L ' + b.x + ' ' + busY + ' L ' + b.x + ' ' + b.y + '" fill="none" stroke="' + strokeColor + '" stroke-width="2.2" opacity="0.9" />';
+        svg += '<text x="' + midX + '" y="' + (busY - 5) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Subnet ' + ed.subnet + '</text>';
+    }
+
+    svg += '</svg>';
+
+    // Legend
+    var legendHtml = '<div class="switchless-diagram__legend" style="margin-top:0.75rem;">'
+        + '<div class="switchless-diagram__legend-title">Storage subnets</div>'
+        + '<div class="switchless-diagram__legend-grid">';
+    for (var li = 0; li < edges.length; li++) {
+        var led = edges[li];
+        var nodeA = getNodeLabel(led.a.n);
+        var nodeB = getNodeLabel(led.b.n);
+        legendHtml += '<div class="switchless-diagram__legend-item">'
+            + '<svg width="40" height="10" viewBox="0 0 40 10" aria-hidden="true"><line x1="0" y1="5" x2="40" y2="5" stroke="' + subnetColor(led.subnet) + '" stroke-width="2" /></svg>'
+            + '<span class="switchless-diagram__legend-text">Subnet ' + led.subnet + ' — ' + escapeHtml(nodeA) + ' ↔ ' + escapeHtml(nodeB) + '</span>'
+            + '</div>';
+    }
+    legendHtml += '</div></div>';
+
+    container.innerHTML = '<div style="margin-top:1.5rem;">'
+        + '<h4 style="color:var(--accent-purple); margin-bottom:0.75rem;">Host Networking Preview</h4>'
+        + '<div class="switchless-diagram">' + svg + legendHtml + '</div>'
+        + '<div style="margin-top:0.75rem; display:flex; gap:0.5rem;">'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'light\')">Download SVG (Light)</button>'
+        + '<button type="button" class="report-action-button" onclick="window.downloadWizardHciHostNetworkingSvg(\'dark\')">Download SVG (Dark)</button>'
+        + '</div>'
+        + '</div>';
+}
+
+window.downloadWizardHciHostNetworkingSvg = function(variant) {
+    try {
+        var container = document.getElementById('hci-nic-layout-diagram');
+        if (!container) return;
+        var svgEl = container.querySelector('svg.switchless-diagram__svg');
+        if (!svgEl) return;
+
+        var theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
+        var clone = svgEl.cloneNode(true);
+        if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        var exportBg = '#000000';
+        try {
+            var rootStyle = window.getComputedStyle(document.documentElement);
+            var themeVars = {
+                '--bg-dark': (rootStyle.getPropertyValue('--bg-dark') || '').trim(),
+                '--card-bg': (rootStyle.getPropertyValue('--card-bg') || '').trim(),
+                '--text-primary': (rootStyle.getPropertyValue('--text-primary') || '').trim(),
+                '--text-secondary': (rootStyle.getPropertyValue('--text-secondary') || '').trim(),
+                '--accent-blue': (rootStyle.getPropertyValue('--accent-blue') || '').trim(),
+                '--accent-purple': (rootStyle.getPropertyValue('--accent-purple') || '').trim(),
+                '--success': (rootStyle.getPropertyValue('--success') || '').trim(),
+                '--glass-border': (rootStyle.getPropertyValue('--glass-border') || '').trim()
+            };
+            if (theme === 'light') {
+                themeVars['--bg-dark'] = '#ffffff';
+                themeVars['--card-bg'] = '#ffffff';
+                themeVars['--text-primary'] = '#0b0b0b';
+                themeVars['--text-secondary'] = '#404040';
+                themeVars['--glass-border'] = 'rgba(0, 0, 0, 0.14)';
+            }
+            exportBg = (theme === 'light') ? '#ffffff' : (themeVars['--bg-dark'] || '#000000');
+
+            var decls = Object.keys(themeVars).map(function(k) {
+                var v = (themeVars[k] || '').trim();
+                return v ? (k + ': ' + v + ';') : '';
+            }).filter(Boolean).join(' ');
+
+            if (decls) {
+                var defs = clone.querySelector('defs');
+                if (!defs) {
+                    defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                    clone.insertBefore(defs, clone.firstChild);
+                }
+                var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                styleEl.textContent = ':root { ' + decls + ' }';
+                defs.appendChild(styleEl);
+            }
+        } catch (eVars) { /* ignore */ }
+
+        try {
+            var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('fill', exportBg);
+            var vb = (clone.getAttribute('viewBox') || '').trim();
+            if (vb) {
+                var parts = vb.split(/\s+/).map(function(p) { return parseFloat(p); });
+                if (parts.length === 4 && parts.every(function(nn) { return Number.isFinite(nn); })) {
+                    rect.setAttribute('x', String(parts[0]));
+                    rect.setAttribute('y', String(parts[1]));
+                    rect.setAttribute('width', String(parts[2]));
+                    rect.setAttribute('height', String(parts[3]));
+                } else {
+                    rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+                    rect.setAttribute('width', '100%'); rect.setAttribute('height', '100%');
+                }
+            } else {
+                rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+                rect.setAttribute('width', '100%'); rect.setAttribute('height', '100%');
+            }
+            var defsNode = clone.querySelector('defs');
+            if (defsNode && defsNode.nextSibling) {
+                clone.insertBefore(rect, defsNode.nextSibling);
+            } else {
+                clone.insertBefore(rect, clone.firstChild);
+            }
+        } catch (eBg) { /* ignore */ }
+
+        var serializer = new XMLSerializer();
+        var svgText = serializer.serializeToString(clone);
+        if (svgText.indexOf('<?xml') !== 0) {
+            svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgText;
+        }
+
+        var blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var ts = new Date();
+        var pad2 = function(n3) { return String(n3).padStart(2, '0'); };
+        var fileName = 'hci-host-networking-preview-' + theme + '-'
+            + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
+            + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes()) + '.svg';
+
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    } catch (e) { /* ignore */ }
+};
+
 function confirmOverrides() {
     if (state.overridesConfirmed) {
         // Toggle to edit mode
         state.overridesConfirmed = false;
+        var previewEl = document.getElementById('hci-nic-layout-diagram');
+        if (previewEl) previewEl.innerHTML = '';
     } else {
         state.overridesConfirmed = true;
+        renderHciHostNetworkingPreview();
     }
     updateOverridesUI();
     updateUI();

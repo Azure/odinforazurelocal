@@ -493,6 +493,76 @@
             </div>
         </nav>
 
+        <!-- Disaggregated breadcrumb navigation -->
+        <nav id="breadcrumb-nav-da" class="breadcrumb-nav hidden" aria-label="Disaggregated wizard steps navigation">
+            <div class="breadcrumb-container">
+                <button type="button" class="breadcrumb-item" data-step="step-1" onclick="navigateToStep('step-1')" title="Deployment Type" aria-label="Step 1: Type">
+                    <span class="breadcrumb-number">1</span>
+                    <span class="breadcrumb-label">Type</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da1" onclick="navigateToStep('step-da1')" title="Architecture" aria-label="DA1: Architecture">
+                    <span class="breadcrumb-number">DA1</span>
+                    <span class="breadcrumb-label">Arch</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da2" onclick="navigateToStep('step-da2')" title="Backup Network" aria-label="DA2: Backup">
+                    <span class="breadcrumb-number">DA2</span>
+                    <span class="breadcrumb-label">Backup</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da3" onclick="navigateToStep('step-da3')" title="Cluster Scale" aria-label="DA3: Scale">
+                    <span class="breadcrumb-number">DA3</span>
+                    <span class="breadcrumb-label">Scale</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <div class="breadcrumb-group" aria-label="Physical Network Switch Configuration">
+                    <span class="breadcrumb-group-label">Switch Config</span>
+                    <div class="breadcrumb-group-items">
+                        <button type="button" class="breadcrumb-item" data-step="step-da4" onclick="navigateToStep('step-da4')" title="Spine Switches" aria-label="DA4: Spines">
+                            <span class="breadcrumb-number">DA4</span>
+                            <span class="breadcrumb-label">Spines</span>
+                            <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                        </button>
+                        <span class="breadcrumb-separator">›</span>
+                        <button type="button" class="breadcrumb-item" data-step="step-da5" onclick="navigateToStep('step-da5')" title="Network Switches VLANs, VNI & VRF" aria-label="DA5: VLANs">
+                            <span class="breadcrumb-number">DA5</span>
+                            <span class="breadcrumb-label">VLANs</span>
+                            <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                        </button>
+                        <span class="breadcrumb-separator">›</span>
+                        <button type="button" class="breadcrumb-item" data-step="step-da6" onclick="navigateToStep('step-da6')" title="QoS Policy" aria-label="DA6: QoS">
+                            <span class="breadcrumb-number">DA6</span>
+                            <span class="breadcrumb-label">QoS</span>
+                            <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                        </button>
+                        <span class="breadcrumb-separator">›</span>
+                        <button type="button" class="breadcrumb-item" data-step="step-da7" onclick="navigateToStep('step-da7')" title="Leaf & Spine IP Routing" aria-label="DA7: IPs">
+                            <span class="breadcrumb-number">DA7</span>
+                            <span class="breadcrumb-label">IPs</span>
+                            <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                        </button>
+                    </div>
+                </div>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da8" onclick="navigateToStep('step-da8')" title="Summary & Rack Layout" aria-label="DA8: Summary">
+                    <span class="breadcrumb-number">DA8</span>
+                    <span class="breadcrumb-label">Summary</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+                <span class="breadcrumb-separator">›</span>
+                <button type="button" class="breadcrumb-item" data-step="step-da10" onclick="navigateToStep('step-da10')" title="Network Adapter Ports" aria-label="DA10: Adapters">
+                    <span class="breadcrumb-number">DA10</span>
+                    <span class="breadcrumb-label">Adapters</span>
+                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                </button>
+            </div>
+        </nav>
+
         <div class="disclaimer-wrapper">
             <div class="disclaimer-banner">
                 <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
@@ -505,7 +575,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.18.50 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.26.04 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -572,36 +642,20 @@
                         </a>
                     </p>
                     <div class="options-grid">
-                        <!-- Option 1: Hyperconverged -->
-                        <div class="option-card" data-value="hyperconverged"
-                            onclick="selectOption('scenario', 'hyperconverged')">
+                        <!-- Option 1: Connected -->
+                        <div class="option-card" data-value="connected"
+                            onclick="selectOption('scenario', 'connected')">
                             <div class="icon">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <rect x="2" y="4" width="20" height="16" rx="2" stroke-width="1.5" />
-                                    <line x1="2" y1="12" x2="22" y2="12" stroke-width="1.5" />
-                                    <!-- Database icon overlay -->
-                                    <ellipse cx="17" cy="7" rx="4" ry="2" stroke-width="1.2" fill="rgba(59, 130, 246, 0.1)" />
-                                    <path d="M13 7v3c0 1.1 1.79 2 4 2s4-.9 4-2V7" stroke-width="1.2" />
-                                    <path d="M13 10v3c0 1.1 1.79 2 4 2s4-.9 4-2v-3" stroke-width="1.2" />
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5" />
+                                    <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke-width="1.5" />
                                 </svg>
                             </div>
-                            <h3>Hyperconverged</h3>
-                            <p>Single rack, or rack-aware cluster providing hyperconverged compute, storage and network.</p>
+                            <h3>Connected</h3>
+                            <p>Cloud-connected deployment with full Azure Arc integration.</p>
                         </div>
 
-                        <!-- Option 2: Multi-Rack -->
-                        <div class="option-card" data-value="multirack" onclick="selectOption('scenario', 'multirack')">
-                            <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <path d="M4 2h5v20H4zM15 2h5v20h-5z" stroke-width="1.5" />
-                                    <path d="M9 12h6" stroke-width="1.5" stroke-dasharray="2 2" />
-                                </svg>
-                            </div>
-                            <h3>Multi-Rack</h3>
-                            <p>Scalable, multi-rack distributed architecture.</p>
-                        </div>
-
-                        <!-- Option 3: Disconnected -->
+                        <!-- Option 2: Disconnected -->
                         <div class="option-card" data-value="disconnected"
                             onclick="selectOption('scenario', 'disconnected')">
                             <div class="icon">
@@ -612,6 +666,18 @@
                             </div>
                             <h3>Disconnected</h3>
                             <p>Air-gapped operation with local management.</p>
+                        </div>
+
+                        <!-- Option 3: Rack Scale -->
+                        <div class="option-card" data-value="rackscale" onclick="selectOption('scenario', 'rackscale')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M4 2h5v20H4zM15 2h5v20h-5z" stroke-width="1.5" />
+                                    <path d="M9 12h6" stroke-width="1.5" stroke-dasharray="2 2" />
+                                </svg>
+                            </div>
+                            <h3>Rack Scale</h3>
+                            <p>Scalable, multi-rack distributed architecture.</p>
                         </div>
 
                         <!-- Option 4: M365 Local -->
@@ -631,9 +697,9 @@
 
                     <div id="scenario-explanation" class="info-box"></div>
 
-                    <div id="multirack-message" class="info-box warning hidden">
+                    <div id="rackscale-message" class="info-box warning hidden">
                         <strong style="color: var(--accent-purple); font-size: 1.1rem;">Contact Microsoft</strong>
-                        <p>For Multi-Rack Network Architecture requirements, please contact your Microsoft
+                        <p>For Rack Scale Network Architecture requirements, please contact your Microsoft
                             representative to
                             understand the network requirements.<br>
                             <a href="https://learn.microsoft.com/en-us/azure/azure-local/multi-rack/multi-rack-overview?view=azloc-2511"
@@ -648,6 +714,46 @@
                                 target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Read the
                                 documentation</a>
                         </p>
+                    </div>
+
+                    <!-- Step 1b: Architecture (shown for Connected + Disconnected) -->
+                    <div id="architecture-selection" class="hidden" style="margin-top: 24px;">
+                        <h3 style="color: var(--text-primary); margin-bottom: 12px;">Select Architecture</h3>
+                        <div class="options-grid">
+                            <!-- Hyperconverged -->
+                            <div class="option-card" data-value="hyperconverged"
+                                onclick="selectOption('architecture', 'hyperconverged')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="2" y="4" width="20" height="16" rx="2" stroke-width="1.5" />
+                                        <line x1="2" y1="12" x2="22" y2="12" stroke-width="1.5" />
+                                        <ellipse cx="17" cy="7" rx="4" ry="2" stroke-width="1.2" fill="rgba(59, 130, 246, 0.1)" />
+                                        <path d="M13 7v3c0 1.1 1.79 2 4 2s4-.9 4-2V7" stroke-width="1.2" />
+                                        <path d="M13 10v3c0 1.1 1.79 2 4 2s4-.9 4-2v-3" stroke-width="1.2" />
+                                    </svg>
+                                </div>
+                                <h3>Hyperconverged</h3>
+                                <p>S2D storage, 2-switch TOR pair, up to 16 nodes per rack.</p>
+                            </div>
+
+                            <!-- Disaggregated -->
+                            <div class="option-card" data-value="disaggregated"
+                                onclick="selectOption('architecture', 'disaggregated')">
+                                <div class="icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                        <rect x="1" y="3" width="7" height="18" rx="1" stroke-width="1.2" />
+                                        <rect x="10" y="3" width="4" height="18" rx="1" stroke-width="1.2" />
+                                        <rect x="16" y="3" width="7" height="18" rx="1" stroke-width="1.2" />
+                                        <path d="M4 1v2M12 1v2M20 1v2" stroke-width="1.5" />
+                                        <path d="M4 1h16" stroke-width="1.2" stroke-dasharray="2 2" />
+                                    </svg>
+                                </div>
+                                <h3>Disaggregated</h3>
+                                <p>External SAN storage, Clos leaf-spine fabric, up to 64 nodes across multiple racks.</p>
+                            </div>
+                        </div>
+
+                        <div id="architecture-explanation" class="info-box"></div>
                     </div>
                 </section>
 
@@ -736,6 +842,407 @@
                     </ul>
                     <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">Select the Azure Cloud and Region below that will be used for these purposes.</p>
                 </div>
+
+                <!-- ============================================================ -->
+                <!-- DISAGGREGATED ARCHITECTURE STEPS (DA1-DA8) -->
+                <!-- ============================================================ -->
+
+                <!-- DA1: Storage Type -->
+                <section class="step hidden" id="step-da1">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA1</span>
+                        <h2>Storage Type</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Select the external SAN storage connectivity for your disaggregated cluster.
+                    </p>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="fc_san" onclick="selectDisaggOption('storageType', 'fc_san')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
+                                    <path d="M7 8h10M7 12h10M7 16h6" stroke-width="1.5" />
+                                    <circle cx="18" cy="16" r="2" stroke-width="1.5" fill="rgba(124, 58, 237, 0.2)" />
+                                </svg>
+                            </div>
+                            <h3>Fibre Channel SAN</h3>
+                            <p>Dedicated FC HBAs on separate fabric. FC traffic is isolated from Ethernet leaf switches.</p>
+                        </div>
+                        <div class="option-card" data-value="iscsi_4nic" onclick="selectDisaggOption('storageType', 'iscsi_4nic')">
+                            <span class="coming-soon-badge">Coming Soon</span>
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
+                                    <path d="M7 8h10M7 12h10M7 16h10" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>iSCSI SAN (4-NIC)</h3>
+                            <p>iSCSI shares PCIe1 with CSV/LM via trunk. 4 NICs total per node.</p>
+                            <p class="preview-note">⚠️ Feature not available yet</p>
+                        </div>
+                        <div class="option-card" data-value="iscsi_6nic" onclick="selectDisaggOption('storageType', 'iscsi_6nic')">
+                            <span class="coming-soon-badge">Coming Soon</span>
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
+                                    <path d="M7 8h10M7 12h10" stroke-width="1.5" />
+                                    <path d="M7 16h10" stroke-width="1.5" stroke-dasharray="3 2" />
+                                    <circle cx="18" cy="8" r="1.5" stroke-width="1" fill="rgba(234, 179, 8, 0.3)" />
+                                </svg>
+                            </div>
+                            <h3>iSCSI SAN (6-NIC)</h3>
+                            <p>Dedicated iSCSI NICs on PCIe2, using leaf ports 33–48. 6 NICs total per node.</p>
+                            <p class="preview-note">⚠️ Feature not available yet</p>
+                        </div>
+                    </div>
+                    <div id="da1-explanation" class="info-box"></div>
+                </section>
+
+                <!-- DA2: Backup Network -->
+                <section class="step hidden" id="step-da2">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA2</span>
+                        <h2>Backup Network</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Enable optional in-guest VM backup network with dedicated NICs (2 additional ports per node).
+                    </p>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="false" onclick="selectDisaggOption('backup', false)">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5" />
+                                    <path d="M8 12h8" stroke-width="2" />
+                                </svg>
+                            </div>
+                            <h3>No Backup Network</h3>
+                            <p>Standard deployment without dedicated backup NICs.</p>
+                        </div>
+                        <div class="option-card" data-value="true" onclick="selectDisaggOption('backup', true)">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <circle cx="12" cy="12" r="10" stroke-width="1.5" />
+                                    <path d="M8 12h8M12 8v8" stroke-width="2" />
+                                </svg>
+                            </div>
+                            <h3>Enable Backup Network</h3>
+                            <p>Adds 2 dedicated backup NICs per node for in-guest VM backup traffic.</p>
+                        </div>
+                    </div>
+                    <div id="da2-explanation" class="info-box"></div>
+                    <div id="da2-warning" class="info-box warning hidden"></div>
+                </section>
+
+                <!-- DA3: Scale -->
+                <section class="step hidden" id="step-da3">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA3</span>
+                        <h2>Cluster Scale</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Configure the number of racks and nodes per rack. Maximum 64 nodes total, constrained by storage type and backup selection.
+                    </p>
+                    <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Number of Racks</label>
+                            <div class="options-grid" style="grid-template-columns: repeat(4, 1fr);">
+                                <div class="option-card" data-value="1" onclick="selectDisaggOption('racks', 1)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">1</h3></div>
+                                <div class="option-card" data-value="2" onclick="selectDisaggOption('racks', 2)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">2</h3></div>
+                                <div class="option-card" data-value="3" onclick="selectDisaggOption('racks', 3)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">3</h3></div>
+                                <div class="option-card" data-value="4" onclick="selectDisaggOption('racks', 4)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">4</h3></div>
+                            </div>
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Nodes per Rack</label>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <input type="range" id="da-nodes-per-rack" min="1" max="16" value="16" style="flex: 1;"
+                                    oninput="selectDisaggOption('nodesPerRack', parseInt(this.value))">
+                                <span id="da-nodes-per-rack-value" style="font-size: 1.2rem; font-weight: 700; color: var(--accent-blue); min-width: 30px; text-align: center;">16</span>
+                            </div>
+                            <p id="da-max-nodes-info" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Max per rack: 16 | Total: 64 nodes</p>
+                        </div>
+                    </div>
+                    <div id="da3-scale-summary" class="info-box"></div>
+                </section>
+
+                <!-- DA4: Spine Count -->
+                <section class="step hidden" id="step-da4">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA4</span>
+                        <h2>Spine Switches</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Select the number of spine switches for the Clos fabric.
+                    </p>
+                    <div class="options-grid">
+                        <div class="option-card" data-value="2" onclick="selectDisaggOption('spines', 2)">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="4" y="8" width="7" height="8" rx="1" stroke-width="1.5" />
+                                    <rect x="13" y="8" width="7" height="8" rx="1" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>2 Spines</h3>
+                            <p>Standard redundancy. Recommended for up to 4 racks.</p>
+                        </div>
+                        <div class="option-card" data-value="4" onclick="selectDisaggOption('spines', 4)">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <rect x="1" y="8" width="5" height="8" rx="1" stroke-width="1.2" />
+                                    <rect x="7" y="8" width="5" height="8" rx="1" stroke-width="1.2" />
+                                    <rect x="13" y="8" width="5" height="8" rx="1" stroke-width="1.2" />
+                                    <rect x="19" y="8" width="4" height="8" rx="1" stroke-width="1.2" />
+                                </svg>
+                            </div>
+                            <h3>4 Spines</h3>
+                            <p>Higher bandwidth and redundancy. Recommended for scale-out deployments.</p>
+                        </div>
+                    </div>
+                    <div id="da4-explanation" class="info-box"></div>
+                </section>
+
+                <!-- DA5: VLANs, VNI & VRF -->
+                <section class="step hidden" id="step-da5">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA5</span>
+                        <h2>Network Switches &mdash; VLANs, VNI & VRF</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Configure VLAN IDs, VXLAN Network Identifiers, and VRF name for the Clos fabric overlay.
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                        <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px;">
+                            <h4 style="margin: 0 0 6px 0; color: var(--accent-blue); font-size: 0.9rem;">VLAN</h4>
+                            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>Virtual LAN</strong> segments a physical switch into isolated Layer 2 broadcast domains. Each traffic type (management, cluster, storage) gets its own VLAN ID (1&ndash;4094) so traffic is separated at the switch port level.</p>
+                        </div>
+                        <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px;">
+                            <h4 style="margin: 0 0 6px 0; color: var(--accent-purple); font-size: 0.9rem;">VNI</h4>
+                            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>VXLAN Network Identifier</strong> extends VLANs across the Clos fabric by encapsulating Layer 2 frames in UDP tunnels. Each VLAN maps to a unique VNI (up to 16 M), enabling the EVPN overlay to stretch subnets across racks.</p>
+                        </div>
+                        <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px;">
+                            <h4 style="margin: 0 0 6px 0; color: #14b8a6; font-size: 0.9rem;">VRF</h4>
+                            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>Virtual Routing and Forwarding</strong> instance creates an isolated routing table on each leaf switch. All Azure Local VLANs are placed into a single VRF so inter-VLAN routing stays within the tenant domain, separate from the fabric underlay.</p>
+                        </div>
+                    </div>
+                    <div style="margin-top: 16px; margin-bottom: 20px; background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 6px; padding: 14px;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--accent-purple); font-size: 0.9rem;">Switch Port VLAN Modes</h4>
+                        <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
+                            <li><strong>Cluster VLANs</strong> &mdash; Configure switch ports in <strong>access mode</strong> using the default VLAN ID. This means no VLAN tagging is needed at the host NIC level; the switch handles VLAN assignment for cluster traffic.</li>
+                            <li><strong>Management VLAN</strong> &mdash; Can be configured as the <strong>default VLAN ID</strong> (access/native) or as a <strong>trunk VLAN</strong>. Using trunk mode is common because additional tenant network VLANs share the same vSwitch and must be configured in trunk mode.</li>
+                        </ul>
+                    </div>
+                    <div id="da5-vlan-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+                        <!-- Dynamically populated by disaggregated.js -->
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Infrastructure VRF Name</label>
+                        <input type="text" id="da-vrf-name" value="AZLOCALINFRA" placeholder="e.g. AZLOCALINFRA"
+                            style="width: 200px; padding: 0.5rem; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.95rem;"
+                            oninput="updateDisaggVrf(this.value)">
+                    </div>
+
+                    <!-- Tenant Networks -->
+                    <div style="margin-top: 24px;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.95rem;">Tenant Networks <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span></h4>
+                        <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.85rem;">
+                            Add tenant VRFs with one or more trunk VLANs each — similar to VNETs in Azure. Each tenant VRF is an isolated routing domain that can contain multiple VLANs for VM workload traffic.
+                        </p>
+                        <div id="da5-workload-vlan-list">
+                            <!-- Dynamically populated -->
+                        </div>
+                        <button type="button" id="da5-add-workload-btn" onclick="addDisaggTenantNetwork()" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            Add Tenant Network
+                        </button>
+                    </div>
+
+                    <!-- Confirm DA5 -->
+                    <div id="da5-confirm-container" style="margin-top: 1.5rem; text-align: center;">
+                        <button id="da5-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggVlanConfig()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Confirm VLAN Configuration
+                        </button>
+                        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                            Click to confirm your VLAN, VNI, VRF, and tenant network configuration.
+                        </p>
+                    </div>
+                    <div id="da5-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">
+                        <span style="color: var(--accent-green); font-weight: 600;">✓ VLAN configuration confirmed</span>
+                        <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editDisaggVlanConfig()">Edit</button>
+                    </div>
+
+                    <div id="da5-explanation" class="info-box"></div>
+                </section>
+
+                <!-- DA6: QoS Policy -->
+                <section class="step hidden" id="step-da6">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA6</span>
+                        <h2>QoS Policy</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Quality of Service policy for traffic prioritization. Auto-configured based on storage type.
+                    </p>
+                    <div id="da6-qos-summary" style="margin-bottom: 16px;">
+                        <!-- Dynamically populated by disaggregated.js -->
+                    </div>
+                    <div id="da6-explanation" class="info-box"></div>
+                </section>
+
+                <!-- DA7: Leaf and Spine IP Routing -->
+                <section class="step hidden" id="step-da7">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA7</span>
+                        <h2>Leaf &amp; Spine Network Switches &mdash; IP Routing Configuration</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Configure loopback IPs, management subnets, iSCSI targets, and ASN assignments per rack.
+                    </p>
+                    <div id="da7-topology-diagram" style="margin-bottom: 24px; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 8px; padding: 16px; overflow-x: auto; text-align: center;">
+                        <!-- SVG topology diagram generated by disaggregated.js -->
+                    </div>
+                    <div id="da7-ip-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+                        <!-- Dynamically populated by disaggregated.js -->
+                    </div>
+                    <!-- Confirm DA7 -->
+                    <div id="da7-confirm-container" style="margin-top: 1.5rem; text-align: center;">
+                        <button id="da7-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggIpConfig()">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            Confirm IP Routing Configuration
+                        </button>
+                        <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                            Click to confirm loopback IPs and ASN assignments.
+                        </p>
+                    </div>
+                    <div id="da7-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">
+                        <span style="color: var(--accent-green); font-weight: 600;">&#10003; IP routing configuration confirmed</span>
+                        <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editDisaggIpConfig()">Edit</button>
+                    </div>
+                    <div id="da7-explanation" class="info-box"></div>
+                </section>
+
+                <!-- DA8: Switch Config / Summary -->
+                <section class="step hidden" id="step-da8">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA8</span>
+                        <h2>Disaggregated Summary & Rack Layout</h2>
+                    </div>
+                    <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
+                        Review your disaggregated cluster configuration and rack layout diagram.
+                    </p>
+                    <div id="da8-config-summary" style="margin-bottom: 24px;">
+                        <!-- Dynamically populated by disaggregated.js -->
+                    </div>
+                    <div id="da8-rack-diagram" style="margin-bottom: 24px; background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 8px; padding: 16px; overflow-x: auto; text-align: center;">
+                        <!-- SVG rack diagram generated by disaggregated.js -->
+                    </div>
+                    <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem; margin-bottom: 16px;">
+                        <button type="button" class="report-action-button" onclick="downloadDisaggRackDiagram()">Download Rack Diagram SVG</button>
+                    </div>
+                    <div id="da8-explanation" class="info-box"></div>
+                </section>
+
+                <!-- DA10: Disaggregated Network Adapter Ports + Intents -->
+                <section class="step hidden" id="step-da10">
+                    <div class="step-header">
+                        <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA10</span>
+                        <h2>Network Adapter Ports</h2>
+                    </div>
+                    <div id="da10-ports-explanation" class="info-box">
+                        <strong style="color: var(--accent-purple);">Hardware Requirement</strong>
+                        Disaggregated clusters use a mix of SET-teamed and standalone NICs. Select the number of network ports per node, then configure each port below.
+                    </div>
+
+                    <!-- Port Count Selection (mirrors HCI Step 5 card layout) -->
+                    <div id="da10-port-count-section">
+                        <h4 style="margin: 1rem 0 0.5rem 0;">Network Ports Per Node</h4>
+                        <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.9rem;">Select the total number of Ethernet network ports per node. FC HBA and BMC ports are separate and not counted here.</p>
+                        <div id="da10-port-count-grid" class="options-grid">
+                            <!-- Dynamic: port count cards based on storage type -->
+                        </div>
+                        <div id="da10-vnic-mode-banner"></div>
+                    </div>
+
+                    <!-- Port Configuration (same layout as HCI Step 5) -->
+                    <div id="da10-port-configuration" class="port-config-section">
+                        <h4>Port Configuration</h4>
+                        <div id="da10-rdma-validation-warning" class="info-box warning hidden" style="margin-top: 0.75rem;"></div>
+                        <div id="da10-port-config-grid" class="port-config-grid">
+                            <!-- Dynamic: per-port cards with name, speed, RDMA -->
+                        </div>
+                        <div id="da10-port-config-confirm-container" class="hidden" style="margin-top: 1.5rem; text-align: center;">
+                            <button id="da10-port-config-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggPortConfig()">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Confirm Port Configuration
+                            </button>
+                            <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                                Click to confirm your port configuration before proceeding.
+                            </p>
+                        </div>
+                        <div id="da10-port-config-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">
+                            <span style="color: var(--accent-green); font-weight: 600;">✓ Port configuration confirmed</span>
+                            <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editDisaggPortConfig()">Edit</button>
+                        </div>
+                    </div>
+
+                    <!-- Network Traffic Intents (same layout as HCI Step 6) -->
+                    <div id="da10-intent-section" style="margin-top: 2rem;">
+                        <h4 style="margin: 0 0 4px 0;">Network Traffic Intents</h4>
+                        <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 0.9rem;">
+                            Drag and drop network adapters to assign them to traffic intents. In disaggregated mode, only the Management + Compute intent uses SET teaming. Cluster, iSCSI, and Backup NICs are standalone (one-to-one VLAN mapping).
+                        </p>
+
+                        <div id="da10-adapter-mapping-container" class="adapter-mapping">
+                            <div class="adapter-mapping-header">
+                                <h4>Adapter Mapping Configuration</h4>
+                                <p style="color:var(--text-secondary);font-size:0.9rem;">Drag and drop network adapters to assign them to traffic intents.</p>
+                            </div>
+                            <div class="adapter-pool">
+                                <div class="adapter-pool-header">
+                                    <span class="adapter-pool-title">Available Network Adapters</span>
+                                    <span class="adapter-pool-hint">Drag adapters to intents below</span>
+                                </div>
+                                <div id="da10-adapter-pool-drop" class="adapter-drop-zone pool-zone"></div>
+                            </div>
+                            <div id="da10-intent-zones-grid" class="intent-zones-grid"></div>
+                            <div class="info-box visible" style="margin-top:0.9rem;">
+                                <strong>Tip</strong> Click an adapter, then click a drop zone to move it.
+                            </div>
+                            <div style="margin-top:0.9rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+                                <button id="da10-adapter-mapping-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmDisaggAdapterMapping()">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
+                                </button>
+                                <button id="da10-adapter-mapping-reset-btn" type="button" class="report-action-button" onclick="resetDisaggAdapterMapping()" style="background:rgba(239,68,68,0.2);">Reset</button>
+                                <div id="da10-adapter-mapping-status" style="color:var(--text-secondary);"></div>
+                            </div>
+                            <div id="da10-adapter-mapping-validation" class="info-box warning hidden" style="margin-top:0.9rem;"></div>
+                        </div>
+
+                        <!-- Overrides: VLAN, Subnet per network -->
+                        <div id="da10-intent-overrides" class="intent-overrides hidden" style="margin-top: 1.5rem;">
+                            <h4>Overrides</h4>
+                            <div id="da10-intent-overrides-container" class="intent-overrides-grid"></div>
+                            <div style="margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                                <button id="da10-overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmDisaggOverrides()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
+                                <span id="da10-overrides-status" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Host networking SVG diagram -->
+                    <div id="da10-nic-layout-diagram" style="margin-top: 2rem; text-align: center;">
+                        <!-- Host networking SVG diagram rendered by disaggregated.js -->
+                    </div>
+
+                    <div id="da10-nic-error" class="hidden" style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);"></div>
+                    <div id="da10-nic-success" class="hidden" style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ All fields valid</div>
+                </section>
 
                 <section class="step" id="step-cloud">
                     <div class="step-header">
@@ -1450,6 +1957,8 @@
                                 <span id="overrides-status" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
                             </div>
                         </div>
+
+                        <div id="hci-nic-layout-diagram"></div>
                     </div>
 
                     <div id="storage-auto-ip" style="margin-top:1.25rem;">
@@ -1846,6 +2355,10 @@
                         <h2>Infrastructure VLAN</h2>
                     </div>
                     <div class="options-grid" style="display:block;">
+                        <div id="infra-vlan-da-notice" class="hidden" style="margin-bottom: 1rem; background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 6px; padding: 12px;">
+                            <strong style="color: var(--accent-purple);">&#9432; Pre-configured from Step DA5</strong>
+                            <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary);" id="infra-vlan-da-notice-text">The Management VLAN mode selected in the Disaggregated VLAN configuration determines this setting.</p>
+                        </div>
                         <div class="options-grid" style="margin-bottom:1rem;">
                             <div class="option-card" data-value="default" onclick="selectOption('infraVlan', 'default')">
                                 <div class="icon">
@@ -2381,70 +2894,28 @@
                                             filtering</span>
                                     </span>
                                 </label>
-
-                                <label class="sdn-feature-card" data-feature="vnet">
-                                    <input type="checkbox" onchange="toggleSdnFeature('vnet', this.checked)"
-                                        style="margin-right:0.5rem;">
-                                    <span>
-                                        <strong>Virtual Networks (VNET)</strong>
-                                        <span style="display:block; font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">
-                                            Isolated networks</span>
-                                    </span>
-                                </label>
-
-                                <label class="sdn-feature-card" data-feature="slb">
-                                    <input type="checkbox" onchange="toggleSdnFeature('slb', this.checked)"
-                                        style="margin-right:0.5rem;">
-                                    <span>
-                                        <strong>Load Balancers (SLB)</strong>
-                                        <span style="display:block; font-size:0.85rem; color:var(--text-secondary); margin:0.25rem 0 0 0;">Traffic
-                                            distribution</span>
-                                    </span>
-                                </label>
                             </div>
                         </div>
 
-                        <!-- SDN Management Options -->
+                        <!-- SDN Management Info (Arc-only) -->
                         <div id="sdn-management-section" class="hidden"
                             style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
-                            <h4 style="color:var(--accent-purple); font-size:1.2rem; margin-bottom:1rem;">SDN Management
-                            </h4>
-
-                            <div class="options-grid">
-                                <div class="option-card" id="sdn-arc-card" data-value="arc_managed"
-                                    onclick="selectOption('sdnManagement', 'arc_managed')">
-                                    <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                            <circle cx="12" cy="12" r="9" stroke-width="1.5" />
-                                            <path d="M12 3v18M3 12h18" stroke-width="1.5" />
-                                        </svg>
-                                    </div>
-                                    <h3>SDN Managed by Arc</h3>
-                                    <p>Cloud-managed SDN via Azure Arc.</p>
-                                </div>
-
-                                <div class="option-card" id="sdn-onprem-card" data-value="onprem_managed"
-                                    onclick="selectOption('sdnManagement', 'onprem_managed')">
-                                    <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                            <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
-                                            <path d="M3 9h18M9 3v18" stroke-width="1.5" />
-                                        </svg>
-                                    </div>
-                                    <h3>SDN Managed by On-Premises Tools</h3>
-                                    <p>Managed using on-premises SDN infrastructure.</p>
-                                </div>
-                            </div>
-
-                            <div id="sdn-info" class="info-box visible" style="margin-top:1.5rem;">
-                                <strong>SDN Management Selection</strong>
-                                <p id="sdn-info-text">Select SDN features above to see available management options.</p>
+                            <div id="sdn-info" class="info-box visible">
+                                <strong>SDN Managed by Azure Arc</strong>
+                                <p id="sdn-info-text">With SDN enabled by Azure Arc, the Network Controller runs as a Failover Cluster service and integrates with the Azure Arc control plane. This allows you to centrally configure and manage Logical Networks (LNET) and Network Security Groups (NSG) via the Azure portal and Azure CLI.</p>
                             </div>
                         </div>
                     </div>
                     <!-- End SDN Features Section -->
+                </section>
 
-                    <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--glass-border);">
+                <!-- Report / Export Actions — shared by HCI and Disaggregated -->
+                <section class="step" id="step-report-actions">
+                    <div class="step-header">
+                        <span class="step-number">⚡</span>
+                        <h2>Generate Configuration Outputs</h2>
+                    </div>
+                    <div style="margin-top:1rem;">
                         <!-- Missing Sections Display -->
                         <div id="missing-sections-container" style="margin-bottom: 1.5rem; display: none;">
                             <div style="padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
@@ -2592,6 +3063,7 @@
     <script src="js/changelog.js"></script>
     <script src="js/script.js"></script>
     <script src="js/disconnected.js"></script>
+    <script src="js/disaggregated.js"></script>
     <footer style="text-align:center;padding:2rem 1rem 1rem;font-size:0.85rem;color:#aaa;">
         🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.
     </footer>

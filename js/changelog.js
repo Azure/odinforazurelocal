@@ -53,12 +53,25 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.50</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">March 31, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.26.04</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">April 8, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 ToR Switch Config Generator</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🏗️ Disaggregated Architecture Wizard</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New disaggregated wizard:</strong> End-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks.</li>
+                        <li><strong>VLAN/VNI/VRF configuration:</strong> Full VLAN, VNI, and VRF setup for management, cluster, iSCSI, and backup networks with tenant network management.</li>
+                        <li><strong>QoS policy &amp; IP planning:</strong> QoS policy configuration, Clos topology diagram, and per-network IP allocation with subnet planning.</li>
+                        <li><strong>Drag-and-drop NIC mapping:</strong> Map physical NICs to intent zones (Compute+Mgmt, Cluster, Storage/Backup) with per-port speed configuration.</li>
+                        <li><strong>Breadcrumb navigation:</strong> Step progress breadcrumb with auto-completion tracking across the DA wizard flow.</li>
+                        <li><strong>Host networking preview:</strong> Interactive SVG diagrams for hyperconverged, switchless, FC SAN, and iSCSI topologies with light/dark SVG export.</li>
+                        <li><strong>SVG rack topology:</strong> Interactive multi-rack topology diagram with leaf-spine interconnects and downloadable SVG.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 ToR Switch Config Generator &amp; QoS Validator</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>New Switch Config page:</strong> Full-featured ToR switch configuration generator for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs from a structured JSON data model.</li>
                         <li><strong>Rack-aware 4-ToR support:</strong> TOR1–TOR4 configurations with correct iBGP peering, loopback IPs, storage VLAN assignment, and per-rack HSRP/VRRP priorities.</li>
