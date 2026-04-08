@@ -8955,6 +8955,39 @@ function transferToSizer() {
 }
 
 /**
+ * Open the ToR Switch Config page directly from the summary panel.
+ * Transfers whatever Designer state is available (partial or complete).
+ * Can be used before the Designer is fully completed — the switch config page
+ * will work with whatever data is provided, and the QoS validator is always available.
+ */
+function openSwitchConfigDirect() { // eslint-disable-line no-unused-vars
+    var payload = {
+        source: 'designer',
+        timestamp: new Date().toISOString(),
+        scenario: state.scenario || null,
+        nodes: state.nodes || null,
+        ports: state.ports ? parseInt(state.ports, 10) : null,
+        storage: state.storage || null,
+        intent: state.intent || null,
+        scale: state.scale || null,
+        clusterRole: state.clusterRole || null,
+        infraVlanId: state.infraVlanId || null,
+        infraVlan: state.infraVlan || null,
+        infraCidr: state.infraCidr || null,
+        infraGateway: state.infraGateway || null,
+        intentOverrides: state.intentOverrides || null
+    };
+
+    try {
+        localStorage.setItem('odinDesignerToSwitchConfig', JSON.stringify(payload));
+    } catch (e) {
+        console.warn('Failed to store designer-to-switch-config payload:', e);
+    }
+
+    window.open('switch-config/switch-config.html?from=designer', '_blank');
+}
+
+/**
  * Transfer deployment state from the Designer to the TOR Switch Config page.
  * Stores the full state in localStorage and navigates to the switch-config page.
  */

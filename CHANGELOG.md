@@ -61,9 +61,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Expanded info box**: Added explanation that even with untagged host traffic (ID 0), the ToR switch assigns it to a VLAN internally (e.g., VLAN 7), and the switch-side VLAN ID is configured separately in the Switch Config Generator
 
 #### Sizer: Disaggregated Storage
-- **Disaggregated Storage deployment type**: New deployment type in the Sizer with rack count selector (1–4 racks), up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, storage capacity bar hidden, and 3D rack visualization updated for multi-rack layouts
-- **Designer → Sizer Transfer**: Disaggregated architecture now transfers correctly from Designer to Sizer with rack count; Sizer button opens in new tab
-- **Import/Export Fix**: Disaggregated rack count now persisted in Sizer save, resume, and JSON import/export
+- **Disaggregated Storage deployment type**: New deployment type in the Sizer with rack count (1–4 racks), spine switch count (2 or 4), and storage connectivity (Fibre Channel SAN / iSCSI SAN) selectors — up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, and 3D rack visualization with multi-rack layouts
+- **3D Visualization: FC Switches**: When Fibre Channel SAN is selected, 2 purple FC switches are rendered per rack below the BMC switch
+- **3D Visualization: Per-rack uplinks**: Blue uplink cables connect every rack’s ToR to spine switches; SMB pink cables and LAG cables only shown for rack-aware (not disaggregated)
+- **3D Visualization: Spine switches**: Configurable 2 or 4 spine switches rendered above the racks
+- **Designer → Sizer Transfer**: Disaggregated architecture transfers from Designer to Sizer with rack count, spine count, and storage type; all buttons open in new tabs
+- **Import/Export**: Disaggregated rack count, spine count, and storage type persisted in save, resume, and JSON import/export
+
+#### QoS Validator Improvements
+- **Smart PFC Detection**: Interface PFC validation uses QoS service-policy to identify storage-facing interfaces, correctly distinguishing from uplink/BMC trunks
+- **Dynamic CoS Detection**: Detects actual CoS values from class-maps (supports custom CoS, not hardcoded to 3/7)
+- **Actionable Warnings**: PFC warnings list both enabled and missing interfaces; ETS bandwidth warnings explain deviations
 
 ---
 

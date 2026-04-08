@@ -118,9 +118,11 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚖️ Sizer: Disaggregated Storage</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Disaggregated Storage deployment type:</strong> New deployment type with rack count selector (1–4 racks), up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, and 3D rack visualization for multi-rack layouts.</li>
-                        <li><strong>Designer → Sizer transfer:</strong> Disaggregated architecture transfers correctly from Designer to Sizer with rack count; Sizer button opens in new tab.</li>
-                        <li><strong>Import/Export fix:</strong> Disaggregated rack count now persisted in Sizer save, resume, and JSON import/export.</li>
+                        <li><strong>Disaggregated Storage deployment type:</strong> Rack count (1–4), spine switch count (2/4), and storage connectivity (Fibre Channel / iSCSI) selectors with 3D rack visualization.</li>
+                        <li><strong>3D Visualization:</strong> FC switches (purple) rendered per rack for Fibre Channel; per-rack uplink cables to spine switches; no SMB/LAG cables for disaggregated.</li>
+                        <li><strong>Designer → Sizer transfer:</strong> Rack count, spine count, and storage type transfer from Designer; all buttons open in new tabs.</li>
+                        <li><strong>Import/Export:</strong> Disaggregated state persisted in save, resume, and JSON import/export.</li>
+                        <li><strong>QoS Validator:</strong> Smart PFC detection using QoS service-policy; dynamic CoS detection; actionable warnings listing specific interfaces.</li>
                     </ul>
                 </div>
 

@@ -52,9 +52,11 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **3D Rack Visualization Improvements**: Azure Local branding (replaced Azure logo), BMC switch added to every rack, ToR color changed to dark grey, single-node topology (1 ToR + 1 BMC), label cleanup (removed "(Front)", "TOR" → "ToR", contiguous numbering)
 - **Designer: Management VLAN Guidance**: Improved VLAN option descriptions and expanded info box explaining host-side vs switch-side VLAN configuration
 - **Designer → Switch Config Integration**: "Generate / Validate ToR Switch Configuration" button on the Designer summary page opens the switch config page in a new tab
-- **Sizer: Disaggregated Storage**: New deployment type in the Sizer with rack count selector (1–4 racks), up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, storage capacity bar hidden, and 3D rack visualization updated for multi-rack layouts
-- **Sizer: Designer → Sizer Transfer**: Disaggregated architecture now transfers correctly from Designer to Sizer with rack count; Sizer button opens in new tab
-- **Sizer: Import/Export Fix**: Disaggregated rack count now persisted in Sizer save, resume, and JSON import/export
+- **Sizer: Disaggregated Storage**: New deployment type in the Sizer with rack count (1–4), spine switch count (2 or 4), and storage connectivity (Fibre Channel / iSCSI) selectors — up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, and 3D rack visualization with multi-rack layouts, per-rack FC switches (purple), and per-rack uplink cables to spine switches
+- **Sizer: Designer → Sizer Transfer**: Disaggregated architecture transfers from Designer to Sizer with rack count, spine count, and storage type; all Sizer buttons open in new tabs
+- **Sizer: Import/Export**: Disaggregated rack count, spine count, and storage type persisted in Sizer save, resume, and JSON import/export
+- **QoS Validator: Smart PFC Detection**: Interface PFC validation now uses QoS service-policy presence to identify storage-facing interfaces, correctly distinguishing them from uplink/BMC trunks that don’t need PFC
+- **QoS Validator: Dynamic CoS Detection**: Detects actual CoS values from class-maps (not hardcoded to 3/7), reports detected values, and provides actionable warnings with specific interface names for missing PFC or non-standard bandwidth
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -366,9 +368,11 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Report: 2D SVG Rack Diagram**: Static front-view SVG rack diagram with server nodes, ToR/BMC switches, core switch box, rack-aware layout, contiguous node numbering, Azure Local branding, legend, and downloadable SVG
 - **3D Rack Viz Improvements**: Azure Local branding, BMC switch in every rack, dark grey ToR color, single-node topology, label cleanup
 - **Designer: Management VLAN guidance**: Improved VLAN option descriptions and expanded info box
-- **Designer → Switch Config**: "Generate / Validate ToR Switch Configuration" button opens switch config page in new tab- **Sizer: Disaggregated Storage**: New deployment type in the Sizer with rack count selector (1–4 racks), up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, storage capacity bar hidden, and 3D rack visualization updated for multi-rack layouts
-- **Sizer: Designer → Sizer Transfer**: Disaggregated architecture now transfers correctly from Designer to Sizer with rack count; Sizer button opens in new tab
-- **Sizer: Import/Export Fix**: Disaggregated rack count now persisted in Sizer save, resume, and JSON import/export
+- **Designer → Switch Config**: "Generate / Validate ToR Switch Configuration" button opens switch config page in new tab
+- **Sizer: Disaggregated Storage**: New deployment type with rack count (1–4), spine switch count (2/4), storage connectivity (FC/iSCSI), multi-rack 3D visualization with FC switches and per-rack uplinks
+- **Sizer: Designer → Sizer Transfer**: Disaggregated architecture transfers with rack count, spine count, and storage type
+- **Sizer: Import/Export**: Disaggregated state persisted in save, resume, and JSON import/export
+- **QoS Validator**: Smart PFC detection using QoS service-policy, dynamic CoS value detection, actionable warning messages
 ### 🎉 Version 0.18.x Series (March 2026)
 
 #### 0.18.04 - Sizer: 3D Rack Visualization

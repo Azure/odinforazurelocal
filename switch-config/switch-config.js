@@ -61,17 +61,26 @@
         if (!designerState) return;
         var ds = designerState;
 
-        // Deployment info banner
-        var pattern = resolveDeploymentPattern(ds);
-        var patternLabel = {
-            fully_converged: 'Fully Converged (HyperConverged)',
-            switched: 'Storage Switched',
-            switchless: 'Storage Switchless'
-        };
-        var bannerText = (patternLabel[pattern] || pattern) +
-            ' · ' + (ds.nodes || '?') + ' nodes' +
-            (ds.scale === 'rack_aware' || ds.scale === 'rack-aware' ? ' · Rack-Aware Cluster (2 racks)' : ' · Single Rack');
-        document.getElementById('sc-deployment-text').textContent = bannerText;
+        // Deployment info banner — only show if we have meaningful data
+        var banner = document.getElementById('sc-deployment-banner');
+        if (ds.scenario && ds.nodes) {
+            var pattern = resolveDeploymentPattern(ds);
+            var patternLabel = {
+                fully_converged: 'Fully Converged (HyperConverged)',
+                switched: 'Storage Switched',
+                switchless: 'Storage Switchless'
+            };
+            var bannerText = (patternLabel[pattern] || pattern) +
+                ' \u00B7 ' + (ds.nodes || '?') + ' nodes' +
+                (ds.scale === 'rack_aware' || ds.scale === 'rack-aware' ? ' \u00B7 Rack-Aware Cluster (2 racks)' : ' \u00B7 Single Rack');
+            document.getElementById('sc-deployment-text').textContent = bannerText;
+        } else {
+            // Partial data — update the deployment banner with helpful guidance
+            if (banner) {
+                var textEl = document.getElementById('sc-deployment-text');
+                if (textEl) textEl.innerHTML = 'Designer data is partial \u2014 configure switch settings below, or use the <a href="#sc-qos-audit-section" style="color: var(--accent-blue); text-decoration: underline;">QoS Validator</a> to analyze an existing switch config.';
+            }
+        }
 
         // Infrastructure VLAN
         var infraVlanNote = document.getElementById('sc-infra-vlan-note');
