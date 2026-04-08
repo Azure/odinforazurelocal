@@ -65,7 +65,10 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>BMC switch configs:</strong> BMC switch config with access VLANs, trunks to ToRs, and static default route.</li>
                         <li><strong>Infrastructure tokens:</strong> Timezone (with DST), NTP, syslog, TACACS+, SNMP, management VLAN, and management gateway — all replaceable placeholders in rendered configs.</li>
                         <li><strong>JSON export:</strong> Export structured JSON data model for each switch section (TOR1, TOR2, TOR3, TOR4, BMC).</li>
-                        <li><strong>Designer integration:</strong> New "Generate ToR Switch Configuration" button on the Designer summary page transfers deployment state to the switch config page.</li>
+                        <li><strong>Designer integration:</strong> "Generate / Validate ToR Switch Configuration" button on the Designer summary page transfers deployment state to the switch config page (opens in new tab).</li>
+                        <li><strong>QoS Configuration Validator:</strong> Paste a Cisco NX-OS or Dell OS10 <code>show running-config</code> to validate PFC, ETS bandwidth reservations, ECN, MTU 9216, system QoS policy, and interface-level PFC/trunking against Azure Local requirements — all processing is client-side.</li>
+                        <li><strong>Cisco 93108TC-FX3P as ToR:</strong> Added 10GBASE-T copper switch model as a ToR option (fully converged, switched, and switchless).</li>
+                        <li><strong>Per-Rack Site / Location:</strong> Rack-aware deployments support separate Site / Location for Rack 1 and Rack 2 (SNMP location).</li>
                     </ul>
                 </div>
 

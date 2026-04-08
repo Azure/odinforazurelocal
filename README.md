@@ -30,7 +30,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Step-by-Step Designer Wizard**: Guided decision flow for Azure Local instance configuration, including network configuration, outbound endpoints, security and storage deployment options
 - **Multiple Deployment Scenarios**: Hyperconverged, Multi-Rack, Disconnected, and M365 Local
 - **Hardware Sizer**: Workload-based hardware sizing for VMs, AKS, and AVD — calculates CPU, memory, storage, GPU, and node requirements with auto-scaling and power/rack-space estimates, and a 3D visualization of hardware in a 42U rack
-- **ToR Switch Configuration Generator**: Generate example Top of Rack switch configurations for Cisco NX-OS and Dell OS10 platforms — ToR, BMC, and border switch configs with rack-aware support, infrastructure token replacement, and JSON export
+- **ToR Switch Configuration Generator & QoS Validator**: Generate example Top of Rack switch configurations for Cisco NX-OS and Dell OS10 platforms — ToR, BMC, and border switch configs with rack-aware support, infrastructure token replacement, and JSON export. Validate existing switch configs against Azure Local QoS requirements (PFC, ETS, ECN)
 - **Sizer-to-Designer Integration**: Size your hardware first, then transfer the configuration directly into the Designer wizard with one click
 - **Designer-to-Sizer Integration**: Design your cluster first, then transfer deployment type and node count to the Sizer to add workloads
 - **Cloud Witness Configuration**: Automatic witness type selection based on cluster topology
@@ -44,10 +44,13 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.18.50 - Latest Release
 - **ToR Switch Config Generator**: New full-featured switch configuration page for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs with rack-aware 4-ToR support, infrastructure token replacement (timezone, NTP, syslog, TACACS+, SNMP), and JSON export
+- **QoS Configuration Validator**: Paste a Cisco NX-OS or Dell OS10 `show running-config` to validate PFC (IEEE 802.1Qbb), ETS (IEEE 802.1Qaz) bandwidth reservations, ECN, MTU 9216, system QoS policy, and interface-level PFC/trunking against Azure Local requirements — all processing is client-side with no data transmitted
+- **Cisco Nexus 93108TC-FX3P as ToR**: Added 10GBASE-T copper switch model as a ToR option (in addition to existing BMC role), supporting fully converged, switched, and switchless storage topologies
+- **Per-Rack Site / Location**: Rack-aware deployments now support separate Site / Location fields for Rack 1 and Rack 2, applied to SNMP location on each rack's switches
 - **Report: 2D SVG Rack Diagram**: Static front-view SVG rack diagram in the Report page with server nodes, ToR/BMC switches, core switch visualization, rack-aware layout with contiguous node numbering, Azure Local branding, and downloadable SVG export
 - **3D Rack Visualization Improvements**: Azure Local branding (replaced Azure logo), BMC switch added to every rack, ToR color changed to dark grey, single-node topology (1 ToR + 1 BMC), label cleanup (removed "(Front)", "TOR" → "ToR", contiguous numbering)
 - **Designer: Management VLAN Guidance**: Improved VLAN option descriptions and expanded info box explaining host-side vs switch-side VLAN configuration
-- **Designer → Switch Config Integration**: New "Generate ToR Switch Configuration" button on the Designer summary page transfers deployment state to the switch config generator
+- **Designer → Switch Config Integration**: "Generate / Validate ToR Switch Configuration" button on the Designer summary page opens the switch config page in a new tab
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
