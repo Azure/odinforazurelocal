@@ -639,7 +639,7 @@
             </div>
 
             <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.75rem;">
-                Paste the output of <code>show running-config</code> from a Cisco NX-OS or Dell OS10 <abbr title="Top of Rack">ToR</abbr> switch to validate that <abbr title="Quality of Service">QoS</abbr> settings meet Azure Local requirements for storage (<abbr title="Remote Direct Memory Access">RDMA</abbr>) and cluster heartbeat traffic.
+                Paste the output of <code>show running-config</code> (Cisco NX-OS) or <code>show running-configuration</code> (Dell OS10) from a <abbr title="Top of Rack">ToR</abbr> switch to validate that <abbr title="Quality of Service">QoS</abbr> settings meet Azure Local requirements for storage (<abbr title="Remote Direct Memory Access">RDMA</abbr>) and cluster heartbeat traffic.
             </p>
 
             <div class="sc-info-banner" style="margin-bottom: 1rem;">
@@ -654,7 +654,7 @@
 
             <div class="sc-field" style="margin-bottom: 1rem;">
                 <label for="sc-qos-audit-input">Switch Running Configuration</label>
-                <textarea id="sc-qos-audit-input" rows="12" placeholder="Paste the full output of 'show running-config' here..."
+                <textarea id="sc-qos-audit-input" rows="12" placeholder="Paste the full output of 'show running-config' (Cisco) or 'show running-configuration' (Dell OS10) here..."
                           style="width:100%; padding:0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:0.82rem; line-height:1.5; resize:vertical;"></textarea>
             </div>
 

@@ -79,7 +79,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Infrastructure tokens:</strong> Timezone (with DST), NTP, syslog, TACACS+, SNMP, management VLAN, and management gateway — all replaceable placeholders in rendered configs.</li>
                         <li><strong>JSON export:</strong> Export structured JSON data model for each switch section (TOR1, TOR2, TOR3, TOR4, BMC).</li>
                         <li><strong>Designer integration:</strong> "Generate / Validate ToR Switch Configuration" button on the Designer summary page transfers deployment state to the switch config page (opens in new tab).</li>
-                        <li><strong>QoS Configuration Validator:</strong> Paste a Cisco NX-OS or Dell OS10 <code>show running-config</code> to validate PFC, ETS bandwidth reservations, ECN, MTU 9216, system QoS policy, and interface-level PFC/trunking against Azure Local requirements — all processing is client-side.</li>
+                        <li><strong>QoS Configuration Validator:</strong> Paste a <code>show running-config</code> (Cisco) or <code>show running-configuration</code> (Dell OS10) to validate PFC, ETS bandwidth reservations, ECN, MTU 9216, system QoS policy, and interface-level PFC/trunking against Azure Local requirements — all processing is client-side.</li>
                         <li><strong>Cisco 93108TC-FX3P as ToR:</strong> Added 10GBASE-T copper switch model as a ToR option (fully converged, switched, and switchless).</li>
                         <li><strong>Per-Rack Site / Location:</strong> Rack-aware deployments support separate Site / Location for Rack 1 and Rack 2 (SNMP location).</li>
                     </ul>
@@ -112,6 +112,15 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Improved VLAN descriptions:</strong> Default VLAN card now reads "Untagged — management traffic uses the native VLAN (ID 0 on the host)"; Custom VLAN card updated to "Tag management traffic with a specific VLAN ID on the host NICs".</li>
                         <li><strong>Expanded info box:</strong> Explains that even with untagged host traffic (ID 0), the ToR switch assigns it to a VLAN internally, and the switch-side VLAN ID is configured separately in the Switch Config Generator.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚖️ Sizer: Disaggregated Storage</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Disaggregated Storage deployment type:</strong> New deployment type with rack count selector (1–4 racks), up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, and 3D rack visualization for multi-rack layouts.</li>
+                        <li><strong>Designer → Sizer transfer:</strong> Disaggregated architecture transfers correctly from Designer to Sizer with rack count; Sizer button opens in new tab.</li>
+                        <li><strong>Import/Export fix:</strong> Disaggregated rack count now persisted in Sizer save, resume, and JSON import/export.</li>
                     </ul>
                 </div>
 

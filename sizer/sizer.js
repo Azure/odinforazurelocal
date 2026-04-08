@@ -2115,6 +2115,7 @@ let isCalculating = false;
 function getSizerState() {
     return {
         clusterType: document.getElementById('cluster-type').value,
+        disaggRackCount: (document.getElementById('disagg-rack-count') || {}).value || null,
         nodeCount: document.getElementById('node-count').value,
         nodeCountUserSet: _nodeCountUserSet,
         futureGrowth: document.getElementById('future-growth').value,
@@ -2210,9 +2211,19 @@ function checkForDesignerImport() {
             clusterTypeSelect.value = payload.clusterType;
         }
 
+        // For disaggregated, apply rack count before updating node options
+        if (payload.clusterType === 'disaggregated' && payload.disaggRackCount) {
+            var rackCountSelect = document.getElementById('disagg-rack-count');
+            if (rackCountSelect) {
+                rackCountSelect.value = String(payload.disaggRackCount);
+            }
+        }
+
         // Trigger cluster type change handlers to update node options, storage, etc.
+        var isDisaggImport = payload.clusterType === 'disaggregated';
         updateNodeOptionsForClusterType();
         updateStorageForClusterType();
+        if (isDisaggImport) updateDisaggregatedUI(true);
         updateResiliencyOptions();
         updateAldoWorkloadButtons();
 
@@ -2262,6 +2273,7 @@ function checkForDesignerImport() {
             'single': 'Single Node',
             'standard': 'Standard Cluster',
             'rack-aware': 'Rack-Aware Cluster',
+            'disaggregated': 'Disaggregated Storage',
             'aldo-mgmt': 'ALDO Management Cluster',
             'aldo-wl': 'ALDO Workload Cluster'
         };
@@ -2355,8 +2367,14 @@ function resumeSizerState() {
 
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
+    // Restore disaggregated rack count before updating node options
+    if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
+        var rackEl = document.getElementById('disagg-rack-count');
+        if (rackEl) rackEl.value = String(d.disaggRackCount);
+    }
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
+    if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '0';
 
@@ -5241,8 +5259,14 @@ function handleSizerFileImport(event) {
 function applyImportedSizerState(d) {
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
+    // Restore disaggregated rack count before updating node options
+    if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
+        var rackEl = document.getElementById('disagg-rack-count');
+        if (rackEl) rackEl.value = String(d.disaggRackCount);
+    }
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
+    if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '0';
 

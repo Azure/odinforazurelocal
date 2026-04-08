@@ -3554,6 +3554,13 @@ function updateUI() {
                 if (daSteps[6]) daSteps[6].classList.remove('hidden'); // DA7
                 if (daSteps[7]) daSteps[7].classList.remove('hidden'); // DA8
                 if (daSteps[8]) daSteps[8].classList.remove('hidden'); // DA10
+
+                // Re-render disaggregated dynamic content on resume
+                if (typeof renderDisaggSummary === 'function') renderDisaggSummary();
+                if (typeof renderVlanGrid === 'function') renderVlanGrid();
+                if (typeof renderQosSummary === 'function') renderQosSummary();
+                if (typeof renderIpPlanning === 'function') renderIpPlanning();
+                if (typeof renderDisaggNicConfig === 'function') renderDisaggNicConfig();
             }
             // Shared steps (cloud, region, outbound, arc, proxy, PE, mgmt, infra VLAN, infra network, AD, security)
             // remain visible — they were un-hidden in the reset block above
@@ -8900,6 +8907,8 @@ function mapDesignerToSizerClusterType() {
         if (state.clusterRole === 'workload') return 'aldo-wl';
         return 'standard';
     }
+    // Disaggregated architecture
+    if (state.architecture === 'disaggregated') return 'disaggregated';
     // Rack-aware scale
     if (state.scale === 'rack_aware') return 'rack-aware';
     // Single node
@@ -8923,6 +8932,8 @@ function transferToSizer() {
         timestamp: new Date().toISOString(),
         clusterType: mapDesignerToSizerClusterType(),
         nodeCount: String(state.nodes),
+        // Disaggregated rack count
+        disaggRackCount: state.disaggRackCount || null,
         // Pass through scenario details for context
         scenario: state.scenario,
         scale: state.scale,
@@ -8937,8 +8948,8 @@ function transferToSizer() {
         console.warn('Failed to store designer-to-sizer payload:', e);
     }
 
-    // Navigate to Sizer page
-    window.location.href = 'sizer/index.html?from=designer';
+    // Navigate to Sizer page in a new tab
+    window.open('sizer/index.html?from=designer', '_blank');
 }
 
 /**

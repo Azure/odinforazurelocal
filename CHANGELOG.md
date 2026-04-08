@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### ToR Switch Config Generator
 - **New Switch Config page**: Full-featured ToR switch configuration generator for Cisco NX-OS and Dell OS10 platforms — accessible from the Designer summary page via "Generate / Validate ToR Switch Configuration" button (opens in new tab), or directly via the switch-config page
 - **Multi-vendor support**: Switch model selector with Cisco (93108TC-FX3P 10GBASE-T, 93180YC-FX, 93180YC-FX3) and Dell (S5248F-ON) ToR models, plus BMC switch models (Cisco 93108TC-FX3P, 9348GC-FXP/FX3, Dell N3248TE-ON)
-- **QoS Configuration Validator**: Paste a Cisco NX-OS or Dell OS10 `show running-config` to validate PFC (IEEE 802.1Qbb) on CoS 3, ETS (IEEE 802.1Qaz) bandwidth reservations (Storage ≥50%, Cluster 1–2%), ECN on storage queue, MTU 9216, system QoS policy application, interface-level PFC, QoS service-policy, and VLAN trunking — all processing is client-side with no data transmitted
+- **QoS Configuration Validator**: Paste a `show running-config` (Cisco NX-OS) or `show running-configuration` (Dell OS10) to validate PFC (IEEE 802.1Qbb) on CoS 3, ETS (IEEE 802.1Qaz) bandwidth reservations (Storage ≥50%, Cluster 1–2%), ECN on storage queue, MTU 9216, system QoS policy application, interface-level PFC, QoS service-policy, and VLAN trunking — all processing is client-side with no data transmitted
 - **Cisco Nexus 93108TC-FX3P as ToR**: Added 10GBASE-T copper switch model as a ToR option (in addition to existing BMC role), with fully converged, switched, and switchless storage interface templates
 - **Per-Rack Site / Location**: Rack-aware deployments now support separate Site / Location fields for Rack 1 and Rack 2, applied to SNMP location on each rack's ToR and BMC switches
 - **JSON data model**: Intermediate JSON data model (`SwitchConfigBuilder`) generates vendor-neutral structured config, rendered to platform-specific CLI by `CiscoNxosRenderer` and `DellOs10Renderer`
@@ -59,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Designer: Management VLAN Guidance
 - **Improved VLAN descriptions**: Default VLAN card clarified to "Untagged — management traffic uses the native VLAN (ID 0 on the host)"; Custom VLAN card updated to "Tag management traffic with a specific VLAN ID on the host NICs"
 - **Expanded info box**: Added explanation that even with untagged host traffic (ID 0), the ToR switch assigns it to a VLAN internally (e.g., VLAN 7), and the switch-side VLAN ID is configured separately in the Switch Config Generator
+
+#### Sizer: Disaggregated Storage
+- **Disaggregated Storage deployment type**: New deployment type in the Sizer with rack count selector (1–4 racks), up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, storage capacity bar hidden, and 3D rack visualization updated for multi-rack layouts
+- **Designer → Sizer Transfer**: Disaggregated architecture now transfers correctly from Designer to Sizer with rack count; Sizer button opens in new tab
+- **Import/Export Fix**: Disaggregated rack count now persisted in Sizer save, resume, and JSON import/export
 
 ---
 

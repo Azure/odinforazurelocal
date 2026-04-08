@@ -1,7 +1,7 @@
 /**
  * QoS Configuration Audit — Parser & Validator
  *
- * Parses Cisco NX-OS and Dell OS10 "show running-config" output and validates
+ * Parses Cisco NX-OS and Dell OS10 "show running-config" / "show running-configuration" output and validates
  * that QoS settings meet Azure Local requirements for storage (RDMA) and
  * cluster heartbeat traffic.
  *
