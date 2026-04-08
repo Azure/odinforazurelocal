@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.18.50] - 2026-03-31
+## [0.26.04] - 2026-04-08
 
 ### Added
+
+#### Disaggregated Architecture Wizard
+- **New disaggregated wizard**: End-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks
+- **DA1 — Storage Type**: Choose external SAN connectivity — Fibre Channel SAN, iSCSI (4-NIC), or iSCSI (6-NIC)
+- **DA2 — Backup Network**: Optional dedicated backup NIC toggle
+- **DA3 — Cluster Scale**: Configure rack count (1–4), nodes per rack (up to 16), with automatic port-budget calculation
+- **DA4 — Spine Switches**: Select spine switch count (2 or 4) for the Clos fabric
+- **DA5 — VLANs, VNI & VRF**: Full VLAN/VNI/VRF configuration for management, cluster, iSCSI, and backup networks; management VLAN access/trunk mode; tenant network management with add/remove VLAN support
+- **DA6 — QoS Policy**: QoS policy configuration and summary
+- **DA7 — Leaf & Spine IP Routing**: IP planning with subnet configuration, Clos topology diagram, and per-network IP allocation
+- **DA8 — Summary & Rack Layout**: Full summary with interactive SVG rack topology diagram (downloadable)
+- **DA10 — Network Adapter Ports**: Drag-and-drop NIC-to-intent zone mapping, per-port speed/name configuration, adapter mapping with 3-intent model (Compute+Mgmt, Cluster, Storage/Backup)
+- **Breadcrumb navigation**: Step progress breadcrumb for the disaggregated wizard flow
+- **Host networking preview**: Interactive SVG diagrams for hyperconverged, switchless, FC SAN, and iSCSI topologies with light/dark SVG export
 
 #### ToR Switch Config Generator
 - **New Switch Config page**: Full-featured ToR switch configuration generator for Cisco NX-OS and Dell OS10 platforms — accessible from the Designer summary page via "Generate / Validate ToR Switch Configuration" button (opens in new tab), or directly via the switch-config page
