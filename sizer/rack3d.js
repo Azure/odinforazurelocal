@@ -1128,7 +1128,7 @@ function renderRack3D(config) {
             for (var fc = 0; fc < fcSwitchCount; fc++) {
                 var fcU = fcBaseU - fc;
                 var fcNum = (rackIndex * 2) + fc + 1;
-                var fcLabel = 'FC ' + fcNum;
+                var fcLabel = 'Fibre Channel ' + fcNum;
                 placeFcSwitch(_rack3d.scene, rack.group, rack.baseY, fcU, fcLabel);
             }
         }

@@ -1087,6 +1087,19 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     };
 }
 
+// Get the maximum node cap for the current cluster type
+function getMaxNodeCap() {
+    var ct = document.getElementById('cluster-type').value;
+    if (ct === 'disaggregated') {
+        var rc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 4;
+        return rc * 16;
+    }
+    if (ct === 'rack-aware') return 8;
+    if (ct === 'single') return 1;
+    if (ct === 'aldo-mgmt') return 3;
+    return 16;
+}
+
 // Snap a recommended node count to the nearest available dropdown option
 function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
@@ -2674,6 +2687,7 @@ function onClusterTypeChange() {
 // Handle disaggregated rack count change
 function onDisaggRackCountChange() { // eslint-disable-line no-unused-vars
     updateNodeOptionsForClusterType();
+    updateDisaggregatedUI(true);
     calculateRequirements();
 }
 
@@ -4230,10 +4244,31 @@ function calculateRequirements(options) {
         // --- Capacity bars from hardware config ---
         // Physical Nodes bar
         const clusterType = document.getElementById('cluster-type').value;
-        const MAX_NODES = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : clusterType === 'aldo-mgmt' ? 3 : 16;
+        var MAX_NODES;
+        if (clusterType === 'disaggregated') {
+            var dRackCount = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 4;
+            MAX_NODES = dRackCount * 16;
+        } else if (clusterType === 'rack-aware') {
+            MAX_NODES = 8;
+        } else if (clusterType === 'single') {
+            MAX_NODES = 1;
+        } else if (clusterType === 'aldo-mgmt') {
+            MAX_NODES = 3;
+        } else {
+            MAX_NODES = 16;
+        }
         const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
         document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
+        var nodesBarLabel = document.getElementById('nodes-bar-label');
+        if (nodesBarLabel) {
+            nodesBarLabel.textContent = clusterType === 'disaggregated' ? 'Azure Local disaggregated instance size' : 'Azure Local hyperconverged instance size';
+        }
+        const isDisaggregated = clusterType === 'disaggregated';
+        var storageLabelEl = document.getElementById('total-storage-label');
+        if (storageLabelEl) {
+            storageLabelEl.textContent = isDisaggregated ? 'External SAN Total Storage' : 'Total Storage';
+        }
 
         const physicalCoresPerNode = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
         const memoryPerNode = hwConfig.memoryGB || 512;
@@ -4253,7 +4288,6 @@ function calculateRequirements(options) {
         const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
         const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
 
-        const isDisaggregated = document.getElementById('cluster-type').value === 'disaggregated';
         const totalAvailableStorage = isDisaggregated ? 0 : Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
 
         const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
@@ -4303,17 +4337,18 @@ function calculateRequirements(options) {
         const UTILIZATION_THRESHOLD = 90;
         document.getElementById('compute-fill').classList.toggle('over-threshold', computePercent >= UTILIZATION_THRESHOLD);
         document.getElementById('memory-fill').classList.toggle('over-threshold', memoryPercent >= UTILIZATION_THRESHOLD);
-        document.getElementById('storage-fill').classList.toggle('over-threshold', storagePercent >= UTILIZATION_THRESHOLD);
+        document.getElementById('storage-fill').classList.toggle('over-threshold', !isDisaggregated && storagePercent >= UTILIZATION_THRESHOLD);
 
-        // Show/hide utilization warning banner (include GPU)
-        const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storagePercent >= UTILIZATION_THRESHOLD || (gpuCountPerNode > 0 && totalGpus > 0 && gpuPercent >= UTILIZATION_THRESHOLD)) && workloads.length > 0;
+        // Show/hide utilization warning banner (include GPU, exclude storage for disaggregated)
+        var storageOverThreshold = !isDisaggregated && storagePercent >= UTILIZATION_THRESHOLD;
+        const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storageOverThreshold || (gpuCountPerNode > 0 && totalGpus > 0 && gpuPercent >= UTILIZATION_THRESHOLD)) && workloads.length > 0;
         const warningBanner = document.getElementById('capacity-utilization-warning');
         if (warningBanner) {
             warningBanner.style.display = anyOverThreshold ? 'flex' : 'none';
         }
 
         // Show/hide manual-override capacity warning
-        updateManualOverrideWarning(computePercent, memoryPercent, storagePercent);
+        updateManualOverrideWarning(computePercent, memoryPercent, isDisaggregated ? 0 : storagePercent);
 
         // --- Power & Rack Space Estimates ---
         updatePowerRackEstimates(nodeCount, hwConfig);
@@ -4351,7 +4386,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
                 clusterType: document.getElementById('cluster-type').value || 'standard',
                 nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
                 disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
-                spineCount: _designerSpineCount || 2,
+                disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
+                spineCount: parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || _designerSpineCount || 2,
                 hasGpu: false,
                 gpuModel: '',
                 perNodeWatts: 0,
@@ -4410,15 +4446,30 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     const totalW = perNodeW * nodeCount;
     const totalBtu = Math.round(totalW * 3.412); // 1W ≈ 3.412 BTU/hr
 
-    // Rack units: 2U per node + 2 × ToR switches (1U each) for multi-node clusters
-    const torSwitchUnits = nodeCount > 1 ? 2 : 0; // 2 × 1U ToR switches
-    const rackUnits = (nodeCount * 2) + torSwitchUnits;
+    // Rack units: 2U per node + switches per rack
+    var rackUnits;
+    var rackUnitLabel;
+    var clusterType = document.getElementById('cluster-type').value;
+    if (clusterType === 'disaggregated') {
+        var drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
+        var dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
+        var torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
+        var bmcPerRack = 1; // 1 × 1U BMC switch per rack
+        var fcPerRack = (dst === 'fc_san') ? 2 : 0; // 2 × 1U FC switches per rack (FC only)
+        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack;
+        rackUnits = (nodeCount * 2) + (drc * switchesPerRack);
+        rackUnitLabel = rackUnits + 'U (across ' + drc + ' racks, incl. ' + (drc * torPerRack) + '× ToR, ' + drc + '× BMC' + (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + '× FC' : '') + ' switches)';
+    } else {
+        var torSwitchUnits = nodeCount > 1 ? 2 : 0; // 2 × 1U ToR switches
+        rackUnits = (nodeCount * 2) + torSwitchUnits;
+        rackUnitLabel = rackUnits + 'U';
+    }
 
     // Update DOM
     document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' Watts';
     document.getElementById('power-total').textContent = totalW.toLocaleString() + ' Watts';
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
-    document.getElementById('rack-units').textContent = rackUnits + 'U';
+    document.getElementById('rack-units').textContent = rackUnitLabel;
     section.style.display = 'block';
 
     // Update 3D rack visualization
@@ -4437,7 +4488,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             nodeCount: nodeCount,
             disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
             disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
-            spineCount: _designerSpineCount || 2,
+            spineCount: parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || _designerSpineCount || 2,
             hasGpu: hwConfig.gpuCount > 0,
             gpuModel: hwConfig.gpuType || '',
             perNodeWatts: perNodeW,
@@ -4588,7 +4639,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         const gpuSectionVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
         if (gpuSectionVisible && currentGpuPercent >= 90) {
             const clusterTypeGpu = document.getElementById('cluster-type').value;
-            const maxNodesGpu = clusterTypeGpu === 'rack-aware' ? 8 : clusterTypeGpu === 'single' ? 1 : 16;
+            const maxNodesGpu = getMaxNodeCap();
             const atMaxNodes = nodeCount >= maxNodesGpu;
             const gpuAdvice = atMaxNodes
                 ? 'Reduce GPU workloads or increase GPUs per node. Node count is at maximum (' + maxNodesGpu + ').'
