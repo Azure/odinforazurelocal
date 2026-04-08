@@ -159,8 +159,8 @@
         setVal('sc-ibgp-tor2', '10.0.0.18');
 
         // Rack-aware: show TOR3/TOR4 fields and set defaults
+        toggleRack2Sections(isRackAware);
         if (isRackAware) {
-            toggleRack2Sections(true);
             setVal('sc-hostname-tor3', 'tor-2a');
             setVal('sc-hostname-tor4', 'tor-2b');
             setVal('sc-loopback3', '10.0.255.3/32');
