@@ -1040,7 +1040,9 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     const totalMemoryWithARB = totalMemoryGB + ARB_MEMORY_OVERHEAD_GB;
     let computeNodes = vcpusPerNode > 0 ? Math.ceil(totalVcpusWithARB / vcpusPerNode) : 1;
     let memoryNodes = usableMemoryPerNode > 0 ? Math.ceil(totalMemoryWithARB / usableMemoryPerNode) : 1;
-    let storageNodes = maxRawStoragePerNodeGB > 0 ? Math.ceil(totalRawStorageNeededGB / maxRawStoragePerNodeGB) : 1;
+    // Disaggregated storage: external SAN, no S2D — skip storage node sizing
+    const isDisaggCluster = document.getElementById('cluster-type') && document.getElementById('cluster-type').value === 'disaggregated';
+    let storageNodes = (!isDisaggCluster && maxRawStoragePerNodeGB > 0) ? Math.ceil(totalRawStorageNeededGB / maxRawStoragePerNodeGB) : 0;
 
     // GPU node calculation: GPUs need N+1 for maintenance (same as compute/memory)
     let gpuNodes = 0;
@@ -1090,6 +1092,13 @@ function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'single') return 1;
     if (clusterType === 'aldo-mgmt') return 3;
+    if (clusterType === 'disaggregated') {
+        var rackCountEl = document.getElementById('disagg-rack-count');
+        var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
+        // Snap to nearest multiple of rackCount (up to 16 per rack)
+        var snapped = Math.ceil(recommended / rackCount) * rackCount;
+        return Math.min(snapped, 16 * rackCount);
+    }
     const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     for (const opt of options) {
         if (opt >= recommended) return opt;
@@ -2577,7 +2586,8 @@ const RESILIENCY_CONFIG = {
     'simple': { multiplier: 1, minNodes: 1, name: 'Simple (No Fault Tolerance)', singleNodeOnly: true },
     '2way': { multiplier: 2, minNodes: 1, name: 'Two-way Mirror' },
     '3way': { multiplier: 3, minNodes: 3, name: 'Three-way Mirror' },
-    '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' }
+    '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' },
+    'external': { multiplier: 1, minNodes: 1, name: 'External SAN Storage' }
 };
 
 
@@ -2595,11 +2605,12 @@ function onNodeCountChange() {
     calculateRequirements();
 }
 
-// Handle cluster type change (single / standard / rack-aware)
+// Handle cluster type change (single / standard / rack-aware / disaggregated)
 function onClusterTypeChange() {
     const clusterType = document.getElementById('cluster-type').value;
     const wasAldo = workloads.some(w => w.isAldoFixed);
     const isAldo = clusterType === 'aldo-mgmt';
+    const isDisagg = clusterType === 'disaggregated';
 
     // Switching TO aldo-mgmt: clear workloads and add IRVM1
     if (isAldo && !wasAldo) {
@@ -2621,11 +2632,56 @@ function onClusterTypeChange() {
     updateAldoWorkloadButtons();
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
+    updateDisaggregatedUI(isDisagg);
     updateResiliencyOptions();
     updateResiliencyRecommendation();
     updateClusterInfo();
     enforceAldoMinimums();
     calculateRequirements();
+}
+
+// Handle disaggregated rack count change
+function onDisaggRackCountChange() { // eslint-disable-line no-unused-vars
+    updateNodeOptionsForClusterType();
+    calculateRequirements();
+}
+
+// Show/hide disaggregated-specific UI and disable storage fields
+function updateDisaggregatedUI(isDisagg) {
+    // Show/hide rack count row
+    var rackRow = document.getElementById('disagg-rack-count-row');
+    if (rackRow) rackRow.style.display = isDisagg ? '' : 'none';
+
+    // Storage section fields to disable
+    var storageFieldIds = [
+        'storage-config', 'storage-tiering',
+        'capacity-disk-count', 'capacity-disk-size', 'repair-disk-count',
+        'cache-disk-count', 'cache-disk-size',
+        'tiered-capacity-disk-count', 'tiered-capacity-disk-size', 'tiered-repair-disk-count'
+    ];
+    var tooltip = isDisagg ? 'External SAN storage is used for workload storage requirements' : '';
+    storageFieldIds.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.disabled = isDisagg;
+            el.title = tooltip;
+            el.style.opacity = isDisagg ? '0.4' : '';
+        }
+    });
+
+    // Hide/show the storage capacity bar
+    var storageCapSection = document.getElementById('storage-capacity-section');
+    if (storageCapSection) storageCapSection.style.display = isDisagg ? 'none' : '';
+
+    // Update HA/DR tip for disaggregated
+    var hadrTip = document.getElementById('hadr-tip');
+    if (hadrTip) {
+        if (isDisagg) {
+            hadrTip.querySelector('span').textContent = 'Disaggregated storage: compute nodes use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Configure up to 4 racks with up to 16 nodes each (64 nodes maximum).';
+        } else {
+            hadrTip.querySelector('span').textContent = 'Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local clusters, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster configuration type.';
+        }
+    }
 }
 
 // Enable/disable workload add buttons for ALDO Management Cluster
@@ -2710,8 +2766,8 @@ function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
     if (!storageSelect) return; // Guard for test harness
-    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt') {
-        // Rack-aware, single-node, and ALDO management require all-flash
+    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt' || clusterType === 'disaggregated') {
+        // Rack-aware, single-node, ALDO management, and disaggregated require all-flash (or external SAN)
         storageSelect.value = 'all-flash';
         storageSelect.disabled = true;
         onStorageConfigChange();
@@ -2775,6 +2831,32 @@ function updateNodeOptionsForClusterType() {
         } else {
             nodeSelect.value = 8;
         }
+    } else if (clusterType === 'disaggregated') {
+        // Disaggregated: nodes per rack (1–16), label shows "per rack"
+        nodeSelect.disabled = false;
+        var rackCountEl = document.getElementById('disagg-rack-count');
+        var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
+        var maxPerRack = 16;
+        var nodeOptions = [];
+        for (var n = 1; n <= maxPerRack; n++) nodeOptions.push(n);
+        nodeSelect.innerHTML = nodeOptions.map(function (n) {
+            var total = n * rackCount;
+            return '<option value="' + total + '">' + n + ' Nodes per Rack (' + total + ' total)</option>';
+        }).join('');
+        // Preserve closest valid value
+        var closestTotal = Math.min(Math.max(currentValue, rackCount), maxPerRack * rackCount);
+        // Snap to a multiple of rackCount
+        closestTotal = Math.round(closestTotal / rackCount) * rackCount;
+        if (closestTotal < rackCount) closestTotal = rackCount;
+        if (closestTotal > maxPerRack * rackCount) closestTotal = maxPerRack * rackCount;
+        nodeSelect.value = closestTotal;
+        // If exact match not found, pick closest
+        if (!nodeSelect.value || nodeSelect.selectedIndex < 0) {
+            nodeSelect.selectedIndex = 0;
+        }
+        // Update label to say "Nodes per Rack"
+        var nodeLabel = document.querySelector('label[for="node-count"]');
+        if (nodeLabel) nodeLabel.textContent = 'Nodes per Rack';
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
@@ -2787,6 +2869,12 @@ function updateNodeOptionsForClusterType() {
         } else {
             nodeSelect.value = 2;
         }
+    }
+
+    // Reset node label back to default for non-disaggregated types
+    if (clusterType !== 'disaggregated') {
+        var nodeLabel = document.querySelector('label[for="node-count"]');
+        if (nodeLabel) nodeLabel.textContent = 'Number of Physical Nodes';
     }
 }
 
@@ -2805,6 +2893,11 @@ function updateResiliencyOptions() {
         options = `
             <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
             <option value="2way">Two-way Mirror (2+ drives, single fault tolerance)</option>
+        `;
+    } else if (clusterType === 'disaggregated') {
+        // Disaggregated: external SAN storage — no S2D resiliency applies
+        options = `
+            <option value="external">External SAN Storage (resiliency managed by SAN)</option>
         `;
     } else if (clusterType === 'aldo-mgmt') {
         // ALDO Management: fixed 3 nodes, three-way mirror only
@@ -4092,7 +4185,9 @@ function calculateRequirements(options) {
         // S2D repair reservation: min(nodeCount, 4) capacity disks reserved from pool raw space
         const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
         const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
-        const totalAvailableStorage = Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
+
+        const isDisaggregated = document.getElementById('cluster-type').value === 'disaggregated';
+        const totalAvailableStorage = isDisaggregated ? 0 : Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
 
         const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
         const memoryPercent = Math.min(100, Math.round((totalMemory / totalAvailableMemory) * 100)) || 0;
@@ -4188,6 +4283,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             renderRack3D({
                 clusterType: document.getElementById('cluster-type').value || 'standard',
                 nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
+                disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
                 hasGpu: false,
                 gpuModel: '',
                 perNodeWatts: 0,
@@ -4271,6 +4367,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         renderRack3D({
             clusterType: document.getElementById('cluster-type').value || 'standard',
             nodeCount: nodeCount,
+            disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
             hasGpu: hwConfig.gpuCount > 0,
             gpuModel: hwConfig.gpuType || '',
             perNodeWatts: perNodeW,

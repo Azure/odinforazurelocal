@@ -171,8 +171,18 @@
                             <option value="single">Single Node</option>
                             <option value="standard" selected>Standard Cluster</option>
                             <option value="rack-aware">Rack-Aware Cluster</option>
+                            <option value="disaggregated">Disaggregated Storage</option>
                             <option value="aldo-mgmt">ALDO Management Cluster</option>
                             <option value="aldo-wl">ALDO Workload Cluster</option>
+                        </select>
+                    </div>
+                    <div class="config-row cluster-setting" id="disagg-rack-count-row" style="display: none;">
+                        <label for="disagg-rack-count">Number of Racks</label>
+                        <select id="disagg-rack-count" onchange="onDisaggRackCountChange()">
+                            <option value="1">1 Rack</option>
+                            <option value="2" selected>2 Racks</option>
+                            <option value="3">3 Racks</option>
+                            <option value="4">4 Racks</option>
                         </select>
                     </div>
                     <div class="config-row cluster-setting">
@@ -664,7 +674,7 @@
                                 <span id="memory-used">0</span> / <span id="memory-total">0</span> GB
                             </div>
                         </div>
-                        <div class="breakdown-item">
+                        <div class="breakdown-item" id="storage-capacity-section">
                             <div class="breakdown-header">
                                 <span>Usable Storage - Consumed</span>
                                 <span id="storage-percent">0%</span>

@@ -2822,7 +2822,9 @@
             assert(RESILIENCY_CONFIG['4way'].multiplier === 4, '4-way: multiplier = 4', 4, RESILIENCY_CONFIG['4way'].multiplier),
             assert(RESILIENCY_CONFIG['4way'].minNodes === 4, '4-way: minNodes = 4', 4, RESILIENCY_CONFIG['4way'].minNodes),
             assert(RESILIENCY_CONFIG['4way'].multiplier === 4, '4-way CONFIG.multiplier = 4 (consolidated)', 4, RESILIENCY_CONFIG['4way'].multiplier),
-            assert(RESILIENCY_CONFIG['3way'].minNodes === 3, '3-way: minNodes = 3', 3, RESILIENCY_CONFIG['3way'].minNodes)
+            assert(RESILIENCY_CONFIG['3way'].minNodes === 3, '3-way: minNodes = 3', 3, RESILIENCY_CONFIG['3way'].minNodes),
+            assert(RESILIENCY_CONFIG['external'] !== undefined, 'External SAN config exists', true, RESILIENCY_CONFIG['external'] !== undefined),
+            assert(RESILIENCY_CONFIG['external'].multiplier === 1, 'External SAN: multiplier = 1 (no S2D)', 1, RESILIENCY_CONFIG['external'].multiplier)
         ]);
 
         testSuite('AVD_PROFILES', 'sizer.js', [
@@ -5391,6 +5393,19 @@
 
             return results;
         })());
+
+        sectionHeader('🏗️ Sizer: Disaggregated Storage Deployment Type');
+
+        testSuite('RESILIENCY_CONFIG: external SAN entry', 'sizer.js', [
+            assert(RESILIENCY_CONFIG['external'] !== undefined,
+                'External SAN config exists', true, RESILIENCY_CONFIG['external'] !== undefined),
+            assert(RESILIENCY_CONFIG['external'].multiplier === 1,
+                'External SAN multiplier is 1 (no S2D)', 1, RESILIENCY_CONFIG['external'].multiplier),
+            assert(RESILIENCY_CONFIG['external'].minNodes === 1,
+                'External SAN minNodes is 1', 1, RESILIENCY_CONFIG['external'].minNodes),
+            assert(RESILIENCY_CONFIG['external'].name === 'External SAN Storage',
+                'External SAN name is correct', 'External SAN Storage', RESILIENCY_CONFIG['external'].name)
+        ]);
 
         // ========================================================================
         // SWITCH CONFIG — MODELS.JS TESTS
