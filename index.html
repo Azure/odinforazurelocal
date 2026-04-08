@@ -1028,31 +1028,31 @@
                         <h4 style="margin: 0 0 8px 0; color: var(--accent-purple); font-size: 0.9rem;">Switch Port VLAN Modes</h4>
                         <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
                             <li><strong>Cluster VLANs</strong> &mdash; Configure switch ports in <strong>access mode</strong> using the default VLAN ID. This means no VLAN tagging is needed at the host NIC level; the switch handles VLAN assignment for cluster traffic.</li>
-                            <li><strong>Management VLAN</strong> &mdash; Can be configured as the <strong>default VLAN ID</strong> (access/native) or as a <strong>trunk VLAN</strong>. Using trunk mode is common because additional workload VLANs share the same vSwitch and must be configured in trunk mode.</li>
+                            <li><strong>Management VLAN</strong> &mdash; Can be configured as the <strong>default VLAN ID</strong> (access/native) or as a <strong>trunk VLAN</strong>. Using trunk mode is common because additional tenant network VLANs share the same vSwitch and must be configured in trunk mode.</li>
                         </ul>
                     </div>
                     <div id="da5-vlan-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
                         <!-- Dynamically populated by disaggregated.js -->
                     </div>
                     <div style="margin-top: 16px;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">VRF Name</label>
-                        <input type="text" id="da-vrf-name" value="AZLOCAL" placeholder="e.g. AZLOCAL"
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Infrastructure VRF Name</label>
+                        <input type="text" id="da-vrf-name" value="AZLOCALINFRA" placeholder="e.g. AZLOCALINFRA"
                             style="width: 200px; padding: 0.5rem; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.95rem;"
                             oninput="updateDisaggVrf(this.value)">
                     </div>
 
-                    <!-- Workload VLANs -->
+                    <!-- Tenant Networks -->
                     <div style="margin-top: 24px;">
-                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.95rem;">Workload VLANs <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span></h4>
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.95rem;">Tenant Networks <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span></h4>
                         <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.85rem;">
-                            Add trunk VLANs for VM workloads that share the management vSwitch. These are configured as trunk VLANs on the switch ports.
+                            Add tenant VRFs with one or more trunk VLANs each — similar to VNETs in Azure. Each tenant VRF is an isolated routing domain that can contain multiple VLANs for VM workload traffic.
                         </p>
                         <div id="da5-workload-vlan-list">
                             <!-- Dynamically populated -->
                         </div>
-                        <button type="button" id="da5-add-workload-btn" onclick="addDisaggWorkloadVlan()" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
+                        <button type="button" id="da5-add-workload-btn" onclick="addDisaggTenantNetwork()" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Add Workload VLAN
+                            Add Tenant Network
                         </button>
                     </div>
 
@@ -1065,7 +1065,7 @@
                             Confirm VLAN Configuration
                         </button>
                         <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
-                            Click to confirm your VLAN, VNI, VRF, and workload VLAN configuration.
+                            Click to confirm your VLAN, VNI, VRF, and tenant network configuration.
                         </p>
                     </div>
                     <div id="da5-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">

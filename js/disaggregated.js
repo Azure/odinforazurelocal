@@ -43,7 +43,7 @@ function selectDisaggOption(category, value) {
         state.disaggVlanConfigConfirmed = false;
         state.disaggIpConfigConfirmed = false;
         state.disaggMgmtVlanMode = 'access';
-        state.disaggWorkloadVlans = [];
+        state.disaggTenantNetworks = [];
 
         // Show explanation
         const exp = document.getElementById('da1-explanation');
@@ -229,7 +229,7 @@ function renderVlanGrid() {
         </div>
     `).join('');
 
-    renderDisaggWorkloadVlans();
+    renderDisaggTenantNetworks();
     renderDisaggVlanConfirmState();
 }
 
@@ -258,95 +258,148 @@ function updateDisaggMgmtVlanMode(value) {
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 
-// ── Workload VLANs ──────────────────────────────────────────────────────────
+// ── Tenant Networks ──────────────────────────────────────────────────────────
 
-function addDisaggWorkloadVlan() {
-    if (!state.disaggWorkloadVlans) state.disaggWorkloadVlans = [];
-    // Find next available VLAN ID
-    var usedVlans = state.disaggWorkloadVlans.map(function(w) { return w.vlan; });
+function addDisaggTenantNetwork() {
+    if (!state.disaggTenantNetworks) state.disaggTenantNetworks = [];
+    var tenantNum = state.disaggTenantNetworks.length + 1;
+    // Find next available VLAN ID across all tenants
+    var usedVlans = [];
+    state.disaggTenantNetworks.forEach(function(t) {
+        t.vlans.forEach(function(v) { usedVlans.push(v.vlan); });
+    });
     var nextVlan = 100;
     while (usedVlans.indexOf(nextVlan) !== -1 && nextVlan < 4094) nextVlan++;
-    var nextVni = 10000 + nextVlan;
 
-    var vrfName = 'TENANT' + (state.disaggWorkloadVlans.length + 1);
-    state.disaggWorkloadVlans.push({ name: 'Workload ' + (state.disaggWorkloadVlans.length + 1), vlan: nextVlan, vni: nextVni, vrf: vrfName });
+    state.disaggTenantNetworks.push({
+        vrf: 'TENANT' + tenantNum,
+        vlans: [{ name: 'Network 1', vlan: nextVlan, vni: 10000 + nextVlan }]
+    });
     state.disaggVlanConfigConfirmed = false;
-    renderDisaggWorkloadVlans();
+    renderDisaggTenantNetworks();
     renderDisaggVlanConfirmState();
 }
 
-function removeDisaggWorkloadVlan(index) {
-    if (!state.disaggWorkloadVlans) return;
-    state.disaggWorkloadVlans.splice(index, 1);
+function removeDisaggTenantNetwork(tIdx) {
+    if (!state.disaggTenantNetworks) return;
+    state.disaggTenantNetworks.splice(tIdx, 1);
     state.disaggVlanConfigConfirmed = false;
-    renderDisaggWorkloadVlans();
+    renderDisaggTenantNetworks();
     renderDisaggVlanConfirmState();
 }
 
-function updateDisaggWorkloadVlan(index, field, value) {
-    if (!state.disaggWorkloadVlans || !state.disaggWorkloadVlans[index]) return;
-    if (field === 'name') {
-        state.disaggWorkloadVlans[index].name = value;
-    } else if (field === 'vlan') {
-        var v = parseInt(value);
-        if (v >= 1 && v <= 4094) state.disaggWorkloadVlans[index].vlan = v;
-    } else if (field === 'vni') {
-        var n = parseInt(value);
-        if (n >= 1 && n <= 16777215) state.disaggWorkloadVlans[index].vni = n;
-    } else if (field === 'vrf') {
-        state.disaggWorkloadVlans[index].vrf = String(value || '').trim();
+function addDisaggTenantVlan(tIdx) {
+    if (!state.disaggTenantNetworks || !state.disaggTenantNetworks[tIdx]) return;
+    var usedVlans = [];
+    state.disaggTenantNetworks.forEach(function(t) {
+        t.vlans.forEach(function(v) { usedVlans.push(v.vlan); });
+    });
+    var nextVlan = 100;
+    while (usedVlans.indexOf(nextVlan) !== -1 && nextVlan < 4094) nextVlan++;
+    var vlanNum = state.disaggTenantNetworks[tIdx].vlans.length + 1;
+    state.disaggTenantNetworks[tIdx].vlans.push({ name: 'Network ' + vlanNum, vlan: nextVlan, vni: 10000 + nextVlan });
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggTenantNetworks();
+    renderDisaggVlanConfirmState();
+}
+
+function removeDisaggTenantVlan(tIdx, vIdx) {
+    if (!state.disaggTenantNetworks || !state.disaggTenantNetworks[tIdx]) return;
+    state.disaggTenantNetworks[tIdx].vlans.splice(vIdx, 1);
+    // If last VLAN removed, remove the entire tenant
+    if (state.disaggTenantNetworks[tIdx].vlans.length === 0) {
+        state.disaggTenantNetworks.splice(tIdx, 1);
+    }
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggTenantNetworks();
+    renderDisaggVlanConfirmState();
+}
+
+function updateDisaggTenantNetwork(tIdx, field, value) {
+    if (!state.disaggTenantNetworks || !state.disaggTenantNetworks[tIdx]) return;
+    if (field === 'vrf') {
+        state.disaggTenantNetworks[tIdx].vrf = String(value || '').trim();
     }
     state.disaggVlanConfigConfirmed = false;
     renderDisaggVlanConfirmState();
 }
 
-function renderDisaggWorkloadVlans() {
+function updateDisaggTenantVlan(tIdx, vIdx, field, value) {
+    if (!state.disaggTenantNetworks || !state.disaggTenantNetworks[tIdx]) return;
+    var vlan = state.disaggTenantNetworks[tIdx].vlans[vIdx];
+    if (!vlan) return;
+    if (field === 'name') {
+        vlan.name = value;
+    } else if (field === 'vlan') {
+        var v = parseInt(value);
+        if (v >= 1 && v <= 4094) vlan.vlan = v;
+    } else if (field === 'vni') {
+        var n = parseInt(value);
+        if (n >= 1 && n <= 16777215) vlan.vni = n;
+    }
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggVlanConfirmState();
+}
+
+function renderDisaggTenantNetworks() {
     var list = document.getElementById('da5-workload-vlan-list');
     if (!list) return;
-    var wlVlans = state.disaggWorkloadVlans || [];
+    var tenants = state.disaggTenantNetworks || [];
     var confirmed = state.disaggVlanConfigConfirmed === true;
 
-    if (wlVlans.length === 0) {
+    if (tenants.length === 0) {
         list.innerHTML = '';
         return;
     }
 
-    list.innerHTML = wlVlans.map(function(w, i) {
-        return '<div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 8px;">'
-            + '<div style="display: flex; align-items: center; gap: 8px;">'
-            + '<div style="flex: 2;">'
-            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">Name</span>'
-            + '<input type="text" value="' + (w.name || '') + '" placeholder="Workload name"'
-            + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
-            + (confirmed ? ' disabled' : '')
-            + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'name\', this.value)">'
-            + '</div>'
-            + '<div style="flex: 1;">'
-            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN <span style="color: var(--accent-purple);">(Trunk)</span></span>'
-            + '<input type="number" value="' + w.vlan + '" min="1" max="4094"'
-            + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
-            + (confirmed ? ' disabled' : '')
-            + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'vlan\', this.value)">'
-            + '</div>'
-            + '<div style="flex: 1;">'
-            + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VNI</span>'
-            + '<input type="number" value="' + w.vni + '" min="1" max="16777215"'
-            + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
-            + (confirmed ? ' disabled' : '')
-            + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'vni\', this.value)">'
-            + '</div>'
-            + (confirmed ? '' : '<button type="button" onclick="removeDisaggWorkloadVlan(' + i + ')" style="align-self: flex-end; margin-bottom: 2px; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;" title="Remove">✕</button>')
-            + '</div>'
-            + '<div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">'
+    list.innerHTML = tenants.map(function(t, tIdx) {
+        var vrfRow = '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">'
             + '<div style="flex: 1;">'
             + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VRF Name</span>'
-            + '<input type="text" value="' + (w.vrf || '') + '" placeholder="e.g. TENANT1"'
+            + '<input type="text" value="' + (t.vrf || '') + '" placeholder="e.g. TENANT1"'
             + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
             + (confirmed ? ' disabled' : '')
-            + ' onchange="updateDisaggWorkloadVlan(' + i + ', \'vrf\', this.value)">'
+            + ' onchange="updateDisaggTenantNetwork(' + tIdx + ', \'vrf\', this.value)">'
             + '</div>'
-            + '<div style="flex: 2; font-size: 0.8rem; color: var(--text-secondary); padding-top: 14px;">Isolated routing domain for this tenant\'s workload traffic</div>'
-            + '</div>'
+            + '<div style="flex: 2; font-size: 0.8rem; color: var(--text-secondary); padding-top: 14px;">Isolated routing domain — like a VNET in Azure. Can contain multiple VLANs below.</div>'
+            + (confirmed ? '' : '<button type="button" onclick="removeDisaggTenantNetwork(' + tIdx + ')" style="align-self: flex-end; margin-bottom: 2px; background: transparent; border: 1px solid rgba(239,68,68,0.3); color: #ef4444; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem;" title="Remove tenant">✕</button>')
+            + '</div>';
+
+        var vlanRows = t.vlans.map(function(v, vIdx) {
+            return '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; padding-left: 16px;">'
+                + '<div style="flex: 2;">'
+                + '<span style="font-size: 0.75rem; color: var(--text-secondary);">Name</span>'
+                + '<input type="text" value="' + (v.name || '') + '" placeholder="Network name"'
+                + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+                + (confirmed ? ' disabled' : '')
+                + ' onchange="updateDisaggTenantVlan(' + tIdx + ', ' + vIdx + ', \'name\', this.value)">'
+                + '</div>'
+                + '<div style="flex: 1;">'
+                + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN <span style="color: var(--accent-purple);">(Trunk)</span></span>'
+                + '<input type="number" value="' + v.vlan + '" min="1" max="4094"'
+                + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+                + (confirmed ? ' disabled' : '')
+                + ' onchange="updateDisaggTenantVlan(' + tIdx + ', ' + vIdx + ', \'vlan\', this.value)">'
+                + '</div>'
+                + '<div style="flex: 1;">'
+                + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VNI</span>'
+                + '<input type="number" value="' + v.vni + '" min="1" max="16777215"'
+                + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+                + (confirmed ? ' disabled' : '')
+                + ' onchange="updateDisaggTenantVlan(' + tIdx + ', ' + vIdx + ', \'vni\', this.value)">'
+                + '</div>'
+                + (confirmed ? '' : (t.vlans.length > 1 ? '<button type="button" onclick="removeDisaggTenantVlan(' + tIdx + ', ' + vIdx + ')" style="align-self: flex-end; margin-bottom: 2px; background: transparent; border: 1px solid rgba(239,68,68,0.2); color: #ef4444; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;" title="Remove VLAN">✕</button>' : '<div style="width: 28px;"></div>'))
+                + '</div>';
+        }).join('');
+
+        var addVlanBtn = confirmed ? '' : '<div style="padding-left: 16px; margin-top: 4px;">'
+            + '<button type="button" onclick="addDisaggTenantVlan(' + tIdx + ')" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: transparent; border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 4px; cursor: pointer; font-size: 0.78rem;">'
+            + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+            + ' Add VLAN'
+            + '</button></div>';
+
+        return '<div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;">'
+            + vrfRow + vlanRows + addVlanBtn
             + '</div>';
     }).join('');
 }
@@ -370,7 +423,7 @@ function confirmDisaggVlanConfig() {
     state.disaggVlanConfigConfirmed = true;
     renderDisaggVlanConfirmState();
     renderVlanGrid();
-    renderDisaggWorkloadVlans();
+    renderDisaggTenantNetworks();
     if (typeof showToast === 'function') showToast('VLAN configuration confirmed', 'success');
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
@@ -379,7 +432,7 @@ function editDisaggVlanConfig() {
     state.disaggVlanConfigConfirmed = false;
     renderDisaggVlanConfirmState();
     renderVlanGrid();
-    renderDisaggWorkloadVlans();
+    renderDisaggTenantNetworks();
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 

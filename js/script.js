@@ -174,7 +174,7 @@ const state = {
     disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 },
     disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
     disaggMgmtVlanMode: 'access',
-    disaggVrfName: 'AZLOCAL',
+    disaggVrfName: 'AZLOCALINFRA',
     disaggSubnets: {},
     disaggIscsiTargets: [],
     disaggQosCustomized: false,
@@ -9167,7 +9167,7 @@ function startFresh() {
         } else if (key === 'disaggVnis') {
             state[key] = { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 };
         } else if (key === 'disaggVrfName') {
-            state[key] = 'AZLOCAL';
+            state[key] = 'AZLOCALINFRA';
         } else if (key === 'disaggNicNames') {
             state[key] = {
                 ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2',
