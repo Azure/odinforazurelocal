@@ -73,7 +73,8 @@
             var bannerText = (patternLabel[pattern] || pattern) +
                 ' \u00B7 ' + (ds.nodes || '?') + ' nodes' +
                 (ds.scale === 'rack_aware' || ds.scale === 'rack-aware' ? ' \u00B7 Rack-Aware Cluster (2 racks)' : ' \u00B7 Single Rack');
-            document.getElementById('sc-deployment-text').textContent = bannerText;
+            var textEl = document.getElementById('sc-deployment-text');
+            if (textEl) textEl.innerHTML = bannerText + ' \u00B7 or use the <a href="#sc-qos-audit-section" style="color: var(--accent-blue); text-decoration: underline;">QoS Validator</a> to analyze an existing switch config.';
         } else {
             // Partial data — update the deployment banner with helpful guidance
             if (banner) {
