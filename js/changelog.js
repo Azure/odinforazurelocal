@@ -53,7 +53,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.26.04</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.06</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">April 8, 2026</div>
                 </div>
 

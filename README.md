@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.26.04 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.20.06 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -43,7 +43,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.26.04 - Latest Release
+### 🎉 Version 0.20.06 - Latest Release
 - **Disaggregated Architecture Wizard**: New end-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks, with VLAN/VNI/VRF configuration, QoS policy, IP planning, drag-and-drop NIC-to-intent mapping, breadcrumb navigation, and interactive SVG rack topology diagrams
 - **ToR Switch Config Generator & QoS Validator**: Full-featured switch configuration page for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs with rack-aware 4-ToR support, infrastructure token replacement (timezone, NTP, syslog, TACACS+, SNMP), and JSON export. Paste a `show running-config` to validate PFC (IEEE 802.1Qbb), ETS (IEEE 802.1Qaz) bandwidth reservations, ECN, MTU 9216, system QoS policy, and interface-level PFC/trunking against Azure Local requirements — all processing is client-side with no data transmitted
 - **Cisco Nexus 93108TC-FX3P as ToR**: Added 10GBASE-T copper switch model as a ToR option (in addition to existing BMC role), supporting fully converged, switched, and switchless storage topologies
@@ -339,7 +339,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.26.04  
+**Version**: 0.20.06  
 **Last Updated**: April 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -353,9 +353,9 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
-### 🎉 Version 0.26.x Series (April 2026)
+### 🎉 Version 0.20.x Series (April 2026)
 
-#### 0.26.04 - Disaggregated Architecture, ToR Switch Config Generator & QoS Validator
+#### 0.20.06 - Disaggregated Architecture, ToR Switch Config Generator & QoS Validator
 - **Disaggregated Architecture Wizard**: New end-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks, with VLAN/VNI/VRF configuration, QoS policy, IP planning, drag-and-drop NIC-to-intent mapping, breadcrumb navigation, and interactive SVG rack topology diagrams
 - **ToR Switch Config Generator & QoS Validator**: Full-featured switch configuration page for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs with rack-aware 4-ToR support, infrastructure token replacement, JSON export. Paste a `show running-config` to validate PFC, ETS, ECN, MTU 9216, system QoS policy, and interface-level PFC/trunking against Azure Local requirements
 - **Cisco Nexus 93108TC-FX3P as ToR**: Added 10GBASE-T copper switch model as a ToR option (in addition to existing BMC role)
