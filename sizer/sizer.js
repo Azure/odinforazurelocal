@@ -1145,8 +1145,8 @@ function updateNodeRecommendation(recommendation) {
         const driver = bottleneckLabels[recommendation.bottleneck];
 
         let msg = '';
-        if (recommendation.recommended > 16) {
-            msg = `⚠️ Workload requires ~${recommendation.recommended} nodes which exceeds max 16. Consider increasing per-node hardware capacity.`;
+        if (recommendation.recommended > getMaxNodeCap()) {
+            msg = `Auto-scaling requires ~${recommendation.recommended} nodes which exceeds max ${getMaxNodeCap()}. Consider increasing per-node hardware capacity.`;
         } else {
             msg = `Auto-configured ${snapped} node(s) based on ${driver} requirements.`;
             if (recommendation.bottleneck !== 'storage' && recommendation.recommended > 1) {
@@ -1170,8 +1170,8 @@ function updateNodeRecommendationInfo(recommendation, currentNodeCount) {
     const snapped = snapToAvailableNodeCount(recommendation.recommended);
 
     let msg = '';
-    if (recommendation.recommended > 16) {
-        msg = `⚠️ Workload requires ~${recommendation.recommended} nodes (${driver} bottleneck) which exceeds max 16. Consider increasing per-node hardware capacity (CPU cores, memory, or disk size).`;
+    if (recommendation.recommended > getMaxNodeCap()) {
+        msg = `⚠️ Workload requires ~${recommendation.recommended} nodes (${driver} bottleneck) which exceeds max ${getMaxNodeCap()}. Consider increasing per-node hardware capacity (CPU cores, memory, or disk size).`;
     } else if (snapped > currentNodeCount) {
         msg = `ℹ️ Workload recommends ${snapped} node(s) based on ${driver} requirements. Current selection: ${currentNodeCount} node(s).`;
     } else {
@@ -2790,9 +2790,9 @@ function updateDisaggregatedUI(isDisagg) {
         }
     });
 
-    // Hide/show the storage capacity bar
+    // Hide/show the storage capacity bar — always visible, but styled differently for disaggregated
     var storageCapSection = document.getElementById('storage-capacity-section');
-    if (storageCapSection) storageCapSection.style.display = isDisagg ? 'none' : '';
+    // Storage bar is always visible now (disaggregated shows SAN requirement)
 
     // Update HA/DR tip for disaggregated
     var hadrTip = document.getElementById('hadr-tip');
@@ -4116,6 +4116,36 @@ function calculateRequirements(options) {
                 // When conservative scaling succeeded, skip this pass to avoid unnecessary
                 // memory/ratio escalation (e.g. bumping from 2 TB to 3 TB for headroom).
                 if (!conservativeSuccess) {
+
+                // --- Prefer disaggregated upgrade over aggressive memory/ratio escalation ---
+                // When we've hit 16-node max on a standard cluster, try adding more nodes
+                // via disaggregated BEFORE resorting to expensive 3-4 TB DIMMs or high ratios.
+                if (clusterType === 'standard' && !_disaggAutoUpgraded && nodeCount >= 16) {
+                    var disaggRec = getRecommendedNodeCount(
+                        totalVcpus, totalMemory, totalStorage,
+                        hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                    );
+                    var estimatedNodes = disaggRec ? Math.max(disaggRec.recommended, nodeCount) : nodeCount;
+                    var minRacks = Math.min(4, Math.max(1, Math.ceil(estimatedNodes / 16)));
+
+                    _disaggAutoUpgraded = true;
+                    document.getElementById('cluster-type').value = 'disaggregated';
+                    var rackEl = document.getElementById('disagg-rack-count');
+                    if (rackEl) rackEl.value = String(minRacks);
+                    updateNodeOptionsForClusterType();
+                    updateStorageForClusterType();
+                    updateResiliencyOptions();
+                    updateClusterInfo();
+                    updateDisaggregatedUI(true);
+                    _nodeCountUserSet = false;
+
+                    showSizerToast('Workload exceeds 16-node standard cluster capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+
+                    isCalculating = false;
+                    calculateRequirements();
+                    return;
+                }
+
                 const aggressiveChanged = autoScaleHardware(
                     totalVcpus, totalMemory, totalStorage, nodeCount,
                     resiliencyMultiplier, hwConfig, previouslyAutoScaled,
@@ -4255,53 +4285,6 @@ function calculateRequirements(options) {
             if (getVcpuRatio() !== initialVcpuRatio) {
                 _vcpuRatioAutoEscalated = true;
             }
-
-            // --- Auto-upgrade Standard → Disaggregated when maxed out ---
-            // If cluster type is standard and any resource is still ≥ 90% at
-            // 16 nodes with max hardware, automatically switch to disaggregated
-            // storage deployment and re-run the full calculation cycle.
-            const curClusterType = document.getElementById('cluster-type').value;
-            if (curClusterType === 'standard' && !_disaggAutoUpgraded) {
-                const chkEffNodes = nodeCount > 1 ? nodeCount - 1 : 1;
-                const chkVcpuToCore = getVcpuRatio();
-                const chkPhysCores = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
-                const chkMemPerNode = hwConfig.memoryGB || 512;
-                let chkRawGBPerNode = 0;
-                if (hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
-                    chkRawGBPerNode = hwConfig.diskConfig.capacity.count * hwConfig.diskConfig.capacity.sizeGB;
-                }
-                const chkRawTBPerNode = chkRawGBPerNode / 1024 || DEFAULT_RAW_TB_PER_NODE;
-
-                const chkAvailVcpus = chkPhysCores * chkEffNodes * chkVcpuToCore - ARB_VCPU_OVERHEAD;
-                const chkAvailMem = Math.max(chkMemPerNode - 32, 0) * chkEffNodes - ARB_MEMORY_OVERHEAD_GB;
-                const chkDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
-                const chkS2dRepairTB = getS2dRepairReservedGB(nodeCount, chkDiskSizeGB) / 1024;
-                const chkAvailStorage = Math.max((chkRawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - chkS2dRepairTB / resiliencyMultiplier, 0);
-
-                const chkCpuPct = chkAvailVcpus > 0 ? Math.round((totalVcpus / chkAvailVcpus) * 100) : 0;
-                const chkMemPct = chkAvailMem > 0 ? Math.round((totalMemory / chkAvailMem) * 100) : 0;
-                const chkStoPct = chkAvailStorage > 0 ? Math.round(((totalStorage / 1000) / chkAvailStorage) * 100) : 0;
-
-                if (nodeCount >= 16 && (chkCpuPct >= 90 || chkMemPct >= 90 || chkStoPct >= 90)) {
-                    // Switch to disaggregated
-                    _disaggAutoUpgraded = true;
-                    document.getElementById('cluster-type').value = 'disaggregated';
-                    updateNodeOptionsForClusterType();
-                    updateStorageForClusterType();
-                    updateResiliencyOptions();
-                    updateClusterInfo();
-                    updateDisaggregatedUI(true);
-                    _nodeCountUserSet = false;
-
-                    // Show notification toast
-                    showSizerToast('Workload exceeds 16-node standard cluster capacity — automatically upgraded to Disaggregated Storage deployment type.', 'info');
-
-                    // Re-run calculation with disaggregated type
-                    isCalculating = false;
-                    calculateRequirements();
-                    return;
-                }
-            }
         }
 
         // N+1: effective nodes for capacity sizing (drain one node during updates)
@@ -4325,16 +4308,29 @@ function calculateRequirements(options) {
         // Update per-node requirement cards
         document.getElementById('per-node-cores').textContent = perNodeCores || 0;
         document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
-        document.getElementById('per-node-storage').textContent = perNodeStorageRaw.toFixed(2) + ' TB';
-        document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
+
+        // For disaggregated, show SAN storage requirement instead of per-node raw/usable
+        var isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
+        var perNodeStorageLabel = document.getElementById('per-node-storage-label');
+        var perNodeUsableLabel = document.getElementById('per-node-usable-label');
+        if (isDisaggPerNode) {
+            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'SAN Storage (Total)';
+            if (perNodeUsableLabel) perNodeUsableLabel.textContent = 'SAN Storage Required';
+            document.getElementById('per-node-storage').textContent = (totalStorage / 1000).toFixed(2) + ' TB';
+            document.getElementById('per-node-usable').textContent = (totalStorage / 1000).toFixed(2) + ' TB';
+        } else {
+            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'Raw Storage';
+            if (perNodeUsableLabel) perNodeUsableLabel.textContent = 'Usable Storage';
+            document.getElementById('per-node-storage').textContent = perNodeStorageRaw.toFixed(2) + ' TB';
+            document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
+        }
 
         // --- Capacity bars from hardware config ---
         // Physical Nodes bar
         const clusterType = document.getElementById('cluster-type').value;
         var MAX_NODES;
         if (clusterType === 'disaggregated') {
-            var dRackCount = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 4;
-            MAX_NODES = dRackCount * 16;
+            MAX_NODES = 64; // Always show max 64 for disaggregated (4 racks × 16 nodes)
         } else if (clusterType === 'rack-aware') {
             MAX_NODES = 8;
         } else if (clusterType === 'single') {
@@ -4354,7 +4350,7 @@ function calculateRequirements(options) {
         const isDisaggregated = clusterType === 'disaggregated';
         var storageLabelEl = document.getElementById('total-storage-label');
         if (storageLabelEl) {
-            storageLabelEl.textContent = isDisaggregated ? 'External SAN Total Storage' : 'Total Storage';
+            storageLabelEl.textContent = isDisaggregated ? 'External SAN Storage Required' : 'Total Storage';
         }
 
         const physicalCoresPerNode = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
@@ -4395,6 +4391,22 @@ function calculateRequirements(options) {
         document.getElementById('storage-fill').style.width = storagePercent + '%';
         document.getElementById('storage-used').textContent = (totalStorage / 1000).toFixed(1);
         document.getElementById('storage-total').textContent = totalAvailableStorage.toFixed(1);
+
+        // Update storage bar label and style for disaggregated (SAN requirement, not utilization)
+        var storageBarLabel = document.getElementById('storage-bar-label');
+        var storageCapSection = document.getElementById('storage-capacity-section');
+        if (isDisaggregated) {
+            var sanStorageTB = (totalStorage / 1000).toFixed(1);
+            if (storageBarLabel) storageBarLabel.textContent = 'SAN Storage — Usable Capacity Required';
+            document.getElementById('storage-percent').textContent = sanStorageTB + ' TB';
+            document.getElementById('storage-fill').style.width = workloads.length > 0 ? '100%' : '0%';
+            document.getElementById('storage-fill').className = 'breakdown-fill storage san-storage';
+            document.getElementById('storage-used').textContent = sanStorageTB;
+            document.getElementById('storage-total').textContent = 'External SAN';
+        } else {
+            if (storageBarLabel) storageBarLabel.textContent = 'Usable Storage - Consumed';
+            document.getElementById('storage-fill').className = 'breakdown-fill storage';
+        }
 
         // --- GPU Capacity Bar ---
         const gpuCountPerNode = hwConfig.gpuCount || 0;
@@ -4643,12 +4655,13 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             'simple': 'Simple (no redundancy, 1x raw storage)',
             '2way': 'Two-way mirror (50% efficiency for two copies of data), performant and resilient to one fault domain (node) failure',
             '3way': 'Three-way mirror (33% efficiency for three copies of data), most performant and resilient to two fault domain (nodes) failures',
-            '4way': 'Four-way mirror (25% efficiency), implemented as a rack-level nested mirror'
+            '4way': 'Four-way mirror (25% efficiency), implemented as a rack-level nested mirror',
+            'external': 'External SAN Storage — resiliency managed by the SAN array (not Storage Spaces Direct)'
         };
         notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
         
-        // Storage config note
-        if (hwConfig && hwConfig.diskConfig) {
+        // Storage config note (skip for disaggregated — external SAN, no local S2D disks)
+        if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig) {
             const dc = hwConfig.diskConfig;
             if (dc.isTiered) {
                 notes.push(`Storage layout: ${dc.cache.count} × ${dc.cache.type} cache + ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node`);
@@ -4719,7 +4732,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (currentMemoryPercent >= 90) {
             notes.push('🚫 Memory utilization is at ' + currentMemoryPercent + '% — configurations at or above 90% are not recommended. Increase memory per node, add nodes, or reduce workloads.');
         }
-        if (currentStoragePercent >= 90) {
+        if (clusterType !== 'disaggregated' && currentStoragePercent >= 90) {
             notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add nodes, increase disk count/size, or reduce workloads.');
         }
         const currentGpuPercent = parseInt(document.getElementById('gpu-percent').textContent) || 0;
@@ -4739,8 +4752,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             if (totalGpus > physicalMaxGpus) {
                 const gpuModel = GPU_MODELS[hwConfig.gpuType];
                 const maxPerNode = gpuModel ? gpuModel.maxPerNode : gpuCountPerNode;
-                const clusterType = document.getElementById('cluster-type').value;
-                const maxNodes = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : 16;
+                const maxNodes = getMaxNodeCap();
                 const canAddNodes = nodeCount < maxNodes;
                 const canAddGpus = gpuCountPerNode < maxPerNode;
                 let advice = '';
@@ -4754,8 +4766,8 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // Storage metadata memory overhead note (4 GB per TB of cache drive capacity)
-        if (hwConfig && hwConfig.diskConfig) {
+        // Storage metadata memory overhead note (4 GB per TB of cache drive capacity) — S2D only
+        if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig) {
             const dc = hwConfig.diskConfig;
             let cacheTB = 0;
             if (dc.isTiered && dc.cache) {
@@ -4767,10 +4779,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // 400 TB per-machine storage validation
+        // 400 TB per-machine storage validation (S2D only)
         let storageLimitExceeded = false;
         let storageLimitMessages = [];
-        if (hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+        if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
             const dc = hwConfig.diskConfig;
             let rawStoragePerMachineTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
             if (dc.isTiered && dc.cache) {
@@ -4818,10 +4830,14 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         }
 
         // Infrastructure_1 volume + ARB appliance note
-        notes.push('ℹ️ Infrastructure overhead: 256 GB usable storage reserved by Storage Spaces Direct (Infrastructure_1 volume) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster — deducted from workload-available capacity.');
+        if (clusterType === 'disaggregated') {
+            notes.push('Disaggregated storage: compute nodes use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+        } else {
+            notes.push('Infrastructure overhead: 256 GB usable storage reserved by Storage Spaces Direct (Infrastructure_1 volume) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+        }
 
-        // S2D Resiliency Repair note
-        if (nodeCount >= 1 && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+        // S2D Resiliency Repair note (skip for disaggregated — no S2D)
+        if (clusterType !== 'disaggregated' && nodeCount >= 1 && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
             const reservedDisks = getRepairDiskCount();
             const recommendedDisks = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
             const reservedDiskSizeGB = hwConfig.diskConfig.capacity.sizeGB;
@@ -4836,8 +4852,8 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // Disk bay consolidation note
-        if (_diskConsolidationInfo) {
+        // Disk bay consolidation note (skip for disaggregated)
+        if (clusterType !== 'disaggregated' && _diskConsolidationInfo) {
             const info = _diskConsolidationInfo;
             notes.push(`💡 Disk bay optimization: ${info.originalCount} × ${info.originalSizeTB} TB capacity disks would use ${Math.round(info.originalCount / info.maxBays * 100)}% of available disk bays (${info.maxBays} max). Auto-scaled to ${info.newCount} × ${info.newSizeTB} TB disks instead, freeing ${info.baysFreed} bay${info.baysFreed > 1 ? 's' : ''} per node for future expansion. Note: Disk size and number can be edited, if you prefer a larger number of smaller capacity disks.`);
         }
@@ -4846,7 +4862,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         notes.push('ℹ️ Host overhead: 32 GB memory reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
 
         // Network note
-        notes.push('ℹ️ Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
+        if (clusterType === 'disaggregated') {
+            notes.push('Network: Disaggregated deployments use a Clos leaf-spine fabric with RDMA-capable NICs (25 GbE+ recommended). Compute nodes connect to external SAN storage via Fibre Channel HBAs or iSCSI over the leaf switches.');
+        } else {
+            notes.push('Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
+        }
 
         // Boot/OS drive note — only shown when memory exceeds 768 GB (larger boot drive needed)
         if (hwConfig && hwConfig.memoryGB > 768) {
