@@ -2790,9 +2790,7 @@ function updateDisaggregatedUI(isDisagg) {
         }
     });
 
-    // Hide/show the storage capacity bar — always visible, but styled differently for disaggregated
-    var storageCapSection = document.getElementById('storage-capacity-section');
-    // Storage bar is always visible now (disaggregated shows SAN requirement)
+    // Storage capacity bar is always visible — styled differently for disaggregated in calculateRequirements()
 
     // Update HA/DR tip for disaggregated
     var hadrTip = document.getElementById('hadr-tip');
@@ -4395,7 +4393,6 @@ function calculateRequirements(options) {
 
         // Update storage bar label and style for disaggregated (SAN requirement, not utilization)
         var storageBarLabel = document.getElementById('storage-bar-label');
-        var storageCapSection = document.getElementById('storage-capacity-section');
         if (isDisaggregated) {
             var sanStorageTB = (totalStorage / 1000).toFixed(1);
             if (storageBarLabel) storageBarLabel.textContent = 'SAN Storage — Usable Capacity Required';
