@@ -604,7 +604,6 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     var portMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.5, metalness: 0.5 });
     var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.5 });
     var ledBlue = new THREE.MeshStandardMaterial({ color: 0x3399ff, emissive: 0x3399ff, emissiveIntensity: 0.4 });
-    var metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.8 });
 
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
@@ -1313,16 +1312,27 @@ function renderRack3D(config) {
     // Camera position — front-left, tight on rack body (minimal floor)
     var camDist, camTargetY;
     if (isRackAware || isDisaggregated) {
-        // Front-left view, slight downward angle onto racks + spine switches
+        // Front view, slightly elevated — scale camera distance with rack count
         var spCount = config.spineCount || 2;
         var spineH = RACK.U_HEIGHT * 1.5;
         var spineGapH = spineH * 0.4;
         var routerTopY = RACK.OUTER_HEIGHT + 0.35 + (spCount - 1) * (spineH + spineGapH) + spineH / 2 + 0.05;
-        camDist = rackCount <= 2 ? 1.95 : 1.95 + (rackCount - 2) * 0.7;
+        if (rackCount >= 4) {
+            // 4 racks: right-front perspective, moderately elevated, closer zoom
+            camDist = 3.2;
+            camTargetY = RACK.OUTER_HEIGHT * 0.5;
+            _rack3d.camera.position.set(2.0, routerTopY * 1.1, -camDist);
+        } else if (rackCount >= 3) {
+            camDist = 3.2;
+            camTargetY = RACK.OUTER_HEIGHT * 0.6;
+            _rack3d.camera.position.set(1.2, routerTopY * 0.8, -camDist);
+        } else {
+            camDist = 1.95;
+            camTargetY = RACK.OUTER_HEIGHT * 0.85;
+            _rack3d.camera.position.set(0.65, routerTopY * 1.1, -camDist);
+        }
         // Bump camera distance for 4-spine to fit the taller stack
         if (spCount >= 4) camDist += 0.3;
-        camTargetY = RACK.OUTER_HEIGHT * 0.85;
-        _rack3d.camera.position.set(0.65, routerTopY * 1.1, -camDist);
     } else {
         // Auto-zoom based on node count — more nodes need wider view
         var stdRouterTopY = RACK.OUTER_HEIGHT + 0.35 + 0.05;

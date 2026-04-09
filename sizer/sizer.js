@@ -4375,8 +4375,6 @@ function calculateRequirements(options) {
         const infraVolumeUsableTB = 0.25; // 256 GB
         // PerformanceHistory volume: 20 GB reserved for cluster performance data
         const perfHistoryVolumeTB = 0.02; // 20 GB
-        // Total SAN overhead for disaggregated (Infrastructure_1 + PerformanceHistory, once per instance)
-        const sanInfraOverheadTB = infraVolumeUsableTB + perfHistoryVolumeTB; // 0.27 TB (~276 GB)
         // S2D repair reservation: min(nodeCount, 4) capacity disks reserved from pool raw space
         const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
         const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
