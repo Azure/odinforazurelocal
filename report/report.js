@@ -2506,7 +2506,6 @@
                 'Ctrl-B');
             sanBId = sanAId; // single target for shared
         } else {
-            var storageLabel = hasFc ? 'FC SAN' : 'iSCSI';
             var targetLabelA = hasFc ? 'SAN Fabric A' : 'iSCSI Target A';
             var targetLabelB = hasFc ? 'SAN Fabric B' : 'iSCSI Target B';
             var totalSanW = 2 * sanW + sanGap;
@@ -4477,9 +4476,7 @@
                 // Connection lines from Leaf-A and Leaf-B to Storage Array
                 var leafAcx = leaf1X + leafW;
                 var leafBcx = leaf2X + leafW;
-                var leafMidY = leafY + leafH / 2;
                 var arrayLeftX = aX;
-                var arrayMidY = aY + iscsiArrayH / 2;
 
                 // Leaf-A → Storage Array (routed above Leaf-B to stay visible)
                 var routeY = leafY - 18;
