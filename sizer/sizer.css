@@ -1069,7 +1069,7 @@ header .header-description {
 }
 
 .breakdown-fill.san-storage {
-    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+    background: linear-gradient(90deg, var(--accent-green), #34d399);
 }
 
 .breakdown-fill.gpu {

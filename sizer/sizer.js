@@ -4313,16 +4313,17 @@ function calculateRequirements(options) {
         var isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
         var perNodeStorageLabel = document.getElementById('per-node-storage-label');
         var perNodeUsableLabel = document.getElementById('per-node-usable-label');
+        var perNodeUsableSection = document.getElementById('per-node-usable-section');
         if (isDisaggPerNode) {
-            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'SAN Storage (Total)';
-            if (perNodeUsableLabel) perNodeUsableLabel.textContent = 'SAN Storage Required';
+            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'SAN Storage Required (Total)';
             document.getElementById('per-node-storage').textContent = (totalStorage / 1000).toFixed(2) + ' TB';
-            document.getElementById('per-node-usable').textContent = (totalStorage / 1000).toFixed(2) + ' TB';
+            if (perNodeUsableSection) perNodeUsableSection.style.display = 'none';
         } else {
             if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'Raw Storage';
             if (perNodeUsableLabel) perNodeUsableLabel.textContent = 'Usable Storage';
             document.getElementById('per-node-storage').textContent = perNodeStorageRaw.toFixed(2) + ' TB';
             document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
+            if (perNodeUsableSection) perNodeUsableSection.style.display = '';
         }
 
         // --- Capacity bars from hardware config ---
@@ -4892,7 +4893,8 @@ function updateDesignerActionVisibility() {
     if (designerBtn) {
         const computePercent = parseInt(document.getElementById('compute-percent').textContent) || 0;
         const memoryPercent = parseInt(document.getElementById('memory-percent').textContent) || 0;
-        const storagePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
+        const clusterTypeForBtn = document.getElementById('cluster-type').value;
+        const storagePercent = clusterTypeForBtn === 'disaggregated' ? 0 : (parseInt(document.getElementById('storage-percent').textContent) || 0);
         const overResources = [];
         if (computePercent >= 90) overResources.push('Compute');
         if (memoryPercent >= 90) overResources.push('Memory');
@@ -4918,6 +4920,7 @@ function mapSizerToDesignerScale(clusterType) {
     if (clusterType === 'rack-aware') return 'rack_aware';
     if (clusterType === 'aldo-mgmt') return 'medium';
     if (clusterType === 'aldo-wl') return 'medium';
+    if (clusterType === 'disaggregated') return 'medium';
     // Both 'single' and 'standard' map to 'medium' (Hyperconverged)
     return 'medium';
 }
@@ -5270,8 +5273,10 @@ function selectRegionAndConfigure(region, cloud) {
     const sizerPayload = {
         source: 'sizer',
         timestamp: new Date().toISOString(),
-        // Scenario: disconnected for ALDO types, hyperconverged for others
-        scenario: isAldo ? 'disconnected' : 'hyperconverged',
+        // Scenario: disconnected for ALDO types, connected for all others
+        scenario: isAldo ? 'disconnected' : 'connected',
+        // Architecture: disaggregated or hyperconverged
+        architecture: clusterType === 'disaggregated' ? 'disaggregated' : 'hyperconverged',
         // ALDO-specific fields
         clusterRole: clusterType === 'aldo-mgmt' ? 'management' : (clusterType === 'aldo-wl' ? 'workload' : undefined),
         autonomousCloudFqdn: aldoFqdn || undefined,

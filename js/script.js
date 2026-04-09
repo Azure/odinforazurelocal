@@ -8774,7 +8774,7 @@ function checkForSizerImport() {
         }
 
         // Step 01: Scenario (Disconnected for ALDO, Connected for others)
-        const scenario = payload.scenario === 'disconnected' ? 'disconnected' : (payload.scenario || 'connected');
+        const scenario = payload.scenario === 'disconnected' ? 'disconnected' : 'connected';
         selectOption('scenario', scenario);
 
         // Set architecture (default to hyperconverged for imported configs)
@@ -9832,6 +9832,7 @@ function showTemplates() {
             description: 'Air-gapped management cluster (3 nodes) with Autonomous Cloud endpoint for disconnected operations',
             config: {
                 scenario: 'disconnected',
+                architecture: 'hyperconverged',
                 clusterRole: 'management',
                 autonomousCloudFqdn: 'azurelocal.airgap.contoso.com',
                 fqdnConfirmed: true,
@@ -9929,8 +9930,8 @@ function showTemplates() {
             <p style="margin: 0; color: var(--text-secondary); font-size: 13px;">${escapeHtml(template.description)}</p>
             <div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px;">
                 <span style="padding: 2px 8px; background: rgba(59, 130, 246, 0.2); border-radius: 4px; color: var(--accent-blue);">${template.config.nodes} nodes</span>
-                <span style="padding: 2px 8px; background: rgba(139, 92, 246, 0.2); border-radius: 4px; color: var(--accent-purple);">${template.config.scale}</span>
-                <span style="padding: 2px 8px; background: rgba(16, 185, 129, 0.2); border-radius: 4px; color: var(--success);">${template.config.storage}</span>
+                <span style="padding: 2px 8px; background: rgba(139, 92, 246, 0.2); border-radius: 4px; color: var(--accent-purple);">${template.config.architecture === 'disaggregated' ? 'disaggregated' : (template.config.scale || 'standard')}</span>
+                <span style="padding: 2px 8px; background: rgba(16, 185, 129, 0.2); border-radius: 4px; color: var(--success);">${template.config.architecture === 'disaggregated' ? (template.config.disaggStorageType || 'external SAN') : (template.config.storage || 'S2D')}</span>
             </div>
         </div>
     `).join('');
