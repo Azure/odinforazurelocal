@@ -8823,6 +8823,14 @@ function checkForSizerImport() {
         // Step 05: Cluster Size from sizer
         if (payload.nodes) selectOption('nodes', String(payload.nodes));
 
+        // Disaggregated-specific fields from Sizer
+        if (payload.architecture === 'disaggregated') {
+            if (payload.disaggStorageType) state.disaggStorageType = payload.disaggStorageType;
+            if (payload.disaggRackCount) state.disaggRackCount = payload.disaggRackCount;
+            if (payload.disaggNodesPerRack) state.disaggNodesPerRack = payload.disaggNodesPerRack;
+            if (payload.disaggSpineCount) state.disaggSpineCount = payload.disaggSpineCount;
+        }
+
         // Update UI to reflect imported values
         updateUI();
         saveStateToLocalStorage();

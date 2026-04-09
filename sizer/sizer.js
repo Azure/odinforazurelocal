@@ -1419,6 +1419,7 @@ function clearAllManualOverrides() {
 
 // Human-readable names for manually-set hardware fields
 const _MANUAL_FIELD_LABELS = {
+    'cluster-type': 'Deployment Type',
     'node-count': 'Node Count',
     'vcpu-ratio': 'vCPU Ratio',
     'node-memory': 'Memory',
@@ -4128,6 +4129,7 @@ function calculateRequirements(options) {
 
                     _disaggAutoUpgraded = true;
                     document.getElementById('cluster-type').value = 'disaggregated';
+                    markAutoScaled('cluster-type');
                     var rackEl = document.getElementById('disagg-rack-count');
                     if (rackEl) rackEl.value = String(minRacks);
                     updateNodeOptionsForClusterType();
@@ -5349,6 +5351,11 @@ function selectRegionAndConfigure(region, cloud) {
         // Designer-compatible fields
         scale: mapSizerToDesignerScale(clusterType),
         nodes: nodeCount,
+        // Disaggregated-specific fields (passed through to Designer state)
+        disaggStorageType: clusterType === 'disaggregated' ? ((document.getElementById('disagg-storage-type') || {}).value || 'fc_san') : undefined,
+        disaggRackCount: clusterType === 'disaggregated' ? (parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2) : undefined,
+        disaggNodesPerRack: clusterType === 'disaggregated' ? Math.ceil(parseInt(nodeCount, 10) / (parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2)) : undefined,
+        disaggSpineCount: clusterType === 'disaggregated' ? (parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || 2) : undefined,
         // Hardware details (hidden in Designer, shown in report)
         sizerHardware: {
             clusterType: clusterType,
