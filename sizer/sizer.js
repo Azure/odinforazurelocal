@@ -2751,9 +2751,11 @@ function updateDisaggLegend() {
     var smbEl = document.getElementById('legend-smb-trunk');
     var lagEl = document.getElementById('legend-lag');
     var fcEl = document.getElementById('legend-fc-switch');
+    var sanEl = document.getElementById('legend-san-appliance');
     if (smbEl) smbEl.style.display = isDisagg ? 'none' : '';
     if (lagEl) lagEl.style.display = isDisagg ? 'none' : '';
     if (fcEl) fcEl.style.display = (isDisagg && storageType === 'fc_san') ? '' : 'none';
+    if (sanEl) sanEl.style.display = isDisagg ? '' : 'none';
 }
 
 // Show/hide disaggregated-specific UI and disable storage fields
@@ -4562,7 +4564,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         var torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
         var bmcPerRack = 1; // 1 × 1U BMC switch per rack
         var fcPerRack = (dst === 'fc_san') ? 2 : 0; // 2 × 1U FC switches per rack (FC only)
-        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack;
+        var sanPerRack = 5; // 5U SAN appliance per rack
+        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack + sanPerRack;
         rackUnits = (nodeCount * 2) + (drc * switchesPerRack);
         rackUnitLabel = rackUnits + 'U (across ' + drc + ' racks, incl. ' + (drc * torPerRack) + '× ToR, ' + drc + '× BMC' + (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + '× FC' : '') + ' switches)';
     } else {

@@ -587,6 +587,113 @@ function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
     return body;
 }
 
+// ── SAN Appliance — 5U storage appliance in purple ──
+
+function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
+    var heightU = 5;
+    var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
+    var deviceHeight = heightU * RACK.U_HEIGHT - 0.004;
+    var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
+    var frontZ = -deviceDepth / 2;
+    var backZ = deviceDepth / 2;
+    var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
+    var cx = rackGroup.position.x;
+
+    var sanMat = new THREE.MeshStandardMaterial({ color: 0x6d28d9, roughness: 0.3, metalness: 0.4 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0033, roughness: 0.8, metalness: 0.2 });
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.5, metalness: 0.5 });
+    var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.5 });
+    var ledBlue = new THREE.MeshStandardMaterial({ color: 0x3399ff, emissive: 0x3399ff, emissiveIntensity: 0.4 });
+    var metalMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.8 });
+
+    // Main chassis
+    var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
+    var body = new THREE.Mesh(bodyGeo, sanMat);
+    body.position.set(cx, y, 0);
+    scene.add(body);
+
+    // Front panel
+    var frontPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.004, 0.003);
+    var frontPanel = new THREE.Mesh(frontPanelGeo, darkMat);
+    frontPanel.position.set(cx, y, frontZ - 0.002);
+    scene.add(frontPanel);
+
+    // Drive bays on front (2 rows of 12 — typical SAN array appearance)
+    var bayW = 0.008;
+    var bayH = deviceHeight * 0.3;
+    var bayRows = 2;
+    var baysPerRow = 12;
+    for (var row = 0; row < bayRows; row++) {
+        var bayY = y + deviceHeight * 0.15 - row * (bayH + 0.004);
+        for (var b = 0; b < baysPerRow; b++) {
+            var bayX = cx - deviceWidth / 2 + 0.02 + b * (bayW + 0.002);
+            var bayGeo = new THREE.BoxGeometry(bayW, bayH, 0.002);
+            var bayMesh = new THREE.Mesh(bayGeo, new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 }));
+            bayMesh.position.set(bayX, bayY, frontZ - 0.003);
+            scene.add(bayMesh);
+            // Drive LED
+            if (b % 3 === 0) {
+                var dLedGeo = new THREE.BoxGeometry(0.003, 0.003, 0.001);
+                var dLed = new THREE.Mesh(dLedGeo, ledGreen);
+                dLed.position.set(bayX, bayY + bayH / 2 + 0.003, frontZ - 0.004);
+                scene.add(dLed);
+            }
+        }
+    }
+
+    // Status LEDs (top-right of front)
+    var ledGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
+    for (var li = 0; li < 4; li++) {
+        var led = new THREE.Mesh(ledGeo, li < 2 ? ledGreen : ledBlue);
+        led.position.set(cx + deviceWidth / 2 - 0.02 - li * 0.01, y + deviceHeight / 2 - 0.008, frontZ - 0.004);
+        scene.add(led);
+    }
+
+    // Back panel
+    var backPanelGeo = new THREE.BoxGeometry(deviceWidth - 0.004, deviceHeight - 0.004, 0.003);
+    var backPanel = new THREE.Mesh(backPanelGeo, darkMat);
+    backPanel.position.set(cx, y, backZ + 0.002);
+    scene.add(backPanel);
+
+    // FC ports on back (2 rows of 8)
+    var fcPortW = 0.010;
+    var fcPortH = 0.008;
+    var fcPortGeo = new THREE.BoxGeometry(fcPortW, fcPortH, 0.003);
+    for (var pr = 0; pr < 2; pr++) {
+        var portY = y + deviceHeight * 0.15 - pr * (fcPortH + 0.012);
+        for (var fp = 0; fp < 8; fp++) {
+            var fpx = cx - deviceWidth / 2 + 0.04 + fp * (fcPortW + 0.008);
+            var sfp = new THREE.Mesh(fcPortGeo, portMat);
+            sfp.position.set(fpx, portY, backZ + 0.004);
+            scene.add(sfp);
+        }
+    }
+
+    // Dual PSU modules
+    var psuW = deviceWidth * 0.15;
+    var psuH = deviceHeight * 0.5;
+    var psuGeo = new THREE.BoxGeometry(psuW, psuH, 0.006);
+    var psuMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 });
+    for (var p = 0; p < 2; p++) {
+        var psuX = cx + deviceWidth / 2 - 0.02 - p * (psuW + 0.008) - psuW / 2;
+        var psu = new THREE.Mesh(psuGeo, psuMat);
+        psu.position.set(psuX, y - deviceHeight * 0.1, backZ + 0.005);
+        scene.add(psu);
+    }
+
+    // Labels
+    if (label) {
+        var frontLabel = makeFaceLabel(label, 28, '#ffffff', 'front');
+        frontLabel.position.set(cx, y, frontZ - 0.008);
+        scene.add(frontLabel);
+        var rearLabel = makeFaceLabel(label + ' (Rear)', 28, '#ffffff', 'back');
+        rearLabel.position.set(cx, y, backZ + 0.012);
+        scene.add(rearLabel);
+    }
+
+    return body;
+}
+
 // ── Core network for rack-aware and disaggregated topologies ──
 
 function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackStartX, isDisaggLayout) {
@@ -1133,13 +1240,21 @@ function renderRack3D(config) {
             }
         }
 
+        // Place SAN Appliance at bottom of rack for disaggregated (5U, positions U1-U5)
+        var sanApplianceU = 0;
+        if (isDisaggregated) {
+            sanApplianceU = 5;
+            placeSanAppliance(_rack3d.scene, rack.group, rack.baseY, 1, 'SAN Appliance');
+        }
+
         // Place server nodes below switches, from top down
         var topServerU = RACK.TOTAL_U - rackInfo.tor - 1 - fcSwitchCount; // first available U below switches + BMC + FC
+        var bottomLimit = sanApplianceU + 1; // don't overlap SAN appliance at bottom
         var nodeOffset = 0;
         for (var pr = 0; pr < rackIndex; pr++) { nodeOffset += racks[pr].nodes; }
         for (var n = 0; n < rackInfo.nodes; n++) {
             var serverStartU = topServerU - (n * 2); // 2U per server, top-down
-            if (serverStartU < 1) break;
+            if (serverStartU < bottomLimit) break;
             var color = COLORS.SERVER;
             var nodeLabel = 'Node ' + (nodeOffset + n + 1);
             placeServer(_rack3d.scene, rack.group, rack.baseY, serverStartU - 1, color,
