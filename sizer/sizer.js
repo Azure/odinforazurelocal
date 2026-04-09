@@ -2299,11 +2299,10 @@ function checkForDesignerImport() {
         // Build cluster type label for banner
         const clusterLabels = {
             'single': 'Single Node',
-            'standard': 'Standard Cluster',
+            'standard': 'Hyperconverged Cluster',
             'rack-aware': 'Rack-Aware Cluster',
             'disaggregated': 'Disaggregated Storage',
-            'aldo-mgmt': 'ALDO Management Cluster',
-            'aldo-wl': 'ALDO Workload Cluster'
+            'aldo-mgmt': 'ALDO Management Cluster'
         };
         const typeLabel = clusterLabels[payload.clusterType] || payload.clusterType;
         const nodeLabel = payload.nodeCount === '1' ? '1 node' : (payload.nodeCount + ' nodes');
@@ -2693,8 +2692,9 @@ function onClusterTypeChange() {
     const isAldo = clusterType === 'aldo-mgmt';
     const isDisagg = clusterType === 'disaggregated';
 
-    // Reset auto-upgrade flag when user manually changes cluster type
-    _disaggAutoUpgraded = false;
+    // Suppress auto-upgrade when user manually selects a cluster type.
+    _disaggAutoUpgraded = true;
+    markManualSet('cluster-type');
 
     // Switching TO aldo-mgmt: clear workloads and add IRVM1
     if (isAldo && !wasAldo) {
@@ -2909,8 +2909,8 @@ function updateResiliencyRecommendation() {
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
     const resiliency = document.getElementById('resiliency').value;
-    // Show warning only for standard or aldo-wl clusters with 3+ nodes that chose 2-way mirror
-    el.style.display = ((clusterType === 'standard' || clusterType === 'aldo-wl') && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
+    // Show warning only for standard clusters with 3+ nodes that chose 2-way mirror
+    el.style.display = (clusterType === 'standard' && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
 }
 
 // Update node count options based on cluster type
@@ -3101,8 +3101,6 @@ function updateNodeTip() {
         tipText.textContent = 'Tip: Single node clusters will always incur workload downtime during updates. No N+1 capacity is available.';
     } else if (clusterType === 'aldo-mgmt') {
         tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
-    } else if (clusterType === 'aldo-wl') {
-        tipText.textContent = 'Tip: ALDO Workload Cluster is used for disconnected operations workloads. N+1 capacity is reserved for maintenance (ability to drain a node during servicing).';
     } else {
         tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.';
     }
@@ -4297,10 +4295,18 @@ function calculateRequirements(options) {
         const perNodeStorageRaw = (totalStorage / 1000) * resiliencyMultiplier / nodeCount; // TB raw per node
         const perNodeUsable = totalStorage / 1000 / nodeCount; // TB usable per node (storage accessible during drain)
 
+        // Determine if disaggregated for storage display logic
+        var isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
+        // SAN overhead: Infrastructure_1 (256 GB) + PerformanceHistory (20 GB), once per instance
+        var sanInfraOverheadForDisplay = 0.27; // 0.25 + 0.02 TB
+        var sanTotalTB = (totalStorage / 1000) + sanInfraOverheadForDisplay;
+
         // Update total requirement cards
         document.getElementById('total-vcpus').textContent = totalVcpus;
         document.getElementById('total-memory').textContent = totalMemory + ' GB';
-        document.getElementById('total-storage').textContent = (totalStorage / 1000).toFixed(2) + ' TB';
+        // For disaggregated, include infra volume overhead in total storage display
+        var totalStorageDisplayTB = isDisaggPerNode ? sanTotalTB : (totalStorage / 1000);
+        document.getElementById('total-storage').textContent = totalStorageDisplayTB.toFixed(2) + ' TB';
         document.getElementById('total-workloads').textContent = workloads.length;
 
         // Update per-node requirement cards
@@ -4308,13 +4314,12 @@ function calculateRequirements(options) {
         document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
 
         // For disaggregated, show SAN storage requirement instead of per-node raw/usable
-        var isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
         var perNodeStorageLabel = document.getElementById('per-node-storage-label');
         var perNodeUsableLabel = document.getElementById('per-node-usable-label');
         var perNodeUsableSection = document.getElementById('per-node-usable-section');
         if (isDisaggPerNode) {
             if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'SAN Storage Required (Total)';
-            document.getElementById('per-node-storage').textContent = (totalStorage / 1000).toFixed(2) + ' TB';
+            document.getElementById('per-node-storage').textContent = sanTotalTB.toFixed(2) + ' TB';
             if (perNodeUsableSection) perNodeUsableSection.style.display = 'none';
         } else {
             if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'Raw Storage';
@@ -4366,6 +4371,10 @@ function calculateRequirements(options) {
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
         // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
         const infraVolumeUsableTB = 0.25; // 256 GB
+        // PerformanceHistory volume: 20 GB reserved for cluster performance data
+        const perfHistoryVolumeTB = 0.02; // 20 GB
+        // Total SAN overhead for disaggregated (Infrastructure_1 + PerformanceHistory, once per instance)
+        const sanInfraOverheadTB = infraVolumeUsableTB + perfHistoryVolumeTB; // 0.27 TB (~276 GB)
         // S2D repair reservation: min(nodeCount, 4) capacity disks reserved from pool raw space
         const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
         const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
@@ -4394,12 +4403,12 @@ function calculateRequirements(options) {
         // Update storage bar label and style for disaggregated (SAN requirement, not utilization)
         var storageBarLabel = document.getElementById('storage-bar-label');
         if (isDisaggregated) {
-            var sanStorageTB = (totalStorage / 1000).toFixed(1);
+            var sanStorageTBDisplay = sanTotalTB.toFixed(1);
             if (storageBarLabel) storageBarLabel.textContent = 'SAN Storage — Usable Capacity Required';
-            document.getElementById('storage-percent').textContent = sanStorageTB + ' TB';
+            document.getElementById('storage-percent').textContent = sanStorageTBDisplay + ' TB';
             document.getElementById('storage-fill').style.width = workloads.length > 0 ? '100%' : '0%';
             document.getElementById('storage-fill').className = 'breakdown-fill storage san-storage';
-            document.getElementById('storage-used').textContent = sanStorageTB;
+            document.getElementById('storage-used').textContent = sanStorageTBDisplay;
             document.getElementById('storage-total').textContent = 'External SAN';
         } else {
             if (storageBarLabel) storageBarLabel.textContent = 'Usable Storage - Consumed';
@@ -4638,9 +4647,6 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure, additional infrastructure workloads may be added in a future release`);
             notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
             notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
-        } else if (clusterType === 'aldo-wl') {
-            notes.push('ALDO Workload Cluster: A multi-node cluster for Azure Local Disconnected Operations (ALDO) workloads. Configured as a Disconnected Workload Cluster in the Designer.');
-            notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
@@ -4829,7 +4835,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
         // Infrastructure_1 volume + ARB appliance note
         if (clusterType === 'disaggregated') {
-            notes.push('Disaggregated storage: compute nodes use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+            notes.push('Disaggregated SAN storage requirement includes 256 GB for the Infrastructure_1 volume and 20 GB for the PerformanceHistory volume (276 GB total, once per instance), in addition to workload storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
         } else {
             notes.push('Infrastructure overhead: 256 GB usable storage reserved by Storage Spaces Direct (Infrastructure_1 volume) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
         }
@@ -4916,7 +4922,6 @@ function updateDesignerActionVisibility() {
 function mapSizerToDesignerScale(clusterType) {
     if (clusterType === 'rack-aware') return 'rack_aware';
     if (clusterType === 'aldo-mgmt') return 'medium';
-    if (clusterType === 'aldo-wl') return 'medium';
     if (clusterType === 'disaggregated') return 'medium';
     // Both 'single' and 'standard' map to 'medium' (Hyperconverged)
     return 'medium';
@@ -4941,7 +4946,7 @@ function exportSizerWord() {
     var futureGrowth = document.getElementById('future-growth').value;
     var resConfig = RESILIENCY_CONFIG[resiliency] || {};
 
-    var clusterLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster', 'aldo-mgmt': 'ALDO Management Cluster', 'aldo-wl': 'ALDO Workload Cluster' };
+    var clusterLabels = { 'single': 'Single Node', 'standard': 'Hyperconverged Cluster', 'rack-aware': 'Rack Aware Cluster', 'aldo-mgmt': 'ALDO Management Cluster', 'disaggregated': 'Disaggregated Storage' };
     var storageLabels = { 'all-flash': 'All-Flash (NVMe or SSD)', 'mixed-flash': 'Mixed All-Flash (NVMe + SSD)', 'hybrid': 'Hybrid (SSD/NVMe + HDD)' };
     var growthLabels = { '0': 'None', '10': '10%', '20': '20%', '30': '30%', '50': '50%' };
 
@@ -5120,8 +5125,8 @@ function configureInDesigner() {
 
     const clusterType = document.getElementById('cluster-type').value;
 
-    // ALDO Management or Workload Cluster: show FQDN modal instead of region picker
-    if (clusterType === 'aldo-mgmt' || clusterType === 'aldo-wl') {
+    // ALDO Management Cluster: always disconnected — show FQDN modal directly
+    if (clusterType === 'aldo-mgmt') {
         const fqdnModal = document.getElementById('aldo-fqdn-modal');
         const fqdnOverlay = document.getElementById('aldo-fqdn-modal-overlay');
         if (fqdnModal && fqdnOverlay) {
@@ -5135,17 +5140,8 @@ function configureInDesigner() {
         return;
     }
 
-    // Show region picker modal — the user selects a region, then we navigate
-    const modal = document.getElementById('region-picker-modal');
-    const overlay = document.getElementById('region-modal-overlay');
-    if (modal && overlay) {
-        // Reset to Azure Commercial and show its regions
-        const commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
-        if (commercialRadio) commercialRadio.checked = true;
-        updateRegionOptions();
-        modal.classList.add('active');
-        overlay.classList.add('active');
-    }
+    // All other cluster types: ask Connected or Disconnected first
+    showConnectivityChoice();
 }
 
 // Update visible region buttons based on selected cloud type
@@ -5155,6 +5151,70 @@ function updateRegionOptions() {
     buttons.forEach(btn => {
         btn.style.display = btn.getAttribute('data-cloud') === selectedCloud ? '' : 'none';
     });
+}
+
+// ============================================
+// Connected / Disconnected Choice
+// ============================================
+
+// Show connectivity choice modal before proceeding to Designer
+function showConnectivityChoice() {
+    // Remove any existing modal
+    var existing = document.getElementById('connectivity-choice-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'connectivity-choice-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(4px);';
+
+    overlay.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--glass-border);border-radius:16px;padding:24px;max-width:500px;width:100%;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+        + '<h3 style="margin:0;color:var(--accent-blue);">Deployment Connectivity</h3>'
+        + '<button onclick="document.getElementById(\'connectivity-choice-overlay\').remove()" style="background:transparent;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer;">&times;</button>'
+        + '</div>'
+        + '<p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">Will this cluster be cloud-connected or disconnected (air-gapped)?</p>'
+        + '<div style="display:flex;flex-direction:column;gap:12px;">'
+        + '<button onclick="selectConnectivity(\'connected\')" style="padding:16px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--text-primary);border-radius:8px;cursor:pointer;text-align:left;font-size:14px;">'
+        + '<strong style="color:var(--accent-blue);">Connected</strong><br><span style="font-size:12px;color:var(--text-secondary);">Cloud-connected deployment with full Azure Arc integration</span></button>'
+        + '<button onclick="selectConnectivity(\'disconnected\')" style="padding:16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--text-primary);border-radius:8px;cursor:pointer;text-align:left;font-size:14px;">'
+        + '<strong style="color:#ef4444;">Disconnected</strong><br><span style="font-size:12px;color:var(--text-secondary);">Air-gapped operation with Autonomous Cloud endpoint</span></button>'
+        + '</div></div>';
+
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+}
+
+// Handle connectivity choice
+function selectConnectivity(mode) { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('connectivity-choice-overlay');
+    if (overlay) overlay.remove();
+
+    if (mode === 'disconnected') {
+        // Store choice and show FQDN modal
+        window._sizerConnectivityChoice = 'disconnected';
+        var fqdnModal = document.getElementById('aldo-fqdn-modal');
+        var fqdnOverlay = document.getElementById('aldo-fqdn-modal-overlay');
+        if (fqdnModal && fqdnOverlay) {
+            var fqdnInput = document.getElementById('aldo-fqdn-input');
+            if (fqdnInput) fqdnInput.value = '';
+            clearAldoFqdnValidation();
+            fqdnModal.classList.add('active');
+            fqdnOverlay.classList.add('active');
+            if (fqdnInput) fqdnInput.focus();
+        }
+    } else {
+        // Connected: show region picker
+        window._sizerConnectivityChoice = 'connected';
+        var modal = document.getElementById('region-picker-modal');
+        var regionOverlay = document.getElementById('region-modal-overlay');
+        if (modal && regionOverlay) {
+            var commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
+            if (commercialRadio) commercialRadio.checked = true;
+            updateRegionOptions();
+            modal.classList.add('active');
+            regionOverlay.classList.add('active');
+        }
+    }
 }
 
 // ============================================
@@ -5222,15 +5282,15 @@ function confirmAldoFqdnAndConfigure() {
 
     const clusterType = document.getElementById('cluster-type').value;
 
-    // ALDO Workload Cluster: skip region picker (region not used for disconnected workload)
-    if (clusterType === 'aldo-wl') {
+    // Disconnected workload cluster (non-ALDO): skip region picker
+    if (clusterType !== 'aldo-mgmt' && window._sizerConnectivityChoice === 'disconnected') {
         window._aldoPendingFqdn = fqdn;
+        window._sizerConnectivityChoice = 'disconnected';
         selectRegionAndConfigure('', '');
         return;
     }
 
     // ALDO Management Cluster: show region picker next
-    // Pass FQDN through a temporary variable
     window._aldoPendingFqdn = fqdn;
 
     const modal = document.getElementById('region-picker-modal');
@@ -5261,21 +5321,25 @@ function selectRegionAndConfigure(region, cloud) {
     const resiliency = document.getElementById('resiliency').value;
     const hwConfig = getHardwareConfig();
 
-    // ALDO Management or Workload Cluster: set disconnected scenario + cluster role
-    const isAldo = clusterType === 'aldo-mgmt' || clusterType === 'aldo-wl';
+    // Determine connectivity mode from user choice or ALDO type
+    const isAldo = clusterType === 'aldo-mgmt';
+    const isDisconnected = isAldo || window._sizerConnectivityChoice === 'disconnected';
     const aldoFqdn = window._aldoPendingFqdn || null;
-    if (isAldo) delete window._aldoPendingFqdn;
+    if (isAldo || isDisconnected) {
+        delete window._aldoPendingFqdn;
+        delete window._sizerConnectivityChoice;
+    }
 
     // Build the sizer-to-designer payload
     const sizerPayload = {
         source: 'sizer',
         timestamp: new Date().toISOString(),
-        // Scenario: disconnected for ALDO types, connected for all others
-        scenario: isAldo ? 'disconnected' : 'connected',
+        // Scenario: disconnected when ALDO or user chose disconnected
+        scenario: isDisconnected ? 'disconnected' : 'connected',
         // Architecture: disaggregated or hyperconverged
         architecture: clusterType === 'disaggregated' ? 'disaggregated' : 'hyperconverged',
-        // ALDO-specific fields
-        clusterRole: clusterType === 'aldo-mgmt' ? 'management' : (clusterType === 'aldo-wl' ? 'workload' : undefined),
+        // Disconnected cluster role
+        clusterRole: isAldo ? 'management' : (isDisconnected ? 'workload' : undefined),
         autonomousCloudFqdn: aldoFqdn || undefined,
         fqdnConfirmed: aldoFqdn ? true : undefined,
         // Region selected by user

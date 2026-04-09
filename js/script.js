@@ -8901,10 +8901,9 @@ function checkForSizerImport() {
  * This is the reverse of mapSizerToDesignerScale() in sizer.js.
  */
 function mapDesignerToSizerClusterType() {
-    // Disconnected scenarios: determine ALDO management vs workload
+    // Disconnected scenarios: ALDO management cluster
     if (state.scenario === 'disconnected') {
         if (state.clusterRole === 'management') return 'aldo-mgmt';
-        if (state.clusterRole === 'workload') return 'aldo-wl';
         return 'standard';
     }
     // Disaggregated architecture

@@ -68,6 +68,7 @@
     "isLastOctetNetworkOrBroadcast": "readonly",
     "selectDisconnectedOption": "readonly",
     "showOnboarding": "readonly",
+    "selectConnectivity": "readonly",
     "updateBreadcrumbs": "readonly",
     "renderDisaggSummary": "readonly",
     "renderVlanGrid": "readonly",
