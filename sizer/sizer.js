@@ -5005,6 +5005,13 @@ function updateMultiInstanceSummary() {
     var totalRU = singleRU * count;
     var hwConfig = getHardwareConfig();
     var totalCores = (hwConfig.totalPhysicalCores || 0) * nodeCount * count;
+    var gpuLine = '';
+    if (hwConfig.gpuCount > 0 && hwConfig.gpuType) {
+        var totalGpus = hwConfig.gpuCount * nodeCount * count;
+        var gpuModel = GPU_MODELS[hwConfig.gpuType];
+        var gpuSpec = gpuModel ? gpuModel.name + ' (' + gpuModel.vramGB + ' GB VRAM)' : hwConfig.gpuType;
+        gpuLine = '<span>Total GPUs: <strong>' + totalGpus.toLocaleString() + ' \u00d7 ' + gpuSpec + '</strong></span>';
+    }
     var totalMemoryGB = (hwConfig.memoryGB || 0) * nodeCount * count;
     var totalMemoryLabel = totalMemoryGB >= 1048576 ? (totalMemoryGB / 1048576).toFixed(2) + ' PB'
         : totalMemoryGB >= 1024 ? (totalMemoryGB / 1024).toFixed(1) + ' TB'
@@ -5021,6 +5028,7 @@ function updateMultiInstanceSummary() {
         + '<span>Total Cores: <strong>' + totalCores.toLocaleString() + '</strong></span>'
         + '<span>Total Memory: <strong>' + totalMemoryLabel + '</strong></span>'
         + '</div>'
+        + (gpuLine ? '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 6px;">' + gpuLine + '</div>' : '')
         + '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 6px;">'
         + '<span>Total Power: <strong>' + powerLabel + '</strong></span>'
         + '<span>Total BTU/hr: <strong>' + totalBtu.toLocaleString() + '</strong></span>'
