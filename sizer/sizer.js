@@ -2300,8 +2300,8 @@ function checkForDesignerImport() {
         // Build cluster type label for banner
         const clusterLabels = {
             'single': 'Single Node',
-            'standard': 'Hyperconverged Cluster',
-            'rack-aware': 'Rack-Aware Cluster',
+            'standard': 'Hyperconverged',
+            'rack-aware': 'Rack-Aware Instance',
             'disaggregated': 'Disaggregated Storage',
             'aldo-mgmt': 'ALDO Management Cluster'
         };
@@ -3101,11 +3101,11 @@ function updateNodeTip() {
     const tipText = document.getElementById('node-n1-tip-text');
     
     if (clusterType === 'single') {
-        tipText.textContent = 'Tip: Single node clusters will always incur workload downtime during updates. No N+1 capacity is available.';
+        tipText.textContent = 'Tip: Single node instances will always incur workload downtime during updates. No N+1 capacity is available.';
     } else if (clusterType === 'aldo-mgmt') {
         tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
     } else {
-        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.';
+        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node instances will always incur workload downtime during updates.';
     }
     tipDiv.style.display = 'flex';
 }
@@ -3160,6 +3160,10 @@ function closeModal() {
 function getVMModalContent() {
     const defaults = WORKLOAD_DEFAULTS.vm;
     return `
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/azure/azure-local/manage/azure-arc-vm-management-overview#limitations-of-azure-local-vm-management" target="_blank" style="color: var(--link-color);">Azure Local VM management - Overview &amp; limitations</a>
+        </div>
         <div class="form-group">
             <label>Input Mode
                 <span class="info-icon" title="Per VM: specify resources per VM and multiply by count. Total: enter aggregate vCPU, memory, and storage totals directly.">ⓘ</span>
@@ -3227,6 +3231,10 @@ function toggleVMInputMode() {
 function getAKSModalContent() {
     const defaults = WORKLOAD_DEFAULTS.aks;
     return `
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/scale-requirements" target="_blank" style="color: var(--link-color);">AKS Arc on Azure Local - Scale requirements &amp; limits</a>
+        </div>
         <div class="form-group">
             <label>Workload Name</label>
             <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production AKS">
@@ -3254,6 +3262,11 @@ function getAKSModalContent() {
             <label>Memory per Node (GB)</label>
             <input type="number" id="aks-cp-memory" value="${defaults.controlPlaneMemory}" min="4" max="128">
         </div>
+        <div class="form-group">
+            <label>OS Disk per Node (GB)</label>
+            <input type="number" id="aks-cp-storage" value="200" disabled style="opacity: 0.5;" title="Fixed 200 GB dynamically expanding virtual hard disk per AKS Arc node (since Azure Local 2509)">
+            <span class="hint">Fixed 200 GB dynamically expanding virtual hard disk — <a href="https://learn.microsoft.com/azure/aks/aksarc/scale-requirements#default-values-for-virtual-machine-sizes:~:text=the%20default%20OS%20disk%20size%20for%20VMs%20used%20as%20AKS%20Arc%20nodes%20is%20set%20to%20200%20GB" target="_blank" style="color: var(--link-color);">learn more</a></span>
+        </div>
         <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">Worker Nodes (per cluster)</h4>
         <div class="form-row">
             <div class="form-group">
@@ -3271,9 +3284,16 @@ function getAKSModalContent() {
                 <input type="number" id="aks-worker-memory" value="${defaults.workerMemory}" min="4" max="256">
             </div>
             <div class="form-group">
-                <label>Storage per Node (GB)</label>
-                <input type="number" id="aks-worker-storage" value="${defaults.workerStorage}" min="50" max="4000">
+                <label>Data Storage per Node (GB)
+                    <span class="info-icon" title="Additional data disk capacity per worker node (on top of the fixed 200 GB OS disk).">&#9432;</span>
+                </label>
+                <input type="number" id="aks-worker-storage" value="${defaults.workerStorage}" min="0" max="4000">
             </div>
+        </div>
+        <div class="form-group" style="margin-top: 8px;">
+            <label>OS Disk per Worker Node (GB)</label>
+            <input type="number" value="200" disabled style="opacity: 0.5;" title="Fixed 200 GB dynamically expanding virtual hard disk per AKS Arc node (since Azure Local 2509)">
+            <span class="hint">Fixed 200 GB dynamically expanding virtual hard disk — <a href="https://learn.microsoft.com/azure/aks/aksarc/scale-requirements#default-values-for-virtual-machine-sizes:~:text=the%20default%20OS%20disk%20size%20for%20VMs%20used%20as%20AKS%20Arc%20nodes%20is%20set%20to%20200%20GB" target="_blank" style="color: var(--link-color);">learn more</a></span>
         </div>
         ${getGpuRequirementFields('aks')}
     `;
@@ -3285,6 +3305,10 @@ function getAVDModalContent() {
     const medSpecs = AVD_PROFILES.medium.multi;
     const custSpecs = AVD_PROFILES.custom.multi;
     return `
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/azure/virtual-desktop/azure-local-overview#supported-deployment-configurations" target="_blank" style="color: var(--link-color);">Azure Virtual Desktop for Azure Local - Supported configurations</a>
+        </div>
         <div class="form-group">
             <label>Workload Name</label>
             <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Corporate AVD">
@@ -3815,12 +3839,13 @@ function calculateWorkloadRequirements(w) {
             // Control plane requirements per cluster
             const cpVcpus = w.controlPlaneNodes * w.controlPlaneVcpus;
             const cpMemory = w.controlPlaneNodes * w.controlPlaneMemory;
-            const cpStorage = w.controlPlaneNodes * 100; // ~100GB per CP node
+            const AKS_OS_DISK_GB = 200; // Fixed OS disk size per AKS Arc node (since Azure Local 2509)
+            const cpStorage = w.controlPlaneNodes * AKS_OS_DISK_GB;
             
             // Worker requirements per cluster
             const workerVcpus = w.workerNodes * w.workerVcpus;
             const workerMemory = w.workerNodes * w.workerMemory;
-            const workerStorage = w.workerNodes * w.workerStorage;
+            const workerStorage = w.workerNodes * (AKS_OS_DISK_GB + w.workerStorage); // OS disk + data storage
             
             // Total for all clusters
             vcpus = (cpVcpus + workerVcpus) * w.clusterCount;
@@ -4139,7 +4164,7 @@ function calculateRequirements(options) {
                     updateDisaggregatedUI(true);
                     _nodeCountUserSet = false;
 
-                    showSizerToast('Workload exceeds 16-node standard cluster capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+                    showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
 
                     isCalculating = false;
                     calculateRequirements();
@@ -4375,8 +4400,6 @@ function calculateRequirements(options) {
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
         // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
         const infraVolumeUsableTB = 0.25; // 256 GB
-        // PerformanceHistory volume: 20 GB reserved for cluster performance data
-        const perfHistoryVolumeTB = 0.02; // 20 GB
         // S2D repair reservation: min(nodeCount, 4) capacity disks reserved from pool raw space
         const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
         const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
@@ -4617,9 +4640,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     } else {
         // Cluster size + N+1 note — always first
         if (clusterType === 'single') {
-            notes.push('1 x Node Cluster — Single node deployment: No node fault tolerance or maintenance capacity');
+            notes.push('1 x Node Instance — Single node deployment: No node fault tolerance or maintenance capacity');
         } else {
-            notes.push(`${nodeCount} x Node Cluster - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} nodes available during servicing / maintenance`);
+            notes.push(`${nodeCount} x Node Instance - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} nodes available during servicing / maintenance`);
         }
 
         // Per node hardware config note — always second
@@ -4949,7 +4972,7 @@ function exportSizerWord() {
     var futureGrowth = document.getElementById('future-growth').value;
     var resConfig = RESILIENCY_CONFIG[resiliency] || {};
 
-    var clusterLabels = { 'single': 'Single Node', 'standard': 'Hyperconverged Cluster', 'rack-aware': 'Rack Aware Cluster', 'aldo-mgmt': 'ALDO Management Cluster', 'disaggregated': 'Disaggregated Storage' };
+    var clusterLabels = { 'single': 'Single Node', 'standard': 'Hyperconverged', 'rack-aware': 'Rack-Aware Instance', 'aldo-mgmt': 'ALDO Management Cluster', 'disaggregated': 'Disaggregated Storage' };
     var storageLabels = { 'all-flash': 'All-Flash (NVMe or SSD)', 'mixed-flash': 'Mixed All-Flash (NVMe + SSD)', 'hybrid': 'Hybrid (SSD/NVMe + HDD)' };
     var growthLabels = { '0': 'None', '10': '10%', '20': '20%', '30': '30%', '50': '50%' };
 

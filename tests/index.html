@@ -2951,8 +2951,8 @@
                     workerNodes: 3, workerVcpus: 8, workerMemory: 16, workerStorage: 200
                 };
                 const r = calculateWorkloadRequirements(w);
-                // CP storage: 3×100=300, Worker storage: 3×200=600, total = 900
-                return assert(r.storage === 900, 'AKS: 1 cluster storage = 900 GB', 900, r.storage);
+                // CP storage: 3×200=600 (fixed OS disk), Worker storage: 3×(200 OS + 200 data)=1200, total = 1800
+                return assert(r.storage === 1800, 'AKS: 1 cluster storage = 1800 GB', 1800, r.storage);
             })()
         ]);
 
