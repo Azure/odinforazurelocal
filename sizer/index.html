@@ -799,6 +799,37 @@
                 </div>
             </div>
         </div>
+        <!-- Multi-Instance Summary -->
+        <div id="multi-instance-section" class="power-rack-estimate" style="display: none; margin-top: 8px; margin-bottom: 16px;">
+            <h3>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="18" rx="2"/><path d="M12 3v18M2 12h20"/>
+                </svg>
+                Multi-Instance Scale-Out
+            </h3>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                <label for="instance-count" style="font-weight: 600; font-size: 14px; color: var(--text-primary); white-space: nowrap;">Number of Instances</label>
+                <select id="instance-count" onchange="updateMultiInstanceSummary()" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 14px;">
+                    <option value="1" selected>1</option>
+                    <option value="2">2</option>
+                    <option value="4">4</option>
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                    <option value="25">25</option>
+                    <option value="30">30</option>
+                    <option value="40">40</option>
+                    <option value="50">50</option>
+                    <option value="75">75</option>
+                    <option value="100">100</option>
+                </select>
+                <span style="font-size: 12px; color: var(--text-secondary);">Scale-out view only &mdash; does not affect workload sizing or Designer output</span>
+            </div>
+            <div id="multi-instance-summary" style="display: none; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; font-size: 13px; color: var(--text-primary);"></div>
+        </div>
+
         <!-- 3D Rack Visualization (Preview) -->
         <section class="rack-viz-section" id="rack-viz-section" style="display: none;">
             <div class="rack-viz-header">

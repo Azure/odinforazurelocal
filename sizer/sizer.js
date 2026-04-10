@@ -4958,9 +4958,81 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
     // Show/hide "Configure in Designer" button
     updateDesignerActionVisibility();
+
+    // Update multi-instance summary if visible
+    updateMultiInstanceSummary();
 }
 
 // Show "Configure in Designer" button only when workloads exist and all resources are under 90%
+// Update multi-instance summary (scale-out view — visual only, not used in sizing)
+function updateMultiInstanceSummary() {
+    var section = document.getElementById('multi-instance-section');
+    var summaryDiv = document.getElementById('multi-instance-summary');
+    if (!section || !summaryDiv) return;
+
+    // Show the section when workloads exist
+    section.style.display = workloads.length > 0 ? '' : 'none';
+
+    var count = parseInt((document.getElementById('instance-count') || {}).value, 10) || 1;
+    if (count <= 1) {
+        summaryDiv.style.display = 'none';
+        return;
+    }
+
+    var nodeCount = parseInt(document.getElementById('node-count').value, 10) || 2;
+    var clusterType = document.getElementById('cluster-type').value;
+    var totalPowerText = document.getElementById('power-total');
+    var totalBtuText = document.getElementById('power-btu');
+    var rackUnitsEl = document.getElementById('rack-units');
+
+    // Parse single-instance values
+    var singlePowerW = parseInt((totalPowerText ? totalPowerText.textContent : '0').replace(/,/g, ''), 10) || 0;
+    var singleBtu = parseInt((totalBtuText ? totalBtuText.textContent : '0').replace(/,/g, ''), 10) || 0;
+    // Extract numeric rack units from the beginning of the text
+    var rackUnitText = rackUnitsEl ? rackUnitsEl.textContent : '0';
+    var singleRU = parseInt(rackUnitText, 10) || 0;
+    var racksPerInstance = 1;
+    if (clusterType === 'disaggregated') {
+        racksPerInstance = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
+    } else if (clusterType === 'rack-aware') {
+        racksPerInstance = 2;
+    }
+
+    var totalNodes = nodeCount * count;
+    var totalRacks = racksPerInstance * count;
+    var totalPower = singlePowerW * count;
+    var totalBtu = singleBtu * count;
+    var totalRU = singleRU * count;
+    var hwConfig = getHardwareConfig();
+    var totalCores = (hwConfig.totalPhysicalCores || 0) * nodeCount * count;
+    var totalMemoryGB = (hwConfig.memoryGB || 0) * nodeCount * count;
+    var totalMemoryLabel = totalMemoryGB >= 1048576 ? (totalMemoryGB / 1048576).toFixed(2) + ' PB'
+        : totalMemoryGB >= 1024 ? (totalMemoryGB / 1024).toFixed(1) + ' TB'
+        : totalMemoryGB.toLocaleString() + ' GB';
+    var totalPowerKW = (totalPower / 1000).toFixed(1);
+    var powerLabel = totalPower >= 1000000
+        ? totalPower.toLocaleString() + ' W (' + (totalPower / 1000000).toFixed(2) + ' MW)'
+        : totalPower.toLocaleString() + ' W (' + totalPowerKW + ' kW)';
+
+    summaryDiv.innerHTML = '<strong>Multi-Instance Scale-Out Summary (\u00d7' + count + ' instances)</strong>'
+        + '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 8px;">'
+        + '<span>Total Nodes: <strong>' + totalNodes.toLocaleString() + '</strong></span>'
+        + '<span>Total Racks: <strong>' + totalRacks.toLocaleString() + '</strong></span>'
+        + '<span>Total Cores: <strong>' + totalCores.toLocaleString() + '</strong></span>'
+        + '<span>Total Memory: <strong>' + totalMemoryLabel + '</strong></span>'
+        + '</div>'
+        + '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 6px;">'
+        + '<span>Total Power: <strong>' + powerLabel + '</strong></span>'
+        + '<span>Total BTU/hr: <strong>' + totalBtu.toLocaleString() + '</strong></span>'
+        + '<span>Total Rack Units: <strong>' + totalRU.toLocaleString() + 'U</strong></span>'
+        + '</div>'
+        + '<div style="margin-top: 10px; padding: 8px 12px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">'
+        + '<span style="color: #eab308; font-size: 14px; flex-shrink: 0;">\u26A0\uFE0F</span>'
+        + '<span>Multi-instance estimates are approximate projections based on the single-instance configuration above. Each instance is independently sized and deployed. Actual power, cooling, and rack requirements may vary by site, OEM hardware, and deployment configuration. Contact your preferred hardware partner for detailed and accurate information.</span>'
+        + '</div>';
+    summaryDiv.style.display = '';
+}
+
 function updateDesignerActionVisibility() {
     const actionDiv = document.getElementById('designer-action');
     const designerBtn = document.querySelector('.btn-designer');
