@@ -744,7 +744,7 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                         </svg>
-                        Estimated Power, Heat &amp; Rack Space
+                        Estimated Power, Heat &amp; Rack Space per Instance
                     </h3>
                     <div class="power-rack-grid">
                         <div class="power-rack-item">
@@ -760,10 +760,11 @@
                             <span class="value" id="power-btu">—</span>
                         </div>
                         <div class="power-rack-item">
-                            <span class="label">Rack Units (est., incl. 2× ToR switches)</span>
+                            <span class="label" id="rack-units-label">Rack Units (est., incl. 2× ToR switches)</span>
                             <span class="value" id="rack-units">—</span>
                         </div>
                     </div>
+                    <div id="power-infra-note" style="display: none; margin-top: 6px; font-size: 12px; color: var(--text-secondary); padding: 6px 10px; background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.15); border-radius: 6px;"></div>
                     <div class="config-info" style="margin-top: 8px;">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>

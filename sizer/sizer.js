@@ -4574,23 +4574,51 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     const baseOverheadW = 150;
 
     const perNodeW = cpuPowerW + memPowerW + diskPowerW + osDiskPowerW + gpuPowerW + baseOverheadW;
-    const totalW = perNodeW * nodeCount;
+    var totalNodeW = perNodeW * nodeCount;
+
+    // Network infrastructure power (switches, spine switches)
+    var infraPowerW = 0;
+    var infraPowerNote = '';
+    var clusterType = document.getElementById('cluster-type').value;
+    if (clusterType === 'disaggregated') {
+        var drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
+        var dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
+        var spineCount = parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || 2;
+        // ToR/Leaf switches: ~250W each (Cisco 93180YC-FX class)
+        var torSwitchPower = 250;
+        var torCount = drc * 2;
+        // BMC switches: ~150W each (Cisco 9348GC class)
+        var bmcSwitchPower = 150;
+        var bmcCount = drc;
+        // FC switches: ~200W each (if FC SAN)
+        var fcSwitchPower = (dst === 'fc_san') ? 200 : 0;
+        var fcCount = (dst === 'fc_san') ? drc * 2 : 0;
+        // Spine switches: ~350W each
+        var spineSwitchPower = 350;
+        infraPowerW = (torCount * torSwitchPower) + (bmcCount * bmcSwitchPower) + (fcCount * fcSwitchPower) + (spineCount * spineSwitchPower);
+        infraPowerNote = torCount + '× ToR (' + torSwitchPower + 'W), ' + bmcCount + '× BMC (' + bmcSwitchPower + 'W)';
+        if (fcCount > 0) infraPowerNote += ', ' + fcCount + '× FC (' + fcSwitchPower + 'W)';
+        infraPowerNote += ', ' + spineCount + '× Spine (' + spineSwitchPower + 'W)';
+    } else if (nodeCount > 1) {
+        // Standard/Rack-Aware: 2 × ToR switches (~250W each)
+        infraPowerW = 2 * 250;
+    }
+
+    const totalW = totalNodeW + infraPowerW;
     const totalBtu = Math.round(totalW * 3.412); // 1W ≈ 3.412 BTU/hr
 
     // Rack units: 2U per node + switches per rack
     var rackUnits;
     var rackUnitLabel;
-    var clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'disaggregated') {
-        var drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
-        var dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
         var torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
         var bmcPerRack = 1; // 1 × 1U BMC switch per rack
         var fcPerRack = (dst === 'fc_san') ? 2 : 0; // 2 × 1U FC switches per rack (FC only)
         var sanPerRack = 5; // 5U SAN appliance per rack
         var switchesPerRack = torPerRack + bmcPerRack + fcPerRack + sanPerRack;
         rackUnits = (nodeCount * 2) + (drc * switchesPerRack);
-        rackUnitLabel = rackUnits + 'U (across ' + drc + ' racks, incl. ' + (drc * torPerRack) + '× ToR, ' + drc + '× BMC' + (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + '× FC' : '') + ' switches)';
+        var rackDetail = 'across ' + drc + ' racks, incl. ' + (drc * torPerRack) + ' \u00d7 ToR, ' + drc + ' \u00d7 BMC' + (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + ' \u00d7 FC' : '') + ', ' + drc + ' \u00d7 SAN switches';
+        rackUnitLabel = rackUnits + 'U <span style="font-size: 0.75em; opacity: 0.7;">(' + rackDetail + ')</span>';
     } else {
         var torSwitchUnits = nodeCount > 1 ? 2 : 0; // 2 × 1U ToR switches
         rackUnits = (nodeCount * 2) + torSwitchUnits;
@@ -4601,7 +4629,28 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' Watts';
     document.getElementById('power-total').textContent = totalW.toLocaleString() + ' Watts';
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
-    document.getElementById('rack-units').textContent = rackUnitLabel;
+    document.getElementById('rack-units').innerHTML = rackUnitLabel;
+
+    // Update rack units label
+    var rackUnitsLabelEl = document.getElementById('rack-units-label');
+    if (rackUnitsLabelEl) {
+        rackUnitsLabelEl.textContent = clusterType === 'disaggregated'
+            ? 'Rack Units (est.)'
+            : (nodeCount > 1 ? 'Rack Units (est., incl. 2 \u00d7 ToR switches)' : 'Rack Units (est.)');
+    }
+
+    // Infrastructure power breakdown note
+    var infraNoteEl = document.getElementById('power-infra-note');
+    if (infraNoteEl) {
+        if (clusterType === 'disaggregated' && infraPowerNote) {
+            infraNoteEl.innerHTML = '<strong>Network infrastructure power:</strong> ' + infraPowerW.toLocaleString() + ' W (' + infraPowerNote + ') included in total.'
+                + '<br><strong>Note:</strong> SAN storage appliance power is <em>not included</em> in the estimate above \u2014 consult your SAN vendor for storage array power requirements.';
+            infraNoteEl.style.display = '';
+        } else {
+            infraNoteEl.style.display = 'none';
+        }
+    }
+
     section.style.display = 'block';
 
     // Update 3D rack visualization
