@@ -7,6 +7,6 @@
     "html-validate": "^10.7.0"
   },
   "overrides": {
-    "basic-ftp": ">=5.2.1"
+    "basic-ftp": ">=5.2.2"
   }
 }
