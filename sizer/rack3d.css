@@ -58,14 +58,28 @@
     border: 1px solid var(--glass-border);
 }
 
-.rack-viz-logo {
+.rack-viz-brand {
     position: absolute;
     top: 12px;
     right: 12px;
-    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     opacity: 0.85;
     pointer-events: none;
     z-index: 1;
+}
+
+.rack-viz-logo {
+    height: 36px;
+}
+
+.rack-viz-brand-text {
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #B596F5;
+    letter-spacing: 0.5px;
 }
 
 #rack-viz-container.collapsed {

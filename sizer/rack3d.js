@@ -37,7 +37,7 @@ var COLORS = {
     EMPTY_SLOT:  0x1a1a1a,
     SERVER:      0xaaaaaa,  // Light grey
     SERVER_GPU:  0xd97706,  // Amber for GPU nodes
-    TOR_SWITCH:  0x059669,  // Green
+    TOR_SWITCH:  0x444444,  // Dark grey
     LABEL_COLOR: '#ffffff',
     FLOOR:       0x111111
 };
@@ -316,7 +316,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
 
     // Labels — fixed to front and rear faces
     if (label) {
-        var frontLabel = makeFaceLabel(label + ' (Front)', 28, '#ffffff', 'front');
+        var frontLabel = makeFaceLabel(label, 28, '#ffffff', 'front');
         frontLabel.position.set(cx, y, frontZ - 0.008);
         scene.add(frontLabel);
         var rearLabel = makeFaceLabel(label + ' (Rear)', 28, '#ffffff', 'back');
@@ -424,7 +424,7 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
 
     // Labels — fixed to front and rear faces
     if (label) {
-        var frontLabel = makeFaceLabel(label + ' (Front)', 24, '#ffffff', 'front');
+        var frontLabel = makeFaceLabel(label, 24, '#ffffff', 'front');
         frontLabel.position.set(cx, y, frontZ - 0.008);
         scene.add(frontLabel);
         var rearLabel = makeFaceLabel(label + ' (Rear)', 24, '#ffffff', 'back');
@@ -843,9 +843,15 @@ function renderRack3D(config) {
         _rack3d.renderer.setSize(canvasEl.clientWidth, canvasEl.clientHeight);
         _rack3d.renderer.setClearColor(0x0a0a0a);
 
-        // Load Azure logo texture
-        var loader = new THREE.TextureLoader();
-        loader.load('../images/azure-logo.png', function(tex) {
+        // Load Azure Local logo texture from SVG (render to canvas for Three.js)
+        var svgImg = new Image();
+        svgImg.onload = function() {
+            var cvs = document.createElement('canvas');
+            cvs.width = 128;
+            cvs.height = 128;
+            var ctx2 = cvs.getContext('2d');
+            ctx2.drawImage(svgImg, 0, 0, 128, 128);
+            var tex = new THREE.CanvasTexture(cvs);
             tex.minFilter = THREE.LinearFilter;
             tex.magFilter = THREE.LinearFilter;
             _rack3d.azureLogoTexture = tex;
@@ -853,7 +859,11 @@ function renderRack3D(config) {
             if (_rack3d.lastConfig) {
                 renderRack3D(_rack3d.lastConfig);
             }
-        });
+        };
+        svgImg.onerror = function(err) {
+            console.error('Failed to load Azure Local logo texture from ../images/azurelocal-machine.svg', err);
+        };
+        svgImg.src = '../images/azurelocal-machine.svg';
 
         // OrbitControls
         _rack3d.controls = new THREE.OrbitControls(_rack3d.camera, canvasEl);
@@ -923,7 +933,7 @@ function renderRack3D(config) {
         for (var t = 0; t < rackInfo.tor; t++) {
             var torU = RACK.TOTAL_U - t; // 42, 41
             var torNum = isRackAware ? (rackIndex * 2 + t + 1) : (t + 1);
-            var torLabel = 'TOR ' + torNum;
+            var torLabel = 'ToR ' + torNum;
             placeSwitch(_rack3d.scene, rack.group, rack.baseY, torU, torLabel);
         }
 
