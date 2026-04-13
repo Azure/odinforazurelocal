@@ -73,6 +73,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dynamic CoS Detection**: Detects actual CoS values from class-maps (supports custom CoS, not hardcoded to 3/7)
 - **Actionable Warnings**: PFC warnings list both enabled and missing interfaces; ETS bandwidth warnings explain deviations
 
+#### Sizer: Enterprise Features
+- **Import from Azure Portal JSON**: Import hardware specs from an existing Azure Local machine by pasting the machine JSON View from the Azure Portal — auto-detects CPU model name, core count, socket count, and memory; injects exact processor name and non-standard core counts as custom dropdown options; locks all imported fields as MANUAL
+- **Share Config as URL**: New "Share Sizer Config as URL" button encodes the full Sizer configuration (including workloads) as a base64 URL parameter — prompts for an optional configuration name; recipients see a confirmation banner with the name and workload count; supports Unicode names; 100-character limit
+- **CSV Export**: New "Export CSV" button generates a hardware BOM spreadsheet with cluster topology, CPU, memory, storage, GPU, power estimates, rack units, and per-workload details
+- **Capacity Runway Projection**: Collapsible year-over-year growth projection table showing vCPU, memory, and storage demand over 5 years at the configured annual growth rate — flags the year when capacity exceeds 90% and shows a capacity runway summary
+- **Power Calculation Breakdown**: Collapsible "Power calculations, verbose information and assumptions" section with per-component DC power (CPU TDP, memory DIMMs, disks, GPU, base overhead), PSU efficiency (80 Plus Titanium 96%), network infrastructure itemization (ToR/BMC/FC/Spine switches), SAN caveat for disaggregated, and full assumptions list
+- **VM Capacity Validation**: Individual VM workloads where vCPU or memory exceeds per-machine capacity trigger 🚫 sizing notes, block Configure in Designer, and show a toast error notification
+- **Azure Local Pricing Link**: Pricing calculator link in multi-instance section with note that it covers Azure service costs only, excluding hardware
+
+### Fixed
+
+- **Designer: SDN Feature Toggle**: Fixed generate buttons (Report/ARM) not updating when SDN features (LNET/NSG) are checked — `toggleSdnFeature()` now calls `updateUI()` so buttons re-evaluate immediately without requiring a second click on "Enable SDN"
+- **Designer: Disaggregated Session Resume**: Added `restoreDisaggregatedUI()` to re-populate DA step card selections (storage type, backup, rack count, spine count), slider values, and explanation text after session resume — previously DA steps appeared blank after F5 refresh
+- **Sizer: ODIN Logo Light/Dark**: Fixed ODIN logo not switching between dark and light variants when toggling theme in the Sizer — the local `applyTheme()` was looking for `.odin-tab-logo img` which doesn't exist; now uses `#odin-logo`
+- **Sizer: Share Button Disabled State**: Share URL buttons now start disabled with tooltip "Add workload(s) before you can share" and enable when workloads are added; added `.btn-secondary:disabled` CSS for visual disabled state (40% opacity, not-allowed cursor)
+- **Sizer: PSU Efficiency**: Separated PSU efficiency from base overhead — component power (DC) is now divided by 96% efficiency (80 Plus Titanium at 50% load) to calculate wall power (AC), matching current-gen 2U server PSU ratings
+- **Tests: Session Resume Coverage**: Added 114 new tests for session resume state preservation — all core wizard keys and disaggregated keys validated through save/load round-trip, `restoreDisaggregatedUI` safety checks (920 total tests)
+
 ---
 
 ## [0.18.04] - 2026-03-30

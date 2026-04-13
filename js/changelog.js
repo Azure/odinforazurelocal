@@ -126,6 +126,29 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     </ul>
                 </div>
 
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-blue); margin: 0 0 12px 0;">🏢 Sizer: Enterprise Features</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Import from Azure Portal:</strong> Paste a machine JSON View to import exact CPU model, core count, sockets, and memory — non-catalog CPUs shown with "(imported)" label.</li>
+                        <li><strong>Share Config as URL:</strong> Encode your full Sizer configuration in a shareable URL with optional name — recipients see a branded confirmation banner.</li>
+                        <li><strong>CSV Export:</strong> Download hardware BOM as a CSV spreadsheet for procurement and planning.</li>
+                        <li><strong>Capacity Runway:</strong> 5-year growth projection table showing when vCPU, memory, or storage will exceed 90% capacity.</li>
+                        <li><strong>Power Breakdown:</strong> Verbose per-component power calculations with PSU efficiency (Titanium 96%), network infrastructure, and full assumptions.</li>
+                        <li><strong>VM Capacity Check:</strong> VMs exceeding per-machine capacity trigger errors, block Designer export, and show toast warnings.</li>
+                        <li><strong>Pricing Link:</strong> Azure Local pricing calculator link with hardware cost caveat.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--success); margin: 0 0 12px 0;">🔧 Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>SDN Feature Toggle:</strong> Generate buttons now update immediately when checking LNET/NSG features.</li>
+                        <li><strong>Disaggregated Resume:</strong> DA wizard steps now fully restore card selections and slider values on session resume.</li>
+                        <li><strong>Sizer Logo Toggle:</strong> ODIN logo correctly switches between dark/light variants in the Sizer.</li>
+                        <li><strong>920 Tests:</strong> 114 new session resume tests covering all wizard state keys.</li>
+                    </ul>
+                </div>
+
                 <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 24px 0;">
                 <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.18.04</div>
 

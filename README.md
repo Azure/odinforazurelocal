@@ -57,6 +57,17 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Sizer: Import/Export**: Disaggregated rack count, spine count, and storage type persisted in Sizer save, resume, and JSON import/export
 - **QoS Validator: Smart PFC Detection**: Interface PFC validation now uses QoS service-policy presence to identify storage-facing interfaces, correctly distinguishing them from uplink/BMC trunks that don’t need PFC
 - **QoS Validator: Dynamic CoS Detection**: Detects actual CoS values from class-maps (not hardcoded to 3/7), reports detected values, and provides actionable warnings with specific interface names for missing PFC or non-standard bandwidth
+- **Sizer: Import from Azure Portal JSON**: Import hardware specs from an existing Azure Local machine by pasting the JSON View — auto-detects CPU model, core count, sockets, and memory with MANUAL badge locking and custom "imported" dropdown options for non-catalog CPUs
+- **Sizer: Share Config as URL**: Shareable URL encoding of the full Sizer configuration with optional config name — recipients see a confirmation banner with the name and workload count
+- **Sizer: CSV Export**: Export hardware BOM as a CSV spreadsheet for procurement and planning
+- **Sizer: Capacity Runway Projection**: Year-over-year growth projection table showing vCPU, memory, and storage demand over 5 years with compound annual growth rate and capacity exhaustion warning
+- **Sizer: Power Calculation Detail**: Collapsible verbose breakdown of per-machine and instance power estimates — CPU TDP scaling, memory DIMMs, disk power, GPU, PSU efficiency (80 Plus Titanium 96%), network infrastructure, and full assumptions list
+- **Sizer: VM Capacity Validation**: Workloads where a single VM exceeds per-machine capacity (vCPU or memory) are blocked with 🚫 errors, toast notification, and Configure in Designer disabled
+- **Sizer: Azure Local Pricing Link**: Link to Azure Local pricing calculator in the multi-instance section with hardware cost caveat
+- **Designer: SDN Feature Fix**: Fixed generate buttons not re-evaluating when SDN features (LNET/NSG) are checked — previously required clicking "Enable SDN" twice
+- **Designer: Disaggregated Session Resume**: New `restoreDisaggregatedUI()` function restores DA step card selections, slider values, and explanations on session resume
+- **Sizer: Light/Dark Logo Fix**: ODIN logo now correctly toggles between dark and light variants in the Sizer
+- **Tests: Session Resume Coverage**: 114 new tests covering all wizard state keys, disaggregated restore safety, and save/restore round-trip validation (920 total)
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
