@@ -1432,7 +1432,8 @@ const _MANUAL_FIELD_LABELS = {
     'tiered-capacity-disk-size': 'Capacity Disk Size',
     'tiered-capacity-disk-count': 'Capacity Disk Count',
     'repair-disk-count': 'S2D Repair Disks',
-    'tiered-repair-disk-count': 'S2D Repair Disks'
+    'tiered-repair-disk-count': 'S2D Repair Disks',
+    'disagg-rack-count': 'Number of Racks'
 };
 
 // Map element IDs to their corresponding _*UserSet flag name and sibling IDs
@@ -1451,7 +1452,8 @@ const _MANUAL_FIELD_TO_FLAG = {
     'tiered-capacity-disk-count':{ flag: 'diskCount',   siblings: ['capacity-disk-count'] },
     'repair-disk-count':         { flag: 'repairDisks', siblings: ['tiered-repair-disk-count'] },
     'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] },
-    'gpu-count':                 { flag: 'gpuCount',    siblings: [] }
+    'gpu-count':                 { flag: 'gpuCount',    siblings: [] },
+    'disagg-rack-count':         { flag: 'rackCount',   siblings: [] }
 };
 
 // Remove a single manual override — clears the flag (and sibling badges that share it), then re-runs auto-scaling
@@ -2727,6 +2729,7 @@ function onClusterTypeChange() {
 
 // Handle disaggregated rack count change
 function onDisaggRackCountChange() { // eslint-disable-line no-unused-vars
+    markManualSet('disagg-rack-count');
     updateNodeOptionsForClusterType();
     updateDisaggregatedUI(true);
     calculateRequirements();
@@ -4570,10 +4573,16 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         if (gpuModel) gpuPowerW = gpuModel.tdpW * hwConfig.gpuCount;
     }
 
-    // Motherboard, fans, PSU efficiency loss, NICs, BMC: ~150W baseline
-    const baseOverheadW = 150;
+    // Motherboard, fans, NICs, BMC: ~100W baseline (excludes PSU efficiency loss)
+    const baseOverheadW = 100;
 
-    const perNodeW = cpuPowerW + memPowerW + diskPowerW + osDiskPowerW + gpuPowerW + baseOverheadW;
+    // Component power (DC) before PSU efficiency
+    const componentPowerW = cpuPowerW + memPowerW + diskPowerW + osDiskPowerW + gpuPowerW + baseOverheadW;
+
+    // PSU efficiency: 80 Plus Titanium at ~50% load ≈ 96% efficiency (17th gen 2U servers)
+    // Wall power = component power / efficiency
+    const psuEfficiency = 0.96;
+    const perNodeW = Math.round(componentPowerW / psuEfficiency);
     var totalNodeW = perNodeW * nodeCount;
 
     // Network infrastructure power (switches, spine switches)
@@ -4652,6 +4661,71 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     }
 
     section.style.display = 'block';
+
+    // Populate Advanced Detail breakdown
+    var detailEl = document.getElementById('power-detail-content');
+    if (detailEl) {
+        var lines = [];
+        lines.push('<strong>Per-Node Component Power (DC):</strong>');
+        lines.push('CPU: ' + sockets + ' × ' + cpuTdp + 'W TDP = <strong>' + cpuPowerW + 'W</strong>');
+        if (hwConfig.generation && hwConfig.generation.maxCores && hwConfig.coresPerSocket) {
+            lines.push('&nbsp;&nbsp;&nbsp;↳ ' + hwConfig.coresPerSocket + '/' + hwConfig.generation.maxCores + ' cores × ' + maxTdp + 'W max TDP (40% base + 60% proportional)');
+        }
+        lines.push('Memory: ' + dimmCount + ' DIMMs × 4W = <strong>' + memPowerW + 'W</strong> (' + memoryGB + ' GB ÷ 32 GB/DIMM)');
+        lines.push('Data disks: <strong>' + diskPowerW + 'W</strong> (NVMe/SSD: 8W each, HDD: 12W each)');
+        lines.push('Boot disks: 2 × 8W = <strong>' + osDiskPowerW + 'W</strong> (M.2 boot drives)');
+        if (gpuPowerW > 0) {
+            var gpuName = hwConfig.gpuType ? (GPU_MODELS[hwConfig.gpuType] ? GPU_MODELS[hwConfig.gpuType].name : hwConfig.gpuType) : '';
+            var gpuTdpEach = GPU_MODELS[hwConfig.gpuType] ? GPU_MODELS[hwConfig.gpuType].tdpW : 0;
+            lines.push('GPU: ' + hwConfig.gpuCount + ' × ' + gpuTdpEach + 'W (' + gpuName + ') = <strong>' + gpuPowerW + 'W</strong>');
+        }
+        lines.push('Base overhead: <strong>' + baseOverheadW + 'W</strong> (fans, motherboard, NICs, BMC)');
+        lines.push('');
+        lines.push('<strong>Component total (DC): ' + componentPowerW + 'W</strong>');
+        lines.push('');
+        lines.push('<strong>PSU Efficiency:</strong> 80 Plus Titanium @ ~50% load = ' + Math.round(psuEfficiency * 100) + '%');
+        lines.push('Wall power per node: ' + componentPowerW + 'W ÷ ' + psuEfficiency + ' = <strong>' + perNodeW + 'W</strong>');
+        lines.push('');
+        lines.push('<strong>Instance Total:</strong>');
+        lines.push('Nodes: ' + nodeCount + ' × ' + perNodeW + 'W = ' + totalNodeW.toLocaleString() + 'W');
+        if (infraPowerW > 0) {
+            lines.push('');
+            lines.push('<strong>Network Infrastructure Power:</strong>');
+            if (clusterType === 'disaggregated') {
+                lines.push('ToR/Leaf switches: ' + torCount + ' × ' + torSwitchPower + 'W = ' + (torCount * torSwitchPower).toLocaleString() + 'W');
+                lines.push('BMC switches: ' + bmcCount + ' × ' + bmcSwitchPower + 'W = ' + (bmcCount * bmcSwitchPower).toLocaleString() + 'W');
+                if (fcCount > 0) {
+                    lines.push('FC switches: ' + fcCount + ' × ' + fcSwitchPower + 'W = ' + (fcCount * fcSwitchPower).toLocaleString() + 'W');
+                }
+                lines.push('Spine switches: ' + spineCount + ' × ' + spineSwitchPower + 'W = ' + (spineCount * spineSwitchPower).toLocaleString() + 'W');
+                lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+            } else {
+                lines.push('ToR switches: 2 × 250W = <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+            }
+        }
+        lines.push('');
+        lines.push('Total wall power: <strong>' + totalW.toLocaleString() + 'W</strong>');
+        lines.push('BTU/hr: ' + totalW.toLocaleString() + 'W × 3.412 = <strong>' + totalBtu.toLocaleString() + ' BTU/hr</strong>');
+        if (clusterType === 'disaggregated') {
+            lines.push('');
+            lines.push('<strong>⚠️ Note:</strong> SAN storage appliance/array power is <em>not included</em> in the estimate above — consult your SAN vendor for storage array power requirements.');
+        }
+        if (gpuPowerW === 0) {
+            lines.push('');
+            lines.push('<em>No GPUs configured. GPU power will be added when GPU acceleration is enabled on a workload.</em>');
+        }
+        lines.push('');
+        lines.push('<strong>Assumptions:</strong>');
+        lines.push('• CPU TDP scaled by core count: 40% base (uncore, memory controller, PCIe, I/O) + 60% proportional to active cores');
+        lines.push('• Memory: ~4W per DIMM, 1 DIMM per 32 GB (DDR5 RDIMM)');
+        lines.push('• NVMe/SSD: ~8W per drive, HDD: ~12W per drive');
+        lines.push('• Boot: 2 × M.2 boot drives at ~8W each');
+        lines.push('• Base overhead: ~100W per node (fans, motherboard chipset, NICs, BMC)');
+        lines.push('• PSU: 80 Plus Titanium rated, ~96% efficient at 50% load');
+        lines.push('• ToR switch: ~250W (48-port 25GbE class), BMC switch: ~150W, Spine: ~350W, FC: ~200W');
+        lines.push('• Actual power varies by OEM hardware, workload intensity, ambient temperature, and PSU load point');
+        detailEl.innerHTML = lines.join('<br>');
+    }
 
     // Update 3D rack visualization
     if (typeof renderRack3D === 'function') {
