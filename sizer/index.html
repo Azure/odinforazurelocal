@@ -803,7 +803,7 @@
 
                 <!-- Export Actions -->
                 <div class="export-actions">
-                    <button class="btn btn-secondary" onclick="window.print()" title="Save as PDF via browser print dialog">
+                    <button class="btn btn-secondary" onclick="exportSizerPDF()" title="Download as PDF document">
                         💾 Save as PDF
                     </button>
                     <button class="btn btn-secondary" onclick="exportSizerWord()" title="Download as Word document">
@@ -1092,6 +1092,9 @@
     <!-- Three.js (MIT) for 3D Rack Visualization -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- html2canvas (MIT) + jsPDF (MIT) for PDF export -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
     <script src="rack3d.js?v=20260330z9"></script>
     <script src="sizer.js"></script>
 </body>

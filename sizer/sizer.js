@@ -5312,6 +5312,113 @@ function mapSizerToDesignerScale(clusterType) {
 // Export Functions
 // ============================================
 
+// Export sizer results as PDF using html2canvas + jsPDF
+function exportSizerPDF() { // eslint-disable-line no-unused-vars
+    const resultsPanel = document.querySelector('.results-panel');
+    if (!resultsPanel) {
+        alert('No results to export. Add workloads first.');
+        return;
+    }
+
+    showToast('Generating PDF...', 'success');
+
+    // Temporarily expand all collapsed sections for capture
+    const details = resultsPanel.querySelectorAll('details');
+    const wasOpen = [];
+    details.forEach(function(d) {
+        wasOpen.push(d.open);
+        d.open = true;
+    });
+
+    // Hide buttons during capture
+    const exportActions = document.querySelector('.export-actions');
+    const designerAction = document.getElementById('designer-action');
+    if (exportActions) exportActions.style.display = 'none';
+    if (designerAction) designerAction.style.display = 'none';
+
+    html2canvas(resultsPanel, {
+        backgroundColor: '#0a0e27',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        windowWidth: 800
+    }).then(function(canvas) {
+        // Restore collapsed state
+        details.forEach(function(d, i) { d.open = wasOpen[i]; });
+        if (exportActions) exportActions.style.display = '';
+        if (designerAction) designerAction.style.display = '';
+
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 280; // A4 landscape usable width in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        // eslint-disable-next-line no-undef
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: imgHeight > 190 ? 'portrait' : 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const usableWidth = pageWidth - margin * 2;
+        const scaledHeight = (canvas.height * usableWidth) / canvas.width;
+
+        // Add header
+        pdf.setFontSize(14);
+        pdf.setTextColor(0, 120, 212);
+        pdf.text('ODIN Sizer for Azure Local', margin, 12);
+        pdf.setFontSize(8);
+        pdf.setTextColor(128, 128, 128);
+        pdf.text('Generated: ' + new Date().toLocaleString(), margin, 17);
+
+        const startY = 22;
+        let remainingHeight = scaledHeight;
+        let sourceY = 0;
+
+        // Paginate if content is taller than one page
+        while (remainingHeight > 0) {
+            const sliceHeight = Math.min(remainingHeight, pageHeight - startY - margin);
+            const sliceRatio = sliceHeight / scaledHeight;
+            const sourceSliceH = canvas.height * sliceRatio;
+
+            // Create a slice canvas
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = sourceSliceH;
+            const ctx = sliceCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceSliceH, 0, 0, canvas.width, sourceSliceH);
+
+            const sliceData = sliceCanvas.toDataURL('image/png');
+            pdf.addImage(sliceData, 'PNG', margin, sourceY === 0 ? startY : margin, usableWidth, sliceHeight);
+
+            remainingHeight -= sliceHeight;
+            sourceY += sourceSliceH;
+
+            if (remainingHeight > 0) {
+                pdf.addPage();
+            }
+        }
+
+        // Build filename
+        const st = getSizerState();
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const filename = 'odin-sizer_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.pdf';
+
+        pdf.save(filename);
+        showToast('PDF downloaded', 'success');
+    }).catch(function(err) {
+        // Restore on error
+        details.forEach(function(d, i) { d.open = wasOpen[i]; });
+        if (exportActions) exportActions.style.display = '';
+        if (designerAction) designerAction.style.display = '';
+        console.error('PDF export failed:', err);
+        alert('PDF export failed. See console for details.');
+    });
+}
+
 function exportSizerWord() {
     // Block export if storage limits are exceeded
     if (_storageLimitExceeded) {
@@ -5927,14 +6034,23 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
         // Workloads
         if (st.workloads && st.workloads.length > 0) {
             rows.push([]);
-            rows.push(['Workload', 'Type', 'Count', 'vCPUs', 'Memory (GB)', 'Storage (GB)', 'GPU']);
+            rows.push(['Workload', 'Type', 'Detail', 'vCPUs', 'Memory (GB)', 'Storage (GB)', 'GPU']);
             st.workloads.forEach(function(w) {
                 if (w.type === 'vm') {
-                    rows.push(['Workload', 'Azure Local VM', w.count || 1, w.vcpus || '', w.memory || '', w.storage || '', w.gpuEnabled ? 'Yes' : 'No']);
+                    var vmCount = w.count || 1;
+                    var totalVcpus = (w.vcpus || 0) * vmCount;
+                    var totalMem = (w.memory || 0) * vmCount;
+                    var totalStor = (w.storage || 0) * vmCount;
+                    rows.push(['Workload', 'Azure Local VM', vmCount + ' VMs (' + (w.vcpus || 0) + ' vCPU, ' + (w.memory || 0) + ' GB, ' + (w.storage || 0) + ' GB each)', totalVcpus, totalMem, totalStor, w.gpuEnabled ? 'Yes' : 'No']);
                 } else if (w.type === 'aks') {
-                    rows.push(['Workload', 'AKS Arc', w.clusterCount || 1, '', '', '', w.gpuEnabled ? 'Yes' : 'No']);
+                    var aksReqs = calculateWorkloadRequirements(w);
+                    var aksDetail = (w.clusterCount || 1) + ' cluster(s), ' + (w.controlPlaneNodes || 3) + ' CP + ' + (w.workerNodes || 3) + ' workers each';
+                    rows.push(['Workload', 'AKS Arc', aksDetail, aksReqs.vcpus, aksReqs.memory, aksReqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
                 } else if (w.type === 'avd') {
-                    rows.push(['Workload', 'AVD', w.userCount || 0, '', '', '', '']);
+                    var avdProfile = w.profile || 'medium';
+                    var users = w.userCount || 0;
+                    var reqs = calculateWorkloadRequirements(w);
+                    rows.push(['Workload', 'AVD', users + ' users (' + avdProfile + ')', reqs.vcpus, reqs.memory, reqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
                 }
             });
         }
@@ -5950,7 +6066,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
             }).join(',');
         }).join('\n');
 
-        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         var url = URL.createObjectURL(blob);
         var dateStr = new Date().toISOString().slice(0, 10);
         var filename = 'odin-sizer-bom_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.csv';
