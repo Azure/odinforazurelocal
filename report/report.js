@@ -1246,40 +1246,6 @@
             md.push('');
         }
 
-        // Connectivity
-        md.push('## Connectivity');
-        md.push('');
-        md.push('| Setting | Value |');
-        md.push('|---------|-------|');
-        if (s.outbound) md.push('| Outbound | ' + formatOutbound(s.outbound) + ' |');
-        if (s.arc) {
-            var arcText = s.arc === 'arc_gateway' ? (s.outbound === 'private' ? 'Required' : 'Enabled') : 'Disabled';
-            md.push('| Arc Gateway | ' + arcText + ' |');
-        }
-        if (s.proxy) {
-            var proxyText = s.proxy === 'no_proxy' ? 'Disabled' : (s.outbound === 'private' ? 'Required (Azure Firewall Explicit Proxy)' : 'Enabled');
-            md.push('| Proxy | ' + proxyText + ' |');
-        }
-        if (s.privateEndpoints) {
-            md.push('| Private Endpoints | ' + (s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled') + ' |');
-        }
-        if (s.scenario === 'disconnected') {
-            md.push('| Network Requirements | [Plan your network for disconnected operations](https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network) |');
-        } else if (s.arc || s.localInstanceRegion) {
-            var fwInfoMd = getFirewallEndpointInfo(s);
-            md.push('| Firewall Allow List Endpoint Requirements | [' + fwInfoMd.label + '](' + fwInfoMd.url + ') |');
-        }
-        md.push('');
-
-        // Outbound Connectivity Diagram
-        if (diagrams && diagrams.outbound) {
-            var diagramTitle = getOutboundDiagramTitle(s);
-            md.push('### ' + diagramTitle);
-            md.push('');
-            md.push('![' + diagramTitle + '](' + diagrams.outbound + ')');
-            md.push('');
-        }
-
         // AKS Arc Network Requirements (shown when AKS workloads are configured)
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks'; })) {
             md.push('## AKS Arc Network Requirements');
@@ -6735,21 +6701,31 @@
         if (diagramKey && OUTBOUND_DIAGRAMS[diagramKey]) {
             var diagramUrl = OUTBOUND_DIAGRAMS[diagramKey];
             var diagramTitle = getOutboundDiagramTitle(s);
-            outboundDiagramHtml = '<div style="margin-top: 1.5rem;">'
-                + '<h4 style="margin-bottom: 0.75rem; color: var(--text-primary);">' + escapeHtml(diagramTitle) + '</h4>'
-                + '<div class="switchless-diagram" style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 1rem; background: rgba(0,0,0,0.2);">'
-                + '<img src="' + escapeHtml(diagramUrl) + '" alt="' + escapeHtml(diagramTitle) + '" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'block\';">'
-                + '<div style="display: none; padding: 1rem; text-align: center; color: var(--text-secondary);">Diagram not available. <a href="docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue);">View Connectivity Guide</a></div>'
+            var isDisconnected = s.scenario === 'disconnected';
+            var hasDrawio = isDisconnected && OUTBOUND_DRAWIO[diagramKey];
+            var clusterRoleAttr = (isDisconnected && s.clusterRole) ? ' data-cluster-role="' + escapeHtml(s.clusterRole) + '"' : '';
+            outboundDiagramHtml = '<div id="outbound-connectivity-diagram" style="margin-top:1.5rem;">'
+                + '<h4 style="margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">' + escapeHtml(diagramTitle) + '</h4>'
+                + '<div style="border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; background: rgba(0,0,0,0.15);">'
+                + '<div id="outbound-diagram-container" data-diagram-url="' + escapeHtml(diagramUrl) + '"' + clusterRoleAttr + '>'
+                + '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Loading diagram...</div>'
                 + '</div>'
-                + '<p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
-                + '</p>'
-                + '</div>';
-        }
-
-        // Generate Private Endpoints section HTML
-        var privateEndpointsHtml = '';
-        if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList && s.privateEndpointsList.length > 0) {
+                + '</div>'
+                + '<div class="no-print" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">'
+                + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'light\')">Download SVG (Light)</button>'
+                + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'dark\')">Download SVG (Dark)</button>'
+                + (hasDrawio ? '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDrawio()">Download .drawio</button>' : '')
+                + (isDisconnected ? '<button type="button" class="report-action-button" onclick="window.openDiagramZoom()" title="View diagram in full-screen zoom window">&#x1F50D; Expand</button>' : '')
+                + '</div>'
+                + (isDisconnected && s.clusterRole
+                    ? '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
+                    + '<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ' + (s.clusterRole === 'management' ? '#10b981' : '#3b82f6') + '; margin-right: 4px; vertical-align: middle;"></span>'
+                    + 'Highlighted: <strong>' + (s.clusterRole === 'management' ? 'Management' : 'Workload') + ' Cluster</strong> (your configured cluster role)'
+                    + '</p>'
+                    : '')
+                + (isDisconnected ? '' : '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
+                + '<a href="../docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
+                + '</p>')
             var peItems = '';
             s.privateEndpointsList.forEach(function(peKey) {
                 var info = PRIVATE_ENDPOINT_INFO[peKey];
@@ -7697,66 +7673,7 @@
             }
         }
 
-        // Step 09–11: Connectivity
-        var connectivityRows = '';
-        if (s.outbound) connectivityRows += row('Outbound', formatOutbound(s.outbound));
-        if (s.arc) {
-            var arcText = s.arc === 'arc_gateway' ? (s.outbound === 'private' ? 'Required' : 'Enabled') : 'Disabled';
-            connectivityRows += row('Arc Gateway', arcText);
-        }
-        if (s.proxy) {
-            var proxyText = s.proxy === 'no_proxy' ? 'Disabled' : (s.outbound === 'private' ? 'Required (Azure Firewall Explicit Proxy)' : 'Enabled');
-            connectivityRows += row('Proxy', proxyText);
-        }
-        if (s.privateEndpoints) connectivityRows += row('Private Endpoints', s.privateEndpoints === 'pe_enabled' ? 'Enabled (' + (s.privateEndpointsList ? s.privateEndpointsList.length : 0) + ' services)' : 'Disabled');
 
-        // Firewall / Network Requirements link (varies by deployment type)
-        if (s.scenario === 'disconnected') {
-            connectivityRows += '<div class="summary-row">'
-                + '<div class="summary-label">' + escapeHtml('Network Requirements') + '</div>'
-                + '<div class="summary-value"><a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-network" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">Plan your network for disconnected operations</a></div>'
-                + '</div>';
-        } else if (s.arc || s.localInstanceRegion) {
-            var fwInfo = getFirewallEndpointInfo(s);
-            connectivityRows += '<div class="summary-row">'
-                + '<div class="summary-label">' + escapeHtml('Firewall Allow List Endpoint Requirements') + '</div>'
-                + '<div class="summary-value"><a href="' + escapeHtml(fwInfo.url) + '" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">' + escapeHtml(fwInfo.label) + '</a></div>'
-                + '</div>';
-        }
-
-        // Generate connectivity diagram based on outbound/arc/proxy selection
-        var connectivityExtra = '';
-        var diagramKey = getOutboundDiagramKey(s);
-        if (diagramKey && OUTBOUND_DIAGRAMS[diagramKey]) {
-            var diagramUrl = OUTBOUND_DIAGRAMS[diagramKey];
-            var diagramTitle = getOutboundDiagramTitle(s);
-            var isDisconnected = s.scenario === 'disconnected';
-            var hasDrawio = isDisconnected && OUTBOUND_DRAWIO[diagramKey];
-            var clusterRoleAttr = (isDisconnected && s.clusterRole) ? ' data-cluster-role="' + escapeHtml(s.clusterRole) + '"' : '';
-            connectivityExtra = '<div id="outbound-connectivity-diagram" style="margin-top:1.5rem;">'
-                + '<h4 style="margin-bottom: 0.75rem; color: var(--text-primary); font-size: 1.1rem; font-weight: 600;">' + escapeHtml(diagramTitle) + '</h4>'
-                + '<div style="border: 1px solid var(--glass-border); border-radius: 8px; padding: 1rem; background: rgba(0,0,0,0.15);">'
-                + '<div id="outbound-diagram-container" data-diagram-url="' + escapeHtml(diagramUrl) + '"' + clusterRoleAttr + '>'
-                + '<div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Loading diagram...</div>'
-                + '</div>'
-                + '</div>'
-                + '<div class="no-print" style="margin-top: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">'
-                + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'light\')">Download SVG (Light)</button>'
-                + '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDiagramSvg(\'dark\')">Download SVG (Dark)</button>'
-                + (hasDrawio ? '<button type="button" class="report-action-button" onclick="window.downloadOutboundConnectivityDrawio()">Download .drawio</button>' : '')
-                + (isDisconnected ? '<button type="button" class="report-action-button" onclick="window.openDiagramZoom()" title="View diagram in full-screen zoom window">&#x1F50D; Expand</button>' : '')
-                + '</div>'
-                + (isDisconnected && s.clusterRole
-                    ? '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
-                    + '<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ' + (s.clusterRole === 'management' ? '#10b981' : '#3b82f6') + '; margin-right: 4px; vertical-align: middle;"></span>'
-                    + 'Highlighted: <strong>' + (s.clusterRole === 'management' ? 'Management' : 'Workload') + ' Cluster</strong> (your configured cluster role)'
-                    + '</p>'
-                    : '')
-                + (isDisconnected ? '' : '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
-                + '<a href="../docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
-                + '</p>')
-                + '</div>';
-        }
 
         // Step 12–14: Infrastructure Network
         var infraNetworkRows = '';
@@ -7966,7 +7883,6 @@
             + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
             + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking')
             + vnicConfigSection
-            + sectionWithExtra('Connectivity', 'summary-section-title--mgmt', connectivityRows, connectivityExtra, 'connectivity')
             + sectionWithExtra('AKS Arc Network Requirements', 'summary-section-title--net', aksNetworkRows, '', 'aks-network')
             + section('Infrastructure Network', 'summary-section-title--infra', infraNetworkRows, 'infrastructure-network')
             + section('Active Directory', 'summary-section-title--mgmt', activeDirectoryRows, 'active-directory')
@@ -8065,8 +7981,6 @@
 
         if (sumEl) {
             sumEl.innerHTML = renderSummaryCards(s);
-            // Fetch the outbound diagram SVG inline and apply cluster highlighting
-            loadAndHighlightOutboundDiagram();
         }
 
         if (valEl) {
@@ -8127,6 +8041,9 @@
                 ratEl.innerHTML = rationaleHtml;
                 movedDiagramInnerHtml = '';
             }
+
+            // Fetch the outbound diagram SVG inline and apply cluster highlighting
+            loadAndHighlightOutboundDiagram();
 
             // Inject diagram under Host Networking section in the summary.
             try {
