@@ -193,7 +193,7 @@ header {
     position: relative;
 }
 
-/* Header */
+/* Header title wrapper */
 .header-title-wrapper {
     display: flex;
     justify-content: center;
@@ -1702,6 +1702,12 @@ header .header-description {
 .onboarding-btn-primary:hover {
     background: #0066b8;
     transform: translateY(-2px);
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .onboarding-btn-primary:hover {
+        transform: none;
+    }
 }
 
 .onboarding-btn-secondary {
