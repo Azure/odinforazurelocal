@@ -997,7 +997,7 @@
             <!-- Tab Buttons -->
             <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
                 <button id="import-tab-sizer" onclick="switchImportTab('sizer')" class="onboarding-btn onboarding-btn-primary" style="flex: 1;">📤 Sizer Configuration</button>
-                <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary" style="flex: 1;">☁️ Azure Local Cluster</button>
+                <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary" style="flex: 1;">☁️ Azure Local Instance</button>
             </div>
 
             <!-- Tab 1: Sizer Config Import -->
@@ -1022,12 +1022,16 @@
                     <div class="onboarding-feature">
                         <span class="onboarding-feature-icon">☁️</span>
                         <div class="onboarding-feature-text">
-                            <strong>Import hardware specs from an existing Azure Local cluster</strong>
-                            Navigate to your cluster in the <a href="https://portal.azure.com" target="_blank" style="color: var(--accent-blue);">Azure Portal</a> &rarr; Select your cluster &rarr; <strong>JSON View</strong> &rarr; Copy the full JSON and paste it below.
+                            <strong>Import hardware specs from an existing Azure Local machine</strong>
+                            Navigate to any machine (node) in your instance in the <a href="https://portal.azure.com" target="_blank" style="color: var(--accent-blue);">Azure Portal</a> &rarr; <strong>JSON View</strong> &rarr; Copy the full JSON and paste it below. The exact CPU model, core count, and memory will be extracted.
                         </div>
                     </div>
                 </div>
-                <textarea id="cluster-json-input" placeholder="Paste Azure Local cluster JSON here..." style="width: 100%; height: 160px; background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-primary); font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; padding: 12px; resize: vertical; box-sizing: border-box;"></textarea>
+                <textarea id="cluster-json-input" placeholder="Paste Azure Local instance JSON here..." style="width: 100%; height: 160px; background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-primary); font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; padding: 12px; resize: vertical; box-sizing: border-box;"></textarea>
+                <div style="margin-top: 6px; font-size: 11px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 6px;">
+                    <span>🔒</span>
+                    <span><strong>Privacy:</strong> All processing is performed entirely in your browser. No instance configuration data is stored, transmitted, or sent to any external service. Sanitize any sensitive information before pasting.</span>
+                </div>
                 <div id="cluster-json-error" style="display: none; margin-top: 8px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: var(--danger); font-size: 12px;"></div>
                 <div id="cluster-json-preview" style="display: none; margin-top: 8px; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; font-size: 13px;"></div>
                 <div style="text-align: center; margin-top: 12px;">

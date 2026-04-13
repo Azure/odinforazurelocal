@@ -2166,7 +2166,9 @@ function getSizerState() {
         repairDisksUserSet: _repairDisksUserSet,
         workloads: workloads,
         workloadIdCounter: workloadIdCounter,
-        designerSpineCount: _designerSpineCount
+        designerSpineCount: _designerSpineCount,
+        importedProcessorName: window._importedProcessorName || null,
+        importedCoresPerSocket: window._importedCoresPerSocket || null
     };
 }
 
@@ -6125,65 +6127,117 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         return;
     }
 
-    // Validate it's an Azure Local cluster resource
-    if (!data.type || data.type.toLowerCase() !== 'microsoft.azurestackhci/clusters') {
-        errDiv.textContent = 'This does not appear to be an Azure Local cluster JSON. Expected type "microsoft.azurestackhci/clusters".';
+    // Validate it's an Azure Local machine resource
+    var resourceType = (data.type || '').toLowerCase();
+    var isNode = resourceType === 'microsoft.hybridcompute/machines';
+
+    if (!isNode) {
+        errDiv.textContent = 'Please paste the JSON View of a machine (node), not the instance. Navigate to a machine in your instance in the Azure Portal → JSON View.';
         errDiv.style.display = '';
         return;
     }
 
-    var props = data.properties;
-    if (!props || !props.reportedProperties || !props.reportedProperties.nodes || props.reportedProperties.nodes.length === 0) {
-        errDiv.textContent = 'No node information found in the cluster JSON. Ensure you are using the full JSON View from the Azure Portal.';
+    var clusterName, coreCount, memoryGiB, model, manufacturer, cpuMfr, processorName, sockets;
+
+    // Node-level JSON — rich data available
+    var nProps = data.properties;
+    var hwProfile = nProps && nProps.hardwareProfile;
+    var detected = nProps && nProps.detectedProperties;
+
+    clusterName = (nProps && nProps.displayName) || data.name || 'Unknown';
+    manufacturer = (detected && detected.manufacturer) || 'Unknown';
+    model = (detected && detected.model) || 'Unknown';
+
+    if (hwProfile && hwProfile.processors && hwProfile.processors.length > 0) {
+        var proc = hwProfile.processors[0];
+        coreCount = proc.numberOfCores || 0;
+        processorName = proc.name || '';
+        sockets = hwProfile.numberOfCpuSockets || 1;
+    } else if (detected) {
+        coreCount = parseInt(detected.coreCount, 10) || 0;
+        processorName = detected.processorNames || '';
+        sockets = parseInt(detected.processorCount, 10) || 1;
+    } else {
+        errDiv.textContent = 'No hardware profile found in the machine JSON.';
         errDiv.style.display = '';
         return;
     }
 
-    var nodes = props.reportedProperties.nodes;
-    var clusterName = props.reportedProperties.clusterName || data.name || 'Unknown';
-    var nodeCount = nodes.length;
-    var firstNode = nodes[0];
-    var coreCount = firstNode.coreCount || 0;
-    var memoryGiB = firstNode.memoryInGiB || 0;
-    var model = firstNode.model || 'Unknown';
-    var manufacturer = firstNode.manufacturer || 'Unknown';
-
-    // Check for heterogeneous nodes
-    var heterogeneous = false;
-    for (var i = 1; i < nodes.length; i++) {
-        if (nodes[i].coreCount !== coreCount || nodes[i].memoryInGiB !== memoryGiB) {
-            heterogeneous = true;
-            break;
-        }
+    if (hwProfile && hwProfile.totalPhysicalMemoryInBytes) {
+        memoryGiB = Math.round(hwProfile.totalPhysicalMemoryInBytes / (1024 * 1024 * 1024));
+    } else if (detected && detected.totalPhysicalMemoryInGigabytes) {
+        memoryGiB = parseInt(detected.totalPhysicalMemoryInGigabytes, 10) || 0;
+    } else {
+        memoryGiB = 0;
     }
 
-    // Determine CPU manufacturer from node data or core count heuristics
+    var nodeCount = 2; // default — user sets in preview
+
+    // Determine CPU manufacturer from processor name or heuristics
     var cpuMfr = 'intel'; // default
-    // Heuristic: AMD Turin has 128+ cores; most Intel Xeon max at 86-172 but common at 8-64
-    // We can't be certain without CPU model string, so default to Intel
+    var cpuNameLower = (processorName || '').toLowerCase();
+    if (cpuNameLower.indexOf('amd') !== -1 || cpuNameLower.indexOf('epyc') !== -1) {
+        cpuMfr = 'amd';
+    }
 
-    // Snap memory to nearest DIMM-symmetric value
+    var coresPerSocket = Math.round(coreCount / sockets);
     var dimmOptions = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
     var snappedMemory = dimmOptions.reduce(function(prev, curr) {
         return Math.abs(curr - memoryGiB) < Math.abs(prev - memoryGiB) ? curr : prev;
     });
 
     // Determine sockets (1 or 2) — heuristic: if cores > max single-socket for gen, must be 2
-    var sockets = coreCount > 64 ? 2 : (coreCount > 32 ? 2 : 1);
+    var sockets = coreCount > 64 ? 2 : 1;
     var coresPerSocket = Math.round(coreCount / sockets);
 
+    // Find best matching CPU generation
+    var bestGen = null;
+    var genMatchConfidence = 'none';
+    var gens = CPU_GENERATIONS[cpuMfr] || [];
+    // Find the generation where coresPerSocket falls within the core range
+    for (var g = 0; g < gens.length; g++) {
+        var gen = gens[g];
+        if (coresPerSocket >= gen.minCores && coresPerSocket <= gen.maxCores) {
+            // Check if the exact core count is available as an option
+            if (gen.coreOptions.indexOf(coresPerSocket) !== -1) {
+                bestGen = gen;
+                genMatchConfidence = 'exact';
+                break;
+            } else if (!bestGen) {
+                bestGen = gen;
+                genMatchConfidence = 'range';
+            }
+        }
+    }
+    // If no range match, find closest — but mark as uncertain
+    if (!bestGen && gens.length > 0) {
+        bestGen = gens.reduce(function(prev, curr) {
+            return Math.abs(curr.maxCores - coresPerSocket) < Math.abs(prev.maxCores - coresPerSocket) ? curr : prev;
+        });
+        genMatchConfidence = 'approximate';
+    }
+
     // Build preview
-    var previewHTML = '<strong style="color: var(--accent-purple);">Detected Cluster: ' + escapeHtml(clusterName) + '</strong><br>';
+    var previewHTML = '<strong style="color: var(--accent-purple);">Detected Machine: ' + escapeHtml(clusterName) + '</strong><br>';
     previewHTML += '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 12px;">';
-    previewHTML += '<span>Machines: <strong>' + nodeCount + '</strong></span>';
+    previewHTML += '<span style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">How many machines in this instance? <input type="number" id="cluster-node-count-input" value="2" min="1" max="16" style="width: 56px; background: var(--card-bg); border: 2px solid var(--accent-purple); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-weight: 700; text-align: center;"></span>';
     previewHTML += '<span>Cores/Machine: <strong>' + coreCount + '</strong> (' + coresPerSocket + ' × ' + sockets + ' socket' + (sockets > 1 ? 's' : '') + ')</span>';
     previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> → ' + snappedMemory + ' GB (DIMM-aligned)</span>';
     previewHTML += '<span>Model: <strong>' + escapeHtml(model) + '</strong></span>';
     previewHTML += '<span>Manufacturer: <strong>' + escapeHtml(manufacturer) + '</strong></span>';
+    if (processorName) {
+        previewHTML += '<span>CPU: <strong>' + escapeHtml(processorName) + '</strong></span>';
+    } else if (genMatchConfidence === 'exact') {
+        previewHTML += '<span>CPU Generation: <strong>' + escapeHtml(bestGen.name) + '</strong></span>';
+    } else if (bestGen) {
+        previewHTML += '<span>CPU Generation: <strong>' + escapeHtml(bestGen.name) + '</strong> <em style="color: var(--warning);">(closest match)</em></span>';
+    } else {
+        previewHTML += '<span>CPU Generation: <em style="color: var(--text-secondary);">Not in catalog</em></span>';
+    }
     previewHTML += '<span>Location: <strong>' + escapeHtml(data.location || '—') + '</strong></span>';
     previewHTML += '</div>';
-    if (heterogeneous) {
-        previewHTML += '<div style="margin-top: 8px; color: var(--warning); font-size: 12px;">⚠️ Nodes have different specs — using first node as reference.</div>';
+    if (genMatchConfidence !== 'exact' && processorName) {
+        previewHTML += '<div style="margin-top: 8px; color: var(--warning); font-size: 12px;">⚠️ CPU "' + escapeHtml(processorName) + '" is not in the current hardware catalog. The exact processor name and core count will be imported — verify the configuration after import.</div>';
     }
 
     previewDiv.innerHTML = previewHTML;
@@ -6198,6 +6252,9 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         sockets: sockets,
         memoryGB: snappedMemory,
         cpuManufacturer: cpuMfr,
+        cpuGeneration: bestGen ? bestGen.id : null,
+        genMatchConfidence: genMatchConfidence,
+        processorName: processorName || '',
         model: model
     };
 }
@@ -6209,26 +6266,71 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     closeImportModal();
 
     // Apply to sizer dropdowns
+    var nodeCountInput = document.getElementById('cluster-node-count-input');
+    var actualNodeCount = nodeCountInput ? (parseInt(nodeCountInput.value, 10) || 2) : cfg.nodeCount;
+    if (actualNodeCount < 1) actualNodeCount = 1;
+    if (actualNodeCount > 16) actualNodeCount = 16;
     var nodeCountEl = document.getElementById('node-count');
-    if (nodeCountEl) nodeCountEl.value = String(cfg.nodeCount);
+    if (nodeCountEl) nodeCountEl.value = String(actualNodeCount);
+    _nodeCountUserSet = true;
     markManualSet('node-count');
 
     var cpuMfrEl = document.getElementById('cpu-manufacturer');
     if (cpuMfrEl) cpuMfrEl.value = cfg.cpuManufacturer;
 
-    // Trigger generation update
+    // Trigger generation dropdown population
     if (typeof onCpuManufacturerChange === 'function') onCpuManufacturerChange();
+
+    // Select the matched generation or inject imported processor name
+    var genEl = document.getElementById('cpu-generation');
+    if (cfg.processorName && genEl) {
+        // Always show exact processor name from import when available
+        var importedGenOption = document.createElement('option');
+        importedGenOption.value = cfg.cpuGeneration || 'imported';
+        importedGenOption.textContent = cfg.processorName + ' (imported)';
+        genEl.insertBefore(importedGenOption, genEl.firstChild);
+        genEl.value = importedGenOption.value;
+        // Trigger core options if we have a valid generation
+        if (cfg.cpuGeneration && typeof onCpuGenerationChange === 'function') {
+            onCpuGenerationChange();
+        }
+    } else if (cfg.cpuGeneration && genEl) {
+        genEl.value = cfg.cpuGeneration;
+        if (typeof onCpuGenerationChange === 'function') onCpuGenerationChange();
+    }
+    markManualSet('cpu-manufacturer');
+    markManualSet('cpu-generation');
 
     var cpuCoresEl = document.getElementById('cpu-cores');
     if (cpuCoresEl) {
-        // Find closest available option
         var options = Array.from(cpuCoresEl.options).map(function(o) { return parseInt(o.value, 10); });
-        var closest = options.reduce(function(prev, curr) {
-            return Math.abs(curr - cfg.coresPerSocket) < Math.abs(prev - cfg.coresPerSocket) ? curr : prev;
-        });
-        cpuCoresEl.value = String(closest);
+        var exactMatch = options.indexOf(cfg.coresPerSocket) !== -1;
+
+        if (exactMatch) {
+            cpuCoresEl.value = String(cfg.coresPerSocket);
+        } else {
+            // Inject a custom option with the exact imported core count
+            var importedOption = document.createElement('option');
+            importedOption.value = String(cfg.coresPerSocket);
+            importedOption.textContent = cfg.coresPerSocket + ' cores (imported)';
+            // Insert in sorted position
+            var inserted = false;
+            for (var oi = 0; oi < cpuCoresEl.options.length; oi++) {
+                if (parseInt(cpuCoresEl.options[oi].value, 10) > cfg.coresPerSocket) {
+                    cpuCoresEl.insertBefore(importedOption, cpuCoresEl.options[oi]);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) cpuCoresEl.appendChild(importedOption);
+            cpuCoresEl.value = String(cfg.coresPerSocket);
+        }
     }
     markManualSet('cpu-cores');
+
+    // Store imported CPU info for URL sharing / export persistence
+    window._importedProcessorName = cfg.processorName || null;
+    window._importedCoresPerSocket = cfg.coresPerSocket || null;
 
     var cpuSocketsEl = document.getElementById('cpu-sockets');
     if (cpuSocketsEl) cpuSocketsEl.value = String(cfg.sockets);
@@ -6243,14 +6345,14 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // Show post-import instructions
     var summary = document.getElementById('post-import-summary');
     if (summary) {
-        summary.innerHTML = 'Imported <strong>' + cfg.nodeCount + ' machines</strong> from cluster <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
+        summary.innerHTML = 'Imported <strong>' + actualNodeCount + ' machines</strong> from <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
             + ' — ' + cfg.coresPerSocket + ' cores × ' + cfg.sockets + ' socket' + (cfg.sockets > 1 ? 's' : '') + ', ' + cfg.memoryGB + ' GB memory per machine.'
             + '<br><br>To complete your sizing, configure the items below to match your cluster:';
     }
     var postOverlay = document.getElementById('post-import-overlay');
     if (postOverlay) postOverlay.style.display = 'flex';
 
-    showToast('Cluster "' + cfg.clusterName + '" imported — configure storage and add workloads', 'success');
+    showToast('"' + cfg.clusterName + '" imported (' + actualNodeCount + ' machines) — configure storage and add workloads', 'success');
 }
 
 function closePostImportOverlay() { // eslint-disable-line no-unused-vars
@@ -6335,6 +6437,34 @@ function applyImportedSizerState(d) {
             ).join('');
             coresSelect.disabled = false;
             coresSelect.value = d.cpuCores || '24';
+
+            // Inject imported core count if not a standard option
+            if (d.importedCoresPerSocket && gen.coreOptions.indexOf(d.importedCoresPerSocket) === -1) {
+                var impCoreOpt = document.createElement('option');
+                impCoreOpt.value = String(d.importedCoresPerSocket);
+                impCoreOpt.textContent = d.importedCoresPerSocket + ' cores (imported)';
+                var inserted = false;
+                for (var oi = 0; oi < coresSelect.options.length; oi++) {
+                    if (parseInt(coresSelect.options[oi].value, 10) > d.importedCoresPerSocket) {
+                        coresSelect.insertBefore(impCoreOpt, coresSelect.options[oi]);
+                        inserted = true;
+                        break;
+                    }
+                }
+                if (!inserted) coresSelect.appendChild(impCoreOpt);
+                coresSelect.value = String(d.importedCoresPerSocket);
+            }
+        }
+
+        // Inject imported processor name as generation option
+        if (d.importedProcessorName) {
+            var impGenOpt = document.createElement('option');
+            impGenOpt.value = d.cpuGeneration || 'imported';
+            impGenOpt.textContent = d.importedProcessorName + ' (imported)';
+            genSelect.insertBefore(impGenOpt, genSelect.firstChild);
+            genSelect.value = impGenOpt.value;
+            window._importedProcessorName = d.importedProcessorName;
+            window._importedCoresPerSocket = d.importedCoresPerSocket;
         }
     }
 
