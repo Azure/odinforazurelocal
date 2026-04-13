@@ -4490,6 +4490,9 @@ function calculateRequirements(options) {
         // Update sizing notes
         updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes);
 
+        // Update capacity runway projection
+        updateGrowthProjection(totalVcpus, totalMemory, totalStorage, totalGpus, nodeCount, hwConfig, effectiveNodes);
+
         // Auto-save state after every calculation (skip during initial page load)
         if (!isInitialLoad) {
             saveSizerState();
@@ -4935,6 +4938,31 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // 400 TB per-machine storage validation (S2D only)
         let storageLimitExceeded = false;
         let storageLimitMessages = [];
+
+        // Single workload exceeds per-node capacity check
+        var _vmExceedsNode = false;
+        if (hwConfig) {
+            var singleVmVcpuRatio = getVcpuRatio();
+            var usableMemPerNode = hwConfig.memoryGB - 32;
+            var maxVcpuPerNode = hwConfig.totalPhysicalCores * singleVmVcpuRatio;
+            workloads.forEach(function(w) {
+                if (w.type === 'vm') {
+                    if (w.vcpus > maxVcpuPerNode) {
+                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.vcpus + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + hwConfig.totalPhysicalCores + ' physical cores). This VM cannot be placed on a single machine.');
+                        _vmExceedsNode = true;
+                    }
+                    if (w.memory > usableMemPerNode) {
+                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.memory + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after 32 GB host overhead). This VM cannot be placed on a single machine.');
+                        _vmExceedsNode = true;
+                    }
+                }
+            });
+            if (_vmExceedsNode) {
+                showToast('One or more VMs exceed per-machine capacity — configuration cannot be deployed', 'error');
+            }
+        }
+        // Store flag for Designer button gating
+        window._sizerVmExceedsNode = _vmExceedsNode;
         if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
             const dc = hwConfig.diskConfig;
             let rawStoragePerMachineTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
@@ -5035,6 +5063,109 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
     // Update multi-instance summary if visible
     updateMultiInstanceSummary();
+}
+
+// ── Capacity Runway — Year-over-Year Growth Projection ──
+function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, nodeCount, hwConfig, effectiveNodes) {
+    var section = document.getElementById('growth-projection-section');
+    var content = document.getElementById('growth-projection-content');
+    if (!section || !content) return;
+
+    var growthPct = parseInt((document.getElementById('future-growth') || {}).value, 10) || 0;
+
+    // Hide if no workloads or no growth configured
+    if (workloads.length === 0 || growthPct === 0 || !hwConfig) {
+        section.style.display = 'none';
+        return;
+    }
+
+    // Remove the growth factor already applied to totals to get raw base demand
+    var growthFactor = 1 + growthPct / 100;
+    var rawVcpus = Math.round(baseVcpus / growthFactor);
+    var rawMemory = Math.round(baseMemory / growthFactor);
+    var rawStorage = Math.round(baseStorage / growthFactor);
+
+    // Calculate capacity ceilings
+    var vcpuRatio = getVcpuRatio();
+    var totalVcpuCap = hwConfig.totalPhysicalCores * effectiveNodes * vcpuRatio;
+    var usableMemPerNode = hwConfig.memoryGB - 32;
+    var totalMemCap = usableMemPerNode * effectiveNodes;
+    var totalStorageCap = 0;
+    var clusterType = document.getElementById('cluster-type').value;
+    if (clusterType !== 'disaggregated') {
+        var usableStorageEl = document.getElementById('usable-storage');
+        if (usableStorageEl) {
+            var parsed = parseFloat(usableStorageEl.textContent.replace(/,/g, ''));
+            if (!isNaN(parsed)) totalStorageCap = Math.round(parsed * 1024); // TB to GB
+        }
+    }
+
+    var years = 5;
+    var rows = [];
+    var runwayYear = null;
+
+    for (var y = 0; y <= years; y++) {
+        var factor = Math.pow(1 + growthPct / 100, y);
+        var yVcpu = Math.ceil(rawVcpus * factor);
+        var yMem = Math.ceil(rawMemory * factor);
+        var yStor = Math.ceil(rawStorage * factor);
+
+        var vcpuPct = totalVcpuCap > 0 ? Math.min(100, Math.round((yVcpu / totalVcpuCap) * 100)) : 0;
+        var memPct = totalMemCap > 0 ? Math.min(100, Math.round((yMem / totalMemCap) * 100)) : 0;
+        var storPct = totalStorageCap > 0 ? Math.min(100, Math.round((yStor / totalStorageCap) * 100)) : 0;
+        var maxPct = Math.max(vcpuPct, memPct, storPct);
+
+        var status;
+        if (maxPct >= 90) {
+            status = '🚫 ' + maxPct + '%';
+            if (runwayYear === null && y > 0) runwayYear = y;
+        } else if (maxPct >= 75) {
+            status = '⚠️ ' + maxPct + '%';
+        } else {
+            status = '✅ ' + maxPct + '%';
+        }
+
+        rows.push({
+            label: y === 0 ? 'Now' : 'Year ' + y,
+            vcpu: yVcpu.toLocaleString(),
+            mem: yMem.toLocaleString() + ' GB',
+            stor: yStor >= 1024 ? (yStor / 1024).toFixed(1) + ' TB' : yStor + ' GB',
+            status: status
+        });
+    }
+
+    // Build table
+    var html = '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+    html += '<thead><tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">';
+    html += '<th style="padding: 4px 8px;">Year</th>';
+    html += '<th style="padding: 4px 8px;">vCPU</th>';
+    html += '<th style="padding: 4px 8px;">Memory</th>';
+    html += '<th style="padding: 4px 8px;">Storage</th>';
+    html += '<th style="padding: 4px 8px;">Peak Utilization</th>';
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(function(r) {
+        html += '<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">';
+        html += '<td style="padding: 4px 8px; font-weight: 600;">' + r.label + '</td>';
+        html += '<td style="padding: 4px 8px;">' + r.vcpu + '</td>';
+        html += '<td style="padding: 4px 8px;">' + r.mem + '</td>';
+        html += '<td style="padding: 4px 8px;">' + r.stor + '</td>';
+        html += '<td style="padding: 4px 8px;">' + r.status + '</td>';
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+
+    if (runwayYear !== null) {
+        html += '<p style="margin: 8px 0 0 0; color: var(--danger); font-weight: 600;">⏳ Capacity runway: ~' + runwayYear + ' year' + (runwayYear > 1 ? 's' : '') + ' before expansion is needed at ' + growthPct + '% annual growth</p>';
+    } else {
+        html += '<p style="margin: 8px 0 0 0; color: var(--success); font-weight: 600;">✅ Capacity runway: 5+ years at ' + growthPct + '% annual growth</p>';
+    }
+
+    html += '<p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary);">Based on compound annual growth rate applied to current workload demand. The ' + growthPct + '% growth buffer is already factored into the hardware sizing above.</p>';
+
+    content.innerHTML = html;
+    section.style.display = '';
 }
 
 // Show "Configure in Designer" button only when workloads exist and all resources are under 90%
@@ -5140,11 +5271,29 @@ function updateDesignerActionVisibility() {
         if (overResources.length > 0 && workloads.length > 0) {
             designerBtn.disabled = true;
             designerBtn.title = overResources.join(', ') + ' utilization must be below 90% before configuring in Designer';
+        } else if (window._sizerVmExceedsNode) {
+            designerBtn.disabled = true;
+            designerBtn.title = 'One or more VMs exceed per-machine capacity. Reduce VM specs or increase hardware configuration.';
         } else {
             designerBtn.disabled = false;
             designerBtn.title = '';
         }
     }
+
+    // Gate share URL buttons on workload presence
+    var shareButtonIds = ['share-url-btn-header', 'share-url-btn-footer'];
+    shareButtonIds.forEach(function(id) {
+        var btn = document.getElementById(id);
+        if (btn) {
+            if (workloads.length === 0) {
+                btn.disabled = true;
+                btn.title = 'Add workload(s) before you can share your Sizer configuration with others';
+            } else {
+                btn.disabled = false;
+                btn.title = 'Copy a shareable URL with your configuration encoded';
+            }
+        }
+    });
 }
 
 // Map sizer cluster type to Designer scale value
@@ -5714,6 +5863,184 @@ function exportSizerJSON() {
     }
 }
 
+// Export hardware BOM as CSV spreadsheet
+function exportSizerCSV() { // eslint-disable-line no-unused-vars
+    try {
+        var st = getSizerState();
+        var hwConfig = getHardwareConfig();
+        var rows = [];
+        rows.push(['Category', 'Item', 'Value']);
+
+        // Cluster
+        rows.push(['Cluster', 'Deployment Type', st.clusterType || 'standard']);
+        rows.push(['Cluster', 'Number of Machines', st.nodeCount || '']);
+        rows.push(['Cluster', 'Resiliency', st.resiliency || '']);
+        rows.push(['Cluster', 'Future Growth', (st.futureGrowth || 0) + '%']);
+
+        // CPU
+        rows.push(['CPU', 'Manufacturer', st.cpuManufacturer || '']);
+        rows.push(['CPU', 'Generation', hwConfig.generation ? hwConfig.generation.name : (st.cpuGeneration || '')]);
+        rows.push(['CPU', 'Cores per Socket', st.cpuCores || '']);
+        rows.push(['CPU', 'Sockets', st.cpuSockets || '']);
+        rows.push(['CPU', 'Total Physical Cores per Machine', (parseInt(st.cpuCores, 10) || 0) * (parseInt(st.cpuSockets, 10) || 1)]);
+
+        // Memory
+        rows.push(['Memory', 'Per Machine (GB)', st.nodeMemory || '']);
+
+        // Storage
+        var isTiered = st.storageTiering === 'tiered';
+        if (isTiered) {
+            rows.push(['Storage', 'Type', 'Hybrid (Tiered)']);
+            rows.push(['Storage', 'Cache Disk Count', st.cacheDiskCount || '']);
+            rows.push(['Storage', 'Cache Disk Size (TB)', st.cacheDiskSize || '']);
+            rows.push(['Storage', 'Capacity Disk Count', st.tieredCapacityDiskCount || '']);
+            rows.push(['Storage', 'Capacity Disk Size (TB)', st.tieredCapacityDiskSize || '']);
+        } else {
+            rows.push(['Storage', 'Type', 'All-Flash']);
+            rows.push(['Storage', 'Capacity Disk Count', st.capacityDiskCount || '']);
+            rows.push(['Storage', 'Capacity Disk Size (TB)', st.capacityDiskSize || '']);
+        }
+
+        // GPU
+        if (st.gpuCount && parseInt(st.gpuCount, 10) > 0) {
+            var gpuModel = GPU_MODELS[st.gpuType];
+            rows.push(['GPU', 'Model', gpuModel ? gpuModel.name : (st.gpuType || '')]);
+            rows.push(['GPU', 'Per Machine', st.gpuCount]);
+            rows.push(['GPU', 'VRAM (GB)', gpuModel ? gpuModel.vramGB : '']);
+            rows.push(['GPU', 'TDP (W)', gpuModel ? gpuModel.tdpW : '']);
+        }
+
+        // Power estimates
+        var perNodeEl = document.getElementById('power-per-node');
+        var totalPowerEl = document.getElementById('power-total');
+        var btuEl = document.getElementById('power-btu');
+        var rackEl = document.getElementById('rack-units');
+        if (perNodeEl && perNodeEl.textContent !== '—') {
+            rows.push(['Power', 'Per Machine (est.)', perNodeEl.textContent]);
+            rows.push(['Power', 'Total Instance (est.)', totalPowerEl ? totalPowerEl.textContent : '']);
+            rows.push(['Power', 'BTU/hr (est.)', btuEl ? btuEl.textContent : '']);
+            rows.push(['Rack', 'Rack Units (est.)', rackEl ? rackEl.textContent : '']);
+        }
+
+        // Workloads
+        if (st.workloads && st.workloads.length > 0) {
+            rows.push([]);
+            rows.push(['Workload', 'Type', 'Count', 'vCPUs', 'Memory (GB)', 'Storage (GB)', 'GPU']);
+            st.workloads.forEach(function(w) {
+                if (w.type === 'vm') {
+                    rows.push(['Workload', 'Azure Local VM', w.count || 1, w.vcpus || '', w.memory || '', w.storage || '', w.gpuEnabled ? 'Yes' : 'No']);
+                } else if (w.type === 'aks') {
+                    rows.push(['Workload', 'AKS Arc', w.clusterCount || 1, '', '', '', w.gpuEnabled ? 'Yes' : 'No']);
+                } else if (w.type === 'avd') {
+                    rows.push(['Workload', 'AVD', w.userCount || 0, '', '', '', '']);
+                }
+            });
+        }
+
+        // Convert to CSV string
+        var csv = rows.map(function(row) {
+            return row.map(function(cell) {
+                var s = String(cell == null ? '' : cell);
+                if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+                    return '"' + s.replace(/"/g, '""') + '"';
+                }
+                return s;
+            }).join(',');
+        }).join('\n');
+
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var dateStr = new Date().toISOString().slice(0, 10);
+        var filename = 'odin-sizer-bom_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.csv';
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('CSV export failed:', e);
+        alert('Failed to export CSV. See console for details.');
+    }
+}
+
+// Share sizer configuration via URL (compressed base64 in query parameter)
+function shareSizerURL() { // eslint-disable-line no-unused-vars
+    if (workloads.length === 0) {
+        showToast('Add at least one workload before sharing', 'error');
+        return;
+    }
+    try {
+        var shareName = prompt('Enter a name for this configuration (optional):', '');
+        if (shareName === null) return; // User cancelled
+
+        var state = getSizerState();
+        if (shareName.trim()) {
+            // Limit to 100 characters
+            state._shareName = shareName.trim().substring(0, 100);
+        }
+        var json = JSON.stringify(state);
+        var encoded = btoa(unescape(encodeURIComponent(json)));
+        var url = window.location.origin + window.location.pathname + '?config=' + encodeURIComponent(encoded);
+
+        if (url.length > 8000) {
+            alert('Configuration is too large to share via URL (' + Math.round(url.length / 1024) + ' KB). Use Export JSON instead.');
+            return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function() {
+                showToast('Shareable URL copied to clipboard!', 'success');
+            }).catch(function() {
+                prompt('Copy this URL to share your configuration:', url);
+            });
+        } else {
+            prompt('Copy this URL to share your configuration:', url);
+        }
+    } catch (e) {
+        console.error('Share URL failed:', e);
+        alert('Failed to generate shareable URL. Use Export JSON instead.');
+    }
+}
+
+// Import sizer configuration from URL query parameter on page load
+function loadSizerFromURL() {
+    var params = new URLSearchParams(window.location.search);
+    var configParam = params.get('config');
+    if (!configParam) return false;
+
+    try {
+        var json = decodeURIComponent(escape(atob(decodeURIComponent(configParam))));
+        var data = JSON.parse(json);
+        if (data && (data.clusterType || data.workloads)) {
+            var shareName = data._shareName || '';
+            applyImportedSizerState(data);
+            // Clean URL after loading
+            history.replaceState(null, '', window.location.pathname);
+            // Dismiss any resume banner that may have been triggered
+            var existingBanner = document.getElementById('sizer-resume-banner');
+            if (existingBanner) existingBanner.remove();
+            // Show a confirmation banner with Ok button
+            var wlCount = data.workloads ? data.workloads.length : 0;
+            var bannerMsg = shareName
+                ? 'Shared configuration loaded: <strong>"' + escapeHtml(shareName) + '"</strong>'
+                : 'Configuration loaded from a shared URL';
+            if (wlCount > 0) bannerMsg += ' — ' + wlCount + ' workload(s)';
+            var urlBanner = document.createElement('div');
+            urlBanner.id = 'sizer-resume-banner';
+            urlBanner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:16px 24px;background:linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));color:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:16px;animation:slideDown 0.3s ease;max-width:600px;';
+            urlBanner.innerHTML = '<span>🔗 ' + bannerMsg + '</span>'
+                + '<button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">Ok</button>';
+            document.body.appendChild(urlBanner);
+            return true;
+        }
+    } catch (e) {
+        console.error('Failed to load configuration from URL:', e);
+    }
+    return false;
+}
+
 // Trigger file picker for JSON import
 function importSizerJSON() {
     const fileInput = document.getElementById('sizer-import-file');
@@ -5998,8 +6325,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check for Designer-to-Sizer transfer BEFORE saved state check
     const designerImported = checkForDesignerImport();
 
+    // Check for URL-based config sharing
+    const urlImported = !designerImported && loadSizerFromURL();
+
     // Check for saved session BEFORE initial calc (so it doesn't get overwritten)
-    if (!designerImported) {
+    if (!designerImported && !urlImported) {
         checkForSavedSizerState();
     }
 
@@ -6014,6 +6344,7 @@ document.addEventListener('DOMContentLoaded', function() {
     onStorageConfigChange();
     calculateRequirements();
     applyTheme(); // Apply saved theme
+    updateDesignerActionVisibility(); // Gate share/designer buttons on initial load
 
     // Allow saves from now on
     isInitialLoad = false;
@@ -6194,7 +6525,7 @@ function toggleTheme() {
 function applyTheme() {
     const root = document.documentElement;
     const themeButton = document.getElementById('theme-toggle');
-    const logo = document.querySelector('.odin-tab-logo img');
+    const logo = document.getElementById('odin-logo') || document.querySelector('.odin-tab-logo img');
     
     if (currentTheme === 'light') {
         root.style.setProperty('--bg-dark', '#f5f5f5');

@@ -33,7 +33,7 @@
             <div class="header-title-wrapper">
                 <h1 class="header-title">ODIN Sizer for Azure Local</h1>
                 <div class="header-logo-wrapper">
-                    <img src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
+                    <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
                         Version 0.20.06 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
@@ -554,15 +554,22 @@
             <!-- Right Panel: Results -->
             <div class="results-panel">
                 <div class="panel-section">
-                    <h2>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 3v18h18"/>
-                            <path d="M18 17V9"/>
-                            <path d="M13 17V5"/>
-                            <path d="M8 17v-3"/>
-                        </svg>
-                        Hardware Requirements Summary
-                    </h2>
+                    <div class="section-header-row">
+                        <h2>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18"/>
+                                <path d="M18 17V9"/>
+                                <path d="M13 17V5"/>
+                                <path d="M8 17v-3"/>
+                            </svg>
+                            Hardware Requirements Summary
+                        </h2>
+                        <div class="section-header-actions">
+                            <button id="share-url-btn-header" class="btn btn-secondary btn-sm" onclick="shareSizerURL()" title="Add workload(s) before you can share your Sizer configuration with others" disabled>
+                                🔗 Share Sizer Config as URL
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Configure in Designer -->
@@ -778,6 +785,14 @@
                     </div>
                 </div>
 
+                <!-- Capacity Runway Projection -->
+                <div id="growth-projection-section" style="display: none; margin-top: 12px;">
+                    <details>
+                        <summary style="cursor: pointer; color: var(--accent-blue); font-weight: 600; font-size: 13px; padding: 6px 0;">📈 Capacity Runway — Year-over-Year Growth Projection</summary>
+                        <div id="growth-projection-content" style="margin-top: 8px; padding: 10px 12px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.12); border-radius: 6px; font-size: 12px; overflow-x: auto;"></div>
+                    </details>
+                </div>
+
                 <!-- Notes -->
                 <div class="notes-section">
                     <h3>Azure Local Instance - Sizing Notes</h3>
@@ -796,6 +811,12 @@
                     </button>
                     <button class="btn btn-secondary" onclick="exportSizerJSON()" title="Export configuration as a shareable JSON file">
                         📤 Export JSON
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportSizerCSV()" title="Export hardware BOM as CSV spreadsheet">
+                        📊 Export CSV
+                    </button>
+                    <button id="share-url-btn-footer" class="btn btn-secondary" onclick="shareSizerURL()" title="Add workload(s) before you can share your Sizer configuration with others" disabled>
+                        🔗 Share URL
                     </button>
                     <button class="btn btn-secondary" onclick="importSizerJSON()" title="Import configuration from a JSON file">
                         📂 Import JSON
@@ -832,6 +853,10 @@
                 <span style="font-size: 12px; color: var(--text-secondary);">Scale-out view only &mdash; does not affect workload sizing or Designer output</span>
             </div>
             <div id="multi-instance-summary" style="display: none; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; font-size: 13px; color: var(--text-primary);"></div>
+            <div style="margin-top: 8px; font-size: 12px;">
+                <a href="https://azure.microsoft.com/pricing/details/azure-local/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;">💰 Azure Local Pricing Calculator ↗</a>
+                <span style="color: var(--text-secondary);"> — Azure service costs only, excludes hardware. Contact your OEM partner for hardware pricing.</span>
+            </div>
         </div>
 
         <!-- 3D Rack Visualization (Preview) -->

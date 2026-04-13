@@ -324,6 +324,11 @@ header .header-description {
     color: var(--text-primary);
 }
 
+.btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .btn-danger {
     background: rgba(239, 68, 68, 0.1);
     color: var(--danger);
@@ -447,6 +452,48 @@ header .header-description {
 
     .notes-section li {
         color: #333 !important;
+    }
+
+    /* Show power detail and growth projection in print */
+    #power-detail-section,
+    #growth-projection-section {
+        display: block !important;
+    }
+
+    #power-detail-section[open] summary,
+    #growth-projection-section details[open] summary {
+        color: #111 !important;
+    }
+
+    #power-detail-content,
+    #growth-projection-content {
+        background: #f9fafb !important;
+        border-color: #d1d5db !important;
+        color: #111 !important;
+    }
+
+    #growth-projection-content table {
+        color: #111 !important;
+    }
+
+    #growth-projection-content th,
+    #growth-projection-content td {
+        border-bottom-color: #d1d5db !important;
+    }
+
+    /* Hide 3D rack viz and multi-instance in print */
+    .rack-viz-section,
+    #multi-instance-section {
+        display: none !important;
+    }
+
+    /* Show disclaimer banner in print */
+    .disclaimer-banner {
+        display: block !important;
+        color: #666 !important;
+        border-color: #d1d5db !important;
+        background: #f9fafb !important;
+        font-size: 8pt !important;
     }
 
     select, label, .config-group span {
