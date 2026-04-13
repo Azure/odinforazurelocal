@@ -7830,6 +7830,7 @@ function toggleSdnFeature(feature, checked) {
 
     updateSdnManagementOptions();
     updateSummary();
+    updateUI();
 
     // Auto-save state after any update
     saveStateToLocalStorage();
@@ -10583,7 +10584,7 @@ function exportToPDF() {
             scenario: { connected: 'Connected', disconnected: 'Disconnected', m365local: 'Microsoft 365 Local', rackscale: 'Multi-Rack' },
             architecture: { hyperconverged: 'Hyperconverged', disaggregated: 'Disaggregated' },
             region: { azure_commercial: 'Azure Commercial', azure_government: 'Azure Government', azure_china: 'Azure China' },
-            scale: { low_capacity: 'Hyperconverged Low Capacity Hardware', medium: 'Hyperconverged', rack_aware: 'Hyperconverged Rack-Aware Cluster' },
+            scale: { low_capacity: 'Low Capacity Hardware (Hyperconverged)', medium: 'Hyperconverged', rack_aware: 'Rack-Aware Cluster (Hyperconverged)' },
             storage: { switched: 'Switched Storage', switchless: 'Switchless Storage' },
             witnessType: { cloud: 'Cloud Witness', fileshare: 'File Share Witness', none: 'No Witness' },
             ip: { static: 'Static IP', dhcp: 'DHCP' },
