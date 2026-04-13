@@ -6,6 +6,7 @@
   "dependencies": {
     "html-validate": "^10.7.0"
   },
+  "//": "basic-ftp override: NEVER downgrade below 5.2.2 (security vulnerability in <=5.2.1, see Dependabot PR #198)",
   "overrides": {
     "basic-ftp": ">=5.2.2"
   }
