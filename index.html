@@ -514,7 +514,7 @@
                     <span class="breadcrumb-check" aria-hidden="true">✓</span>
                 </button>
                 <span class="breadcrumb-separator">›</span>
-                <button type="button" class="breadcrumb-item" data-step="step-da3" onclick="navigateToStep('step-da3')" title="Cluster Scale" aria-label="DA3: Scale">
+                <button type="button" class="breadcrumb-item" data-step="step-da3" onclick="navigateToStep('step-da3')" title="Instance Scale" aria-label="DA3: Scale">
                     <span class="breadcrumb-number">DA3</span>
                     <span class="breadcrumb-label">Scale</span>
                     <span class="breadcrumb-check" aria-hidden="true">✓</span>
@@ -668,7 +668,7 @@
                             <p>Air-gapped operation with local management.</p>
                         </div>
 
-                        <!-- Option 3: Rack Scale -->
+                        <!-- Option 3: Multi-Rack -->
                         <div class="option-card" data-value="rackscale" onclick="selectOption('scenario', 'rackscale')">
                             <div class="icon">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -676,11 +676,11 @@
                                     <path d="M9 12h6" stroke-width="1.5" stroke-dasharray="2 2" />
                                 </svg>
                             </div>
-                            <h3>Rack Scale</h3>
-                            <p>Scalable, multi-rack distributed architecture.</p>
+                            <h3>Multi-Rack</h3>
+                            <p>Scalable, multi-rack distributed architecture, that can scale up to hundreds of machines.</p>
                         </div>
 
-                        <!-- Option 4: M365 Local -->
+                        <!-- Option 4: Microsoft 365 Local -->
                         <div class="option-card" data-value="m365local"
                             onclick="selectOption('scenario', 'm365local')">
                             <div class="icon">
@@ -690,8 +690,8 @@
                                     <circle cx="15" cy="15" r="3" stroke-width="1.5" fill="rgba(59, 130, 246, 0.1)" />
                                 </svg>
                             </div>
-                            <h3>M365 Local</h3>
-                            <p>Microsoft 365 workloads with minimum 9 nodes.</p>
+                            <h3>Microsoft 365 Local</h3>
+                            <p>Microsoft 365 workloads with minimum 9 machines.</p>
                         </div>
                     </div>
 
@@ -699,7 +699,7 @@
 
                     <div id="rackscale-message" class="info-box warning hidden">
                         <strong style="color: var(--accent-purple); font-size: 1.1rem;">Contact Microsoft</strong>
-                        <p>For Rack Scale Network Architecture requirements, please contact your Microsoft
+                        <p>For Multi-Rack Network Architecture requirements, please contact your Microsoft
                             representative to
                             understand the network requirements.<br>
                             <a href="https://learn.microsoft.com/en-us/azure/azure-local/multi-rack/multi-rack-overview?view=azloc-2511"
@@ -709,7 +709,7 @@
                     </div>
                     <div id="m365local-message" class="info-box warning hidden">
                         <strong style="color: var(--accent-purple); font-size: 1.1rem;">Review Documentation</strong>
-                        <p>For information on M365 Local on Azure Local review documentation.<br>
+                        <p>For information on Microsoft 365 Local on Azure Local review documentation.<br>
                             <a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview"
                                 target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Read the
                                 documentation</a>
@@ -733,7 +733,7 @@
                                     </svg>
                                 </div>
                                 <h3>Hyperconverged</h3>
-                                <p>S2D storage, 2-switch TOR pair, up to 16 nodes per rack.</p>
+                                <p>S2D storage, 2-switch TOR pair, up to 16 machines per rack.</p>
                             </div>
 
                             <!-- Disaggregated -->
@@ -749,7 +749,7 @@
                                     </svg>
                                 </div>
                                 <h3>Disaggregated</h3>
-                                <p>External SAN storage, Clos leaf-spine fabric, up to 64 nodes across multiple racks.</p>
+                                <p>External SAN storage, Clos leaf-spine fabric, up to 64 machines across multiple racks.</p>
                             </div>
                         </div>
 
@@ -780,7 +780,7 @@
                                 </svg>
                             </div>
                             <h3>Management Cluster</h3>
-                            <p>Hosts the disconnected operations appliance VM, DNS, PKI, Active Directory, ADFS, and local management services. Fixed at 3 nodes.</p>
+                            <p>Hosts the disconnected operations appliance VM, DNS, PKI, Active Directory, ADFS, and local management services. Fixed at 3 machines.</p>
                         </div>
                         <div class="option-card" data-value="workload" onclick="selectDisconnectedOption('clusterRole', 'workload')">
                             <div class="icon">
@@ -877,7 +877,7 @@
                                 </svg>
                             </div>
                             <h3>iSCSI SAN (4-NIC)</h3>
-                            <p>iSCSI shares PCIe1 with CSV/LM via trunk. 4 NICs total per node.</p>
+                            <p>iSCSI shares PCIe1 with CSV/LM via trunk. 4 NICs total per machine.</p>
                             <p class="preview-note">⚠️ Feature not available yet</p>
                         </div>
                         <div class="option-card" data-value="iscsi_6nic" onclick="selectDisaggOption('storageType', 'iscsi_6nic')">
@@ -891,7 +891,7 @@
                                 </svg>
                             </div>
                             <h3>iSCSI SAN (6-NIC)</h3>
-                            <p>Dedicated iSCSI NICs on PCIe2, using leaf ports 33–48. 6 NICs total per node.</p>
+                            <p>Dedicated iSCSI NICs on PCIe2, using leaf ports 33–48. 6 NICs total per machine.</p>
                             <p class="preview-note">⚠️ Feature not available yet</p>
                         </div>
                     </div>
@@ -926,7 +926,7 @@
                                 </svg>
                             </div>
                             <h3>Enable Backup Network</h3>
-                            <p>Adds 2 dedicated backup NICs per node for in-guest VM backup traffic.</p>
+                            <p>Adds 2 dedicated backup NICs per machine for in-guest VM backup traffic.</p>
                         </div>
                     </div>
                     <div id="da2-explanation" class="info-box"></div>
@@ -937,10 +937,10 @@
                 <section class="step hidden" id="step-da3">
                     <div class="step-header">
                         <span class="step-number" style="background: linear-gradient(135deg, #7c3aed, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">DA3</span>
-                        <h2>Cluster Scale</h2>
+                        <h2>Instance Scale</h2>
                     </div>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
-                        Configure the number of racks and nodes per rack. Maximum 64 nodes total, constrained by storage type and backup selection.
+                        Configure the number of racks and machines per rack. Maximum 64 machines total, constrained by storage type and backup selection.
                     </p>
                     <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px;">
                         <div style="flex: 1; min-width: 200px;">
@@ -953,13 +953,13 @@
                             </div>
                         </div>
                         <div style="flex: 1; min-width: 200px;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Nodes per Rack</label>
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Machines per Rack</label>
                             <div style="display: flex; align-items: center; gap: 12px;">
                                 <input type="range" id="da-nodes-per-rack" min="1" max="16" value="16" style="flex: 1;"
                                     oninput="selectDisaggOption('nodesPerRack', parseInt(this.value))">
                                 <span id="da-nodes-per-rack-value" style="font-size: 1.2rem; font-weight: 700; color: var(--accent-blue); min-width: 30px; text-align: center;">16</span>
                             </div>
-                            <p id="da-max-nodes-info" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Max per rack: 16 | Total: 64 nodes</p>
+                            <p id="da-max-nodes-info" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Scale: Maximum 64 machines per instance, (16 per rack)</p>
                         </div>
                     </div>
                     <div id="da3-scale-summary" class="info-box"></div>
@@ -1374,20 +1374,6 @@
 
                     <!-- Scale Options -->
                     <div class="options-grid" id="scale-options">
-                        <div class="option-card" data-value="low_capacity"
-                            onclick="selectOption('scale', 'low_capacity')">
-                            <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                    <path d="M4 4h16v16H4z" stroke-width="1.5" opacity="0.1" fill="currentColor" />
-                                    <rect x="4" y="4" width="16" height="16" rx="2" stroke-width="1.5" />
-                                    <circle cx="12" cy="12" r="3" stroke-width="1.5" />
-                                </svg>
-                            </div>
-                            <h3>Hyperconverged Low Capacity</h3>
-                            <p>Edge / Small Scale usage (Max 3 nodes).</p>
-                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more ↗</a>
-                        </div>
-
                         <div class="option-card" data-value="medium" onclick="selectOption('scale', 'medium')">
                             <div class="icon">
                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -1398,7 +1384,7 @@
                                 </svg>
                             </div>
                             <h3>Hyperconverged</h3>
-                            <p>1 to 16 nodes.</p>
+                            <p>1 to 16 machines.</p>
                         </div>
                         <div class="option-card" data-value="rack_aware" onclick="selectOption('scale', 'rack_aware')">
                             <div class="icon">
@@ -1409,18 +1395,31 @@
                                     <path d="M18 7h0M18 11h0M18 15h0M18 19h0" stroke-width="2" stroke-linecap="round" />
                                 </svg>
                             </div>
-                            <h3>Hyperconverged Rack Aware</h3>
-                            <p>Spread across rooms (2, 4, 6, 8 nodes).</p>
+                            <h3>Hyperconverged Rack-Aware Cluster</h3>
+                            <p>Spread across rooms (2, 4, 6, 8 machines).</p>
                             <a href="https://learn.microsoft.com/azure/azure-local/concepts/rack-aware-cluster-overview" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more ↗</a>
+                        </div>
+                        <div class="option-card" data-value="low_capacity"
+                            onclick="selectOption('scale', 'low_capacity')">
+                            <div class="icon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M4 4h16v16H4z" stroke-width="1.5" opacity="0.1" fill="currentColor" />
+                                    <rect x="4" y="4" width="16" height="16" rx="2" stroke-width="1.5" />
+                                    <circle cx="12" cy="12" r="3" stroke-width="1.5" />
+                                </svg>
+                            </div>
+                            <h3>Hyperconverged Low Capacity Hardware</h3>
+                            <p>Edge / Small Scale usage (Max 3 machines).</p>
+                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more ↗</a>
                         </div>
                     </div>
                 </section>
 
-                <!-- Step 3: Cluster Size -->
+                <!-- Step 3: Instance Size -->
                 <section class="step" id="step-3">
                     <div class="step-header">
                         <span class="step-number">05</span>
-                        <h2>Cluster Size</h2>
+                        <h2>Instance Size</h2>
                         <a href="sizer/" class="sizer-link" title="Use the Sizer to calculate your cluster requirements">
                             🧮 Unsure? Start with Sizer
                         </a>
@@ -1586,7 +1585,7 @@
                                         </svg>
                                     </div>
                                     <h3>Cross-room node connectivity</h3>
-                                    <p>2 TORs total. Each node connects to TORs in both rooms; reduces dependence on TOR-to-TOR RDMA room links but requires cross-room fiber per node interface.</p>
+                                    <p>2 TORs total. Each machine connects to TORs in both rooms; reduces dependence on TOR-to-TOR RDMA room links but requires cross-room fiber per machine interface.</p>
                                 </div>
                             </div>
                         </div>
@@ -1649,7 +1648,7 @@
                                 </svg>
                             </div>
                             <h3>Storage Switched</h3>
-                            <p>Physical ToR switch. Required for 5+ nodes.</p>
+                            <p>Physical ToR switch. Required for 5+ machines.</p>
                         </div>
                         <div class="option-card" data-value="switchless"
                             onclick="selectOption('storage', 'switchless')">
@@ -1664,7 +1663,7 @@
                                 </svg>
                             </div>
                             <h3>Storage Switchless</h3>
-                            <p>Direct connection. Only for 1-4 nodes.</p>
+                            <p>Direct connection. Only for 1-4 machines.</p>
                         </div>
                     </div>
 
@@ -1733,7 +1732,7 @@
                                     </svg>
                                 </div>
                                 <h3>Single-Link configuration</h3>
-                                <p>One storage link per node-pair (no redundancy).</p>
+                                <p>One storage link per machine-pair (no redundancy).</p>
                             </div>
                             <div class="option-card" data-value="dual_link"
                                 onclick="selectOption('switchlessLinkMode', 'dual_link')">
@@ -1748,7 +1747,7 @@
                                     </svg>
                                 </div>
                                 <h3>Dual-Link configuration</h3>
-                                <p>Two storage links per node-pair (redundant).</p>
+                                <p>Two storage links per machine-pair (redundant).</p>
                             </div>
                         </div>
                     </div>
@@ -1770,7 +1769,7 @@
                                 </svg>
                             </div>
                             <h3>1 Port</h3>
-                            <p>Single Node Only.</p>
+                            <p>Single Machine Only.</p>
                         </div>
                         <div class="option-card" data-value="2" onclick="selectOption('ports', '2')">
                             <div class="icon">

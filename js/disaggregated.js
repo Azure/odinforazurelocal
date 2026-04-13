@@ -161,11 +161,85 @@ function selectDisaggOption(category, value) {
     updateUI();
 }
 
+/**
+ * Restore disaggregated UI state after session resume.
+ * Re-selects option cards, sets slider values, shows explanations,
+ * and triggers render functions — without resetting downstream state.
+ */
+function restoreDisaggregatedUI() {
+    if (state.architecture !== 'disaggregated') return;
+
+    // DA1: Storage Type card selection + explanation
+    if (state.disaggStorageType) {
+        document.querySelectorAll('#step-da1 .option-card').forEach(function(card) {
+            card.classList.toggle('selected', card.getAttribute('data-value') === state.disaggStorageType);
+        });
+        var exp1 = document.getElementById('da1-explanation');
+        if (exp1) {
+            var explanations = {
+                fc_san: '<strong style="color: var(--accent-purple);">Fibre Channel SAN</strong> — Dedicated FC HBAs connect to separate FC switches. Storage traffic is completely isolated from the Ethernet leaf-spine fabric. Max 16 nodes per rack.',
+                iscsi_4nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (4-NIC)</strong> — iSCSI storage shares cluster standalone ports and VLAN. No additional NICs required. Max 16 nodes per rack.',
+                iscsi_6nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (6-NIC)</strong> — Dedicated iSCSI NICs on PCIe2 slot with own VLANs and subnets. If backup is enabled, iSCSI falls back to sharing cluster ports and PCIe2 is used for backup. Max 16 nodes per rack.'
+            };
+            exp1.innerHTML = explanations[state.disaggStorageType] || '';
+            exp1.classList.add('visible');
+        }
+    }
+
+    // DA2: Backup card selection + warning for iSCSI 6-NIC
+    if (state.disaggBackupEnabled !== undefined) {
+        document.querySelectorAll('#step-da2 .option-card').forEach(function(card) {
+            card.classList.toggle('selected', String(card.getAttribute('data-value')) === String(state.disaggBackupEnabled));
+        });
+        var warning = document.getElementById('da2-warning');
+        if (warning) {
+            if (state.disaggBackupEnabled && state.disaggStorageType === 'iscsi_6nic') {
+                warning.innerHTML = '<strong style="color: #a78bfa;">&#9432; iSCSI Shared Mode</strong><p>With backup enabled, iSCSI 6-NIC loses its dedicated NICs. iSCSI traffic will <strong>share the cluster standalone ports and VLAN</strong> instead. The PCIe2 ports will be used for the <strong>Backup Compute Intent</strong>.</p>';
+                warning.classList.remove('hidden');
+            } else {
+                warning.classList.add('hidden');
+            }
+        }
+    }
+
+    // DA3: Rack count card selection + slider + scale summary
+    if (state.disaggRackCount) {
+        document.querySelectorAll('#step-da3 .option-card[onclick*="racks"]').forEach(function(card) {
+            card.classList.toggle('selected', String(card.getAttribute('data-value')) === String(state.disaggRackCount));
+        });
+        var maxNodes = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
+        var slider = document.getElementById('da-nodes-per-rack');
+        if (slider) {
+            slider.max = maxNodes;
+            slider.value = state.disaggNodesPerRack || maxNodes;
+        }
+        var valSpan = document.getElementById('da-nodes-per-rack-value');
+        if (valSpan) valSpan.textContent = state.disaggNodesPerRack || maxNodes;
+        updateScaleSummary();
+    }
+
+    // DA4: Spine count card selection + explanation
+    if (state.disaggSpineCount) {
+        document.querySelectorAll('#step-da4 .option-card').forEach(function(card) {
+            card.classList.toggle('selected', String(card.getAttribute('data-value')) === String(state.disaggSpineCount));
+        });
+        var exp4 = document.getElementById('da4-explanation');
+        if (exp4) {
+            if (state.disaggSpineCount === 2) {
+                exp4.innerHTML = '<strong style="color: var(--accent-purple);">2 Spines</strong> — Standard redundancy with 2× 100G uplinks per leaf to each spine (400 Gbps total per leaf pair). 26 unused spine ports available for future expansion.';
+            } else {
+                exp4.innerHTML = '<strong style="color: var(--accent-purple);">4 Spines</strong> — Maximum bandwidth and redundancy with 4× 100G uplinks per leaf (800 Gbps total per leaf pair). Recommended for >2 racks or high east-west traffic.';
+            }
+            exp4.classList.add('visible');
+        }
+    }
+}
+
 function updateScaleSummary() {
     const total = (state.disaggRackCount || 0) * (state.disaggNodesPerRack || 0);
     const maxPerRack = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
     const info = document.getElementById('da-max-nodes-info');
-    if (info) info.textContent = `Max per rack: ${maxPerRack} | Total: ${total} nodes`;
+    if (info) info.textContent = `Scale: Maximum ${maxPerRack} machines per rack | Total: ${total} machines`;
 
     // Sync state.nodes so shared steps (step-10 node config) work with the right count
     if (total > 0) {
@@ -174,7 +248,7 @@ function updateScaleSummary() {
 
     const summary = document.getElementById('da3-scale-summary');
     if (summary && state.disaggRackCount && state.disaggNodesPerRack) {
-        summary.innerHTML = `<strong style="color: var(--accent-purple);">Scale Configuration</strong> — ${state.disaggRackCount} rack(s) × ${state.disaggNodesPerRack} nodes = <strong>${total} total nodes</strong>. Each rack: 2 leaf switches + 1 BMC switch${state.disaggStorageType === 'fc_san' ? ' + 2 FC switches' : ''}.`;
+        summary.innerHTML = `<strong style="color: var(--accent-purple);">Scale Configuration</strong>${state.disaggRackCount} rack(s) × ${state.disaggNodesPerRack} machines = Total: <strong style="display: inline;">${total} machines</strong><br>Each rack: 2 leaf switches + 1 BMC switch${state.disaggStorageType === 'fc_san' ? ' + 2 FC switches' : ''}`;
         summary.classList.add('visible');
     }
 }

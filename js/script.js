@@ -300,7 +300,7 @@ function computeWizardProgress() {
         add('Storage Type', Boolean(state.disaggStorageType));
         add('Port Count', Boolean(state.disaggPortCount));
         if (state.disaggRackCount) {
-            add('Rack Scale', Boolean(state.disaggRackCount && state.disaggNodesPerRack));
+            add('Multi-Rack', Boolean(state.disaggRackCount && state.disaggNodesPerRack));
         }
     } else {
         add('Ports', Boolean(state.ports));
@@ -391,7 +391,7 @@ const missingSectionToStep = {
     'Storage Connectivity': 'step-4',
     'Storage Type': 'step-da1',
     'Port Count': 'step-da4',
-    'Rack Scale': 'step-da3',
+    'Multi-Rack': 'step-da3',
     'Ports': 'step-5',
     'Storage Pool Configuration': 'step-5-5',
     'Traffic Intent': 'step-6',
@@ -516,9 +516,9 @@ window.addEventListener('unhandledrejection', (e) => {
 function getReportReadiness() {
     const missing = [];
 
-    // If Rack Scale, wizard intentionally stops early.
+    // If Multi-Rack, wizard intentionally stops early.
     if (state.scenario === 'rackscale') {
-        missing.push('Scenario must not be Rack Scale (report is not available for Rack Scale flow)');
+        missing.push('Scenario must not be Multi-Rack (report is not available for Multi-Rack flow)');
         return { ready: false, missing };
     }
 
@@ -1220,7 +1220,7 @@ function getNodeSettingsReadiness() {
     const missing = [];
 
     if (!state.nodes) {
-        missing.push('Nodes');
+        missing.push('Instance Size');
         return { ready: false, missing };
     }
 
@@ -2356,9 +2356,9 @@ function generateReport() {
 }
 
 function selectOption(category, value) {
-    // Special handling for M365 Local - stop workflow and show documentation
+    // Special handling for Microsoft 365 Local - stop workflow and show documentation
     if (category === 'scenario' && value === 'm365local') {
-        // Hide Rack Scale message when switching to M365 Local
+        // Hide Multi-Rack message when switching to Microsoft 365 Local
         const rackScaleMsg = document.getElementById('rackscale-message');
         if (rackScaleMsg) {
             rackScaleMsg.classList.add('hidden');
@@ -2368,7 +2368,7 @@ function selectOption(category, value) {
         return;
     }
 
-    // Hide M365 Local message when switching to another scenario option
+    // Hide Microsoft 365 Local message when switching to another scenario option
     if (category === 'scenario' && value !== 'm365local') {
         const m365Msg = document.getElementById('m365local-message');
         if (m365Msg) {
@@ -2377,7 +2377,7 @@ function selectOption(category, value) {
         }
     }
 
-    // Hide Rack Scale message when switching to another scenario option
+    // Hide Multi-Rack message when switching to another scenario option
     if (category === 'scenario' && value !== 'rackscale') {
         const rackScaleMsg = document.getElementById('rackscale-message');
         if (rackScaleMsg) {
@@ -3487,7 +3487,7 @@ function updateUI() {
         });
 
         if (state.scenario === 'rackscale') {
-        // Rack Scale Logic: Hide everything, show message
+        // Rack Scale (Multi-Rack) Logic: Hide everything, show message
             steps.forEach(s => s && s.classList.add('hidden'));
             if (rackScaleMsg) {
                 rackScaleMsg.classList.remove('hidden');
@@ -3505,9 +3505,9 @@ function updateUI() {
             if (scenarioExp) scenarioExp.classList.add('visible');
         } else if (state.scenario === 'm365local') {
             if (scenarioExp) {
-                scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">M365 Local Deployment</strong>
+                scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">Microsoft 365 Local Deployment</strong>
         Optimized for Microsoft 365 workloads. Requires a minimum of 9 physical nodes for high availability and performance. Supports Standard scale configuration only.
-        <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">📘 More information on M365 Local</a>`;
+        <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">📘 More information on Microsoft 365 Local</a>`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
         } else if (state.scenario === 'connected') {
@@ -9152,6 +9152,9 @@ function resumeSavedState() {
 
         updateUI();
 
+        // Restore disaggregated UI state (card selections, slider, explanations)
+        if (typeof restoreDisaggregatedUI === 'function') restoreDisaggregatedUI();
+
         // Render DNS servers if present (fixes Issue #64)
         if (state.dnsServers && state.dnsServers.length > 0) {
             renderDnsServers();
@@ -10577,10 +10580,10 @@ function exportToPDF() {
 
     const getDisplayName = (key, value) => {
         const displayNames = {
-            scenario: { connected: 'Connected', disconnected: 'Disconnected', m365local: 'M365 Local', rackscale: 'Rack Scale' },
+            scenario: { connected: 'Connected', disconnected: 'Disconnected', m365local: 'Microsoft 365 Local', rackscale: 'Multi-Rack' },
             architecture: { hyperconverged: 'Hyperconverged', disaggregated: 'Disaggregated' },
             region: { azure_commercial: 'Azure Commercial', azure_government: 'Azure Government', azure_china: 'Azure China' },
-            scale: { low_capacity: 'Hyperconverged Low Capacity', medium: 'Hyperconverged', rack_aware: 'Hyperconverged Rack Aware' },
+            scale: { low_capacity: 'Hyperconverged Low Capacity Hardware', medium: 'Hyperconverged', rack_aware: 'Hyperconverged Rack-Aware Cluster' },
             storage: { switched: 'Switched Storage', switchless: 'Switchless Storage' },
             witnessType: { cloud: 'Cloud Witness', fileshare: 'File Share Witness', none: 'No Witness' },
             ip: { static: 'Static IP', dhcp: 'DHCP' },

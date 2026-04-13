@@ -119,6 +119,7 @@
     <script src="../js/validation.js"></script>
     <script src="../js/dns.js"></script>
     <script src="../js/changelog.js"></script>
+    <script src="../js/disaggregated.js"></script>
     <script src="../js/script.js"></script>
     <!-- Enable test mode before loading sizer (skips DOMContentLoaded UI init) -->
     <script>window.__SIZER_TEST_MODE__ = true;</script>
@@ -402,12 +403,12 @@
         testSuite('formatScenario()', 'formatting.js', [
             assert(formatScenario('connected') === 'Connected', 
                 'Connected', 'Connected', formatScenario('connected')),
-            assert(formatScenario('rackscale') === 'Rack Scale', 
-                'Rack Scale', 'Rack Scale', formatScenario('rackscale')),
+            assert(formatScenario('rackscale') === 'Multi-Rack', 
+                'Multi-Rack', 'Multi-Rack', formatScenario('rackscale')),
             assert(formatScenario('disconnected') === 'Disconnected (Air Gapped)', 
                 'Disconnected', 'Disconnected (Air Gapped)', formatScenario('disconnected')),
-            assert(formatScenario('m365local') === 'M365 Local', 
-                'M365 Local', 'M365 Local', formatScenario('m365local')),
+            assert(formatScenario('m365local') === 'Microsoft 365 Local', 
+                'Microsoft 365 Local', 'Microsoft 365 Local', formatScenario('m365local')),
             assert(formatScenario('') === '', 'Empty returns empty', '', formatScenario('')),
             assert(formatScenario('custom') === 'Custom', 'Unknown capitalizes', 'Custom', formatScenario('custom'))
         ]);
@@ -418,10 +419,10 @@
                 'Low Capacity', 'Low Capacity', formatScale('low_capacity')),
             assert(formatScale('medium') === 'Hyperconverged (1-16 Nodes)', 
                 'Medium', 'Hyperconverged (1-16 Nodes)', formatScale('medium')),
-            assert(formatScale('rack_aware') === 'Rack Aware (Multi-Room)', 
-                'Rack Aware', 'Rack Aware (Multi-Room)', formatScale('rack_aware')),
-            assert(formatScale('rack_scale') === 'Rack Scale', 
-                'Rack Scale', 'Rack Scale', formatScale('rack_scale'))
+            assert(formatScale('rack_aware') === 'Rack-Aware Cluster (Multi-Room)', 
+                'Rack-Aware Cluster', 'Rack-Aware Cluster (Multi-Room)', formatScale('rack_aware')),
+            assert(formatScale('rack_scale') === 'Multi-Rack', 
+                'Multi-Rack', 'Multi-Rack', formatScale('rack_scale'))
         ]);
         
         // Test: formatOutbound
@@ -7186,6 +7187,192 @@
             const failedChecks = checks.filter(c => c.status === 'fail');
             results.push(assert(failedChecks.length === 0,
                 'All checks pass for compliant Dell config', 0, failedChecks.length));
+            return results;
+        })());
+
+        // ========================================================================
+        // SESSION RESUME — STATE RESTORATION TESTS
+        // Tests that the resume path correctly preserves disaggregated state keys
+        // and that restoreDisaggregatedUI() exists and runs without errors.
+        // These catch regressions where new wizard state keys are added but the
+        // resume/restore path doesn't handle them.
+        // ========================================================================
+        sectionHeader('🔄 Session Resume — State Restoration');
+
+        testSuite('restoreDisaggregatedUI() function exists and is safe', 'disaggregated.js', [
+            assert(typeof restoreDisaggregatedUI === 'function',
+                'restoreDisaggregatedUI is defined', true,
+                typeof restoreDisaggregatedUI === 'function'),
+            // Should not throw when architecture is not disaggregated
+            assert((() => { try { restoreDisaggregatedUI(); return true; } catch(e) { return false; } })(),
+                'restoreDisaggregatedUI runs safely when architecture is not disaggregated',
+                true, true)
+        ]);
+
+        testSuite('All wizard state keys survive save/restore cycle', 'script.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+
+            // Set a comprehensive state covering all wizard steps
+            state.scenario = 'connected';
+            state.architecture = 'hyperconverged';
+            state.region = 'azure_commercial';
+            state.localInstanceRegion = 'eastus';
+            state.scale = 'medium';
+            state.nodes = '4';
+            state.witnessType = 'cloud';
+            state.ports = '4';
+            state.storage = 'switched';
+            state.torSwitchCount = 'dual';
+            state.intent = 'mgmt_compute';
+            state.outbound = 'public';
+            state.arc = 'no_arc';
+            state.ip = 'static';
+            state.infra = '192.168.1.0';
+            state.infraCidr = '192.168.1.0/24';
+            state.infraGateway = '192.168.1.1';
+            state.infraVlan = 'vlan_enabled';
+            state.infraVlanId = '7';
+            state.storageAutoIp = 'auto';
+            state.activeDirectory = 'ad_domain';
+            state.adDomain = 'contoso.com';
+            state.sdnEnabled = 'no';
+            state.securityConfiguration = 'recommended';
+            state.privateEndpoints = 'pe_disabled';
+
+            // Save and load
+            saveStateToLocalStorage();
+            var loaded = loadStateFromLocalStorage();
+            var data = loaded ? loaded.data : {};
+
+            // Verify every key round-trips correctly
+            var keysToCheck = [
+                'scenario', 'architecture', 'region', 'localInstanceRegion',
+                'scale', 'nodes', 'witnessType', 'ports', 'storage',
+                'torSwitchCount', 'intent', 'outbound', 'arc', 'ip',
+                'infra', 'infraCidr', 'infraGateway', 'infraVlan', 'infraVlanId',
+                'storageAutoIp', 'activeDirectory', 'adDomain',
+                'sdnEnabled', 'securityConfiguration', 'privateEndpoints'
+            ];
+
+            keysToCheck.forEach(function(key) {
+                results.push(assert(data[key] === state[key],
+                    key + ' preserved through save/load',
+                    state[key], data[key]));
+            });
+
+            // Restore
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+            saveStateToLocalStorage();
+
+            return results;
+        })());
+
+        testSuite('All state keys exist in state object', 'script.js', (() => {
+            var results = [];
+
+            // Core wizard state keys — every step should have its keys listed here.
+            // When adding a new wizard step, add its state keys to the appropriate group.
+            var coreKeys = [
+                // Step 01: Scenario & Architecture
+                'scenario', 'architecture',
+                // Step 02: Azure Cloud & Region
+                'region', 'localInstanceRegion',
+                // Step 04: Scale
+                'scale',
+                // Step 05: Instance Size
+                'nodes', 'witnessType',
+                // Step 06: Network
+                'ports', 'portConfig', 'portConfigConfirmed', 'storage',
+                'torSwitchCount', 'switchlessLinkMode',
+                // Step 06: Rack Aware
+                'rackAwareZones', 'rackAwareZonesConfirmed',
+                'rackAwareZoneSwapSelection', 'rackAwareTorsPerRoom', 'rackAwareTorArchitecture',
+                // Step 07: Intent
+                'intent', 'customIntentConfirmed',
+                // Step 08: Connectivity
+                'outbound', 'arc', 'proxy',
+                // Step 09: IP & Infrastructure
+                'ip', 'infra', 'infraCidr', 'infraCidrAuto',
+                'infraGateway', 'infraGatewayManual', 'nodeSettings',
+                'infraVlan', 'infraVlanId',
+                'storageAutoIp', 'customStorageSubnets', 'customStorageSubnetsConfirmed',
+                // Step 10: Identity
+                'activeDirectory', 'adDomain', 'adOuPath', 'adfsServerName',
+                'dnsServers', 'localDnsZone', 'dnsServiceExisting',
+                // Step 11: SDN
+                'sdnEnabled', 'sdnFeatures', 'sdnManagement',
+                // Overrides & Adapters
+                'intentOverrides', 'customIntents',
+                'adapterMapping', 'adapterMappingConfirmed', 'adapterMappingSelection',
+                'overridesConfirmed',
+                // Security
+                'securityConfiguration', 'securitySettings',
+                // Private Endpoints
+                'privateEndpoints', 'privateEndpointsList',
+                // Sizer Integration
+                'sizerHardware', 'sizerWorkloads',
+                // Disconnected
+                'fqdnConfirmed', 'storagePoolConfiguration'
+            ];
+
+            coreKeys.forEach(function(key) {
+                results.push(assert(key in state,
+                    'state has core key: ' + key, true, key in state));
+            });
+
+            // Disaggregated keys
+            var disaggKeys = [
+                'disaggStorageType', 'disaggBackupEnabled', 'disaggRackCount',
+                'disaggNodesPerRack', 'disaggSpineCount', 'disaggPortCount',
+                'disaggVlans', 'disaggVnis', 'disaggMgmtVlanMode', 'disaggVrfName',
+                'disaggSubnets', 'disaggQosCustomized', 'disaggPortSpeeds',
+                'disaggIntentMapping', 'disaggNicNames', 'disaggNicNamesConfirmed',
+                'disaggNicConfigConfirmed', 'disaggPortConfig', 'disaggPortConfigConfirmed',
+                'disaggAdapterMapping', 'disaggAdapterMappingConfirmed',
+                'disaggIntentOverrides', 'disaggOverridesConfirmed',
+                'disaggClusterPortMapping'
+            ];
+
+            disaggKeys.forEach(function(key) {
+                results.push(assert(key in state,
+                    'state has disagg key: ' + key, true, key in state));
+            });
+
+            return results;
+        })());
+
+        testSuite('restoreDisaggregatedUI runs safely with disaggregated state (no DOM)', 'disaggregated.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+
+            state.architecture = 'disaggregated';
+            state.disaggStorageType = 'iscsi_4nic';
+            state.disaggBackupEnabled = true;
+            state.disaggRackCount = 2;
+            state.disaggNodesPerRack = 8;
+            state.disaggSpineCount = 4;
+
+            var noError = true;
+            try { restoreDisaggregatedUI(); } catch(e) { noError = false; }
+
+            results.push(assert(noError,
+                'restoreDisaggregatedUI does not throw with disagg state but no DOM',
+                true, noError));
+
+            // State should not be mutated by restore
+            results.push(assert(state.disaggStorageType === 'iscsi_4nic',
+                'disaggStorageType unchanged after restore', 'iscsi_4nic', state.disaggStorageType));
+            results.push(assert(state.disaggRackCount === 2,
+                'disaggRackCount unchanged after restore', 2, state.disaggRackCount));
+            results.push(assert(state.disaggSpineCount === 4,
+                'disaggSpineCount unchanged after restore', 4, state.disaggSpineCount));
+
+            // Restore
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
             return results;
         })());
 

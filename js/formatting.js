@@ -53,12 +53,12 @@ function getProxyLabel() {
 function formatScenario(val) {
     if (!val) return '';
     if (val === 'connected') return 'Connected';
-    if (val === 'rackscale') return 'Rack Scale';
+    if (val === 'rackscale') return 'Multi-Rack';
     if (val === 'disconnected') {
         if (typeof state !== 'undefined' && state.outbound === 'limited') return 'Disconnected (Limited Connectivity)';
         return 'Disconnected (Air Gapped)';
     }
-    if (val === 'm365local') return 'M365 Local';
+    if (val === 'm365local') return 'Microsoft 365 Local';
     return capitalize(val);
 }
 
@@ -70,8 +70,8 @@ function formatScenario(val) {
 function formatScale(val) {
     if (val === 'low_capacity') return 'Low Capacity';
     if (val === 'medium') return 'Hyperconverged (1-16 Nodes)';
-    if (val === 'rack_aware') return 'Rack Aware (Multi-Room)';
-    if (val === 'rack_scale') return 'Rack Scale';
+    if (val === 'rack_aware') return 'Rack-Aware Cluster (Multi-Room)';
+    if (val === 'rack_scale') return 'Multi-Rack';
     return capitalize(val);
 }
 

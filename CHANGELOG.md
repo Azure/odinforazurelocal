@@ -123,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **DDA GPU Count Dropdown**: Free-text input replaced with dropdown capped at the model's maxPerNode (1–4 depending on model)
 - **GPU Capacity Bar**: New GPU capacity bar chart below storage showing consumed vs available GPUs with N−1 node awareness for maintenance/drain reserve
 - **GPU Auto-Scaling**: GPU demand drives node count recommendations and GPUs-per-node auto-scaling (with AUTO badge) up to each model's physical maximum
-- **GPU Models Expanded**: Added NVIDIA T4 (16 GB, 70W, max 2/node), RTX Pro 6000 (48 GB, 600W, max 2/node), H100 (80 GB, 700W, max 4/node) — each model includes maxPerNode, DDA/GPU-P support, and AKS compatibility flags
+- **GPU Models Expanded**: Added NVIDIA T4 (16 GB, 70W, max 2/node), RTX Pro 6000 (48 GB, 600W, max 2/node), H100 (80 GB, 700W, max 2/node) — each model includes maxPerNode, DDA/GPU-P support, and AKS compatibility flags
 - **AKS GPU VM Sizes**: AKS workloads show all supported GPU-enabled VM SKUs with fixed vCPU/memory — auto-sets hardware GPU type and disables manual vCPU/memory fields
 - **GPU Badge**: Workload cards show a yellow "GPU" badge when GPU-enabled
 - **GPU Threshold Warnings**: GPU ≥90% triggers over-threshold (red bar), sizing notes, and blocks Designer export

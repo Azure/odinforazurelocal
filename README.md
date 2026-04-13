@@ -28,7 +28,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### ✨ Core Functionality
 - **Step-by-Step Designer Wizard**: Guided decision flow for Azure Local instance configuration, including network configuration, outbound endpoints, security and storage deployment options
-- **Multiple Deployment Scenarios**: Hyperconverged, Multi-Rack, Disconnected, and M365 Local
+- **Multiple Deployment Scenarios**: Hyperconverged, Multi-Rack, Disconnected, and Microsoft 365 Local
 - **Disaggregated Architecture Wizard**: End-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI) and Clos leaf-spine fabric — VLAN/VNI/VRF configuration, QoS policy, IP planning, drag-and-drop NIC mapping, and interactive SVG rack topology diagrams
 - **Hardware Sizer**: Workload-based hardware sizing for VMs, AKS, and AVD — calculates CPU, memory, storage, GPU, and node requirements with auto-scaling and power/rack-space estimates, and a 3D visualization of hardware in one to four 42U racks
 - **ToR Switch Configuration Generator & QoS Validator**: Generate example Top of Rack switch configurations for Cisco NX-OS and Dell OS10 platforms — ToR, BMC, and border switch configs with rack-aware support, infrastructure token replacement, and JSON export. Validate existing switch configs against Azure Local QoS requirements (PFC, ETS, ECN)
@@ -174,9 +174,10 @@ The wizard follows a sequential flow:
 | Scenario | Description | Use Case |
 |----------|-------------|----------|
 | **Hyperconverged** | Single rack or rack-aware cluster with compute, storage, and network | Most common, balanced workloads. One to sixteen nodes in scale. |
-| **Multi-Rack** | Scalable, multi-rack distributed architecture | High availability, large scale |
+| **Disaggregated** | External SAN storage (Fibre Channel / iSCSI) with Clos leaf-spine fabric | Up to sixty-four machines across multiple racks |
+| **Multi-Rack** | Scalable, multi-rack distributed architecture, that can scale up one hundred and twenty-eight machines | High availability, large scale |
 | **Disconnected** | Air-gapped operation with local management | Isolated / security-sensitive environments |
-| **M365 Local** | Microsoft 365 workloads with minimum 9 nodes | M365 on-premises deployments |
+| **Microsoft 365 Local** | Microsoft 365 workloads with minimum 9 nodes | Microsoft 365 on-premises deployments |
 
 ### Network Intents
 
@@ -186,6 +187,7 @@ The wizard follows a sequential flow:
 | **Compute + Storage** | Combined compute and storage traffic | 4+ adapters |
 | **All Traffic** | Single intent for all network types | 2 adapters |
 | **Custom** | User-defined adapter mapping | Flexible |
+| **Disaggregated** | External SAN storage (Fibre Channel / iSCSI) with Clos leaf-spine fabric | Up to 6 adapters |
 
 ### Storage Connectivity
 
@@ -324,13 +326,14 @@ For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## Additional Resources
 
 ### Official Documentation
-- [Azure Local Documentation](https://learn.microsoft.com/azure-stack/hci/)
-- [Network Reference Patterns](https://learn.microsoft.com/azure-stack/hci/plan/network-patterns-overview)
+- [Azure Local Documentation](https://learn.microsoft.com/azure/azure-local/)
+- [Network Reference Patterns](https://learn.microsoft.com/azure/azure-local/plan/network-patterns-overview)
 - [Azure Arc Documentation](https://learn.microsoft.com/azure/azure-arc/)
+- [Azure Local Pricing](https://azure.microsoft.com/pricing/details/azure-local/)
 
 ### Community
-- [Azure Local Tech Community](https://techcommunity.microsoft.com/t5/azure-stack-hub/ct-p/AzureStackHub)
-- [GitHub - Azure Local Supportability Forum](https://github.com/Azure/AzureLocal-Supportability)
+- [Azure Arc - TechCommunity](https://techcommunity.microsoft.com/category/azure/blog/azurearcblog)
+- [Azure Local - GitHub Supportability Forum](https://github.com/Azure/AzureLocal-Supportability)
 
 ---
 
@@ -397,7 +400,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Per-Model GPU-P Partitions**: GPU-P partition sizes dynamically filter based on the selected GPU model, showing VRAM per partition (e.g., A2 supports up to 1:8 / 2 GB, L40S supports up to 1:16 / 3 GB)
 - **GPU Capacity Bar**: New GPU capacity bar chart showing consumed vs available GPUs with N−1 node awareness for maintenance/drain reserve
 - **GPU Auto-Scaling**: GPU demand drives node count recommendations and GPUs-per-node auto-scaling (with AUTO badge) up to each model's physical maximum
-- **GPU Models Expanded**: Added NVIDIA T4 (16 GB, 70W, max 2/node), RTX Pro 6000 (48 GB, 600W, max 2/node), H100 (80 GB, 700W, max 4/node) with correct maxPerNode, DDA/GPU-P support flags, and AKS compatibility
+- **GPU Models Expanded**: Added NVIDIA T4 (16 GB, 70W, max 2/node), RTX Pro 6000 (48 GB, 600W, max 2/node), H100 (80 GB, 700W, max 2/node) with correct maxPerNode, DDA/GPU-P support flags, and AKS compatibility
 - **AKS GPU VM Sizes**: AKS workloads show all supported GPU-enabled VM SKUs (T4, A2, A16, L4, L40, L40S, RTX Pro 6000) with fixed vCPU/memory per size — auto-sets hardware GPU type on selection
 - **GPU Badge**: Workload cards show a yellow "GPU" badge when GPU-enabled
 - **GPU Threshold Warnings**: GPU ≥90% triggers over-threshold warnings, sizing notes, and blocks Designer export — includes notes for physical capacity exceeded vs N−1 capacity exceeded
@@ -750,6 +753,6 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 ### 🎉 Version 0.1.0 - Initial Release
 - **Auto-Save & Resume**: Browser localStorage persistence
 - **Export/Import**: Share configurations as JSON files
-- **Cost Estimator**: Rough monthly cost estimates
+- **Cost Estimator**: See [Azure Local Pricing](https://azure.microsoft.com/pricing/details/azure-local/) for cost estimates
 - **CIDR Calculator**: Built-in subnet calculator
 - **Real-time Validation**: Instant input feedback

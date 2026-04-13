@@ -175,7 +175,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Per-Model GPU-P Partitions:</strong> Partition sizes filter based on selected GPU model, showing VRAM per partition (e.g., A2 up to 1:8, L40S up to 1:16).</li>
                         <li><strong>GPU Capacity Bar:</strong> New GPU capacity bar showing consumed vs available GPUs with N−1 node awareness.</li>
                         <li><strong>GPU Auto-Scaling:</strong> GPU demand drives node count and GPUs-per-node auto-scaling (AUTO badge) up to each model's physical maximum.</li>
-                        <li><strong>GPU Models:</strong> Added NVIDIA T4, RTX Pro 6000, and H100 with correct maxPerNode limits (up to 4/node).</li>
+                        <li><strong>GPU Models:</strong> Added NVIDIA T4, RTX Pro 6000, and H100 with correct maxPerNode limits (up to 2/node).</li>
                         <li><strong>AKS GPU VM Sizes:</strong> All supported GPU-enabled VM SKUs with fixed vCPU/memory — auto-sets hardware GPU type.</li>
                         <li><strong>GPU Badge:</strong> Workload cards show a yellow "GPU" badge when GPU-enabled.</li>
                         <li><strong>Threshold Warnings:</strong> GPU ≥90% triggers warnings and blocks Designer export.</li>
@@ -1477,7 +1477,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Tool Rebranding:</strong> Now called "Odin for Azure Local" (Optimal Deployment and Infrastructure Navigator).</li>
                         <li><strong>Firewall Requirements Link:</strong> Direct access to firewall and endpoint documentation in Outbound Connectivity step.</li>
-                        <li><strong>M365 Local Guidance:</strong> Selecting M365 Local deployment type shows documentation link.</li>
+                        <li><strong>Microsoft 365 Local Guidance:</strong> Selecting Microsoft 365 Local deployment type shows documentation link.</li>
                     </ul>
                 </div>
 

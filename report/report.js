@@ -1423,9 +1423,9 @@
             md.push('**Wizard logic:** Disconnected mode disables cloud-specific selections that require internet access.');
         } else if (s.scenario === 'm365local') {
             md.push('');
-            md.push('**Why it matters:** M365 Local deployments are optimized for Microsoft 365 workloads with high availability requirements.');
+            md.push('**Why it matters:** Microsoft 365 Local deployments are optimized for Microsoft 365 workloads with high availability requirements.');
             md.push('');
-            md.push('**Wizard logic:** M365 Local requires a minimum of 9 physical nodes. Supports Standard scale configuration only.');
+            md.push('**Wizard logic:** Microsoft 365 Local requires a minimum of 9 physical nodes. Supports Standard scale configuration only.');
         }
         md.push('');
 
@@ -3370,7 +3370,7 @@
             if (s && s.outbound === 'air_gapped') return 'Disconnected (Air Gapped)';
             return 'Disconnected';
         }
-        if (val === 'm365local') return 'M365 Local';
+        if (val === 'm365local') return 'Microsoft 365 Local';
         return val;
     }
 
@@ -6509,8 +6509,8 @@
         } else if (s.scenario === 'm365local') {
             sections.push(block('Deployment Scenario',
                 '<strong>Selected:</strong> ' + escapeHtml(formatScenario(s.scenario, s))
-                + '<br><strong>Why it matters:</strong> M365 Local deployments are optimized for Microsoft 365 workloads with high availability requirements.'
-                + '<br><strong>Wizard logic:</strong> M365 Local requires a minimum of 9 physical nodes. Supports Standard scale configuration only.'
+                + '<br><strong>Why it matters:</strong> Microsoft 365 Local deployments are optimized for Microsoft 365 workloads with high availability requirements.'
+                + '<br><strong>Wizard logic:</strong> Microsoft 365 Local requires a minimum of 9 physical nodes. Supports Standard scale configuration only.'
                 + renderValidationInline(validations.byArea.Scenario)
             ));
         } else if (s.scenario === 'multirack') {
