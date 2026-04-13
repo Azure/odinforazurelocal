@@ -6042,12 +6042,220 @@ function loadSizerFromURL() {
 }
 
 // Trigger file picker for JSON import
-function importSizerJSON() {
-    const fileInput = document.getElementById('sizer-import-file');
+function importSizerJSON() { // eslint-disable-line no-unused-vars
+    showImportModal();
+}
+
+// Show the import modal
+function showImportModal() {
+    var overlay = document.getElementById('import-modal-overlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        switchImportTab('sizer');
+        // Clear previous state
+        var textarea = document.getElementById('cluster-json-input');
+        if (textarea) textarea.value = '';
+        var err = document.getElementById('cluster-json-error');
+        if (err) err.style.display = 'none';
+        var preview = document.getElementById('cluster-json-preview');
+        if (preview) preview.style.display = 'none';
+        var applyBtn = document.getElementById('cluster-import-apply-btn');
+        if (applyBtn) applyBtn.style.display = 'none';
+        window._pendingClusterImport = null;
+    }
+}
+
+function closeImportModal() { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('import-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function switchImportTab(tab) { // eslint-disable-line no-unused-vars
+    var sizerPanel = document.getElementById('import-panel-sizer');
+    var clusterPanel = document.getElementById('import-panel-cluster');
+    var sizerTab = document.getElementById('import-tab-sizer');
+    var clusterTab = document.getElementById('import-tab-cluster');
+    if (tab === 'sizer') {
+        if (sizerPanel) sizerPanel.style.display = '';
+        if (clusterPanel) clusterPanel.style.display = 'none';
+        if (sizerTab) { sizerTab.className = 'onboarding-btn onboarding-btn-primary'; }
+        if (clusterTab) { clusterTab.className = 'onboarding-btn onboarding-btn-secondary'; }
+    } else {
+        if (sizerPanel) sizerPanel.style.display = 'none';
+        if (clusterPanel) clusterPanel.style.display = '';
+        if (sizerTab) { sizerTab.className = 'onboarding-btn onboarding-btn-secondary'; }
+        if (clusterTab) { clusterTab.className = 'onboarding-btn onboarding-btn-primary'; }
+    }
+}
+
+function importSizerJSONFromModal() { // eslint-disable-line no-unused-vars
+    closeImportModal();
+    var fileInput = document.getElementById('sizer-import-file');
     if (fileInput) {
-        fileInput.value = ''; // reset so the same file can be re-selected
+        fileInput.value = '';
         fileInput.click();
     }
+}
+
+function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
+    var textarea = document.getElementById('cluster-json-input');
+    var errDiv = document.getElementById('cluster-json-error');
+    var previewDiv = document.getElementById('cluster-json-preview');
+    var applyBtn = document.getElementById('cluster-import-apply-btn');
+    if (!textarea) return;
+
+    errDiv.style.display = 'none';
+    previewDiv.style.display = 'none';
+    applyBtn.style.display = 'none';
+    window._pendingClusterImport = null;
+
+    var text = textarea.value.trim();
+    if (!text) {
+        errDiv.textContent = 'Please paste the Azure Local cluster JSON.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    var data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        errDiv.textContent = 'Invalid JSON: ' + e.message;
+        errDiv.style.display = '';
+        return;
+    }
+
+    // Validate it's an Azure Local cluster resource
+    if (!data.type || data.type.toLowerCase() !== 'microsoft.azurestackhci/clusters') {
+        errDiv.textContent = 'This does not appear to be an Azure Local cluster JSON. Expected type "microsoft.azurestackhci/clusters".';
+        errDiv.style.display = '';
+        return;
+    }
+
+    var props = data.properties;
+    if (!props || !props.reportedProperties || !props.reportedProperties.nodes || props.reportedProperties.nodes.length === 0) {
+        errDiv.textContent = 'No node information found in the cluster JSON. Ensure you are using the full JSON View from the Azure Portal.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    var nodes = props.reportedProperties.nodes;
+    var clusterName = props.reportedProperties.clusterName || data.name || 'Unknown';
+    var nodeCount = nodes.length;
+    var firstNode = nodes[0];
+    var coreCount = firstNode.coreCount || 0;
+    var memoryGiB = firstNode.memoryInGiB || 0;
+    var model = firstNode.model || 'Unknown';
+    var manufacturer = firstNode.manufacturer || 'Unknown';
+
+    // Check for heterogeneous nodes
+    var heterogeneous = false;
+    for (var i = 1; i < nodes.length; i++) {
+        if (nodes[i].coreCount !== coreCount || nodes[i].memoryInGiB !== memoryGiB) {
+            heterogeneous = true;
+            break;
+        }
+    }
+
+    // Determine CPU manufacturer from node data or core count heuristics
+    var cpuMfr = 'intel'; // default
+    // Heuristic: AMD Turin has 128+ cores; most Intel Xeon max at 86-172 but common at 8-64
+    // We can't be certain without CPU model string, so default to Intel
+
+    // Snap memory to nearest DIMM-symmetric value
+    var dimmOptions = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
+    var snappedMemory = dimmOptions.reduce(function(prev, curr) {
+        return Math.abs(curr - memoryGiB) < Math.abs(prev - memoryGiB) ? curr : prev;
+    });
+
+    // Determine sockets (1 or 2) — heuristic: if cores > max single-socket for gen, must be 2
+    var sockets = coreCount > 64 ? 2 : (coreCount > 32 ? 2 : 1);
+    var coresPerSocket = Math.round(coreCount / sockets);
+
+    // Build preview
+    var previewHTML = '<strong style="color: var(--accent-purple);">Detected Cluster: ' + escapeHtml(clusterName) + '</strong><br>';
+    previewHTML += '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 12px;">';
+    previewHTML += '<span>Machines: <strong>' + nodeCount + '</strong></span>';
+    previewHTML += '<span>Cores/Machine: <strong>' + coreCount + '</strong> (' + coresPerSocket + ' × ' + sockets + ' socket' + (sockets > 1 ? 's' : '') + ')</span>';
+    previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> → ' + snappedMemory + ' GB (DIMM-aligned)</span>';
+    previewHTML += '<span>Model: <strong>' + escapeHtml(model) + '</strong></span>';
+    previewHTML += '<span>Manufacturer: <strong>' + escapeHtml(manufacturer) + '</strong></span>';
+    previewHTML += '<span>Location: <strong>' + escapeHtml(data.location || '—') + '</strong></span>';
+    previewHTML += '</div>';
+    if (heterogeneous) {
+        previewHTML += '<div style="margin-top: 8px; color: var(--warning); font-size: 12px;">⚠️ Nodes have different specs — using first node as reference.</div>';
+    }
+
+    previewDiv.innerHTML = previewHTML;
+    previewDiv.style.display = '';
+    applyBtn.style.display = '';
+
+    // Store parsed data for apply
+    window._pendingClusterImport = {
+        clusterName: clusterName,
+        nodeCount: nodeCount,
+        coresPerSocket: coresPerSocket,
+        sockets: sockets,
+        memoryGB: snappedMemory,
+        cpuManufacturer: cpuMfr,
+        model: model
+    };
+}
+
+function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
+    var cfg = window._pendingClusterImport;
+    if (!cfg) return;
+
+    closeImportModal();
+
+    // Apply to sizer dropdowns
+    var nodeCountEl = document.getElementById('node-count');
+    if (nodeCountEl) nodeCountEl.value = String(cfg.nodeCount);
+    markManualSet('node-count');
+
+    var cpuMfrEl = document.getElementById('cpu-manufacturer');
+    if (cpuMfrEl) cpuMfrEl.value = cfg.cpuManufacturer;
+
+    // Trigger generation update
+    if (typeof onCpuManufacturerChange === 'function') onCpuManufacturerChange();
+
+    var cpuCoresEl = document.getElementById('cpu-cores');
+    if (cpuCoresEl) {
+        // Find closest available option
+        var options = Array.from(cpuCoresEl.options).map(function(o) { return parseInt(o.value, 10); });
+        var closest = options.reduce(function(prev, curr) {
+            return Math.abs(curr - cfg.coresPerSocket) < Math.abs(prev - cfg.coresPerSocket) ? curr : prev;
+        });
+        cpuCoresEl.value = String(closest);
+    }
+    markManualSet('cpu-cores');
+
+    var cpuSocketsEl = document.getElementById('cpu-sockets');
+    if (cpuSocketsEl) cpuSocketsEl.value = String(cfg.sockets);
+    markManualSet('cpu-sockets');
+
+    var memEl = document.getElementById('node-memory');
+    if (memEl) memEl.value = String(cfg.memoryGB);
+    markManualSet('node-memory');
+
+    calculateRequirements({ skipAutoNodeRecommend: true });
+
+    // Show post-import instructions
+    var summary = document.getElementById('post-import-summary');
+    if (summary) {
+        summary.innerHTML = 'Imported <strong>' + cfg.nodeCount + ' machines</strong> from cluster <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
+            + ' — ' + cfg.coresPerSocket + ' cores × ' + cfg.sockets + ' socket' + (cfg.sockets > 1 ? 's' : '') + ', ' + cfg.memoryGB + ' GB memory per machine.'
+            + '<br><br>To complete your sizing, configure the items below to match your cluster:';
+    }
+    var postOverlay = document.getElementById('post-import-overlay');
+    if (postOverlay) postOverlay.style.display = 'flex';
+
+    showToast('Cluster "' + cfg.clusterName + '" imported — configure storage and add workloads', 'success');
+}
+
+function closePostImportOverlay() { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('post-import-overlay');
+    if (overlay) overlay.style.display = 'none';
 }
 
 // Handle the selected file for import

@@ -986,6 +986,102 @@
     </div>
 
     <!-- Analytics -->
+    <!-- Import Configuration Modal -->
+    <div class="onboarding-overlay" id="import-modal-overlay" style="display: none;">
+        <div class="onboarding-card" style="max-width: 680px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 class="onboarding-title" style="margin: 0;">📂 Import Configuration</h2>
+                <button onclick="closeImportModal()" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px 8px;">&times;</button>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+                <button id="import-tab-sizer" onclick="switchImportTab('sizer')" class="onboarding-btn onboarding-btn-primary" style="flex: 1;">📤 Sizer Configuration</button>
+                <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary" style="flex: 1;">☁️ Azure Local Cluster</button>
+            </div>
+
+            <!-- Tab 1: Sizer Config Import -->
+            <div id="import-panel-sizer">
+                <div class="onboarding-features" style="grid-template-columns: 1fr; margin-bottom: 16px;">
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">📄</span>
+                        <div class="onboarding-feature-text">
+                            <strong>Import a previously exported ODIN Sizer configuration</strong>
+                            Select a .json file that was exported using the Export JSON button. This will restore all workloads, hardware settings, and MANUAL overrides.
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <button class="onboarding-btn onboarding-btn-primary" onclick="importSizerJSONFromModal()">Select JSON File</button>
+                </div>
+            </div>
+
+            <!-- Tab 2: Azure Cluster JSON Import -->
+            <div id="import-panel-cluster" style="display: none;">
+                <div class="onboarding-features" style="grid-template-columns: 1fr; margin-bottom: 16px;">
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">☁️</span>
+                        <div class="onboarding-feature-text">
+                            <strong>Import hardware specs from an existing Azure Local cluster</strong>
+                            Navigate to your cluster in the <a href="https://portal.azure.com" target="_blank" style="color: var(--accent-blue);">Azure Portal</a> &rarr; Select your cluster &rarr; <strong>JSON View</strong> &rarr; Copy the full JSON and paste it below.
+                        </div>
+                    </div>
+                </div>
+                <textarea id="cluster-json-input" placeholder="Paste Azure Local cluster JSON here..." style="width: 100%; height: 160px; background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-primary); font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; padding: 12px; resize: vertical; box-sizing: border-box;"></textarea>
+                <div id="cluster-json-error" style="display: none; margin-top: 8px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: var(--danger); font-size: 12px;"></div>
+                <div id="cluster-json-preview" style="display: none; margin-top: 8px; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; font-size: 13px;"></div>
+                <div style="text-align: center; margin-top: 12px;">
+                    <button class="onboarding-btn onboarding-btn-primary" onclick="parseAndPreviewClusterJSON()">Parse &amp; Preview</button>
+                    <button id="cluster-import-apply-btn" class="onboarding-btn onboarding-btn-primary" onclick="applyClusterJSONImport()" style="display: none; margin-left: 8px;">Apply Configuration</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post-Import Instructions Modal (shown after cluster JSON import) -->
+    <div class="onboarding-overlay" id="post-import-overlay" style="display: none;">
+        <div class="onboarding-card" style="max-width: 600px;">
+            <div class="onboarding-icon">🔧</div>
+            <h2 class="onboarding-title">Configuration Imported</h2>
+            <p class="onboarding-description" id="post-import-summary"></p>
+
+            <div class="onboarding-features">
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">💾</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Configure Storage</strong>
+                        Set the disk count, disk size, and storage type to match your cluster's physical disks.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">📦</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Add Workloads</strong>
+                        Add your VMs, AKS Arc clusters, and AVD sessions to see how the existing hardware handles them.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">🔒</span>
+                    <div class="onboarding-feature-text">
+                        <strong>MANUAL Overrides</strong>
+                        Imported values are locked as MANUAL — auto-scaling won't override them.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">📊</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Review Capacity</strong>
+                        Check utilization bars and sizing notes to see if your hardware fits the workloads.
+                    </div>
+                </div>
+            </div>
+
+            <div class="onboarding-buttons">
+                <button class="onboarding-btn onboarding-btn-primary" onclick="closePostImportOverlay()">Got it — Let's Configure</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/utils.js"></script>
     <script src="../js/analytics.js"></script>
     <script src="../js/changelog.js"></script>
