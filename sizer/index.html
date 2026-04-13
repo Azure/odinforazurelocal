@@ -39,7 +39,7 @@
                     </div>
                 </div>
             </div>
-            <p class="header-description">Calculate cluster hardware requirements based on your workload scenarios and their resiliency and capacity requirements. This tool provides example hardware configurations only. Please consult with your preferred hardware OEM partner for detailed guidance and recommendations on their Azure Local solution offerings.</p>
+            <p class="header-description">Calculate instance hardware requirements based on your workload scenarios and their resiliency and capacity requirements. This tool provides example hardware configurations only. Please consult with your preferred hardware OEM partner for detailed guidance and recommendations on their Azure Local solution offerings.</p>
 
             <!-- Page Statistics -->
             <div id="page-statistics">
@@ -92,7 +92,8 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                             </svg>
-                            Workload Scenario
+                            Workload Scenarios
+                            <span class="start-here-badge">START HERE</span>
                         </h2>
                         <div class="section-header-actions">
                             <button class="btn btn-secondary btn-sm" onclick="importSizerJSON()" title="Import configuration from a JSON file">
@@ -136,13 +137,18 @@
                 <!-- Workloads List -->
                 <div class="workloads-list" id="workloads-list">
                     <div class="empty-state" id="empty-state">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                            <path d="M12 22V12M3.27 6.96L12 12l8.73-5.04"/>
-                        </svg>
-                        <p>No workloads added yet</p>
-                        <span>Click a workload type above to get started</span>
-                        <a href="#rack-viz-section" style="color: #60a5fa; text-decoration: underline; margin-top: 8px; display: inline-block;">View an example 3D visualization of the hardware below</a>
+                        <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15)); border: 2px dashed rgba(59, 130, 246, 0.4); border-radius: 16px; padding: 32px 24px; text-align: center; position: relative;">
+                            <span class="start-here-badge">START HERE</span>
+                            <div style="font-size: 40px; margin-bottom: 12px;">&#9651;</div>
+                            <h3 style="margin: 0 0 8px 0; color: var(--accent-blue); font-size: 18px; font-weight: 700;">Start by adding a workload</h3>
+                            <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">Click one of the workload buttons above<br>to size your Azure Local instance</p>
+                            <div style="display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary);">
+                                <span>&#128187; VMs</span>
+                                <span>&#9096; AKS Arc</span>
+                                <span>&#128421; AVD</span>
+                            </div>
+                        </div>
+                        <a href="#rack-viz-section" style="color: #60a5fa; text-decoration: underline; margin-top: 12px; display: inline-block; font-size: 13px;">View an example 3D visualization of the hardware below</a>
                     </div>
                 </div>
 
@@ -783,14 +789,17 @@
             </div>
             <div id="rack-viz-container">
                 <canvas id="rack-3d-canvas"></canvas>
-                <img src="../images/microsoft-azure-logo-large.png" alt="Microsoft Azure" class="rack-viz-logo">
+                <div class="rack-viz-brand">
+                    <img src="../images/azurelocal-instance.svg" alt="Azure Local" class="rack-viz-logo">
+                    <span class="rack-viz-brand-text">Azure Local</span>
+                </div>
                 <div class="rack-viz-controls">
                     <div class="hint">
                         &#128161; Tip: Left-click and hold to rotate · Scroll to zoom · Right-click and hold to move
                     </div>
                     <div class="rack-viz-legend">
                         <span class="legend-item"><span class="legend-swatch" style="background:#aaaaaa;"></span> Server Node</span>
-                        <span class="legend-item"><span class="legend-swatch" style="background:#059669;"></span> ToR Switch</span>
+                        <span class="legend-item"><span class="legend-swatch" style="background:#444444;"></span> ToR Switch</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#1a6fc4;"></span> Core Router / Firewall</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#3399ff;"></span> Mgmt/Compute</span>
                         <span class="legend-item"><span class="legend-swatch" style="background:#ff66bb;"></span> SMB Trunk</span>
