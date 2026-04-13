@@ -6617,6 +6617,22 @@
             + renderValidationInline(validations.byArea.Intent)
         ));
 
+        // IP + Infra VLAN
+        var mgmtNotes = [];
+        mgmtNotes.push('Management IP strategy affects provisioning workflow and long-term operations.');
+        mgmtNotes.push('Infrastructure VLAN selection ensures consistent reachability to Arc registration and management endpoints.');
+        mgmtNotes.push('Planning note: management VLAN tagging (when required) must be configured on the physical adapters before Azure Arc registration; the deployment orchestrator carries this VLAN configuration into infrastructure VMs.');
+        mgmtNotes.push('Planning note: the infrastructure IP pool is designed for cluster infrastructure services; size it with headroom if you expect additional services later.');
+        sections.push(block('IP, Infrastructure Network & VLAN',
+            '<strong>IP:</strong> ' + escapeHtml(s.ip ? (s.ip.charAt(0).toUpperCase() + s.ip.slice(1)) : '-')
+            + '<br><strong>Infra VLAN:</strong> ' + escapeHtml(s.infraVlan === 'custom' ? 'Custom VLAN' : (s.infraVlan === 'default' ? 'Default VLAN' : (s.infraVlan || '-')))
+            + (s.infraVlan === 'custom' ? ('<br><strong>Infra VLAN ID:</strong> <span class="summary-value mono">' + escapeHtml(s.infraVlanId || '-') + '</span>') : '')
+            + (s.infraCidr ? ('<br><strong>Infra Network:</strong> <span class="summary-value mono">' + escapeHtml(s.infraCidr) + '</span>') : '')
+            + (s.infra && s.infra.start && s.infra.end ? ('<br><strong>Infra Range:</strong> <span class="summary-value mono">' + escapeHtml(s.infra.start + ' - ' + s.infra.end) + '</span>') : '')
+            + list(mgmtNotes)
+            + renderValidationInline(validations.byArea.Infrastructure)
+        ));
+
         // Outbound / Arc / Proxy
         var outboundNotes = [];
         if (s.outbound === 'private') {
@@ -6725,6 +6741,7 @@
                     : '')
                 + (isDisconnected ? '' : '<p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary); text-align: center;">'
                 + '<a href="../docs/outbound-connectivity/" target="_blank" style="color: var(--accent-blue); text-decoration: none;">📘 View complete Outbound Connectivity Guide</a>'
+                + ' · <a href="https://cristianedwards.github.io/AzLoFlows/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;">🔀 Interactive Diagram Builder</a>'
                 + '</p>')
             var peItems = '';
             s.privateEndpointsList.forEach(function(peKey) {
@@ -6828,22 +6845,6 @@
             + outboundDiagramHtml
             + privateEndpointsHtml
             + renderValidationInline(validations.byArea.Outbound)
-        ));
-
-        // IP + Infra VLAN
-        var mgmtNotes = [];
-        mgmtNotes.push('Management IP strategy affects provisioning workflow and long-term operations.');
-        mgmtNotes.push('Infrastructure VLAN selection ensures consistent reachability to Arc registration and management endpoints.');
-        mgmtNotes.push('Planning note: management VLAN tagging (when required) must be configured on the physical adapters before Azure Arc registration; the deployment orchestrator carries this VLAN configuration into infrastructure VMs.');
-        mgmtNotes.push('Planning note: the infrastructure IP pool is designed for cluster infrastructure services; size it with headroom if you expect additional services later.');
-        sections.push(block('IP, Infrastructure Network & VLAN',
-            '<strong>IP:</strong> ' + escapeHtml(s.ip ? (s.ip.charAt(0).toUpperCase() + s.ip.slice(1)) : '-')
-            + '<br><strong>Infra VLAN:</strong> ' + escapeHtml(s.infraVlan === 'custom' ? 'Custom VLAN' : (s.infraVlan === 'default' ? 'Default VLAN' : (s.infraVlan || '-')))
-            + (s.infraVlan === 'custom' ? ('<br><strong>Infra VLAN ID:</strong> <span class="summary-value mono">' + escapeHtml(s.infraVlanId || '-') + '</span>') : '')
-            + (s.infraCidr ? ('<br><strong>Infra Network:</strong> <span class="summary-value mono">' + escapeHtml(s.infraCidr) + '</span>') : '')
-            + (s.infra && s.infra.start && s.infra.end ? ('<br><strong>Infra Range:</strong> <span class="summary-value mono">' + escapeHtml(s.infra.start + ' - ' + s.infra.end) + '</span>') : '')
-            + list(mgmtNotes)
-            + renderValidationInline(validations.byArea.Infrastructure)
         ));
 
         // Identity + DNS
