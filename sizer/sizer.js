@@ -5314,109 +5314,98 @@ function mapSizerToDesignerScale(clusterType) {
 
 // Export sizer results as PDF using html2canvas + jsPDF
 function exportSizerPDF() { // eslint-disable-line no-unused-vars
-    const resultsPanel = document.querySelector('.results-panel');
-    if (!resultsPanel) {
+    const sizerLayout = document.querySelector('.sizer-layout');
+    if (!sizerLayout) {
         alert('No results to export. Add workloads first.');
         return;
     }
 
-    showToast('Generating PDF...', 'success');
+    showToast('Generating PDF — this may take a few seconds...', 'success');
 
-    // Temporarily expand all collapsed sections for capture
-    const details = resultsPanel.querySelectorAll('details');
-    const wasOpen = [];
-    details.forEach(function(d) {
-        wasOpen.push(d.open);
-        d.open = true;
-    });
-
-    // Hide buttons during capture
-    const exportActions = document.querySelector('.export-actions');
-    const designerAction = document.getElementById('designer-action');
-    if (exportActions) exportActions.style.display = 'none';
-    if (designerAction) designerAction.style.display = 'none';
-
-    html2canvas(resultsPanel, {
-        backgroundColor: '#0a0e27',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        windowWidth: 800
-    }).then(function(canvas) {
-        // Restore collapsed state
-        details.forEach(function(d, i) { d.open = wasOpen[i]; });
-        if (exportActions) exportActions.style.display = '';
-        if (designerAction) designerAction.style.display = '';
-
-        const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 280; // A4 landscape usable width in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-        // eslint-disable-next-line no-undef
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({
-            orientation: imgHeight > 190 ? 'portrait' : 'landscape',
-            unit: 'mm',
-            format: 'a4'
+    // Collect sections to capture individually for clean page breaks
+    const sections = [];
+    // Config panel sections
+    const configPanel = document.querySelector('.config-panel');
+    if (configPanel) {
+        configPanel.querySelectorAll('.panel-section, .workloads-list, .cluster-config').forEach(function(s) {
+            if (s.offsetHeight > 0) sections.push(s);
         });
+    }
+    // Results panel sections
+    const resultsPanel = document.querySelector('.results-panel');
+    if (resultsPanel) {
+        resultsPanel.querySelectorAll('.panel-section, .requirements-grid, .per-node-section, .capacity-breakdown, .power-rack-estimate, #growth-projection-section, .notes-section, #multi-instance-section').forEach(function(s) {
+            if (s.offsetHeight > 0 && s.style.display !== 'none') sections.push(s);
+        });
+    }
 
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 10;
-        const usableWidth = pageWidth - margin * 2;
-        const scaledHeight = (canvas.height * usableWidth) / canvas.width;
+    // Expand all collapsed sections
+    const allDetails = sizerLayout.querySelectorAll('details');
+    const wasOpen = [];
+    allDetails.forEach(function(d) { wasOpen.push(d.open); d.open = true; });
 
-        // Add header
-        pdf.setFontSize(14);
-        pdf.setTextColor(0, 120, 212);
-        pdf.text('ODIN Sizer for Azure Local', margin, 12);
-        pdf.setFontSize(8);
-        pdf.setTextColor(128, 128, 128);
-        pdf.text('Generated: ' + new Date().toLocaleString(), margin, 17);
+    // Hide buttons
+    const hideEls = sizerLayout.querySelectorAll('.export-actions, #designer-action, .rack-viz-section, .workload-card-actions, .onboarding-overlay, .section-header-actions');
+    hideEls.forEach(function(el) { el.style.display = 'none'; });
 
-        const startY = 22;
-        let remainingHeight = scaledHeight;
-        let sourceY = 0;
+    const { jsPDF } = window.jspdf; // eslint-disable-line no-undef
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const usableW = pageWidth - margin * 2;
 
-        // Paginate if content is taller than one page
-        while (remainingHeight > 0) {
-            const sliceHeight = Math.min(remainingHeight, pageHeight - startY - margin);
-            const sliceRatio = sliceHeight / scaledHeight;
-            const sourceSliceH = canvas.height * sliceRatio;
+    // Header
+    pdf.setFontSize(14);
+    pdf.setTextColor(0, 120, 212);
+    pdf.text('ODIN Sizer for Azure Local', margin, 12);
+    pdf.setFontSize(8);
+    pdf.setTextColor(128, 128, 128);
+    pdf.text('Generated: ' + new Date().toLocaleString(), margin, 17);
 
-            // Create a slice canvas
-            const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = canvas.width;
-            sliceCanvas.height = sourceSliceH;
-            const ctx = sliceCanvas.getContext('2d');
-            ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceSliceH, 0, 0, canvas.width, sourceSliceH);
+    let currentY = 22;
+    let sectionIndex = 0;
 
-            const sliceData = sliceCanvas.toDataURL('image/png');
-            pdf.addImage(sliceData, 'PNG', margin, sourceY === 0 ? startY : margin, usableWidth, sliceHeight);
-
-            remainingHeight -= sliceHeight;
-            sourceY += sourceSliceH;
-
-            if (remainingHeight > 0) {
-                pdf.addPage();
-            }
+    function captureNextSection() {
+        if (sectionIndex >= sections.length) {
+            // Done — restore and save
+            allDetails.forEach(function(d, i) { d.open = wasOpen[i]; });
+            hideEls.forEach(function(el) { el.style.display = ''; });
+            const st = getSizerState();
+            const dateStr = new Date().toISOString().slice(0, 10);
+            pdf.save('odin-sizer_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.pdf');
+            showToast('PDF downloaded', 'success');
+            return;
         }
 
-        // Build filename
-        const st = getSizerState();
-        const dateStr = new Date().toISOString().slice(0, 10);
-        const filename = 'odin-sizer_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.pdf';
+        const section = sections[sectionIndex];
+        html2canvas(section, {
+            backgroundColor: '#000000',
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            windowWidth: 800
+        }).then(function(canvas) {
+            const imgH = (canvas.height * usableW) / canvas.width;
 
-        pdf.save(filename);
-        showToast('PDF downloaded', 'success');
-    }).catch(function(err) {
-        // Restore on error
-        details.forEach(function(d, i) { d.open = wasOpen[i]; });
-        if (exportActions) exportActions.style.display = '';
-        if (designerAction) designerAction.style.display = '';
-        console.error('PDF export failed:', err);
-        alert('PDF export failed. See console for details.');
-    });
+            // If this section won't fit on current page, add a new page
+            if (currentY + imgH > pageHeight - margin && currentY > 25) {
+                pdf.addPage();
+                currentY = margin;
+            }
+
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, currentY, usableW, imgH);
+            currentY += imgH + 4; // 4mm gap between sections
+
+            sectionIndex++;
+            captureNextSection();
+        }).catch(function() {
+            sectionIndex++;
+            captureNextSection();
+        });
+    }
+
+    captureNextSection();
 }
 
 function exportSizerWord() {
