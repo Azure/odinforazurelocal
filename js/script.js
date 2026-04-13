@@ -1134,28 +1134,28 @@ function renderNodeSettings() {
     container.innerHTML = '';
 
     // Determine rack grouping
-    var rackGroups = null;
+    let rackGroups = null;
 
     if (state.architecture === 'disaggregated' && state.disaggRackCount > 1) {
         // Disaggregated multi-rack: sequential groups of nodesPerRack
-        var npr = state.disaggNodesPerRack || 1;
-        var racks = state.disaggRackCount || 1;
+        const npr = state.disaggNodesPerRack || 1;
+        const racks = state.disaggRackCount || 1;
         rackGroups = [];
-        for (var r = 0; r < racks; r++) {
-            var nodes = [];
-            for (var n = 0; n < npr && (r * npr + n) < count; n++) {
+        for (let r = 0; r < racks; r++) {
+            const nodes = [];
+            for (let n = 0; n < npr && (r * npr + n) < count; n++) {
                 nodes.push(r * npr + n);
             }
             rackGroups.push({ label: 'Rack ' + (r + 1), nodeIndices: nodes });
         }
     } else if (state.scale === 'rack_aware' && state.rackAwareZones && state.rackAwareZones.assignments) {
         // Rack-aware HCI: group by zone assignment
-        var assignments = state.rackAwareZones.assignments;
-        var z1Name = (state.rackAwareZones.zone1Name || 'Zone 1').trim();
-        var z2Name = (state.rackAwareZones.zone2Name || 'Zone 2').trim();
-        var zone1Nodes = [], zone2Nodes = [];
-        for (var i = 0; i < count; i++) {
-            var zoneNum = Number(assignments[String(i + 1)]);
+        const assignments = state.rackAwareZones.assignments;
+        const z1Name = (state.rackAwareZones.zone1Name || 'Zone 1').trim();
+        const z2Name = (state.rackAwareZones.zone2Name || 'Zone 2').trim();
+        const zone1Nodes = [], zone2Nodes = [];
+        for (let i = 0; i < count; i++) {
+            const zoneNum = Number(assignments[String(i + 1)]);
             if (zoneNum === 2) {
                 zone2Nodes.push(i);
             } else {
@@ -1194,15 +1194,15 @@ function renderNodeSettings() {
 
     if (rackGroups) {
         // Render nodes grouped by rack/zone
-        for (var g = 0; g < rackGroups.length; g++) {
-            var group = rackGroups[g];
-            var header = document.createElement('div');
+        for (let g = 0; g < rackGroups.length; g++) {
+            const group = rackGroups[g];
+            const header = document.createElement('div');
             header.style.cssText = 'margin-top: ' + (g === 0 ? '0.5rem' : '1.5rem') + '; padding: 0.5rem 0.75rem; background: rgba(0,120,212,0.08); border: 1px solid rgba(0,120,212,0.25); border-radius: 6px; display: flex; align-items: center; gap: 0.5rem;';
             header.innerHTML = '<span style="font-size: 1rem; color: var(--accent-primary); font-weight: 600;">' + escapeHtml(group.label) + '</span>'
                 + '<span style="font-size: 0.8rem; color: var(--text-secondary);">' + group.nodeIndices.length + ' node' + (group.nodeIndices.length !== 1 ? 's' : '') + '</span>';
             container.appendChild(header);
 
-            for (var ni = 0; ni < group.nodeIndices.length; ni++) {
+            for (let ni = 0; ni < group.nodeIndices.length; ni++) {
                 container.appendChild(renderNodeRow(group.nodeIndices[ni]));
             }
         }
@@ -6646,10 +6646,10 @@ function renderDiagram() {
                     portsHtml += `<div style="width:4px; height:12px; background:${c.bg}; border-radius:1px; opacity:0.5;" title="${c.label}"></div>`;
                 } else {
                     // 2 ports per slot
-                    portsHtml += `<div style="display:flex; gap:1px;">`;
+                    portsHtml += '<div style="display:flex; gap:1px;">';
                     portsHtml += `<div style="width:5px; height:12px; background:${c.bg}; border-radius:1px;" title="${c.label} P1"></div>`;
                     portsHtml += `<div style="width:5px; height:12px; background:${c.bg}; border-radius:1px;" title="${c.label} P2"></div>`;
-                    portsHtml += `</div>`;
+                    portsHtml += '</div>';
                 }
             }
             portsHtml += '</div>';
@@ -6699,7 +6699,7 @@ function renderDiagram() {
         if (hasBackup) legendItems.push({ color: slotColors.backup.bg, label: 'Backup' });
         legendItems.push({ color: slotColors.bmc.bg, label: 'BMC' });
 
-        html += `<div style="display:flex; justify-content:center; gap:0.5rem; margin-top:0.75rem; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.05); font-size:0.6rem; color:var(--text-secondary);">`;
+        html += '<div style="display:flex; justify-content:center; gap:0.5rem; margin-top:0.75rem; padding-top:0.5rem; border-top:1px solid rgba(255,255,255,0.05); font-size:0.6rem; color:var(--text-secondary);">';
         for (const item of legendItems) {
             html += `<div style="display:flex; align-items:center; gap:3px;"><div style="width:6px; height:6px; background:${item.color}; border-radius:50%;"></div>${item.label}</div>`;
         }
@@ -8969,7 +8969,7 @@ function transferToSizer() {
  * will work with whatever data is provided, and the QoS validator is always available.
  */
 function openSwitchConfigDirect() { // eslint-disable-line no-unused-vars
-    var payload = {
+    const payload = {
         source: 'designer',
         timestamp: new Date().toISOString(),
         scenario: state.scenario || null,
@@ -9642,7 +9642,7 @@ function showTemplates() {
                 infraGateway: '192.168.1.1',
                 infraGatewayManual: true,
                 infraCidrAuto: true,
-                nodeSettings: Array.from({ length: 64 }, function (_, i) {
+                nodeSettings: Array.from({ length: 64 }, function(_, i) {
                     return { name: 'node' + (i + 1), ipCidr: '192.168.1.' + (i + 2) + '/24' };
                 }),
                 infraVlan: 'default',
@@ -10141,8 +10141,8 @@ function loadTemplate(templateIndex) {
 
         // Re-apply disaggregated state fields (selectOption calls may have reset them)
         if (config.architecture === 'disaggregated') {
-            var disaggKeys = Object.keys(config).filter(function (k) { return k.indexOf('disagg') === 0; });
-            disaggKeys.forEach(function (k) { state[k] = config[k]; });
+            const disaggKeys = Object.keys(config).filter(function(k) { return k.indexOf('disagg') === 0; });
+            disaggKeys.forEach(function(k) { state[k] = config[k]; });
         }
 
         // Apply SDN settings
@@ -10368,7 +10368,7 @@ function updateBreadcrumbs() {
     const breadcrumbNavDa = document.getElementById('breadcrumb-nav-da');
     if (!breadcrumbNav) return;
 
-    var isDisagg = state.architecture === 'disaggregated';
+    const isDisagg = state.architecture === 'disaggregated';
 
     // Show the correct breadcrumb bar based on architecture
     if (state.scenario && !isDisagg) {
@@ -11588,19 +11588,19 @@ function resetAdapterMapping() {
 }
 
 function renderHciHostNetworkingPreview() {
-    var container = document.getElementById('hci-nic-layout-diagram');
+    const container = document.getElementById('hci-nic-layout-diagram');
     if (!container) return;
     container.innerHTML = '';
 
-    var portCount = parseInt(state.ports) || 0;
+    const portCount = parseInt(state.ports) || 0;
     if (portCount <= 0) return;
 
     function colorRgb(hex) {
         return parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16);
     }
 
-    var isSwitchless = state.storage === 'switchless';
-    var nodeCount = parseInt(state.nodes) || 1;
+    const isSwitchless = state.storage === 'switchless';
+    const nodeCount = parseInt(state.nodes) || 1;
 
     // For switchless 2-4 node, render multi-node switchless diagram
     if (isSwitchless && nodeCount >= 2 && nodeCount <= 4) {
@@ -11610,48 +11610,48 @@ function renderHciHostNetworkingPreview() {
 
     // --- Switched / single-node ---
     // Show up to 2 nodes for multi-node switched scenarios (like the report)
-    var displayNodes = (nodeCount > 1) ? Math.min(2, nodeCount) : 1;
+    const displayNodes = (nodeCount > 1) ? Math.min(2, nodeCount) : 1;
 
-    var zoneColorMap = {
+    const zoneColorMap = {
         'mgmt_compute': '#3b82f6', 'mgmt': '#3b82f6',
         'compute': '#22c55e', 'compute_1': '#22c55e', 'compute_2': '#10b981',
         'storage': '#8b5cf6', 'compute_storage': '#8b5cf6', 'all': '#3b82f6'
     };
-    var zoneLabelMap = {
+    const zoneLabelMap = {
         'mgmt_compute': 'Mgmt + Compute', 'mgmt': 'Management',
         'compute': 'Compute', 'compute_1': 'Compute 1', 'compute_2': 'Compute 2',
         'storage': 'Storage', 'compute_storage': 'Compute + Storage', 'all': 'All Traffic'
     };
 
-    var groups = getIntentNicGroups(state.intent, portCount);
+    const groups = getIntentNicGroups(state.intent, portCount);
     if (groups.length === 0) return;
 
-    var nicGroups = [];
-    for (var gi = 0; gi < groups.length; gi++) {
-        var g = groups[gi];
-        var baseKey = String(g.key || '').startsWith('custom_') ? String(g.key).substring('custom_'.length) : String(g.key || '');
-        var color = zoneColorMap[baseKey] || '#3b82f6';
-        var label = zoneLabelMap[baseKey] || g.label;
-        var nics = [];
-        for (var ni = 0; ni < g.nics.length; ni++) {
-            var portIdx = g.nics[ni];
-            var portName = getPortDisplayName(portIdx);
-            var speed = (state.portConfig && state.portConfig[portIdx - 1] && state.portConfig[portIdx - 1].speed) || '25GbE';
+    const nicGroups = [];
+    for (let gi = 0; gi < groups.length; gi++) {
+        const g = groups[gi];
+        const baseKey = String(g.key || '').startsWith('custom_') ? String(g.key).substring('custom_'.length) : String(g.key || '');
+        const color = zoneColorMap[baseKey] || '#3b82f6';
+        const label = zoneLabelMap[baseKey] || g.label;
+        const nics = [];
+        for (let ni = 0; ni < g.nics.length; ni++) {
+            const portIdx = g.nics[ni];
+            const portName = getPortDisplayName(portIdx);
+            const speed = (state.portConfig && state.portConfig[portIdx - 1] && state.portConfig[portIdx - 1].speed) || '25GbE';
             nics.push({ name: portName, speed: speed, leaf: (ni % 2 === 0) ? 'A' : 'B' });
         }
-        var hasVnic = (baseKey === 'mgmt_compute' || baseKey === 'mgmt' || baseKey === 'all');
-        var vnicAbove = null;
+        const hasVnic = (baseKey === 'mgmt_compute' || baseKey === 'mgmt' || baseKey === 'all');
+        let vnicAbove = null;
         if (hasVnic) {
-            var vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+            const vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
             vnicAbove = { name: 'Mgmt vNIC', vlan: vlanLabel };
         }
-        var vlanBelow = null;
+        let vlanBelow = null;
         if (baseKey === 'storage' || baseKey === 'all') {
-            var ov = state.intentOverrides && state.intentOverrides[g.key];
+            const ov = state.intentOverrides && state.intentOverrides[g.key];
             if (ov) {
-                var vlans = [];
-                for (var vi = 1; vi <= 4; vi++) {
-                    var vk = 'storageNetwork' + vi + 'VlanId';
+                const vlans = [];
+                for (let vi = 1; vi <= 4; vi++) {
+                    const vk = 'storageNetwork' + vi + 'VlanId';
                     if (ov[vk]) vlans.push('VLAN ' + ov[vk]);
                 }
                 if (vlans.length > 0) vlanBelow = vlans.join(' / ');
@@ -11661,51 +11661,51 @@ function renderHciHostNetworkingPreview() {
     }
     if (nicGroups.length === 0) return;
 
-    var adapterW = 62, adapterH = 38, adapterGap = 10, groupGap = 18;
-    var mgmtVnicAreaH = 48;
-    var switchH = 50, switchW = 160, switchGap = 70;
+    const adapterW = 62, adapterH = 38, adapterGap = 10, groupGap = 18;
+    const mgmtVnicAreaH = 48;
+    const switchH = 50, switchW = 160, switchGap = 70;
 
     function rowWidth(grps) {
-        var w = 0;
-        for (var i = 0; i < grps.length; i++) {
+        let w = 0;
+        for (let i = 0; i < grps.length; i++) {
             w += grps[i].nics.length * adapterW + (grps[i].nics.length - 1) * adapterGap;
             if (i < grps.length - 1) w += groupGap;
         }
         return w;
     }
 
-    var nicRowW = rowWidth(nicGroups);
-    var nodeW = Math.max(440, nicRowW + 60);
-    var nodeH = 225 + mgmtVnicAreaH;
-    var marginX = 50, marginTop = 90, marginBottom = 60;
-    var nodeGapX = 40;
+    const nicRowW = rowWidth(nicGroups);
+    const nodeW = Math.max(440, nicRowW + 60);
+    const nodeH = 225 + mgmtVnicAreaH;
+    const marginX = 50, marginTop = 90, marginBottom = 60;
+    const nodeGapX = 40;
 
-    var isSwitched = state.storage === 'switched' || state.nodes === '1';
-    var torCount = (state.torSwitchCount === 'single') ? 1 : 2;
-    var showToR = isSwitched && !!state.torSwitchCount;
+    const isSwitched = state.storage === 'switched' || state.nodes === '1';
+    const torCount = (state.torSwitchCount === 'single') ? 1 : 2;
+    const showToR = isSwitched && !!state.torSwitchCount;
 
-    var switchAreaH = showToR ? (switchH + 90) : 0;
-    var totalSwitchW = torCount === 2 ? (2 * switchW + switchGap) : switchW;
-    var allNodesW = displayNodes * nodeW + (displayNodes - 1) * nodeGapX;
-    var svgW = Math.max(allNodesW + marginX * 2, totalSwitchW + marginX * 2);
-    var svgH = marginTop + switchAreaH + nodeH + marginBottom + (nodeCount > 2 ? 40 : 0);
+    const switchAreaH = showToR ? (switchH + 90) : 0;
+    const totalSwitchW = torCount === 2 ? (2 * switchW + switchGap) : switchW;
+    const allNodesW = displayNodes * nodeW + (displayNodes - 1) * nodeGapX;
+    const svgW = Math.max(allNodesW + marginX * 2, totalSwitchW + marginX * 2);
+    const svgH = marginTop + switchAreaH + nodeH + marginBottom + (nodeCount > 2 ? 40 : 0);
 
-    var switchY = marginTop + 10;
-    var switchBlockStartX = (svgW - totalSwitchW) / 2;
-    var switch1X = switchBlockStartX;
-    var switch2X = switch1X + switchW + switchGap;
+    const switchY = marginTop + 10;
+    const switchBlockStartX = (svgW - totalSwitchW) / 2;
+    const switch1X = switchBlockStartX;
+    const switch2X = switch1X + switchW + switchGap;
 
-    var nodesStartX = (svgW - allNodesW) / 2;
-    var nodeY = showToR ? (marginTop + switchAreaH + 10) : (marginTop + 10);
+    const nodesStartX = (svgW - allNodesW) / 2;
+    const nodeY = showToR ? (marginTop + switchAreaH + 10) : (marginTop + 10);
 
-    var uplinkPositions = [];
+    const uplinkPositions = [];
 
-    var intentLabel = state.intent === 'all_traffic' ? 'Fully Converged' :
-                      state.intent === 'mgmt_compute' ? 'Mgmt+Compute / Storage' :
-                      state.intent === 'compute_storage' ? 'Mgmt / Compute+Storage' : 'Custom';
-    var storageLabel = state.storage === 'switchless' ? 'Switchless' : 'Switched';
+    const intentLabel = state.intent === 'all_traffic' ? 'Fully Converged' :
+        state.intent === 'mgmt_compute' ? 'Mgmt+Compute / Storage' :
+            state.intent === 'compute_storage' ? 'Mgmt / Compute+Storage' : 'Custom';
+    const storageLabel = state.storage === 'switchless' ? 'Switchless' : 'Switched';
 
-    var svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Host networking preview">';
+    let svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Host networking preview">';
     svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
     svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Host Networking — ' + escapeHtml(intentLabel) + ' — ' + portCount + ' ports — ' + escapeHtml(storageLabel) + (nodeCount > 2 ? (' — Showing 2 of ' + nodeCount + ' nodes') : '') + '</text>';
 
@@ -11715,53 +11715,53 @@ function renderHciHostNetworkingPreview() {
         if (torCount === 2) {
             svg += '<rect x="' + switch2X + '" y="' + switchY + '" width="' + switchW + '" height="' + switchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
             svg += '<text x="' + (switch2X + switchW / 2) + '" y="' + (switchY + 30) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="600">ToR Switch B</text>';
-            var ibgpX1 = switch1X + switchW, ibgpX2 = switch2X, ibgpMidY = switchY + switchH / 2;
+            const ibgpX1 = switch1X + switchW, ibgpX2 = switch2X, ibgpMidY = switchY + switchH / 2;
             svg += '<line x1="' + ibgpX1 + '" y1="' + ibgpMidY + '" x2="' + ibgpX2 + '" y2="' + ibgpMidY + '" stroke="rgba(250,204,21,0.7)" stroke-width="2" stroke-dasharray="6 3" />';
             svg += '<text x="' + ((ibgpX1 + ibgpX2) / 2) + '" y="' + (ibgpMidY - 8) + '" text-anchor="middle" font-size="9" fill="rgba(250,204,21,0.9)">iBGP</text>';
         }
     }
 
     // Render nodes
-    for (var dn = 0; dn < displayNodes; dn++) {
-        var nodeX = nodesStartX + dn * (nodeW + nodeGapX);
+    for (let dn = 0; dn < displayNodes; dn++) {
+        const nodeX = nodesStartX + dn * (nodeW + nodeGapX);
         svg += '<rect x="' + nodeX + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="16" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
-        var nodeName = (state.nodeSettings && state.nodeSettings[dn] && state.nodeSettings[dn].name) ? state.nodeSettings[dn].name : ('Node ' + (dn + 1));
+        const nodeName = (state.nodeSettings && state.nodeSettings[dn] && state.nodeSettings[dn].name) ? state.nodeSettings[dn].name : ('Node ' + (dn + 1));
         svg += '<text x="' + (nodeX + nodeW / 2) + '" y="' + (nodeY + 28) + '" text-anchor="middle" font-size="14" fill="var(--text-primary)" font-weight="700">' + escapeHtml(nodeName) + '</text>';
 
-        var bmcX = nodeX + nodeW - 75, bmcY2 = nodeY + 12;
+        const bmcX = nodeX + nodeW - 75, bmcY2 = nodeY + 12;
         svg += '<rect x="' + bmcX + '" y="' + bmcY2 + '" width="55" height="22" rx="5" fill="rgba(160,160,160,0.12)" stroke="rgba(160,160,160,0.4)" />';
         svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 14) + '" text-anchor="middle" font-size="7.5" fill="var(--text-secondary)">BMC</text>';
         svg += '<text x="' + (bmcX + 27) + '" y="' + (bmcY2 + 31) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">BMC Switch</text>';
 
-        var nicRowY = nodeY + 80 + mgmtVnicAreaH;
-        var rw = rowWidth(nicGroups);
-        var currentX = nodeX + (nodeW - rw) / 2;
-        for (var g2 = 0; g2 < nicGroups.length; g2++) {
-            var grp = nicGroups[g2];
-            var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
-            var boxX = currentX - 8, boxTotalW = grpW + 16;
-            var hasVnicG = !!grp.vnicAbove;
-            var vnicH2 = hasVnicG ? mgmtVnicAreaH : 0;
-            var boxH = adapterH + 28 + vnicH2;
-            var boxY = nicRowY - 14 - vnicH2;
-            var rgb = colorRgb(grp.color);
+        const nicRowY = nodeY + 80 + mgmtVnicAreaH;
+        const rw = rowWidth(nicGroups);
+        let currentX = nodeX + (nodeW - rw) / 2;
+        for (let g2 = 0; g2 < nicGroups.length; g2++) {
+            const grp = nicGroups[g2];
+            const grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
+            const boxX = currentX - 8, boxTotalW = grpW + 16;
+            const hasVnicG = !!grp.vnicAbove;
+            const vnicH2 = hasVnicG ? mgmtVnicAreaH : 0;
+            const boxH = adapterH + 28 + vnicH2;
+            const boxY = nicRowY - 14 - vnicH2;
+            const rgb = colorRgb(grp.color);
 
             svg += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
-            var labelY = boxY + boxH + 12;
+            const labelY = boxY + boxH + 12;
             svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
 
             if (hasVnicG) {
-                var vaW = 80, vaH = 30;
-                var vaX = boxX + (boxTotalW - vaW) / 2, vaY = boxY + 10;
+                const vaW = 80, vaH = 30;
+                const vaX = boxX + (boxTotalW - vaW) / 2, vaY = boxY + 10;
                 svg += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaW + '" height="' + vaH + '" rx="6" fill="rgba(' + rgb + ',0.10)" stroke="rgba(' + rgb + ',0.55)" stroke-dasharray="4 2" />';
                 svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(grp.vnicAbove.name) + '</text>';
                 svg += '<text x="' + (vaX + vaW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(grp.vnicAbove.vlan) + '</text>';
                 svg += '<line x1="' + (boxX + 6) + '" y1="' + (nicRowY - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (nicRowY - 6) + '" stroke="rgba(' + rgb + ',0.3)" stroke-dasharray="3 2" />';
             }
 
-            for (var n2 = 0; n2 < grp.nics.length; n2++) {
-                var nic = grp.nics[n2];
-                var x = currentX + n2 * (adapterW + adapterGap), y = nicRowY;
+            for (let n2 = 0; n2 < grp.nics.length; n2++) {
+                const nic = grp.nics[n2];
+                const x = currentX + n2 * (adapterW + adapterGap), y = nicRowY;
                 svg += '<rect x="' + x + '" y="' + y + '" width="' + adapterW + '" height="' + adapterH + '" rx="6" fill="rgba(' + rgb + ',0.20)" stroke="rgba(' + rgb + ',0.60)" />';
                 svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
                 svg += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(nic.speed) + '</text>';
@@ -11771,7 +11771,7 @@ function renderHciHostNetworkingPreview() {
             }
 
             if (grp.vlanBelow) {
-                var vlanY2 = labelY + 13;
+                const vlanY2 = labelY + 13;
                 svg += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY2 + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
             }
             currentX += grpW + groupGap;
@@ -11780,25 +11780,25 @@ function renderHciHostNetworkingPreview() {
 
     // "+N more nodes" badge
     if (nodeCount > 2) {
-        var moreCount = nodeCount - 2;
-        var badgeW = 180, badgeH = 26;
-        var badgeX = svgW - 50 - badgeW;
-        var badgeY = svgH - 60;
+        const moreCount = nodeCount - 2;
+        const badgeW = 180, badgeH = 26;
+        const badgeX = svgW - 50 - badgeW;
+        const badgeY = svgH - 60;
         svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
         svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + moreCount + ' more node' + (moreCount === 1 ? '' : 's') + '</text>';
     }
 
     if (showToR) {
-        var switchBottomY = switchY + switchH;
-        for (var ai = 0; ai < uplinkPositions.length; ai++) {
-            var ap = uplinkPositions[ai];
-            var targetLX;
+        const switchBottomY = switchY + switchH;
+        for (let ai = 0; ai < uplinkPositions.length; ai++) {
+            const ap = uplinkPositions[ai];
+            let targetLX;
             if (torCount === 1) {
                 targetLX = switch1X + switchW / 2;
             } else {
                 targetLX = (ap.leaf === 'A') ? (switch1X + switchW / 2) : (switch2X + switchW / 2);
             }
-            var uRgb = colorRgb(ap.color);
+            const uRgb = colorRgb(ap.color);
             svg += '<line x1="' + ap.x + '" y1="' + ap.y + '" x2="' + targetLX + '" y2="' + switchBottomY + '" stroke="rgba(' + uRgb + ',0.35)" stroke-width="1.5" stroke-dasharray="4 2" />';
         }
     }
@@ -11816,25 +11816,25 @@ function renderHciHostNetworkingPreview() {
 }
 
 function renderHciSwitchlessPreview(container, portCount, nodeCount) {
-    var n = nodeCount;
-    var mgmtVnicH = 38;
-    var vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
+    const n = nodeCount;
+    const mgmtVnicH = 38;
+    const vlanLabel = (state.infraVlan === 'custom' && state.infraVlanId) ? ('VLAN ' + state.infraVlanId) : 'Default VLAN';
 
     // Determine mgmt/compute vs storage port assignments
-    var mgmtPorts = [1, 2];
-    var storagePorts = [];
+    let mgmtPorts = [1, 2];
+    let storagePorts = [];
     if (state.adapterMappingConfirmed && state.adapterMapping && Object.keys(state.adapterMapping).length > 0) {
         mgmtPorts = [];
         storagePorts = [];
-        for (var ami = 1; ami <= portCount; ami++) {
-            var amAssign = state.adapterMapping[ami] || 'pool';
+        for (let ami = 1; ami <= portCount; ami++) {
+            const amAssign = state.adapterMapping[ami] || 'pool';
             if (amAssign === 'storage') storagePorts.push(ami);
             else mgmtPorts.push(ami);
         }
     } else {
-        for (var si = 3; si <= portCount; si++) storagePorts.push(si);
+        for (let si = 3; si <= portCount; si++) storagePorts.push(si);
     }
-    var storagePerNode = storagePorts.length;
+    const storagePerNode = storagePorts.length;
 
     function getNodeLabel(idx) {
         if (state.nodeSettings && state.nodeSettings[idx] && state.nodeSettings[idx].name) {
@@ -11844,35 +11844,35 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
     }
 
     // Layout sizing
-    var storageTileW = 50, storageTileH = 34, storageTileGap = 8;
+    const storageTileW = 50, storageTileH = 34, storageTileGap = 8;
     // For 2/3-node, fit all storage ports in a single row (max 4-6 ports).
     // For 4-node (6 ports), use 3-column grid with staggered second row.
-    var maxStorageCols = (n <= 3) ? storagePerNode : Math.min(storagePerNode, 3);
-    var storageColsPerNode = Math.max(1, maxStorageCols);
-    var storageRowsPerNode = Math.ceil(storagePerNode / storageColsPerNode);
-    var staggerOffset = (storageRowsPerNode > 1 && storageColsPerNode > 1) ? (storageTileW + storageTileGap) / 2 : 0;
-    var storageGroupW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap + 30 + staggerOffset;
-    var storageGroupH = storageRowsPerNode * storageTileH + (storageRowsPerNode - 1) * 8 + 38;
-    var nodeW = Math.max(220, storageGroupW + 30);
-    var nodeH = 195 + mgmtVnicH + storageGroupH;
-    var nodeGap = n <= 3 ? 30 : 20;
+    const maxStorageCols = (n <= 3) ? storagePerNode : Math.min(storagePerNode, 3);
+    const storageColsPerNode = Math.max(1, maxStorageCols);
+    const storageRowsPerNode = Math.ceil(storagePerNode / storageColsPerNode);
+    const staggerOffset = (storageRowsPerNode > 1 && storageColsPerNode > 1) ? (storageTileW + storageTileGap) / 2 : 0;
+    const storageGroupW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap + 30 + staggerOffset;
+    const storageGroupH = storageRowsPerNode * storageTileH + (storageRowsPerNode - 1) * 8 + 38;
+    const nodeW = Math.max(220, storageGroupW + 30);
+    const nodeH = 195 + mgmtVnicH + storageGroupH;
+    const nodeGap = n <= 3 ? 30 : 20;
 
-    var svgW = n * nodeW + (n - 1) * nodeGap + 100;
-    var nodeY = 90;
+    const svgW = n * nodeW + (n - 1) * nodeGap + 100;
+    const nodeY = 90;
 
     // Subnet edges
-    var edges = [];
-    var subnetNum = 1;
-    var linkMode = state.switchlessLinkMode || 'dual_link';
-    var linksPerPair = (n === 3 && linkMode === 'single_link') ? 1 : 2;
+    const edges = [];
+    let subnetNum = 1;
+    const linkMode = state.switchlessLinkMode || 'dual_link';
+    const linksPerPair = (n === 3 && linkMode === 'single_link') ? 1 : 2;
 
     // Build port counters per node (which storage port index connects to which peer)
-    var portCounters = [];
-    for (var pc = 0; pc < n; pc++) portCounters.push(0);
+    const portCounters = [];
+    for (let pc = 0; pc < n; pc++) portCounters.push(0);
 
-    for (var i = 0; i < n; i++) {
-        for (var j = i + 1; j < n; j++) {
-            for (var lk = 0; lk < linksPerPair; lk++) {
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            for (let lk = 0; lk < linksPerPair; lk++) {
                 edges.push({
                     subnet: subnetNum++,
                     a: { n: i, p: portCounters[i]++ },
@@ -11881,22 +11881,22 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
             }
         }
     }
-    var totalSubnets = subnetNum - 1;
+    const totalSubnets = subnetNum - 1;
 
     // Subnet lane area
-    var laneGap = 16;
-    var laneAreaH = totalSubnets * laneGap + 40;
-    var svgH = nodeY + nodeH + laneAreaH + 30;
+    const laneGap = 16;
+    const laneAreaH = totalSubnets * laneGap + 40;
+    const svgH = nodeY + nodeH + laneAreaH + 30;
 
     // Node X positions (centered)
-    var totalNodesW = n * nodeW + (n - 1) * nodeGap;
-    var startX = (svgW - totalNodesW) / 2;
-    var nodeXPositions = [];
-    for (var nx = 0; nx < n; nx++) nodeXPositions.push(startX + nx * (nodeW + nodeGap));
+    const totalNodesW = n * nodeW + (n - 1) * nodeGap;
+    const startX = (svgW - totalNodesW) / 2;
+    const nodeXPositions = [];
+    for (let nx = 0; nx < n; nx++) nodeXPositions.push(startX + nx * (nodeW + nodeGap));
 
     function subnetColor(num) {
         // Match the report's per-scenario color palettes
-        var hues;
+        let hues;
         if (n === 2) {
             // 2-node: 2 distinct hues (report uses hsla(215) and hsla(330))
             hues = [215, 330];
@@ -11907,102 +11907,102 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
             // 4-node: 12 distinct hues matching the report
             hues = [205, 235, 265, 295, 325, 355, 25, 55, 85, 115, 145, 175];
         }
-        var h = hues[(num - 1) % hues.length];
+        const h = hues[(num - 1) % hues.length];
         return 'hsla(' + h + ', 78%, 62%, 0.95)';
     }
 
     function storageGroupRect(nodeIdx) {
-        var nLeft = nodeXPositions[nodeIdx];
-        var x = nLeft + (nodeW - storageGroupW) / 2;
-        var y = nodeY + 130 + mgmtVnicH;
+        const nLeft = nodeXPositions[nodeIdx];
+        const x = nLeft + (nodeW - storageGroupW) / 2;
+        const y = nodeY + 130 + mgmtVnicH;
         return { x: x, y: y };
     }
 
     function storageTileRect(nodeIdx, portIdx) {
-        var sg = storageGroupRect(nodeIdx);
-        var col = portIdx % storageColsPerNode;
-        var row = Math.floor(portIdx / storageColsPerNode);
-        var totalW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap;
-        var sx = sg.x + (storageGroupW - totalW) / 2 + col * (storageTileW + storageTileGap);
+        const sg = storageGroupRect(nodeIdx);
+        const col = portIdx % storageColsPerNode;
+        const row = Math.floor(portIdx / storageColsPerNode);
+        const totalW = storageColsPerNode * storageTileW + (storageColsPerNode - 1) * storageTileGap;
+        let sx = sg.x + (storageGroupW - totalW) / 2 + col * (storageTileW + storageTileGap);
         // Stagger second row so vertical connector segments don't overlap
         if (row === 1 && storageColsPerNode > 1) {
-            var stagger = (storageTileW + storageTileGap) / 2;
+            const stagger = (storageTileW + storageTileGap) / 2;
             sx += stagger;
-            var maxX = sg.x + storageGroupW - storageTileW;
+            const maxX = sg.x + storageGroupW - storageTileW;
             if (sx > maxX) sx -= stagger;
         }
-        var sy = sg.y + 30 + row * (storageTileH + 8);
+        const sy = sg.y + 30 + row * (storageTileH + 8);
         return { x: sx, y: sy };
     }
 
     function storagePortBottom(nodeIdx, portIdx) {
-        var tr = storageTileRect(nodeIdx, portIdx);
+        const tr = storageTileRect(nodeIdx, portIdx);
         return { x: tr.x + storageTileW / 2, y: tr.y + storageTileH };
     }
 
     // Build SVG
-    var autoIpLabel = state.storageAutoIp === 'enabled' ? 'AutoIP: True' : state.storageAutoIp === 'disabled' ? 'AutoIP: False' : 'AutoIP: -';
-    var linkLabel = (n === 3) ? (linkMode === 'single_link' ? ', Single-Link' : ', Dual-Link') : '';
-    var titleText = 'Storage Network ATC intent — Switchless=true' + linkLabel + ', ' + autoIpLabel;
+    const autoIpLabel = state.storageAutoIp === 'enabled' ? 'AutoIP: True' : state.storageAutoIp === 'disabled' ? 'AutoIP: False' : 'AutoIP: -';
+    const linkLabel = (n === 3) ? (linkMode === 'single_link' ? ', Single-Link' : ', Dual-Link') : '';
+    const titleText = 'Storage Network ATC intent — Switchless=true' + linkLabel + ', ' + autoIpLabel;
 
-    var svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Switchless storage connectivity preview">';
+    let svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Switchless storage connectivity preview">';
     svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
     svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="12" fill="var(--text-secondary)">' + escapeHtml(titleText) + '</text>';
 
     // Render each node
-    for (var ni = 0; ni < n; ni++) {
-        var nLeft = nodeXPositions[ni];
+    for (let ni = 0; ni < n; ni++) {
+        const nLeft = nodeXPositions[ni];
         svg += '<rect x="' + nLeft + '" y="' + nodeY + '" width="' + nodeW + '" height="' + nodeH + '" rx="14" fill="rgba(255,255,255,0.03)" stroke="var(--glass-border)" />';
         svg += '<text x="' + (nLeft + nodeW / 2) + '" y="' + (nodeY + 26) + '" text-anchor="middle" font-size="13" fill="var(--text-primary)" font-weight="700">' + escapeHtml(getNodeLabel(ni)) + '</text>';
 
         // Mgmt vNIC
-        var vnicW = 76, vnicHeight = 26;
-        var vnicX = nLeft + (nodeW - vnicW) / 2, vnicY2 = nodeY + 40;
+        const vnicW = 76, vnicHeight = 26;
+        const vnicX = nLeft + (nodeW - vnicW) / 2, vnicY2 = nodeY + 40;
         svg += '<rect x="' + vnicX + '" y="' + vnicY2 + '" width="' + vnicW + '" height="' + vnicHeight + '" rx="5" fill="rgba(0,120,212,0.10)" stroke="rgba(0,120,212,0.55)" stroke-dasharray="4 2" />';
         svg += '<text x="' + (vnicX + vnicW / 2) + '" y="' + (vnicY2 + 11) + '" text-anchor="middle" font-size="7.5" fill="var(--text-primary)" font-weight="600">Mgmt vNIC</text>';
         svg += '<text x="' + (vnicX + vnicW / 2) + '" y="' + (vnicY2 + 21) + '" text-anchor="middle" font-size="6.5" fill="var(--text-secondary)">' + escapeHtml(vlanLabel) + '</text>';
 
         // Mgmt+Compute SET team
-        var setW = Math.min(nodeW - 20, mgmtPorts.length * 60 + 30);
-        var setH = 52;
-        var setX = nLeft + (nodeW - setW) / 2;
-        var setY = nodeY + 72 + mgmtVnicH / 2;
+        const setW = Math.min(nodeW - 20, mgmtPorts.length * 60 + 30);
+        const setH = 52;
+        const setX = nLeft + (nodeW - setW) / 2;
+        const setY = nodeY + 72 + mgmtVnicH / 2;
         svg += '<text x="' + (nLeft + nodeW / 2) + '" y="' + (setY - 4) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Mgmt + Compute intent</text>';
         svg += '<rect x="' + setX + '" y="' + setY + '" width="' + setW + '" height="' + setH + '" rx="10" fill="rgba(0,120,212,0.07)" stroke="rgba(0,120,212,0.45)" stroke-dasharray="6 4" />';
         svg += '<text x="' + (setX + setW / 2) + '" y="' + (setY + 12) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">SET (vSwitch)</text>';
-        var mgmtTileW = 56, mgmtTileH = 28;
-        var mgmtTilesW = mgmtPorts.length * mgmtTileW + (mgmtPorts.length - 1) * 6;
-        var mgmtStartX = setX + (setW - mgmtTilesW) / 2;
-        for (var mi = 0; mi < mgmtPorts.length; mi++) {
-            var mx = mgmtStartX + mi * (mgmtTileW + 6), my = setY + 18;
-            var mLabel = getPortDisplayName(mgmtPorts[mi]);
+        const mgmtTileW = 56, mgmtTileH = 28;
+        const mgmtTilesW = mgmtPorts.length * mgmtTileW + (mgmtPorts.length - 1) * 6;
+        const mgmtStartX = setX + (setW - mgmtTilesW) / 2;
+        for (let mi = 0; mi < mgmtPorts.length; mi++) {
+            const mx = mgmtStartX + mi * (mgmtTileW + 6), my = setY + 18;
+            const mLabel = getPortDisplayName(mgmtPorts[mi]);
             svg += '<rect x="' + mx + '" y="' + my + '" width="' + mgmtTileW + '" height="' + mgmtTileH + '" rx="6" fill="rgba(0,120,212,0.20)" stroke="rgba(0,120,212,0.55)" />';
             svg += '<text x="' + (mx + mgmtTileW / 2) + '" y="' + (my + 18) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(mLabel) + '</text>';
         }
 
         // Storage intent group
-        var sg = storageGroupRect(ni);
+        const sg = storageGroupRect(ni);
         svg += '<rect x="' + sg.x + '" y="' + sg.y + '" width="' + storageGroupW + '" height="' + storageGroupH + '" rx="10" fill="rgba(139,92,246,0.06)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
         svg += '<text x="' + (sg.x + storageGroupW / 2) + '" y="' + (sg.y + 16) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Storage intent (RDMA)</text>';
 
-        for (var pi = 0; pi < storagePerNode; pi++) {
-            var tr = storageTileRect(ni, pi);
-            var sLabel = getPortDisplayName(storagePorts[pi]);
+        for (let pi = 0; pi < storagePerNode; pi++) {
+            const tr = storageTileRect(ni, pi);
+            const sLabel = getPortDisplayName(storagePorts[pi]);
             svg += '<rect x="' + tr.x + '" y="' + tr.y + '" width="' + storageTileW + '" height="' + storageTileH + '" rx="6" fill="rgba(139,92,246,0.25)" stroke="rgba(139,92,246,0.65)" />';
             svg += '<text x="' + (tr.x + storageTileW / 2) + '" y="' + (tr.y + 21) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(sLabel) + '</text>';
         }
     }
 
     // Subnet connection lines below nodes
-    var laneBaseY = nodeY + nodeH + 20;
-    var midXOffsets = [0, 12, -12, 16, -20, 24, -28, 30, -36, 38, -44, 46];
-    for (var ei = 0; ei < edges.length; ei++) {
-        var ed = edges[ei];
-        var a = storagePortBottom(ed.a.n, ed.a.p);
-        var b = storagePortBottom(ed.b.n, ed.b.p);
-        var busY = laneBaseY + ei * laneGap;
-        var midX = ((a.x + b.x) / 2) + (midXOffsets[ei] || 0);
-        var strokeColor = subnetColor(ed.subnet);
+    const laneBaseY = nodeY + nodeH + 20;
+    const midXOffsets = [0, 12, -12, 16, -20, 24, -28, 30, -36, 38, -44, 46];
+    for (let ei = 0; ei < edges.length; ei++) {
+        const ed = edges[ei];
+        const a = storagePortBottom(ed.a.n, ed.a.p);
+        const b = storagePortBottom(ed.b.n, ed.b.p);
+        const busY = laneBaseY + ei * laneGap;
+        const midX = ((a.x + b.x) / 2) + (midXOffsets[ei] || 0);
+        const strokeColor = subnetColor(ed.subnet);
 
         svg += '<path d="M ' + a.x + ' ' + a.y + ' L ' + a.x + ' ' + busY + ' L ' + midX + ' ' + busY + ' L ' + b.x + ' ' + busY + ' L ' + b.x + ' ' + b.y + '" fill="none" stroke="' + strokeColor + '" stroke-width="2.2" opacity="0.9" />';
         svg += '<text x="' + midX + '" y="' + (busY - 5) + '" text-anchor="middle" font-size="9" fill="var(--text-secondary)">Subnet ' + ed.subnet + '</text>';
@@ -12011,13 +12011,13 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
     svg += '</svg>';
 
     // Legend
-    var legendHtml = '<div class="switchless-diagram__legend" style="margin-top:0.75rem;">'
+    let legendHtml = '<div class="switchless-diagram__legend" style="margin-top:0.75rem;">'
         + '<div class="switchless-diagram__legend-title">Storage subnets</div>'
         + '<div class="switchless-diagram__legend-grid">';
-    for (var li = 0; li < edges.length; li++) {
-        var led = edges[li];
-        var nodeA = getNodeLabel(led.a.n);
-        var nodeB = getNodeLabel(led.b.n);
+    for (let li = 0; li < edges.length; li++) {
+        const led = edges[li];
+        const nodeA = getNodeLabel(led.a.n);
+        const nodeB = getNodeLabel(led.b.n);
         legendHtml += '<div class="switchless-diagram__legend-item">'
             + '<svg width="40" height="10" viewBox="0 0 40 10" aria-hidden="true"><line x1="0" y1="5" x2="40" y2="5" stroke="' + subnetColor(led.subnet) + '" stroke-width="2" /></svg>'
             + '<span class="switchless-diagram__legend-text">Subnet ' + led.subnet + ' — ' + escapeHtml(nodeA) + ' ↔ ' + escapeHtml(nodeB) + '</span>'
@@ -12037,19 +12037,19 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
 
 window.downloadWizardHciHostNetworkingSvg = function(variant) {
     try {
-        var container = document.getElementById('hci-nic-layout-diagram');
+        const container = document.getElementById('hci-nic-layout-diagram');
         if (!container) return;
-        var svgEl = container.querySelector('svg.switchless-diagram__svg');
+        const svgEl = container.querySelector('svg.switchless-diagram__svg');
         if (!svgEl) return;
 
-        var theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
-        var clone = svgEl.cloneNode(true);
+        const theme = (variant === 'light' || variant === 'dark') ? variant : 'dark';
+        const clone = svgEl.cloneNode(true);
         if (!clone.getAttribute('xmlns')) clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
 
-        var exportBg = '#000000';
+        let exportBg = '#000000';
         try {
-            var rootStyle = window.getComputedStyle(document.documentElement);
-            var themeVars = {
+            const rootStyle = window.getComputedStyle(document.documentElement);
+            const themeVars = {
                 '--bg-dark': (rootStyle.getPropertyValue('--bg-dark') || '').trim(),
                 '--card-bg': (rootStyle.getPropertyValue('--card-bg') || '').trim(),
                 '--text-primary': (rootStyle.getPropertyValue('--text-primary') || '').trim(),
@@ -12068,29 +12068,29 @@ window.downloadWizardHciHostNetworkingSvg = function(variant) {
             }
             exportBg = (theme === 'light') ? '#ffffff' : (themeVars['--bg-dark'] || '#000000');
 
-            var decls = Object.keys(themeVars).map(function(k) {
-                var v = (themeVars[k] || '').trim();
+            const decls = Object.keys(themeVars).map(function(k) {
+                const v = (themeVars[k] || '').trim();
                 return v ? (k + ': ' + v + ';') : '';
             }).filter(Boolean).join(' ');
 
             if (decls) {
-                var defs = clone.querySelector('defs');
+                let defs = clone.querySelector('defs');
                 if (!defs) {
                     defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
                     clone.insertBefore(defs, clone.firstChild);
                 }
-                var styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+                const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
                 styleEl.textContent = ':root { ' + decls + ' }';
                 defs.appendChild(styleEl);
             }
         } catch (eVars) { /* ignore */ }
 
         try {
-            var rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
             rect.setAttribute('fill', exportBg);
-            var vb = (clone.getAttribute('viewBox') || '').trim();
+            const vb = (clone.getAttribute('viewBox') || '').trim();
             if (vb) {
-                var parts = vb.split(/\s+/).map(function(p) { return parseFloat(p); });
+                const parts = vb.split(/\s+/).map(function(p) { return parseFloat(p); });
                 if (parts.length === 4 && parts.every(function(nn) { return Number.isFinite(nn); })) {
                     rect.setAttribute('x', String(parts[0]));
                     rect.setAttribute('y', String(parts[1]));
@@ -12104,7 +12104,7 @@ window.downloadWizardHciHostNetworkingSvg = function(variant) {
                 rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
                 rect.setAttribute('width', '100%'); rect.setAttribute('height', '100%');
             }
-            var defsNode = clone.querySelector('defs');
+            const defsNode = clone.querySelector('defs');
             if (defsNode && defsNode.nextSibling) {
                 clone.insertBefore(rect, defsNode.nextSibling);
             } else {
@@ -12112,21 +12112,21 @@ window.downloadWizardHciHostNetworkingSvg = function(variant) {
             }
         } catch (eBg) { /* ignore */ }
 
-        var serializer = new XMLSerializer();
-        var svgText = serializer.serializeToString(clone);
+        const serializer = new XMLSerializer();
+        let svgText = serializer.serializeToString(clone);
         if (svgText.indexOf('<?xml') !== 0) {
             svgText = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgText;
         }
 
-        var blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
-        var url = URL.createObjectURL(blob);
-        var ts = new Date();
-        var pad2 = function(n3) { return String(n3).padStart(2, '0'); };
-        var fileName = 'hci-host-networking-preview-' + theme + '-'
+        const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const ts = new Date();
+        const pad2 = function(n3) { return String(n3).padStart(2, '0'); };
+        const fileName = 'hci-host-networking-preview-' + theme + '-'
             + ts.getFullYear() + pad2(ts.getMonth() + 1) + pad2(ts.getDate())
             + '-' + pad2(ts.getHours()) + pad2(ts.getMinutes()) + '.svg';
 
-        var a = document.createElement('a');
+        const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
         document.body.appendChild(a);
@@ -12140,7 +12140,7 @@ function confirmOverrides() {
     if (state.overridesConfirmed) {
         // Toggle to edit mode
         state.overridesConfirmed = false;
-        var previewEl = document.getElementById('hci-nic-layout-diagram');
+        const previewEl = document.getElementById('hci-nic-layout-diagram');
         if (previewEl) previewEl.innerHTML = '';
     } else {
         state.overridesConfirmed = true;
