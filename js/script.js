@@ -8650,6 +8650,16 @@ function applyArmImportState(armState) {
 }
 
 // Import configuration from JSON
+function showDesignerImportModal() { // eslint-disable-line no-unused-vars
+    const modal = document.getElementById('designer-import-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeDesignerImportModal() { // eslint-disable-line no-unused-vars
+    const modal = document.getElementById('designer-import-modal');
+    if (modal) modal.style.display = 'none';
+}
+
 function importConfiguration() {
     try {
         const input = document.createElement('input');

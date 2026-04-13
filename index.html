@@ -2997,7 +2997,7 @@
                     </button>
 
                     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <button onclick="importConfiguration()" style="flex: 1; padding: 10px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
+                        <button onclick="showDesignerImportModal()" style="flex: 1; padding: 10px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
                             📁 Import
                         </button>
                         <button onclick="exportConfiguration()" style="flex: 1; padding: 10px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
@@ -3069,6 +3069,37 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
     <script src="js/script.js"></script>
     <script src="js/disconnected.js"></script>
+    <!-- Designer Import Modal -->
+    <div class="onboarding-overlay" id="designer-import-modal" style="display: none;">
+        <div class="onboarding-card" style="max-width: 600px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 class="onboarding-title" style="margin: 0;">📂 Import Configuration</h2>
+                <button onclick="closeDesignerImportModal()" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px 8px;">&times;</button>
+            </div>
+
+            <div class="onboarding-features" style="grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px;">
+                <div class="onboarding-feature" style="cursor: pointer; border: 1px solid var(--glass-border); transition: border-color 0.2s;" onclick="closeDesignerImportModal(); importConfiguration();" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                    <span class="onboarding-feature-icon">📄</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Import ODIN Designer Configuration</strong>
+                        Select a previously exported ODIN Designer .json file to restore all wizard settings, network configuration, and deployment options.
+                    </div>
+                </div>
+                <div class="onboarding-feature" style="cursor: pointer; border: 1px solid var(--glass-border); transition: border-color 0.2s;" onclick="closeDesignerImportModal(); importConfiguration();" onmouseover="this.style.borderColor='var(--accent-purple)'" onmouseout="this.style.borderColor='var(--glass-border)'">
+                    <span class="onboarding-feature-icon">📐</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Import Azure Local ARM Template</strong>
+                        <span>In the Azure Portal, navigate to the Resource Group containing your Azure Local instance &rarr; <b>Settings</b> &rarr; <b>Deployments</b> &rarr; select the cluster deployment &rarr; <b>Template</b> &rarr; <b>Download</b>. Extract the downloaded .zip file, then select the <b>template.json</b> file when importing.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style="font-size: 12px; color: var(--text-secondary); text-align: center;">
+                Both formats are auto-detected — select any .json file to begin.
+            </div>
+        </div>
+    </div>
+
     <script src="js/disaggregated.js"></script>
     <footer style="text-align:center;padding:2rem 1rem 1rem;font-size:0.85rem;color:#aaa;">
         🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.

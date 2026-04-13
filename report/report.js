@@ -8191,3 +8191,67 @@
     init();
 })();
 
+// Export report as PDF using html2canvas + jsPDF
+function exportReportPDF() { // eslint-disable-line no-unused-vars
+    const mainEl = document.querySelector('main');
+    if (!mainEl) return;
+
+    // Hide action buttons during capture
+    const buttons = mainEl.querySelectorAll('.header-action-btn, .scroll-to-top');
+    buttons.forEach(function(b) { b.style.display = 'none'; });
+
+    html2canvas(mainEl, {
+        backgroundColor: '#0a0e27',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        windowWidth: 900
+    }).then(function(canvas) {
+        buttons.forEach(function(b) { b.style.display = ''; });
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const usableWidth = pageWidth - margin * 2;
+        const scaledHeight = (canvas.height * usableWidth) / canvas.width;
+
+        pdf.setFontSize(12);
+        pdf.setTextColor(0, 120, 212);
+        pdf.text('ODIN — Configuration Report', margin, 10);
+        pdf.setFontSize(8);
+        pdf.setTextColor(128, 128, 128);
+        pdf.text('Generated: ' + new Date().toLocaleString(), margin, 15);
+
+        const startY = 20;
+        let remainingHeight = scaledHeight;
+        let sourceY = 0;
+
+        while (remainingHeight > 0) {
+            const sliceHeight = Math.min(remainingHeight, pageHeight - (sourceY === 0 ? startY : margin) - margin);
+            const sliceRatio = sliceHeight / scaledHeight;
+            const sourceSliceH = canvas.height * sliceRatio;
+
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = sourceSliceH;
+            const ctx = sliceCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, sourceY, canvas.width, sourceSliceH, 0, 0, canvas.width, sourceSliceH);
+
+            pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', margin, sourceY === 0 ? startY : margin, usableWidth, sliceHeight);
+
+            remainingHeight -= sliceHeight;
+            sourceY += sourceSliceH;
+            if (remainingHeight > 0) pdf.addPage();
+        }
+
+        const dateStr = new Date().toISOString().slice(0, 10);
+        pdf.save('odin-report_' + dateStr + '.pdf');
+    }).catch(function(err) {
+        buttons.forEach(function(b) { b.style.display = ''; });
+        console.error('PDF export failed:', err);
+        alert('PDF export failed. See console for details.');
+    });
+}
+
