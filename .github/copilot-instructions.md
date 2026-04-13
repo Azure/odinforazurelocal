@@ -10,6 +10,7 @@
 - When creating a pull request, ensure that it includes a clear description of the changes made and the reason for the changes. This will help reviewers understand the context of the changes and provide feedback more effectively.
 - Before starting new work, always pull the latest changes from the main branch into Release Branch to ensure that you are working with the most up-to-date codebase, fast-forward merge. This will help prevent merge conflicts and ensure that your changes are based on the latest version of the code.
 - When adding new release notes to the top of the readme, for each new release, ensure that we move the existing / old versions to only exist in the appendix of the readme, and only the latest version is at the top of the readme. This will help keep the readme organized and make it easier for users to find the latest release notes.
+- PRs should be merged manually by the author, after all checks have passed and any necessary approvals have been obtained. Do not use auto-merge features, as they may merge PRs before they are ready or without proper review.
 
 ## Security Constraints
 - **basic-ftp**: NEVER allow `basic-ftp` to regress below version **5.2.2**. Version 5.2.1 and below have known security vulnerabilities. The override in `package.json` (`"basic-ftp": ">=5.2.2"`) must be maintained. If any dependency change or PR attempts to downgrade this, reject it. (Flagged April 2026 via Dependabot PR #198)

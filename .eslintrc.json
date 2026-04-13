@@ -76,6 +76,7 @@
     "renderIpPlanning": "readonly",
     "renderDisaggNicConfig": "readonly",
     "selectDisaggOption": "readonly",
+    "restoreDisaggregatedUI": "readonly",
     "getDisaggPortList": "readonly",
     "getDisaggPortDisplayName": "readonly",
     "updateDisaggVlan": "readonly",
