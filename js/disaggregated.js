@@ -106,6 +106,9 @@ function selectDisaggOption(category, value) {
         const maxNodes = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
         state.disaggNodesPerRack = Math.min(state.disaggNodesPerRack || maxNodes, maxNodes);
 
+        // Auto-set spine count to 2 (standard redundancy for single-cluster)
+        state.disaggSpineCount = 2;
+
         // Update slider max
         const slider = document.getElementById('da-nodes-per-rack');
         if (slider) {
@@ -122,6 +125,13 @@ function selectDisaggOption(category, value) {
             card.classList.toggle('selected', String(card.getAttribute('data-value')) === String(value));
         });
 
+        // Trigger downstream renders
+        renderVlanGrid();
+        renderQosSummary();
+        renderIpPlanning();
+        renderDisaggSummary();
+        renderDisaggNicConfig();
+
     } else if (category === 'nodesPerRack') {
         const maxNodes = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
         state.disaggNodesPerRack = Math.min(value, maxNodes);
@@ -130,32 +140,6 @@ function selectDisaggOption(category, value) {
         if (valSpan) valSpan.textContent = state.disaggNodesPerRack;
 
         updateScaleSummary();
-
-    } else if (category === 'spines') {
-        state.disaggSpineCount = value;
-        state.disaggIpConfigConfirmed = false;
-
-        const exp = document.getElementById('da4-explanation');
-        if (exp) {
-            if (value === 2) {
-                exp.innerHTML = '<strong style="color: var(--accent-purple);">2 Spines</strong> — Standard redundancy with 2× 100G uplinks per leaf to each spine (400 Gbps total per leaf pair). 26 unused spine ports available for future expansion.';
-            } else {
-                exp.innerHTML = '<strong style="color: var(--accent-purple);">4 Spines</strong> — Maximum bandwidth and redundancy with 4× 100G uplinks per leaf (800 Gbps total per leaf pair). Recommended for >2 racks or high east-west traffic.';
-            }
-            exp.classList.add('visible');
-        }
-
-        // Select card visually
-        document.querySelectorAll('#step-da4 .option-card').forEach(card => {
-            card.classList.toggle('selected', String(card.getAttribute('data-value')) === String(value));
-        });
-
-        // Trigger downstream renders
-        renderVlanGrid();
-        renderQosSummary();
-        renderIpPlanning();
-        renderDisaggSummary();
-        renderDisaggNicConfig();
     }
 
     updateUI();
@@ -218,20 +202,9 @@ function restoreDisaggregatedUI() {
         updateScaleSummary();
     }
 
-    // DA4: Spine count card selection + explanation
-    if (state.disaggSpineCount) {
-        document.querySelectorAll('#step-da4 .option-card').forEach(function(card) {
-            card.classList.toggle('selected', String(card.getAttribute('data-value')) === String(state.disaggSpineCount));
-        });
-        const exp4 = document.getElementById('da4-explanation');
-        if (exp4) {
-            if (state.disaggSpineCount === 2) {
-                exp4.innerHTML = '<strong style="color: var(--accent-purple);">2 Spines</strong> — Standard redundancy with 2× 100G uplinks per leaf to each spine (400 Gbps total per leaf pair). 26 unused spine ports available for future expansion.';
-            } else {
-                exp4.innerHTML = '<strong style="color: var(--accent-purple);">4 Spines</strong> — Maximum bandwidth and redundancy with 4× 100G uplinks per leaf (800 Gbps total per leaf pair). Recommended for >2 racks or high east-west traffic.';
-            }
-            exp4.classList.add('visible');
-        }
+    // Spine count auto-set to 2 for single-cluster designs
+    if (!state.disaggSpineCount) {
+        state.disaggSpineCount = 2;
     }
 }
 
@@ -253,9 +226,9 @@ function updateScaleSummary() {
     }
 }
 
-// ── VLAN Grid (DA5) ─────────────────────────────────────────────────────────
+// ── VLAN Grid (DA4) ─────────────────────────────────────────────────────────
 function renderVlanGrid() {
-    const grid = document.getElementById('da5-vlan-grid');
+    const grid = document.getElementById('da4-vlan-grid');
     if (!grid) return;
 
     const vlans = state.disaggVlans;
@@ -416,7 +389,7 @@ function updateDisaggTenantVlan(tIdx, vIdx, field, value) {
 }
 
 function renderDisaggTenantNetworks() {
-    const list = document.getElementById('da5-workload-vlan-list');
+    const list = document.getElementById('da4-workload-vlan-list');
     if (!list) return;
     const tenants = state.disaggTenantNetworks || [];
     const confirmed = state.disaggVlanConfigConfirmed === true;
@@ -511,9 +484,9 @@ function editDisaggVlanConfig() {
 }
 
 function renderDisaggVlanConfirmState() {
-    const confirmContainer = document.getElementById('da5-confirm-container');
-    const confirmedMsg = document.getElementById('da5-confirmed-msg');
-    const addBtn = document.getElementById('da5-add-workload-btn');
+    const confirmContainer = document.getElementById('da4-confirm-container');
+    const confirmedMsg = document.getElementById('da4-confirmed-msg');
+    const addBtn = document.getElementById('da4-add-workload-btn');
     const vrfInput = document.getElementById('da-vrf-name');
     const confirmed = state.disaggVlanConfigConfirmed === true;
 
@@ -525,14 +498,14 @@ function renderDisaggVlanConfirmState() {
     if (typeof updateBreadcrumbs === 'function') updateBreadcrumbs();
 }
 
-// ── QoS Summary (DA6) ──────────────────────────────────────────────────────
+// ── QoS Summary (DA5) ──────────────────────────────────────────────────────
 function renderQosSummary() {
-    const container = document.getElementById('da6-qos-summary');
+    const container = document.getElementById('da5-qos-summary');
     if (!container) return;
 
     const isIscsi = state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic';
     const isFcSan = state.disaggStorageType === 'fc_san';
-    const exp = document.getElementById('da6-explanation');
+    const exp = document.getElementById('da5-explanation');
 
     const rows = [
         { priority: 0, desc: 'Default Traffic', pfc: 'No', bw: '79%' },
@@ -586,10 +559,10 @@ function renderQosSummary() {
     }
 }
 
-// ── IP Planning (DA7) ───────────────────────────────────────────────────────
+// ── IP Planning (DA6) ───────────────────────────────────────────────────────
 
 function renderDisaggTopologyDiagram() {
-    const container = document.getElementById('da7-topology-diagram');
+    const container = document.getElementById('da6-topology-diagram');
     if (!container) return;
 
     const rackCount = state.disaggRackCount || 1;
@@ -606,7 +579,7 @@ function renderDisaggTopologyDiagram() {
     const slGroupW = 2 * SL_W + 24;
     const totalW = Math.max(rackGroupW + 80, spinesGroupW + 80, slGroupW + 80, 500);
 
-    const SPINE_Y = 40, SL_Y = 110, LEAF_Y = 210, BOTTOM_PAD = 30;
+    const SL_Y = 40, SPINE_Y = 120, LEAF_Y = 210, BOTTOM_PAD = 30;
     const totalH = LEAF_Y + LEAF_H + BOTTOM_PAD + 30;
 
     const C = {
@@ -615,7 +588,7 @@ function renderDisaggTopologyDiagram() {
         TEXT: '#e0e0e0', TEXT_DIM: '#999', RACK_BORDER: '#444466'
     };
 
-    let svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + totalW + ' ' + totalH + '" style="width:100%;max-width:' + totalW + 'px;background:' + C.BG + ';font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;border-radius:6px;">';
+    let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + totalW + '" height="' + totalH + '" viewBox="0 0 ' + totalW + ' ' + totalH + '" style="width:100%;max-width:' + totalW + 'px;background:' + C.BG + ';font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;border-radius:6px;">';
 
     // Title
     svg += '<text x="' + (totalW / 2) + '" y="22" text-anchor="middle" fill="' + C.TEXT + '" font-size="13" font-weight="600">Clos Fabric Topology — BGP Peering &amp; Loopback Map</text>';
@@ -647,20 +620,20 @@ function renderDisaggTopologyDiagram() {
         }
     }
 
-    // Draw connections: each spine connects to every service leaf and every rack leaf
-    // Spine → Service Leafs
-    for (let si = 0; si < spinePositions.length; si++) {
-        for (let sli = 0; sli < slPositions.length; sli++) {
-            svg += '<line x1="' + spinePositions[si].cx + '" y1="' + (SPINE_Y + SPINE_H) + '" x2="' + slPositions[sli].cx + '" y2="' + SL_Y + '" stroke="' + C.LINK_ACTIVE + '" stroke-width="1.5" stroke-dasharray="4,3"/>';
+    // Draw connections: Service Leafs → Spines → Rack Leafs (correct Clos hierarchy)
+    // Service Leafs → Spines
+    for (let si = 0; si < slPositions.length; si++) {
+        for (let spi = 0; spi < spinePositions.length; spi++) {
+            svg += '<line x1="' + slPositions[si].cx + '" y1="' + (SL_Y + SL_H) + '" x2="' + spinePositions[spi].cx + '" y2="' + SPINE_Y + '" stroke="' + C.LINK_ACTIVE + '" stroke-width="1.5" stroke-dasharray="4,3"/>';
         }
     }
-    // Spine → Rack Leafs
+    // Spines → Rack Leafs
     for (let si2 = 0; si2 < spinePositions.length; si2++) {
         for (let li2 = 0; li2 < leafPositions.length; li2++) {
             svg += '<line x1="' + spinePositions[si2].cx + '" y1="' + (SPINE_Y + SPINE_H) + '" x2="' + leafPositions[li2].cx + '" y2="' + LEAF_Y + '" stroke="' + C.LINK + '" stroke-width="1"/>';
         }
     }
-    // Service Leafs → Spines already drawn; Service Leafs don't connect to rack leafs
+    // Service Leafs connect only to Spines; Spines connect to Rack Leafs
 
     // Draw spine boxes
     for (let s2 = 0; s2 < spinePositions.length; s2++) {
@@ -716,7 +689,7 @@ function renderDisaggTopologyDiagram() {
 }
 
 function renderIpPlanning() {
-    const grid = document.getElementById('da7-ip-grid');
+    const grid = document.getElementById('da6-ip-grid');
     if (!grid) return;
 
     // Render topology diagram
@@ -800,8 +773,8 @@ function editDisaggIpConfig() {
 }
 
 function renderDisaggIpConfirmState() {
-    const confirmContainer = document.getElementById('da7-confirm-container');
-    const confirmedMsg = document.getElementById('da7-confirmed-msg');
+    const confirmContainer = document.getElementById('da6-confirm-container');
+    const confirmedMsg = document.getElementById('da6-confirmed-msg');
     const confirmed = state.disaggIpConfigConfirmed === true;
 
     if (confirmContainer) confirmContainer.classList.toggle('hidden', confirmed);
@@ -810,9 +783,9 @@ function renderDisaggIpConfirmState() {
     if (typeof updateBreadcrumbs === 'function') updateBreadcrumbs();
 }
 
-// ── Summary & Rack Diagram (DA8) ───────────────────────────────────────────
+// ── Summary & Rack Diagram (DA7) ───────────────────────────────────────────
 function renderDisaggSummary() {
-    const container = document.getElementById('da8-config-summary');
+    const container = document.getElementById('da7-config-summary');
     if (!container) return;
 
     const total = (state.disaggRackCount || 0) * (state.disaggNodesPerRack || 0);
@@ -849,7 +822,7 @@ function renderDisaggSummary() {
 
 // ── Dynamic Rack Layout SVG Generator ───────────────────────────────────────
 function generateDisaggRackDiagram() {
-    const container = document.getElementById('da8-rack-diagram');
+    const container = document.getElementById('da7-rack-diagram');
     if (!container) return;
 
     const rackCount = state.disaggRackCount || 1;
@@ -1074,8 +1047,26 @@ function generateDisaggRackDiagram() {
     container.innerHTML = svg;
 }
 
+function downloadDisaggTopologyDiagram() {
+    const container = document.getElementById('da6-topology-diagram');
+    if (!container) return;
+    const svgEl = container.querySelector('svg');
+    if (!svgEl) return;
+
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clos-topology-${state.disaggRackCount}racks-${state.disaggSpineCount}spines.svg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 function downloadDisaggRackDiagram() {
-    const container = document.getElementById('da8-rack-diagram');
+    const container = document.getElementById('da7-rack-diagram');
     if (!container) return;
     const svgEl = container.querySelector('svg');
     if (!svgEl) return;
@@ -1092,7 +1083,7 @@ function downloadDisaggRackDiagram() {
     URL.revokeObjectURL(url);
 }
 
-// ─── DA10: NIC / Adapter Configuration ─────────────────────────
+// ─── DA8: NIC / Adapter Configuration ─────────────────────────
 
 // Get all physical NIC slots for the current disaggregated config
 function getDisaggNicSlots() {
@@ -1227,7 +1218,7 @@ function getDisaggPortCountOptions() {
 }
 
 function renderDisaggPortCountSelector() {
-    const grid = document.getElementById('da10-port-count-grid');
+    const grid = document.getElementById('da8-port-count-grid');
     if (!grid) return;
     grid.innerHTML = '';
 
@@ -1292,14 +1283,14 @@ function renderDisaggPortCountSelector() {
     }
 
     // vNIC mode info banner — no longer used
-    const vnicBanner = document.getElementById('da10-vnic-mode-banner');
+    const vnicBanner = document.getElementById('da8-vnic-mode-banner');
     if (vnicBanner) {
         vnicBanner.innerHTML = '';
     }
 
     // Show/hide downstream sections based on port count selection
-    const portConfigSection = document.getElementById('da10-port-configuration');
-    const intentSection = document.getElementById('da10-intent-section');
+    const portConfigSection = document.getElementById('da8-port-configuration');
+    const intentSection = document.getElementById('da8-intent-section');
     if (portConfigSection) portConfigSection.classList.toggle('visible', !!currentCount);
     if (intentSection) {
         if (currentCount) intentSection.style.display = '';
@@ -1404,7 +1395,7 @@ function getDisaggPortDisplayName(port) {
 }
 
 function renderDisaggPortCards() {
-    const container = document.getElementById('da10-port-config-grid');
+    const container = document.getElementById('da8-port-config-grid');
     if (!container) return;
     container.innerHTML = '';
 
@@ -1478,8 +1469,8 @@ function renderDisaggPortCards() {
     }
 
     // Show/hide confirm controls
-    const confirmContainer = document.getElementById('da10-port-config-confirm-container');
-    const confirmedMsg = document.getElementById('da10-port-config-confirmed-msg');
+    const confirmContainer = document.getElementById('da8-port-config-confirm-container');
+    const confirmedMsg = document.getElementById('da8-port-config-confirmed-msg');
     if (confirmContainer && confirmedMsg) {
         if (isPortConfirmed) {
             confirmContainer.classList.add('hidden');
@@ -1651,7 +1642,7 @@ function initDisaggAdapterMapping() {
 }
 
 function renderDisaggAdapterMappingUi() {
-    const container = document.getElementById('da10-adapter-mapping-container');
+    const container = document.getElementById('da8-adapter-mapping-container');
     if (!container) return;
 
     const ports = getDisaggPortList();
@@ -1703,10 +1694,10 @@ function buildDisaggAdapterPill(port, confirmed) {
         pill.addEventListener('click', function() {
             if (_disaggSelectedPill === port.id) {
                 _disaggSelectedPill = null;
-                document.querySelectorAll('#da10-adapter-mapping-container .adapter-pill').forEach(function(p) { p.classList.remove('selected'); });
+                document.querySelectorAll('#da8-adapter-mapping-container .adapter-pill').forEach(function(p) { p.classList.remove('selected'); });
             } else {
                 _disaggSelectedPill = port.id;
-                document.querySelectorAll('#da10-adapter-mapping-container .adapter-pill').forEach(function(p) { p.classList.remove('selected'); });
+                document.querySelectorAll('#da8-adapter-mapping-container .adapter-pill').forEach(function(p) { p.classList.remove('selected'); });
                 pill.classList.add('selected');
             }
         });
@@ -1715,7 +1706,7 @@ function buildDisaggAdapterPill(port, confirmed) {
 }
 
 function renderDisaggAdapterPool(ports, confirmed) {
-    const poolDrop = document.getElementById('da10-adapter-pool-drop');
+    const poolDrop = document.getElementById('da8-adapter-pool-drop');
     if (!poolDrop) return;
     poolDrop.innerHTML = '';
 
@@ -1736,7 +1727,7 @@ function renderDisaggAdapterPool(ports, confirmed) {
 }
 
 function renderDisaggIntentZones(ports, confirmed) {
-    const grid = document.getElementById('da10-intent-zones-grid');
+    const grid = document.getElementById('da8-intent-zones-grid');
     if (!grid) return;
     grid.innerHTML = '';
 
@@ -1758,13 +1749,13 @@ function renderDisaggIntentZones(ports, confirmed) {
                 '<span class="intent-zone-title ' + zone.titleClass + '">' + zone.title + '</span>' +
             '</div>' +
             '<div class="intent-zone-desc">' + zone.description + '</div>' +
-            '<div id="da10-zone-drop-' + zone.key + '" class="intent-zone-drop" data-zone="' + zone.key + '"></div>' +
+            '<div id="da8-zone-drop-' + zone.key + '" class="intent-zone-drop" data-zone="' + zone.key + '"></div>' +
             (zone.minAdapters > 0 ? '<div class="intent-zone-min ' + (meetsMin ? 'met' : 'not-met') + '">' +
                 (meetsMin ? '' : '! ') + 'Minimum: ' + zone.minAdapters + ' adapter(s)</div>' : '');
 
         grid.appendChild(card);
 
-        const drop = document.getElementById('da10-zone-drop-' + zone.key);
+        const drop = document.getElementById('da8-zone-drop-' + zone.key);
         if (drop) {
             assigned.forEach(function(p) { drop.appendChild(buildDisaggAdapterPill(p, confirmed)); });
             if (assigned.length === 0) {
@@ -1828,9 +1819,9 @@ function moveDisaggAdapter(portId, targetZone) {
 }
 
 function updateDisaggAdapterMappingButtons(confirmed) {
-    const confirmBtn = document.getElementById('da10-adapter-mapping-confirm-btn');
-    const resetBtn = document.getElementById('da10-adapter-mapping-reset-btn');
-    const statusEl = document.getElementById('da10-adapter-mapping-status');
+    const confirmBtn = document.getElementById('da8-adapter-mapping-confirm-btn');
+    const resetBtn = document.getElementById('da8-adapter-mapping-reset-btn');
+    const statusEl = document.getElementById('da8-adapter-mapping-status');
 
     if (confirmBtn) confirmBtn.style.display = confirmed ? 'none' : '';
     if (resetBtn) resetBtn.style.display = confirmed ? 'none' : '';
@@ -1870,7 +1861,7 @@ function resetDisaggAdapterMapping() {
 }
 
 function validateDisaggAdapterMapping(ports) {
-    const validationEl = document.getElementById('da10-adapter-mapping-validation');
+    const validationEl = document.getElementById('da8-adapter-mapping-validation');
     if (!validationEl) return;
 
     const errors = [];
@@ -1914,8 +1905,8 @@ function ensureDisaggIntentOverrides() {
 }
 
 function renderDisaggOverrides() {
-    const overridesSection = document.getElementById('da10-intent-overrides');
-    const container = document.getElementById('da10-intent-overrides-container');
+    const overridesSection = document.getElementById('da8-intent-overrides');
+    const container = document.getElementById('da8-intent-overrides-container');
     if (!overridesSection || !container) return;
 
     // Only show after adapter mapping is confirmed
@@ -2061,8 +2052,8 @@ function renderDisaggOverrides() {
     container.innerHTML = html;
 
     // Update confirm state
-    const confirmBtn = document.getElementById('da10-overrides-confirm-btn');
-    const statusEl = document.getElementById('da10-overrides-status');
+    const confirmBtn = document.getElementById('da8-overrides-confirm-btn');
+    const statusEl = document.getElementById('da8-overrides-status');
     if (confirmBtn) confirmBtn.style.display = confirmed ? 'none' : '';
     if (statusEl) {
         if (confirmed) {
@@ -2204,17 +2195,17 @@ function editDisaggOverrides() {
     state.disaggOverridesConfirmed = false;
     state.disaggNicConfigConfirmed = false;
     renderDisaggOverrides();
-    const previewEl = document.getElementById('da10-nic-layout-diagram');
+    const previewEl = document.getElementById('da8-nic-layout-diagram');
     if (previewEl) previewEl.innerHTML = '';
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// HOST NETWORKING DIAGRAM PREVIEW (shown after DA10 overrides confirmed)
+// HOST NETWORKING DIAGRAM PREVIEW (shown after DA8 overrides confirmed)
 // ═══════════════════════════════════════════════════════════════════════════
 
 function renderDisaggHostNetworkingPreview() {
-    const container = document.getElementById('da10-nic-layout-diagram');
+    const container = document.getElementById('da8-nic-layout-diagram');
     if (!container) return;
     if (!state.disaggOverridesConfirmed) { container.innerHTML = ''; return; }
 
@@ -2494,7 +2485,7 @@ function renderDisaggHostNetworkingPreview() {
 
 window.downloadWizardHostNetworkingSvg = function(variant) {
     try {
-        const container = document.getElementById('da10-nic-layout-diagram');
+        const container = document.getElementById('da8-nic-layout-diagram');
         if (!container) return;
         const svg = container.querySelector('svg.switchless-diagram__svg');
         if (!svg) return;
@@ -2594,8 +2585,8 @@ window.downloadWizardHostNetworkingSvg = function(variant) {
 };
 
 function validateDisaggNicConfig() {
-    const errorEl = document.getElementById('da10-nic-error');
-    const successEl = document.getElementById('da10-nic-success');
+    const errorEl = document.getElementById('da8-nic-error');
+    const successEl = document.getElementById('da8-nic-success');
     if (!errorEl || !successEl) return;
 
     const errors = [];

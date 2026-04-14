@@ -1,4 +1,4 @@
-﻿// Odin for Azure Local - version for tracking changes
+// Odin for Azure Local - version for tracking changes
 const WIZARD_VERSION = '0.20.06';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
@@ -180,7 +180,7 @@ const state = {
     disaggQosCustomized: false,
     // DA9: Node configuration
 
-    // DA10: NIC / Adapter configuration
+    // DA8: NIC / Adapter configuration
     disaggPortSpeeds: {  // Speed per NIC slot
         ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE'
     },
@@ -390,7 +390,7 @@ const missingSectionToStep = {
     'TOR switch architecture': 'step-3-5',
     'Storage Connectivity': 'step-4',
     'Storage Type': 'step-da1',
-    'Port Count': 'step-da4',
+    'Port Count': 'step-da8',
     'Multi-Rack': 'step-da3',
     'Ports': 'step-5',
     'Storage Pool Configuration': 'step-5-5',
@@ -532,14 +532,13 @@ function getReportReadiness() {
 
     // Disaggregated architecture has its own readiness checks
     if (state.architecture === 'disaggregated') {
-        // DA1-DA4: Core disaggregated config
+        // DA1-DA3: Core disaggregated config
         if (!state.disaggStorageType) missing.push('Storage Type (DA1)');
         if (!state.disaggRackCount) missing.push('Rack Count (DA3)');
         if (!state.disaggNodesPerRack) missing.push('Nodes Per Rack (DA3)');
-        if (!state.disaggSpineCount) missing.push('Spine Count (DA4)');
-        // DA10: Port count + NIC configuration
-        if (!state.disaggPortCount) missing.push('Network Port Count (DA10)');
-        if (!state.disaggNicConfigConfirmed) missing.push('Network Adapter Configuration (DA10)');
+        // DA8: Port count + NIC configuration
+        if (!state.disaggPortCount) missing.push('Network Port Count (DA8)');
+        if (!state.disaggNicConfigConfirmed) missing.push('Network Adapter Configuration (DA8)');
         // Shared steps — same as HCI
         if (!state.region) missing.push('Azure Cloud');
         if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
@@ -3459,8 +3458,7 @@ function updateUI() {
             document.getElementById('step-da5'),
             document.getElementById('step-da6'),
             document.getElementById('step-da7'),
-            document.getElementById('step-da8'),
-            document.getElementById('step-da10')
+            document.getElementById('step-da8')
         ];
 
         // Reset Visibility first
@@ -3547,13 +3545,13 @@ function updateUI() {
             if (daSteps[0]) daSteps[0].classList.remove('hidden'); // DA1 always visible
             if (state.disaggStorageType && daSteps[1]) daSteps[1].classList.remove('hidden'); // DA2
             if ((state.disaggStorageType === 'fc_san' || state.disaggBackupEnabled !== undefined) && daSteps[2]) daSteps[2].classList.remove('hidden'); // DA3
-            if (state.disaggRackCount && state.disaggNodesPerRack && daSteps[3]) daSteps[3].classList.remove('hidden'); // DA4
-            if (state.disaggSpineCount) {
-                if (daSteps[4]) daSteps[4].classList.remove('hidden'); // DA5
-                if (daSteps[5]) daSteps[5].classList.remove('hidden'); // DA6
-                if (daSteps[6]) daSteps[6].classList.remove('hidden'); // DA7
-                if (daSteps[7]) daSteps[7].classList.remove('hidden'); // DA8
-                if (daSteps[8]) daSteps[8].classList.remove('hidden'); // DA10
+            // Spine count auto-set to 2 in DA3 — no separate spine step
+            if (state.disaggRackCount && state.disaggNodesPerRack) {
+                if (daSteps[3]) daSteps[3].classList.remove('hidden'); // DA4 (VLANs)
+                if (daSteps[4]) daSteps[4].classList.remove('hidden'); // DA5 (QoS)
+                if (daSteps[5]) daSteps[5].classList.remove('hidden'); // DA6 (IPs)
+                if (daSteps[6]) daSteps[6].classList.remove('hidden'); // DA7 (Summary)
+                if (daSteps[7]) daSteps[7].classList.remove('hidden'); // DA8 (Adapters)
 
                 // Re-render disaggregated dynamic content on resume
                 if (typeof renderDisaggSummary === 'function') renderDisaggSummary();
@@ -4273,14 +4271,14 @@ function updateUI() {
         }
     }
 
-    // Disaggregated: Auto-set Infrastructure VLAN from DA5 management VLAN mode
+    // Disaggregated: Auto-set Infrastructure VLAN from DA4 management VLAN mode
     if (state.architecture === 'disaggregated' && state.ip) {
         const mgmtVlanId = state.disaggVlans ? state.disaggVlans.mgmt : null;
         const daNotice = document.getElementById('infra-vlan-da-notice');
         const daNoticeText = document.getElementById('infra-vlan-da-notice-text');
         if (daNotice) { daNotice.classList.remove('hidden'); }
         if (state.disaggMgmtVlanMode === 'trunk') {
-            // Trunk → Custom VLAN with the VLAN ID from DA5
+            // Trunk → Custom VLAN with the VLAN ID from DA4
             state.infraVlan = 'custom';
             state.infraVlanId = mgmtVlanId;
             if (cards.infraVlan['default']) {
@@ -4298,9 +4296,9 @@ function updateUI() {
             if (vlanCustom) { vlanCustom.classList.remove('hidden'); vlanCustom.classList.add('visible'); }
             if (vlanInput) { vlanInput.value = mgmtVlanId || ''; vlanInput.disabled = true; }
             if (vlanInfo) { vlanInfo.classList.remove('hidden'); vlanInfo.classList.add('visible'); }
-            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Trunk mode on DA5. Custom VLAN ' + (mgmtVlanId || '') + ' is applied — the host NICs will tag management traffic with this VLAN ID.';
+            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Trunk mode on DA4. Custom VLAN ' + (mgmtVlanId || '') + ' is applied — the host NICs will tag management traffic with this VLAN ID.';
         } else {
-            // Access → Default VLAN, show the native VLAN ID from DA5
+            // Access → Default VLAN, show the native VLAN ID from DA4
             state.infraVlan = 'default';
             state.infraVlanId = null;
             if (cards.infraVlan['custom']) {
@@ -4318,7 +4316,7 @@ function updateUI() {
             if (vlanCustom) { vlanCustom.classList.add('hidden'); vlanCustom.classList.remove('visible'); }
             if (vlanInput) { vlanInput.value = ''; vlanInput.disabled = true; }
             if (vlanInfo) { vlanInfo.classList.add('hidden'); vlanInfo.classList.remove('visible'); }
-            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Access mode on DA5. The host sends untagged traffic (VLAN ID 0) — the TOR switch assigns it to native VLAN ' + (mgmtVlanId || '') + ' internally.';
+            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Access mode on DA4. The host sends untagged traffic (VLAN ID 0) — the TOR switch assigns it to native VLAN ' + (mgmtVlanId || '') + ' internally.';
         }
     } else {
         const daNotice = document.getElementById('infra-vlan-da-notice');
@@ -10429,12 +10427,11 @@ function updateBreadcrumbs() {
                 case 'step-da1': isComplete = Boolean(state.disaggStorageType); break;
                 case 'step-da2': isComplete = (state.disaggStorageType === 'fc_san') || (state.disaggBackupEnabled !== undefined && state.disaggBackupEnabled !== null); break;
                 case 'step-da3': isComplete = Boolean(state.disaggRackCount && state.disaggNodesPerRack); break;
-                case 'step-da4': isComplete = Boolean(state.disaggSpineCount); break;
-                case 'step-da5': isComplete = Boolean(state.disaggVlanConfigConfirmed); break;
-                case 'step-da6': isComplete = Boolean(state.disaggOverridesConfirmed); break;
-                case 'step-da7': isComplete = Boolean(state.disaggIpConfigConfirmed); break;
-                case 'step-da8': isComplete = Boolean(state.disaggOverridesConfirmed); break;
-                case 'step-da10': isComplete = Boolean(state.disaggPortConfigConfirmed); break;
+                case 'step-da4': isComplete = Boolean(state.disaggVlanConfigConfirmed); break;
+                case 'step-da5': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da6': isComplete = Boolean(state.disaggIpConfigConfirmed); break;
+                case 'step-da7': isComplete = Boolean(state.disaggOverridesConfirmed); break;
+                case 'step-da8': isComplete = Boolean(state.disaggPortConfigConfirmed); break;
             }
 
             item.classList.toggle('completed', isComplete);
