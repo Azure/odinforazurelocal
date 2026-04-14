@@ -1319,7 +1319,6 @@ let _nodeCountUserSet = false;
 
 // Physical port count from Designer (default 4 if user hasn't come from Designer)
 let _designerPortCount = 4;
-let _designerSpineCount = 2;
 
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
@@ -2166,7 +2165,6 @@ function getSizerState() {
         repairDisksUserSet: _repairDisksUserSet,
         workloads: workloads,
         workloadIdCounter: workloadIdCounter,
-        designerSpineCount: _designerSpineCount,
         importedProcessorName: window._importedProcessorName || null,
         importedCoresPerSocket: window._importedCoresPerSocket || null
     };
@@ -2254,11 +2252,6 @@ function checkForDesignerImport() {
         // Store physical port count from Designer for 3D rack visualization
         if (payload.ports) {
             _designerPortCount = parseInt(payload.ports, 10) || 4;
-        }
-        if (payload.spineCount) {
-            _designerSpineCount = parseInt(payload.spineCount, 10) || 2;
-            var spineSelect = document.getElementById('disagg-spine-count');
-            if (spineSelect) spineSelect.value = String(_designerSpineCount);
         }
         if (payload.disaggStorageType) {
             var storageTypeSelect = document.getElementById('disagg-storage-type');
@@ -2475,7 +2468,7 @@ function resumeSizerState() {
     // Restore workloads
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
-    if (d.designerSpineCount) _designerSpineCount = d.designerSpineCount;
+    // Spine count is always 2 (legacy saves may have had other values)
 
     // Restore all MANUAL override flags
     _nodeCountUserSet = !!d.nodeCountUserSet;
@@ -2737,12 +2730,6 @@ function onDisaggRackCountChange() { // eslint-disable-line no-unused-vars
     calculateRequirements();
 }
 
-// Handle disaggregated spine count change
-function onDisaggSpineCountChange() { // eslint-disable-line no-unused-vars
-    _designerSpineCount = parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || 2;
-    calculateRequirements();
-}
-
 // Handle disaggregated storage type change
 function onDisaggStorageTypeChange() { // eslint-disable-line no-unused-vars
     updateDisaggLegend();
@@ -2769,10 +2756,6 @@ function updateDisaggregatedUI(isDisagg) {
     // Show/hide rack count row
     var rackRow = document.getElementById('disagg-rack-count-row');
     if (rackRow) rackRow.style.display = isDisagg ? '' : 'none';
-
-    // Show/hide spine count row
-    var spineRow = document.getElementById('disagg-spine-count-row');
-    if (spineRow) spineRow.style.display = isDisagg ? '' : 'none';
 
     // Show/hide storage type row
     var storageTypeRow = document.getElementById('disagg-storage-type-row');
@@ -4526,7 +4509,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
                 nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
                 disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
                 disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
-                spineCount: parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || _designerSpineCount || 2,
+                spineCount: 2,
                 hasGpu: false,
                 gpuModel: '',
                 perNodeWatts: 0,
@@ -4597,7 +4580,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     if (clusterType === 'disaggregated') {
         var drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
         var dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
-        var spineCount = parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || 2;
+        var spineCount = 2;
         // ToR/Leaf switches: ~250W each (Cisco 93180YC-FX class)
         var torSwitchPower = 250;
         var torCount = drc * 2;
@@ -4748,7 +4731,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             nodeCount: nodeCount,
             disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
             disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
-            spineCount: parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || _designerSpineCount || 2,
+            spineCount: 2,
             hasGpu: hwConfig.gpuCount > 0,
             gpuModel: hwConfig.gpuType || '',
             perNodeWatts: perNodeW,
@@ -5828,7 +5811,7 @@ function selectRegionAndConfigure(region, cloud) {
         disaggStorageType: clusterType === 'disaggregated' ? ((document.getElementById('disagg-storage-type') || {}).value || 'fc_san') : undefined,
         disaggRackCount: clusterType === 'disaggregated' ? (parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2) : undefined,
         disaggNodesPerRack: clusterType === 'disaggregated' ? Math.ceil(parseInt(nodeCount, 10) / (parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2)) : undefined,
-        disaggSpineCount: clusterType === 'disaggregated' ? (parseInt((document.getElementById('disagg-spine-count') || {}).value, 10) || 2) : undefined,
+        disaggSpineCount: clusterType === 'disaggregated' ? 2 : undefined,
         // Hardware details (hidden in Designer, shown in report)
         sizerHardware: {
             clusterType: clusterType,
@@ -6615,7 +6598,7 @@ function applyImportedSizerState(d) {
     // Restore workloads
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
-    if (d.designerSpineCount) _designerSpineCount = d.designerSpineCount;
+    // Spine count is always 2 (legacy saves may have had other values)
 
     // Restore all MANUAL override flags
     _nodeCountUserSet = !!d.nodeCountUserSet;
