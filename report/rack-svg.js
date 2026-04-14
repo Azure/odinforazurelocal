@@ -364,10 +364,23 @@
         parts.push('<image href="' + ICON_DATA_URI + '" x="' + (brandX - iconSize - 62) + '" y="' + brandY + '" width="' + iconSize + '" height="' + iconSize + '" opacity="0.85"/>');
         parts.push('<text x="' + (brandX - 58) + '" y="' + (brandY + 13) + '" font-size="10" font-weight="600" fill="#B596F5" font-family="Segoe UI, sans-serif">Azure Local</text>');
 
-        // ── Spine + Service Leaf layer ──
-        var spineY = titleH + 8;
+        // ── Service Leaf + Spine layer ──
+        var slBoxW = 120;
+        var slBoxH = 20;
+        var slY = titleH + 8;
+        var slStartX = (svgW - 2 * slBoxW - 20) / 2;
+        var slLabels = ['Service Leaf A', 'Service Leaf B'];
+        for (var sl = 0; sl < 2; sl++) {
+            var slx = slStartX + sl * (slBoxW + 20);
+            parts.push('<rect x="' + slx + '" y="' + slY + '" width="' + slBoxW + '" height="' + slBoxH + '" rx="3" fill="' + DC.SERVICE_LEAF + '"/>');
+            parts.push('<text x="' + (slx + slBoxW / 2) + '" y="' + (slY + 11) + '" text-anchor="middle" font-size="8" font-weight="600" fill="#fff">' + slLabels[sl] + '</text>');
+            parts.push('<text x="' + (slx + slBoxW / 2) + '" y="' + (slY + slBoxH - 2) + '" text-anchor="middle" font-size="6" fill="rgba(255,255,255,0.6)">ASN ' + serviceLeafAsn + '</text>');
+        }
+
+        // Spine pair
         var spineBoxW = 160;
         var spineBoxH = 22;
+        var spineY = slY + slBoxH + 8;
         var spineGap = 20;
         var totalSpineW = spineCount * spineBoxW + (spineCount - 1) * spineGap;
         var spineStartX = (svgW - totalSpineW) / 2;
@@ -377,19 +390,6 @@
             parts.push('<rect x="' + sx + '" y="' + spineY + '" width="' + spineBoxW + '" height="' + spineBoxH + '" rx="4" fill="' + DC.SPINE + '"/>');
             parts.push('<text x="' + (sx + spineBoxW / 2) + '" y="' + (spineY + 13) + '" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">Spine ' + (s + 1) + '</text>');
             parts.push('<text x="' + (sx + spineBoxW / 2) + '" y="' + (spineY + spineBoxH - 2) + '" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.6)">ASN ' + spineAsn + '</text>');
-        }
-
-        // Service Leaf pair
-        var slBoxW = 120;
-        var slBoxH = 20;
-        var slY = spineY + spineBoxH + 8;
-        var slStartX = (svgW - 2 * slBoxW - 20) / 2;
-        var slLabels = ['Service Leaf A', 'Service Leaf B'];
-        for (var sl = 0; sl < 2; sl++) {
-            var slx = slStartX + sl * (slBoxW + 20);
-            parts.push('<rect x="' + slx + '" y="' + slY + '" width="' + slBoxW + '" height="' + slBoxH + '" rx="3" fill="' + DC.SERVICE_LEAF + '"/>');
-            parts.push('<text x="' + (slx + slBoxW / 2) + '" y="' + (slY + 11) + '" text-anchor="middle" font-size="8" font-weight="600" fill="#fff">' + slLabels[sl] + '</text>');
-            parts.push('<text x="' + (slx + slBoxW / 2) + '" y="' + (slY + slBoxH - 2) + '" text-anchor="middle" font-size="6" fill="rgba(255,255,255,0.6)">ASN ' + serviceLeafAsn + '</text>');
         }
 
         // ── Racks ──

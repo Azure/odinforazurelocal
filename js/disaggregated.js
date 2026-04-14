@@ -871,6 +871,16 @@ function generateDisaggRackDiagram() {
     svg += `<image href="images/odin-logo.png" x="${totalW - 100}" y="8" width="16" height="16" opacity="0.8"/>`;
     svg += `<text x="${totalW - 80}" y="21" fill="${C.SERVICE_LEAF}" font-size="11" font-weight="500">Azure Local</text>`;
 
+    // ── Service Leaf Layer ──
+    const slW = 130;
+    const slStartX = (totalW - 2 * slW - 20) / 2;
+    for (let s = 0; s < 2; s++) {
+        const sx = slStartX + s * (slW + 20);
+        svg += `<rect x="${sx}" y="35" width="${slW}" height="24" rx="3" fill="${C.SERVICE_LEAF}" stroke="#0d9488" stroke-width="1"/>`;
+        svg += `<text x="${sx + slW/2}" y="48" text-anchor="middle" fill="white" font-size="9" font-weight="600">Service Leaf ${s === 0 ? 'A' : 'B'}</text>`;
+        svg += `<text x="${sx + slW/2}" y="56" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="7">ASN 65005</text>`;
+    }
+
     // ── Spine Layer ──
     const spineW = 150;
     const spineH = 28;
@@ -879,23 +889,13 @@ function generateDisaggRackDiagram() {
 
     for (let s = 0; s < spineCount; s++) {
         const sx = spineStartX + s * (spineW + 20);
-        svg += `<rect x="${sx}" y="35" width="${spineW}" height="${spineH}" rx="4" fill="${C.SPINE}" stroke="#2a8ad4" stroke-width="1"/>`;
-        svg += `<text x="${sx + spineW/2}" y="50" text-anchor="middle" fill="white" font-size="10" font-weight="600">Spine ${s+1}</text>`;
-        svg += `<text x="${sx + spineW/2}" y="60" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8">ASN 64841</text>`;
+        svg += `<rect x="${sx}" y="68" width="${spineW}" height="${spineH}" rx="4" fill="${C.SPINE}" stroke="#2a8ad4" stroke-width="1"/>`;
+        svg += `<text x="${sx + spineW/2}" y="83" text-anchor="middle" fill="white" font-size="10" font-weight="600">Spine ${s+1}</text>`;
+        svg += `<text x="${sx + spineW/2}" y="93" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="8">ASN 64841</text>`;
         // Status LEDs
         for (let l = 0; l < 3; l++) {
-            svg += `<circle cx="${sx + spineW - 12 + l*5}" cy="41" r="1.5" fill="${C.LED_GREEN}" opacity="0.8"/>`;
+            svg += `<circle cx="${sx + spineW - 12 + l*5}" cy="74" r="1.5" fill="${C.LED_GREEN}" opacity="0.8"/>`;
         }
-    }
-
-    // ── Service Leaf Layer ──
-    const slW = 130;
-    const slStartX = (totalW - 2 * slW - 20) / 2;
-    for (let s = 0; s < 2; s++) {
-        const sx = slStartX + s * (slW + 20);
-        svg += `<rect x="${sx}" y="72" width="${slW}" height="24" rx="3" fill="${C.SERVICE_LEAF}" stroke="#0d9488" stroke-width="1"/>`;
-        svg += `<text x="${sx + slW/2}" y="85" text-anchor="middle" fill="white" font-size="9" font-weight="600">Service Leaf ${s === 0 ? 'A' : 'B'}</text>`;
-        svg += `<text x="${sx + slW/2}" y="93" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="7">ASN 65005</text>`;
     }
 
     // ── Connectors: Spine to Leaves (drawn later after racks) ──
@@ -968,7 +968,7 @@ function generateDisaggRackDiagram() {
         const sx = spineStartX + s * (spineW + 20) + spineW / 2;
         for (let r = 0; r < rackCount; r++) {
             const lx = rackXPositions[r] + RACK_W / 2;
-            svg += `<line x1="${sx}" y1="63" x2="${lx}" y2="${PAD.top + 6}" stroke="#7dd3fc" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.25"/>`;
+            svg += `<line x1="${sx}" y1="96" x2="${lx}" y2="${PAD.top + 6}" stroke="#7dd3fc" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.25"/>`;
         }
     }
 
@@ -977,7 +977,7 @@ function generateDisaggRackDiagram() {
         const slx = slStartX + s * (slW + 20) + slW / 2;
         for (let sp = 0; sp < spineCount; sp++) {
             const spx = spineStartX + sp * (spineW + 20) + spineW / 2;
-            svg += `<line x1="${slx}" y1="72" x2="${spx}" y2="63" stroke="#5eead4" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.25"/>`;
+            svg += `<line x1="${slx}" y1="59" x2="${spx}" y2="68" stroke="#5eead4" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.25"/>`;
         }
     }
 
