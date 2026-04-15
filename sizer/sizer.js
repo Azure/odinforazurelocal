@@ -5815,6 +5815,21 @@ function configureInDesigner() {
         return;
     }
 
+    // Low Capacity: always connected — skip connectivity choice, go straight to region picker
+    if (clusterType === 'low-capacity') {
+        window._sizerConnectivityChoice = 'connected';
+        var modal = document.getElementById('region-picker-modal');
+        var regionOverlay = document.getElementById('region-modal-overlay');
+        if (modal && regionOverlay) {
+            var commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
+            if (commercialRadio) commercialRadio.checked = true;
+            updateRegionOptions();
+            modal.classList.add('active');
+            regionOverlay.classList.add('active');
+        }
+        return;
+    }
+
     // All other cluster types: ask Connected or Disconnected first
     showConnectivityChoice();
 }
