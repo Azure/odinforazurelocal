@@ -8927,6 +8927,8 @@ function mapDesignerToSizerClusterType() {
     if (state.architecture === 'disaggregated') return 'disaggregated';
     // Rack-aware scale
     if (state.scale === 'rack_aware') return 'rack-aware';
+    // Low Capacity hardware
+    if (state.scale === 'low_capacity') return 'low-capacity';
     // Single node
     if (state.nodes === '1') return 'single';
     // Default: standard cluster
@@ -8981,6 +8983,7 @@ function openSwitchConfigDirect() { // eslint-disable-line no-unused-vars
         source: 'designer',
         timestamp: new Date().toISOString(),
         scenario: state.scenario || null,
+        architecture: state.architecture || null,
         nodes: state.nodes || null,
         ports: state.ports ? parseInt(state.ports, 10) : null,
         storage: state.storage || null,
@@ -8991,7 +8994,10 @@ function openSwitchConfigDirect() { // eslint-disable-line no-unused-vars
         infraVlan: state.infraVlan || null,
         infraCidr: state.infraCidr || null,
         infraGateway: state.infraGateway || null,
-        intentOverrides: state.intentOverrides || null
+        intentOverrides: state.intentOverrides || null,
+        disaggVlans: state.disaggVlans || null,
+        disaggTenantNetworks: state.disaggTenantNetworks || null,
+        disaggStorageType: state.disaggStorageType || null
     };
 
     try {
@@ -9017,6 +9023,7 @@ function transferToSwitchConfig() {
         source: 'designer',
         timestamp: new Date().toISOString(),
         scenario: state.scenario,
+        architecture: state.architecture || null,
         nodes: state.nodes,
         ports: state.ports ? parseInt(state.ports, 10) : 4,
         storage: state.storage,
@@ -9027,7 +9034,10 @@ function transferToSwitchConfig() {
         infraVlan: state.infraVlan || null,
         infraCidr: state.infraCidr || null,
         infraGateway: state.infraGateway || null,
-        intentOverrides: state.intentOverrides || null
+        intentOverrides: state.intentOverrides || null,
+        disaggVlans: state.disaggVlans || null,
+        disaggTenantNetworks: state.disaggTenantNetworks || null,
+        disaggStorageType: state.disaggStorageType || null
     };
 
     try {
@@ -10186,6 +10196,11 @@ function loadTemplate(templateIndex) {
 
     // Final UI update to reflect all state changes
     updateUI();
+
+    // Restore disaggregated UI state (card selections, slider, explanations)
+    if (config.architecture === 'disaggregated' && typeof restoreDisaggregatedUI === 'function') {
+        restoreDisaggregatedUI();
+    }
 
     // Close the modal
     document.querySelectorAll('div').forEach(el => {

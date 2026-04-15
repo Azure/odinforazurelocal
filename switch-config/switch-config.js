@@ -70,9 +70,16 @@
                 switched: 'Storage Switched',
                 switchless: 'Storage Switchless'
             };
-            var bannerText = (patternLabel[pattern] || pattern) +
-                ' \u00B7 ' + (ds.nodes || '?') + ' nodes' +
-                (ds.scale === 'rack_aware' || ds.scale === 'rack-aware' ? ' \u00B7 Rack-Aware Cluster (2 racks)' : ' \u00B7 Single Rack');
+            var bannerText = '';
+            if (ds.architecture === 'disaggregated') {
+                var stLabel = { fc_san: 'FC SAN', iscsi_4nic: 'iSCSI 4-NIC', iscsi_6nic: 'iSCSI 6-NIC' };
+                bannerText = 'Disaggregated Storage (' + (stLabel[ds.disaggStorageType] || 'FC SAN') + ')' +
+                    ' \u00B7 ' + (ds.nodes || '?') + ' nodes';
+            } else {
+                bannerText = (patternLabel[pattern] || pattern) +
+                    ' \u00B7 ' + (ds.nodes || '?') + ' nodes' +
+                    (ds.scale === 'rack_aware' || ds.scale === 'rack-aware' ? ' \u00B7 Rack-Aware Cluster (2 racks)' : ' \u00B7 Single Rack');
+            }
             var textEl = document.getElementById('sc-deployment-text');
             if (textEl) textEl.innerHTML = bannerText + ' \u00B7 or use the <a href="#sc-qos-audit-section" style="color: var(--accent-blue); text-decoration: underline;">QoS Validator</a> to analyze an existing switch config.';
         } else {
@@ -85,7 +92,14 @@
 
         // Infrastructure VLAN
         var infraVlanNote = document.getElementById('sc-infra-vlan-note');
-        if (ds.infraVlan === 'custom' && ds.infraVlanId) {
+        if (ds.architecture === 'disaggregated' && ds.disaggVlans && ds.disaggVlans.mgmt) {
+            setVal('sc-infra-vlan', String(ds.disaggVlans.mgmt));
+            if (infraVlanNote) {
+                infraVlanNote.style.display = 'block';
+                infraVlanNote.textContent = 'Your Designer configured a disaggregated management VLAN (ID ' + ds.disaggVlans.mgmt + '). ' +
+                    'This has been pre-filled below.';
+            }
+        } else if (ds.infraVlan === 'custom' && ds.infraVlanId) {
             setVal('sc-infra-vlan', ds.infraVlanId);
             if (infraVlanNote) {
                 infraVlanNote.style.display = 'block';
@@ -124,17 +138,33 @@
         if (isRackAware && infraSvis[3]) setVal('sc-infra-ip-tor4', infraSvis[3]);
 
         // Default compute VLAN 1 — derive SVIs from gateway
-        setVal('sc-compute-vlan1-id', '201');
-        setVal('sc-compute-vlan1-cidr', '24');
-        setVal('sc-compute-vlan1-gw', '10.0.201.1');
-        var compSvis = deriveSviIps('10.0.201.1', isRackAware ? 4 : 2);
-        if (compSvis[0]) setVal('sc-compute-vlan1-tor1', compSvis[0]);
-        if (compSvis[1]) setVal('sc-compute-vlan1-tor2', compSvis[1]);
-        if (isRackAware && compSvis[2]) setVal('sc-compute-vlan1-tor3', compSvis[2]);
-        if (isRackAware && compSvis[3]) setVal('sc-compute-vlan1-tor4', compSvis[3]);
+        // For disaggregated clusters, use tenant network VLANs from Designer
+        var isDisaggregated = ds.architecture === 'disaggregated';
+        var tenantVlans = isDisaggregated && ds.disaggTenantNetworks ? flattenTenantVlans(ds.disaggTenantNetworks) : [];
+        if (tenantVlans.length > 0) {
+            // Populate compute VLAN slots from disaggregated tenant networks (up to 3)
+            for (var tv = 0; tv < Math.min(tenantVlans.length, 3); tv++) {
+                var idx = tv + 1;
+                var block = document.getElementById('sc-compute-vlan-' + idx);
+                if (block) block.style.display = '';
+                setVal('sc-compute-vlan' + idx + '-id', String(tenantVlans[tv].vlan));
+            }
+        } else {
+            setVal('sc-compute-vlan1-id', '201');
+            setVal('sc-compute-vlan1-cidr', '24');
+            setVal('sc-compute-vlan1-gw', '10.0.201.1');
+            var compSvis = deriveSviIps('10.0.201.1', isRackAware ? 4 : 2);
+            if (compSvis[0]) setVal('sc-compute-vlan1-tor1', compSvis[0]);
+            if (compSvis[1]) setVal('sc-compute-vlan1-tor2', compSvis[1]);
+            if (isRackAware && compSvis[2]) setVal('sc-compute-vlan1-tor3', compSvis[2]);
+            if (isRackAware && compSvis[3]) setVal('sc-compute-vlan1-tor4', compSvis[3]);
+        }
 
-        // Storage VLANs
-        if (pattern === 'switchless') {
+        // Storage VLANs — for disaggregated, use cluster VLANs from Designer
+        if (isDisaggregated && ds.disaggVlans) {
+            if (ds.disaggVlans.cluster1) setVal('sc-storage1-vlan', String(ds.disaggVlans.cluster1));
+            if (ds.disaggVlans.cluster2) setVal('sc-storage2-vlan', String(ds.disaggVlans.cluster2));
+        } else if (pattern === 'switchless') {
             document.getElementById('sc-storage-section').style.display = 'none';
         } else {
             var storageVlans = extractStorageVlans(ds);
@@ -181,6 +211,22 @@
         if (storage === 'switched' || storage === 'network_switch' || storage === 'network switch') return 'switched';
         if (intent === 'all_traffic' || intent === 'all traffic') return 'fully_converged';
         return 'fully_converged';
+    }
+
+    /**
+     * Flatten disaggregated tenant networks into a simple array of VLAN objects.
+     * Each tenant VRF can have multiple VLANs; we collect them all in order.
+     */
+    function flattenTenantVlans(tenantNetworks) {
+        var vlans = [];
+        for (var t = 0; t < tenantNetworks.length; t++) {
+            var tenant = tenantNetworks[t];
+            if (!tenant.vlans) continue;
+            for (var v = 0; v < tenant.vlans.length; v++) {
+                vlans.push({ vlan: tenant.vlans[v].vlan, name: tenant.vlans[v].name, vrf: tenant.vrf });
+            }
+        }
+        return vlans;
     }
 
     function extractStorageVlans(ds) {

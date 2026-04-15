@@ -967,7 +967,14 @@ function buildMaxHardwareConfig(hwConfig) {
         maxCoresPerSocket = hwConfig.generation.coreOptions[hwConfig.generation.coreOptions.length - 1];
     }
     // Use max 2 sockets — Azure Local certified hardware supports 1 or 2 sockets only
-    const MAX_SOCKETS = 2;
+    var MAX_SOCKETS = 2;
+
+    // Low Capacity: constrain max hardware to deployment limits
+    var currentClusterType = document.getElementById('cluster-type').value;
+    if (currentClusterType === 'low-capacity') {
+        maxCoresPerSocket = Math.min(maxCoresPerSocket, LOW_CAPACITY_MAX_CORES_PER_NODE);
+        MAX_SOCKETS = LOW_CAPACITY_MAX_SOCKETS;
+    }
 
     // Use a fixed per-node memory cap (1.5 TB) for node estimation to prefer adding
     // nodes over expensive high-capacity DIMMs. This cap must NOT depend on the current
@@ -982,6 +989,12 @@ function buildMaxHardwareConfig(hwConfig) {
         ? Math.max(NODE_WEIGHT_PREFERRED_MEMORY_GB, hwConfig.memoryGB || 0)
         : NODE_WEIGHT_PREFERRED_MEMORY_GB;
 
+    // Low Capacity: cap memory at deployment limit
+    var effectiveMaxMemory = PREFERRED_MAX_MEMORY_GB;
+    if (currentClusterType === 'low-capacity') {
+        effectiveMaxMemory = Math.min(effectiveMaxMemory, LOW_CAPACITY_MAX_MEMORY_GB);
+    }
+
     // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
     const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
     let maxDiskConfig = hwConfig.diskConfig;
@@ -992,7 +1005,7 @@ function buildMaxHardwareConfig(hwConfig) {
 
     return {
         totalPhysicalCores: maxCoresPerSocket * MAX_SOCKETS,
-        memoryGB: PREFERRED_MAX_MEMORY_GB,
+        memoryGB: effectiveMaxMemory,
         sockets: MAX_SOCKETS,
         coresPerSocket: maxCoresPerSocket,
         diskConfig: maxDiskConfig // disk size scaled to max for node recommendation
@@ -1097,6 +1110,7 @@ function getMaxNodeCap() {
     if (ct === 'rack-aware') return 8;
     if (ct === 'single') return 1;
     if (ct === 'aldo-mgmt') return 3;
+    if (ct === 'low-capacity') return LOW_CAPACITY_MAX_NODES;
     return 16;
 }
 
@@ -1105,6 +1119,13 @@ function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'single') return 1;
     if (clusterType === 'aldo-mgmt') return 3;
+    if (clusterType === 'low-capacity') {
+        const options = [1, 2, 3];
+        for (const opt of options) {
+            if (opt >= recommended) return opt;
+        }
+        return 3;
+    }
     if (clusterType === 'disaggregated') {
         var rackCountEl = document.getElementById('disagg-rack-count');
         var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
@@ -1216,6 +1237,15 @@ const ALDO_MIN_MEMORY_GB = 96;          // Minimum 96 GB memory per node
 const ALDO_MIN_CORES_PER_NODE = 24;     // Minimum 24 physical cores per node
 const ALDO_MIN_STORAGE_PER_NODE_TB = 2; // Minimum 2 TB SSD/NVMe storage per node
 const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM reservation per node
+
+// Low Capacity deployment type hardware limits
+// Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
+const LOW_CAPACITY_MAX_NODES = 3;               // 1–3 nodes supported
+const LOW_CAPACITY_MAX_CORES_PER_NODE = 14;     // Up to 14 physical cores
+const LOW_CAPACITY_MAX_SOCKETS = 1;             // Single socket only
+const LOW_CAPACITY_MIN_MEMORY_GB = 32;          // Minimum 32 GB per node
+const LOW_CAPACITY_MAX_MEMORY_GB = 128;         // Maximum 128 GB per node
+const LOW_CAPACITY_MAX_GPU_VRAM_GB = 192;       // Maximum 192 GB GPU memory per node
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
 
@@ -1692,11 +1722,19 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // --- Auto-scale CPU cores (and sockets if needed) ---
     // Skip when the user has manually set CPU cores/sockets (respect user override).
     // For ALDO management clusters, enforce minimum 24 physical cores per node
+    const isLowCapacity = clusterTypeForOverhead === 'low-capacity';
     const aldoMinCores = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_CORES_PER_NODE : 0;
     const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
-    const SOCKET_OPTIONS = [1, 2];
+    const SOCKET_OPTIONS = isLowCapacity ? [1] : [1, 2];
+
+    // Low Capacity: force single socket
+    if (isLowCapacity && sockets > LOW_CAPACITY_MAX_SOCKETS) {
+        sockets = LOW_CAPACITY_MAX_SOCKETS;
+        socketsSelect.value = LOW_CAPACITY_MAX_SOCKETS;
+        changed = true;
+    }
 
     let manufacturer = document.getElementById('cpu-manufacturer').value;
     let genId = document.getElementById('cpu-generation').value;
@@ -1738,11 +1776,17 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             // If still no option is big enough, pick max cores and max sockets
             if (targetCores === null) {
                 targetCores = maxCoresForGen;
-                if (sockets < 2) {
+                if (sockets < 2 && !isLowCapacity) {
                     socketsSelect.value = 2;
                     changed = true;
                     markAutoScaled('cpu-sockets');
                 }
+            }
+
+            // Low Capacity: cap cores at maximum allowed
+            if (isLowCapacity && targetCores > LOW_CAPACITY_MAX_CORES_PER_NODE) {
+                const validCores = generation.coreOptions.filter(c => c <= LOW_CAPACITY_MAX_CORES_PER_NODE);
+                targetCores = validCores.length > 0 ? validCores[validCores.length - 1] : generation.coreOptions[0];
             }
 
             if (targetCores !== currentCores) {
@@ -1769,10 +1813,15 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // In conservative mode (default), cap at 2 TB and let node scaling add nodes instead.
         // For ALDO management clusters, enforce minimum 96 GB per node
         const aldoMinMem = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_MEMORY_GB : 0;
-        const effectiveMinMem = Math.max(requiredMemPerNode, aldoMinMem);
+        const lowCapMinMem = isLowCapacity ? LOW_CAPACITY_MIN_MEMORY_GB : 0;
+        const effectiveMinMem = Math.max(requiredMemPerNode, aldoMinMem, lowCapMinMem);
         let targetMem = MEMORY_OPTIONS_GB.find(m => m >= effectiveMinMem) || MAX_MEMORY_GB;
         if (!allowHighMemory && targetMem > PREFERRED_MEM_CAP_GB) {
             targetMem = PREFERRED_MEM_CAP_GB;
+        }
+        // Low Capacity: enforce maximum memory cap
+        if (isLowCapacity && targetMem > LOW_CAPACITY_MAX_MEMORY_GB) {
+            targetMem = LOW_CAPACITY_MAX_MEMORY_GB;
         }
         if (targetMem !== currentMem) {
             memInput.value = targetMem;
@@ -2038,9 +2087,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Skip when the user has manually set memory (respect user override).
     if (!_memoryUserSet) {
         const baseMemCap = allowHighMemory ? MAX_MEMORY_GB : PREFERRED_MEM_CAP_GB;
-        const memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
+        let memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
             ? Math.min(NODE_WEIGHT_PREFERRED_MEMORY_GB, baseMemCap)
             : baseMemCap;
+        // Low Capacity: enforce hard memory cap
+        if (isLowCapacity) memCapLimit = Math.min(memCapLimit, LOW_CAPACITY_MAX_MEMORY_GB);
         let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
         let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
         let memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
@@ -2248,6 +2299,7 @@ function checkForDesignerImport() {
         if (isDisaggImport) updateDisaggregatedUI(true);
         updateResiliencyOptions();
         updateAldoWorkloadButtons();
+        enforceLowCapacityLimits();
 
         // Store physical port count from Designer for 3D rack visualization
         if (payload.ports) {
@@ -2298,6 +2350,7 @@ function checkForDesignerImport() {
         const clusterLabels = {
             'single': 'Single Node',
             'standard': 'Hyperconverged',
+            'low-capacity': 'Low Capacity',
             'rack-aware': 'Rack-Aware Instance',
             'disaggregated': 'Disaggregated Storage',
             'aldo-mgmt': 'ALDO Management Cluster'
@@ -2519,6 +2572,7 @@ function resumeSizerState() {
 
     // Update UI
     updateAldoWorkloadButtons();
+    enforceLowCapacityLimits();
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
@@ -2719,6 +2773,7 @@ function onClusterTypeChange() {
     updateResiliencyRecommendation();
     updateClusterInfo();
     enforceAldoMinimums();
+    enforceLowCapacityLimits();
     calculateRequirements();
 }
 
@@ -2786,10 +2841,13 @@ function updateDisaggregatedUI(isDisagg) {
     // Update HA/DR tip for disaggregated
     var hadrTip = document.getElementById('hadr-tip');
     if (hadrTip) {
+        var currentClusterType = document.getElementById('cluster-type').value;
         if (isDisagg) {
             hadrTip.querySelector('span').textContent = 'Disaggregated storage: compute nodes use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Configure up to 4 racks with up to 16 nodes each (64 nodes maximum).';
+        } else if (currentClusterType === 'low-capacity') {
+            hadrTip.querySelector('span').textContent = 'Low Capacity: supports 1\u20133 nodes with reduced hardware (max 14 CPU cores, 32\u2013128 GB memory per node). All-flash storage only, no caching. RDMA is optional. See Azure Local documentation for low capacity hardware requirements.';
         } else {
-            hadrTip.querySelector('span').textContent = 'Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local clusters, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster configuration type.';
+            hadrTip.querySelector('span').textContent = 'Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local clusters, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster Deployment Type.';
         }
     }
 }
@@ -2871,13 +2929,78 @@ function enforceAldoMinimums() {
     }
 }
 
+// Enforce Low Capacity deployment type hardware limits
+// Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
+function enforceLowCapacityLimits() {
+    const clusterType = document.getElementById('cluster-type').value;
+    if (clusterType !== 'low-capacity') return;
+
+    // Enforce single socket
+    const socketsSelect = document.getElementById('cpu-sockets');
+    if (socketsSelect && parseInt(socketsSelect.value) > LOW_CAPACITY_MAX_SOCKETS) {
+        socketsSelect.value = LOW_CAPACITY_MAX_SOCKETS;
+    }
+
+    // Enforce max 14 CPU cores per node
+    const coresSelect = document.getElementById('cpu-cores');
+    if (coresSelect) {
+        const currentCores = parseInt(coresSelect.value) || 0;
+        if (currentCores > LOW_CAPACITY_MAX_CORES_PER_NODE) {
+            // Find the largest available core option ≤ 14
+            const manufacturer = document.getElementById('cpu-manufacturer').value;
+            const genId = document.getElementById('cpu-generation').value;
+            if (manufacturer && genId) {
+                const generation = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
+                if (generation) {
+                    const validCores = generation.coreOptions.filter(c => c <= LOW_CAPACITY_MAX_CORES_PER_NODE);
+                    if (validCores.length > 0) {
+                        coresSelect.value = validCores[validCores.length - 1];
+                    } else {
+                        // No valid core option for this generation — pick the smallest
+                        coresSelect.value = generation.coreOptions[0];
+                    }
+                }
+            }
+        }
+    }
+
+    // Enforce memory: min 32 GB, max 128 GB
+    const memInput = document.getElementById('node-memory');
+    if (memInput) {
+        const currentMem = parseInt(memInput.value) || 0;
+        if (currentMem > LOW_CAPACITY_MAX_MEMORY_GB) {
+            memInput.value = LOW_CAPACITY_MAX_MEMORY_GB;
+        } else if (currentMem < LOW_CAPACITY_MIN_MEMORY_GB) {
+            const minOption = MEMORY_OPTIONS_GB.find(m => m >= LOW_CAPACITY_MIN_MEMORY_GB) || LOW_CAPACITY_MIN_MEMORY_GB;
+            memInput.value = minOption;
+        }
+    }
+
+    // Enforce GPU VRAM limit (192 GB per node)
+    const gpuCountEl = document.getElementById('gpu-count');
+    const gpuTypeEl = document.getElementById('gpu-type');
+    if (gpuCountEl && gpuTypeEl) {
+        const gpuCount = parseInt(gpuCountEl.value) || 0;
+        const gpuType = gpuTypeEl.value;
+        const gpuModel = GPU_MODELS[gpuType];
+        if (gpuModel && gpuCount > 0) {
+            const totalVram = gpuModel.vramGB * gpuCount;
+            if (totalVram > LOW_CAPACITY_MAX_GPU_VRAM_GB) {
+                // Reduce count to fit within VRAM limit
+                const maxGpus = Math.floor(LOW_CAPACITY_MAX_GPU_VRAM_GB / gpuModel.vramGB);
+                gpuCountEl.value = Math.max(0, maxGpus);
+            }
+        }
+    }
+}
+
 // Enforce storage constraints based on cluster type
 function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
     if (!storageSelect) return; // Guard for test harness
-    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt' || clusterType === 'disaggregated') {
-        // Rack-aware, single-node, ALDO management, and disaggregated require all-flash (or external SAN)
+    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt' || clusterType === 'disaggregated' || clusterType === 'low-capacity') {
+        // Rack-aware, single-node, low-capacity, ALDO management, and disaggregated require all-flash (or external SAN)
         storageSelect.value = 'all-flash';
         storageSelect.disabled = true;
         onStorageConfigChange();
@@ -2967,6 +3090,23 @@ function updateNodeOptionsForClusterType() {
         // Update label to say "Nodes per Rack"
         var nodeLabel = document.querySelector('label[for="node-count"]');
         if (nodeLabel) nodeLabel.textContent = 'Nodes per Rack';
+    } else if (clusterType === 'low-capacity') {
+        // Low Capacity: 1-3 nodes
+        nodeSelect.disabled = false;
+        const nodeOptions = [1, 2, 3];
+        nodeSelect.innerHTML = nodeOptions.map(n => {
+            let label = `${n} Node${n > 1 ? 's' : ''}`;
+            if (n === 1) label += ' (Minimum)';
+            if (n === 3) label += ' (Maximum for Low Capacity)';
+            return `<option value="${n}">${label}</option>`;
+        }).join('');
+
+        // Preserve current value if valid, otherwise default to 1
+        if (nodeOptions.includes(currentValue)) {
+            nodeSelect.value = currentValue;
+        } else {
+            nodeSelect.value = currentValue > 3 ? 3 : 1;
+        }
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
@@ -2998,7 +3138,7 @@ function updateResiliencyOptions() {
     // Build resiliency options based on cluster type and node count
     let options = '';
     
-    if (clusterType === 'single') {
+    if (clusterType === 'single' || (clusterType === 'low-capacity' && nodeCount === 1)) {
         // Single node: only simple and 2-way mirror available
         options = `
             <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
@@ -3044,7 +3184,7 @@ function updateResiliencyOptions() {
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
     if (clusterType === 'rack-aware') {
         // Rack-aware has only one option per node count — already selected
-    } else if (clusterType === 'single') {
+    } else if (clusterType === 'single' || (clusterType === 'low-capacity' && nodeCount === 1)) {
         // Single node: default to 2-way mirror for fault tolerance
         resiliencySelect.value = '2way';
     } else if (clusterType === 'aldo-mgmt') {
@@ -3070,7 +3210,7 @@ function updateClusterInfo() {
     let showWarning = false;
     let message = '';
     
-    if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && resiliency === '3way' && nodeCount < config.minNodes) {
+    if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && clusterType !== 'low-capacity' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
         message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
     }
@@ -3092,6 +3232,8 @@ function updateNodeTip() {
         tipText.textContent = 'Tip: Single node instances will always incur workload downtime during updates. No N+1 capacity is available.';
     } else if (clusterType === 'aldo-mgmt') {
         tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
+    } else if (clusterType === 'low-capacity') {
+        tipText.textContent = 'Tip: Low Capacity supports 1\u20133 nodes with reduced hardware specifications (max 14 CPU cores, max 128 GB memory per node). Single node deployments will incur workload downtime during updates.';
     } else {
         tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node instances will always incur workload downtime during updates.';
     }
@@ -4049,7 +4191,7 @@ function calculateRequirements(options) {
             // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
             if (clusterType !== 'single' && clusterType !== 'aldo-mgmt' && !skipAutoNodeRecommend) {
-                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : (clusterType === 'low-capacity' ? [1, 2, 3] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
                 let attempts = 0;
@@ -5284,6 +5426,7 @@ function updateDesignerActionVisibility() {
 // Map sizer cluster type to Designer scale value
 function mapSizerToDesignerScale(clusterType) {
     if (clusterType === 'rack-aware') return 'rack_aware';
+    if (clusterType === 'low-capacity') return 'low_capacity';
     if (clusterType === 'aldo-mgmt') return 'medium';
     if (clusterType === 'disaggregated') return 'medium';
     // Both 'single' and 'standard' map to 'medium' (Hyperconverged)
@@ -6649,6 +6792,7 @@ function applyImportedSizerState(d) {
 
     // Update UI
     updateAldoWorkloadButtons();
+    enforceLowCapacityLimits();
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
