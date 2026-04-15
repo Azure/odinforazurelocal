@@ -1498,9 +1498,9 @@ function renderRack3D(config) {
         }
 
         // Scene label
-        var sceneLabel = makeTextSprite('Low Capacity Deployment', 28, '#ffffff');
-        sceneLabel.position.set(0, surface.surfaceY + 0.15, -surface.surfaceD / 2 - 0.05);
-        sceneLabel.scale.set(0.6, 0.12, 1);
+        var sceneLabel = makeTextSprite('Low Capacity Deployment', 24, '#aaaaaa');
+        sceneLabel.position.set(0, surface.surfaceY + 0.22, -surface.surfaceD / 2 + 0.05);
+        sceneLabel.scale.set(0.4, 0.08, 1);
         _rack3d.scene.add(sceneLabel);
 
         // Camera — front-elevated view of the tabletop
@@ -1522,6 +1522,9 @@ function renderRack3D(config) {
             'legend-edge-appliance': true,
             'legend-tor-switch': false,
             'legend-edge-switch': (nodeCount > 1),
+            'legend-bmc-switch': false,
+            'legend-core-router': false,
+            'legend-mgmt-compute': (nodeCount > 1),
             'legend-smb-trunk': false,
             'legend-lag': false,
             'legend-fc-switch': false,
@@ -1554,7 +1557,10 @@ function renderRack3D(config) {
         'legend-server-node': true,
         'legend-edge-appliance': false,
         'legend-tor-switch': true,
-        'legend-edge-switch': false
+        'legend-edge-switch': false,
+        'legend-bmc-switch': true,
+        'legend-core-router': true,
+        'legend-mgmt-compute': true
     };
     Object.keys(stdLegendReset).forEach(function(id) {
         var el = document.getElementById(id);
