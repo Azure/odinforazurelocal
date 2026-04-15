@@ -1048,6 +1048,262 @@ function placeStandardCoreNetwork(scene, rackX, torCount, nodeCount) {
     }
 }
 
+// ── Build an edge/tabletop surface for Low Capacity deployments ──
+
+function buildEdgeSurface(scene, nodeCount) {
+    var group = new THREE.Group();
+
+    // Surface dimensions scale with node count
+    var surfaceW = 0.25 + nodeCount * 0.35;
+    var surfaceD = 0.45;
+    var surfaceH = 0.025;
+    var legH = 0.35;
+
+    var surfaceMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.6, metalness: 0.3 });
+    var legMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.7, metalness: 0.4 });
+
+    // Tabletop surface
+    var topGeo = new THREE.BoxGeometry(surfaceW, surfaceH, surfaceD);
+    var top = new THREE.Mesh(topGeo, surfaceMat);
+    top.position.set(0, legH + surfaceH / 2, 0);
+    group.add(top);
+
+    // Four legs
+    var legSize = 0.02;
+    var legGeo = new THREE.BoxGeometry(legSize, legH, legSize);
+    var legPositions = [
+        [-surfaceW / 2 + legSize, legH / 2, -surfaceD / 2 + legSize],
+        [ surfaceW / 2 - legSize, legH / 2, -surfaceD / 2 + legSize],
+        [-surfaceW / 2 + legSize, legH / 2,  surfaceD / 2 - legSize],
+        [ surfaceW / 2 - legSize, legH / 2,  surfaceD / 2 - legSize]
+    ];
+    legPositions.forEach(function(pos) {
+        var leg = new THREE.Mesh(legGeo, legMat);
+        leg.position.set(pos[0], pos[1], pos[2]);
+        group.add(leg);
+    });
+
+    // Subtle edge trim on surface front
+    var trimGeo = new THREE.BoxGeometry(surfaceW, 0.003, 0.003);
+    var trimMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
+    var trim = new THREE.Mesh(trimGeo, trimMat);
+    trim.position.set(0, legH + surfaceH, -surfaceD / 2);
+    group.add(trim);
+
+    scene.add(group);
+    return { group: group, surfaceY: legH + surfaceH, surfaceW: surfaceW, surfaceD: surfaceD };
+}
+
+// ── Place a compact edge appliance (Low Capacity node) ──
+
+function placeEdgeAppliance(scene, surfaceY, posX, label, isGpu, diskCount, portCount) {
+    var appW = 0.28;
+    var appH = 0.055;
+    var appD = 0.30;
+    var y = surfaceY + appH / 2 + 0.001;
+    var frontZ = -appD / 2;
+    var backZ = appD / 2;
+
+    var bodyMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4, metalness: 0.4 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 });
+    var metalMat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.3, metalness: 0.7 });
+    var ledGreen = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.6 });
+    var ledBlue = new THREE.MeshStandardMaterial({ color: 0x3399ff, emissive: 0x3399ff, emissiveIntensity: 0.4 });
+    var accentMat = new THREE.MeshStandardMaterial({ color: 0x0078d4, roughness: 0.5, metalness: 0.3 });
+
+    // Main chassis — rounded edges via chamfer simulation (slightly smaller box + top plate)
+    var bodyGeo = new THREE.BoxGeometry(appW, appH, appD);
+    var body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.set(posX, y, 0);
+    scene.add(body);
+
+    // Top accent stripe (Azure blue thin line across front edge of top)
+    var topStripeGeo = new THREE.BoxGeometry(appW - 0.01, 0.002, 0.015);
+    var topStripe = new THREE.Mesh(topStripeGeo, accentMat);
+    topStripe.position.set(posX, y + appH / 2 + 0.001, frontZ + 0.015);
+    scene.add(topStripe);
+
+    // ── Front face ──
+
+    // Front bezel
+    var bezelGeo = new THREE.BoxGeometry(appW - 0.004, appH - 0.008, 0.003);
+    var bezel = new THREE.Mesh(bezelGeo, darkMat);
+    bezel.position.set(posX, y, frontZ - 0.002);
+    scene.add(bezel);
+
+    // Drive bays (1–2 compact slots)
+    var numDisks = diskCount || 1;
+    var diskSlotW = 0.03;
+    var diskSlotH = appH * 0.5;
+    var diskSlotGeo = new THREE.BoxGeometry(diskSlotW, diskSlotH, 0.002);
+    var diskMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.4 });
+    var diskHandleMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 });
+    var diskStartX = posX - appW / 2 + 0.02;
+    for (var d = 0; d < numDisks; d++) {
+        var dx = diskStartX + d * (diskSlotW + 0.008) + diskSlotW / 2;
+        var slot = new THREE.Mesh(diskSlotGeo, diskMat);
+        slot.position.set(dx, y, frontZ - 0.004);
+        scene.add(slot);
+        var handleGeo = new THREE.BoxGeometry(diskSlotW - 0.004, 0.003, 0.001);
+        var handle = new THREE.Mesh(handleGeo, diskHandleMat);
+        handle.position.set(dx, y + diskSlotH / 2 + 0.003, frontZ - 0.005);
+        scene.add(handle);
+    }
+
+    // Status LEDs (right side)
+    var ledX = posX + appW / 2 - 0.025;
+    var ledGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.001, 8);
+    var led1 = new THREE.Mesh(ledGeo, ledGreen);
+    led1.rotation.x = Math.PI / 2;
+    led1.position.set(ledX, y + appH * 0.15, frontZ - 0.004);
+    scene.add(led1);
+    var led2 = new THREE.Mesh(ledGeo, ledBlue);
+    led2.rotation.x = Math.PI / 2;
+    led2.position.set(ledX + 0.01, y + appH * 0.15, frontZ - 0.004);
+    scene.add(led2);
+
+    // Power button (small circle)
+    var pwrGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.001, 12);
+    var pwrBtn = new THREE.Mesh(pwrGeo, metalMat);
+    pwrBtn.rotation.x = Math.PI / 2;
+    pwrBtn.position.set(ledX + 0.005, y - appH * 0.15, frontZ - 0.004);
+    scene.add(pwrBtn);
+
+    // Azure logo on front
+    if (_rack3d.azureLogoTexture) {
+        var logoSize = appH * 0.55;
+        var logoGeo = new THREE.PlaneGeometry(logoSize, logoSize);
+        var logoMat = new THREE.MeshBasicMaterial({
+            map: _rack3d.azureLogoTexture,
+            transparent: true,
+            depthWrite: false
+        });
+        var logoMesh = new THREE.Mesh(logoGeo, logoMat);
+        logoMesh.rotation.y = Math.PI;
+        logoMesh.position.set(posX + appW / 2 - 0.05, y, frontZ - 0.006);
+        scene.add(logoMesh);
+    }
+
+    // GPU accent stripe
+    if (isGpu) {
+        var gpuStripeGeo = new THREE.BoxGeometry(appW - 0.01, 0.004, 0.002);
+        var gpuStripeMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.3 });
+        var gpuStripe = new THREE.Mesh(gpuStripeGeo, gpuStripeMat);
+        gpuStripe.position.set(posX, y + appH / 2 - 0.004, frontZ - 0.005);
+        scene.add(gpuStripe);
+    }
+
+    // ── Back face ──
+
+    var backPanelGeo = new THREE.BoxGeometry(appW - 0.004, appH - 0.008, 0.003);
+    var backPanel = new THREE.Mesh(backPanelGeo, darkMat);
+    backPanel.position.set(posX, y, backZ + 0.002);
+    scene.add(backPanel);
+
+    // Single compact PSU (right side)
+    var psuW = appW * 0.22;
+    var psuH = appH * 0.6;
+    var psuGeo = new THREE.BoxGeometry(psuW, psuH, 0.005);
+    var psuMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 });
+    var psu = new THREE.Mesh(psuGeo, psuMat);
+    psu.position.set(posX + appW / 2 - psuW / 2 - 0.01, y, backZ + 0.005);
+    scene.add(psu);
+
+    // Network ports (2–4 small ports on back)
+    var portW = 0.01;
+    var portH = 0.008;
+    var portGeo = new THREE.BoxGeometry(portW, portH, 0.003);
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
+    var numPorts = portCount || 2;
+    var portStartX = posX - appW / 2 + 0.025;
+    for (var pt = 0; pt < numPorts; pt++) {
+        var port = new THREE.Mesh(portGeo, portMat);
+        port.position.set(portStartX + pt * (portW + 0.005), y + appH * 0.1, backZ + 0.005);
+        scene.add(port);
+    }
+
+    // BMC port
+    var bmcPortMat = new THREE.MeshStandardMaterial({ color: 0x0078d4, roughness: 0.5, metalness: 0.4 });
+    var bmcPort = new THREE.Mesh(portGeo, bmcPortMat);
+    bmcPort.position.set(portStartX + numPorts * (portW + 0.005) + 0.008, y + appH * 0.1, backZ + 0.005);
+    scene.add(bmcPort);
+
+    // Ventilation grille (3 thin slots on back)
+    var ventMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.1 });
+    for (var v = 0; v < 3; v++) {
+        var ventGeo = new THREE.BoxGeometry(appW * 0.2, 0.002, 0.002);
+        var vent = new THREE.Mesh(ventGeo, ventMat);
+        vent.position.set(posX - appW * 0.05, y - appH * 0.15 + v * 0.007, backZ + 0.004);
+        scene.add(vent);
+    }
+
+    // Labels
+    if (label) {
+        var frontLabel = makeFaceLabel(label, 28, '#ffffff', 'front');
+        frontLabel.position.set(posX, y, frontZ - 0.008);
+        frontLabel.scale.set(0.35, 0.05, 1);
+        scene.add(frontLabel);
+        var rearLabel = makeFaceLabel(label + ' (Rear)', 28, '#ffffff', 'back');
+        rearLabel.position.set(posX, y, backZ + 0.012);
+        rearLabel.scale.set(0.35, 0.05, 1);
+        scene.add(rearLabel);
+    }
+
+    return body;
+}
+
+// ── Place a small edge switch for Low Capacity deployments ──
+
+function placeEdgeSwitch(scene, surfaceY, posX, posZ, label) {
+    var swW = 0.22;
+    var swH = 0.03;
+    var swD = 0.18;
+    var y = surfaceY + swH / 2 + 0.001;
+
+    var bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.4 });
+    var darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 });
+
+    // Switch body
+    var bodyGeo = new THREE.BoxGeometry(swW, swH, swD);
+    var body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.set(posX, y, posZ);
+    scene.add(body);
+
+    // Front panel
+    var faceGeo = new THREE.BoxGeometry(swW - 0.002, swH - 0.004, 0.002);
+    var face = new THREE.Mesh(faceGeo, darkMat);
+    face.position.set(posX, y, posZ - swD / 2 - 0.001);
+    scene.add(face);
+
+    // Small port row (8 ports)
+    var portGeo = new THREE.BoxGeometry(0.006, 0.006, 0.002);
+    var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
+    var portStartX = posX - swW / 2 + 0.02;
+    for (var p = 0; p < 8; p++) {
+        var port = new THREE.Mesh(portGeo, portMat);
+        port.position.set(portStartX + p * 0.012, y, posZ - swD / 2 - 0.002);
+        scene.add(port);
+    }
+
+    // Status LED
+    var ledGeo = new THREE.CylinderGeometry(0.002, 0.002, 0.001, 8);
+    var ledMat = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.6 });
+    var led = new THREE.Mesh(ledGeo, ledMat);
+    led.rotation.x = Math.PI / 2;
+    led.position.set(posX + swW / 2 - 0.015, y + swH * 0.1, posZ - swD / 2 - 0.002);
+    scene.add(led);
+
+    // Label
+    if (label) {
+        var swLabel = makeFaceLabel(label, 24, '#ffffff', 'front');
+        swLabel.position.set(posX, y, posZ - swD / 2 - 0.006);
+        swLabel.scale.set(0.25, 0.035, 1);
+        scene.add(swLabel);
+    }
+
+    return body;
+}
+
 // ── Main render function ─────────────────────
 
 function renderRack3D(config) {
@@ -1201,9 +1457,115 @@ function renderRack3D(config) {
     floor.position.y = 0;
     _rack3d.scene.add(floor);
 
+    // ── Low Capacity: edge appliance tabletop scene ──
+    var isLowCapacity = config.clusterType === 'low-capacity';
+    if (isLowCapacity) {
+        // Build tabletop surface
+        var surface = buildEdgeSurface(_rack3d.scene, nodeCount);
+
+        // Place edge appliances on the surface
+        var appSpacing = 0.33;
+        var totalAppWidth = nodeCount * appSpacing;
+        var appStartX = -totalAppWidth / 2 + appSpacing / 2;
+
+        for (var ea = 0; ea < nodeCount; ea++) {
+            var appX = appStartX + ea * appSpacing;
+            var appLabel = 'Node ' + (ea + 1);
+            placeEdgeAppliance(_rack3d.scene, surface.surfaceY, appX, appLabel,
+                config.hasGpu || false, config.diskCount || 1, config.portCount || 2);
+        }
+
+        // Place a small edge switch behind the appliances (if multi-node)
+        if (nodeCount > 1) {
+            placeEdgeSwitch(_rack3d.scene, surface.surfaceY, 0, 0.12, 'Switch');
+
+            // Ethernet cables from each appliance to the switch
+            var cableMat = new THREE.MeshBasicMaterial({ color: 0x3399ff, transparent: true, opacity: 0.7 });
+            for (var ec = 0; ec < nodeCount; ec++) {
+                var ecX = appStartX + ec * appSpacing;
+                var ecStartY = surface.surfaceY + 0.056;
+                var ecEndY = surface.surfaceY + 0.031;
+                var cableGeo = new THREE.TubeGeometry(
+                    new THREE.CatmullRomCurve3([
+                        new THREE.Vector3(ecX, ecStartY, 0.155),
+                        new THREE.Vector3(ecX * 0.5, ecStartY + 0.03, 0.14),
+                        new THREE.Vector3(0, ecEndY + 0.01, 0.12)
+                    ]),
+                    12, 0.0015, 6, false
+                );
+                _rack3d.scene.add(new THREE.Mesh(cableGeo, cableMat));
+            }
+        }
+
+        // Scene label
+        var sceneLabel = makeTextSprite('Low Capacity Deployment', 28, '#ffffff');
+        sceneLabel.position.set(0, surface.surfaceY + 0.15, -surface.surfaceD / 2 - 0.05);
+        sceneLabel.scale.set(0.6, 0.12, 1);
+        _rack3d.scene.add(sceneLabel);
+
+        // Camera — front-elevated view of the tabletop
+        _rack3d.camera.position.set(0.3, surface.surfaceY + 0.35, -0.7);
+        _rack3d.controls.target.set(0, surface.surfaceY + 0.03, 0);
+        _rack3d.controls.update();
+
+        // Update legend text for edge layout
+        var usedUEdge = document.getElementById('rack-viz-used-u');
+        var totalUEdge = document.getElementById('rack-viz-total-u');
+        if (usedUEdge && totalUEdge) {
+            usedUEdge.textContent = nodeCount + (nodeCount === 1 ? ' appliance' : ' appliances');
+            totalUEdge.textContent = (nodeCount > 1 ? '1 switch' : 'standalone');
+        }
+
+        // Toggle legend items for edge layout
+        var legendItems = {
+            'legend-server-node': false,
+            'legend-edge-appliance': true,
+            'legend-tor-switch': false,
+            'legend-edge-switch': (nodeCount > 1),
+            'legend-smb-trunk': false,
+            'legend-lag': false,
+            'legend-fc-switch': false,
+            'legend-san-appliance': false
+        };
+        Object.keys(legendItems).forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.style.display = legendItems[id] ? '' : 'none';
+        });
+        var rackAwareNote = document.getElementById('rack-viz-rackaware-note');
+        if (rackAwareNote) rackAwareNote.style.display = 'none';
+
+        // Update info text for edge layout
+        var infoText = document.getElementById('rack-viz-info-text');
+        if (infoText) {
+            infoText.innerHTML = 'Interactive 3D preview of a Low Capacity edge deployment. Compact appliance nodes are shown on a tabletop surface' +
+                (nodeCount > 1 ? ' with a small network switch.' : ' in a standalone configuration.') +
+                '<br>⚠️ This is an approximate representation only. Low Capacity hardware varies by OEM — contact your preferred hardware partner for actual device specifications and form factors.';
+        }
+
+        return; // Skip standard rack rendering
+    }
+
     // Build racks
     var totalWidth = rackCount * RACK.WIDTH + (rackCount - 1) * RACK.GAP_BETWEEN;
     var startX = -totalWidth / 2 + RACK.WIDTH / 2;
+
+    // Reset legend items to standard rack view
+    var stdLegendReset = {
+        'legend-server-node': true,
+        'legend-edge-appliance': false,
+        'legend-tor-switch': true,
+        'legend-edge-switch': false
+    };
+    Object.keys(stdLegendReset).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = stdLegendReset[id] ? '' : 'none';
+    });
+
+    // Restore standard info text
+    var infoText = document.getElementById('rack-viz-info-text');
+    if (infoText) {
+        infoText.innerHTML = 'Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.';
+    }
 
     for (var r = 0; r < rackCount; r++) {
         // For rack-aware or disaggregated, build in reverse order so Rack 1 appears on viewer's left
