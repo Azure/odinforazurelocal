@@ -282,6 +282,9 @@ function onCpuGenerationChange() {
     ).join('');
     coresSelect.disabled = false;
 
+    // Filter core options for Low Capacity (must be called after populating)
+    enforceLowCapacityLimits();
+
     _cpuConfigUserSet = true;
     markManualSet('cpu-generation');
     onHardwareConfigChange();
@@ -391,6 +394,7 @@ function onVcpuRatioChange() {
 function onMemoryChange() {
     _memoryUserSet = true;
     markManualSet('node-memory');
+    enforceLowCapacityLimits();
     onHardwareConfigChange();
 }
 
@@ -399,6 +403,7 @@ function onCpuConfigChange() {
     _cpuConfigUserSet = true;
     markManualSet('cpu-cores');
     markManualSet('cpu-sockets');
+    enforceLowCapacityLimits();
     onHardwareConfigChange();
 }
 
@@ -1246,6 +1251,7 @@ const LOW_CAPACITY_MAX_SOCKETS = 1;             // Single socket only
 const LOW_CAPACITY_MIN_MEMORY_GB = 32;          // Minimum 32 GB per node
 const LOW_CAPACITY_MAX_MEMORY_GB = 128;         // Maximum 128 GB per node
 const LOW_CAPACITY_MAX_GPU_VRAM_GB = 192;       // Maximum 192 GB GPU memory per node
+const LOW_CAPACITY_MAX_DISK_COUNT = 2;          // Maximum 2 data disks per node
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
 
@@ -1442,6 +1448,7 @@ function clearAllManualOverrides() {
     _gpuCountUserSet = false;
     _nodeCountUserSet = false;
     _repairDisksUserSet = false;
+    _disaggAutoUpgraded = false;
     clearManualBadges();
     calculateRequirements();
 }
@@ -1468,6 +1475,7 @@ const _MANUAL_FIELD_LABELS = {
 // Map element IDs to their corresponding _*UserSet flag name and sibling IDs
 // that share the same flag (clearing one clears all siblings).
 const _MANUAL_FIELD_TO_FLAG = {
+    'cluster-type':              { flag: 'clusterType', siblings: [] },
     'node-count':                { flag: 'nodeCount',   siblings: [] },
     'vcpu-ratio':                { flag: 'vcpuRatio',   siblings: [] },
     'node-memory':               { flag: 'memory',      siblings: [] },
@@ -1492,6 +1500,7 @@ function clearSingleManualOverride(elementId) {
 
     // Reset the corresponding _*UserSet flag
     switch (mapping.flag) {
+        case 'clusterType': _disaggAutoUpgraded  = false; break;
         case 'nodeCount':   _nodeCountUserSet   = false; break;
         case 'vcpuRatio':   _vcpuRatioUserSet   = false; break;
         case 'memory':      _memoryUserSet       = false; break;
@@ -1867,8 +1876,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
 
         // Set disk count to the required amount, clamped between min (2) and max for storage type
-        const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
-        let targetDisks = Math.max(MIN_DISK_COUNT, Math.min(disksNeeded, maxDisksForType));
+        let maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+        // Low Capacity: enforce reduced disk count cap
+        if (isLowCapacity) maxDisksForType = Math.min(maxDisksForType, LOW_CAPACITY_MAX_DISK_COUNT);
+        const minDisksForType = isLowCapacity ? 1 : MIN_DISK_COUNT;
+        let targetDisks = Math.max(minDisksForType, Math.min(disksNeeded, maxDisksForType));
 
         // --- Disk bay consolidation ---
         // When the required disk count reaches ≥50% of max bays, check if fewer
@@ -2931,52 +2943,114 @@ function enforceAldoMinimums() {
 
 // Enforce Low Capacity deployment type hardware limits
 // Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
+// This function both restricts dropdown options AND clamps current values.
 function enforceLowCapacityLimits() {
     const clusterType = document.getElementById('cluster-type').value;
-    if (clusterType !== 'low-capacity') return;
+    const isLowCap = clusterType === 'low-capacity';
 
-    // Enforce single socket
+    // --- CPU Sockets: lock at 1, or restore ---
     const socketsSelect = document.getElementById('cpu-sockets');
-    if (socketsSelect && parseInt(socketsSelect.value) > LOW_CAPACITY_MAX_SOCKETS) {
-        socketsSelect.value = LOW_CAPACITY_MAX_SOCKETS;
+    if (socketsSelect) {
+        if (isLowCap) {
+            socketsSelect.value = String(LOW_CAPACITY_MAX_SOCKETS);
+            socketsSelect.disabled = true;
+        } else {
+            socketsSelect.disabled = false;
+        }
     }
 
-    // Enforce max 14 CPU cores per node
+    // --- CPU Cores: filter dropdown to ≤14, or restore full list ---
     const coresSelect = document.getElementById('cpu-cores');
-    if (coresSelect) {
-        const currentCores = parseInt(coresSelect.value) || 0;
-        if (currentCores > LOW_CAPACITY_MAX_CORES_PER_NODE) {
-            // Find the largest available core option ≤ 14
-            const manufacturer = document.getElementById('cpu-manufacturer').value;
-            const genId = document.getElementById('cpu-generation').value;
-            if (manufacturer && genId) {
-                const generation = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
-                if (generation) {
-                    const validCores = generation.coreOptions.filter(c => c <= LOW_CAPACITY_MAX_CORES_PER_NODE);
-                    if (validCores.length > 0) {
-                        coresSelect.value = validCores[validCores.length - 1];
-                    } else {
-                        // No valid core option for this generation — pick the smallest
-                        coresSelect.value = generation.coreOptions[0];
-                    }
+    if (coresSelect && coresSelect.options.length > 0) {
+        const manufacturer = document.getElementById('cpu-manufacturer').value;
+        const genId = document.getElementById('cpu-generation').value;
+        if (manufacturer && genId) {
+            const generation = CPU_GENERATIONS[manufacturer] &&
+                CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
+            if (generation) {
+                const currentCores = parseInt(coresSelect.value) || 0;
+                const allowedCores = isLowCap
+                    ? generation.coreOptions.filter(c => c <= LOW_CAPACITY_MAX_CORES_PER_NODE)
+                    : generation.coreOptions;
+
+                coresSelect.innerHTML = allowedCores.map(c =>
+                    '<option value="' + c + '">' + c + ' cores</option>'
+                ).join('');
+
+                // Preserve current value if still valid, otherwise pick largest valid
+                if (allowedCores.includes(currentCores)) {
+                    coresSelect.value = currentCores;
+                } else if (allowedCores.length > 0) {
+                    coresSelect.value = allowedCores[allowedCores.length - 1];
                 }
             }
         }
     }
 
-    // Enforce memory: min 32 GB, max 128 GB
-    const memInput = document.getElementById('node-memory');
-    if (memInput) {
-        const currentMem = parseInt(memInput.value) || 0;
-        if (currentMem > LOW_CAPACITY_MAX_MEMORY_GB) {
-            memInput.value = LOW_CAPACITY_MAX_MEMORY_GB;
-        } else if (currentMem < LOW_CAPACITY_MIN_MEMORY_GB) {
-            const minOption = MEMORY_OPTIONS_GB.find(m => m >= LOW_CAPACITY_MIN_MEMORY_GB) || LOW_CAPACITY_MIN_MEMORY_GB;
-            memInput.value = minOption;
+    // --- Memory: filter dropdown to 32–128 GB, or restore full list ---
+    const memSelect = document.getElementById('node-memory');
+    if (memSelect) {
+        const currentMem = parseInt(memSelect.value) || 512;
+        if (isLowCap) {
+            const allowedMem = MEMORY_OPTIONS_GB.filter(
+                m => m >= LOW_CAPACITY_MIN_MEMORY_GB && m <= LOW_CAPACITY_MAX_MEMORY_GB
+            );
+            memSelect.innerHTML = allowedMem.map(m =>
+                '<option value="' + m + '">' + m + ' GB</option>'
+            ).join('');
+            // Pick closest valid value
+            if (allowedMem.includes(currentMem)) {
+                memSelect.value = currentMem;
+            } else {
+                memSelect.value = allowedMem[allowedMem.length - 1]; // default to max allowed
+            }
+        } else {
+            // Restore full memory options (only if currently restricted)
+            if (memSelect.options.length < MEMORY_OPTIONS_GB.length) {
+                memSelect.innerHTML = MEMORY_OPTIONS_GB.map(m =>
+                    '<option value="' + m + '"' + (m === 512 ? ' selected' : '') + '>' + m + ' GB</option>'
+                ).join('');
+                // Preserve current value if it's a valid option
+                if (MEMORY_OPTIONS_GB.includes(currentMem)) {
+                    memSelect.value = currentMem;
+                }
+            }
         }
     }
 
-    // Enforce GPU VRAM limit (192 GB per node)
+    // --- Disk Count: filter dropdown to 1–2, or restore full list ---
+    const diskCountSelect = document.getElementById('capacity-disk-count');
+    if (diskCountSelect) {
+        const currentCount = parseInt(diskCountSelect.value) || 4;
+        if (isLowCap) {
+            const maxCount = LOW_CAPACITY_MAX_DISK_COUNT;
+            var diskOpts = '';
+            for (var d = 1; d <= maxCount; d++) {
+                diskOpts += '<option value="' + d + '">' + d + '</option>';
+            }
+            diskCountSelect.innerHTML = diskOpts;
+            diskCountSelect.value = Math.min(currentCount, maxCount);
+            if (!diskCountSelect.value || diskCountSelect.selectedIndex < 0) {
+                diskCountSelect.value = maxCount;
+            }
+        } else {
+            // Restore full disk count options (only if currently restricted)
+            if (diskCountSelect.options.length < (MAX_DISK_COUNT - MIN_DISK_COUNT + 1)) {
+                var fullDiskOpts = '';
+                for (var d2 = MIN_DISK_COUNT; d2 <= MAX_DISK_COUNT; d2++) {
+                    fullDiskOpts += '<option value="' + d2 + '"' + (d2 === 4 ? ' selected' : '') + '>' + d2 + '</option>';
+                }
+                diskCountSelect.innerHTML = fullDiskOpts;
+                if (currentCount >= MIN_DISK_COUNT && currentCount <= MAX_DISK_COUNT) {
+                    diskCountSelect.value = currentCount;
+                }
+            }
+        }
+    }
+
+    if (!isLowCap) return;
+
+    // --- GPU VRAM limit (192 GB per node) ---
     const gpuCountEl = document.getElementById('gpu-count');
     const gpuTypeEl = document.getElementById('gpu-type');
     if (gpuCountEl && gpuTypeEl) {
@@ -2986,7 +3060,6 @@ function enforceLowCapacityLimits() {
         if (gpuModel && gpuCount > 0) {
             const totalVram = gpuModel.vramGB * gpuCount;
             if (totalVram > LOW_CAPACITY_MAX_GPU_VRAM_GB) {
-                // Reduce count to fit within VRAM limit
                 const maxGpus = Math.floor(LOW_CAPACITY_MAX_GPU_VRAM_GB / gpuModel.vramGB);
                 gpuCountEl.value = Math.max(0, maxGpus);
             }

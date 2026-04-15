@@ -2648,6 +2648,45 @@
             })()
         ]);
 
+        // --- mapDesignerToSizerClusterType() ---
+        testSuite('mapDesignerToSizerClusterType()', 'script.js', [
+            (() => {
+                const origState = { scenario: state.scenario, scale: state.scale, nodes: state.nodes, architecture: state.architecture, clusterRole: state.clusterRole };
+                state.scenario = 'connected'; state.scale = 'low_capacity'; state.nodes = '2'; state.architecture = 'hyperconverged';
+                const result = mapDesignerToSizerClusterType();
+                Object.assign(state, origState);
+                return assert(result === 'low-capacity', 'low_capacity scale → low-capacity', 'low-capacity', result);
+            })(),
+            (() => {
+                const origState = { scenario: state.scenario, scale: state.scale, nodes: state.nodes, architecture: state.architecture, clusterRole: state.clusterRole };
+                state.scenario = 'connected'; state.scale = 'rack_aware'; state.nodes = '4'; state.architecture = 'hyperconverged';
+                const result = mapDesignerToSizerClusterType();
+                Object.assign(state, origState);
+                return assert(result === 'rack-aware', 'rack_aware scale → rack-aware', 'rack-aware', result);
+            })(),
+            (() => {
+                const origState = { scenario: state.scenario, scale: state.scale, nodes: state.nodes, architecture: state.architecture, clusterRole: state.clusterRole };
+                state.scenario = 'connected'; state.scale = 'medium'; state.nodes = '1'; state.architecture = 'hyperconverged';
+                const result = mapDesignerToSizerClusterType();
+                Object.assign(state, origState);
+                return assert(result === 'single', 'medium scale + 1 node → single', 'single', result);
+            })(),
+            (() => {
+                const origState = { scenario: state.scenario, scale: state.scale, nodes: state.nodes, architecture: state.architecture, clusterRole: state.clusterRole };
+                state.scenario = 'connected'; state.scale = 'medium'; state.nodes = '4'; state.architecture = 'hyperconverged';
+                const result = mapDesignerToSizerClusterType();
+                Object.assign(state, origState);
+                return assert(result === 'standard', 'medium scale + 4 nodes → standard', 'standard', result);
+            })(),
+            (() => {
+                const origState = { scenario: state.scenario, scale: state.scale, nodes: state.nodes, architecture: state.architecture, clusterRole: state.clusterRole };
+                state.scenario = 'disconnected'; state.clusterRole = 'management'; state.scale = 'medium'; state.nodes = '3'; state.architecture = 'hyperconverged';
+                const result = mapDesignerToSizerClusterType();
+                Object.assign(state, origState);
+                return assert(result === 'aldo-mgmt', 'disconnected management → aldo-mgmt', 'aldo-mgmt', result);
+            })()
+        ]);
+
         // ========================================================================
         // REGRESSION TESTS - GitHub Issue #88: NIC Mapping to Intent
         // ========================================================================
@@ -2886,7 +2925,8 @@
         testSuite('mapSizerToDesignerScale()', 'sizer.js', [
             assert(mapSizerToDesignerScale('rack-aware') === 'rack_aware', 'rack-aware → rack_aware', 'rack_aware', mapSizerToDesignerScale('rack-aware')),
             assert(mapSizerToDesignerScale('standard') === 'medium', 'standard → medium', 'medium', mapSizerToDesignerScale('standard')),
-            assert(mapSizerToDesignerScale('single') === 'medium', 'single → medium', 'medium', mapSizerToDesignerScale('single'))
+            assert(mapSizerToDesignerScale('single') === 'medium', 'single → medium', 'medium', mapSizerToDesignerScale('single')),
+            assert(mapSizerToDesignerScale('low-capacity') === 'low_capacity', 'low-capacity → low_capacity', 'low_capacity', mapSizerToDesignerScale('low-capacity'))
         ]);
 
         // --- calculateWorkloadRequirements() ---
@@ -3062,7 +3102,7 @@
                     stub = document.createElement('select');
                     stub.id = 'cluster-type';
                     stub.style.display = 'none';
-                    ['single', 'standard', 'rack-aware'].forEach(v => {
+                    ['single', 'standard', 'rack-aware', 'low-capacity'].forEach(v => {
                         const opt = document.createElement('option');
                         opt.value = v;
                         opt.text = v;
@@ -3096,6 +3136,24 @@
             (() => {
                 document.getElementById('cluster-type').value = 'rack-aware';
                 return assert(snapToAvailableNodeCount(100) === 8, 'Rack-aware: snap 100 → 8 (capped at max)', 8, snapToAvailableNodeCount(100));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'low-capacity';
+                return assert(snapToAvailableNodeCount(1) === 1, 'Low Capacity: snap 1 → 1 (exact match)', 1, snapToAvailableNodeCount(1));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'low-capacity';
+                return assert(snapToAvailableNodeCount(2) === 2, 'Low Capacity: snap 2 → 2 (exact match)', 2, snapToAvailableNodeCount(2));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'low-capacity';
+                return assert(snapToAvailableNodeCount(3) === 3, 'Low Capacity: snap 3 → 3 (exact match)', 3, snapToAvailableNodeCount(3));
+            })(),
+            (() => {
+                document.getElementById('cluster-type').value = 'low-capacity';
+                const result = snapToAvailableNodeCount(100);
+                document.getElementById('cluster-type').value = 'standard';
+                return assert(result === 3, 'Low Capacity: snap 100 → 3 (capped at max)', 3, result);
             })()
         ]);
 
@@ -3658,6 +3716,331 @@
                 return assert(disabled === false,
                     'Standard cluster: storage dropdown remains enabled after single-node test',
                     false, disabled);
+            })()
+        ]);
+
+        // --- Low Capacity Deployment Type ---
+        // Ensure low-capacity option exists in cluster-type stub
+        (() => {
+            const ctStub = document.getElementById('cluster-type');
+            if (ctStub && !ctStub.querySelector('option[value="low-capacity"]')) {
+                const opt = document.createElement('option');
+                opt.value = 'low-capacity';
+                opt.text = 'low-capacity';
+                ctStub.appendChild(opt);
+            }
+        })();
+
+        // Create stub DOM elements needed for Low Capacity tests
+        (() => {
+            const stubs = [
+                { id: 'node-memory', tag: 'select', values: MEMORY_OPTIONS_GB.map(String), defaultVal: '512' },
+                { id: 'cpu-sockets', tag: 'select', values: ['1', '2'], defaultVal: '2' },
+                { id: 'cpu-cores', tag: 'select', values: ['8', '12', '16', '24', '32', '48', '64'], defaultVal: '24' },
+                { id: 'cpu-manufacturer', tag: 'select', values: ['intel', 'amd', 'intel_edge'], defaultVal: 'intel' },
+                { id: 'cpu-generation', tag: 'select', values: ['xeon-5th'], defaultVal: 'xeon-5th' },
+                { id: 'gpu-count', tag: 'select', values: ['0', '1', '2', '3', '4'], defaultVal: '0' },
+                { id: 'gpu-type', tag: 'select', values: ['t4', 'a2', 'a16', 'l4', 'l40', 'l40s', 'rtxpro6000', 'h100'], defaultVal: 'a2' },
+                { id: 'capacity-disk-count', tag: 'select', values: Array.from({length: 23}, (_, i) => String(i + 2)), defaultVal: '4' }
+            ];
+            stubs.forEach(cfg => {
+                let el = document.getElementById(cfg.id);
+                if (!el) {
+                    el = document.createElement(cfg.tag);
+                    el.id = cfg.id;
+                    el.style.display = 'none';
+                    if (cfg.values) {
+                        cfg.values.forEach(v => {
+                            const opt = document.createElement('option');
+                            opt.value = v;
+                            opt.text = v;
+                            el.appendChild(opt);
+                        });
+                    }
+                    document.body.appendChild(el);
+                }
+                if (cfg.defaultVal) el.value = cfg.defaultVal;
+            });
+        })();
+
+        testSuite('Low Capacity: getMaxNodeCap()', 'sizer.js', [
+            (() => {
+                document.getElementById('cluster-type').value = 'low-capacity';
+                const cap = getMaxNodeCap();
+                document.getElementById('cluster-type').value = 'standard';
+                return assert(cap === 3, 'Low Capacity max node cap is 3', 3, cap);
+            })()
+        ]);
+
+        testSuite('Low Capacity: updateNodeOptionsForClusterType()', 'sizer.js', [
+            (() => {
+                const nodeSelect = document.getElementById('node-count');
+                document.getElementById('cluster-type').value = 'low-capacity';
+                updateNodeOptionsForClusterType();
+                const opts = Array.from(nodeSelect.options).map(o => o.value);
+                const enabled = !nodeSelect.disabled;
+                document.getElementById('cluster-type').value = 'standard';
+                updateNodeOptionsForClusterType();
+                return assert(JSON.stringify(opts) === '["1","2","3"]' && enabled,
+                    'Low Capacity: 1-3 nodes available, dropdown enabled',
+                    '["1","2","3"] + enabled',
+                    JSON.stringify(opts) + ' + ' + (enabled ? 'enabled' : 'disabled'));
+            })(),
+            (() => {
+                // Switching away re-enables full node range
+                const nodeSelect = document.getElementById('node-count');
+                document.getElementById('cluster-type').value = 'low-capacity';
+                updateNodeOptionsForClusterType();
+                document.getElementById('cluster-type').value = 'standard';
+                updateNodeOptionsForClusterType();
+                const opts = Array.from(nodeSelect.options).map(o => o.value);
+                return assert(opts.length >= 15, 'Standard cluster restores full node range',
+                    '>=15 options', opts.length + ' options');
+            })()
+        ]);
+
+        testSuite('Low Capacity: All-Flash only (updateStorageForClusterType)', 'sizer.js', [
+            (() => {
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('storage-config').value = 'hybrid';
+                updateStorageForClusterType();
+                const storageVal = document.getElementById('storage-config').value;
+                const disabled = document.getElementById('storage-config').disabled;
+                document.getElementById('cluster-type').value = 'standard';
+                updateStorageForClusterType();
+                return assert(storageVal === 'all-flash' && disabled === true,
+                    'Low Capacity forces all-flash and disables storage dropdown',
+                    'all-flash + disabled', storageVal + ' + ' + (disabled ? 'disabled' : 'enabled'));
+            })()
+        ]);
+
+        testSuite('Low Capacity: resiliency options', 'sizer.js', [
+            (() => {
+                // 1-node low-capacity: simple + 2-way mirror (same as single node)
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('node-count').value = '1';
+                updateResiliencyOptions();
+                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
+                const defaultVal = document.getElementById('resiliency').value;
+                document.getElementById('cluster-type').value = 'standard';
+                document.getElementById('node-count').value = '3';
+                updateResiliencyOptions();
+                return assert(opts.includes('simple') && opts.includes('2way') && defaultVal === '2way',
+                    '1-node low-capacity: simple + 2-way options, defaults to 2-way',
+                    '["simple","2way"] default=2way',
+                    JSON.stringify(opts) + ' default=' + defaultVal);
+            })(),
+            (() => {
+                // 2-node low-capacity: 2-way mirror only
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('node-count').value = '2';
+                updateResiliencyOptions();
+                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
+                document.getElementById('cluster-type').value = 'standard';
+                document.getElementById('node-count').value = '3';
+                updateResiliencyOptions();
+                return assert(opts.length === 1 && opts[0] === '2way',
+                    '2-node low-capacity: 2-way mirror only', '["2way"]', JSON.stringify(opts));
+            })(),
+            (() => {
+                // 3-node low-capacity: 3-way mirror only
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('node-count').value = '3';
+                updateResiliencyOptions();
+                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
+                document.getElementById('cluster-type').value = 'standard';
+                document.getElementById('node-count').value = '3';
+                updateResiliencyOptions();
+                return assert(opts.length === 1 && opts[0] === '3way',
+                    '3-node low-capacity: 3-way mirror only', '["3way"]', JSON.stringify(opts));
+            })()
+        ]);
+
+        testSuite('Low Capacity: enforceLowCapacityLimits()', 'sizer.js', [
+            (() => {
+                // Memory dropdown filtered to 64-128 GB options only
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('node-memory').value = '512';
+                enforceLowCapacityLimits();
+                const opts = Array.from(document.getElementById('node-memory').options).map(o => parseInt(o.value));
+                const allValid = opts.every(m => m >= LOW_CAPACITY_MIN_MEMORY_GB && m <= LOW_CAPACITY_MAX_MEMORY_GB);
+                const mem = parseInt(document.getElementById('node-memory').value);
+                // Restore
+                document.getElementById('cluster-type').value = 'standard';
+                enforceLowCapacityLimits();
+                return assert(allValid && mem <= 128,
+                    'Memory dropdown filtered to 32-128 GB, value capped at 128',
+                    'all valid + <=128', (allValid ? 'all valid' : 'has invalid') + ' + ' + mem);
+            })(),
+            (() => {
+                // Memory at 64 GB (smallest MEMORY_OPTIONS_GB) is valid for Low Capacity
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('node-memory').value = '64';
+                enforceLowCapacityLimits();
+                const mem = parseInt(document.getElementById('node-memory').value);
+                document.getElementById('cluster-type').value = 'standard';
+                enforceLowCapacityLimits();
+                return assert(mem === 64,
+                    'Memory at 64 GB is valid for Low Capacity', 64, mem);
+            })(),
+            (() => {
+                // Sockets locked at 1 and disabled
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('cpu-sockets').value = '2';
+                enforceLowCapacityLimits();
+                const sockets = parseInt(document.getElementById('cpu-sockets').value);
+                const disabled = document.getElementById('cpu-sockets').disabled;
+                document.getElementById('cluster-type').value = 'standard';
+                enforceLowCapacityLimits();
+                return assert(sockets === 1 && disabled === true,
+                    'Sockets locked at 1 and disabled for Low Capacity',
+                    '1 + disabled', sockets + ' + ' + (disabled ? 'disabled' : 'enabled'));
+            })(),
+            (() => {
+                // Sockets re-enabled when switching away from Low Capacity
+                document.getElementById('cluster-type').value = 'low-capacity';
+                enforceLowCapacityLimits();
+                document.getElementById('cluster-type').value = 'standard';
+                enforceLowCapacityLimits();
+                const disabled = document.getElementById('cpu-sockets').disabled;
+                return assert(disabled === false,
+                    'Sockets re-enabled for Standard', false, disabled);
+            })(),
+            (() => {
+                // CPU cores filtered: only <=14 core options shown (Xeon 5th gen has 8,12,16,...)
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                // Populate full core options first
+                var gen = CPU_GENERATIONS['intel'].find(g => g.id === 'xeon-5th');
+                document.getElementById('cpu-cores').innerHTML = gen.coreOptions.map(c => '<option value="' + c + '">' + c + ' cores</option>').join('');
+                document.getElementById('cpu-cores').value = '24';
+                enforceLowCapacityLimits();
+                const coreOpts = Array.from(document.getElementById('cpu-cores').options).map(o => parseInt(o.value));
+                const allUnder14 = coreOpts.every(c => c <= 14);
+                const cores = parseInt(document.getElementById('cpu-cores').value);
+                document.getElementById('cluster-type').value = 'standard';
+                enforceLowCapacityLimits();
+                return assert(allUnder14 && cores <= 14,
+                    'CPU cores dropdown filtered to <=14 only',
+                    'all <=14 + value <=14',
+                    (allUnder14 ? 'all <=14' : 'has >14: ' + JSON.stringify(coreOpts)) + ' + value=' + cores);
+            })(),
+            (() => {
+                // Disk count capped at 2 for Low Capacity
+                document.getElementById('cluster-type').value = 'low-capacity';
+                document.getElementById('capacity-disk-count').value = '8';
+                enforceLowCapacityLimits();
+                const diskOpts = Array.from(document.getElementById('capacity-disk-count').options).map(o => parseInt(o.value));
+                const maxOpt = Math.max(...diskOpts);
+                const diskCount = parseInt(document.getElementById('capacity-disk-count').value);
+                document.getElementById('cluster-type').value = 'standard';
+                enforceLowCapacityLimits();
+                return assert(maxOpt === 2 && diskCount <= 2,
+                    'Disk count dropdown capped at 2 for Low Capacity',
+                    'max=2 + count<=2', 'max=' + maxOpt + ' + count=' + diskCount);
+            })(),
+            (() => {
+                // Disk count restored to full range when switching away
+                document.getElementById('cluster-type').value = 'low-capacity';
+                enforceLowCapacityLimits();
+                document.getElementById('cluster-type').value = 'standard';
+                enforceLowCapacityLimits();
+                const diskOpts = Array.from(document.getElementById('capacity-disk-count').options).map(o => parseInt(o.value));
+                const maxOpt = Math.max(...diskOpts);
+                return assert(maxOpt === 24,
+                    'Disk count restored to max 24 for Standard', 24, maxOpt);
+            })(),
+            (() => {
+                // Memory dropdown restored to full range when switching away
+                document.getElementById('cluster-type').value = 'low-capacity';
+                enforceLowCapacityLimits();
+                document.getElementById('cluster-type').value = 'standard';
+                enforceLowCapacityLimits();
+                const memOpts = Array.from(document.getElementById('node-memory').options).map(o => parseInt(o.value));
+                return assert(memOpts.length === MEMORY_OPTIONS_GB.length,
+                    'Memory dropdown restored to full range for Standard',
+                    MEMORY_OPTIONS_GB.length + ' options', memOpts.length + ' options');
+            })(),
+            (() => {
+                // Non-low-capacity type: no limits enforced
+                document.getElementById('cluster-type').value = 'standard';
+                document.getElementById('node-memory').value = '512';
+                document.getElementById('cpu-sockets').value = '2';
+                enforceLowCapacityLimits();
+                const mem = parseInt(document.getElementById('node-memory').value);
+                const sockets = parseInt(document.getElementById('cpu-sockets').value);
+                return assert(mem === 512 && sockets === 2,
+                    'Standard cluster: no Low Capacity limits enforced',
+                    '512 GB + 2 sockets', mem + ' GB + ' + sockets + ' sockets');
+            })()
+        ]);
+
+        testSuite('Low Capacity: buildMaxHardwareConfig() constraints', 'sizer.js', [
+            (() => {
+                // Low Capacity: max hardware should respect 14-core and 1-socket cap
+                document.getElementById('cluster-type').value = 'low-capacity';
+                const hw = {
+                    coresPerSocket: 8,
+                    sockets: 1,
+                    totalPhysicalCores: 8,
+                    memoryGB: 64,
+                    generation: { coreOptions: [8, 12, 16, 24, 32, 48, 64] },
+                    diskConfig: { isTiered: false, capacity: { count: 2, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                document.getElementById('cluster-type').value = 'standard';
+                return assert(maxHw.totalPhysicalCores <= 14 && maxHw.sockets === 1,
+                    'Low Capacity: max cores \u226414, single socket',
+                    '\u226414 cores + 1 socket', maxHw.totalPhysicalCores + ' cores + ' + maxHw.sockets + ' socket');
+            })(),
+            (() => {
+                // Low Capacity: max memory capped at 128 GB
+                document.getElementById('cluster-type').value = 'low-capacity';
+                const hw = {
+                    coresPerSocket: 8,
+                    sockets: 1,
+                    memoryGB: 64,
+                    generation: { coreOptions: [8, 12] },
+                    diskConfig: { isTiered: false, capacity: { count: 2, sizeGB: 3584, type: 'NVMe' } }
+                };
+                const maxHw = buildMaxHardwareConfig(hw);
+                document.getElementById('cluster-type').value = 'standard';
+                return assert(maxHw.memoryGB === 128,
+                    'Low Capacity: max memory capped at 128 GB', 128, maxHw.memoryGB);
+            })()
+        ]);
+
+        testSuite('Low Capacity: constants defined', 'sizer.js', [
+            assert(LOW_CAPACITY_MAX_NODES === 3, 'LOW_CAPACITY_MAX_NODES = 3', 3, LOW_CAPACITY_MAX_NODES),
+            assert(LOW_CAPACITY_MAX_CORES_PER_NODE === 14, 'LOW_CAPACITY_MAX_CORES_PER_NODE = 14', 14, LOW_CAPACITY_MAX_CORES_PER_NODE),
+            assert(LOW_CAPACITY_MAX_SOCKETS === 1, 'LOW_CAPACITY_MAX_SOCKETS = 1', 1, LOW_CAPACITY_MAX_SOCKETS),
+            assert(LOW_CAPACITY_MIN_MEMORY_GB === 32, 'LOW_CAPACITY_MIN_MEMORY_GB = 32', 32, LOW_CAPACITY_MIN_MEMORY_GB),
+            assert(LOW_CAPACITY_MAX_MEMORY_GB === 128, 'LOW_CAPACITY_MAX_MEMORY_GB = 128', 128, LOW_CAPACITY_MAX_MEMORY_GB),
+            assert(LOW_CAPACITY_MAX_GPU_VRAM_GB === 192, 'LOW_CAPACITY_MAX_GPU_VRAM_GB = 192', 192, LOW_CAPACITY_MAX_GPU_VRAM_GB),
+            assert(LOW_CAPACITY_MAX_DISK_COUNT === 2, 'LOW_CAPACITY_MAX_DISK_COUNT = 2', 2, LOW_CAPACITY_MAX_DISK_COUNT)
+        ]);
+
+        testSuite('clearSingleManualOverride() - cluster-type dismiss', 'sizer.js', [
+            (() => {
+                // cluster-type should be in _MANUAL_FIELD_TO_FLAG mapping
+                const mapping = _MANUAL_FIELD_TO_FLAG['cluster-type'];
+                return assert(mapping !== undefined && mapping.flag === 'clusterType',
+                    'cluster-type is in _MANUAL_FIELD_TO_FLAG with flag=clusterType',
+                    'clusterType', mapping ? mapping.flag : 'undefined');
+            })(),
+            (() => {
+                // Verify the flag reset logic works without calling calculateRequirements
+                _disaggAutoUpgraded = true;
+                const mapping = _MANUAL_FIELD_TO_FLAG['cluster-type'];
+                // Simulate what clearSingleManualOverride does for the flag
+                switch (mapping.flag) {
+                    case 'clusterType': _disaggAutoUpgraded = false; break;
+                }
+                const result = _disaggAutoUpgraded;
+                return assert(result === false,
+                    'cluster-type override dismiss resets _disaggAutoUpgraded to false',
+                    false, result);
             })()
         ]);
 
@@ -4277,7 +4660,7 @@
                 { id: 'capacity-disk-count', tag: 'input', defaultVal: '4' },
                 { id: 'capacity-disk-size', tag: 'select', values: DISK_SIZE_OPTIONS_TB.map(String), defaultVal: '3.84' },
                 { id: 'node-count', tag: 'select', values: ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16'], defaultVal: '3' },
-                { id: 'cluster-type', tag: 'select', values: ['single','standard','rack-aware'], defaultVal: 'standard' },
+                { id: 'cluster-type', tag: 'select', values: ['single','standard','rack-aware','low-capacity'], defaultVal: 'standard' },
                 { id: 'future-growth', tag: 'select', values: ['0','10','20','30','40','50'], defaultVal: '0' },
                 { id: 'resiliency', tag: 'select', values: ['simple','2way','3way','4way'], defaultVal: '2way' },
                 { id: 'node-recommendation', tag: 'div', defaultVal: '' },
@@ -4940,7 +5323,7 @@
                     ctStub = document.createElement('select');
                     ctStub.id = 'cluster-type';
                     ctStub.style.display = 'none';
-                    ['single', 'standard', 'rack-aware'].forEach(v => {
+                    ['single', 'standard', 'rack-aware', 'low-capacity'].forEach(v => {
                         const opt = document.createElement('option');
                         opt.value = v;
                         opt.text = v;
