@@ -415,6 +415,11 @@
             .replace(/'/g, '&#39;');
     }
 
+    /** Escape pipe and backtick characters for markdown table cells */
+    function escapeMd(val) {
+        return String(val || '').replace(/\|/g, '\\|').replace(/`/g, '\\`');
+    }
+
     /**
      * Get custom port display name from state.portConfig (v0.13.0+)
      * Returns custom name if set, otherwise falls back to default naming.
@@ -1078,14 +1083,16 @@
         md.push('| Setting | Value |');
         md.push('|---------|-------|');
         if (s.scenario) md.push('| Scenario | ' + formatScenario(s.scenario, s) + ' |');
-        if (s.scenario === 'disconnected' && s.clusterRole) {
-            md.push('| Cluster Role | ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster') + ' |');
-            md.push('| Autonomous Cloud FQDN | ' + (s.autonomousCloudFqdn || 'Not configured') + ' |');
-            if (s.clusterRole === 'management' && (s.applianceIp1 || s.applianceIp2)) {
-                var ipParts = [];
-                if (s.applianceIp1) ipParts.push('Ingress vNIC: ' + s.applianceIp1);
-                if (s.applianceIp2) ipParts.push('Mgmt vNIC: ' + s.applianceIp2);
-                md.push('| Appliance IPs | `' + ipParts.join(' · ') + '` |');
+        if (s.scenario === 'disconnected') {
+            if (s.clusterRole) {
+                md.push('| Cluster Role | ' + (s.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster') + ' |');
+                md.push('| Autonomous Cloud FQDN | ' + escapeMd(s.autonomousCloudFqdn || 'Not configured') + ' |');
+                if (s.clusterRole === 'management' && (s.applianceIp1 || s.applianceIp2)) {
+                    var ipParts = [];
+                    if (s.applianceIp1) ipParts.push('Ingress vNIC: ' + escapeMd(s.applianceIp1));
+                    if (s.applianceIp2) ipParts.push('Mgmt vNIC: ' + escapeMd(s.applianceIp2));
+                    md.push('| Appliance IPs | `' + ipParts.join(' \u00B7 ') + '` |');
+                }
             }
         } else {
             if (s.region) md.push('| Azure Cloud | ' + formatCloud(s.region) + ' |');
@@ -1271,14 +1278,14 @@
         if (s.ip) md.push('| IP Assignment | ' + (s.ip.charAt(0).toUpperCase() + s.ip.slice(1)) + ' |');
         if (s.infraVlan) md.push('| VLAN | ' + (s.infraVlan === 'custom' ? 'Custom VLAN' : 'Default VLAN') + ' |');
         if (s.infraVlan === 'custom' && s.infraVlanId) md.push('| VLAN ID | ' + s.infraVlanId + ' |');
-        if (s.infraCidr) md.push('| Infrastructure CIDR | `' + s.infraCidr + '` |');
-        if (s.infra && s.infra.start && s.infra.end) md.push('| IP Pool Range | `' + s.infra.start + ' - ' + s.infra.end + '` |');
-        if (s.infraGateway) md.push('| Default Gateway | `' + s.infraGateway + '` |');
+        if (s.infraCidr) md.push('| Infrastructure CIDR | `' + escapeMd(s.infraCidr) + '` |');
+        if (s.infra && s.infra.start && s.infra.end) md.push('| IP Pool Range | `' + escapeMd(s.infra.start) + ' - ' + escapeMd(s.infra.end) + '` |');
+        if (s.infraGateway) md.push('| Default Gateway | `' + escapeMd(s.infraGateway) + '` |');
         if (s.scenario === 'disconnected' && (s.applianceIp1 || s.applianceIp2)) {
             var ipPartsInfra = [];
-            if (s.applianceIp1) ipPartsInfra.push('Ingress vNIC: ' + s.applianceIp1);
-            if (s.applianceIp2) ipPartsInfra.push('Mgmt vNIC: ' + s.applianceIp2);
-            md.push('| Appliance IPs | `' + ipPartsInfra.join(' · ') + '` |');
+            if (s.applianceIp1) ipPartsInfra.push('Ingress vNIC: ' + escapeMd(s.applianceIp1));
+            if (s.applianceIp2) ipPartsInfra.push('Mgmt vNIC: ' + escapeMd(s.applianceIp2));
+            md.push('| Appliance IPs | `' + ipPartsInfra.join(' \u00B7 ') + '` |');
         }
         md.push('');
 
@@ -1307,14 +1314,14 @@
         md.push('| Setting | Value |');
         md.push('|---------|-------|');
         if (s.activeDirectory) md.push('| Identity Type | ' + (s.activeDirectory === 'azure_ad' ? 'Active Directory' : 'Local Identity') + ' |');
-        if (s.adDomain) md.push('| AD Domain | `' + s.adDomain + '` |');
-        if (s.adOuPath) md.push('| OU Path | `' + s.adOuPath + '` |');
-        if (s.adfsServerName) md.push('| ADFS Server Name | `' + s.adfsServerName + '` |');
+        if (s.adDomain) md.push('| AD Domain | `' + escapeMd(s.adDomain) + '` |');
+        if (s.adOuPath) md.push('| OU Path | `' + escapeMd(s.adOuPath) + '` |');
+        if (s.adfsServerName) md.push('| ADFS Server Name | `' + escapeMd(s.adfsServerName) + '` |');
         if (Array.isArray(s.dnsServers) && s.dnsServers.length > 0) {
             var dnsStr = s.dnsServers.filter(function(d) { return d && d.trim(); }).join(', ');
-            if (dnsStr) md.push('| DNS Servers | `' + dnsStr + '` |');
+            if (dnsStr) md.push('| DNS Servers | `' + escapeMd(dnsStr) + '` |');
         }
-        if (s.localDnsZone) md.push('| Local DNS Zone | `' + s.localDnsZone + '` |');
+        if (s.localDnsZone) md.push('| Local DNS Zone | `' + escapeMd(s.localDnsZone) + '` |');
         md.push('');
 
         // Security Configuration

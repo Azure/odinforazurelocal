@@ -680,6 +680,10 @@
             alert('Please paste a complete switch running-config output (minimum 50 characters).');
             return;
         }
+        if (config.length > 500000) {
+            alert('Config is too large (maximum 500 KB). Please paste only the relevant running-config output.');
+            return;
+        }
 
         var platform = detectPlatform(config);
         if (!platform) {

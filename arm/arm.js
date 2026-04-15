@@ -1102,6 +1102,26 @@ function generatePowerShellScript() {
         return;
     }
     
+    // Validate input formats to prevent command injection in generated scripts
+    var guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    var namePattern = /^[a-zA-Z0-9\-_.()]{1,90}$/;
+    if (!guidPattern.test(subId)) {
+        showNotification('Invalid Subscription ID format (must be a GUID)', 'error');
+        return;
+    }
+    if (tenantId && !guidPattern.test(tenantId)) {
+        showNotification('Invalid Tenant ID format (must be a GUID)', 'error');
+        return;
+    }
+    if (!namePattern.test(rgName)) {
+        showNotification('Invalid Resource Group name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
+        return;
+    }
+    if (!namePattern.test(deployName)) {
+        showNotification('Invalid Deployment name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
+        return;
+    }
+    
     const tenantParam = tenantId ? ` -TenantId "${tenantId}"` : '';
     
     const script = `# Azure Local Deployment Script
@@ -1157,6 +1177,26 @@ function generateAzCLIScript() {
     
     if (!subId || !rgName) {
         showNotification('Please fill in Subscription ID and Resource Group Name first', 'error');
+        return;
+    }
+    
+    // Validate input formats to prevent command injection in generated scripts
+    var guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    var namePattern = /^[a-zA-Z0-9\-_.()]{1,90}$/;
+    if (!guidPattern.test(subId)) {
+        showNotification('Invalid Subscription ID format (must be a GUID)', 'error');
+        return;
+    }
+    if (tenantId && !guidPattern.test(tenantId)) {
+        showNotification('Invalid Tenant ID format (must be a GUID)', 'error');
+        return;
+    }
+    if (!namePattern.test(rgName)) {
+        showNotification('Invalid Resource Group name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
+        return;
+    }
+    if (!namePattern.test(deployName)) {
+        showNotification('Invalid Deployment name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
         return;
     }
     

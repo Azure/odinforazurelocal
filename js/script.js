@@ -1399,7 +1399,7 @@ function downloadJson(filename, obj) {
     a.click();
     a.remove();
 
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function generateArmParameters() {
@@ -7899,7 +7899,7 @@ function exportConfiguration() {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
         showToast('Configuration exported successfully!', 'success');
     } catch (e) {
         showToast('Failed to export configuration', 'error');

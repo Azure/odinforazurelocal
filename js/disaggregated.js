@@ -221,7 +221,7 @@ function updateScaleSummary() {
 
     const summary = document.getElementById('da3-scale-summary');
     if (summary && state.disaggRackCount && state.disaggNodesPerRack) {
-        summary.innerHTML = `<strong style="color: var(--accent-purple);">Scale Configuration</strong>${state.disaggRackCount} rack(s) × ${state.disaggNodesPerRack} machines = Total: <strong style="display: inline;">${total} machines</strong><br>Each rack: 2 leaf switches + 1 BMC switch${state.disaggStorageType === 'fc_san' ? ' + 2 FC switches' : ''}`;
+        summary.innerHTML = `<strong style="color: var(--accent-purple);">Scale Configuration</strong>${escapeHtml(state.disaggRackCount)} rack(s) × ${escapeHtml(state.disaggNodesPerRack)} machines = Total: <strong style="display: inline;">${escapeHtml(total)} machines</strong><br>Each rack: 2 leaf switches + 1 BMC switch${state.disaggStorageType === 'fc_san' ? ' + 2 FC switches' : ''}`;
         summary.classList.add('visible');
     }
 }
@@ -403,7 +403,7 @@ function renderDisaggTenantNetworks() {
         const vrfRow = '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">'
             + '<div style="flex: 1;">'
             + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VRF Name</span>'
-            + '<input type="text" value="' + (t.vrf || '') + '" placeholder="e.g. TENANT1"'
+            + '<input type="text" value="' + escapeHtml(t.vrf || '') + '" placeholder="e.g. TENANT1"'
             + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
             + (confirmed ? ' disabled' : '')
             + ' onchange="updateDisaggTenantNetwork(' + tIdx + ', \'vrf\', this.value)">'
@@ -416,7 +416,7 @@ function renderDisaggTenantNetworks() {
             return '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; padding-left: 16px;">'
                 + '<div style="flex: 2;">'
                 + '<span style="font-size: 0.75rem; color: var(--text-secondary);">Name</span>'
-                + '<input type="text" value="' + (v.name || '') + '" placeholder="Network name"'
+                + '<input type="text" value="' + escapeHtml(v.name || '') + '" placeholder="Network name"'
                 + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
                 + (confirmed ? ' disabled' : '')
                 + ' onchange="updateDisaggTenantVlan(' + tIdx + ', ' + vIdx + ', \'name\', this.value)">'

@@ -75,35 +75,35 @@
                     <div class="sc-field">
                         <label for="sc-hostname-tor1">Rack 1 — <abbr title="Top of Rack">ToR</abbr>1 Hostname</label>
                         <input type="text" id="sc-hostname-tor1" placeholder="e.g. tor-1a" maxlength="63"
-                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                               pattern="[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?" title="Alphanumeric and hyphens only, cannot start or end with a hyphen">
                     </div>
                     <div class="sc-field">
                         <label for="sc-hostname-tor2">Rack 1 — <abbr title="Top of Rack">ToR</abbr>2 Hostname</label>
                         <input type="text" id="sc-hostname-tor2" placeholder="e.g. tor-1b" maxlength="63"
-                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                               pattern="[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?" title="Alphanumeric and hyphens only, cannot start or end with a hyphen">
                     </div>
                     <!-- Rack-aware TOR3/TOR4 hostnames (hidden by default, shown inline) -->
                     <div id="sc-rack2-hostnames" class="sc-field" style="display: none;">
                         <label for="sc-hostname-tor3">Rack 2 — <abbr title="Top of Rack">ToR</abbr>3 Hostname</label>
                         <input type="text" id="sc-hostname-tor3" placeholder="e.g. tor-2a" maxlength="63"
-                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                               pattern="[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?" title="Alphanumeric and hyphens only, cannot start or end with a hyphen">
                     </div>
                     <div id="sc-rack2-hostnames-tor4" class="sc-field" style="display: none;">
                         <label for="sc-hostname-tor4">Rack 2 — <abbr title="Top of Rack">ToR</abbr>4 Hostname</label>
                         <input type="text" id="sc-hostname-tor4" placeholder="e.g. tor-2b" maxlength="63"
-                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                               pattern="[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?" title="Alphanumeric and hyphens only, cannot start or end with a hyphen">
                     </div>
                 </div>
                 <div class="sc-grid" style="margin-top: 1rem;">
                     <div class="sc-field">
                         <label for="sc-hostname-bmc"><abbr title="Baseboard Management Controller">BMC</abbr> Switch Hostname</label>
                         <input type="text" id="sc-hostname-bmc" placeholder="e.g. bmc-1" maxlength="63"
-                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                               pattern="[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?" title="Alphanumeric and hyphens only, cannot start or end with a hyphen">
                     </div>
                     <div id="sc-rack2-bmc" class="sc-field" style="display: none;">
                         <label for="sc-hostname-bmc2">Rack 2 — <abbr title="Baseboard Management Controller">BMC</abbr> Switch Hostname</label>
                         <input type="text" id="sc-hostname-bmc2" placeholder="e.g. bmc-2" maxlength="63"
-                               pattern="[a-zA-Z0-9\-]+" title="Alphanumeric and hyphens only">
+                               pattern="[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?" title="Alphanumeric and hyphens only, cannot start or end with a hyphen">
                     </div>
                 </div>
                 <div class="sc-grid" style="margin-top: 1rem;">

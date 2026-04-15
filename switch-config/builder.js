@@ -424,6 +424,7 @@
 
     // ── Private: get peer IP from a /30 address string ───────────────
     SwitchConfigBuilder.prototype._peerIp = function (addrWithCidr) {
+        if (!addrWithCidr || addrWithCidr.indexOf('/') === -1) return addrWithCidr || '';
         // addr like "10.0.0.2/30" → peer is "10.0.0.1"
         var parts = addrWithCidr.split('/');
         var ip = parts[0];

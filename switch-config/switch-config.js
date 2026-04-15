@@ -373,10 +373,10 @@
     }
 
     function isValidIp(ip) {
-        if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) return false;
-        var parts = ip.split('.');
-        for (var i = 0; i < 4; i++) {
-            var n = parseInt(parts[i], 10);
+        var m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+        if (!m) return false;
+        for (var i = 1; i <= 4; i++) {
+            var n = parseInt(m[i], 10);
             if (n < 0 || n > 255) return false;
         }
         return true;
