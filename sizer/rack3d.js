@@ -72,7 +72,7 @@ function clearScene(scene) {
 function makeTextSprite(text, fontSize, color) {
     var canvas = document.createElement('canvas');
     var ctx = canvas.getContext('2d');
-    canvas.width = 256;
+    canvas.width = 512;
     canvas.height = 64;
     ctx.font = (fontSize || 24) + 'px Segoe UI, Arial, sans-serif';
     ctx.fillStyle = color || COLORS.LABEL_COLOR;
@@ -1056,8 +1056,8 @@ function buildEdgeSurface(scene, nodeCount) {
     // Surface dimensions scale with node count
     var surfaceW = 0.25 + nodeCount * 0.35;
     var surfaceD = 0.45;
-    var surfaceH = 0.025;
-    var legH = 0.35;
+    var surfaceH = 0.02;
+    var legH = 0.30;
 
     var surfaceMat = new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.6, metalness: 0.3 });
     var legMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.7, metalness: 0.4 });
@@ -1069,7 +1069,7 @@ function buildEdgeSurface(scene, nodeCount) {
     group.add(top);
 
     // Four legs
-    var legSize = 0.02;
+    var legSize = 0.018;
     var legGeo = new THREE.BoxGeometry(legSize, legH, legSize);
     var legPositions = [
         [-surfaceW / 2 + legSize, legH / 2, -surfaceD / 2 + legSize],
@@ -1097,9 +1097,9 @@ function buildEdgeSurface(scene, nodeCount) {
 // ── Place a compact edge appliance (Low Capacity node) ──
 
 function placeEdgeAppliance(scene, surfaceY, posX, label, isGpu, diskCount, portCount) {
-    var appW = 0.28;
-    var appH = 0.055;
-    var appD = 0.30;
+    var appW = 0.14;
+    var appH = 0.028;
+    var appD = 0.15;
     var y = surfaceY + appH / 2 + 0.001;
     var frontZ = -appD / 2;
     var backZ = appD / 2;
@@ -1118,55 +1118,55 @@ function placeEdgeAppliance(scene, surfaceY, posX, label, isGpu, diskCount, port
     scene.add(body);
 
     // Top accent stripe (Azure blue thin line across front edge of top)
-    var topStripeGeo = new THREE.BoxGeometry(appW - 0.01, 0.002, 0.015);
+    var topStripeGeo = new THREE.BoxGeometry(appW - 0.005, 0.001, 0.008);
     var topStripe = new THREE.Mesh(topStripeGeo, accentMat);
-    topStripe.position.set(posX, y + appH / 2 + 0.001, frontZ + 0.015);
+    topStripe.position.set(posX, y + appH / 2 + 0.0005, frontZ + 0.008);
     scene.add(topStripe);
 
     // ── Front face ──
 
     // Front bezel
-    var bezelGeo = new THREE.BoxGeometry(appW - 0.004, appH - 0.008, 0.003);
+    var bezelGeo = new THREE.BoxGeometry(appW - 0.002, appH - 0.004, 0.002);
     var bezel = new THREE.Mesh(bezelGeo, darkMat);
-    bezel.position.set(posX, y, frontZ - 0.002);
+    bezel.position.set(posX, y, frontZ - 0.001);
     scene.add(bezel);
 
     // Drive bays (1–2 compact slots)
     var numDisks = diskCount || 1;
-    var diskSlotW = 0.03;
+    var diskSlotW = 0.015;
     var diskSlotH = appH * 0.5;
-    var diskSlotGeo = new THREE.BoxGeometry(diskSlotW, diskSlotH, 0.002);
+    var diskSlotGeo = new THREE.BoxGeometry(diskSlotW, diskSlotH, 0.001);
     var diskMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.4 });
     var diskHandleMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 });
-    var diskStartX = posX - appW / 2 + 0.02;
+    var diskStartX = posX - appW / 2 + 0.01;
     for (var d = 0; d < numDisks; d++) {
-        var dx = diskStartX + d * (diskSlotW + 0.008) + diskSlotW / 2;
+        var dx = diskStartX + d * (diskSlotW + 0.004) + diskSlotW / 2;
         var slot = new THREE.Mesh(diskSlotGeo, diskMat);
-        slot.position.set(dx, y, frontZ - 0.004);
+        slot.position.set(dx, y, frontZ - 0.002);
         scene.add(slot);
-        var handleGeo = new THREE.BoxGeometry(diskSlotW - 0.004, 0.003, 0.001);
+        var handleGeo = new THREE.BoxGeometry(diskSlotW - 0.002, 0.002, 0.001);
         var handle = new THREE.Mesh(handleGeo, diskHandleMat);
-        handle.position.set(dx, y + diskSlotH / 2 + 0.003, frontZ - 0.005);
+        handle.position.set(dx, y + diskSlotH / 2 + 0.002, frontZ - 0.003);
         scene.add(handle);
     }
 
     // Status LEDs (right side)
-    var ledX = posX + appW / 2 - 0.025;
-    var ledGeo = new THREE.CylinderGeometry(0.003, 0.003, 0.001, 8);
+    var ledX = posX + appW / 2 - 0.013;
+    var ledGeo = new THREE.CylinderGeometry(0.0015, 0.0015, 0.001, 8);
     var led1 = new THREE.Mesh(ledGeo, ledGreen);
     led1.rotation.x = Math.PI / 2;
-    led1.position.set(ledX, y + appH * 0.15, frontZ - 0.004);
+    led1.position.set(ledX, y + appH * 0.15, frontZ - 0.002);
     scene.add(led1);
     var led2 = new THREE.Mesh(ledGeo, ledBlue);
     led2.rotation.x = Math.PI / 2;
-    led2.position.set(ledX + 0.01, y + appH * 0.15, frontZ - 0.004);
+    led2.position.set(ledX + 0.005, y + appH * 0.15, frontZ - 0.002);
     scene.add(led2);
 
     // Power button (small circle)
-    var pwrGeo = new THREE.CylinderGeometry(0.004, 0.004, 0.001, 12);
+    var pwrGeo = new THREE.CylinderGeometry(0.002, 0.002, 0.001, 12);
     var pwrBtn = new THREE.Mesh(pwrGeo, metalMat);
     pwrBtn.rotation.x = Math.PI / 2;
-    pwrBtn.position.set(ledX + 0.005, y - appH * 0.15, frontZ - 0.004);
+    pwrBtn.position.set(ledX + 0.0025, y - appH * 0.15, frontZ - 0.002);
     scene.add(pwrBtn);
 
     // Azure logo on front
@@ -1180,72 +1180,72 @@ function placeEdgeAppliance(scene, surfaceY, posX, label, isGpu, diskCount, port
         });
         var logoMesh = new THREE.Mesh(logoGeo, logoMat);
         logoMesh.rotation.y = Math.PI;
-        logoMesh.position.set(posX + appW / 2 - 0.05, y, frontZ - 0.006);
+        logoMesh.position.set(posX + appW / 2 - 0.025, y, frontZ - 0.003);
         scene.add(logoMesh);
     }
 
     // GPU accent stripe
     if (isGpu) {
-        var gpuStripeGeo = new THREE.BoxGeometry(appW - 0.01, 0.004, 0.002);
+        var gpuStripeGeo = new THREE.BoxGeometry(appW - 0.005, 0.002, 0.001);
         var gpuStripeMat = new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.3 });
         var gpuStripe = new THREE.Mesh(gpuStripeGeo, gpuStripeMat);
-        gpuStripe.position.set(posX, y + appH / 2 - 0.004, frontZ - 0.005);
+        gpuStripe.position.set(posX, y + appH / 2 - 0.002, frontZ - 0.003);
         scene.add(gpuStripe);
     }
 
     // ── Back face ──
 
-    var backPanelGeo = new THREE.BoxGeometry(appW - 0.004, appH - 0.008, 0.003);
+    var backPanelGeo = new THREE.BoxGeometry(appW - 0.002, appH - 0.004, 0.002);
     var backPanel = new THREE.Mesh(backPanelGeo, darkMat);
-    backPanel.position.set(posX, y, backZ + 0.002);
+    backPanel.position.set(posX, y, backZ + 0.001);
     scene.add(backPanel);
 
     // Single compact PSU (right side)
     var psuW = appW * 0.22;
     var psuH = appH * 0.6;
-    var psuGeo = new THREE.BoxGeometry(psuW, psuH, 0.005);
+    var psuGeo = new THREE.BoxGeometry(psuW, psuH, 0.003);
     var psuMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 });
     var psu = new THREE.Mesh(psuGeo, psuMat);
-    psu.position.set(posX + appW / 2 - psuW / 2 - 0.01, y, backZ + 0.005);
+    psu.position.set(posX + appW / 2 - psuW / 2 - 0.005, y, backZ + 0.003);
     scene.add(psu);
 
     // Network ports (2–4 small ports on back)
-    var portW = 0.01;
-    var portH = 0.008;
-    var portGeo = new THREE.BoxGeometry(portW, portH, 0.003);
+    var portW = 0.005;
+    var portH = 0.004;
+    var portGeo = new THREE.BoxGeometry(portW, portH, 0.002);
     var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
     var numPorts = portCount || 2;
-    var portStartX = posX - appW / 2 + 0.025;
+    var portStartX = posX - appW / 2 + 0.013;
     for (var pt = 0; pt < numPorts; pt++) {
         var port = new THREE.Mesh(portGeo, portMat);
-        port.position.set(portStartX + pt * (portW + 0.005), y + appH * 0.1, backZ + 0.005);
+        port.position.set(portStartX + pt * (portW + 0.003), y + appH * 0.1, backZ + 0.003);
         scene.add(port);
     }
 
     // BMC port
     var bmcPortMat = new THREE.MeshStandardMaterial({ color: 0x0078d4, roughness: 0.5, metalness: 0.4 });
     var bmcPort = new THREE.Mesh(portGeo, bmcPortMat);
-    bmcPort.position.set(portStartX + numPorts * (portW + 0.005) + 0.008, y + appH * 0.1, backZ + 0.005);
+    bmcPort.position.set(portStartX + numPorts * (portW + 0.003) + 0.004, y + appH * 0.1, backZ + 0.003);
     scene.add(bmcPort);
 
     // Ventilation grille (3 thin slots on back)
     var ventMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.1 });
     for (var v = 0; v < 3; v++) {
-        var ventGeo = new THREE.BoxGeometry(appW * 0.2, 0.002, 0.002);
+        var ventGeo = new THREE.BoxGeometry(appW * 0.2, 0.001, 0.001);
         var vent = new THREE.Mesh(ventGeo, ventMat);
-        vent.position.set(posX - appW * 0.05, y - appH * 0.15 + v * 0.007, backZ + 0.004);
+        vent.position.set(posX - appW * 0.05, y - appH * 0.15 + v * 0.004, backZ + 0.002);
         scene.add(vent);
     }
 
     // Labels
     if (label) {
         var frontLabel = makeFaceLabel(label, 28, '#ffffff', 'front');
-        frontLabel.position.set(posX, y, frontZ - 0.008);
-        frontLabel.scale.set(0.35, 0.05, 1);
+        frontLabel.position.set(posX, y, frontZ - 0.004);
+        frontLabel.scale.set(0.18, 0.025, 1);
         scene.add(frontLabel);
         var rearLabel = makeFaceLabel(label + ' (Rear)', 28, '#ffffff', 'back');
-        rearLabel.position.set(posX, y, backZ + 0.012);
-        rearLabel.scale.set(0.35, 0.05, 1);
+        rearLabel.position.set(posX, y, backZ + 0.006);
+        rearLabel.scale.set(0.18, 0.025, 1);
         scene.add(rearLabel);
     }
 
@@ -1255,9 +1255,9 @@ function placeEdgeAppliance(scene, surfaceY, posX, label, isGpu, diskCount, port
 // ── Place a small edge switch for Low Capacity deployments ──
 
 function placeEdgeSwitch(scene, surfaceY, posX, posZ, label) {
-    var swW = 0.22;
-    var swH = 0.03;
-    var swD = 0.18;
+    var swW = 0.11;
+    var swH = 0.015;
+    var swD = 0.09;
     var y = surfaceY + swH / 2 + 0.001;
 
     var bodyMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.4 });
@@ -1270,34 +1270,34 @@ function placeEdgeSwitch(scene, surfaceY, posX, posZ, label) {
     scene.add(body);
 
     // Front panel
-    var faceGeo = new THREE.BoxGeometry(swW - 0.002, swH - 0.004, 0.002);
+    var faceGeo = new THREE.BoxGeometry(swW - 0.001, swH - 0.002, 0.001);
     var face = new THREE.Mesh(faceGeo, darkMat);
     face.position.set(posX, y, posZ - swD / 2 - 0.001);
     scene.add(face);
 
     // Small port row (8 ports)
-    var portGeo = new THREE.BoxGeometry(0.006, 0.006, 0.002);
+    var portGeo = new THREE.BoxGeometry(0.003, 0.003, 0.001);
     var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
-    var portStartX = posX - swW / 2 + 0.02;
+    var portStartX = posX - swW / 2 + 0.01;
     for (var p = 0; p < 8; p++) {
         var port = new THREE.Mesh(portGeo, portMat);
-        port.position.set(portStartX + p * 0.012, y, posZ - swD / 2 - 0.002);
+        port.position.set(portStartX + p * 0.006, y, posZ - swD / 2 - 0.001);
         scene.add(port);
     }
 
     // Status LED
-    var ledGeo = new THREE.CylinderGeometry(0.002, 0.002, 0.001, 8);
+    var ledGeo = new THREE.CylinderGeometry(0.001, 0.001, 0.001, 8);
     var ledMat = new THREE.MeshStandardMaterial({ color: 0x00ff66, emissive: 0x00ff66, emissiveIntensity: 0.6 });
     var led = new THREE.Mesh(ledGeo, ledMat);
     led.rotation.x = Math.PI / 2;
-    led.position.set(posX + swW / 2 - 0.015, y + swH * 0.1, posZ - swD / 2 - 0.002);
+    led.position.set(posX + swW / 2 - 0.008, y + swH * 0.1, posZ - swD / 2 - 0.001);
     scene.add(led);
 
     // Label
     if (label) {
         var swLabel = makeFaceLabel(label, 24, '#ffffff', 'front');
-        swLabel.position.set(posX, y, posZ - swD / 2 - 0.006);
-        swLabel.scale.set(0.25, 0.035, 1);
+        swLabel.position.set(posX, y, posZ - swD / 2 - 0.003);
+        swLabel.scale.set(0.12, 0.018, 1);
         scene.add(swLabel);
     }
 
@@ -1464,7 +1464,7 @@ function renderRack3D(config) {
         var surface = buildEdgeSurface(_rack3d.scene, nodeCount);
 
         // Place edge appliances on the surface
-        var appSpacing = 0.33;
+        var appSpacing = 0.28;
         var totalAppWidth = nodeCount * appSpacing;
         var appStartX = -totalAppWidth / 2 + appSpacing / 2;
 
@@ -1477,21 +1477,24 @@ function renderRack3D(config) {
 
         // Place a small edge switch behind the appliances (if multi-node)
         if (nodeCount > 1) {
-            placeEdgeSwitch(_rack3d.scene, surface.surfaceY, 0, 0.12, 'Switch');
+            placeEdgeSwitch(_rack3d.scene, surface.surfaceY, 0, 0.14, 'Switch');
 
-            // Ethernet cables from each appliance to the switch
+            // Ethernet cables from each appliance to the switch (route along table surface)
             var cableMat = new THREE.MeshBasicMaterial({ color: 0x3399ff, transparent: true, opacity: 0.7 });
+            var switchZ = 0.14;
+            var cableY = surface.surfaceY + 0.004; // just above table surface
             for (var ec = 0; ec < nodeCount; ec++) {
                 var ecX = appStartX + ec * appSpacing;
-                var ecStartY = surface.surfaceY + 0.056;
-                var ecEndY = surface.surfaceY + 0.031;
+                // Cable: exits back of appliance, drops to table, routes to switch
                 var cableGeo = new THREE.TubeGeometry(
                     new THREE.CatmullRomCurve3([
-                        new THREE.Vector3(ecX, ecStartY, 0.155),
-                        new THREE.Vector3(ecX * 0.5, ecStartY + 0.03, 0.14),
-                        new THREE.Vector3(0, ecEndY + 0.01, 0.12)
+                        new THREE.Vector3(ecX - 0.01, surface.surfaceY + 0.015, 0.08),
+                        new THREE.Vector3(ecX - 0.01, cableY, 0.12),
+                        new THREE.Vector3(ecX * 0.3, cableY, 0.16),
+                        new THREE.Vector3(0, cableY, 0.15),
+                        new THREE.Vector3(0, surface.surfaceY + 0.01, switchZ + 0.045)
                     ]),
-                    12, 0.0015, 6, false
+                    20, 0.001, 6, false
                 );
                 _rack3d.scene.add(new THREE.Mesh(cableGeo, cableMat));
             }
@@ -1499,13 +1502,13 @@ function renderRack3D(config) {
 
         // Scene label
         var sceneLabel = makeTextSprite('Low Capacity Deployment', 24, '#aaaaaa');
-        sceneLabel.position.set(0, surface.surfaceY + 0.22, -surface.surfaceD / 2 + 0.05);
+        sceneLabel.position.set(0, surface.surfaceY + 0.18, -surface.surfaceD / 2 + 0.05);
         sceneLabel.scale.set(0.4, 0.08, 1);
         _rack3d.scene.add(sceneLabel);
 
         // Camera — front-elevated view of the tabletop
-        _rack3d.camera.position.set(0.3, surface.surfaceY + 0.35, -0.7);
-        _rack3d.controls.target.set(0, surface.surfaceY + 0.03, 0);
+        _rack3d.camera.position.set(0.3, surface.surfaceY + 0.30, -0.65);
+        _rack3d.controls.target.set(0, surface.surfaceY + 0.015, 0);
         _rack3d.controls.update();
 
         // Update legend text for edge layout
