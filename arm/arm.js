@@ -766,7 +766,7 @@ jobs:
 
 function showRestApiInfo() {
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; backdrop-filter: blur(8px);';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);';
     
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 2px solid var(--accent-blue); border-radius: 16px; padding: 32px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">

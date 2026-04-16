@@ -34,6 +34,7 @@ body {
     top: var(--nav-height); /* Account for fixed nav bar height */
     z-index: 100;
     background: var(--nav-bg);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
     padding: 12px 0;
@@ -899,7 +900,7 @@ header .header-description {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-.option-card:focus {
+.option-card:focus-visible {
     outline: none;
     border-color: var(--accent-blue);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
@@ -1032,6 +1033,7 @@ header .header-description {
     max-height: calc(100vh - 4rem);
     overflow-y: auto;
     background: var(--card-bg-transparent);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
@@ -1180,6 +1182,7 @@ header .header-description {
         padding: 0.75rem;
         border-radius: 0;
         background: rgba(15, 23, 42, 0.95);
+        -webkit-backdrop-filter: blur(10px);
         backdrop-filter: blur(10px);
         border-top: 1px solid var(--glass-border);
     }
@@ -2690,6 +2693,7 @@ header .header-description {
         padding: 0.75rem !important;
         border-radius: 0 !important;
         background: rgba(15, 23, 42, 0.95) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
         backdrop-filter: blur(10px) !important;
         border-top: 1px solid var(--glass-border) !important;
     }

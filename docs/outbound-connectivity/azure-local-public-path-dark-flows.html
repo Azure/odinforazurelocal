@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Azure Local Network Flow — Interactive Public Path v6</title>
+    <title>Azure Local Network Flow â€” Interactive Public Path v6</title>
     <style>
         /* Segoe UI is a Windows system font - no Google Fonts import needed */
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -20,10 +20,11 @@
             /* JetBrains Mono / Cascadia Code are common dev fonts; falls back to system Consolas */
             font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
         }
-        /* ─── Title Bar ─── */
+        /* â”€â”€â”€ Title Bar â”€â”€â”€ */
         .title-bar {
             position: fixed; top: 0; left: 0; right: 0; height: 52px;
             background: rgba(17,17,17,0.95);
+            -webkit-backdrop-filter: blur(24px) saturate(1.6);
             backdrop-filter: blur(24px) saturate(1.6);
             border-bottom: 1px solid rgba(191,90,242,0.1);
             display: flex; align-items: center; padding: 0 28px; z-index: 10;
@@ -48,11 +49,12 @@
             font-size: 16px; font-weight: 700; letter-spacing: 1.2px;
             color: #d8b4fe;
         }
-        /* ─── Architecture Scenario Bar (top) ─── */
+        /* â”€â”€â”€ Architecture Scenario Bar (top) â”€â”€â”€ */
         .arch-bar {
             position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
             display: flex; gap: 6px; z-index: 20;
             background: rgba(2,2,16,0.85);
+            -webkit-backdrop-filter: blur(28px) saturate(1.6);
             backdrop-filter: blur(28px) saturate(1.6);
             padding: 8px 14px; border-radius: 14px;
             border: 1px solid rgba(191,90,242,0.15);
@@ -99,11 +101,12 @@
             opacity: 0.35; transition: all 0.3s;
         }
         .arch-btn.active .arch-dot { opacity: 1; box-shadow: 0 0 8px #bf5af2; }
-        /* ─── Button Bar ─── */
+        /* â”€â”€â”€ Button Bar â”€â”€â”€ */
         .flow-bar {
             position: fixed; bottom: 22px; left: 38%; transform: translateX(-50%);
             display: flex; flex-direction: column; gap: 8px; z-index: 20;
             background: rgba(2,2,16,0.85);
+            -webkit-backdrop-filter: blur(28px) saturate(1.6);
             backdrop-filter: blur(28px) saturate(1.6);
             padding: 14px 18px; border-radius: 18px;
             border: 1px solid rgba(0,229,255,0.12);
@@ -163,7 +166,7 @@
             letter-spacing: 1px; color: rgba(0,229,255,0.5); margin-right: 6px;
             text-transform: uppercase; white-space: nowrap;
         }
-        /* ─── Onboarding Overlay ─── */
+        /* â”€â”€â”€ Onboarding Overlay â”€â”€â”€ */
         .flow-onboarding-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.88); z-index: 100;
@@ -225,7 +228,7 @@
         .flow-help-btn {
             position: fixed; top: 14px; right: 24px; z-index: 30;
             padding: 6px 14px; border-radius: 10px; cursor: pointer;
-            background: rgba(2,2,16,0.85); backdrop-filter: blur(20px);
+            background: rgba(2,2,16,0.85); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
             border: 1px solid rgba(191,90,242,0.15); color: rgba(216,180,254,0.6);
             font-size: 12px; font-weight: 600; font-family: 'Segoe UI', system-ui, sans-serif;
             display: flex; align-items: center; gap: 6px; transition: all 0.3s;
@@ -238,13 +241,13 @@
     <canvas id="c"></canvas>
     <div class="title-bar">
         <div class="dot"></div>
-        <span>AZURE LOCAL — OUTBOUND CONNECTIVITY: PUBLIC PATH</span>
+        <span>AZURE LOCAL â€” OUTBOUND CONNECTIVITY: PUBLIC PATH</span>
     </div>
     <div class="perf" id="fps">-- fps</div>
 
     <!-- Help Button -->
     <button class="flow-help-btn" onclick="showFlowOnboarding()" title="Show user guide">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         Help
     </button>
 
@@ -294,9 +297,9 @@
     </div>
 
     <script>
-    // ════════════════════════════════════════════════════════════════════════
-    // Azure Local Network Flow v6 — "Flat Dark" Public Path Multi-Arch
-    // ════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // Azure Local Network Flow v6 â€” "Flat Dark" Public Path Multi-Arch
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     const canvas = document.getElementById('c');
     const dpr = Math.min(window.devicePixelRatio, 2);
@@ -316,7 +319,7 @@
     let mouseX = W / 2, mouseY = H / 2, hoveredNode = null;
     canvas.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
 
-    // ── Neon Color Palette ──────────────────────────────────────────────
+    // â”€â”€ Neon Color Palette â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const C = {
         bg: '#020210', nCyan: '#00e5ff', nPink: '#ff0066', nGreen: '#00ff88',
         nPurple: '#bf5af2', nBlue: '#4d8dff', nOrange: '#ff8800', nGold: '#ffb800', nRed: '#ff3355',
@@ -325,7 +328,7 @@
         text: '#e0eaff', textDim: 'rgba(160,190,240,0.55)',
     };
 
-    // ── SVG Icon Loader ──────────────────────────────────────────────
+    // â”€â”€ SVG Icon Loader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const svgIconImages = {};
     ['azureLocalMachine:AzureLocalMachine', 'azureFirewall:AzureFirewall', 'arcGateway:ArcGateway',
      'expressRoute:ExpressRouteCircuits', 'privateEndpoints:PrivateEndpoints',
@@ -338,14 +341,14 @@
         img.src = 'icons/' + file + '.svg';
     });
 
-    // ── Architecture Scenario State ─────────────────────────────────────
+    // â”€â”€ Architecture Scenario State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let currentArch = 1; // 1-4, default = simplest diagram
 
-    // ── Arch-aware sub-button visibility ─────────────────────────────────
+    // â”€â”€ Arch-aware sub-button visibility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function updateSubButtonsForArch() {
         const hasProxy = (currentArch === 2 || currentArch === 4);
         const hasArcGW = (currentArch === 3 || currentArch === 4);
-        // hosts sub-buttons — arcgw & internet always visible, bypassed only with Arc GW
+        // hosts sub-buttons â€” arcgw & internet always visible, bypassed only with Arc GW
         const hostsArcgw = document.getElementById('btn-hosts-arcgw');
         const hostsInternet = document.getElementById('btn-hosts-internet');
         const hostsBypassed = document.getElementById('btn-hosts-bypassed');
@@ -393,7 +396,7 @@
         updateSubButtonsForArch();
     }
 
-    // ── Flow State ──────────────────────────────────────────────────────
+    // â”€â”€ Flow State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const flowState = {
         hosts: { expanded: false, subs: { arcgw: { visible: false, opacity: 0, target: 0 }, internet: { visible: false, opacity: 0, target: 0 }, bypassed: { visible: false, opacity: 0, target: 0 } }},
         arb:   { expanded: false, subs: { arcgw: { visible: false, opacity: 0, target: 0 }, internet: { visible: false, opacity: 0, target: 0 }, bypassed: { visible: false, opacity: 0, target: 0 } }},
@@ -428,14 +431,14 @@
         return m;
     }
 
-    // ── Star Field (disabled – flat background) ────────────────────────
+    // â”€â”€ Star Field (disabled â€“ flat background) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const stars = [];
 
-    // ── Pulse Rings ─────────────────────────────────────────────────────
+    // â”€â”€ Pulse Rings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const pulseRings = [];
     let lastPulseTime = 0;
 
-    // ── Topology ────────────────────────────────────────────────────────
+    // â”€â”€ Topology â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let zones = [], nodes = [], edges = [];
 
     function defineTopology() {
@@ -444,94 +447,94 @@
         const hasProxy = (currentArch === 2 || currentArch === 4);
         const hasArcGW = (currentArch === 3 || currentArch === 4);
 
-        // ── Zone: Azure Local Instance ──
+        // â”€â”€ Zone: Azure Local Instance â”€â”€
         zones.push({ id: 'azlocal', label: 'AZURE LOCAL INSTANCE', x: 0.02, y: 0.12, w: 0.30, h: 0.72, borderColor: C.nCyan, labelColor: '#00e5ff', fill: 'rgba(0,229,255,0.02)', dashed: true });
 
-        // ── Azure Local nodes (always present) ──
+        // â”€â”€ Azure Local nodes (always present) â”€â”€
         const hostLy = hasArcGW ? 0.25 : 0.27;  // center with firewall when no Arc GW
         nodes.push({ id: 'hosts', label: 'Azure Local host', sub: 'Mgmt LNET', zone: 'azlocal', lx: 0.06, ly: hostLy, w: 0.12, h: 0.055, fill: C.dBlue, glow: C.nBlue, textColor: '#fff', svgIcon: 'azureLocalMachine' });
         nodes.push({ id: 'arb', label: 'ARB', sub: 'Mgmt LNET', zone: 'azlocal', lx: 0.04, ly: 0.49, w: 0.10, h: 0.055, fill: C.dBlue, glow: C.nBlue, textColor: '#fff', svgIcon: 'lnet' });
         nodes.push({ id: 'aks', label: 'AKS', sub: 'AKS LNET', zone: 'azlocal', lx: 0.16, ly: 0.49, w: 0.10, h: 0.055, fill: C.dCyan, glow: C.nCyan, textColor: '#fff', svgIcon: 'azureLocalAKS' });
         nodes.push({ id: 'vms', label: 'VMs', sub: 'VMs LNET', zone: 'azlocal', lx: 0.08, ly: 0.65, w: 0.12, h: 0.055, fill: C.dGold, glow: C.nGold, textColor: '#fff', svgIcon: 'azureLocalVM' });
 
-        // ── Arc Proxy & Cluster IP (only with Arc GW) ──
+        // â”€â”€ Arc Proxy & Cluster IP (only with Arc GW) â”€â”€
         if (hasArcGW) {
             nodes.push({ id: 'arcproxy', label: 'Arc Proxy', sub: '', zone: 'azlocal', lx: 0.22, ly: 0.26, w: 0.06, h: 0.07, fill: C.dGreen, glow: C.nGreen, textColor: '#fff' });
             nodes.push({ id: 'clusterip', label: 'Cluster IP:40343', sub: '', zone: 'azlocal', lx: 0.08, ly: 0.31, w: 0.08, h: 0.035, fill: C.dGreen, glow: C.nGreen, textColor: '#fff', badge: true });
         }
 
-        // ── Corporate Proxy (only with Proxy) ──
+        // â”€â”€ Corporate Proxy (only with Proxy) â”€â”€
         if (hasProxy) {
-            nodes.push({ id: 'corpproxy', label: 'Corporate', sub: 'Infra Proxy', zone: null, lx: 0.33, ly: 0.21, w: 0.08, h: 0.18, fill: C.dOrange, glow: C.nOrange, textColor: '#fff', icon: '⟳', cardStyle: true });
-            nodes.push({ id: 'corpproxy2', label: 'Corporate', sub: 'Workloads Proxy', zone: null, lx: 0.34, ly: 0.62, w: 0.06, h: 0.11, fill: C.dOrange, glow: C.nOrange, textColor: '#fff', icon: '⟳', cardStyle: true });
+            nodes.push({ id: 'corpproxy', label: 'Corporate', sub: 'Infra Proxy', zone: null, lx: 0.33, ly: 0.21, w: 0.08, h: 0.18, fill: C.dOrange, glow: C.nOrange, textColor: '#fff', icon: 'âŸ³', cardStyle: true });
+            nodes.push({ id: 'corpproxy2', label: 'Corporate', sub: 'Workloads Proxy', zone: null, lx: 0.34, ly: 0.62, w: 0.06, h: 0.11, fill: C.dOrange, glow: C.nOrange, textColor: '#fff', icon: 'âŸ³', cardStyle: true });
         }
 
-        // ── Firewall (always present) ──
-        nodes.push({ id: 'firewall', label: 'Corporate', sub: 'Firewall', zone: null, lx: 0.425, ly: 0.21, w: 0.08, h: 0.18, fill: C.dRed, glow: C.nRed, textColor: '#fff', icon: '🛡', svgIcon: 'azureFirewall', cardStyle: true });
+        // â”€â”€ Firewall (always present) â”€â”€
+        nodes.push({ id: 'firewall', label: 'Corporate', sub: 'Firewall', zone: null, lx: 0.425, ly: 0.21, w: 0.08, h: 0.18, fill: C.dRed, glow: C.nRed, textColor: '#fff', icon: 'ðŸ›¡', svgIcon: 'azureFirewall', cardStyle: true });
 
-        // ── Arc Gateway (only with Arc GW) ──
+        // â”€â”€ Arc Gateway (only with Arc GW) â”€â”€
         if (hasArcGW) {
-            nodes.push({ id: 'arcgw', label: 'Arc', sub: 'gateway', zone: null, lx: 0.62, ly: 0.255, w: 0.06, h: 0.08, fill: '#0a4a5e', glow: C.nCyan, textColor: C.nCyan, icon: '⮕', svgIcon: 'arcGateway', bigLabel: true });
+            nodes.push({ id: 'arcgw', label: 'Arc', sub: 'gateway', zone: null, lx: 0.62, ly: 0.255, w: 0.06, h: 0.08, fill: '#0a4a5e', glow: C.nCyan, textColor: C.nCyan, icon: 'â®•', svgIcon: 'arcGateway', bigLabel: true });
         }
 
-        // ── ExpressRoute (always) ──
-        nodes.push({ id: 'express', label: 'ExpressRoute Path', sub: '', zone: null, lx: 0.53, ly: 0.60, w: 0.10, h: 0.065, fill: C.dPurple, glow: C.nPurple, textColor: '#fff', icon: '📡', svgIcon: 'expressRoute' });
+        // â”€â”€ ExpressRoute (always) â”€â”€
+        nodes.push({ id: 'express', label: 'ExpressRoute Path', sub: '', zone: null, lx: 0.53, ly: 0.60, w: 0.10, h: 0.065, fill: C.dPurple, glow: C.nPurple, textColor: '#fff', icon: 'ðŸ“¡', svgIcon: 'expressRoute' });
 
-        // ── Right-side destinations (always) ──
-        nodes.push({ id: 'azpubep', label: 'Azure', sub: 'Public Endpoints', zone: null, lx: 0.72, ly: 0.17, w: 0.16, h: 0.14, fill: C.dBlue, glow: C.nBlue, textColor: '#fff', icon: '☁', svgIcon: 'azure', cardStyle: true });
-        nodes.push({ id: 'pubendpt', label: 'Internet', sub: 'Public Endpoints', zone: null, lx: 0.72, ly: 0.39, w: 0.16, h: 0.14, fill: C.dCyan, glow: C.nGreen, textColor: '#fff', icon: '🌐', cardStyle: true });
-        nodes.push({ id: 'privendpt', label: 'Azure VNET', sub: 'Private Endpoints', zone: null, lx: 0.72, ly: 0.67, w: 0.16, h: 0.14, fill: C.dPurple, glow: C.nPurple, textColor: '#fff', icon: '⊕', svgIcon: 'privateEndpoints', cardStyle: true });
+        // â”€â”€ Right-side destinations (always) â”€â”€
+        nodes.push({ id: 'azpubep', label: 'Azure', sub: 'Public Endpoints', zone: null, lx: 0.72, ly: 0.17, w: 0.16, h: 0.14, fill: C.dBlue, glow: C.nBlue, textColor: '#fff', icon: 'â˜', svgIcon: 'azure', cardStyle: true });
+        nodes.push({ id: 'pubendpt', label: 'Internet', sub: 'Public Endpoints', zone: null, lx: 0.72, ly: 0.39, w: 0.16, h: 0.14, fill: C.dCyan, glow: C.nGreen, textColor: '#fff', icon: 'ðŸŒ', cardStyle: true });
+        nodes.push({ id: 'privendpt', label: 'Azure VNET', sub: 'Private Endpoints', zone: null, lx: 0.72, ly: 0.67, w: 0.16, h: 0.14, fill: C.dPurple, glow: C.nPurple, textColor: '#fff', icon: 'âŠ•', svgIcon: 'privateEndpoints', cardStyle: true });
 
-        // ════════════════════════════════════════════════════════════════
-        // EDGES — vary per architecture
-        // ════════════════════════════════════════════════════════════════
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+        // EDGES â€” vary per architecture
+        // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
         if (hasArcGW) {
-            // ── With Arc GW: hosts→arcproxy, ARB/AKS→clusterip→arcproxy→arcgw→azpubep ──
+            // â”€â”€ With Arc GW: hostsâ†’arcproxy, ARB/AKSâ†’clusteripâ†’arcproxyâ†’arcgwâ†’azpubep â”€â”€
 
-            // hosts → arcproxy (blue — all traffic through arc proxy)
+            // hosts â†’ arcproxy (blue â€” all traffic through arc proxy)
             edges.push({ from: 'hosts', to: 'arcproxy', color: C.nBlue, label: '', dashed: false, animated: true, speed: 1.0, groups: ['hosts.arcgw', 'hosts.internet'] });
 
-            // ARB → clusterip (via waypoints)
+            // ARB â†’ clusterip (via waypoints)
             edges.push({ from: 'arb', to: 'clusterip', color: C.nBlue, label: 'ARB HTTP/HTTPS\noutbound traffic', labelT: 0.3, labelColor: '#99bbff', labelAlign: 'right', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'top', groups: ['arb.arcgw', 'arb.internet'],
                 waypoints: [{ lx: 0.09, ly: 0.36 }, { lx: 0.10, ly: 0.36 }, { lx: 0.10, ly: 0.275 }] });
 
-            // AKS → clusterip (via waypoints)
+            // AKS â†’ clusterip (via waypoints)
             edges.push({ from: 'aks', to: 'clusterip', color: C.nCyan, label: 'AKS HTTP/HTTPS\noutbound traffic', labelT: 0.3, labelColor: '#99ffee', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'top', groups: ['aks.arcgw', 'aks.internet'],
                 waypoints: [{ lx: 0.21, ly: 0.36 }, { lx: 0.14, ly: 0.36 }, { lx: 0.14, ly: 0.275 }] });
 
-            // clusterip → arcproxy
+            // clusterip â†’ arcproxy
             edges.push({ from: 'clusterip', to: 'arcproxy', color: C.nGreen, label: '', dashed: false, animated: true, speed: 0.8, groups: ['arb.arcgw', 'arb.internet', 'aks.arcgw', 'aks.internet'] });
 
-            // arcproxy → arcgw (HTTPS allowed)
+            // arcproxy â†’ arcgw (HTTPS allowed)
             edges.push({ from: 'arcproxy', to: 'arcgw', color: C.nCyan, label: 'HTTPS Azure allowed endpoints\nby Arc gateway', dashed: false, animated: true, speed: 0.7, labelColor: '#99eeff', labelT: 0.85, labelYOffset: -35, groups: ['hosts.arcgw', 'arb.arcgw', 'aks.arcgw'] });
 
-            // arcgw → azpubep (Azure backbone)
+            // arcgw â†’ azpubep (Azure backbone)
             edges.push({ from: 'arcgw', to: 'azpubep', color: C.nCyan, label: 'Azure\nbackbone\ntraffic', dashed: false, animated: true, speed: 0.8, labelColor: '#99eeff', labelYOffset: -45, groups: ['hosts.arcgw', 'arb.arcgw', 'aks.arcgw'] });
 
-            // arcproxy → pubendpt (non-Arc GW internet traffic)
+            // arcproxy â†’ pubendpt (non-Arc GW internet traffic)
             edges.push({ from: 'arcproxy', to: 'pubendpt', color: C.nGreen, label: 'All HTTP and any HTTPS endpoint\nnot allowed by Arc gateway', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'bottom', targetAnchor: 'left', labelColor: '#99ffcc', labelT: 0.75, groups: ['hosts.internet', 'arb.internet', 'aks.internet'],
                 waypoints: [{ lx: 0.25, ly: 0.30 }, { lx: 0.37, ly: 0.30 }, { lx: 0.465, ly: 0.30 }, { lx: 0.51, ly: 0.30 }, { lx: 0.51, ly: 0.39 }] });
 
-            // firewall → azpubep (VMs + bypassed traffic to Azure public endpoints — routed UP to avoid tunnel overlap)
+            // firewall â†’ azpubep (VMs + bypassed traffic to Azure public endpoints â€” routed UP to avoid tunnel overlap)
             edges.push({ from: 'firewall', to: 'azpubep', color: C.nCyan, label: 'Azure public endpoints', dashed: false, animated: true, speed: 0.8, labelColor: '#99eeff', labelYOffset: 14, labelT: 0.5, sourceAnchor: 'top', targetAnchor: 'top', groups: ['hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'],
                 waypoints: [{ lx: 0.465, ly: 0.08 }, { lx: 0.80, ly: 0.08 }] });
 
-            // firewall → pubendpt (VMs + bypassed traffic to Internet — routed DOWN to avoid tunnel overlap)
+            // firewall â†’ pubendpt (VMs + bypassed traffic to Internet â€” routed DOWN to avoid tunnel overlap)
             edges.push({ from: 'firewall', to: 'pubendpt', color: C.nGreen, label: 'Internet public\nendpoints', dashed: false, animated: true, speed: 0.7, labelColor: '#99ffcc', labelT: 0.5, sourceAnchor: 'bottom', targetAnchor: 'bottom', groups: ['hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'],
                 waypoints: [{ lx: 0.465, ly: 0.50 }, { lx: 0.80, ly: 0.50 }] });
 
         } else {
-            // ── Without Arc GW ──
+            // â”€â”€ Without Arc GW â”€â”€
 
-            // hosts → proxy or firewall
+            // hosts â†’ proxy or firewall
             if (hasProxy) {
                 edges.push({ from: 'hosts', to: 'corpproxy', color: C.nBlue, label: 'HTTP and HTTPS\noutbound traffic', labelColor: '#99bbff', labelT: 0.25, dashed: false, animated: true, speed: 0.8, groups: ['hosts.arcgw', 'hosts.internet'] });
             } else {
                 edges.push({ from: 'hosts', to: 'firewall', color: C.nBlue, label: 'HTTP and HTTPS\noutbound traffic', labelColor: '#99bbff', labelT: 0.25, dashed: false, animated: true, speed: 0.8, groups: ['hosts.arcgw', 'hosts.internet'] });
             }
 
-            // ARB → proxy or firewall (sourceAnchor: top)
+            // ARB â†’ proxy or firewall (sourceAnchor: top)
             if (hasProxy) {
                 edges.push({ from: 'arb', to: 'corpproxy', color: C.nBlue, label: 'ARB HTTP/HTTPS\noutbound traffic', labelColor: '#99bbff', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'top', targetAnchor: 'bottom', labelT: 0.3, groups: ['arb.arcgw', 'arb.internet'],
                     waypoints: [{ lx: 0.09, ly: 0.38 }, { lx: 0.37, ly: 0.38 }] });
@@ -540,7 +543,7 @@
                     waypoints: [{ lx: 0.09, ly: 0.38 }, { lx: 0.465, ly: 0.38 }] });
             }
 
-            // AKS → proxy or firewall (sourceAnchor: top)
+            // AKS â†’ proxy or firewall (sourceAnchor: top)
             if (hasProxy) {
                 edges.push({ from: 'aks', to: 'corpproxy', color: C.nCyan, label: 'AKS HTTP/HTTPS\noutbound traffic', labelColor: '#99ffee', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'top', targetAnchor: 'bottom', groups: ['aks.arcgw', 'aks.internet'],
                     waypoints: [{ lx: 0.21, ly: 0.35 }, { lx: 0.37, ly: 0.35 }] });
@@ -549,34 +552,34 @@
                     waypoints: [{ lx: 0.21, ly: 0.35 }, { lx: 0.465, ly: 0.35 }] });
             }
 
-            // proxy → firewall (only with proxy)
+            // proxy â†’ firewall (only with proxy)
             if (hasProxy) {
                 edges.push({ from: 'corpproxy', to: 'firewall', color: C.nOrange, label: '', dashed: false, animated: true, speed: 0.8, groups: ['hosts.arcgw', 'hosts.internet', 'arb.arcgw', 'arb.internet', 'aks.arcgw', 'aks.internet'] });
             }
 
-            // firewall → azpubep (Azure public endpoints)
+            // firewall â†’ azpubep (Azure public endpoints)
             edges.push({ from: 'firewall', to: 'azpubep', color: C.nCyan, label: 'Azure public\nendpoints', dashed: false, animated: true, speed: 0.8, labelColor: '#99eeff', labelYOffset: -35, groups: ['hosts.arcgw', 'arb.arcgw', 'aks.arcgw', 'hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'] });
 
-            // firewall → pubendpt (Internet endpoints)
+            // firewall â†’ pubendpt (Internet endpoints)
             edges.push({ from: 'firewall', to: 'pubendpt', color: C.nGreen, label: 'Internet public\nendpoints', dashed: false, animated: true, speed: 0.7, labelColor: '#99ffcc', sourceAnchor: 'right', targetAnchor: 'left', groups: ['hosts.internet', 'arb.internet', 'aks.internet', 'hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'] });
         }
 
-        // ── Bypassed edges (traffic bypassing proxy / arc proxy) ──
+        // â”€â”€ Bypassed edges (traffic bypassing proxy / arc proxy) â”€â”€
         if (hasProxy || hasArcGW) {
-            // hosts → firewall bypassed (pink, top anchors)
+            // hosts â†’ firewall bypassed (pink, top anchors)
             edges.push({ from: 'hosts', to: 'firewall', color: C.nPink, label: 'Arc proxy bypassed\nendpoints', labelColor: '#ff99bb', dashed: false, animated: true, speed: 0.7, sourceAnchor: 'top', targetAnchor: 'top', groups: ['hosts.bypassed'],
                 waypoints: [{ lx: 0.12, ly: 0.10 }, { lx: 0.465, ly: 0.10 }] });
 
-            // ARB → firewall bypassed
+            // ARB â†’ firewall bypassed
             edges.push({ from: 'arb', to: 'firewall', color: C.nPink, label: 'ARB proxy bypassed\nendpoints', labelColor: '#ff99bb', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'bottom', targetAnchor: 'bottom', labelT: 0.3, groups: ['arb.bypassed'],
                 waypoints: [{ lx: 0.09, ly: 0.52 }, { lx: 0.48, ly: 0.52 }, { lx: 0.48, ly: 0.36 }] });
 
-            // AKS → firewall bypassed
+            // AKS â†’ firewall bypassed
             edges.push({ from: 'aks', to: 'firewall', color: C.nPink, label: 'AKS proxy bypassed\nendpoints', labelColor: '#ff99bb', dashed: false, animated: true, speed: 0.6, sourceAnchor: 'right', targetAnchor: 'bottom', groups: ['aks.bypassed'],
                 waypoints: [{ lx: 0.45, ly: 0.45 }, { lx: 0.45, ly: 0.36 }] });
         }
 
-        // ── VMs → firewall ──
+        // â”€â”€ VMs â†’ firewall â”€â”€
         if (hasProxy || hasArcGW) {
             edges.push({ from: 'vms', to: 'firewall', color: C.nPink, label: 'VMs proxy bypassed\nprivate endpoints', dashed: false, animated: true, speed: 0.5, labelColor: '#ff99bb', sourceAnchor: 'bottom', targetAnchor: 'bottom', labelT: 0.25, groups: ['vms.direct'],
                 waypoints: [{ lx: 0.14, ly: 0.72 }, { lx: 0.44, ly: 0.72 }, { lx: 0.44, ly: 0.36 }] });
@@ -584,7 +587,7 @@
         edges.push({ from: 'vms', to: 'firewall', color: C.nGold, label: '', dashed: false, animated: true, speed: 0.6, labelColor: '#ffe680', sourceAnchor: 'right', targetAnchor: 'bottom', labelT: 0.15, groups: ['vms.direct'],
             waypoints: [{ lx: 0.465, ly: 0.61 }, { lx: 0.465, ly: 0.36 }] });
 
-        // ── Firewall → private endpoints (ExpressRoute) — always ──
+        // â”€â”€ Firewall â†’ private endpoints (ExpressRoute) â€” always â”€â”€
         const exprGroups = ['hosts.bypassed', 'arb.bypassed', 'aks.bypassed', 'vms.direct'];
         if (!hasArcGW) { exprGroups.push('hosts.arcgw', 'hosts.internet', 'arb.arcgw', 'arb.internet', 'aks.arcgw', 'aks.internet'); }
         edges.push({ from: 'firewall', to: 'privendpt', color: C.nPurple, label: 'ExpressRoute\ntraffic', dashed: false, animated: true, speed: 0.5, labelColor: '#d8aaff', sourceAnchor: 'bottom', targetAnchor: 'left', labelT: 0.3, groups: exprGroups,
@@ -599,7 +602,7 @@
 
     defineTopology();
 
-    // ── Layout ──────────────────────────────────────────────────────────
+    // â”€â”€ Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let laidOut = { zones: [], nodes: [], edges: [] };
     function layoutNodes() {
         const pad = 50, topOff = 60, aw = W - pad * 2, ah = H - pad - topOff;
@@ -631,7 +634,7 @@
     }
     layoutNodes();
 
-    // ── Flow Particles ──────────────────────────────────────────────────
+    // â”€â”€ Flow Particles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let flowDots = [];
     function initFlowDots() {
         flowDots.length = 0;
@@ -639,11 +642,11 @@
     }
     initFlowDots();
 
-    // ── Ambient Particles ───────────────────────────────────────────────
+    // â”€â”€ Ambient Particles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const ambient = [];
     for (let i = 0; i < 60; i++) ambient.push({ x: Math.random(), y: Math.random(), vx: (Math.random() - 0.5) * 0.0002, vy: (Math.random() - 0.5) * 0.0002, size: 0.5 + Math.random() * 2, alpha: 0.04 + Math.random() * 0.1, hue: [C.nCyan, C.nPink, C.nPurple, C.nGreen, C.nBlue][Math.floor(Math.random() * 5)] });
 
-    // ── Helpers ─────────────────────────────────────────────────────────
+    // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h); ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r); ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath(); }
     function hexRgb(hex) { return { r: parseInt(hex.slice(1,3),16), g: parseInt(hex.slice(3,5),16), b: parseInt(hex.slice(5,7),16) }; }
     function rgba(hex, a) { const c = hexRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
@@ -680,9 +683,9 @@
         return out;
     }
 
-    // ════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // RENDER
-    // ════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     let frameCount = 0, lastFpsTime = 0;
     const t0 = performance.now();
 
@@ -693,17 +696,17 @@
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
 
-        // ── Background: flat dark ──
+        // â”€â”€ Background: flat dark â”€â”€
         ctx.fillStyle = '#111111';
         ctx.fillRect(0, 0, W, H);
 
-        // ── Mouse spotlight ──
+        // â”€â”€ Mouse spotlight â”€â”€
         const spotR = 280;
         const spotG = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, spotR);
         spotG.addColorStop(0, 'rgba(0,229,255,0.04)'); spotG.addColorStop(0.3, 'rgba(0,229,255,0.02)'); spotG.addColorStop(1, 'rgba(0,229,255,0)');
         ctx.fillStyle = spotG; ctx.fillRect(0, 0, W, H);
 
-        // ── Ambient particles ──
+        // â”€â”€ Ambient particles â”€â”€
         ambient.forEach(p => {
             p.x += p.vx; p.y += p.vy;
             if (p.x < 0 || p.x > 1) p.vx = -p.vx;
@@ -715,7 +718,7 @@
             ctx.fillStyle = ag; ctx.beginPath(); ctx.arc(px, py, p.size * 12, 0, Math.PI * 2); ctx.fill();
         });
 
-        // ── Zones ──
+        // â”€â”€ Zones â”€â”€
         laidOut.zones.forEach(z => {
             const pulse = 0.7 + 0.3 * Math.sin(time * 0.6 + z.x * 5);
             const bc = hexRgb(z.borderColor);
@@ -733,7 +736,7 @@
             if (z.id === 'azlocal' && svgIconImages['azureLocalCluster']) { const cSz = S(36); ctx.save(); ctx.globalAlpha = 0.9; ctx.drawImage(svgIconImages['azureLocalCluster'], z.px + S(10), z.py + S(4), cSz, cSz); ctx.restore(); }
         });
 
-        // ── Pipe / Tunnel (only when Arc GW present) ──
+        // â”€â”€ Pipe / Tunnel (only when Arc GW present) â”€â”€
         if (currentArch === 3 || currentArch === 4) {
             const pAlpha = getGroupOpacity(['hosts.arcgw', 'arb.arcgw', 'aks.arcgw']);
             const apN = laidOut.nodes.find(n => n.id === 'arcproxy'), agN = laidOut.nodes.find(n => n.id === 'arcgw');
@@ -767,7 +770,7 @@
             }
         }
 
-        // ── Edges ──
+        // â”€â”€ Edges â”€â”€
         laidOut.edges.forEach(e => {
             if (!e.points || e.points.length < 2) return;
             const alpha = getGroupOpacity(e.groups); if (alpha < 0.01) return;
@@ -810,7 +813,7 @@
             ctx.restore();
         });
 
-        // ── Flow Dots ──
+        // â”€â”€ Flow Dots â”€â”€
         flowDots.forEach(fd => {
             const e = laidOut.edges[fd.edgeIdx]; if (!e || !e.points) return;
             const alpha = getGroupOpacity(e.groups); if (alpha < 0.01) return;
@@ -848,7 +851,7 @@
             ctx.restore();
         });
 
-        // ── Pulse Rings ──
+        // â”€â”€ Pulse Rings â”€â”€
         if (time - lastPulseTime > 1.8 && laidOut.nodes.length > 0) {
             const rn = laidOut.nodes[Math.floor(Math.random() * laidOut.nodes.length)];
             pulseRings.push({ cx: rn.cx, cy: rn.cy, radius: 0, maxRadius: Math.max(rn.pw, rn.ph) * 1.8, color: rn.glow || rn.fill, born: time });
@@ -864,11 +867,11 @@
             ctx.beginPath(); ctx.arc(pr.cx, pr.cy, pr.radius, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
         }
 
-        // ── Nodes — firewall & express drawn last ──
+        // â”€â”€ Nodes â€” firewall & express drawn last â”€â”€
         const frontIds = new Set(['firewall', 'express']);
         const sortedNodes = [...laidOut.nodes].sort((a, b) => (frontIds.has(a.id) ? 1 : 0) - (frontIds.has(b.id) ? 1 : 0));
 
-        // ── Hover detection ──
+        // â”€â”€ Hover detection â”€â”€
         hoveredNode = null;
         for (let i = sortedNodes.length - 1; i >= 0; i--) {
             const n = sortedNodes[i];
@@ -947,7 +950,7 @@
             }
         });
 
-        // ── Legend ──
+        // â”€â”€ Legend â”€â”€
         const legendItems = [];
         const hasProxy = (currentArch === 2 || currentArch === 4);
         const hasArcGW = (currentArch === 3 || currentArch === 4);
@@ -985,16 +988,16 @@
             ctx.fillText(item.label, lX + S(68), iy + 3);
         });
 
-        // ── Scanline overlay ──
+        // â”€â”€ Scanline overlay â”€â”€
         ctx.fillStyle = 'rgba(0,0,0,0.025)';
         for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
 
-        // ── Vignette ──
+        // â”€â”€ Vignette â”€â”€
         const vig = ctx.createRadialGradient(W/2, H/2, Math.min(W,H) * 0.3, W/2, H/2, Math.max(W,H) * 0.85);
         vig.addColorStop(0, 'rgba(2,2,16,0)'); vig.addColorStop(1, 'rgba(2,2,16,0.55)');
         ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
 
-        // ── FPS ──
+        // â”€â”€ FPS â”€â”€
         frameCount++;
         if (now - lastFpsTime > 500) { document.getElementById('fps').textContent = Math.round(frameCount / ((now - lastFpsTime) / 1000)) + ' fps'; frameCount = 0; lastFpsTime = now; }
     }
@@ -1003,10 +1006,10 @@
     updateSubButtonsForArch();
     requestAnimationFrame(render);
 
-    // ── Flow Diagram Onboarding ─────────────────────────────────────
+    // â”€â”€ Flow Diagram Onboarding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const flowOnboardingSteps = [
         {
-            icon: '🗺️',
+            icon: 'ðŸ—ºï¸',
             title: 'Interactive Flow Diagram',
             desc: 'This diagram shows how traffic flows from Azure Local resources through your network to Azure services. Use the controls to explore different architecture scenarios and traffic paths.',
             features: [
@@ -1015,21 +1018,21 @@
             ]
         },
         {
-            icon: '🖥️',
+            icon: 'ðŸ–¥ï¸',
             title: 'Explore Resources',
             desc: 'The <span style="color:#00e5ff;font-weight:600;">RESOURCES</span> bar at the bottom lets you focus on traffic from a specific source.',
             features: [
                 { label: '1', title: 'Click a Resource button', text: 'Select <span class="ob-pill" style="background:rgba(77,141,255,0.15);color:#4d8dff;border:1px solid rgba(77,141,255,0.25);">Azure Local Nodes</span>, <span class="ob-pill" style="background:rgba(99,102,241,0.15);color:#6366f1;border:1px solid rgba(99,102,241,0.25);">ARB</span>, <span class="ob-pill" style="background:rgba(0,229,255,0.15);color:#00e5ff;border:1px solid rgba(0,229,255,0.25);">AKS</span>, or <span class="ob-pill" style="background:rgba(255,184,0,0.15);color:#ffb800;border:1px solid rgba(255,184,0,0.25);">VMs</span> to isolate its traffic flows.' },
-                { label: '2', title: 'Traffic sub-types appear', text: 'When a resource is selected, traffic type buttons appear above — such as <span class="ob-pill" style="background:rgba(0,229,255,0.12);color:#00e5ff;border:1px solid rgba(0,229,255,0.2);">HTTPS Allowed</span>, <span class="ob-pill" style="background:rgba(0,255,136,0.12);color:#00ff88;border:1px solid rgba(0,255,136,0.2);">Internet</span>, or <span class="ob-pill" style="background:rgba(255,0,102,0.12);color:#ff0066;border:1px solid rgba(255,0,102,0.2);">Bypassed</span>.' }
+                { label: '2', title: 'Traffic sub-types appear', text: 'When a resource is selected, traffic type buttons appear above â€” such as <span class="ob-pill" style="background:rgba(0,229,255,0.12);color:#00e5ff;border:1px solid rgba(0,229,255,0.2);">HTTPS Allowed</span>, <span class="ob-pill" style="background:rgba(0,255,136,0.12);color:#00ff88;border:1px solid rgba(0,255,136,0.2);">Internet</span>, or <span class="ob-pill" style="background:rgba(255,0,102,0.12);color:#ff0066;border:1px solid rgba(255,0,102,0.2);">Bypassed</span>.' }
             ]
         },
         {
-            icon: '🔍',
+            icon: 'ðŸ”',
             title: 'Filter Traffic Types',
             desc: 'Drill into exactly which traffic flows you need to investigate.',
             features: [
                 { label: '1', title: 'Click a traffic type', text: 'Toggle individual traffic types on/off for any selected resource to highlight only those paths in the diagram.' },
-                { label: '2', title: 'Show All mode', text: 'Click <span class="ob-pill" style="background:rgba(0,229,255,0.12);color:#00e5ff;border:1px solid rgba(0,229,255,0.2);">SHOW ALL</span> to display every traffic flow at once — useful for seeing the full picture.' }
+                { label: '2', title: 'Show All mode', text: 'Click <span class="ob-pill" style="background:rgba(0,229,255,0.12);color:#00e5ff;border:1px solid rgba(0,229,255,0.2);">SHOW ALL</span> to display every traffic flow at once â€” useful for seeing the full picture.' }
             ]
         }
     ];

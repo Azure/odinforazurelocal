@@ -5855,7 +5855,7 @@ function showConnectivityChoice() {
 
     var overlay = document.createElement('div');
     overlay.id = 'connectivity-choice-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(4px);';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
 
     overlay.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--glass-border);border-radius:16px;padding:24px;max-width:500px;width:100%;">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'

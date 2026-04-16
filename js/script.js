@@ -8344,7 +8344,7 @@ function parseArmTemplateToState(armTemplate) {
 function showArmImportOptionsDialog(armState) {
     const overlay = document.createElement('div');
     overlay.id = 'arm-import-options-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;backdrop-filter:blur(8px);';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);';
 
     overlay.innerHTML = `
         <div style="background:var(--card-bg);border:2px solid var(--accent-blue);border-radius:16px;padding:28px;max-width:650px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
@@ -9951,7 +9951,7 @@ function showTemplates() {
     ];
 
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; backdrop-filter: blur(4px);';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.8); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);';
 
     const templatesHtml = templates.map((template, index) => `
         <div onclick="loadTemplate(${index})" style="padding: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'; this.style.borderColor='rgba(59, 130, 246, 0.3)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.03)'; this.style.borderColor='var(--glass-border)'">

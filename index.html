@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -11,8 +11,8 @@
     <meta name="keywords" content="Azure Local, Azure Stack HCI, Network Architecture, ARM Templates, Odin">
     <title>Odin for Azure Local</title>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js" integrity="sha384-Q0LEW691FpfYRwf5Wm8RxncCU5jjPt8sOnvqNfKbvJpb7xXtN/i4KskWhPu5l13a" crossorigin="anonymous"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js" integrity="sha384-fXPb0uemoXlFCqQMtM0MOAv7FM0LsMegbR6x22q7lfnohaCNmTQzgA8BTrR8WqGx" crossorigin="anonymous"></script>
     <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
     <link rel="stylesheet" href="css/style.css">
     <style>
@@ -79,6 +79,7 @@
             right: 0;
             z-index: 1000;
             background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
+            -webkit-backdrop-filter: blur(20px);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--glass-border);
             padding: 0 24px;
@@ -300,7 +301,7 @@
             line-height: 1.6;
         }
 
-        /* Knowledge Tab – Embedded Outbound Connectivity */
+        /* Knowledge Tab â€“ Embedded Outbound Connectivity */
         .knowledge-layout {
             display: flex;
             height: calc(100vh - 56px);
@@ -446,49 +447,49 @@
                 <button type="button" class="breadcrumb-item" data-step="step-1" onclick="navigateToStep('step-1')" title="Deployment Type" aria-label="Step 1: Deployment Type">
                     <span class="breadcrumb-number">1</span>
                     <span class="breadcrumb-label">Type</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-cloud" onclick="navigateToStep('step-cloud')" title="Azure Cloud" aria-label="Step 2: Azure Cloud">
                     <span class="breadcrumb-number">2</span>
                     <span class="breadcrumb-label">Cloud</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-local-region" onclick="navigateToStep('step-local-region')" title="Azure Region" aria-label="Step 3: Azure Region">
                     <span class="breadcrumb-number">3</span>
                     <span class="breadcrumb-label">Region</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-2" onclick="navigateToStep('step-2')" title="Scale" aria-label="Step 4: Scale">
                     <span class="breadcrumb-number">4</span>
                     <span class="breadcrumb-label">Scale</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-3" onclick="navigateToStep('step-3')" title="Nodes" aria-label="Step 5: Nodes">
                     <span class="breadcrumb-number">5</span>
                     <span class="breadcrumb-label">Nodes</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-11" onclick="navigateToStep('step-11')" title="Infrastructure" aria-label="Step 6: Infrastructure">
                     <span class="breadcrumb-number">6</span>
                     <span class="breadcrumb-label">Infra</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-13" onclick="navigateToStep('step-13')" title="Identity" aria-label="Step 7: Identity">
                     <span class="breadcrumb-number">7</span>
                     <span class="breadcrumb-label">Identity</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-14" onclick="navigateToStep('step-14')" title="Security & SDN" aria-label="Step 8: Security & SDN">
                     <span class="breadcrumb-number">8</span>
                     <span class="breadcrumb-label">Security</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
             </div>
         </nav>
@@ -499,67 +500,67 @@
                 <button type="button" class="breadcrumb-item" data-step="step-1" onclick="navigateToStep('step-1')" title="Deployment Type" aria-label="Step 1: Type">
                     <span class="breadcrumb-number">1</span>
                     <span class="breadcrumb-label">Type</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-da1" onclick="navigateToStep('step-da1')" title="Architecture" aria-label="DA1: Architecture">
                     <span class="breadcrumb-number">DA1</span>
                     <span class="breadcrumb-label">Arch</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-da2" onclick="navigateToStep('step-da2')" title="Backup Network" aria-label="DA2: Backup">
                     <span class="breadcrumb-number">DA2</span>
                     <span class="breadcrumb-label">Backup</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-da3" onclick="navigateToStep('step-da3')" title="Instance Scale" aria-label="DA3: Scale">
                     <span class="breadcrumb-number">DA3</span>
                     <span class="breadcrumb-label">Scale</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <div class="breadcrumb-group" role="group" aria-label="Physical Network Switch Configuration">
                     <span class="breadcrumb-group-label">Switch Config</span>
                     <div class="breadcrumb-group-items">
                         <button type="button" class="breadcrumb-item" data-step="step-da4" onclick="navigateToStep('step-da4')" title="Network Switches VLANs, VNI & VRF" aria-label="DA4: VLANs">
                             <span class="breadcrumb-number">DA4</span>
                             <span class="breadcrumb-label">VLANs</span>
-                            <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                            <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                         </button>
-                        <span class="breadcrumb-separator">›</span>
+                        <span class="breadcrumb-separator">â€º</span>
                         <button type="button" class="breadcrumb-item" data-step="step-da5" onclick="navigateToStep('step-da5')" title="QoS Policy" aria-label="DA5: QoS">
                             <span class="breadcrumb-number">DA5</span>
                             <span class="breadcrumb-label">QoS</span>
-                            <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                            <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                         </button>
-                        <span class="breadcrumb-separator">›</span>
+                        <span class="breadcrumb-separator">â€º</span>
                         <button type="button" class="breadcrumb-item" data-step="step-da6" onclick="navigateToStep('step-da6')" title="Leaf & Spine IP Routing" aria-label="DA6: IPs">
                             <span class="breadcrumb-number">DA6</span>
                             <span class="breadcrumb-label">IPs</span>
-                            <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                            <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                         </button>
                     </div>
                 </div>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-da7" onclick="navigateToStep('step-da7')" title="Summary & Rack Layout" aria-label="DA7: Summary">
                     <span class="breadcrumb-number">DA7</span>
                     <span class="breadcrumb-label">Summary</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
-                <span class="breadcrumb-separator">›</span>
+                <span class="breadcrumb-separator">â€º</span>
                 <button type="button" class="breadcrumb-item" data-step="step-da8" onclick="navigateToStep('step-da8')" title="Network Adapter Ports" aria-label="DA8: Adapters">
                     <span class="breadcrumb-number">DA8</span>
                     <span class="breadcrumb-label">Adapters</span>
-                    <span class="breadcrumb-check" aria-hidden="true">✓</span>
+                    <span class="breadcrumb-check" aria-hidden="true">âœ“</span>
                 </button>
             </div>
         </nav>
 
         <div class="disclaimer-wrapper">
             <div class="disclaimer-banner">
-                <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
+                <strong>âš ï¸ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
             </div>
         </div>
 
@@ -579,36 +580,36 @@
             <div id="page-statistics">
                 <div class="stats-container">
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
                         </svg>
                         <span class="stat-label">Visitors:</span>
-                        <span id="stat-page-views" class="stat-value">—</span>
+                        <span id="stat-page-views" class="stat-value">â€”</span>
                     </div>
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
                         </svg>
                         <span class="stat-label">Designs Generated:</span>
-                        <span id="stat-design-docs" class="stat-value">—</span>
+                        <span id="stat-design-docs" class="stat-value">â€”</span>
                     </div>
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                             <line x1="8" y1="21" x2="16" y2="21"/>
                             <line x1="12" y1="17" x2="12" y2="21"/>
                         </svg>
                         <span class="stat-label">Sizes Calculated:</span>
-                        <span id="stat-sizer-calcs" class="stat-value">—</span>
+                        <span id="stat-sizer-calcs" class="stat-value">â€”</span>
                     </div>
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                         </svg>
                         <span class="stat-label">ARM Deployments:</span>
-                        <span id="stat-arm-deployments" class="stat-value">—</span>
+                        <span id="stat-arm-deployments" class="stat-value">â€”</span>
                     </div>
                 </div>
             </div>
@@ -632,7 +633,7 @@
                     </div>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
                         <a href="https://learn.microsoft.com/azure/azure-local/scalability-deployments" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">
-                            📘 Help and information for Deployment Types
+                            ðŸ“˜ Help and information for Deployment Types
                         </a>
                     </p>
                     <div class="options-grid">
@@ -640,7 +641,7 @@
                         <div class="option-card" data-value="connected"
                             onclick="selectOption('scenario', 'connected')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke-width="1.5" />
                                 </svg>
@@ -653,7 +654,7 @@
                         <div class="option-card" data-value="disconnected"
                             onclick="selectOption('scenario', 'disconnected')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.5"
                                         fill="rgba(255, 255, 255, 0.05)" />
                                 </svg>
@@ -665,7 +666,7 @@
                         <!-- Option 3: Multi-Rack -->
                         <div class="option-card" data-value="rackscale" onclick="selectOption('scenario', 'rackscale')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 2h5v20H4zM15 2h5v20h-5z" stroke-width="1.5" />
                                     <path d="M9 12h6" stroke-width="1.5" stroke-dasharray="2 2" />
                                 </svg>
@@ -678,7 +679,7 @@
                         <div class="option-card" data-value="m365local"
                             onclick="selectOption('scenario', 'm365local')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
                                     <path d="M3 9h18M9 3v18" stroke-width="1.5" />
                                     <circle cx="15" cy="15" r="3" stroke-width="1.5" fill="rgba(59, 130, 246, 0.1)" />
@@ -718,7 +719,7 @@
                             <div class="option-card" data-value="hyperconverged"
                                 onclick="selectOption('architecture', 'hyperconverged')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="2" y="4" width="20" height="16" rx="2" stroke-width="1.5" />
                                         <line x1="2" y1="12" x2="22" y2="12" stroke-width="1.5" />
                                         <ellipse cx="17" cy="7" rx="4" ry="2" stroke-width="1.2" fill="rgba(59, 130, 246, 0.1)" />
@@ -734,7 +735,7 @@
                             <div class="option-card" data-value="disaggregated"
                                 onclick="selectOption('architecture', 'disaggregated')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="1" y="3" width="7" height="18" rx="1" stroke-width="1.2" />
                                         <rect x="10" y="3" width="4" height="18" rx="1" stroke-width="1.2" />
                                         <rect x="16" y="3" width="7" height="18" rx="1" stroke-width="1.2" />
@@ -767,7 +768,7 @@
                     <div class="options-grid">
                         <div class="option-card" data-value="management" onclick="selectDisconnectedOption('clusterRole', 'management')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(239, 68, 68, 0.08)"/>
                                     <circle cx="12" cy="10" r="3"/>
                                     <path d="M12 13v3"/>
@@ -778,7 +779,7 @@
                         </div>
                         <div class="option-card" data-value="workload" onclick="selectDisconnectedOption('clusterRole', 'workload')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <rect x="2" y="4" width="20" height="16" rx="2"/>
                                     <line x1="2" y1="12" x2="22" y2="12"/>
                                     <circle cx="7" cy="8" r="1.5" fill="currentColor"/>
@@ -799,7 +800,7 @@
                         <h2>Autonomous Cloud Endpoint</h2>
                     </div>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
-                        Enter the Autonomous Cloud FQDN — this is the disconnected operations appliance endpoint that workload clusters will use as the Cloud endpoint connection.
+                        Enter the Autonomous Cloud FQDN â€” this is the disconnected operations appliance endpoint that workload clusters will use as the Cloud endpoint connection.
                     </p>
                     <div style="max-width: 600px;">
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600;">Autonomous Cloud FQDN</label>
@@ -814,7 +815,7 @@
                         <!-- Confirm / Confirmed UI -->
                         <div id="fqdn-confirm-container" style="margin-top: 1.25rem;">
                             <button id="fqdn-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmFqdn()" disabled>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                 Confirm Autonomous Cloud FQDN
                             </button>
                             <p id="fqdn-confirm-hint" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Enter a valid FQDN and confirm before proceeding.</p>
@@ -828,11 +829,11 @@
 
                 <!-- Disconnected Management Cluster: context banner for Azure Cloud & Region -->
                 <div id="disconnected-cloud-context" class="info-box hidden" style="margin: 1.5rem 0; border-left-color: #f97316; background: rgba(249, 115, 22, 0.08);">
-                    <strong style="color: #f97316;">⚡ Why Azure Cloud &amp; Region are still required</strong>
+                    <strong style="color: #f97316;">âš¡ Why Azure Cloud &amp; Region are still required</strong>
                     <p style="margin: 0.5rem 0 0.75rem 0;">Although this management cluster uses the <strong>Autonomous Cloud</strong> for day-to-day operations, an Azure Cloud and Region must still be selected for:</p>
                     <ul style="margin: 0 0 0.75rem 1.25rem; padding: 0; line-height: 1.7;">
                         <li>Licensing &amp; billing</li>
-                        <li>Log collection from the disconnected operations appliance <span style="color: var(--text-secondary);">(limited connectivity only — not available in air-gapped deployments)</span></li>
+                        <li>Log collection from the disconnected operations appliance <span style="color: var(--text-secondary);">(limited connectivity only â€” not available in air-gapped deployments)</span></li>
                     </ul>
                     <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">Select the Azure Cloud and Region below that will be used for these purposes.</p>
                 </div>
@@ -853,7 +854,7 @@
                     <div class="options-grid">
                         <div class="option-card" data-value="fc_san" onclick="selectDisaggOption('storageType', 'fc_san')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
                                     <path d="M7 8h10M7 12h10M7 16h6" stroke-width="1.5" />
                                     <circle cx="18" cy="16" r="2" stroke-width="1.5" fill="rgba(124, 58, 237, 0.2)" />
@@ -865,19 +866,19 @@
                         <div class="option-card" data-value="iscsi_4nic" onclick="selectDisaggOption('storageType', 'iscsi_4nic')">
                             <span class="coming-soon-badge">Coming Soon</span>
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
                                     <path d="M7 8h10M7 12h10M7 16h10" stroke-width="1.5" />
                                 </svg>
                             </div>
                             <h3>iSCSI SAN (4-NIC)</h3>
                             <p>iSCSI shares PCIe1 with CSV/LM via trunk. 4 NICs total per machine.</p>
-                            <p class="preview-note">⚠️ Feature not available yet</p>
+                            <p class="preview-note">âš ï¸ Feature not available yet</p>
                         </div>
                         <div class="option-card" data-value="iscsi_6nic" onclick="selectDisaggOption('storageType', 'iscsi_6nic')">
                             <span class="coming-soon-badge">Coming Soon</span>
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
                                     <path d="M7 8h10M7 12h10" stroke-width="1.5" />
                                     <path d="M7 16h10" stroke-width="1.5" stroke-dasharray="3 2" />
@@ -885,8 +886,8 @@
                                 </svg>
                             </div>
                             <h3>iSCSI SAN (6-NIC)</h3>
-                            <p>Dedicated iSCSI NICs on PCIe2, using leaf ports 33–48. 6 NICs total per machine.</p>
-                            <p class="preview-note">⚠️ Feature not available yet</p>
+                            <p>Dedicated iSCSI NICs on PCIe2, using leaf ports 33â€“48. 6 NICs total per machine.</p>
+                            <p class="preview-note">âš ï¸ Feature not available yet</p>
                         </div>
                     </div>
                     <div id="da1-explanation" class="info-box"></div>
@@ -904,7 +905,7 @@
                     <div class="options-grid">
                         <div class="option-card" data-value="false" onclick="selectDisaggOption('backup', false)">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M8 12h8" stroke-width="2" />
                                 </svg>
@@ -914,7 +915,7 @@
                         </div>
                         <div class="option-card" data-value="true" onclick="selectDisaggOption('backup', true)">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M8 12h8M12 8v8" stroke-width="2" />
                                 </svg>
@@ -1003,13 +1004,13 @@
                     <div style="margin-top: 24px;">
                         <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.95rem;">Tenant Networks <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span></h4>
                         <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.85rem;">
-                            Add tenant VRFs with one or more trunk VLANs each — similar to VNETs in Azure. Each tenant VRF is an isolated routing domain that can contain multiple VLANs for VM workload traffic.
+                            Add tenant VRFs with one or more trunk VLANs each â€” similar to VNETs in Azure. Each tenant VRF is an isolated routing domain that can contain multiple VLANs for VM workload traffic.
                         </p>
                         <div id="da4-workload-vlan-list">
                             <!-- Dynamically populated -->
                         </div>
                         <button type="button" id="da4-add-workload-btn" onclick="addDisaggTenantNetwork()" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                             Add Tenant Network
                         </button>
                     </div>
@@ -1017,7 +1018,7 @@
                     <!-- Confirm DA4 -->
                     <div id="da4-confirm-container" style="margin-top: 1.5rem; text-align: center;">
                         <button id="da4-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggVlanConfig()">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="20 6 9 17 4 12"></polyline>
                             </svg>
                             Confirm VLAN Configuration
@@ -1027,7 +1028,7 @@
                         </p>
                     </div>
                     <div id="da4-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">
-                        <span style="color: var(--accent-green); font-weight: 600;">✓ VLAN configuration confirmed</span>
+                        <span style="color: var(--accent-green); font-weight: 600;">âœ“ VLAN configuration confirmed</span>
                         <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editDisaggVlanConfig()">Edit</button>
                     </div>
 
@@ -1070,7 +1071,7 @@
                     <!-- Confirm DA6 -->
                     <div id="da6-confirm-container" style="margin-top: 1.5rem; text-align: center;">
                         <button id="da6-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggIpConfig()">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="20 6 9 17 4 12"></polyline>
                             </svg>
                             Confirm IP Routing Configuration
@@ -1137,7 +1138,7 @@
                         </div>
                         <div id="da8-port-config-confirm-container" class="hidden" style="margin-top: 1.5rem; text-align: center;">
                             <button id="da8-port-config-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggPortConfig()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                                 Confirm Port Configuration
@@ -1147,7 +1148,7 @@
                             </p>
                         </div>
                         <div id="da8-port-config-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">
-                            <span style="color: var(--accent-green); font-weight: 600;">✓ Port configuration confirmed</span>
+                            <span style="color: var(--accent-green); font-weight: 600;">âœ“ Port configuration confirmed</span>
                             <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editDisaggPortConfig()">Edit</button>
                         </div>
                     </div>
@@ -1177,7 +1178,7 @@
                             </div>
                             <div style="margin-top:0.9rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
                                 <button id="da8-adapter-mapping-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmDisaggAdapterMapping()">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
+                                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
                                 </button>
                                 <button id="da8-adapter-mapping-reset-btn" type="button" class="report-action-button" onclick="resetDisaggAdapterMapping()" style="background:rgba(239,68,68,0.2);">Reset</button>
                                 <div id="da8-adapter-mapping-status" style="color:var(--text-secondary);"></div>
@@ -1190,7 +1191,7 @@
                             <h4>Overrides</h4>
                             <div id="da8-intent-overrides-container" class="intent-overrides-grid"></div>
                             <div style="margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                                <button id="da8-overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmDisaggOverrides()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
+                                <button id="da8-overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmDisaggOverrides()"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
                                 <span id="da8-overrides-status" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
                             </div>
                         </div>
@@ -1202,7 +1203,7 @@
                     </div>
 
                     <div id="da8-nic-error" class="hidden" style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);"></div>
-                    <div id="da8-nic-success" class="hidden" style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ All fields valid</div>
+                    <div id="da8-nic-success" class="hidden" style="margin-top:1rem; color:var(--success); font-size:0.9rem;">âœ“ All fields valid</div>
                 </section>
 
                 <section class="step" id="step-cloud">
@@ -1212,14 +1213,14 @@
                     </div>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
                         <a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-23h2?tabs=azure-public#azure-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">
-                            📘 Information for supported Azure regions
+                            ðŸ“˜ Information for supported Azure regions
                         </a>
                     </p>
                     <div class="options-grid">
                         <div class="option-card" data-value="azure_commercial"
                             onclick="selectOption('region', 'azure_commercial')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
                                 </svg>
                             </div>
@@ -1229,7 +1230,7 @@
                         <div class="option-card" data-value="azure_government"
                             onclick="selectOption('region', 'azure_government')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z">
                                     </path>
                                     <path d="M12 2v20"></path>
@@ -1242,7 +1243,7 @@
                         <div class="option-card" data-value="azure_china"
                             onclick="selectOption('region', 'azure_china')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <path
                                         d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
@@ -1318,8 +1319,8 @@
                         </div>
                     </div>
                     <div id="disconnected-region-info" class="info-box hidden" style="margin-top:1rem;">
-                        <strong style="color:var(--accent-blue)">ℹ️ Azure Region for Disconnected</strong>
-                        <p>Required for billing and log collection. Log collection from the disconnected operations appliance is only available with <strong>limited connectivity</strong> — not in air-gapped deployments.</p>
+                        <strong style="color:var(--accent-blue)">â„¹ï¸ Azure Region for Disconnected</strong>
+                        <p>Required for billing and log collection. Log collection from the disconnected operations appliance is only available with <strong>limited connectivity</strong> â€” not in air-gapped deployments.</p>
                     </div>
                 </section>
 
@@ -1329,7 +1330,7 @@
                         <span class="step-number">04</span>
                         <h2>Instance Configuration</h2>
                         <a href="sizer/" class="sizer-link" title="Use the Sizer to calculate your cluster requirements">
-                            🧮 Unsure? Start with Sizer
+                            ðŸ§® Unsure? Start with Sizer
                         </a>
                     </div>
 
@@ -1337,7 +1338,7 @@
                     <div class="options-grid" id="scale-options">
                         <div class="option-card" data-value="medium" onclick="selectOption('scale', 'medium')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="4" width="9" height="7" rx="1" stroke-width="1.5" />
                                     <rect x="13" y="4" width="9" height="7" rx="1" stroke-width="1.5" />
                                     <rect x="2" y="13" width="9" height="7" rx="1" stroke-width="1.5" />
@@ -1349,7 +1350,7 @@
                         </div>
                         <div class="option-card" data-value="rack_aware" onclick="selectOption('scale', 'rack_aware')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
                                     <rect x="14" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
                                     <path d="M7 7h0M7 11h0M7 15h0M7 19h0" stroke-width="2" stroke-linecap="round" />
@@ -1358,12 +1359,12 @@
                             </div>
                             <h3>Rack-Aware Cluster <span style="font-size: 0.75em; font-weight: 400; opacity: 0.7;">(Hyperconverged)</span></h3>
                             <p>Spread across rooms (2, 4, 6, 8 machines).</p>
-                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/rack-aware-cluster-overview" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more ↗</a>
+                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/rack-aware-cluster-overview" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more â†—</a>
                         </div>
                         <div class="option-card" data-value="low_capacity"
                             onclick="selectOption('scale', 'low_capacity')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 4h16v16H4z" stroke-width="1.5" opacity="0.1" fill="currentColor" />
                                     <rect x="4" y="4" width="16" height="16" rx="2" stroke-width="1.5" />
                                     <circle cx="12" cy="12" r="3" stroke-width="1.5" />
@@ -1371,7 +1372,7 @@
                             </div>
                             <h3>Low Capacity Hardware <span style="font-size: 0.75em; font-weight: 400; opacity: 0.7;">(Hyperconverged)</span></h3>
                             <p>Edge / Small Scale usage (Max 3 machines).</p>
-                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more ↗</a>
+                            <a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2" target="_blank" class="info-link" onclick="event.stopPropagation();">Learn more â†—</a>
                         </div>
                     </div>
                 </section>
@@ -1382,7 +1383,7 @@
                         <span class="step-number">05</span>
                         <h2>Instance Size</h2>
                         <a href="sizer/" class="sizer-link" title="Use the Sizer to calculate your cluster requirements">
-                            🧮 Unsure? Start with Sizer
+                            ðŸ§® Unsure? Start with Sizer
                         </a>
                     </div>
                     <!-- Updated Node Selection Grid -->
@@ -1473,7 +1474,7 @@
                         <div class="options-grid">
                             <div class="option-card" data-value="1" onclick="selectOption('rackAwareTorsPerRoom', '1')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <rect x="5" y="7" width="14" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
                                         <circle cx="9" cy="12" r="1.2" fill="currentColor" />
                                         <circle cx="13" cy="12" r="1.2" fill="currentColor" />
@@ -1484,7 +1485,7 @@
                             </div>
                             <div class="option-card" data-value="2" onclick="selectOption('rackAwareTorsPerRoom', '2')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <rect x="3" y="7" width="8" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
                                         <rect x="13" y="7" width="8" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
                                         <path d="M11 12H13" stroke-dasharray="2 2" />
@@ -1499,7 +1500,7 @@
                             <div class="options-grid">
                                 <div class="option-card" data-value="option_a" onclick="selectOption('rackAwareTorArchitecture', 'option_a')">
                                     <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                             <path d="M4 8h16" />
                                             <path d="M4 16h16" />
                                             <path d="M8 8v8" stroke-dasharray="2 2" />
@@ -1511,7 +1512,7 @@
                                 </div>
                                 <div class="option-card" data-value="option_b" onclick="selectOption('rackAwareTorArchitecture', 'option_b')">
                                     <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                             <path d="M5 9h14" />
                                             <path d="M5 15h14" />
                                             <path d="M7 9l10 6" stroke-dasharray="3 3" />
@@ -1529,7 +1530,7 @@
                             <div class="options-grid">
                                 <div class="option-card" data-value="option_c" onclick="selectOption('rackAwareTorArchitecture', 'option_c')">
                                     <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                             <rect x="5" y="7" width="14" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
                                             <path d="M7 12h10" stroke-dasharray="2 2" />
                                         </svg>
@@ -1539,7 +1540,7 @@
                                 </div>
                                 <div class="option-card" data-value="option_d" onclick="selectOption('rackAwareTorArchitecture', 'option_d')">
                                     <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                             <path d="M6 8h12" />
                                             <path d="M6 16h12" />
                                             <path d="M6 8l12 8" stroke-dasharray="2 2" />
@@ -1558,7 +1559,7 @@
                     <div class="step-header">
                         <span class="step-number">05.5</span>
                         <h2>Cloud Witness Type</h2>
-                        <a href="https://learn.microsoft.com/windows-server/failover-clustering/deploy-quorum-witness" target="_blank" class="step-info-link" title="Learn about Cloud Witness">ℹ️</a>
+                        <a href="https://learn.microsoft.com/windows-server/failover-clustering/deploy-quorum-witness" target="_blank" class="step-info-link" title="Learn about Cloud Witness">â„¹ï¸</a>
                     </div>
                     <div id="witness-info" class="info-box visible" style="margin-bottom:1.5rem;">
                         The witness type is automatically determined based on your cluster configuration.
@@ -1567,7 +1568,7 @@
                         <div class="option-card" data-value="Cloud"
                             onclick="selectOption('witnessType', 'Cloud')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" stroke-width="1.5" fill="rgba(0, 120, 212, 0.1)" />
                                 </svg>
                             </div>
@@ -1577,7 +1578,7 @@
                         <div class="option-card" data-value="NoWitness"
                             onclick="selectOption('witnessType', 'NoWitness')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" fill="rgba(255, 255, 255, 0.05)" />
                                     <path d="M15 9l-6 6M9 9l6 6" stroke-width="2" stroke-linecap="round" />
                                 </svg>
@@ -1600,7 +1601,7 @@
                     <div id="storage-options-grid" class="options-grid">
                         <div class="option-card" data-value="switched" onclick="selectOption('storage', 'switched')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="6" width="20" height="12" rx="2" fill="rgba(0, 120, 212, 0.2)" />
                                     <circle cx="6" cy="12" r="1.5" fill="currentColor" />
                                     <circle cx="10" cy="12" r="1.5" fill="currentColor" />
@@ -1614,7 +1615,7 @@
                         <div class="option-card" data-value="switchless"
                             onclick="selectOption('storage', 'switchless')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="1.5">
                                     <rect x="2" y="4" width="6" height="16" rx="1" fill="rgba(255, 255, 255, 0.1)" />
                                     <rect x="16" y="4" width="6" height="16" rx="1" fill="rgba(255, 255, 255, 0.1)" />
@@ -1638,7 +1639,7 @@
                             <div id="tor-single-option" class="option-card" data-value="single"
                                 onclick="selectOption('torSwitchCount', 'single')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <rect x="4" y="4" width="16" height="6" rx="2" fill="rgba(0, 120, 212, 0.2)" />
                                         <circle cx="8" cy="7" r="1" fill="currentColor" />
                                         <circle cx="12" cy="7" r="1" fill="currentColor" />
@@ -1654,7 +1655,7 @@
                                 onclick="selectOption('torSwitchCount', 'dual')">
                                 <div class="badge-recommended">Recommended</div>
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <rect x="2" y="4" width="8" height="5" rx="1.5" fill="rgba(0, 120, 212, 0.2)" />
                                         <rect x="14" y="4" width="8" height="5" rx="1.5" fill="rgba(0, 120, 212, 0.2)" />
                                         <circle cx="5" cy="6.5" r="0.8" fill="currentColor" />
@@ -1671,7 +1672,7 @@
                             </div>
                         </div>
                         <div id="tor-single-disabled-info" class="info-box hidden" style="margin-top: 0.75rem;">
-                            <strong>ℹ️ Single ToR Switch Unavailable</strong>
+                            <strong>â„¹ï¸ Single ToR Switch Unavailable</strong>
                             Single ToR Switch is not supported for Hyperconverged clusters with 4 or more nodes. Dual ToR switches are required to provide the necessary redundancy and bandwidth for larger cluster deployments.
                         </div>
                     </div>
@@ -1686,7 +1687,7 @@
                             <div class="option-card" data-value="single_link"
                                 onclick="selectOption('switchlessLinkMode', 'single_link')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <circle cx="6" cy="12" r="2" fill="rgba(255, 255, 255, 0.06)" />
                                         <circle cx="18" cy="12" r="2" fill="rgba(255, 255, 255, 0.06)" />
                                         <path d="M8 12H16" stroke-dasharray="3 3" />
@@ -1698,7 +1699,7 @@
                             <div class="option-card" data-value="dual_link"
                                 onclick="selectOption('switchlessLinkMode', 'dual_link')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <circle cx="6" cy="9" r="2" fill="rgba(255, 255, 255, 0.06)" />
                                         <circle cx="18" cy="9" r="2" fill="rgba(255, 255, 255, 0.06)" />
                                         <circle cx="6" cy="15" r="2" fill="rgba(255, 255, 255, 0.06)" />
@@ -1724,7 +1725,7 @@
                         <div id="port-option-1" class="option-card hidden" data-value="1"
                             onclick="selectOption('ports', '1')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="12" cy="12" r="1.5" fill="currentColor" />
                                 </svg>
@@ -1734,7 +1735,7 @@
                         </div>
                         <div class="option-card" data-value="2" onclick="selectOption('ports', '2')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="6" cy="12" r="1.5" fill="currentColor" />
                                     <circle cx="10" cy="12" r="1.5" fill="currentColor" />
@@ -1745,7 +1746,7 @@
                         </div>
                         <div class="option-card" data-value="4" onclick="selectOption('ports', '4')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="5" cy="12" r="1.5" fill="currentColor" />
                                     <circle cx="9" cy="12" r="1.5" fill="currentColor" />
@@ -1758,7 +1759,7 @@
                         </div>
                         <div class="option-card" data-value="6" onclick="selectOption('ports', '6')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="5" width="20" height="14" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="6" cy="9" r="1" fill="currentColor" />
                                     <circle cx="10" cy="9" r="1" fill="currentColor" />
@@ -1773,7 +1774,7 @@
                         </div>
                         <div class="option-card" data-value="8" onclick="selectOption('ports', '8')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="5" width="20" height="14" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="5" cy="9" r="1" fill="currentColor" />
                                     <circle cx="9" cy="9" r="1" fill="currentColor" />
@@ -1806,7 +1807,7 @@
                         </div>
                         <div id="port-config-confirm-container" class="hidden" style="margin-top: 1.5rem; text-align: center;">
                             <button id="port-config-confirm-btn" class="confirm-port-config-btn" onclick="confirmPortConfiguration()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                                 Confirm Port Configuration
@@ -1816,7 +1817,7 @@
                             </p>
                         </div>
                         <div id="port-config-confirmed-msg" class="hidden" style="margin-top: 1rem; text-align: center;">
-                            <span style="color: var(--accent-green); font-weight: 600;">✓ Port configuration confirmed</span>
+                            <span style="color: var(--accent-green); font-weight: 600;">âœ“ Port configuration confirmed</span>
                             <button style="margin-left: 1rem; background: transparent; border: 1px solid var(--text-secondary); color: var(--text-secondary); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" onclick="editPortConfiguration()">Edit</button>
                         </div>
                     </div>
@@ -1828,13 +1829,13 @@
                     <div class="step-header">
                         <span class="step-number">08</span>
                         <h2>Network Traffic Intents</h2>
-                        <a href="https://learn.microsoft.com/azure/azure-local/plan/cloud-deployment-network-considerations#step-3-determine-network-traffic-intents" target="_blank" class="step-info-link" title="Learn about Network Traffic Intents">ℹ️</a>
+                        <a href="https://learn.microsoft.com/azure/azure-local/plan/cloud-deployment-network-considerations#step-3-determine-network-traffic-intents" target="_blank" class="step-info-link" title="Learn about Network Traffic Intents">â„¹ï¸</a>
                     </div>
                     <div class="options-grid">
                         <div class="option-card" data-value="all_traffic"
                             onclick="selectOption('intent', 'all_traffic')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="9" stroke-width="1.5" fill="rgba(0, 120, 212, 0.1)" />
                                     <path d="M12 7V17M7 12H17" stroke-width="2" />
                                 </svg>
@@ -1845,7 +1846,7 @@
                         <div class="option-card" data-value="mgmt_compute"
                             onclick="selectOption('intent', 'mgmt_compute')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="8" height="18" rx="2" fill="rgba(0, 120, 212, 0.1)" />
                                     <rect x="13" y="3" width="8" height="18" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                 </svg>
@@ -1856,7 +1857,7 @@
                         <div class="option-card" data-value="compute_storage"
                             onclick="selectOption('intent', 'compute_storage')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="8" height="18" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <rect x="13" y="3" width="8" height="18" rx="2" fill="rgba(139, 92, 246, 0.1)" />
                                 </svg>
@@ -1866,7 +1867,7 @@
                         </div>
                         <div class="option-card" data-value="custom" onclick="selectOption('intent', 'custom')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke-width="1.5" />
                                     <path d="M2 17L12 22L22 17" stroke-width="1.5" />
                                     <path d="M2 12L12 17L22 12" stroke-width="1.5" />
@@ -1901,7 +1902,7 @@
                             </div>
                             <div style="margin-top:0.9rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
                                 <button id="adapter-mapping-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmAdapterMapping()">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
+                                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
                                 </button>
                                 <button id="adapter-mapping-reset-btn" type="button" class="report-action-button" onclick="resetAdapterMapping()" style="background:rgba(239,68,68,0.2);">Reset</button>
                                 <div id="adapter-mapping-status" style="color:var(--text-secondary);"></div>
@@ -1913,7 +1914,7 @@
                             <h4>Overrides</h4>
                             <div id="intent-overrides-container" class="intent-overrides-grid"></div>
                             <div style="margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                                <button id="overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmOverrides()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
+                                <button id="overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmOverrides()"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
                                 <span id="overrides-status" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
                             </div>
                         </div>
@@ -1926,7 +1927,7 @@
                         <div class="options-grid">
                             <div class="option-card" data-value="enabled" onclick="selectOption('storageAutoIp', 'enabled')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path d="M20 6L9 17l-5-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                 </div>
@@ -1935,7 +1936,7 @@
                             </div>
                             <div class="option-card" data-value="disabled" onclick="selectOption('storageAutoIp', 'disabled')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path d="M18 6L6 18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                         <path d="M6 6l12 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
@@ -1953,7 +1954,7 @@
                             <div id="custom-storage-subnet-inputs" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
                             <div style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;">
                                 <button type="button" id="custom-storage-subnets-confirm-btn" class="confirm-port-config-btn">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                     Confirm Storage Subnets
                                 </button>
                                 <span id="custom-storage-subnets-confirm-status" style="font-size: 0.85rem; color: var(--text-secondary);">Not confirmed yet.</span>
@@ -1973,14 +1974,14 @@
                     </div>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
                         <a href="https://learn.microsoft.com/azure/azure-local/concepts/firewall-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">
-                            🔒 More information on Firewall and required endpoints
+                            ðŸ”’ More information on Firewall and required endpoints
                         </a>
                     </p>
                     <!-- Connected Options -->
                     <div id="outbound-connected" class="options-grid">
                         <div class="option-card" data-value="public" onclick="selectOption('outbound', 'public')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M2 12H22" stroke-width="1.5" />
                                     <path
@@ -1995,7 +1996,7 @@
                         <div class="option-card" data-value="private" onclick="selectOption('outbound', 'private')">
                             <span class="coming-soon-badge private-path-preview">Coming Soon</span>
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 12L20 12" stroke-width="1.5" />
                                     <rect x="2" y="6" width="4" height="12" fill="currentColor" fill-opacity="0.2" />
                                     <rect x="18" y="6" width="4" height="12" fill="currentColor" fill-opacity="0.2" />
@@ -2004,7 +2005,7 @@
                             </div>
                             <h3>ExpressRoute / VPN</h3>
                             <p>Private connectivity.</p>
-                            <p class="preview-note private-path-preview">⚠️ Feature not available yet</p>
+                            <p class="preview-note private-path-preview">âš ï¸ Feature not available yet</p>
                         </div>
                     </div>
 
@@ -2013,7 +2014,7 @@
                         <div class="option-card" data-value="air_gapped"
                             onclick="selectOption('outbound', 'air_gapped')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M4.93 4.93L19.07 19.07" stroke-width="1.5" />
                                 </svg>
@@ -2023,7 +2024,7 @@
                         </div>
                         <div class="option-card" data-value="limited" onclick="selectOption('outbound', 'limited')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M12 8v4" stroke-width="2" />
                                     <path d="M12 16h.01" stroke-width="3" />
@@ -2042,7 +2043,7 @@
                         <h2>Arc Gateway</h2>
                         <div style="margin-left: auto; display: flex; gap: 8px;">
                             <a href="docs/outbound-connectivity/" target="_blank" rel="noopener noreferrer" style="padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--success); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px;">
-                                📘 Connectivity Guide
+                                ðŸ“˜ Connectivity Guide
                             </a>
                             <button type="button" onclick="event.stopPropagation(); showComparison('arc');" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">
                                 Compare Options
@@ -2053,7 +2054,7 @@
                         <div class="option-card" data-value="arc_gateway" onclick="selectOption('arc', 'arc_gateway')">
                             <div class="badge-recommended">Recommended</div>
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="9" stroke-width="1.5" />
                                     <path d="M12 8v8M8 12h8" stroke-width="1.5" />
                                 </svg>
@@ -2063,7 +2064,7 @@
                         </div>
                         <div class="option-card" data-value="no_arc" onclick="selectOption('arc', 'no_arc')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="9" stroke-width="1.5" />
                                     <path d="M8 12h8" stroke-width="1.5" />
                                 </svg>
@@ -2086,7 +2087,7 @@
                         <div id="proxy-enabled-card" class="option-card" data-value="proxy"
                             onclick="selectOption('proxy', 'proxy')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
                                     <path d="M12 2v20"></path>
                                     <path d="M2 12h20"></path>
@@ -2098,7 +2099,7 @@
                         </div>
                         <div class="option-card" data-value="no_proxy" onclick="selectOption('proxy', 'no_proxy')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
                                 </svg>
@@ -2108,7 +2109,7 @@
                         </div>
                     </div>
                     <div id="proxy-warning" class="info-box warning hidden" style="margin-top:1.5rem;">
-                        <strong style="color:#ffc107;">⚠ Important</strong>
+                        <strong style="color:#ffc107;">âš  Important</strong>
                         <p>Proxy server cannot use .local FQDN and the IP address cannot be on AKS reserved subnets
                             10.96.0.0/12 or 10.244.0.0/16.
                             <br><a
@@ -2130,13 +2131,13 @@
                     </div>
                     <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 14px;">
                         <a href="docs/outbound-connectivity/#private-endpoints" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none; font-weight: 500;">
-                            📘 Learn about Private Endpoints in Azure Local
+                            ðŸ“˜ Learn about Private Endpoints in Azure Local
                         </a>
                     </p>
                     <div class="options-grid">
                         <div class="option-card" data-value="pe_enabled" onclick="selectOption('privateEndpoints', 'pe_enabled')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.5" />
                                     <path d="M9 12l2 2 4-4" stroke-width="1.5" />
                                 </svg>
@@ -2146,7 +2147,7 @@
                         </div>
                         <div class="option-card" data-value="pe_disabled" onclick="selectOption('privateEndpoints', 'pe_disabled')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5"></circle>
                                     <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-width="1.5"></line>
                                 </svg>
@@ -2165,9 +2166,9 @@
                             <div class="pe-service-card disabled" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; cursor: not-allowed;">
                                 <input type="checkbox" disabled style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">🔗 Arc Private Link Endpoint</strong>
+                                    <strong style="color: var(--text-primary);">ðŸ”— Arc Private Link Endpoint</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>his.arc.azure.com</code></div>
-                                    <div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px;">🚫 Not supported for Azure Local</div>
+                                    <div style="font-size: 0.8rem; color: #ef4444; margin-top: 4px;">ðŸš« Not supported for Azure Local</div>
                                 </div>
                             </div>
 
@@ -2175,9 +2176,9 @@
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-keyvault')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
                                 <input type="checkbox" id="pe-keyvault" name="pe-service" value="keyvault" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">🔐 Azure Key Vault</strong>
+                                    <strong style="color: var(--text-primary);">ðŸ” Azure Key Vault</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>vault.azure.net</code></div>
-                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">⚠️ Keep public access during deployment</div>
+                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">âš ï¸ Keep public access during deployment</div>
                                 </div>
                             </div>
 
@@ -2185,9 +2186,9 @@
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-storage')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
                                 <input type="checkbox" id="pe-storage" name="pe-service" value="storage" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">💾 Azure Storage (Blob)</strong>
+                                    <strong style="color: var(--text-primary);">ðŸ’¾ Azure Storage (Blob)</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>blob.core.windows.net</code></div>
-                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">⚠️ Required for 2-node cloud witness</div>
+                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">âš ï¸ Required for 2-node cloud witness</div>
                                 </div>
                             </div>
 
@@ -2195,9 +2196,9 @@
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-acr')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
                                 <input type="checkbox" id="pe-acr" name="pe-service" value="acr" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">📦 Azure Container Registry</strong>
+                                    <strong style="color: var(--text-primary);">ðŸ“¦ Azure Container Registry</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>azurecr.io</code></div>
-                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">⚠️ No wildcards - use specific ACR FQDNs</div>
+                                    <div style="font-size: 0.8rem; color: var(--warning); margin-top: 4px;">âš ï¸ No wildcards - use specific ACR FQDNs</div>
                                 </div>
                             </div>
 
@@ -2205,7 +2206,7 @@
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-asr')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
                                 <input type="checkbox" id="pe-asr" name="pe-service" value="asr" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">🔄 Azure Site Recovery</strong>
+                                    <strong style="color: var(--text-primary);">ðŸ”„ Azure Site Recovery</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>siterecovery.windowsazure.com</code></div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Not allowed via Arc Gateway</div>
                                 </div>
@@ -2215,7 +2216,7 @@
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-backup')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
                                 <input type="checkbox" id="pe-backup" name="pe-service" value="backup" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">🗄️ Recovery Services Vault</strong>
+                                    <strong style="color: var(--text-primary);">ðŸ—„ï¸ Recovery Services Vault</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>backup.windowsazure.com</code></div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Azure Backup private endpoints</div>
                                 </div>
@@ -2225,7 +2226,7 @@
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-sql')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
                                 <input type="checkbox" id="pe-sql" name="pe-service" value="sql" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">🗃️ SQL Managed Instance</strong>
+                                    <strong style="color: var(--text-primary);">ðŸ—ƒï¸ SQL Managed Instance</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>database.windows.net</code></div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Private connectivity for SQL MI</div>
                                 </div>
@@ -2235,7 +2236,7 @@
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-defender')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
                                 <input type="checkbox" id="pe-defender" name="pe-service" value="defender" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
-                                    <strong style="color: var(--text-primary);">🛡️ Microsoft Defender for Cloud</strong>
+                                    <strong style="color: var(--text-primary);">ðŸ›¡ï¸ Microsoft Defender for Cloud</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Security monitoring endpoints</div>
                                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">For advanced security scenarios</div>
                                 </div>
@@ -2249,7 +2250,7 @@
                     </div>
 
                     <div id="private-endpoints-info" class="info-box hidden" style="margin-top: 1.5rem;">
-                        <strong style="color: var(--accent-blue);">ℹ️ Private Endpoints Configuration</strong>
+                        <strong style="color: var(--accent-blue);">â„¹ï¸ Private Endpoints Configuration</strong>
                         <p style="margin-top: 0.5rem;">Private Endpoints (Private Link) work identically in both Public Path and Private Path architectures:</p>
                         <ul style="margin: 0.5rem 0 0 1.5rem;">
                             <li>Add Private Link endpoint FQDNs to the <strong>proxy bypass list</strong></li>
@@ -2271,7 +2272,7 @@
                         <div class="options-grid">
                             <div class="option-card" data-value="static" onclick="selectOption('ip', 'static')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="2" y="4" width="20" height="16" rx="2" />
                                     </svg>
                                 </div>
@@ -2279,7 +2280,7 @@
                             </div>
                             <div class="option-card" data-value="dhcp" onclick="selectOption('ip', 'dhcp')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path
                                             d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
                                         </path>
@@ -2289,7 +2290,7 @@
                             </div>
                         </div>
                         <div id="dhcp-warning" class="info-box warning hidden" style="margin-top:1.5rem;">
-                            <strong style="color:#ffc107;">⚠ Important</strong>
+                            <strong style="color:#ffc107;">âš  Important</strong>
                             <p>DHCP reservations must be configured to ensure the cluster nodes always get the same IP
                                 address. It is not supported to change IP address of the nodes.</p>
                         </div>
@@ -2304,7 +2305,7 @@
                             style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
                         </div>
                         <div id="node-config-success" class="hidden"
-                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ Node settings valid</div>
+                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">âœ“ Node settings valid</div>
                     </div>
                 </section>
 
@@ -2322,18 +2323,18 @@
                         <div class="options-grid" style="margin-bottom:1rem;">
                             <div class="option-card" data-value="default" onclick="selectOption('infraVlan', 'default')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                         <path d="M8 12h8" stroke-width="2" />
                                         <path d="M12 8v8" stroke-width="2" />
                                     </svg>
                                 </div>
                                 <h3>Default VLAN</h3>
-                                <p>Untagged — management traffic uses the native VLAN (ID 0 on the host).</p>
+                                <p>Untagged â€” management traffic uses the native VLAN (ID 0 on the host).</p>
                             </div>
                             <div class="option-card" data-value="custom" onclick="selectOption('infraVlan', 'custom')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="4" y="4" width="16" height="16" rx="2" stroke-width="1.5" />
                                         <path d="M8 8h8v8H8z" stroke-width="1.5" />
                                     </svg>
@@ -2344,7 +2345,7 @@
                         </div>
                         <div id="infra-vlan-info" class="info-box hidden" style="margin-bottom:1rem;">
                             <strong style="color:var(--accent-blue);">How to configure management VLAN</strong>
-                            <p>We recommend that the management subnet of your Azure Local instance use the default VLAN, which in most cases is declared as VLAN ID 0 (untagged). This means the host sends management traffic without a VLAN tag — the TOR switch receives it on the native/access VLAN.<br><br><strong>Note:</strong> Even when the host uses untagged traffic (ID 0), your TOR switch still assigns this traffic to a VLAN internally (e.g. VLAN 7). The switch-side VLAN ID is configured separately in the Switch Config Generator.<br><br>If your network requirements are to use a specific management VLAN, it must be configured on your physical network adapters before they're registered to Azure Arc. If you plan to use two physical adapters for management, you need to set the VLAN on both adapters.
+                            <p>We recommend that the management subnet of your Azure Local instance use the default VLAN, which in most cases is declared as VLAN ID 0 (untagged). This means the host sends management traffic without a VLAN tag â€” the TOR switch receives it on the native/access VLAN.<br><br><strong>Note:</strong> Even when the host uses untagged traffic (ID 0), your TOR switch still assigns this traffic to a VLAN internally (e.g. VLAN 7). The switch-side VLAN ID is configured separately in the Switch Config Generator.<br><br>If your network requirements are to use a specific management VLAN, it must be configured on your physical network adapters before they're registered to Azure Arc. If you plan to use two physical adapters for management, you need to set the VLAN on both adapters.
                                 <br><a href="https://learn.microsoft.com/en-us/azure/azure-local/plan/cloud-deployment-network-considerations?view=azloc-2511#management-vlan-id" target="_blank" style="color:var(--accent-blue); text-decoration:underline;">Read the VLAN guidance</a>
                             </p>
                         </div>
@@ -2364,7 +2365,7 @@
                     </div>
                     <div class="options-grid" style="display:block;">
                         <div id="infra-warning-note" class="info-box warning hidden" style="margin-bottom:1rem;">
-                            <strong style="color:#ffc107;">⚠ Important</strong>
+                            <strong style="color:#ffc107;">âš  Important</strong>
                             <p>Cluster nodes must have IPs on this infrastructure network CIDR and cannot be within the
                                 reserved infrastructure IP range that you will define below. The Azure Local Infrastructure network cannot overlap with any of the AKS reserved networks required by Arc Resource Bridge (10.96.0.0/12 and 10.244.0.0/16).</p>
                         </div>
@@ -2372,7 +2373,7 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:0.5rem;">
                                 <label style="display:block; font-size:0.9rem;">Infrastructure Network (CIDR)</label>
                                 <button type="button" onclick="showCidrCalculator()" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;">
-                                    🔢 Subnet Calculator
+                                    ðŸ”¢ Subnet Calculator
                                 </button>
                             </div>
                             <input type="text" id="infra-cidr" placeholder="e.g. 192.168.1.0/24"
@@ -2418,19 +2419,19 @@
                             style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
                         </div>
                         <div id="infra-ip-success" class="hidden"
-                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ Valid Range</div>
+                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">âœ“ Valid Range</div>
 
                         <div id="infra-gateway-error" class="hidden"
                             style="margin-top:1rem; color:#ef4444; font-size:0.9rem; background:rgba(239,68,68,0.1); padding:0.75rem; border-radius:4px; border:1px solid rgba(239,68,68,0.2);">
                         </div>
                         <div id="infra-gateway-success" class="hidden"
-                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ Valid Default Gateway</div>
+                            style="margin-top:1rem; color:var(--success); font-size:0.9rem;">âœ“ Valid Default Gateway</div>
 
                         <!-- Appliance VM IPs (Disconnected Operations - Management Cluster only) -->
                         <div id="appliance-ip-section" class="hidden" style="margin-top: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(56, 189, 248, 0.06), rgba(45, 212, 191, 0.06)); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                <h4 style="margin: 0; color: #38bdf8; font-size: 1rem;">Disconnected Operations Appliance VM — Dedicated IPs</h4>
+                                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                <h4 style="margin: 0; color: #38bdf8; font-size: 1rem;">Disconnected Operations Appliance VM â€” Dedicated IPs</h4>
                             </div>
                             <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.85rem;">
                                 The disconnected operations appliance requires two dedicated IPs for the ingress vNIC (portal / CLI access) and the management vNIC.
@@ -2439,13 +2440,13 @@
                                 <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">Will the appliance VM use the same VLAN ID as the infrastructure network?</label>
                                 <div class="options-grid" style="margin-top:0.25rem;">
                                     <div class="option-card" data-value="same" onclick="selectDisconnectedOption('applianceVlanMode', 'same')">
-                                        <div class="icon">✅</div>
-                                        <h3>Yes — Same VLAN</h3>
+                                        <div class="icon">âœ…</div>
+                                        <h3>Yes â€” Same VLAN</h3>
                                         <p>Use the infrastructure VLAN and subnet.</p>
                                     </div>
                                     <div class="option-card" data-value="different" onclick="selectDisconnectedOption('applianceVlanMode', 'different')">
-                                        <div class="icon">🔀</div>
-                                        <h3>No — Different VLAN</h3>
+                                        <div class="icon">ðŸ”€</div>
+                                        <h3>No â€” Different VLAN</h3>
                                         <p>Provide appliance VLAN ID and dedicated subnet IPs.</p>
                                     </div>
                                 </div>
@@ -2485,7 +2486,7 @@
                                 style="margin-top: 0.75rem; color: #ef4444; font-size: 0.85rem; background: rgba(239,68,68,0.1); padding: 0.75rem; border-radius: 4px; border: 1px solid rgba(239,68,68,0.2);">
                             </div>
                             <div id="appliance-ip-success" class="hidden"
-                                style="margin-top: 0.75rem; color: var(--success); font-size: 0.85rem;">&#10003; Valid Appliance IPs — no conflicts with node IPs or gateway</div>
+                                style="margin-top: 0.75rem; color: var(--success); font-size: 0.85rem;">&#10003; Valid Appliance IPs â€” no conflicts with node IPs or gateway</div>
                         </div>
                     </div>
                 </section>
@@ -2500,7 +2501,7 @@
                         <div class="option-card" data-value="Express"
                             onclick="selectOption('storagePoolConfiguration', 'Express')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" stroke-width="1.5" fill="rgba(0, 120, 212, 0.1)" />
                                 </svg>
                             </div>
@@ -2510,7 +2511,7 @@
                         <div class="option-card" data-value="InfraOnly"
                             onclick="selectOption('storagePoolConfiguration', 'InfraOnly')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="4" width="18" height="16" rx="2" stroke-width="1.5" fill="rgba(139, 92, 246, 0.1)" />
                                     <path d="M3 10h18M7 4v16M17 4v16" stroke-width="1.5" />
                                 </svg>
@@ -2521,7 +2522,7 @@
                         <div class="option-card" data-value="KeepStorage"
                             onclick="selectOption('storagePoolConfiguration', 'KeepStorage')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="9" stroke-width="1.5" fill="rgba(16, 185, 129, 0.1)" />
                                     <path d="M9 12l2 2 4-4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
@@ -2542,7 +2543,7 @@
                         <div class="option-card" data-value="azure_ad"
                             onclick="selectOption('activeDirectory', 'azure_ad')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
                                         stroke-width="1.5" />
                                     <path d="M12 12h.01" stroke-width="2" stroke-linecap="round" />
@@ -2554,7 +2555,7 @@
                         <div class="option-card" id="ad-local-identity-card" data-value="local_identity"
                             onclick="selectOption('activeDirectory', 'local_identity')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M12 6v6l4 2" stroke-width="1.5" />
                                 </svg>
@@ -2575,7 +2576,7 @@
                         <div style="margin-top:1.5rem;">
                             <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">
                                 AD OU Path
-                                <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Organization Unit Path, example: 'OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com'. It is recommended that this OU is created using the AD Preparation tool">ℹ️</span>
+                                <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Organization Unit Path, example: 'OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com'. It is recommended that this OU is created using the AD Preparation tool">â„¹ï¸</span>
                             </label>
                             <input type="text" id="ad-ou-path" placeholder="e.g. OU=Cluster1,OU=AzureLocal,DC=contoso,DC=com"
                                 style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
@@ -2591,7 +2592,7 @@
                         <div id="adfs-server-section" class="hidden" style="margin-top:1.5rem;">
                             <label style="display:block; margin-bottom:0.5rem; font-size:0.9rem;">
                                 ADFS Server Name
-                                <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Federation Services server name for disconnected deployments">ℹ️</span>
+                                <span style="color:var(--text-secondary); font-size:0.85rem; margin-left:0.5rem;" title="Active Directory Federation Services server name for disconnected deployments">â„¹ï¸</span>
                             </label>
                             <input type="text" id="adfs-server-name" placeholder="e.g. adfs.contoso.com"
                                 style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
@@ -2651,7 +2652,7 @@
 
                         <!-- DNS Warning -->
                         <div class="info-box warning visible" style="margin-top:1.5rem;">
-                            <strong style="color:#ffc107;">⚠ Important</strong>
+                            <strong style="color:#ffc107;">âš  Important</strong>
                             <p>DNS servers cannot be changed after deployment. Ensure the configuration is correct
                                 before proceeding.</p>
                         </div>
@@ -2679,7 +2680,7 @@
                            target="_blank"
                            rel="noopener noreferrer"
                            style="color:var(--accent-blue); text-decoration:none;">
-                            More information on security controls ↗
+                            More information on security controls â†—
                         </a>
                     </p>
 
@@ -2687,7 +2688,7 @@
                         <div class="option-card" data-value="recommended"
                             onclick="selectOption('securityConfiguration', 'recommended')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
                                         stroke-width="1.5" />
                                     <path d="M9 12l2 2 4-4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -2699,7 +2700,7 @@
                         <div class="option-card" data-value="customized"
                             onclick="selectOption('securityConfiguration', 'customized')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
                                         stroke-width="1.5" />
                                     <path d="M12 8v8M8 12h8" stroke-width="1.5" stroke-linecap="round" />
@@ -2804,7 +2805,7 @@
                         <div class="option-card" id="sdn-enabled-yes" data-value="yes"
                             onclick="selectOption('sdnEnabled', 'yes')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-width="1.5"/>
                                     <polyline points="22 4 12 14.01 9 11.01" stroke-width="1.5"/>
                                 </svg>
@@ -2816,7 +2817,7 @@
                         <div class="option-card" id="sdn-enabled-no" data-value="no"
                             onclick="selectOption('sdnEnabled', 'no')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5"/>
                                     <line x1="15" y1="9" x2="9" y2="15" stroke-width="1.5"/>
                                     <line x1="9" y1="9" x2="15" y2="15" stroke-width="1.5"/>
@@ -2869,10 +2870,10 @@
                     <!-- End SDN Features Section -->
                 </section>
 
-                <!-- Report / Export Actions — shared by HCI and Disaggregated -->
+                <!-- Report / Export Actions â€” shared by HCI and Disaggregated -->
                 <section class="step" id="step-report-actions">
                     <div class="step-header">
-                        <span class="step-number">⚡</span>
+                        <span class="step-number">âš¡</span>
                         <h2>Generate Configuration Outputs</h2>
                     </div>
                     <div style="margin-top:1rem;">
@@ -2880,7 +2881,7 @@
                         <div id="missing-sections-container" style="margin-bottom: 1.5rem; display: none;">
                             <div style="padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
                                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/>
                                         <line x1="12" y1="8" x2="12" y2="12"/>
                                         <line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -2894,28 +2895,28 @@
                         </div>
 
                         <button id="generate-report-btn" type="button" class="report-button" onclick="generateReport()" disabled style="padding: 0.75rem 1.25rem; font-size: 0.9rem;">
-                            📋 Generate Cluster Design Document
+                            ðŸ“‹ Generate Cluster Design Document
                         </button>
                         <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
                             Creates a detailed report explaining your selections and the decision logic behind them.
                         </p>
 
                         <button id="generate-arm-btn" type="button" class="report-button" onclick="generateArmParameters()" disabled style="margin-top:0.75rem; padding: 0.75rem 1.25rem; font-size: 0.9rem;">
-                            🚀 Generate Cluster ARM Deployment Files
+                            ðŸš€ Generate Cluster ARM Deployment Files
                         </button>
                         <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
                             Opens a page with Azure ARM parameters JSON, populated from your answers with placeholders for values not collected.
                         </p>
 
                         <button id="transfer-to-switch-config-btn" type="button" class="report-button" onclick="transferToSwitchConfig()" disabled style="margin-top:0.75rem; padding: 0.75rem 1.25rem; font-size: 0.9rem;">
-                            🔌 Generate / Validate ToR Switch Configuration
+                            ðŸ”Œ Generate / Validate ToR Switch Configuration
                         </button>
                         <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
                             Generate example ToR, BMC and border switch configurations, or validate an existing switch config against Azure Local network traffic quality of service (QoS) requirements.
                         </p>
 
                         <button id="transfer-to-sizer-btn" type="button" class="report-button" onclick="transferToSizer()" disabled style="margin-top:0.75rem; padding: 0.75rem 1.25rem; font-size: 0.9rem;">
-                            ⚖️ Sizer: Add Workloads to this Cluster
+                            âš–ï¸ Sizer: Add Workloads to this Cluster
                         </button>
                         <p style="margin-top:0.75rem; color:var(--text-secondary); font-size:0.85rem; line-height:1.4;">
                             Opens the ODIN Sizer pre-configured with this cluster's deployment type and node count, so you can add workloads and size the hardware.
@@ -2930,7 +2931,7 @@
                     <div id="wizard-progress" class="wizard-progress" role="region" aria-label="Wizard progress">
                         <div class="wizard-progress__top">
                             <div class="wizard-progress__title">Progress</div>
-                            <div id="wizard-progress-text" class="wizard-progress__text">0% • 0/0</div>
+                            <div id="wizard-progress-text" class="wizard-progress__text">0% â€¢ 0/0</div>
                         </div>
                         <div class="wizard-progress__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                             <div id="wizard-progress-fill" class="wizard-progress__fill" style="width:0%"></div>
@@ -2940,7 +2941,7 @@
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <div style="display: flex; align-items: center; gap: 4px;">
                                 <span style="margin-right: 4px;">Font:</span>
-                                <button onclick="decreaseFontSize()" title="Decrease font size" style="padding: 4px 8px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A−</button>
+                                <button onclick="decreaseFontSize()" title="Decrease font size" style="padding: 4px 8px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">Aâˆ’</button>
                                 <button onclick="increaseFontSize()" title="Increase font size" style="padding: 4px 8px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold;">A+</button>
                             </div>
                         </div>
@@ -2950,24 +2951,24 @@
                     <div id="summary-diagram-container" class="summary-diagram"></div>
 
                     <button onclick="openSwitchConfigDirect()" style="width: 100%; padding: 10px 16px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; margin-bottom: 8px;">
-                        🔌 Generate / Validate ToR Switch Configuration
+                        ðŸ”Œ Generate / Validate ToR Switch Configuration
                     </button>
 
                     <button onclick="showTemplates()" style="width: 100%; padding: 10px 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; margin-bottom: 8px;">
-                        📋 Load Example Configuration Template
+                        ðŸ“‹ Load Example Configuration Template
                     </button>
 
                     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
                         <button onclick="showDesignerImportModal()" style="flex: 1; padding: 10px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
-                            📁 Import
+                            ðŸ“ Import
                         </button>
                         <button onclick="exportConfiguration()" style="flex: 1; padding: 10px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
-                            💾 Export
+                            ðŸ’¾ Export
                         </button>
                     </div>
 
                     <button onclick="resetAll()" class="reset-button">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                             <path d="M3 3v5h5" />
@@ -2991,20 +2992,20 @@
                 <ul class="knowledge-nav-links">
                     <li>
                         <a href="#" class="knowledge-nav-item active" data-src="docs/outbound-connectivity/" onclick="switchKnowledgePage(this, 'docs/outbound-connectivity/'); return false;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                             Architecture Guide
                         </a>
                     </li>
                     <li class="knowledge-nav-divider">Interactive Diagrams</li>
                     <li>
                         <a href="#" class="knowledge-nav-item" data-src="docs/outbound-connectivity/azure-local-public-path-dark-flows.html" onclick="switchKnowledgePage(this, 'docs/outbound-connectivity/azure-local-public-path-dark-flows.html'); return false;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                             Public Path Flow
                         </a>
                     </li>
                     <li>
                         <a href="#" class="knowledge-nav-item" data-src="docs/outbound-connectivity/azure-local-private-path-dark-flows.html" onclick="switchKnowledgePage(this, 'docs/outbound-connectivity/azure-local-private-path-dark-flows.html'); return false;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                             Private Path Flow
                         </a>
                     </li>
@@ -3026,28 +3027,28 @@
     <script src="js/dns.js"></script>
     <script src="js/changelog.js"></script>
     <!-- html2canvas (MIT) + jsPDF (MIT) for PDF export -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js" integrity="sha384-qovJwSBbRDPP5cEjCp8S0UP66wrvnjaa60XMOGzTNanrThcrGfXfnZkvgY8N1KT3" crossorigin="anonymous"></script>
     <script src="js/script.js"></script>
     <script src="js/disconnected.js"></script>
     <!-- Designer Import Modal -->
     <div class="onboarding-overlay" id="designer-import-modal" style="display: none;">
         <div class="onboarding-card" style="max-width: 600px; text-align: left;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <h2 class="onboarding-title" style="margin: 0;">📂 Import Configuration</h2>
+                <h2 class="onboarding-title" style="margin: 0;">ðŸ“‚ Import Configuration</h2>
                 <button onclick="closeDesignerImportModal()" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px 8px;">&times;</button>
             </div>
 
             <div class="onboarding-features" style="grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px;">
                 <div class="onboarding-feature" style="cursor: pointer; border: 1px solid var(--glass-border); transition: border-color 0.2s;" onclick="closeDesignerImportModal(); importConfiguration();" onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-                    <span class="onboarding-feature-icon">📄</span>
+                    <span class="onboarding-feature-icon">ðŸ“„</span>
                     <div class="onboarding-feature-text">
                         <strong>Import ODIN Designer Configuration</strong>
                         Select a previously exported ODIN Designer .json file to restore all wizard settings, network configuration, and deployment options.
                     </div>
                 </div>
                 <div class="onboarding-feature" style="cursor: pointer; border: 1px solid var(--glass-border); transition: border-color 0.2s;" onclick="closeDesignerImportModal(); importConfiguration();" onmouseover="this.style.borderColor='var(--accent-purple)'" onmouseout="this.style.borderColor='var(--glass-border)'">
-                    <span class="onboarding-feature-icon">📐</span>
+                    <span class="onboarding-feature-icon">ðŸ“</span>
                     <div class="onboarding-feature-text">
                         <strong>Import Azure Local ARM Template</strong>
                         <span>In the Azure Portal, navigate to the Resource Group containing your Azure Local instance &rarr; <b>Settings</b> &rarr; <b>Deployments</b> &rarr; select the cluster deployment &rarr; <b>Template</b> &rarr; <b>Download</b>. Extract the downloaded .zip file, then select the <b>template.json</b> file when importing.</span>
@@ -3056,14 +3057,14 @@
             </div>
 
             <div style="font-size: 12px; color: var(--text-secondary); text-align: center;">
-                Both formats are auto-detected — select any .json file to begin.
+                Both formats are auto-detected â€” select any .json file to begin.
             </div>
         </div>
     </div>
 
     <script src="js/disaggregated.js"></script>
     <footer style="text-align:center;padding:2rem 1rem 1rem;font-size:0.85rem;color:#aaa;">
-        🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.
+        ðŸ”’ Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.
     </footer>
 </body>
 
