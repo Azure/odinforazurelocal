@@ -415,9 +415,9 @@
             .replace(/'/g, '&#39;');
     }
 
-    /** Escape pipe and backtick characters for markdown table cells */
+    /** Escape pipe, backtick, and backslash characters for markdown table cells */
     function escapeMd(val) {
-        return String(val || '').replace(/\|/g, '\\|').replace(/`/g, '\\`');
+        return String(val || '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/`/g, '\\`');
     }
 
     /**
