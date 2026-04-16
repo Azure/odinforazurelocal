@@ -60,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Improved VLAN descriptions**: Default VLAN card clarified to "Untagged — management traffic uses the native VLAN (ID 0 on the host)"; Custom VLAN card updated to "Tag management traffic with a specific VLAN ID on the host NICs"
 - **Expanded info box**: Added explanation that even with untagged host traffic (ID 0), the ToR switch assigns it to a VLAN internally (e.g., VLAN 7), and the switch-side VLAN ID is configured separately in the Switch Config Generator
 
+#### Sizer: Low Capacity Cluster Type
+- **Low Capacity deployment type**: New "Low Capacity" option in the Sizer cluster type selector — enforces Azure Local low capacity hardware limits: 1–3 nodes, single socket only, max 14 physical cores per node, 32–128 GB memory per node, max 192 GB GPU VRAM per node. All-flash storage only (no cache tier). Core dropdown, socket count, and memory slider are auto-constrained to deployment limits. 3D rack visualization renders correctly for 1–3 node low capacity configurations.
+
 #### Sizer: Disaggregated Storage
 - **Disaggregated Storage deployment type**: New deployment type in the Sizer with rack count (1–4 racks), spine switch count (2 or 4), and storage connectivity (Fibre Channel SAN / iSCSI SAN) selectors — up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, and 3D rack visualization with multi-rack layouts
 - **3D Visualization: FC Switches**: When Fibre Channel SAN is selected, 2 purple FC switches are rendered per rack below the BMC switch

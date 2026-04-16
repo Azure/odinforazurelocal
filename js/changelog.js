@@ -116,6 +116,15 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚖️ Sizer: Low Capacity Cluster Type</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Low Capacity deployment type:</strong> New cluster type option enforcing Azure Local low capacity hardware limits — 1–3 nodes, single socket, max 14 physical cores, 32–128 GB memory per node, max 192 GB GPU VRAM.</li>
+                        <li><strong>Auto-constrained hardware:</strong> Core dropdown, socket count, and memory slider automatically limited to deployment maximums. All-flash storage only (no cache tier).</li>
+                        <li><strong>3D Visualization:</strong> Rack visualization renders correctly for 1–3 node low capacity configurations.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚖️ Sizer: Disaggregated Storage</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Disaggregated Storage deployment type:</strong> Rack count (1–4), spine switch count (2/4), and storage connectivity (Fibre Channel / iSCSI) selectors with 3D rack visualization.</li>
