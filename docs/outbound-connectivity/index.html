@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -25,7 +25,7 @@
                     if (nav) nav.style.display = 'none';
                     document.body.classList.add('in-iframe');
                 }
-            } catch (e) { /* cross-origin iframe â€“ leave nav visible */ }
+            } catch (e) { /* cross-origin iframe – leave nav visible */ }
         })();
     </script>
 
@@ -68,17 +68,17 @@
                 <h3>Key Benefits of Arc Gateway</h3>
                 <div class="benefits-grid">
                     <div class="benefit-card">
-                        <div class="benefit-icon">ðŸ”’</div>
+                        <div class="benefit-icon">🔒</div>
                         <h4>Better Security</h4>
                         <p>Fewer open connections reduce the potential attack surface. Reduce firewall rules from hundreds to fewer than 30 endpoints.</p>
                     </div>
                     <div class="benefit-card">
-                        <div class="benefit-icon">âš™ï¸</div>
+                        <div class="benefit-icon">⚙️</div>
                         <h4>Easier Setup</h4>
                         <p>Leverage your existing network and security infrastructure while the Arc Gateway manages Azure connectivity.</p>
                     </div>
                     <div class="benefit-card">
-                        <div class="benefit-icon">ðŸ“Š</div>
+                        <div class="benefit-icon">📊</div>
                         <h4>Simpler Management</h4>
                         <p>Fewer endpoints to manage means easier tracking and troubleshooting.</p>
                     </div>
@@ -97,27 +97,27 @@
             <div class="architecture-cards">
                 <div class="arch-card public">
                     <div class="arch-header">
-                        <h3>ðŸŒ Public Path</h3>
+                        <h3>🌐 Public Path</h3>
                         <span class="badge">4 Options</span>
                     </div>
                     <div class="arch-body">
                         <p>Traffic routes to Azure via <strong>public internet</strong>. Multiple configuration options available:</p>
                         <ul>
-                            <li><strong>Option 1:</strong> No Proxy, No Arc Gateway - <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-without-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank">How to register nodes in Arc â†—</a></li>
-                            <li><strong>Option 2:</strong> Proxy, No Arc Gateway - <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-without-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank">How to register nodes in Arc â†—</a></li>
-                            <li><strong>Option 3:</strong> No Proxy, Arc Gateway - <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank">How to register nodes in Arc â†—</a></li>
-                            <li><strong>Option 4:</strong> Proxy + Arc Gateway - <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank">How to register nodes in Arc â†—</a></li>
+                            <li><strong>Option 1:</strong> No Proxy, No Arc Gateway - <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-without-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank">How to register nodes in Arc ↗</a></li>
+                            <li><strong>Option 2:</strong> Proxy, No Arc Gateway - <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-without-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank">How to register nodes in Arc ↗</a></li>
+                            <li><strong>Option 3:</strong> No Proxy, Arc Gateway - <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank">How to register nodes in Arc ↗</a></li>
+                            <li><strong>Option 4:</strong> Proxy + Arc Gateway - <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank">How to register nodes in Arc ↗</a></li>
                         </ul>
                     </div>
                 </div>
                 <!-- PRIVATE-PATH-PREVIEW: Remove this comment and the preview-banner div when Private Path is GA -->
                 <div class="arch-card private">
                     <div class="preview-banner private-path-preview">
-                        <span class="preview-icon">ðŸš§</span>
+                        <span class="preview-icon">🚧</span>
                         <span><strong>Coming Soon:</strong> Private Path is an upcoming feature not yet supported. Documentation is provided for planning purposes.</span>
                     </div>
                     <div class="arch-header">
-                        <h3>ðŸ” Private Path</h3>
+                        <h3>🔐 Private Path</h3>
                         <span class="badge">Enhanced Security</span>
                     </div>
                     <div class="arch-body">
@@ -163,63 +163,63 @@
                     </tr>
                     <tr>
                         <td><strong>Arc Gateway</strong></td>
-                        <td>âœ… Optional (recommended)</td>
-                        <td>âœ… Yes</td>
+                        <td>✅ Optional (recommended)</td>
+                        <td>✅ Yes</td>
                     </tr>
                     <tr>
                         <td><strong>Cluster IP:40343</strong></td>
-                        <td>âœ… For ARB/AKS</td>
-                        <td>âœ… For ARB/AKS</td>
+                        <td>✅ For ARB/AKS</td>
+                        <td>✅ For ARB/AKS</td>
                     </tr>
                     <tr>
                         <td><strong>Private Endpoints</strong></td>
-                        <td>âœ… Supported</td>
-                        <td>âœ… Supported</td>
+                        <td>✅ Supported</td>
+                        <td>✅ Supported</td>
                     </tr>
                     <tr>
-                        <td style="padding-left: 2rem;">ï¿½ Arc Private Link</td>
-                        <td>âŒ</td>
-                        <td>âŒ</td>
+                        <td style="padding-left: 2rem;">� Arc Private Link</td>
+                        <td>❌</td>
+                        <td>❌</td>
                     </tr>
                     <tr>
-                        <td style="padding-left: 2rem;">ðŸ” Key Vault</td>
-                        <td>âœ…</td>
-                        <td>âœ…</td>
+                        <td style="padding-left: 2rem;">🔐 Key Vault</td>
+                        <td>✅</td>
+                        <td>✅</td>
                     </tr>
                     <tr>
-                        <td style="padding-left: 2rem;">ðŸ’¾ Storage (Blob)</td>
-                        <td>âœ…</td>
-                        <td>âœ…</td>
+                        <td style="padding-left: 2rem;">💾 Storage (Blob)</td>
+                        <td>✅</td>
+                        <td>✅</td>
                     </tr>
                     <tr>
-                        <td style="padding-left: 2rem;">ðŸ“¦ Azure Container Registry</td>
-                        <td>âœ…</td>
-                        <td>âœ…</td>
+                        <td style="padding-left: 2rem;">📦 Azure Container Registry</td>
+                        <td>✅</td>
+                        <td>✅</td>
                     </tr>
                     <tr>
-                        <td style="padding-left: 2rem;">ðŸ”„ Azure Site Recovery</td>
-                        <td>âœ…</td>
-                        <td>âœ…</td>
+                        <td style="padding-left: 2rem;">🔄 Azure Site Recovery</td>
+                        <td>✅</td>
+                        <td>✅</td>
                     </tr>
                     <tr>
-                        <td style="padding-left: 2rem;">ðŸ—„ï¸ Recovery Services Vault (Backup)</td>
-                        <td>âœ…</td>
-                        <td>âœ…</td>
+                        <td style="padding-left: 2rem;">🗄️ Recovery Services Vault (Backup)</td>
+                        <td>✅</td>
+                        <td>✅</td>
                     </tr>
                     <tr>
-                        <td style="padding-left: 2rem;">ðŸ—ƒï¸ SQL Managed Instance</td>
-                        <td>âœ…</td>
-                        <td>âœ…</td>
+                        <td style="padding-left: 2rem;">🗃️ SQL Managed Instance</td>
+                        <td>✅</td>
+                        <td>✅</td>
                     </tr>
                     <tr>
-                        <td style="padding-left: 2rem;">ðŸ›¡ï¸ Microsoft Defender for Cloud</td>
-                        <td>âœ…</td>
-                        <td>âœ…</td>
+                        <td style="padding-left: 2rem;">🛡️ Microsoft Defender for Cloud</td>
+                        <td>✅</td>
+                        <td>✅</td>
                     </tr>
                     <tr>
                         <td><strong>TLS Inspection</strong></td>
-                        <td>âŒ Not supported</td>
-                        <td>âŒ Not supported</td>
+                        <td>❌ Not supported</td>
+                        <td>❌ Not supported</td>
                     </tr>
                     <tr>
                         <td><strong>Setup Complexity</strong></td>
@@ -235,14 +235,14 @@
             </table>
 
             <div class="info-box">
-                <h4>ðŸ“Œ Important Note on Private Endpoints</h4>
+                <h4>📌 Important Note on Private Endpoints</h4>
                 <p><strong>Private Endpoints (Private Link) are architecture-agnostic.</strong> They work identically in both Public Path and Private Path architectures. The configuration is the same - you add Private Link endpoints to the proxy bypass list so traffic goes directly to them.</p>
             </div>
 
             <h3>Components Overview</h3>
             <div class="flow-comparison-grid">
                 <div class="flow-column public">
-                    <h4>ðŸŒ Public Path</h4>
+                    <h4>🌐 Public Path</h4>
                     <p>Traffic routed through the Arc Gateway to Azure services via the <strong>public internet</strong>. Your on-premises enterprise proxy and firewall control the traffic flow.</p>
                     <div class="diagram-container">
                         <img src="images/public-path-step-0-components.svg" 
@@ -254,7 +254,7 @@
                     </div>
                 </div>
                 <div class="flow-column private">
-                    <h4>ðŸ” Private Path</h4>
+                    <h4>🔐 Private Path</h4>
                     <p>Traffic routed <strong>securely through private connections</strong> (ExpressRoute or Site-to-Site VPN) to Azure, eliminating public internet exposure.</p>
                     <div class="diagram-container private-path">
                         <img src="images/private-path-step-0-components.svg" 
@@ -265,22 +265,22 @@
             </div>
 
             <div class="highlight-box">
-                <h4>ðŸ” What Makes Private Path "Private"</h4>
+                <h4>🔐 What Makes Private Path "Private"</h4>
                 <ol>
                     <li><strong>Azure Firewall Explicit Proxy</strong> is the enterprise proxy (hosted in Azure, not on-prem)</li>
                     <li><strong>Arc Gateway</strong> routes through private connection (ExpressRoute/VPN)</li>
                     <li><strong>No public internet exposure</strong> for Azure Local traffic</li>
-                    <li><strong>Unified private connectivity</strong> â€” combine private endpoints for Azure PaaS services (Storage, Key Vault, etc.) with fully private Arc and Entra traffic over ExpressRoute</li>
+                    <li><strong>Unified private connectivity</strong> — combine private endpoints for Azure PaaS services (Storage, Key Vault, etc.) with fully private Arc and Entra traffic over ExpressRoute</li>
                 </ol>
             </div>
 
             <div class="highlight-box">
-                <h4>ðŸŒ What Makes Public Path "Public"</h4>
+                <h4>🌐 What Makes Public Path "Public"</h4>
                 <ol>
                     <li><strong>On-premises Enterprise Proxy</strong> handles all outbound traffic from Azure Local</li>
                     <li><strong>Arc Gateway</strong> routes through the public internet to Azure services</li>
                     <li><strong>Enterprise firewall</strong> controls and inspects traffic before leaving your network</li>
-                    <li><strong>Hybrid private endpoints</strong> â€” while Arc and Entra traffic uses public internet, you can still use private endpoints for Azure PaaS services (Storage, Key Vault) if you have ExpressRoute or Site-to-Site VPN connectivity</li>
+                    <li><strong>Hybrid private endpoints</strong> — while Arc and Entra traffic uses public internet, you can still use private endpoints for Azure PaaS services (Storage, Key Vault) if you have ExpressRoute or Site-to-Site VPN connectivity</li>
                 </ol>
             </div>
         </section>
@@ -293,22 +293,22 @@
                 <div class="decision-card public">
                     <h3>Choose Public Path When:</h3>
                     <ul>
-                        <li>âœ… You have reliable internet connectivity</li>
-                        <li>âœ… You already have on-premises proxy/firewall infrastructure</li>
-                        <li>âœ… Public internet egress is acceptable per your security policies</li>
-                        <li>âœ… Simpler initial setup is preferred</li>
-                        <li>âœ… Cost optimization (no ExpressRoute/VPN required)</li>
+                        <li>✅ You have reliable internet connectivity</li>
+                        <li>✅ You already have on-premises proxy/firewall infrastructure</li>
+                        <li>✅ Public internet egress is acceptable per your security policies</li>
+                        <li>✅ Simpler initial setup is preferred</li>
+                        <li>✅ Cost optimization (no ExpressRoute/VPN required)</li>
                     </ul>
                 </div>
 
                 <div class="decision-card private">
                     <h3>Choose Private Path When:</h3>
                     <ul>
-                        <li>âœ… <strong>Zero public internet exposure</strong> is required</li>
-                        <li>âœ… Regulatory/compliance requirements mandate private connectivity</li>
-                        <li>âœ… You already have ExpressRoute or Site-to-Site VPN</li>
-                        <li>âœ… Centralized Azure-based security management is preferred</li>
-                        <li>âœ… High-security environments (government, healthcare, financial)</li>
+                        <li>✅ <strong>Zero public internet exposure</strong> is required</li>
+                        <li>✅ Regulatory/compliance requirements mandate private connectivity</li>
+                        <li>✅ You already have ExpressRoute or Site-to-Site VPN</li>
+                        <li>✅ Centralized Azure-based security management is preferred</li>
+                        <li>✅ High-security environments (government, healthcare, financial)</li>
                     </ul>
                 </div>
             </div>
@@ -332,7 +332,7 @@
 
             <div class="scenarios-overview">
                 <div class="path-column">
-                    <h3 class="public-header">ðŸŒ Public Path - 4 Options</h3>
+                    <h3 class="public-header">🌐 Public Path - 4 Options</h3>
                     <p>When using public internet for Azure connectivity, you have four deployment options:</p>
                     
                     <!-- Option 1: No Proxy, No Arc Gateway -->
@@ -359,11 +359,11 @@
                             </div>
                             <div class="scenario-pros-cons">
                                 <div class="pros">
-                                    <strong>âœ… Simplest setup</strong>
+                                    <strong>✅ Simplest setup</strong>
                                     <p>No proxy configuration needed</p>
                                 </div>
                                 <div class="cons">
-                                    <strong>âŒ Most firewall rules</strong>
+                                    <strong>❌ Most firewall rules</strong>
                                     <p>Hundreds of endpoints to manage</p>
                                 </div>
                             </div>
@@ -394,11 +394,11 @@
                             </div>
                             <div class="scenario-pros-cons">
                                 <div class="pros">
-                                    <strong>âœ… Centralized control</strong>
+                                    <strong>✅ Centralized control</strong>
                                     <p>Proxy provides visibility and filtering</p>
                                 </div>
                                 <div class="cons">
-                                    <strong>âŒ Many endpoints</strong>
+                                    <strong>❌ Many endpoints</strong>
                                     <p>Still requires many firewall/proxy rules</p>
                                 </div>
                             </div>
@@ -429,11 +429,11 @@
                             </div>
                             <div class="scenario-pros-cons">
                                 <div class="pros">
-                                    <strong>âœ… Simplified rules</strong>
+                                    <strong>✅ Simplified rules</strong>
                                     <p>Fewer than 30 endpoints needed</p>
                                 </div>
                                 <div class="cons">
-                                    <strong>âŒ No HTTP proxy</strong>
+                                    <strong>❌ No HTTP proxy</strong>
                                     <p>HTTP traffic goes direct to firewall</p>
                                 </div>
                             </div>
@@ -464,11 +464,11 @@
                             </div>
                             <div class="scenario-pros-cons">
                                 <div class="pros">
-                                    <strong>âœ… Best security</strong>
+                                    <strong>✅ Best security</strong>
                                     <p>Minimal rules + proxy control</p>
                                 </div>
                                 <div class="pros">
-                                    <strong>âœ… Full visibility</strong>
+                                    <strong>✅ Full visibility</strong>
                                     <p>All traffic is managed</p>
                                 </div>
                             </div>
@@ -477,13 +477,13 @@
                 </div>
 
                 <div class="path-column">
-                    <h3 class="private-header">ðŸ” Private Path - 1 Option</h3>
+                    <h3 class="private-header">🔐 Private Path - 1 Option</h3>
                     <p>When using ExpressRoute/VPN for private Azure connectivity, there is only one supported configuration:</p>
                     
                     <!-- Only Option: Azure Firewall Explicit Proxy with Arc Gateway -->
                     <div class="scenario-card private-only">
                         <div class="scenario-header private-option">
-                            <span class="option-number">â˜…</span>
+                            <span class="option-number">★</span>
                             <h4>Azure Firewall Explicit Proxy + Arc Gateway</h4>
                             <span class="badge-only">Only Option</span>
                         </div>
@@ -505,15 +505,15 @@
                             </div>
                             <div class="scenario-pros-cons">
                                 <div class="pros">
-                                    <strong>âœ… Maximum security</strong>
+                                    <strong>✅ Maximum security</strong>
                                     <p>No public internet exposure</p>
                                 </div>
                                 <div class="pros">
-                                    <strong>âœ… Centralized management</strong>
+                                    <strong>✅ Centralized management</strong>
                                     <p>Azure Firewall policies</p>
                                 </div>
                                 <div class="pros">
-                                    <strong>âœ… Compliance ready</strong>
+                                    <strong>✅ Compliance ready</strong>
                                     <p>Meets strict regulatory requirements</p>
                                 </div>
                             </div>
@@ -521,7 +521,7 @@
                     </div>
 
                     <div class="private-path-note">
-                        <h4>âš ï¸ Why Only One Option?</h4>
+                        <h4>⚠️ Why Only One Option?</h4>
                         <p>The Private Path architecture requires:</p>
                         <ul>
                             <li><strong>Azure Firewall Explicit Proxy</strong> - to serve as the enterprise proxy hosted in Azure</li>
@@ -553,7 +553,7 @@
                 <!-- Key Vault -->
                 <div class="service-pe-card">
                     <div class="service-pe-header keyvault">
-                        <span class="service-icon">ðŸ”</span>
+                        <span class="service-icon">🔐</span>
                         <div>
                             <h4>Azure Key Vault</h4>
                             <code>vault.azure.net</code>
@@ -563,11 +563,11 @@
                         <p>Azure Local <strong>requires</strong> a Key Vault for deployment. Azure Portal and HCI Resource Provider configure secrets during deployment.</p>
                         <div class="service-pe-requirements">
                             <div class="requirement-item warning">
-                                <strong>âš ï¸ During Deployment:</strong>
+                                <strong>⚠️ During Deployment:</strong>
                                 <p>Keep <strong>public access enabled</strong> until initial deployment is complete.</p>
                             </div>
                             <div class="requirement-item success">
-                                <strong>âœ… After Deployment:</strong>
+                                <strong>✅ After Deployment:</strong>
                                 <p>Restrict access to private networks only. Other customer Key Vaults for workloads can be fully private from the start.</p>
                             </div>
                         </div>
@@ -577,7 +577,7 @@
                 <!-- Storage Account -->
                 <div class="service-pe-card">
                     <div class="service-pe-header storage">
-                        <span class="service-icon">ðŸ’¾</span>
+                        <span class="service-icon">💾</span>
                         <div>
                             <h4>Azure Storage (Blob)</h4>
                             <code>blob.core.windows.net</code>
@@ -587,15 +587,15 @@
                         <p>Required for <strong>2-node deployments</strong> as cloud witness. Azure Portal and HCI RP configure the cloud witness during deployment.</p>
                         <div class="service-pe-requirements">
                             <div class="requirement-item warning">
-                                <strong>âš ï¸ During Deployment:</strong>
+                                <strong>⚠️ During Deployment:</strong>
                                 <p>Keep <strong>public access enabled</strong> until initial deployment is complete.</p>
                             </div>
                             <div class="requirement-item success">
-                                <strong>âœ… After Deployment:</strong>
+                                <strong>✅ After Deployment:</strong>
                                 <p>Restrict access to private networks only.</p>
                             </div>
                             <div class="requirement-item info">
-                                <strong>ðŸ’¡ Optional:</strong>
+                                <strong>💡 Optional:</strong>
                                 <p>If your security team requires source IP validation on the private endpoint, add the storage endpoint to the proxy bypass list so traffic goes directly to your firewall instead of through Arc Gateway tunnel.</p>
                             </div>
                         </div>
@@ -605,7 +605,7 @@
                 <!-- Azure Container Registry -->
                 <div class="service-pe-card">
                     <div class="service-pe-header acr">
-                        <span class="service-icon">ðŸ“¦</span>
+                        <span class="service-icon">📦</span>
                         <div>
                             <h4>Azure Container Registry (ACR)</h4>
                             <code>azurecr.io</code>
@@ -615,11 +615,11 @@
                         <p>Crucial for <strong>AKS image pulls</strong>. Customers commonly pull container images for AKS workloads from private ACR endpoints.</p>
                         <div class="service-pe-requirements">
                             <div class="requirement-item danger">
-                                <strong>ðŸš« No Wildcards:</strong>
+                                <strong>🚫 No Wildcards:</strong>
                                 <p><code>*.azurecr.io</code> is <strong>NOT supported</strong> in the bypass list. ARB VM uses specific ACR endpoints and the bypass list applies to both ARB and AKS.</p>
                             </div>
                             <div class="requirement-item success">
-                                <strong>âœ… Required:</strong>
+                                <strong>✅ Required:</strong>
                                 <p>Add <strong>specific ACR FQDNs</strong> to the proxy bypass list <strong>before deployment</strong>. This is particularly important when AKS clusters run on their own LNET and you want ACR traffic to go directly from AKS subnet to firewall.</p>
                             </div>
                         </div>
@@ -629,7 +629,7 @@
                 <!-- Azure Site Recovery -->
                 <div class="service-pe-card">
                     <div class="service-pe-header asr">
-                        <span class="service-icon">ðŸ”„</span>
+                        <span class="service-icon">🔄</span>
                         <div>
                             <h4>Azure Site Recovery (ASR)</h4>
                             <code>privatelink.siterecovery.windowsazure.com</code>
@@ -642,19 +642,19 @@
                                 <h5>Option 1: Via Enterprise Proxy</h5>
                                 <p><strong>Do not</strong> add FQDNs to proxy bypass list. Traffic will be rejected by Arc proxy, retry via enterprise proxy.</p>
                                 <div class="requirement-item warning">
-                                    <strong>âš ï¸ Requirement:</strong> SSL inspection <strong>must be disabled</strong> on the enterprise proxy for ASR endpoints.
+                                    <strong>⚠️ Requirement:</strong> SSL inspection <strong>must be disabled</strong> on the enterprise proxy for ASR endpoints.
                                 </div>
                             </div>
                             <div class="asr-option recommended">
                                 <h5>Option 2: Via Proxy Bypass (Recommended)</h5>
                                 <p>Add ASR FQDNs to proxy bypass list. Traffic goes directly to firewall, then to private endpoint via ExpressRoute/VPN.</p>
                                 <div class="requirement-item success">
-                                    <strong>âœ… Recommended:</strong> Simpler configuration, no SSL inspection concerns.
+                                    <strong>✅ Recommended:</strong> Simpler configuration, no SSL inspection concerns.
                                 </div>
                             </div>
                         </div>
                         <div class="info-box" style="margin-top: 16px;">
-                            <h4>ðŸ“– Reference</h4>
+                            <h4>📖 Reference</h4>
                             <p>See <a href="https://learn.microsoft.com/en-us/azure/site-recovery/azure-to-azure-how-to-enable-replication-private-endpoints" target="_blank">Enable replication for private endpoints in Azure Site Recovery</a> for detailed configuration.</p>
                         </div>
                     </div>
@@ -676,26 +676,26 @@
                     <tbody>
                         <tr>
                             <td><strong>1. No Proxy, No Arc GW</strong></td>
-                            <td>Direct â†’ ExpressRoute/VPN</td>
-                            <td>âŒ Not Supported</td>
+                            <td>Direct → ExpressRoute/VPN</td>
+                            <td>❌ Not Supported</td>
                             <td>Configure routing and DNS; no proxy bypass needed</td>
                         </tr>
                         <tr>
                             <td><strong>2. Proxy, No Arc GW</strong></td>
-                            <td>Proxy bypassed â†’ ExpressRoute/VPN</td>
-                            <td>âŒ Not Supported</td>
+                            <td>Proxy bypassed → ExpressRoute/VPN</td>
+                            <td>❌ Not Supported</td>
                             <td>Add PE FQDNs to proxy bypass list</td>
                         </tr>
                         <tr>
                             <td><strong>3. No Proxy, Arc GW</strong></td>
-                            <td>Cluster IP proxy bypassed â†’ ExpressRoute/VPN</td>
-                            <td>âŒ Not Supported</td>
+                            <td>Cluster IP proxy bypassed → ExpressRoute/VPN</td>
+                            <td>❌ Not Supported</td>
                             <td>Add PE FQDNs to Environment Variables bypass after Arc registration</td>
                         </tr>
                         <tr>
                             <td><strong>4. Proxy, Arc GW</strong></td>
-                            <td>Proxy bypassed â†’ ExpressRoute/VPN</td>
-                            <td>âŒ Not Supported</td>
+                            <td>Proxy bypassed → ExpressRoute/VPN</td>
+                            <td>❌ Not Supported</td>
                             <td>Add PE FQDNs to proxy bypass list during Arc registration</td>
                         </tr>
                     </tbody>
@@ -707,10 +707,10 @@
         <section id="reserved-subnets" class="section">
             <h2>Reserved Subnets: ARB & AKS</h2>
             
-            <p>The Arc Resource Bridge (ARB) VM reserves specific IP ranges for internal Kubernetes operations. <strong>Never use these ranges for your private endpoint networks</strong> â€” traffic will fail to route correctly.</p>
+            <p>The Arc Resource Bridge (ARB) VM reserves specific IP ranges for internal Kubernetes operations. <strong>Never use these ranges for your private endpoint networks</strong> — traffic will fail to route correctly.</p>
 
             <div class="reserved-subnets-warning">
-                <h3>âš ï¸ Critical: Avoid IP Overlaps</h3>
+                <h3>⚠️ Critical: Avoid IP Overlaps</h3>
                 <p>If your private endpoint network uses IPs within these reserved ranges, traffic will fail because ARB/AKS treat them as internal addresses.</p>
             </div>
 
@@ -743,15 +743,15 @@
                 <h3>IP Overlap Scenario Example</h3>
                 <div class="conflict-comparison">
                     <div class="conflict-card fail">
-                        <h4>âŒ Internal Conflict (FAIL)</h4>
+                        <h4>❌ Internal Conflict (FAIL)</h4>
                         <div class="conflict-details">
                             <div class="ip-badge fail">Endpoint IP: <strong>10.244.1.4</strong></div>
                             <p>Inside reserved pod range (10.244.0.0/16)</p>
-                            <p class="result">AKS treats this as <strong>internal traffic</strong>. Traffic never leaves the VNET â€” routing fails.</p>
+                            <p class="result">AKS treats this as <strong>internal traffic</strong>. Traffic never leaves the VNET — routing fails.</p>
                         </div>
                     </div>
                     <div class="conflict-card success">
-                        <h4>âœ… Correct Routing (SUCCESS)</h4>
+                        <h4>✅ Correct Routing (SUCCESS)</h4>
                         <div class="conflict-details">
                             <div class="ip-badge success">Endpoint IP: <strong>10.245.0.5</strong></div>
                             <p>Outside reserved pod range</p>
@@ -765,21 +765,21 @@
                 <h3>Best Practices for Private Endpoint Networks</h3>
                 <ul class="best-practices-list">
                     <li>
-                        <span class="bp-icon">ðŸ”</span>
+                        <span class="bp-icon">🔍</span>
                         <div>
                             <strong>Verify your Private Endpoint VNETs</strong>
                             <p>Before deploying, ensure your private endpoint networks do NOT overlap with <code>10.244.0.0/16</code> or <code>10.96.0.0/12</code></p>
                         </div>
                     </li>
                     <li>
-                        <span class="bp-icon">ðŸ“‹</span>
+                        <span class="bp-icon">📋</span>
                         <div>
                             <strong>Use non-conflicting address spaces</strong>
                             <p>Recommended: Use address ranges like <code>10.0.0.0/16</code>, <code>10.1.0.0/16</code>, <code>172.16.0.0/16</code> for private endpoints</p>
                         </div>
                     </li>
                     <li>
-                        <span class="bp-icon">ðŸ§ª</span>
+                        <span class="bp-icon">🧪</span>
                         <div>
                             <strong>Test connectivity before production</strong>
                             <p>Validate private endpoint routing from ARB and AKS workloads in a test environment</p>
@@ -801,7 +801,7 @@
                 <p>Traffic that bypasses proxy entirely for internal communications and Private Link endpoints.</p>
                 <div class="flow-comparison-grid">
                     <div class="flow-column public">
-                        <h4>ðŸŒ Public Path</h4>
+                        <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
                             <img src="images/public-path-step-1-bypass.svg" 
                                  alt="Public Path - Bypass Traffic" 
@@ -816,7 +816,7 @@
                         </div>
                     </div>
                     <div class="flow-column private">
-                        <h4>ðŸ” Private Path</h4>
+                        <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
                             <img src="images/private-path-step-1-bypass.svg" 
                                  alt="Private Path - Bypass Traffic" 
@@ -839,7 +839,7 @@
                 <p>HTTP traffic that cannot use Arc proxy is routed through enterprise proxy/firewall.</p>
                 <div class="flow-comparison-grid">
                     <div class="flow-column public">
-                        <h4>ðŸŒ Public Path</h4>
+                        <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
                             <img src="images/public-path-step-2-http.svg" 
                                  alt="Public Path - HTTP Traffic" 
@@ -847,13 +847,13 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>Node â†’ On-premises proxy/firewall</li>
-                                <li>Proxy â†’ Public internet â†’ Azure</li>
+                                <li>Node → On-premises proxy/firewall</li>
+                                <li>Proxy → Public internet → Azure</li>
                             </ul>
                         </div>
                     </div>
                     <div class="flow-column private">
-                        <h4>ðŸ” Private Path</h4>
+                        <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
                             <img src="images/private-path-step-2-http.svg" 
                                  alt="Private Path - HTTP Traffic" 
@@ -861,8 +861,8 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>Node â†’ Customer Firewall</li>
-                                <li>â†’ ExpressRoute â†’ Azure Firewall Explicit Proxy</li>
+                                <li>Node → Customer Firewall</li>
+                                <li>→ ExpressRoute → Azure Firewall Explicit Proxy</li>
                             </ul>
                         </div>
                     </div>
@@ -875,7 +875,7 @@
                 <p>HTTPS traffic destined for Azure endpoints is routed through the Arc proxy to Arc Gateway.</p>
                 <div class="flow-comparison-grid">
                     <div class="flow-column public">
-                        <h4>ðŸŒ Public Path</h4>
+                        <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
                             <img src="images/public-path-step-3-https.svg" 
                                  alt="Public Path - HTTPS via Arc Proxy" 
@@ -883,13 +883,13 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>Node â†’ Arc Proxy â†’ On-prem Firewall</li>
-                                <li>â†’ Public Internet â†’ Arc Gateway â†’ Azure</li>
+                                <li>Node → Arc Proxy → On-prem Firewall</li>
+                                <li>→ Public Internet → Arc Gateway → Azure</li>
                             </ul>
                         </div>
                     </div>
                     <div class="flow-column private">
-                        <h4>ðŸ” Private Path</h4>
+                        <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
                             <img src="images/private-path-step-3-https.svg" 
                                  alt="Private Path - HTTPS via Arc Proxy" 
@@ -897,8 +897,8 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>Node â†’ Arc Proxy â†’ Customer Firewall</li>
-                                <li>â†’ ExpressRoute â†’ Azure Firewall â†’ Arc Gateway â†’ Azure</li>
+                                <li>Node → Arc Proxy → Customer Firewall</li>
+                                <li>→ ExpressRoute → Azure Firewall → Arc Gateway → Azure</li>
                             </ul>
                         </div>
                     </div>
@@ -911,7 +911,7 @@
                 <p>ARB VM uses Cluster IP as its proxy endpoint to route traffic through Arc Gateway.</p>
                 <div class="flow-comparison-grid">
                     <div class="flow-column public">
-                        <h4>ðŸŒ Public Path</h4>
+                        <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
                             <img src="images/public-path-step-4-arb.svg" 
                                  alt="Public Path - ARB VM" 
@@ -919,13 +919,13 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>ARB VM â†’ Cluster IP:40343</li>
-                                <li>â†’ Arc Gateway â†’ Public Internet â†’ Azure</li>
+                                <li>ARB VM → Cluster IP:40343</li>
+                                <li>→ Arc Gateway → Public Internet → Azure</li>
                             </ul>
                         </div>
                     </div>
                     <div class="flow-column private">
-                        <h4>ðŸ” Private Path</h4>
+                        <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
                             <img src="images/private-path-step-4-arb.svg" 
                                  alt="Private Path - ARB VM" 
@@ -933,8 +933,8 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>ARB VM â†’ Cluster IP:40343</li>
-                                <li>â†’ ExpressRoute â†’ Arc Gateway â†’ Azure</li>
+                                <li>ARB VM → Cluster IP:40343</li>
+                                <li>→ ExpressRoute → Arc Gateway → Azure</li>
                             </ul>
                         </div>
                     </div>
@@ -947,7 +947,7 @@
                 <p>AKS Control Plane VMs, Worker VMs, and Pods route traffic through Cluster IP proxy.</p>
                 <div class="flow-comparison-grid">
                     <div class="flow-column public">
-                        <h4>ðŸŒ Public Path</h4>
+                        <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
                             <img src="images/public-path-step-5-aks.svg" 
                                  alt="Public Path - AKS Clusters" 
@@ -955,13 +955,13 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>AKS VMs/Pods â†’ Cluster IP:40343</li>
-                                <li>â†’ Arc Gateway â†’ Public Internet â†’ Azure</li>
+                                <li>AKS VMs/Pods → Cluster IP:40343</li>
+                                <li>→ Arc Gateway → Public Internet → Azure</li>
                             </ul>
                         </div>
                     </div>
                     <div class="flow-column private">
-                        <h4>ðŸ” Private Path</h4>
+                        <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
                             <img src="images/private-path-step-5-aks.svg" 
                                  alt="Private Path - AKS Clusters" 
@@ -969,8 +969,8 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>AKS VMs/Pods â†’ Cluster IP:40343</li>
-                                <li>â†’ ExpressRoute â†’ Arc Gateway â†’ Azure</li>
+                                <li>AKS VMs/Pods → Cluster IP:40343</li>
+                                <li>→ ExpressRoute → Arc Gateway → Azure</li>
                             </ul>
                         </div>
                     </div>
@@ -983,7 +983,7 @@
                 <p>Each Azure Local VM uses its own dedicated Arc proxy for HTTPS traffic.</p>
                 <div class="flow-comparison-grid">
                     <div class="flow-column public">
-                        <h4>ðŸŒ Public Path</h4>
+                        <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
                             <img src="images/public-path-step-6-vns.svg" 
                                  alt="Public Path - VMs" 
@@ -991,13 +991,13 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>VM â†’ Dedicated Arc Proxy</li>
-                                <li>â†’ Arc Gateway â†’ Public Internet â†’ Azure</li>
+                                <li>VM → Dedicated Arc Proxy</li>
+                                <li>→ Arc Gateway → Public Internet → Azure</li>
                             </ul>
                         </div>
                     </div>
                     <div class="flow-column private">
-                        <h4>ðŸ” Private Path</h4>
+                        <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
                             <img src="images/private-path-step-6-vms.svg" 
                                  alt="Private Path - VMs" 
@@ -1005,8 +1005,8 @@
                         </div>
                         <div class="flow-details">
                             <ul>
-                                <li>VM â†’ Dedicated Arc Proxy</li>
-                                <li>â†’ ExpressRoute â†’ Arc Gateway â†’ Azure</li>
+                                <li>VM → Dedicated Arc Proxy</li>
+                                <li>→ ExpressRoute → Arc Gateway → Azure</li>
                             </ul>
                         </div>
                     </div>
@@ -1019,7 +1019,7 @@
                 <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">Comparing the most complete configurations from each path: <strong>Public Path Option 4</strong> (Proxy + Arc Gateway) vs <strong>Private Path</strong> (Azure FW Explicit Proxy + Arc Gateway)</p>
                 <div class="flow-comparison-grid">
                     <div class="flow-column public">
-                        <h4>ðŸŒ Public Path Routes</h4>
+                        <h4>🌐 Public Path Routes</h4>
                         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Option 4: On-prem Proxy + Arc Gateway</p>
                         <div class="routing-cards">
                             <div class="component-card">
@@ -1028,20 +1028,20 @@
                             </div>
                             <div class="component-card">
                                 <h4>HTTP Traffic</h4>
-                                <p>On-prem proxy â†’ Corporate FW â†’ Public internet</p>
+                                <p>On-prem proxy → Corporate FW → Public internet</p>
                             </div>
                             <div class="component-card">
                                 <h4>HTTPS Traffic</h4>
-                                <p>Arc Proxy â†’ Corporate FW â†’ Public internet â†’ Arc Gateway</p>
+                                <p>Arc Proxy → Corporate FW → Public internet → Arc Gateway</p>
                             </div>
                             <div class="component-card">
                                 <h4>ARB/AKS Traffic</h4>
-                                <p>Cluster IP â†’ Arc Proxy â†’ Corporate FW â†’ Public internet â†’ Arc Gateway</p>
+                                <p>Cluster IP → Arc Proxy → Corporate FW → Public internet → Arc Gateway</p>
                             </div>
                         </div>
                     </div>
                     <div class="flow-column private">
-                        <h4>ðŸ” Private Path Routes</h4>
+                        <h4>🔐 Private Path Routes</h4>
                         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Azure FW Explicit Proxy + Arc Gateway</p>
                         <div class="routing-cards">
                             <div class="component-card">
@@ -1050,15 +1050,15 @@
                             </div>
                             <div class="component-card">
                                 <h4>HTTP Traffic</h4>
-                                <p>On-prem host â†’ Corporate FW â†’ ExpressRoute â†’ Azure FW Explicit Proxy</p>
+                                <p>On-prem host → Corporate FW → ExpressRoute → Azure FW Explicit Proxy</p>
                             </div>
                             <div class="component-card">
                                 <h4>HTTPS Traffic</h4>
-                                <p>Arc Proxy â†’ ExpressRoute â†’ Azure FW â†’ Arc Gateway</p>
+                                <p>Arc Proxy → ExpressRoute → Azure FW → Arc Gateway</p>
                             </div>
                             <div class="component-card">
                                 <h4>ARB/AKS Traffic</h4>
-                                <p>Cluster IP â†’ Arc Proxy â†’ ExpressRoute â†’ Arc Gateway</p>
+                                <p>Cluster IP → Arc Proxy → ExpressRoute → Arc Gateway</p>
                             </div>
                         </div>
                     </div>
@@ -1075,7 +1075,7 @@
             <div class="traffic-categories">
                 <div class="traffic-card blue">
                     <div class="traffic-header">
-                        <span class="traffic-icon">ðŸŸ¦</span>
+                        <span class="traffic-icon">🟦</span>
                         <h4>Bypass Traffic</h4>
                     </div>
                     <div class="traffic-body">
@@ -1091,7 +1091,7 @@
 
                 <div class="traffic-card yellow">
                     <div class="traffic-header">
-                        <span class="traffic-icon">ðŸŸ¨</span>
+                        <span class="traffic-icon">🟨</span>
                         <h4>HTTP Traffic</h4>
                     </div>
                     <div class="traffic-body">
@@ -1106,7 +1106,7 @@
 
                 <div class="traffic-card green">
                     <div class="traffic-header">
-                        <span class="traffic-icon">ðŸŸ©</span>
+                        <span class="traffic-icon">🟩</span>
                         <h4>HTTPS via Arc Proxy</h4>
                     </div>
                     <div class="traffic-body">
@@ -1121,7 +1121,7 @@
 
                 <div class="traffic-card red">
                     <div class="traffic-header">
-                        <span class="traffic-icon">ðŸŸ¥</span>
+                        <span class="traffic-icon">🟥</span>
                         <h4>Third-party HTTPS</h4>
                     </div>
                     <div class="traffic-body">
@@ -1137,7 +1137,7 @@
 
                 <div class="traffic-card purple">
                     <div class="traffic-header">
-                        <span class="traffic-icon">ðŸ“˜</span>
+                        <span class="traffic-icon">📘</span>
                         <h4>ARB/AKS via Cluster IP</h4>
                     </div>
                     <div class="traffic-body">
@@ -1160,7 +1160,7 @@
 
             <div class="flow-comparison-grid">
                 <div class="flow-column public">
-                    <h4>ðŸŒ Public Path</h4>
+                    <h4>🌐 Public Path</h4>
                     <div class="diagram-container">
                         <img src="images/public-path-step-5bis-akssubnet.svg" 
                              alt="AKS Clusters on Separated Subnet - Public Path" 
@@ -1171,7 +1171,7 @@
                     </div>
                 </div>
                 <div class="flow-column private">
-                    <h4>ðŸ” Private Path</h4>
+                    <h4>🔐 Private Path</h4>
                     <div class="diagram-container private-path">
                         <img src="images/private-path-step-5bis-akssubnet.svg" 
                              alt="AKS Clusters on Separated Subnet - Private Path" 
@@ -1196,19 +1196,19 @@
                     <tr>
                         <td><strong>40343</strong></td>
                         <td>HTTPS/HTTP Connect</td>
-                        <td>AKS â†’ Cluster IP</td>
+                        <td>AKS → Cluster IP</td>
                         <td>Arc Gateway proxy (L4 and L7)</td>
                     </tr>
                     <tr>
                         <td><strong>55000</strong></td>
                         <td>TCP</td>
-                        <td>AKS â†’ Cluster IP</td>
+                        <td>AKS → Cluster IP</td>
                         <td>Communication</td>
                     </tr>
                     <tr>
                         <td><strong>65000</strong></td>
                         <td>TCP</td>
-                        <td>AKS â†’ Cluster IP</td>
+                        <td>AKS → Cluster IP</td>
                         <td>Communication</td>
                     </tr>
                     <tr>
@@ -1227,7 +1227,7 @@
             </table>
 
             <div class="info-box">
-                <h4>ðŸ“Œ Additional FQDN Endpoints</h4>
+                <h4>📌 Additional FQDN Endpoints</h4>
                 <p>Although Arc Gateway reduces the HTTPS endpoints required, you must still allow access to endpoints not supported by Arc Gateway. Refer to the <a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/arc-gateway-aks-arc#confirm-access-to-required-urls" target="_blank">AKS subnet required FQDN endpoints</a> documentation.</p>
             </div>
         </section>
@@ -1240,7 +1240,7 @@
             <p>When defining your proxy bypass string for Arc initialization or the Companion App, include:</p>
 
             <div class="config-section">
-                <h4>âœ… Required Bypass Entries</h4>
+                <h4>✅ Required Bypass Entries</h4>
                 <ul class="config-list">
                     <li>IP address of each Azure Local machine</li>
                     <li>Cluster IP address</li>
@@ -1255,7 +1255,7 @@
             </div>
 
             <div class="config-section warning">
-                <h4>âŒ Not Supported</h4>
+                <h4>❌ Not Supported</h4>
                 <ul class="config-list">
                     <li>CIDR notation for subnets</li>
                     <li><code>&lt;local&gt;</code> strings in bypass list</li>
@@ -1281,9 +1281,9 @@ storageaccount.blob.core.windows.net</code></pre>
 
             <!-- Option 1: No Proxy, No Arc Gateway -->
             <div class="config-section">
-                <h4>ðŸ“œ Option 1: No Proxy, No Arc Gateway</h4>
+                <h4>📜 Option 1: No Proxy, No Arc Gateway</h4>
                 <p>Simplest configuration - direct connection to Azure through firewall only.</p>
-                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-without-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-without-proxy" target="_blank" class="doc-link">ðŸ“– Full Documentation â†—</a>
+                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-without-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-without-proxy" target="_blank" class="doc-link">📖 Full Documentation ↗</a>
             </div>
             <div class="code-block">
                 <h4>Set Parameters</h4>
@@ -1306,9 +1306,9 @@ Invoke-AzStackHciArcInitialization `
 
             <!-- Option 2: Proxy, No Arc Gateway -->
             <div class="config-section">
-                <h4>ðŸ“œ Option 2: Proxy, No Arc Gateway</h4>
+                <h4>📜 Option 2: Proxy, No Arc Gateway</h4>
                 <p>Traffic routes through enterprise proxy. Proxy handles URL filtering and logging.</p>
-                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-without-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank" class="doc-link">ðŸ“– Full Documentation â†—</a>
+                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-without-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank" class="doc-link">📖 Full Documentation ↗</a>
             </div>
             <div class="code-block">
                 <h4>Set Parameters</h4>
@@ -1343,9 +1343,9 @@ Invoke-AzStackHciArcInitialization `
 
             <!-- Option 3: No Proxy, Arc Gateway -->
             <div class="config-section">
-                <h4>ðŸ“œ Option 3: No Proxy, Arc Gateway</h4>
+                <h4>📜 Option 3: No Proxy, Arc Gateway</h4>
                 <p>Arc Gateway handles Azure connectivity. Reduces firewall rules to fewer than 30 endpoints.</p>
-                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-without-proxy" target="_blank" class="doc-link">ðŸ“– Full Documentation â†—</a>
+                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-without-proxy" target="_blank" class="doc-link">📖 Full Documentation ↗</a>
             </div>
             <div class="code-block">
                 <h4>Step 1: Get Arc Gateway ID from Azure Portal</h4>
@@ -1379,9 +1379,9 @@ Invoke-AzStackHciArcInitialization `
 
             <!-- Option 4: Proxy with Arc Gateway -->
             <div class="config-section">
-                <h4>ðŸ“œ Option 4: Proxy + Arc Gateway</h4>
+                <h4>📜 Option 4: Proxy + Arc Gateway</h4>
                 <p>Best of both worlds: Arc Gateway for HTTPS to Azure, enterprise proxy for HTTP and third-party traffic.</p>
-                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank" class="doc-link">ðŸ“– Full Documentation â†—</a>
+                <a href="https://learn.microsoft.com/en-us/azure/azure-local/deploy/deployment-with-azure-arc-gateway?view=azloc-2601&tabs=script&pivots=register-proxy" target="_blank" class="doc-link">📖 Full Documentation ↗</a>
             </div>
             <div class="code-block">
                 <h4>Step 1: Get Arc Gateway ID from Azure Portal</h4>
@@ -1427,7 +1427,7 @@ Invoke-AzStackHciArcInitialization `
 
             <!-- Verification -->
             <div class="config-section">
-                <h4>âœ… Verify Registration</h4>
+                <h4>✅ Verify Registration</h4>
                 <p>After registration completes, verify the setup:</p>
             </div>
             <div class="code-block">
@@ -1449,7 +1449,7 @@ Invoke-AzStackHciArcInitialization `
             </div>
 
             <div class="info-box">
-                <h4>ðŸ’¡ Important Notes</h4>
+                <h4>💡 Important Notes</h4>
                 <ul>
                     <li>Run these scripts as <strong>local administrator</strong> on each Azure Local node</li>
                     <li>During registration, you'll need to authenticate with your Azure account using a device code</li>
