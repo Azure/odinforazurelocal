@@ -159,7 +159,7 @@ function buildRackFrame(scene, offsetX) {
     // U-slot rail markers (thin horizontal lines on front posts)
     var railGeo = new THREE.BoxGeometry(RACK.RAIL_DEPTH, 0.002, RACK.POST_SIZE);
     var baseY = 0.06; // bottom offset inside frame
-    for (var u = 0; u <= RACK.TOTAL_U; u++) {
+    for (let u = 0; u <= RACK.TOTAL_U; u++) {
         var y = baseY + u * RACK.U_HEIGHT;
         [-RACK.WIDTH / 2 + RACK.POST_SIZE + RACK.RAIL_DEPTH / 2,
          RACK.WIDTH / 2 - RACK.POST_SIZE - RACK.RAIL_DEPTH / 2].forEach(function(x) {
@@ -214,7 +214,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
     var diskMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.4 });
     var diskHandleMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 });
 
-    for (var d = 0; d < frontDisks; d++) {
+    for (let d = 0; d < frontDisks; d++) {
         var dx = diskStartX + d * (diskSlotW + 0.003) + diskSlotW / 2;
         var slot = new THREE.Mesh(diskSlotGeo, diskMat);
         slot.position.set(dx, y, frontZ - 0.004);
@@ -279,7 +279,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
     var psuH = deviceHeight * 0.7;
     var psuGeo = new THREE.BoxGeometry(psuW, psuH, 0.006);
     var psuMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 });
-    for (var p = 0; p < 2; p++) {
+    for (let p = 0; p < 2; p++) {
         var psuX = cx + deviceWidth / 2 - 0.02 - p * (psuW + 0.008) - psuW / 2;
         var psu = new THREE.Mesh(psuGeo, psuMat);
         psu.position.set(psuX, y - deviceHeight * 0.05, backZ + 0.005);
@@ -298,7 +298,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
     var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
     var numPorts = portCount || 4;
     var portStartX = cx - deviceWidth / 2 + 0.03;
-    for (var pt = 0; pt < numPorts; pt++) {
+    for (let pt = 0; pt < numPorts; pt++) {
         var port = new THREE.Mesh(portGeo, portMat);
         port.position.set(portStartX + pt * (portW + 0.006), y + deviceHeight * 0.15, backZ + 0.005);
         scene.add(port);
@@ -311,7 +311,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
 
     // Ventilation grille (series of thin horizontal lines, center-left of back)
     var ventMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.1 });
-    for (var v = 0; v < 6; v++) {
+    for (let v = 0; v < 6; v++) {
         var ventGeo = new THREE.BoxGeometry(deviceWidth * 0.25, 0.002, 0.002);
         var vent = new THREE.Mesh(ventGeo, ventMat);
         vent.position.set(cx - deviceWidth * 0.05, y - deviceHeight * 0.2 + v * 0.008, backZ + 0.004);
@@ -361,7 +361,7 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
 
     // Status LEDs on front (right side)
     var ledGeo = new THREE.BoxGeometry(0.004, 0.004, 0.001);
-    for (var li = 0; li < 3; li++) {
+    for (let li = 0; li < 3; li++) {
         var led = new THREE.Mesh(ledGeo, ledGreen);
         led.position.set(cx + deviceWidth / 2 - 0.02 - li * 0.008, y + deviceHeight / 2 - 0.005, frontZ - 0.004);
         scene.add(led);
@@ -384,9 +384,9 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
     var portSpacing = (deviceWidth - 0.08) / portsPerRow;
     var rowStartX = cx - deviceWidth / 2 + 0.04;
 
-    for (var row = 0; row < 2; row++) {
+    for (let row = 0; row < 2; row++) {
         var rowY = y + (row === 0 ? 0.006 : -0.006);
-        for (var ep = 0; ep < portsPerRow; ep++) {
+        for (let ep = 0; ep < portsPerRow; ep++) {
             var epx = rowStartX + ep * portSpacing;
             // Port housing
             var ethPort = new THREE.Mesh(ethGeo, portMat);
@@ -404,7 +404,7 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
     var qsfpH = 0.012;
     var qsfpGeo = new THREE.BoxGeometry(qsfpW, qsfpH, 0.004);
     var qsfpMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 });
-    for (var q = 0; q < 4; q++) {
+    for (let q = 0; q < 4; q++) {
         var qsfp = new THREE.Mesh(qsfpGeo, qsfpMat);
         qsfp.position.set(cx - deviceWidth / 2 + 0.04 + q * (qsfpW + 0.008), y - deviceHeight * 0.2, backZ + 0.005);
         scene.add(qsfp);
@@ -419,7 +419,7 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
 
     // Fan vents (center of rear)
     var ventMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.1 });
-    for (var fv = 0; fv < 4; fv++) {
+    for (let fv = 0; fv < 4; fv++) {
         var ventLineGeo = new THREE.BoxGeometry(deviceWidth * 0.15, 0.002, 0.002);
         var ventLine = new THREE.Mesh(ventLineGeo, ventMat);
         ventLine.position.set(cx + 0.05, y - deviceHeight * 0.15 + fv * 0.006, backZ + 0.004);
@@ -469,7 +469,7 @@ function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
 
     // Status LEDs
     var ledGeo = new THREE.BoxGeometry(0.004, 0.004, 0.001);
-    for (var li = 0; li < 2; li++) {
+    for (let li = 0; li < 2; li++) {
         var led = new THREE.Mesh(ledGeo, ledGreen);
         led.position.set(cx + deviceWidth / 2 - 0.02 - li * 0.008, y + deviceHeight / 2 - 0.005, frontZ - 0.004);
         scene.add(led);
@@ -491,7 +491,7 @@ function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
     var portSpacing = (deviceWidth - 0.08) / portsPerRow;
     var rowStartX = cx - deviceWidth / 2 + 0.04;
 
-    for (var ep = 0; ep < portsPerRow; ep++) {
+    for (let ep = 0; ep < portsPerRow; ep++) {
         var epx = rowStartX + ep * portSpacing;
         var ethPort = new THREE.Mesh(ethGeo, portMat);
         ethPort.position.set(epx, y, backZ + 0.004);
@@ -551,7 +551,7 @@ function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
 
     // Status LEDs
     var ledGeo = new THREE.BoxGeometry(0.004, 0.004, 0.001);
-    for (var li = 0; li < 3; li++) {
+    for (let li = 0; li < 3; li++) {
         var led = new THREE.Mesh(ledGeo, ledGreen);
         led.position.set(cx + deviceWidth / 2 - 0.02 - li * 0.008, y + deviceHeight / 2 - 0.005, frontZ - 0.004);
         scene.add(led);
@@ -570,7 +570,7 @@ function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
     var portsPerRow = 16;
     var portSpacing = (deviceWidth - 0.08) / portsPerRow;
     var rowStartX = cx - deviceWidth / 2 + 0.04;
-    for (var fp = 0; fp < portsPerRow; fp++) {
+    for (let fp = 0; fp < portsPerRow; fp++) {
         var fpx = rowStartX + fp * portSpacing;
         var sfp = new THREE.Mesh(sfpGeo, portMat);
         sfp.position.set(fpx, y, backZ + 0.004);
@@ -622,9 +622,9 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     var bayH = deviceHeight * 0.3;
     var bayRows = 2;
     var baysPerRow = 12;
-    for (var row = 0; row < bayRows; row++) {
+    for (let row = 0; row < bayRows; row++) {
         var bayY = y + deviceHeight * 0.15 - row * (bayH + 0.004);
-        for (var b = 0; b < baysPerRow; b++) {
+        for (let b = 0; b < baysPerRow; b++) {
             var bayX = cx - deviceWidth / 2 + 0.02 + b * (bayW + 0.002);
             var bayGeo = new THREE.BoxGeometry(bayW, bayH, 0.002);
             var bayMesh = new THREE.Mesh(bayGeo, new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6 }));
@@ -642,7 +642,7 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
 
     // Status LEDs (top-right of front)
     var ledGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
-    for (var li = 0; li < 4; li++) {
+    for (let li = 0; li < 4; li++) {
         var led = new THREE.Mesh(ledGeo, li < 2 ? ledGreen : ledBlue);
         led.position.set(cx + deviceWidth / 2 - 0.02 - li * 0.01, y + deviceHeight / 2 - 0.008, frontZ - 0.004);
         scene.add(led);
@@ -658,9 +658,9 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     var fcPortW = 0.010;
     var fcPortH = 0.008;
     var fcPortGeo = new THREE.BoxGeometry(fcPortW, fcPortH, 0.003);
-    for (var pr = 0; pr < 2; pr++) {
+    for (let pr = 0; pr < 2; pr++) {
         var portY = y + deviceHeight * 0.15 - pr * (fcPortH + 0.012);
-        for (var fp = 0; fp < 8; fp++) {
+        for (let fp = 0; fp < 8; fp++) {
             var fpx = cx - deviceWidth / 2 + 0.04 + fp * (fcPortW + 0.008);
             var sfp = new THREE.Mesh(fcPortGeo, portMat);
             sfp.position.set(fpx, portY, backZ + 0.004);
@@ -673,7 +673,7 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     var psuH = deviceHeight * 0.5;
     var psuGeo = new THREE.BoxGeometry(psuW, psuH, 0.006);
     var psuMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.4, metalness: 0.6 });
-    for (var p = 0; p < 2; p++) {
+    for (let p = 0; p < 2; p++) {
         var psuX = cx + deviceWidth / 2 - 0.02 - p * (psuW + 0.008) - psuW / 2;
         var psu = new THREE.Mesh(psuGeo, psuMat);
         psu.position.set(psuX, y - deviceHeight * 0.1, backZ + 0.005);
@@ -717,7 +717,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     var spineGap = rHeight * 0.4; // vertical gap between stacked spine switches
     var baseY = RACK.OUTER_HEIGHT + 0.35;
 
-    for (var si = 0; si < spineCount; si++) {
+    for (let si = 0; si < spineCount; si++) {
         var spineY = baseY + si * (rHeight + spineGap);
 
         var routerGeo = new THREE.BoxGeometry(rWidth, rHeight, rDepth);
@@ -735,7 +735,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
 
         // Status LEDs on front
         var rLedGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
-        for (var rl = 0; rl < 3; rl++) {
+        for (let rl = 0; rl < 3; rl++) {
             var rLed = new THREE.Mesh(rLedGeo, ledGreen);
             rLed.position.set(routerX + rWidth / 2 - 0.02 - rl * 0.01, spineY + rHeight / 2 - 0.006, frontZ - 0.003);
             scene.add(rLed);
@@ -750,7 +750,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         var rpW = 0.014;
         var rpH = 0.012;
         var rpGeoPort = new THREE.BoxGeometry(rpW, rpH, 0.003);
-        for (var rp = 0; rp < 8; rp++) {
+        for (let rp = 0; rp < 8; rp++) {
             var rpx = routerX - rWidth / 2 + 0.04 + rp * (rpW + 0.008);
             var port = new THREE.Mesh(rpGeoPort, portMat);
             port.position.set(rpx, spineY, backRZ + 0.004);
@@ -791,7 +791,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
             new THREE.Vector3(endPos.x, endPos.y, endPos.z)
         ];
         // Use LineCurve segments joined together for sharp 90° bends
-        for (var i = 0; i < points.length - 1; i++) {
+        for (let i = 0; i < points.length - 1; i++) {
             var segGeo = new THREE.TubeGeometry(
                 new THREE.LineCurve3(points[i], points[i + 1]),
                 2, cableRadius, 6, false
@@ -822,7 +822,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
 
     // ── Blue cables: Management/Compute Trunks (each rack's ToRs → Spine) ──
     // Connect every rack's ToR to the bottom spine switch
-    for (var ri = 0; ri < allRackCount; ri++) {
+    for (let ri = 0; ri < allRackCount; ri++) {
         var rackX_i = rackStartX + ri * (RACK.WIDTH + RACK.GAP_BETWEEN);
         var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
         makeCable(
@@ -859,7 +859,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
             new THREE.Vector3(endX, topY, z),
             new THREE.Vector3(endX, portY, z)
         ];
-        for (var i = 0; i < pts.length - 1; i++) {
+        for (let i = 0; i < pts.length - 1; i++) {
             var seg = new THREE.TubeGeometry(
                 new THREE.LineCurve3(pts[i], pts[i + 1]),
                 2, smbCableR, 6, false
@@ -951,7 +951,7 @@ function placeStandardCoreNetwork(scene, rackX, torCount, nodeCount) {
 
     // Status LEDs on front
     var rLedGeo = new THREE.BoxGeometry(0.005, 0.005, 0.001);
-    for (var rl = 0; rl < 3; rl++) {
+    for (let rl = 0; rl < 3; rl++) {
         var rLed = new THREE.Mesh(rLedGeo, ledGreen);
         rLed.position.set(routerX + rWidth / 2 - 0.02 - rl * 0.01, routerY + rHeight / 2 - 0.006, frontZ - 0.003);
         scene.add(rLed);
@@ -966,7 +966,7 @@ function placeStandardCoreNetwork(scene, rackX, torCount, nodeCount) {
     var rpW = 0.014;
     var rpH = 0.012;
     var rpGeoPort = new THREE.BoxGeometry(rpW, rpH, 0.003);
-    for (var rp = 0; rp < 8; rp++) {
+    for (let rp = 0; rp < 8; rp++) {
         var rpx = routerX - rWidth / 2 + 0.04 + rp * (rpW + 0.008);
         var port = new THREE.Mesh(rpGeoPort, portMat);
         port.position.set(rpx, routerY, backRZ + 0.004);
@@ -1014,7 +1014,7 @@ function placeStandardCoreNetwork(scene, rackX, torCount, nodeCount) {
             new THREE.Vector3(endPos.x, topY, endPos.z),
             new THREE.Vector3(endPos.x, endPos.y, endPos.z)
         ];
-        for (var i = 0; i < points.length - 1; i++) {
+        for (let i = 0; i < points.length - 1; i++) {
             var segGeo = new THREE.TubeGeometry(
                 new THREE.LineCurve3(points[i], points[i + 1]),
                 2, cableRadius, 6, false
@@ -1139,7 +1139,7 @@ function placeEdgeAppliance(scene, surfaceY, posX, label, isGpu, diskCount, port
     var diskMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.6, metalness: 0.4 });
     var diskHandleMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.5 });
     var diskStartX = posX - appW / 2 + 0.01;
-    for (var d = 0; d < numDisks; d++) {
+    for (let d = 0; d < numDisks; d++) {
         var dx = diskStartX + d * (diskSlotW + 0.004) + diskSlotW / 2;
         var slot = new THREE.Mesh(diskSlotGeo, diskMat);
         slot.position.set(dx, y, frontZ - 0.002);
@@ -1216,7 +1216,7 @@ function placeEdgeAppliance(scene, surfaceY, posX, label, isGpu, diskCount, port
     var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
     var numPorts = portCount || 2;
     var portStartX = posX - appW / 2 + 0.013;
-    for (var pt = 0; pt < numPorts; pt++) {
+    for (let pt = 0; pt < numPorts; pt++) {
         var port = new THREE.Mesh(portGeo, portMat);
         port.position.set(portStartX + pt * (portW + 0.003), y + appH * 0.1, backZ + 0.003);
         scene.add(port);
@@ -1230,7 +1230,7 @@ function placeEdgeAppliance(scene, surfaceY, posX, label, isGpu, diskCount, port
 
     // Ventilation grille (3 thin slots on back)
     var ventMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9, metalness: 0.1 });
-    for (var v = 0; v < 3; v++) {
+    for (let v = 0; v < 3; v++) {
         var ventGeo = new THREE.BoxGeometry(appW * 0.2, 0.001, 0.001);
         var vent = new THREE.Mesh(ventGeo, ventMat);
         vent.position.set(posX - appW * 0.05, y - appH * 0.15 + v * 0.004, backZ + 0.002);
@@ -1279,7 +1279,7 @@ function placeEdgeSwitch(scene, surfaceY, posX, posZ, label) {
     var portGeo = new THREE.BoxGeometry(0.003, 0.003, 0.001);
     var portMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.5 });
     var portStartX = posX - swW / 2 + 0.01;
-    for (var p = 0; p < 8; p++) {
+    for (let p = 0; p < 8; p++) {
         var port = new THREE.Mesh(portGeo, portMat);
         port.position.set(portStartX + p * 0.006, y, posZ - swD / 2 - 0.001);
         scene.add(port);
@@ -1338,7 +1338,7 @@ function renderRack3D(config) {
     if (isDisaggregated) {
         var nodesPerRack = Math.ceil(nodeCount / rackCount);
         var remaining = nodeCount;
-        for (var dr = 0; dr < rackCount; dr++) {
+        for (let dr = 0; dr < rackCount; dr++) {
             var rackNodes = Math.min(nodesPerRack, remaining);
             racks.push({ nodes: rackNodes, tor: rackNodes > 1 ? 2 : 1 });
             remaining -= rackNodes;
@@ -1468,7 +1468,7 @@ function renderRack3D(config) {
         var totalAppWidth = nodeCount * appSpacing;
         var appStartX = -totalAppWidth / 2 + appSpacing / 2;
 
-        for (var ea = 0; ea < nodeCount; ea++) {
+        for (let ea = 0; ea < nodeCount; ea++) {
             var appX = appStartX + ea * appSpacing;
             var appLabel = 'Node ' + (ea + 1);
             placeEdgeAppliance(_rack3d.scene, surface.surfaceY, appX, appLabel,
@@ -1483,7 +1483,7 @@ function renderRack3D(config) {
             var cableMat = new THREE.MeshBasicMaterial({ color: 0x3399ff, transparent: true, opacity: 0.7 });
             var switchZ = 0.14;
             var cableY = surface.surfaceY + 0.004; // just above table surface
-            for (var ec = 0; ec < nodeCount; ec++) {
+            for (let ec = 0; ec < nodeCount; ec++) {
                 var ecX = appStartX + ec * appSpacing;
                 // Cable: exits back of appliance, drops to table, routes to switch
                 var cableGeo = new THREE.TubeGeometry(
@@ -1576,7 +1576,7 @@ function renderRack3D(config) {
         infoText.innerHTML = 'Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.';
     }
 
-    for (var r = 0; r < rackCount; r++) {
+    for (let r = 0; r < rackCount; r++) {
         // For rack-aware or disaggregated, build in reverse order so Rack 1 appears on viewer's left
         var rackIndex = (isRackAware || isDisaggregated) ? (rackCount - 1 - r) : r;
         var offsetX = startX + r * (RACK.WIDTH + RACK.GAP_BETWEEN);
@@ -1584,7 +1584,7 @@ function renderRack3D(config) {
         var rackInfo = racks[rackIndex];
 
         // Place ToR switches at top of rack (U41, U42)
-        for (var t = 0; t < rackInfo.tor; t++) {
+        for (let t = 0; t < rackInfo.tor; t++) {
             var torU = RACK.TOTAL_U - t; // 42, 41
             var torNum = (isRackAware || isDisaggregated) ? (rackIndex * 2 + t + 1) : (t + 1);
             var torLabel = 'ToR ' + torNum;
@@ -1602,7 +1602,7 @@ function renderRack3D(config) {
         if (isDisaggregated && config.disaggStorageType === 'fc_san') {
             fcSwitchCount = 2;
             var fcBaseU = bmcU - 1;
-            for (var fc = 0; fc < fcSwitchCount; fc++) {
+            for (let fc = 0; fc < fcSwitchCount; fc++) {
                 var fcU = fcBaseU - fc;
                 var fcNum = (rackIndex * 2) + fc + 1;
                 var fcLabel = 'Fibre Channel ' + fcNum;
@@ -1621,8 +1621,8 @@ function renderRack3D(config) {
         var topServerU = RACK.TOTAL_U - rackInfo.tor - 1 - fcSwitchCount; // first available U below switches + BMC + FC
         var bottomLimit = sanApplianceU + 1; // don't overlap SAN appliance at bottom
         var nodeOffset = 0;
-        for (var pr = 0; pr < rackIndex; pr++) { nodeOffset += racks[pr].nodes; }
-        for (var n = 0; n < rackInfo.nodes; n++) {
+        for (let pr = 0; pr < rackIndex; pr++) { nodeOffset += racks[pr].nodes; }
+        for (let n = 0; n < rackInfo.nodes; n++) {
             var serverStartU = topServerU - (n * 2); // 2U per server, top-down
             if (serverStartU < bottomLimit) break;
             var color = COLORS.SERVER;

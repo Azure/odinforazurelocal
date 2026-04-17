@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     // Expose a minimal API for report.html buttons.
     window.downloadReportHtml = downloadReportHtml;
     window.downloadReportWord = downloadReportWord;

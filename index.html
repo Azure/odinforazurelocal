@@ -79,6 +79,7 @@
             right: 0;
             z-index: 1000;
             background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
+            -webkit-backdrop-filter: blur(20px);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--glass-border);
             padding: 0 24px;
@@ -579,7 +580,7 @@
             <div id="page-statistics">
                 <div class="stats-container">
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
                         </svg>
@@ -587,7 +588,7 @@
                         <span id="stat-page-views" class="stat-value">—</span>
                     </div>
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
                         </svg>
@@ -595,7 +596,7 @@
                         <span id="stat-design-docs" class="stat-value">—</span>
                     </div>
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                             <line x1="8" y1="21" x2="16" y2="21"/>
                             <line x1="12" y1="17" x2="12" y2="21"/>
@@ -604,7 +605,7 @@
                         <span id="stat-sizer-calcs" class="stat-value">—</span>
                     </div>
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                         </svg>
                         <span class="stat-label">ARM Deployments:</span>
@@ -640,7 +641,7 @@
                         <div class="option-card" data-value="connected"
                             onclick="selectOption('scenario', 'connected')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke-width="1.5" />
                                 </svg>
@@ -653,7 +654,7 @@
                         <div class="option-card" data-value="disconnected"
                             onclick="selectOption('scenario', 'disconnected')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.5"
                                         fill="rgba(255, 255, 255, 0.05)" />
                                 </svg>
@@ -665,7 +666,7 @@
                         <!-- Option 3: Multi-Rack -->
                         <div class="option-card" data-value="rackscale" onclick="selectOption('scenario', 'rackscale')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 2h5v20H4zM15 2h5v20h-5z" stroke-width="1.5" />
                                     <path d="M9 12h6" stroke-width="1.5" stroke-dasharray="2 2" />
                                 </svg>
@@ -678,7 +679,7 @@
                         <div class="option-card" data-value="m365local"
                             onclick="selectOption('scenario', 'm365local')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
                                     <path d="M3 9h18M9 3v18" stroke-width="1.5" />
                                     <circle cx="15" cy="15" r="3" stroke-width="1.5" fill="rgba(59, 130, 246, 0.1)" />
@@ -718,7 +719,7 @@
                             <div class="option-card" data-value="hyperconverged"
                                 onclick="selectOption('architecture', 'hyperconverged')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="2" y="4" width="20" height="16" rx="2" stroke-width="1.5" />
                                         <line x1="2" y1="12" x2="22" y2="12" stroke-width="1.5" />
                                         <ellipse cx="17" cy="7" rx="4" ry="2" stroke-width="1.2" fill="rgba(59, 130, 246, 0.1)" />
@@ -734,7 +735,7 @@
                             <div class="option-card" data-value="disaggregated"
                                 onclick="selectOption('architecture', 'disaggregated')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="1" y="3" width="7" height="18" rx="1" stroke-width="1.2" />
                                         <rect x="10" y="3" width="4" height="18" rx="1" stroke-width="1.2" />
                                         <rect x="16" y="3" width="7" height="18" rx="1" stroke-width="1.2" />
@@ -767,7 +768,7 @@
                     <div class="options-grid">
                         <div class="option-card" data-value="management" onclick="selectDisconnectedOption('clusterRole', 'management')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="rgba(239, 68, 68, 0.08)"/>
                                     <circle cx="12" cy="10" r="3"/>
                                     <path d="M12 13v3"/>
@@ -778,7 +779,7 @@
                         </div>
                         <div class="option-card" data-value="workload" onclick="selectDisconnectedOption('clusterRole', 'workload')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <rect x="2" y="4" width="20" height="16" rx="2"/>
                                     <line x1="2" y1="12" x2="22" y2="12"/>
                                     <circle cx="7" cy="8" r="1.5" fill="currentColor"/>
@@ -814,7 +815,7 @@
                         <!-- Confirm / Confirmed UI -->
                         <div id="fqdn-confirm-container" style="margin-top: 1.25rem;">
                             <button id="fqdn-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmFqdn()" disabled>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                 Confirm Autonomous Cloud FQDN
                             </button>
                             <p id="fqdn-confirm-hint" style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Enter a valid FQDN and confirm before proceeding.</p>
@@ -853,7 +854,7 @@
                     <div class="options-grid">
                         <div class="option-card" data-value="fc_san" onclick="selectDisaggOption('storageType', 'fc_san')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
                                     <path d="M7 8h10M7 12h10M7 16h6" stroke-width="1.5" />
                                     <circle cx="18" cy="16" r="2" stroke-width="1.5" fill="rgba(124, 58, 237, 0.2)" />
@@ -865,7 +866,7 @@
                         <div class="option-card" data-value="iscsi_4nic" onclick="selectDisaggOption('storageType', 'iscsi_4nic')">
                             <span class="coming-soon-badge">Coming Soon</span>
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
                                     <path d="M7 8h10M7 12h10M7 16h10" stroke-width="1.5" />
                                 </svg>
@@ -877,7 +878,7 @@
                         <div class="option-card" data-value="iscsi_6nic" onclick="selectDisaggOption('storageType', 'iscsi_6nic')">
                             <span class="coming-soon-badge">Coming Soon</span>
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
                                     <path d="M7 8h10M7 12h10" stroke-width="1.5" />
                                     <path d="M7 16h10" stroke-width="1.5" stroke-dasharray="3 2" />
@@ -904,7 +905,7 @@
                     <div class="options-grid">
                         <div class="option-card" data-value="false" onclick="selectDisaggOption('backup', false)">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M8 12h8" stroke-width="2" />
                                 </svg>
@@ -914,7 +915,7 @@
                         </div>
                         <div class="option-card" data-value="true" onclick="selectDisaggOption('backup', true)">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M8 12h8M12 8v8" stroke-width="2" />
                                 </svg>
@@ -1009,7 +1010,7 @@
                             <!-- Dynamically populated -->
                         </div>
                         <button type="button" id="da4-add-workload-btn" onclick="addDisaggTenantNetwork()" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                             Add Tenant Network
                         </button>
                     </div>
@@ -1017,7 +1018,7 @@
                     <!-- Confirm DA4 -->
                     <div id="da4-confirm-container" style="margin-top: 1.5rem; text-align: center;">
                         <button id="da4-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggVlanConfig()">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="20 6 9 17 4 12"></polyline>
                             </svg>
                             Confirm VLAN Configuration
@@ -1070,7 +1071,7 @@
                     <!-- Confirm DA6 -->
                     <div id="da6-confirm-container" style="margin-top: 1.5rem; text-align: center;">
                         <button id="da6-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggIpConfig()">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="20 6 9 17 4 12"></polyline>
                             </svg>
                             Confirm IP Routing Configuration
@@ -1137,7 +1138,7 @@
                         </div>
                         <div id="da8-port-config-confirm-container" class="hidden" style="margin-top: 1.5rem; text-align: center;">
                             <button id="da8-port-config-confirm-btn" class="confirm-port-config-btn" onclick="confirmDisaggPortConfig()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                                 Confirm Port Configuration
@@ -1177,7 +1178,7 @@
                             </div>
                             <div style="margin-top:0.9rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
                                 <button id="da8-adapter-mapping-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmDisaggAdapterMapping()">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
+                                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
                                 </button>
                                 <button id="da8-adapter-mapping-reset-btn" type="button" class="report-action-button" onclick="resetDisaggAdapterMapping()" style="background:rgba(239,68,68,0.2);">Reset</button>
                                 <div id="da8-adapter-mapping-status" style="color:var(--text-secondary);"></div>
@@ -1190,7 +1191,7 @@
                             <h4>Overrides</h4>
                             <div id="da8-intent-overrides-container" class="intent-overrides-grid"></div>
                             <div style="margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                                <button id="da8-overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmDisaggOverrides()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
+                                <button id="da8-overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmDisaggOverrides()"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
                                 <span id="da8-overrides-status" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
                             </div>
                         </div>
@@ -1219,7 +1220,7 @@
                         <div class="option-card" data-value="azure_commercial"
                             onclick="selectOption('region', 'azure_commercial')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
                                 </svg>
                             </div>
@@ -1229,7 +1230,7 @@
                         <div class="option-card" data-value="azure_government"
                             onclick="selectOption('region', 'azure_government')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z">
                                     </path>
                                     <path d="M12 2v20"></path>
@@ -1242,7 +1243,7 @@
                         <div class="option-card" data-value="azure_china"
                             onclick="selectOption('region', 'azure_china')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <path
                                         d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z">
@@ -1337,7 +1338,7 @@
                     <div class="options-grid" id="scale-options">
                         <div class="option-card" data-value="medium" onclick="selectOption('scale', 'medium')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="4" width="9" height="7" rx="1" stroke-width="1.5" />
                                     <rect x="13" y="4" width="9" height="7" rx="1" stroke-width="1.5" />
                                     <rect x="2" y="13" width="9" height="7" rx="1" stroke-width="1.5" />
@@ -1349,7 +1350,7 @@
                         </div>
                         <div class="option-card" data-value="rack_aware" onclick="selectOption('scale', 'rack_aware')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
                                     <rect x="14" y="3" width="7" height="18" rx="1" stroke-width="1.5" />
                                     <path d="M7 7h0M7 11h0M7 15h0M7 19h0" stroke-width="2" stroke-linecap="round" />
@@ -1363,7 +1364,7 @@
                         <div class="option-card" data-value="low_capacity"
                             onclick="selectOption('scale', 'low_capacity')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 4h16v16H4z" stroke-width="1.5" opacity="0.1" fill="currentColor" />
                                     <rect x="4" y="4" width="16" height="16" rx="2" stroke-width="1.5" />
                                     <circle cx="12" cy="12" r="3" stroke-width="1.5" />
@@ -1473,7 +1474,7 @@
                         <div class="options-grid">
                             <div class="option-card" data-value="1" onclick="selectOption('rackAwareTorsPerRoom', '1')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <rect x="5" y="7" width="14" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
                                         <circle cx="9" cy="12" r="1.2" fill="currentColor" />
                                         <circle cx="13" cy="12" r="1.2" fill="currentColor" />
@@ -1484,7 +1485,7 @@
                             </div>
                             <div class="option-card" data-value="2" onclick="selectOption('rackAwareTorsPerRoom', '2')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <rect x="3" y="7" width="8" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
                                         <rect x="13" y="7" width="8" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
                                         <path d="M11 12H13" stroke-dasharray="2 2" />
@@ -1499,7 +1500,7 @@
                             <div class="options-grid">
                                 <div class="option-card" data-value="option_a" onclick="selectOption('rackAwareTorArchitecture', 'option_a')">
                                     <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                             <path d="M4 8h16" />
                                             <path d="M4 16h16" />
                                             <path d="M8 8v8" stroke-dasharray="2 2" />
@@ -1511,7 +1512,7 @@
                                 </div>
                                 <div class="option-card" data-value="option_b" onclick="selectOption('rackAwareTorArchitecture', 'option_b')">
                                     <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                             <path d="M5 9h14" />
                                             <path d="M5 15h14" />
                                             <path d="M7 9l10 6" stroke-dasharray="3 3" />
@@ -1529,7 +1530,7 @@
                             <div class="options-grid">
                                 <div class="option-card" data-value="option_c" onclick="selectOption('rackAwareTorArchitecture', 'option_c')">
                                     <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                             <rect x="5" y="7" width="14" height="10" rx="2" fill="rgba(255,255,255,0.06)" />
                                             <path d="M7 12h10" stroke-dasharray="2 2" />
                                         </svg>
@@ -1539,7 +1540,7 @@
                                 </div>
                                 <div class="option-card" data-value="option_d" onclick="selectOption('rackAwareTorArchitecture', 'option_d')">
                                     <div class="icon">
-                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                        <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                             <path d="M6 8h12" />
                                             <path d="M6 16h12" />
                                             <path d="M6 8l12 8" stroke-dasharray="2 2" />
@@ -1567,7 +1568,7 @@
                         <div class="option-card" data-value="Cloud"
                             onclick="selectOption('witnessType', 'Cloud')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" stroke-width="1.5" fill="rgba(0, 120, 212, 0.1)" />
                                 </svg>
                             </div>
@@ -1577,7 +1578,7 @@
                         <div class="option-card" data-value="NoWitness"
                             onclick="selectOption('witnessType', 'NoWitness')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" fill="rgba(255, 255, 255, 0.05)" />
                                     <path d="M15 9l-6 6M9 9l6 6" stroke-width="2" stroke-linecap="round" />
                                 </svg>
@@ -1600,7 +1601,7 @@
                     <div id="storage-options-grid" class="options-grid">
                         <div class="option-card" data-value="switched" onclick="selectOption('storage', 'switched')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="6" width="20" height="12" rx="2" fill="rgba(0, 120, 212, 0.2)" />
                                     <circle cx="6" cy="12" r="1.5" fill="currentColor" />
                                     <circle cx="10" cy="12" r="1.5" fill="currentColor" />
@@ -1614,7 +1615,7 @@
                         <div class="option-card" data-value="switchless"
                             onclick="selectOption('storage', 'switchless')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="1.5">
                                     <rect x="2" y="4" width="6" height="16" rx="1" fill="rgba(255, 255, 255, 0.1)" />
                                     <rect x="16" y="4" width="6" height="16" rx="1" fill="rgba(255, 255, 255, 0.1)" />
@@ -1638,7 +1639,7 @@
                             <div id="tor-single-option" class="option-card" data-value="single"
                                 onclick="selectOption('torSwitchCount', 'single')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <rect x="4" y="4" width="16" height="6" rx="2" fill="rgba(0, 120, 212, 0.2)" />
                                         <circle cx="8" cy="7" r="1" fill="currentColor" />
                                         <circle cx="12" cy="7" r="1" fill="currentColor" />
@@ -1654,7 +1655,7 @@
                                 onclick="selectOption('torSwitchCount', 'dual')">
                                 <div class="badge-recommended">Recommended</div>
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <rect x="2" y="4" width="8" height="5" rx="1.5" fill="rgba(0, 120, 212, 0.2)" />
                                         <rect x="14" y="4" width="8" height="5" rx="1.5" fill="rgba(0, 120, 212, 0.2)" />
                                         <circle cx="5" cy="6.5" r="0.8" fill="currentColor" />
@@ -1686,7 +1687,7 @@
                             <div class="option-card" data-value="single_link"
                                 onclick="selectOption('switchlessLinkMode', 'single_link')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <circle cx="6" cy="12" r="2" fill="rgba(255, 255, 255, 0.06)" />
                                         <circle cx="18" cy="12" r="2" fill="rgba(255, 255, 255, 0.06)" />
                                         <path d="M8 12H16" stroke-dasharray="3 3" />
@@ -1698,7 +1699,7 @@
                             <div class="option-card" data-value="dual_link"
                                 onclick="selectOption('switchlessLinkMode', 'dual_link')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                         <circle cx="6" cy="9" r="2" fill="rgba(255, 255, 255, 0.06)" />
                                         <circle cx="18" cy="9" r="2" fill="rgba(255, 255, 255, 0.06)" />
                                         <circle cx="6" cy="15" r="2" fill="rgba(255, 255, 255, 0.06)" />
@@ -1724,7 +1725,7 @@
                         <div id="port-option-1" class="option-card hidden" data-value="1"
                             onclick="selectOption('ports', '1')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="12" cy="12" r="1.5" fill="currentColor" />
                                 </svg>
@@ -1734,7 +1735,7 @@
                         </div>
                         <div class="option-card" data-value="2" onclick="selectOption('ports', '2')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="6" cy="12" r="1.5" fill="currentColor" />
                                     <circle cx="10" cy="12" r="1.5" fill="currentColor" />
@@ -1745,7 +1746,7 @@
                         </div>
                         <div class="option-card" data-value="4" onclick="selectOption('ports', '4')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="8" width="20" height="8" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="5" cy="12" r="1.5" fill="currentColor" />
                                     <circle cx="9" cy="12" r="1.5" fill="currentColor" />
@@ -1758,7 +1759,7 @@
                         </div>
                         <div class="option-card" data-value="6" onclick="selectOption('ports', '6')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="5" width="20" height="14" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="6" cy="9" r="1" fill="currentColor" />
                                     <circle cx="10" cy="9" r="1" fill="currentColor" />
@@ -1773,7 +1774,7 @@
                         </div>
                         <div class="option-card" data-value="8" onclick="selectOption('ports', '8')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="5" width="20" height="14" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <circle cx="5" cy="9" r="1" fill="currentColor" />
                                     <circle cx="9" cy="9" r="1" fill="currentColor" />
@@ -1806,7 +1807,7 @@
                         </div>
                         <div id="port-config-confirm-container" class="hidden" style="margin-top: 1.5rem; text-align: center;">
                             <button id="port-config-confirm-btn" class="confirm-port-config-btn" onclick="confirmPortConfiguration()">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                 </svg>
                                 Confirm Port Configuration
@@ -1834,7 +1835,7 @@
                         <div class="option-card" data-value="all_traffic"
                             onclick="selectOption('intent', 'all_traffic')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="9" stroke-width="1.5" fill="rgba(0, 120, 212, 0.1)" />
                                     <path d="M12 7V17M7 12H17" stroke-width="2" />
                                 </svg>
@@ -1845,7 +1846,7 @@
                         <div class="option-card" data-value="mgmt_compute"
                             onclick="selectOption('intent', 'mgmt_compute')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="8" height="18" rx="2" fill="rgba(0, 120, 212, 0.1)" />
                                     <rect x="13" y="3" width="8" height="18" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                 </svg>
@@ -1856,7 +1857,7 @@
                         <div class="option-card" data-value="compute_storage"
                             onclick="selectOption('intent', 'compute_storage')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="8" height="18" rx="2" fill="rgba(255, 255, 255, 0.05)" />
                                     <rect x="13" y="3" width="8" height="18" rx="2" fill="rgba(139, 92, 246, 0.1)" />
                                 </svg>
@@ -1866,7 +1867,7 @@
                         </div>
                         <div class="option-card" data-value="custom" onclick="selectOption('intent', 'custom')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke-width="1.5" />
                                     <path d="M2 17L12 22L22 17" stroke-width="1.5" />
                                     <path d="M2 12L12 17L22 12" stroke-width="1.5" />
@@ -1901,7 +1902,7 @@
                             </div>
                             <div style="margin-top:0.9rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
                                 <button id="adapter-mapping-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmAdapterMapping()">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
+                                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Adapter Mapping
                                 </button>
                                 <button id="adapter-mapping-reset-btn" type="button" class="report-action-button" onclick="resetAdapterMapping()" style="background:rgba(239,68,68,0.2);">Reset</button>
                                 <div id="adapter-mapping-status" style="color:var(--text-secondary);"></div>
@@ -1913,7 +1914,7 @@
                             <h4>Overrides</h4>
                             <div id="intent-overrides-container" class="intent-overrides-grid"></div>
                             <div style="margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                                <button id="overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmOverrides()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
+                                <button id="overrides-confirm-btn" type="button" class="confirm-port-config-btn" onclick="confirmOverrides()"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>Confirm Overrides</button>
                                 <span id="overrides-status" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
                             </div>
                         </div>
@@ -1926,7 +1927,7 @@
                         <div class="options-grid">
                             <div class="option-card" data-value="enabled" onclick="selectOption('storageAutoIp', 'enabled')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path d="M20 6L9 17l-5-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
                                 </div>
@@ -1935,7 +1936,7 @@
                             </div>
                             <div class="option-card" data-value="disabled" onclick="selectOption('storageAutoIp', 'disabled')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path d="M18 6L6 18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                         <path d="M6 6l12 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     </svg>
@@ -1953,7 +1954,7 @@
                             <div id="custom-storage-subnet-inputs" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
                             <div style="margin-top: 1rem; display: flex; align-items: center; gap: 1rem;">
                                 <button type="button" id="custom-storage-subnets-confirm-btn" class="confirm-port-config-btn">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                     Confirm Storage Subnets
                                 </button>
                                 <span id="custom-storage-subnets-confirm-status" style="font-size: 0.85rem; color: var(--text-secondary);">Not confirmed yet.</span>
@@ -1980,7 +1981,7 @@
                     <div id="outbound-connected" class="options-grid">
                         <div class="option-card" data-value="public" onclick="selectOption('outbound', 'public')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M2 12H22" stroke-width="1.5" />
                                     <path
@@ -1995,7 +1996,7 @@
                         <div class="option-card" data-value="private" onclick="selectOption('outbound', 'private')">
                             <span class="coming-soon-badge private-path-preview">Coming Soon</span>
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M4 12L20 12" stroke-width="1.5" />
                                     <rect x="2" y="6" width="4" height="12" fill="currentColor" fill-opacity="0.2" />
                                     <rect x="18" y="6" width="4" height="12" fill="currentColor" fill-opacity="0.2" />
@@ -2013,7 +2014,7 @@
                         <div class="option-card" data-value="air_gapped"
                             onclick="selectOption('outbound', 'air_gapped')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M4.93 4.93L19.07 19.07" stroke-width="1.5" />
                                 </svg>
@@ -2023,7 +2024,7 @@
                         </div>
                         <div class="option-card" data-value="limited" onclick="selectOption('outbound', 'limited')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M12 8v4" stroke-width="2" />
                                     <path d="M12 16h.01" stroke-width="3" />
@@ -2053,7 +2054,7 @@
                         <div class="option-card" data-value="arc_gateway" onclick="selectOption('arc', 'arc_gateway')">
                             <div class="badge-recommended">Recommended</div>
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="9" stroke-width="1.5" />
                                     <path d="M12 8v8M8 12h8" stroke-width="1.5" />
                                 </svg>
@@ -2063,7 +2064,7 @@
                         </div>
                         <div class="option-card" data-value="no_arc" onclick="selectOption('arc', 'no_arc')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="9" stroke-width="1.5" />
                                     <path d="M8 12h8" stroke-width="1.5" />
                                 </svg>
@@ -2086,7 +2087,7 @@
                         <div id="proxy-enabled-card" class="option-card" data-value="proxy"
                             onclick="selectOption('proxy', 'proxy')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
                                     <path d="M12 2v20"></path>
                                     <path d="M2 12h20"></path>
@@ -2098,7 +2099,7 @@
                         </div>
                         <div class="option-card" data-value="no_proxy" onclick="selectOption('proxy', 'no_proxy')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10"></circle>
                                     <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
                                 </svg>
@@ -2136,7 +2137,7 @@
                     <div class="options-grid">
                         <div class="option-card" data-value="pe_enabled" onclick="selectOption('privateEndpoints', 'pe_enabled')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-width="1.5" />
                                     <path d="M9 12l2 2 4-4" stroke-width="1.5" />
                                 </svg>
@@ -2146,7 +2147,7 @@
                         </div>
                         <div class="option-card" data-value="pe_disabled" onclick="selectOption('privateEndpoints', 'pe_disabled')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5"></circle>
                                     <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-width="1.5"></line>
                                 </svg>
@@ -2271,7 +2272,7 @@
                         <div class="options-grid">
                             <div class="option-card" data-value="static" onclick="selectOption('ip', 'static')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="2" y="4" width="20" height="16" rx="2" />
                                     </svg>
                                 </div>
@@ -2279,7 +2280,7 @@
                             </div>
                             <div class="option-card" data-value="dhcp" onclick="selectOption('ip', 'dhcp')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <path
                                             d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
                                         </path>
@@ -2322,7 +2323,7 @@
                         <div class="options-grid" style="margin-bottom:1rem;">
                             <div class="option-card" data-value="default" onclick="selectOption('infraVlan', 'default')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                         <path d="M8 12h8" stroke-width="2" />
                                         <path d="M12 8v8" stroke-width="2" />
@@ -2333,7 +2334,7 @@
                             </div>
                             <div class="option-card" data-value="custom" onclick="selectOption('infraVlan', 'custom')">
                                 <div class="icon">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                         <rect x="4" y="4" width="16" height="16" rx="2" stroke-width="1.5" />
                                         <path d="M8 8h8v8H8z" stroke-width="1.5" />
                                     </svg>
@@ -2429,7 +2430,7 @@
                         <!-- Appliance VM IPs (Disconnected Operations - Management Cluster only) -->
                         <div id="appliance-ip-section" class="hidden" style="margin-top: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(56, 189, 248, 0.06), rgba(45, 212, 191, 0.06)); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                                 <h4 style="margin: 0; color: #38bdf8; font-size: 1rem;">Disconnected Operations Appliance VM — Dedicated IPs</h4>
                             </div>
                             <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.85rem;">
@@ -2500,7 +2501,7 @@
                         <div class="option-card" data-value="Express"
                             onclick="selectOption('storagePoolConfiguration', 'Express')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z" stroke-width="1.5" fill="rgba(0, 120, 212, 0.1)" />
                                 </svg>
                             </div>
@@ -2510,7 +2511,7 @@
                         <div class="option-card" data-value="InfraOnly"
                             onclick="selectOption('storagePoolConfiguration', 'InfraOnly')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="4" width="18" height="16" rx="2" stroke-width="1.5" fill="rgba(139, 92, 246, 0.1)" />
                                     <path d="M3 10h18M7 4v16M17 4v16" stroke-width="1.5" />
                                 </svg>
@@ -2521,7 +2522,7 @@
                         <div class="option-card" data-value="KeepStorage"
                             onclick="selectOption('storagePoolConfiguration', 'KeepStorage')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="9" stroke-width="1.5" fill="rgba(16, 185, 129, 0.1)" />
                                     <path d="M9 12l2 2 4-4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
@@ -2542,7 +2543,7 @@
                         <div class="option-card" data-value="azure_ad"
                             onclick="selectOption('activeDirectory', 'azure_ad')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
                                         stroke-width="1.5" />
                                     <path d="M12 12h.01" stroke-width="2" stroke-linecap="round" />
@@ -2554,7 +2555,7 @@
                         <div class="option-card" id="ad-local-identity-card" data-value="local_identity"
                             onclick="selectOption('activeDirectory', 'local_identity')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5" />
                                     <path d="M12 6v6l4 2" stroke-width="1.5" />
                                 </svg>
@@ -2687,7 +2688,7 @@
                         <div class="option-card" data-value="recommended"
                             onclick="selectOption('securityConfiguration', 'recommended')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
                                         stroke-width="1.5" />
                                     <path d="M9 12l2 2 4-4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
@@ -2699,7 +2700,7 @@
                         <div class="option-card" data-value="customized"
                             onclick="selectOption('securityConfiguration', 'customized')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z"
                                         stroke-width="1.5" />
                                     <path d="M12 8v8M8 12h8" stroke-width="1.5" stroke-linecap="round" />
@@ -2804,7 +2805,7 @@
                         <div class="option-card" id="sdn-enabled-yes" data-value="yes"
                             onclick="selectOption('sdnEnabled', 'yes')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-width="1.5"/>
                                     <polyline points="22 4 12 14.01 9 11.01" stroke-width="1.5"/>
                                 </svg>
@@ -2816,7 +2817,7 @@
                         <div class="option-card" id="sdn-enabled-no" data-value="no"
                             onclick="selectOption('sdnEnabled', 'no')">
                             <div class="icon">
-                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <circle cx="12" cy="12" r="10" stroke-width="1.5"/>
                                     <line x1="15" y1="9" x2="9" y2="15" stroke-width="1.5"/>
                                     <line x1="9" y1="9" x2="15" y2="15" stroke-width="1.5"/>
@@ -2880,7 +2881,7 @@
                         <div id="missing-sections-container" style="margin-bottom: 1.5rem; display: none;">
                             <div style="padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
                                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
                                         <circle cx="12" cy="12" r="10"/>
                                         <line x1="12" y1="8" x2="12" y2="12"/>
                                         <line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -2967,7 +2968,7 @@
                     </div>
 
                     <button onclick="resetAll()" class="reset-button">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                             <path d="M3 3v5h5" />
@@ -2991,20 +2992,20 @@
                 <ul class="knowledge-nav-links">
                     <li>
                         <a href="#" class="knowledge-nav-item active" data-src="docs/outbound-connectivity/" onclick="switchKnowledgePage(this, 'docs/outbound-connectivity/'); return false;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                             Architecture Guide
                         </a>
                     </li>
                     <li class="knowledge-nav-divider">Interactive Diagrams</li>
                     <li>
                         <a href="#" class="knowledge-nav-item" data-src="docs/outbound-connectivity/azure-local-public-path-dark-flows.html" onclick="switchKnowledgePage(this, 'docs/outbound-connectivity/azure-local-public-path-dark-flows.html'); return false;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                             Public Path Flow
                         </a>
                     </li>
                     <li>
                         <a href="#" class="knowledge-nav-item" data-src="docs/outbound-connectivity/azure-local-private-path-dark-flows.html" onclick="switchKnowledgePage(this, 'docs/outbound-connectivity/azure-local-private-path-dark-flows.html'); return false;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                             Private Path Flow
                         </a>
                     </li>
