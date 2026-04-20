@@ -175,6 +175,7 @@ const state = {
     disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
     disaggMgmtVlanMode: 'access',
     disaggVrfName: 'AZLOCALINFRA',
+    disaggVrfMode: 'separate',
     disaggSubnets: {},
     disaggIscsiTargets: [],
     disaggQosCustomized: false,
@@ -3527,7 +3528,8 @@ function updateUI() {
                 archExp.classList.add('visible');
             } else if (state.architecture === 'disaggregated' && archExp) {
                 archExp.innerHTML = `<strong style="color: var(--accent-purple);">Disaggregated Architecture</strong>
-        External SAN storage (FC or iSCSI), Clos leaf-spine fabric with VXLAN EVPN overlay, up to 64 nodes across multiple racks.`;
+        External SAN storage (FC or iSCSI), Clos leaf-spine fabric with VXLAN EVPN overlay, up to 64 nodes across multiple racks.<br><br>
+        <strong style="color: #f97316;">&#9432; SDN note:</strong> Microsoft SDN (Network Controller) is <strong>not supported</strong> on disaggregated. Logical Networks (LNETs) and segmentation must be implemented <strong>externally on the leaf-spine fabric</strong> (VXLAN EVPN), not via the on-cluster SDN stack. As of Azure Local 2604, disaggregated supports <em>External SDN LNETs</em> only.`;
                 archExp.classList.add('visible');
             }
         }
@@ -9680,6 +9682,7 @@ function showTemplates() {
                 disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
                 disaggMgmtVlanMode: 'access',
                 disaggVrfName: 'AZLOCALINFRA',
+                disaggVrfMode: 'separate',
                 disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' },
                 disaggQosCustomized: false,
                 disaggPortSpeeds: { ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE' },

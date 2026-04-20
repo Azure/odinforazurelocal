@@ -945,6 +945,10 @@
                                 <div class="option-card" data-value="2" onclick="selectDisaggOption('racks', 2)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">2</h3></div>
                                 <div class="option-card" data-value="3" onclick="selectDisaggOption('racks', 3)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">3</h3></div>
                                 <div class="option-card" data-value="4" onclick="selectDisaggOption('racks', 4)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">4</h3></div>
+                                <div class="option-card" data-value="5" onclick="selectDisaggOption('racks', 5)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">5</h3></div>
+                                <div class="option-card" data-value="6" onclick="selectDisaggOption('racks', 6)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">6</h3></div>
+                                <div class="option-card" data-value="7" onclick="selectDisaggOption('racks', 7)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">7</h3></div>
+                                <div class="option-card" data-value="8" onclick="selectDisaggOption('racks', 8)" style="padding: 12px; min-height: auto;"><h3 style="margin:0;">8</h3></div>
                             </div>
                         </div>
                         <div style="flex: 1; min-width: 200px;">
@@ -954,7 +958,7 @@
                                     oninput="selectDisaggOption('nodesPerRack', parseInt(this.value))">
                                 <span id="da-nodes-per-rack-value" style="font-size: 1.2rem; font-weight: 700; color: var(--accent-blue); min-width: 30px; text-align: center;">16</span>
                             </div>
-                            <p id="da-max-nodes-info" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Scale: Maximum 64 machines per instance, (16 per rack)</p>
+                            <p id="da-max-nodes-info" style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.8rem;">Scale: Maximum 64 machines per instance, evenly distributed across racks</p>
                         </div>
                     </div>
                     <div id="da3-scale-summary" class="info-box"></div>
@@ -980,7 +984,7 @@
                         </div>
                         <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px;">
                             <h4 style="margin: 0 0 6px 0; color: #14b8a6; font-size: 0.9rem;">VRF</h4>
-                            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>Virtual Routing and Forwarding</strong> instance creates an isolated routing table on each leaf switch. All Azure Local VLANs are placed into a single VRF so inter-VLAN routing stays within the tenant domain, separate from the fabric underlay.</p>
+                            <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">A <strong>Virtual Routing and Forwarding</strong> instance creates an isolated routing table on each leaf switch. Choose below whether all VLANs (infra + workload) share a single VRF, or whether tenants get their own isolated VRFs separate from the infrastructure VRF.</p>
                         </div>
                     </div>
                     <div style="margin-top: 16px; margin-bottom: 20px; background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 6px; padding: 14px;">
@@ -1000,10 +1004,75 @@
                             oninput="updateDisaggVrf(this.value)">
                     </div>
 
-                    <!-- Tenant Networks -->
+                    <!-- VRF Design Mode Selector -->
                     <div style="margin-top: 24px;">
-                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.95rem;">Tenant Networks <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span></h4>
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.95rem;">VRF Design for Workload VLANs</h4>
                         <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.85rem;">
+                            Choose whether workload VLANs share the Infrastructure VRF, or live in their own isolated tenant VRFs.
+                        </p>
+                        <div id="da4-vrf-mode-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+                            <div class="option-card" data-vrf-mode="single" onclick="selectDisaggVrfMode('single')" style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px; cursor: pointer; transition: all 0.2s ease;">
+                                <h4 style="margin: 0 0 6px 0; color: var(--accent-blue); font-size: 0.9rem;">Single VRF (Shared)</h4>
+                                <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">All infrastructure VLANs (Mgmt, Cluster, Storage, Backup) <strong>and</strong> any workload VLANs share the single <strong>Infrastructure VRF</strong>. Simpler design — inter-VLAN routing happens within one routing table.</p>
+                            </div>
+                            <div class="option-card" data-vrf-mode="separate" onclick="selectDisaggVrfMode('separate')" style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 14px; cursor: pointer; transition: all 0.2s ease;">
+                                <h4 style="margin: 0 0 6px 0; color: #14b8a6; font-size: 0.9rem;">Separate VRFs (Tenant Isolation)</h4>
+                                <p style="margin: 0; color: var(--text-secondary); font-size: 0.85rem;">Infrastructure VLANs stay in the Infra VRF; each tenant gets its own VRF with one or more trunk VLANs — similar to VNETs in Azure. Provides routing isolation between tenants.</p>
+                            </div>
+                        </div>
+
+                        <!-- AKS LNET reachability + hop count comparison -->
+                        <div style="margin-top: 14px; background: rgba(20, 184, 166, 0.06); border: 1px solid rgba(20, 184, 166, 0.25); border-radius: 6px; padding: 14px;">
+                            <h4 style="margin: 0 0 6px 0; color: #14b8a6; font-size: 0.9rem;">&#9432; AKS Logical Network reachability &amp; routing hops</h4>
+                            <p style="margin: 0 0 10px 0; color: var(--text-secondary); font-size: 0.85rem;">
+                                When AKS on Azure Local is deployed, the AKS LNET must have <strong>Layer&nbsp;3 reachability</strong> to the Management LNET (it talks to the Kubernetes API server and other infra services). The chosen VRF design directly affects the path length and which switches are involved.
+                            </p>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                                <thead>
+                                    <tr style="background: var(--card-bg);">
+                                        <th style="padding: 6px 10px; text-align: left; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border);">Scenario</th>
+                                        <th style="padding: 6px 10px; text-align: left; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border);">Routing path</th>
+                                        <th style="padding: 6px 10px; text-align: center; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border);">Hops</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text-primary);">Same rack, same VRF</td>
+                                        <td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text-secondary);">Local IRB on compute leaf</td>
+                                        <td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); text-align: center; color: var(--accent-green); font-weight: 600;">1</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text-primary);">Cross-rack, <strong>Single VRF</strong></td>
+                                        <td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text-secondary);">Compute Leaf &rarr; Spine &rarr; Compute Leaf</td>
+                                        <td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); text-align: center; color: var(--accent-blue); font-weight: 600;">3</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 10px; color: var(--text-primary);">Cross-rack, <strong>Separate VRFs</strong> (with route leaking)</td>
+                                        <td style="padding: 6px 10px; color: var(--text-secondary);">Compute Leaf &rarr; Spine &rarr; Service Leaf &rarr; Spine &rarr; Compute Leaf</td>
+                                        <td style="padding: 6px 10px; text-align: center; color: #f97316; font-weight: 600;">5</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p style="margin: 10px 0 0 0; color: var(--text-secondary); font-size: 0.8rem;">
+                                <strong style="color: #f97316;">Separate VRFs</strong> require <strong>route leaking</strong> on the service-leaf pair — at minimum the AKS VRF must import management prefixes and vice versa. This makes the service-leaf tier a potential throughput bottleneck for AKS&harr;management traffic. Only leak the specific prefixes required; avoid default routes or broad summaries to preserve isolation.
+                            </p>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
+                                <div style="text-align: center;">
+                                    <p style="margin: 0 0 6px 0; font-size: 0.78rem; font-weight: 600; color: var(--accent-blue);">Single VRF — 3 hops (cross-rack)</p>
+                                    <img src="images/disaggregated/aks-logical-network-single-routing-domain.svg" alt="AKS and management LNETs in a single VRF with automatic Layer 3 reachability" style="width: 100%; max-width: 400px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                                </div>
+                                <div style="text-align: center;">
+                                    <p style="margin: 0 0 6px 0; font-size: 0.78rem; font-weight: 600; color: #f97316;">Separate VRFs — 5 hops (cross-rack, route leaking)</p>
+                                    <img src="images/disaggregated/aks-logical-network-separate-routing-domains-route-leaking.svg" alt="AKS and management LNETs in separate VRFs with route leaking via service leaf" style="width: 100%; max-width: 400px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Workload / Tenant Networks -->
+                    <div style="margin-top: 24px;">
+                        <h4 id="da4-workload-heading" style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 0.95rem;">Tenant Networks <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span></h4>
+                        <p id="da4-workload-description" style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.85rem;">
                             Add tenant VRFs with one or more trunk VLANs each — similar to VNETs in Azure. Each tenant VRF is an isolated routing domain that can contain multiple VLANs for VM workload traffic.
                         </p>
                         <div id="da4-workload-vlan-list">
@@ -1011,7 +1080,7 @@
                         </div>
                         <button type="button" id="da4-add-workload-btn" onclick="addDisaggTenantNetwork()" style="margin-top: 8px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s ease;">
                             <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Add Tenant Network
+                            <span id="da4-add-workload-btn-label">Add Tenant Network</span>
                         </button>
                     </div>
 

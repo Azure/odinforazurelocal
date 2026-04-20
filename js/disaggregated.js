@@ -103,16 +103,17 @@ function selectDisaggOption(category, value) {
 
     } else if (category === 'racks') {
         state.disaggRackCount = value;
-        const maxNodes = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
-        state.disaggNodesPerRack = Math.min(state.disaggNodesPerRack || maxNodes, maxNodes);
+        const portMax = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
+        const effectiveMax = Math.min(portMax, Math.floor(64 / value));
+        state.disaggNodesPerRack = Math.min(state.disaggNodesPerRack || effectiveMax, effectiveMax);
 
         // Auto-set spine count to 2 (standard redundancy for single-cluster)
         state.disaggSpineCount = 2;
 
-        // Update slider max
+        // Update slider max based on rack count (64 total ÷ racks, capped by port budget)
         const slider = document.getElementById('da-nodes-per-rack');
         if (slider) {
-            slider.max = maxNodes;
+            slider.max = effectiveMax;
             slider.value = state.disaggNodesPerRack;
         }
         const valSpan = document.getElementById('da-nodes-per-rack-value');
@@ -133,8 +134,9 @@ function selectDisaggOption(category, value) {
         renderDisaggNicConfig();
 
     } else if (category === 'nodesPerRack') {
-        const maxNodes = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
-        state.disaggNodesPerRack = Math.min(value, maxNodes);
+        const portMax = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
+        const effectiveMax = Math.min(portMax, Math.floor(64 / (state.disaggRackCount || 1)));
+        state.disaggNodesPerRack = Math.min(value, effectiveMax);
 
         const valSpan = document.getElementById('da-nodes-per-rack-value');
         if (valSpan) valSpan.textContent = state.disaggNodesPerRack;
@@ -191,14 +193,15 @@ function restoreDisaggregatedUI() {
         document.querySelectorAll('#step-da3 .option-card[onclick*="racks"]').forEach(function(card) {
             card.classList.toggle('selected', String(card.getAttribute('data-value')) === String(state.disaggRackCount));
         });
-        const maxNodes = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
+        const portMax = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
+        const effectiveMax = Math.min(portMax, Math.floor(64 / state.disaggRackCount));
         const slider = document.getElementById('da-nodes-per-rack');
         if (slider) {
-            slider.max = maxNodes;
-            slider.value = state.disaggNodesPerRack || maxNodes;
+            slider.max = effectiveMax;
+            slider.value = state.disaggNodesPerRack || effectiveMax;
         }
         const valSpan = document.getElementById('da-nodes-per-rack-value');
-        if (valSpan) valSpan.textContent = state.disaggNodesPerRack || maxNodes;
+        if (valSpan) valSpan.textContent = state.disaggNodesPerRack || effectiveMax;
         updateScaleSummary();
     }
 
@@ -210,9 +213,10 @@ function restoreDisaggregatedUI() {
 
 function updateScaleSummary() {
     const total = (state.disaggRackCount || 0) * (state.disaggNodesPerRack || 0);
-    const maxPerRack = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
+    const portMax = getMaxNodesPerRack(state.disaggStorageType, state.disaggBackupEnabled);
+    const effectiveMax = Math.min(portMax, Math.floor(64 / (state.disaggRackCount || 1)));
     const info = document.getElementById('da-max-nodes-info');
-    if (info) info.textContent = `Scale: Maximum ${maxPerRack} machines per rack | Total: ${total} machines`;
+    if (info) info.textContent = `Scale: Maximum ${effectiveMax} machines per rack (${state.disaggRackCount || 0} rack${(state.disaggRackCount || 0) !== 1 ? 's' : ''} × ${effectiveMax} = ${(state.disaggRackCount || 0) * effectiveMax} max) | Total: ${total} machines`;
 
     // Sync state.nodes so shared steps (step-10 node config) work with the right count
     if (total > 0) {
@@ -292,8 +296,52 @@ function updateDisaggVni(key, value) {
 }
 function updateDisaggVrf(value) {
     state.disaggVrfName = value;
+    // In single-VRF mode, the lone tenant entry mirrors the infra VRF name
+    if (state.disaggVrfMode === 'single' && Array.isArray(state.disaggTenantNetworks) && state.disaggTenantNetworks[0]) {
+        state.disaggTenantNetworks[0].vrf = value;
+    }
     state.disaggVlanConfigConfirmed = false;
     renderDisaggVlanConfirmState();
+}
+
+// ── VRF Design Mode (Single vs Separate) ────────────────────────────────────
+function selectDisaggVrfMode(mode) {
+    if (mode !== 'single' && mode !== 'separate') return;
+    if (state.disaggVlanConfigConfirmed) return; // locked while confirmed
+    state.disaggVrfMode = mode;
+    if (!Array.isArray(state.disaggTenantNetworks)) state.disaggTenantNetworks = [];
+
+    if (mode === 'single') {
+        // Collapse any existing tenants into a single shared-VRF entry
+        const allVlans = [];
+        state.disaggTenantNetworks.forEach(function(t) {
+            (t.vlans || []).forEach(function(v) { allVlans.push({ name: v.name, vlan: v.vlan, vni: v.vni }); });
+        });
+        state.disaggTenantNetworks = [{
+            vrf: state.disaggVrfName || 'AZLOCALINFRA',
+            vlans: allVlans
+        }];
+    }
+    // 'separate' mode keeps existing tenants as-is
+
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggVrfModeCards();
+    renderDisaggTenantNetworks();
+    renderDisaggVlanConfirmState();
+    if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+}
+
+function renderDisaggVrfModeCards() {
+    const grid = document.getElementById('da4-vrf-mode-grid');
+    if (!grid) return;
+    const mode = state.disaggVrfMode === 'single' ? 'single' : 'separate';
+    const confirmed = state.disaggVlanConfigConfirmed === true;
+    grid.querySelectorAll('.option-card').forEach(function(card) {
+        const cardMode = card.getAttribute('data-vrf-mode');
+        card.classList.toggle('selected', cardMode === mode);
+        card.style.opacity = confirmed ? '0.65' : '';
+        card.style.pointerEvents = confirmed ? 'none' : '';
+    });
 }
 
 function updateDisaggMgmtVlanMode(value) {
@@ -309,6 +357,14 @@ function updateDisaggMgmtVlanMode(value) {
 
 function addDisaggTenantNetwork() {
     if (!state.disaggTenantNetworks) state.disaggTenantNetworks = [];
+    // In single-VRF mode there is only one shared entry — add a VLAN to it instead.
+    if (state.disaggVrfMode === 'single') {
+        if (!state.disaggTenantNetworks[0]) {
+            state.disaggTenantNetworks[0] = { vrf: state.disaggVrfName || 'AZLOCALINFRA', vlans: [] };
+        }
+        addDisaggTenantVlan(0);
+        return;
+    }
     const tenantNum = state.disaggTenantNetworks.length + 1;
     // Find next available VLAN ID across all tenants
     const usedVlans = [];
@@ -353,8 +409,9 @@ function addDisaggTenantVlan(tIdx) {
 function removeDisaggTenantVlan(tIdx, vIdx) {
     if (!state.disaggTenantNetworks || !state.disaggTenantNetworks[tIdx]) return;
     state.disaggTenantNetworks[tIdx].vlans.splice(vIdx, 1);
-    // If last VLAN removed, remove the entire tenant
-    if (state.disaggTenantNetworks[tIdx].vlans.length === 0) {
+    // In separate mode: if the last VLAN of a tenant is removed, drop the tenant entry.
+    // In single mode: keep the lone entry even if empty so workload list is still rendered.
+    if (state.disaggVrfMode !== 'single' && state.disaggTenantNetworks[tIdx].vlans.length === 0) {
         state.disaggTenantNetworks.splice(tIdx, 1);
     }
     state.disaggVlanConfigConfirmed = false;
@@ -393,9 +450,64 @@ function renderDisaggTenantNetworks() {
     if (!list) return;
     const tenants = state.disaggTenantNetworks || [];
     const confirmed = state.disaggVlanConfigConfirmed === true;
+    const isSingle = state.disaggVrfMode === 'single';
 
-    if (tenants.length === 0) {
+    // Sync heading / description / Add button label to current mode
+    const heading = document.getElementById('da4-workload-heading');
+    const desc = document.getElementById('da4-workload-description');
+    const addBtnLabel = document.getElementById('da4-add-workload-btn-label');
+    const addBtn = document.getElementById('da4-add-workload-btn');
+    if (isSingle) {
+        if (heading) heading.innerHTML = 'Workload VLANs <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span>';
+        if (desc) desc.textContent = 'Add workload VLANs that share the Infrastructure VRF (' + (state.disaggVrfName || 'AZLOCALINFRA') + '). Each VLAN is a trunked broadcast domain for VM traffic — all VLANs route within the single shared VRF.';
+        if (addBtnLabel) addBtnLabel.textContent = 'Add Workload VLAN';
+        if (addBtn) addBtn.style.display = confirmed ? 'none' : '';
+    } else {
+        if (heading) heading.innerHTML = 'Tenant Networks <span style="font-weight: 400; color: var(--text-secondary); font-size: 0.85rem;">(optional)</span>';
+        if (desc) desc.textContent = 'Add tenant VRFs with one or more trunk VLANs each — similar to VNETs in Azure. Each tenant VRF is an isolated routing domain that can contain multiple VLANs for VM workload traffic.';
+        if (addBtnLabel) addBtnLabel.textContent = 'Add Tenant Network';
+        if (addBtn) addBtn.style.display = confirmed ? 'none' : '';
+    }
+
+    if (tenants.length === 0 || (isSingle && (!tenants[0] || !tenants[0].vlans || tenants[0].vlans.length === 0))) {
         list.innerHTML = '';
+        return;
+    }
+
+    if (isSingle) {
+        // Flat workload-VLAN list against the single shared infra VRF
+        const t = tenants[0];
+        const tIdx = 0;
+        const vlanRows = t.vlans.map(function(v, vIdx) {
+            return '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">'
+                + '<div style="flex: 2;">'
+                + '<span style="font-size: 0.75rem; color: var(--text-secondary);">Name</span>'
+                + '<input type="text" value="' + escapeHtml(v.name || '') + '" placeholder="Network name"'
+                + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+                + (confirmed ? ' disabled' : '')
+                + ' onchange="updateDisaggTenantVlan(' + tIdx + ', ' + vIdx + ', \'name\', this.value)">'
+                + '</div>'
+                + '<div style="flex: 1;">'
+                + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN <span style="color: var(--accent-purple);">(Trunk)</span></span>'
+                + '<input type="number" value="' + v.vlan + '" min="1" max="4094"'
+                + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+                + (confirmed ? ' disabled' : '')
+                + ' onchange="updateDisaggTenantVlan(' + tIdx + ', ' + vIdx + ', \'vlan\', this.value)">'
+                + '</div>'
+                + '<div style="flex: 1;">'
+                + '<span style="font-size: 0.75rem; color: var(--text-secondary);">VNI</span>'
+                + '<input type="number" value="' + v.vni + '" min="1" max="16777215"'
+                + ' style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"'
+                + (confirmed ? ' disabled' : '')
+                + ' onchange="updateDisaggTenantVlan(' + tIdx + ', ' + vIdx + ', \'vni\', this.value)">'
+                + '</div>'
+                + (confirmed ? '' : '<button type="button" onclick="removeDisaggTenantVlan(' + tIdx + ', ' + vIdx + ')" style="align-self: flex-end; margin-bottom: 2px; background: transparent; border: 1px solid rgba(239,68,68,0.2); color: #ef4444; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;" title="Remove VLAN">✕</button>')
+                + '</div>';
+        }).join('');
+        list.innerHTML = '<div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;">'
+            + '<div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 8px;">All VLANs below share the Infrastructure VRF: <strong style="color: var(--accent-purple);">' + escapeHtml(state.disaggVrfName || 'AZLOCALINFRA') + '</strong></div>'
+            + vlanRows
+            + '</div>';
         return;
     }
 
@@ -495,6 +607,12 @@ function renderDisaggVlanConfirmState() {
     if (addBtn) addBtn.style.display = confirmed ? 'none' : '';
     if (vrfInput) vrfInput.disabled = confirmed;
 
+    // Default the VRF mode if not yet set, then sync mode card highlight + lock state
+    if (state.disaggVrfMode !== 'single' && state.disaggVrfMode !== 'separate') {
+        state.disaggVrfMode = 'separate';
+    }
+    renderDisaggVrfModeCards();
+
     if (typeof updateBreadcrumbs === 'function') updateBreadcrumbs();
 }
 
@@ -518,11 +636,9 @@ function renderQosSummary() {
         rows[0].bw = '29%';
     }
 
-    if (state.disaggBackupEnabled) {
-        rows.push({ priority: 5, desc: 'Backup Traffic', pfc: 'No', bw: '10%' });
-        const defRow = rows.find(r => r.priority === 0);
-        if (defRow) defRow.bw = isIscsi ? '19%' : '69%';
-    }
+    // Backup traffic runs on a dedicated backup compute intent (PCIe adapter 2) with its own
+    // NICs/leaf ports, so it does NOT share bandwidth with the management/cluster ports shown
+    // in this QoS table. No row is added for backup, regardless of disaggBackupEnabled.
 
     rows.sort((a, b) => a.priority - b.priority);
 
@@ -550,10 +666,13 @@ function renderQosSummary() {
     `;
 
     if (exp) {
+        const backupNote = state.disaggBackupEnabled
+            ? ' Backup traffic runs on a <strong>dedicated backup compute intent</strong> (PCIe adapter 2) with its own NICs and switch ports, so it doesn\'t consume bandwidth on the cluster/management ports above.'
+            : '';
         if (isFcSan) {
-            exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — QoS is required for CSV/Live Migration traffic even with FC SAN. Storage traffic runs on a separate Fibre Channel fabric and does not need Ethernet QoS, but cluster traffic sharing the leaf ports still needs traffic classification and bandwidth reservation.';
+            exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — QoS is required for CSV/Live Migration traffic even with FC SAN. Storage traffic runs on a separate Fibre Channel fabric and does not need Ethernet QoS, but cluster traffic sharing the leaf ports still needs traffic classification and bandwidth reservation.' + backupNote;
         } else {
-            exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — No PFC (Priority Flow Control) required. iSCSI is loss-tolerant unlike RDMA. 802.1p CoS marking with Weighted Round Robin (WRR) bandwidth allocation ensures each traffic class gets guaranteed bandwidth.';
+            exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — No PFC (Priority Flow Control) required. iSCSI is loss-tolerant unlike RDMA. 802.1p CoS marking with Weighted Round Robin (WRR) bandwidth allocation ensures each traffic class gets guaranteed bandwidth.' + backupNote;
         }
         exp.classList.add('visible');
     }

@@ -4045,6 +4045,153 @@
         }
 
         /**
+         * Render the Leaf & Spine Fabric Requirements section for disaggregated deployments.
+         * Authoritative requirements per Microsoft Learn:
+         * https://learn.microsoft.com/azure/azure-local/plan/network-reference-pattern-disaggregated-overview
+         * Customers can hand this directly to their network team / switch vendor for validation.
+         */
+        function renderDisaggregatedFabricRequirements(state) {
+            if (!state || state.architecture !== 'disaggregated') return '';
+            var rackCount = parseInt(state.disaggRackCount, 10) || 1;
+            var multiRack = rackCount > 1;
+            var vrfMode = state.disaggVrfMode === 'single' ? 'single' : 'separate';
+            var tenants = Array.isArray(state.disaggTenantNetworks) ? state.disaggTenantNetworks : [];
+            var tenantCount = tenants.length;
+
+            var intro = '<p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.9rem;">'
+                + 'Switch capabilities required for the Clos leaf-spine fabric with VXLAN EVPN overlay, multitenant VRF isolation, and service-leaf integration. '
+                + 'These requirements are <strong>additive</strong> — all base Azure Local switch requirements still apply.'
+                + (multiRack ? '' : ' <em>Single-rack disaggregated clusters that don\'t require SDN at scale may use a simpler 2-switch HSRP pair instead of the full leaf-spine fabric.</em>')
+                + '</p>';
+
+            // Topology + Service-leaf architecture diagrams
+            var diagrams = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">'
+                + '<div style="text-align: center;">'
+                + '<p style="margin: 0 0 6px 0; font-size: 0.82rem; font-weight: 600; color: var(--accent-purple);">Leaf-Spine Topology (' + rackCount + ' rack' + (rackCount === 1 ? '' : 's') + ')</p>'
+                + '<img src="../images/disaggregated/leaf-spine-topology-four-racks.svg" alt="Leaf-spine topology for disaggregated Azure Local" style="width: 100%; max-width: 420px; border-radius: 6px; border: 1px solid var(--glass-border);">'
+                + '</div>'
+                + '<div style="text-align: center;">'
+                + '<p style="margin: 0 0 6px 0; font-size: 0.82rem; font-weight: 600; color: var(--accent-purple);">Service Leaf Integration</p>'
+                + '<img src="../images/disaggregated/firewall-load-balancer-network-controller-service-leafs.svg" alt="Service leaf with firewall, load balancer and network controller integration" style="width: 100%; max-width: 420px; border-radius: 6px; border: 1px solid var(--glass-border);">'
+                + '</div>'
+                + '</div>';
+
+            function reqRow(category, req) {
+                return '<tr>'
+                    + '<td style="padding: 8px 12px; border-bottom: 1px solid var(--glass-border); color: var(--text-primary); font-weight: 600; vertical-align: top; white-space: nowrap;">' + category + '</td>'
+                    + '<td style="padding: 8px 12px; border-bottom: 1px solid var(--glass-border); color: var(--text-secondary);">' + req + '</td>'
+                    + '</tr>';
+            }
+
+            var rows = ''
+                + reqRow('Underlay',
+                    '&bull; eBGP <strong>unnumbered</strong> (RFC 5549) using IPv6 link-local transport for IPv4 NLRI <em>(or /31 point-to-point subnets)</em><br>'
+                    + '&bull; Loopback-based peering (one loopback per switch)<br>'
+                    + '&bull; Per-rack unique BGP ASN<br>'
+                    + '&bull; ECMP &mdash; minimum 16-way, recommended 64-way<br>'
+                    + '&bull; BFD for sub-second BGP failover')
+                + reqRow('Overlay',
+                    '&bull; VXLAN (RFC 7348) with MP-BGP EVPN (RFC 8365)<br>'
+                    + '&bull; EVPN route types 2 and 5<br>'
+                    + '&bull; Anycast gateway per VLAN<br>'
+                    + '&bull; ARP/ND suppression<br>'
+                    + '&bull; Consistent VLAN-to-VNI mapping across all racks<br>'
+                    + '&bull; Symmetric IRB for inter-VLAN routing within a VRF')
+                + reqRow('Segmentation',
+                    '&bull; VRF support with L3 VXLAN Network Identifier (L3VNI)<br>'
+                    + '&bull; Route-target import/export for controlled route leaking<br>'
+                    + '&bull; VRF-aware default routing<br>'
+                    + '&bull; Concurrent scale: compute/cluster, management, and multiple tenant VRFs'
+                    + (vrfMode === 'separate' && tenantCount > 0
+                        ? '<br><span style="color: var(--accent-purple);">&#9432; This deployment uses <strong>Separate VRFs</strong> with ' + tenantCount + ' tenant VRF' + (tenantCount === 1 ? '' : 's') + ' &mdash; route leaking on the service-leaf is required for AKS&harr;management traffic.</span>'
+                        : (vrfMode === 'single'
+                            ? '<br><span style="color: var(--accent-blue);">&#9432; This deployment uses a <strong>Single shared VRF</strong> &mdash; no inter-VRF route leaking required for AKS&harr;management.</span>'
+                            : '')))
+                + reqRow('Service Integration<br>(service leaf)',
+                    '&bull; Dedicated service-leaf pair for data center core and service appliances<br>'
+                    + '&bull; External BGP peering to data center core via service leaf <strong>(not spines)</strong><br>'
+                    + '&bull; VRF route leaking to/from service VRF<br>'
+                    + '&bull; Service chaining / traffic steering through firewall or load balancer')
+                + reqRow('QoS',
+                    '&bull; Minimum 4 hardware queues per port<br>'
+                    + '&bull; 802.1p CoS classification/marking<br>'
+                    + '&bull; Enhanced Transmission Selection (ETS, 802.1Qaz) bandwidth reservation via WRR<br>'
+                    + '&bull; DCBX TLV advertisement via LLDP<br>'
+                    + '&bull; PFC capability optional (not required &mdash; all cluster traffic runs over TCP)')
+                + reqRow('High Availability',
+                    '&bull; MLAG / vPC for dual-homed hosts<br>'
+                    + '&bull; BGP graceful restart / non-stop routing<br>'
+                    + '&bull; In-Service Software Upgrade (ISSU) recommended')
+                + reqRow('Scale',
+                    '&bull; MAC table &ge; 16,000<br>'
+                    + '&bull; ARP/ND &ge; 8,000<br>'
+                    + '&bull; VNI scale &ge; 1,000<br>'
+                    + '&bull; VRF scale &ge; 16<br>'
+                    + '&bull; Combined IPv4 + EVPN routes &ge; 10,000<br>'
+                    + '&bull; TCAM/ACL capacity sufficient for QoS classification and security ACLs');
+
+            var table = '<table style="width: 100%; border-collapse: collapse; background: var(--subtle-bg); border-radius: 6px; overflow: hidden; font-size: 0.88rem;">'
+                + '<thead><tr style="background: var(--card-bg);">'
+                + '<th style="padding: 8px 12px; text-align: left; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border); white-space: nowrap;">Category</th>'
+                + '<th style="padding: 8px 12px; text-align: left; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border);">Requirements</th>'
+                + '</tr></thead>'
+                + '<tbody>' + rows + '</tbody>'
+                + '</table>';
+
+            var oversub = '<p style="margin: 12px 0 0 0; color: var(--text-secondary); font-size: 0.85rem;">'
+                + '<strong style="color: var(--accent-purple);">Oversubscription target:</strong> design the leaf-to-spine layer for a <strong>minimum 2:1</strong> ratio under normal operations '
+                + '(during a spine failure or maintenance, the effective ratio can rise to ~4:1). Scale the spine layer horizontally as the environment grows to add ECMP paths and reduce congestion risk.'
+                + '</p>';
+
+            var sdn = '<p style="margin: 8px 0 0 0; color: var(--text-secondary); font-size: 0.85rem;">'
+                + '<strong style="color: #f97316;">SDN:</strong> Microsoft SDN (Network Controller) is <strong>not supported</strong> on disaggregated. As of Azure Local 2604, only <em>External SDN LNETs</em> are supported &mdash; logical network segmentation must be implemented on the leaf-spine fabric (VXLAN EVPN). Plan the VLAN-to-VNI mapping accordingly.'
+                + '</p>';
+
+            // AKS LNET reachability diagrams — show based on chosen VRF mode
+            var aksVrfDiagrams = '<div style="margin-top: 16px;">'
+                + '<h4 style="margin: 0 0 8px 0; color: #14b8a6; font-size: 0.88rem;">AKS Logical Network Reachability &amp; Routing Hops</h4>'
+                + '<p style="margin: 0 0 10px 0; color: var(--text-secondary); font-size: 0.85rem;">'
+                + 'When AKS is deployed, the AKS LNET must have Layer 3 reachability to the Management LNET. The chosen VRF design affects the path length:'
+                + '</p>'
+                + '<table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 12px;">'
+                + '<thead><tr style="background: var(--card-bg);">'
+                + '<th style="padding: 6px 10px; text-align: left; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border);">Scenario</th>'
+                + '<th style="padding: 6px 10px; text-align: left; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border);">Routing path</th>'
+                + '<th style="padding: 6px 10px; text-align: center; color: var(--text-secondary); border-bottom: 1px solid var(--glass-border);">Hops</th>'
+                + '</tr></thead><tbody>'
+                + '<tr>'
+                + '<td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text-primary);">Same rack, same VRF</td>'
+                + '<td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text-secondary);">Local IRB on compute leaf</td>'
+                + '<td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); text-align: center; font-weight: 600; color: var(--accent-green);">1</td>'
+                + '</tr><tr>'
+                + '<td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text-primary);">Cross-rack, <strong>Single VRF</strong></td>'
+                + '<td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); color: var(--text-secondary);">Compute Leaf &rarr; Spine &rarr; Compute Leaf</td>'
+                + '<td style="padding: 6px 10px; border-bottom: 1px solid var(--glass-border); text-align: center; font-weight: 600; color: var(--accent-blue);">3</td>'
+                + '</tr><tr>'
+                + '<td style="padding: 6px 10px; color: var(--text-primary);">Cross-rack, <strong>Separate VRFs</strong> (route leaking)</td>'
+                + '<td style="padding: 6px 10px; color: var(--text-secondary);">Compute Leaf &rarr; Spine &rarr; Service Leaf &rarr; Spine &rarr; Compute Leaf</td>'
+                + '<td style="padding: 6px 10px; text-align: center; font-weight: 600; color: #f97316;">5</td>'
+                + '</tr>'
+                + '</tbody></table>'
+                + '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">'
+                + '<div style="text-align: center;">'
+                + '<p style="margin: 0 0 6px 0; font-size: 0.78rem; font-weight: 600; color: var(--accent-blue);">Single VRF &mdash; 3 hops (cross-rack)</p>'
+                + '<img src="../images/disaggregated/aks-logical-network-single-routing-domain.svg" alt="AKS single VRF routing path" style="width: 100%; max-width: 380px; border-radius: 6px; border: 1px solid var(--glass-border);">'
+                + '</div>'
+                + '<div style="text-align: center;">'
+                + '<p style="margin: 0 0 6px 0; font-size: 0.78rem; font-weight: 600; color: #f97316;">Separate VRFs &mdash; 5 hops (route leaking)</p>'
+                + '<img src="../images/disaggregated/aks-logical-network-separate-routing-domains-route-leaking.svg" alt="AKS separate VRF routing path with route leaking" style="width: 100%; max-width: 380px; border-radius: 6px; border: 1px solid var(--glass-border);">'
+                + '</div>'
+                + '</div>'
+                + (vrfMode === 'separate'
+                    ? '<p style="margin: 8px 0 0 0; color: #f97316; font-size: 0.82rem;"><strong>&#9432; This deployment uses Separate VRFs</strong> &mdash; route leaking on the service-leaf pair is required for AKS&harr;management reachability. Only leak the specific prefixes needed.</p>'
+                    : '<p style="margin: 8px 0 0 0; color: var(--accent-blue); font-size: 0.82rem;"><strong>&#9432; This deployment uses a Single shared VRF</strong> &mdash; AKS&harr;management reachability is automatic. No route leaking required.</p>')
+                + '</div>';
+
+            return intro + diagrams + table + oversub + sdn + aksVrfDiagrams;
+        }
+
+        /**
          * Render disaggregated host networking diagram showing Leaf-A/B switches,
          * per-node intent groups (SET + standalone), and uplinks.
          * Follows the exact same SVG pattern as renderSwitchedIntentDiagram.
@@ -6606,6 +6753,9 @@
             sections.push(block('Disaggregated Host Networking (Diagram)',
                 renderDisaggregatedHostNetworkingDiagram(s)
             ));
+            sections.push(block('Leaf &amp; Spine Fabric Requirements',
+                renderDisaggregatedFabricRequirements(s)
+            ));
         }
 
         // Intent + Mapping
@@ -8013,6 +8163,44 @@
                         URL.revokeObjectURL(url);
                     });
                     rackActions.appendChild(dlBtn);
+
+                    // Download Draw.io button
+                    var drawioBtn = document.createElement('button');
+                    drawioBtn.type = 'button';
+                    drawioBtn.className = 'report-action-button';
+                    drawioBtn.textContent = 'Download Rack Diagram Draw.io';
+                    drawioBtn.addEventListener('click', function () {
+                        var drawioXml;
+                        if (s.architecture === 'disaggregated' && typeof generateDisaggregatedRackDrawio === 'function') {
+                            drawioXml = generateDisaggregatedRackDrawio({
+                                storageType: s.disaggStorageType || 'fc_san',
+                                backupEnabled: s.disaggBackupEnabled || false,
+                                rackCount: parseInt(s.disaggRackCount, 10) || 4,
+                                nodesPerRack: parseInt(s.disaggNodesPerRack, 10) || 16,
+                                spineCount: parseInt(s.disaggSpineCount, 10) || 2
+                            });
+                        } else if (typeof generateRackDrawio === 'function') {
+                            var hw2 = s.sizerHardware || {};
+                            var rn2 = parseInt(s.nodes === '16+' ? 16 : s.nodes, 10) || 2;
+                            var gpu2 = (hw2.gpu && hw2.gpu.countPerNode > 0) || false;
+                            var ct2 = 'standard';
+                            if (hw2.clusterType) { ct2 = hw2.clusterType; }
+                            else if (s.scale === 'rack_aware') { ct2 = 'rack-aware'; }
+                            else if (s.scale === 'low_capacity' && rn2 === 1) { ct2 = 'single'; }
+                            drawioXml = generateRackDrawio({ clusterType: ct2, nodeCount: rn2, hasGpu: gpu2 });
+                        }
+                        if (!drawioXml) return;
+                        var blob2 = new Blob([drawioXml], { type: 'application/xml' });
+                        var url2 = URL.createObjectURL(blob2);
+                        var a2 = document.createElement('a');
+                        a2.href = url2;
+                        a2.download = s.architecture === 'disaggregated' ? 'disaggregated-rack-layout.drawio' : 'rack-layout.drawio';
+                        document.body.appendChild(a2);
+                        a2.click();
+                        document.body.removeChild(a2);
+                        URL.revokeObjectURL(url2);
+                    });
+                    rackActions.appendChild(drawioBtn);
                 }
             }
         }
