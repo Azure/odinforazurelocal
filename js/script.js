@@ -6297,7 +6297,7 @@ function updateSummary() {
     // Step 01–05: Scenario and Scale
     let scenarioScaleRows = '';
     if (state.scenario) scenarioScaleRows += renderRow('Scenario', escapeHtml(formatScenario(state.scenario)));
-    scenarioScaleRows += renderRow('Architecture', state.architecture === 'disaggregated' ? 'Disaggregated' : 'Hyperconverged (HCI)');
+    if (state.architecture) scenarioScaleRows += renderRow('Architecture', state.architecture === 'disaggregated' ? 'Disaggregated' : 'Hyperconverged (HCI)');
     if (state.scenario === 'disconnected' && state.clusterRole) {
         scenarioScaleRows += renderRow('Cluster Role', escapeHtml(state.clusterRole === 'management' ? 'Management Cluster' : 'Workload Cluster'));
         const _fqdn = state.autonomousCloudFqdn || '(not set)';
