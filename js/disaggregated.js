@@ -328,6 +328,13 @@ function selectDisaggVrfMode(mode) {
     renderDisaggVrfModeCards();
     renderDisaggTenantNetworks();
     renderDisaggVlanConfirmState();
+    // Toggle AKS hop-count diagram to match selected VRF mode
+    var singleDiag = document.getElementById('da4-aks-diagram-single');
+    var sepDiag = document.getElementById('da4-aks-diagram-separate');
+    if (singleDiag && sepDiag) {
+        singleDiag.style.display = mode === 'single' ? '' : 'none';
+        sepDiag.style.display = mode === 'separate' ? '' : 'none';
+    }
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 
@@ -609,9 +616,16 @@ function renderDisaggVlanConfirmState() {
 
     // Default the VRF mode if not yet set, then sync mode card highlight + lock state
     if (state.disaggVrfMode !== 'single' && state.disaggVrfMode !== 'separate') {
-        state.disaggVrfMode = 'separate';
+        state.disaggVrfMode = 'single';
     }
     renderDisaggVrfModeCards();
+    // Sync AKS hop-count diagram to current VRF mode
+    var singleDiag = document.getElementById('da4-aks-diagram-single');
+    var sepDiag = document.getElementById('da4-aks-diagram-separate');
+    if (singleDiag && sepDiag) {
+        singleDiag.style.display = state.disaggVrfMode === 'single' ? '' : 'none';
+        sepDiag.style.display = state.disaggVrfMode === 'separate' ? '' : 'none';
+    }
 
     if (typeof updateBreadcrumbs === 'function') updateBreadcrumbs();
 }
@@ -2115,7 +2129,7 @@ function renderDisaggOverrides() {
     html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN</label>';
     html += renderInput('cluster1', 'cluster1_vlan', vlans.cluster1 || 711, '', 'number', confirmed);
     html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
-    html += renderInput('cluster1', 'cluster1_subnet', subnets.cluster1 || '', '10.71.1.0/24', 'text', confirmed);
+    html += renderInput('cluster1', 'cluster1_subnet', subnets.cluster1 || '10.71.1.0/24', '10.71.1.0/24', 'text', confirmed);
     html += '</div></div>';
 
     html += '<div style="padding: 12px; border: 1px solid #22c55e40; border-left: 4px solid #22c55e; border-radius: 6px; background: #22c55e08; min-width: 0; overflow: hidden;">';
@@ -2123,7 +2137,7 @@ function renderDisaggOverrides() {
     html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN</label>';
     html += renderInput('cluster2', 'cluster2_vlan', vlans.cluster2 || 712, '', 'number', confirmed);
     html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
-    html += renderInput('cluster2', 'cluster2_subnet', subnets.cluster2 || '', '10.71.2.0/24', 'text', confirmed);
+    html += renderInput('cluster2', 'cluster2_subnet', subnets.cluster2 || '10.71.2.0/24', '10.71.2.0/24', 'text', confirmed);
     html += '</div></div>';
     html += '</div>';
 

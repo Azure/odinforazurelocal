@@ -1056,14 +1056,14 @@
                             <p style="margin: 10px 0 0 0; color: var(--text-secondary); font-size: 0.8rem;">
                                 <strong style="color: #f97316;">Separate VRFs</strong> require <strong>route leaking</strong> on the service-leaf pair — at minimum the AKS VRF must import management prefixes and vice versa. This makes the service-leaf tier a potential throughput bottleneck for AKS&harr;management traffic. Only leak the specific prefixes required; avoid default routes or broad summaries to preserve isolation.
                             </p>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
-                                <div style="text-align: center;">
+                            <div id="da4-aks-diagram-container" style="margin-top: 14px; text-align: center;">
+                                <div id="da4-aks-diagram-single" style="text-align: center;">
                                     <p style="margin: 0 0 6px 0; font-size: 0.78rem; font-weight: 600; color: var(--accent-blue);">Single VRF — 3 hops (cross-rack)</p>
-                                    <img src="images/disaggregated/aks-logical-network-single-routing-domain.svg" alt="AKS and management LNETs in a single VRF with automatic Layer 3 reachability" style="width: 100%; max-width: 400px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                                    <img src="images/disaggregated/aks-logical-network-single-routing-domain.svg" alt="AKS and management LNETs in a single VRF with automatic Layer 3 reachability" style="width: 100%; max-width: 520px; border-radius: 6px; border: 1px solid var(--glass-border);">
                                 </div>
-                                <div style="text-align: center;">
+                                <div id="da4-aks-diagram-separate" style="display: none; text-align: center;">
                                     <p style="margin: 0 0 6px 0; font-size: 0.78rem; font-weight: 600; color: #f97316;">Separate VRFs — 5 hops (cross-rack, route leaking)</p>
-                                    <img src="images/disaggregated/aks-logical-network-separate-routing-domains-route-leaking.svg" alt="AKS and management LNETs in separate VRFs with route leaking via service leaf" style="width: 100%; max-width: 400px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                                    <img src="images/disaggregated/aks-logical-network-separate-routing-domains-route-leaking.svg" alt="AKS and management LNETs in separate VRFs with route leaking via service leaf" style="width: 100%; max-width: 520px; border-radius: 6px; border: 1px solid var(--glass-border);">
                                 </div>
                             </div>
                         </div>
@@ -3067,16 +3067,13 @@
                     </li>
                     <li class="knowledge-nav-divider">Interactive Diagrams</li>
                     <li>
-                        <a href="#" class="knowledge-nav-item" data-src="docs/outbound-connectivity/azure-local-public-path-dark-flows.html" onclick="switchKnowledgePage(this, 'docs/outbound-connectivity/azure-local-public-path-dark-flows.html'); return false;">
+                        <a href="#" class="knowledge-nav-item" data-src="https://cristianedwards.github.io/AzLoFlows/" onclick="switchKnowledgePage(this, 'https://cristianedwards.github.io/AzLoFlows/'); return false;">
                             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                            Public Path Flow
+                            AzLoFlows (Public &amp; Private Path)
                         </a>
-                    </li>
-                    <li>
-                        <a href="#" class="knowledge-nav-item" data-src="docs/outbound-connectivity/azure-local-private-path-dark-flows.html" onclick="switchKnowledgePage(this, 'docs/outbound-connectivity/azure-local-private-path-dark-flows.html'); return false;">
-                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            Private Path Flow
-                        </a>
+                        <p style="margin: 4px 0 0 28px; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.35;">
+                            Load the <strong>Public Path</strong> or <strong>Private Path</strong> scenario from the AzLoFlows sidebar, then toggle traffic sources &amp; types.
+                        </p>
                     </li>
                 </ul>
             </aside>

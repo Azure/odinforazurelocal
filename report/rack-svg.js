@@ -550,7 +550,405 @@
         return parts.join('\n');
     }
 
+    // ── Draw.io XML helpers ──
+    function xmlEsc(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── HCI Rack Draw.io Generator ──
+    // config: { clusterType, nodeCount, hasGpu }
+    function generateRackDrawio(config) {
+        var clusterType = config.clusterType || 'standard';
+        var isRackAware = clusterType === 'rack-aware';
+        var rackCount = isRackAware ? 2 : 1;
+        var nodeCount = config.nodeCount || 2;
+        var hasGpu = config.hasGpu || false;
+        var torPerRack = nodeCount > 1 ? 2 : 1;
+        var bmcPerRack = 1;
+
+        var racks = [];
+        if (isRackAware) {
+            var half = Math.ceil(nodeCount / 2);
+            racks.push({ nodes: half, tor: torPerRack });
+            racks.push({ nodes: nodeCount - half, tor: torPerRack });
+        } else {
+            racks.push({ nodes: nodeCount, tor: torPerRack });
+        }
+
+        // Layout constants (draw.io scale)
+        var rackW = 260;
+        var uH = 24;
+        var rackGap = 80;
+        var rackInnerH = 42 * uH;  // 42U
+        var rackOuterH = rackInnerH + 20;
+        var coreW = 300;
+        var coreH = 50;
+        var padX = 60;
+        var padY = 40;
+        var coreGap = 50;
+
+        var totalRacksW = rackCount * rackW + (rackCount - 1) * rackGap;
+        var pageW = Math.max(totalRacksW, coreW) + padX * 2;
+        var pageH = padY + coreH + coreGap + rackOuterH + 120;
+
+        var cells = [];
+        var cellId = 2;
+        function nextId() { return String(cellId++); }
+        function addCell(value, x, y, w, h, style, parent) {
+            var id = nextId();
+            cells.push({ id: id, value: xmlEsc(value), x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), style: style, parent: parent || '1' });
+            return id;
+        }
+
+        // Background
+        addCell('', 0, 0, pageW, pageH,
+            'rounded=1;whiteSpace=wrap;html=1;fillColor=#0a0a0a;strokeColor=none;arcSize=2;');
+
+        // Title
+        addCell('Rack Layout — Front View', 0, padY - 30, pageW, 24,
+            'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#cccccc;fontSize=14;fontStyle=1;');
+
+        // Azure Local brand
+        addCell('Azure Local', pageW - 140, padY - 28, 100, 20,
+            'text;html=1;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#B596F5;fontSize=12;fontStyle=1;');
+
+        // Core Switch
+        var coreX = (pageW - coreW) / 2;
+        var coreY = padY;
+        addCell('Core Switch / Router / Firewall', coreX, coreY, coreW, coreH,
+            'rounded=1;whiteSpace=wrap;html=1;fillColor=#1a6fc4;strokeColor=#2a8ad4;fontColor=#FFFFFF;fontSize=12;fontStyle=1;arcSize=8;');
+
+        // Racks
+        var racksTopY = coreY + coreH + coreGap;
+        var racksStartX = (pageW - totalRacksW) / 2;
+
+        for (var r = 0; r < rackCount; r++) {
+            var rackInfo = racks[r];
+            var rx = racksStartX + r * (rackW + rackGap);
+            var ry = racksTopY;
+
+            // Rack label
+            var rackLabel = isRackAware ? 'Rack ' + (r + 1) : 'Rack';
+            addCell(rackLabel, rx, ry - 22, rackW, 20,
+                'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#cccccc;fontSize=12;fontStyle=1;');
+
+            // Rack frame
+            addCell('', rx, ry, rackW, rackOuterH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#2a2a2a;strokeColor=#555555;arcSize=1;');
+
+            // Inner area
+            addCell('', rx + 10, ry + 10, rackW - 20, rackInnerH,
+                'rounded=0;whiteSpace=wrap;html=1;fillColor=#1a1a1a;strokeColor=none;');
+
+            var devW = rackW - 28;
+            var devX = rx + 14;
+
+            // ToR switches at top (U42, U41)
+            for (var t = 0; t < rackInfo.tor; t++) {
+                var torU = 42 - t;
+                var torY = ry + 10 + (42 - torU) * uH;
+                var torNum = isRackAware ? (r * 2 + t + 1) : (t + 1);
+                addCell('ToR ' + torNum, devX, torY + 1, devW, uH - 2,
+                    'rounded=1;whiteSpace=wrap;html=1;fillColor=#444444;strokeColor=#666666;fontColor=#FFFFFF;fontSize=10;fontStyle=1;arcSize=15;');
+            }
+
+            // BMC switch
+            var bmcU = 42 - rackInfo.tor;
+            var bmcY = ry + 10 + (42 - bmcU) * uH;
+            var bmcNum = isRackAware ? (r + 1) : 1;
+            addCell('BMC ' + bmcNum, devX, bmcY + 1, devW, uH - 2,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#3b82f6;strokeColor=#2563eb;fontColor=#FFFFFF;fontSize=10;fontStyle=1;arcSize=15;');
+
+            // Server nodes (2U each)
+            var topServerU = 42 - rackInfo.tor - bmcPerRack;
+            var nodeOffset = 0;
+            for (var pr = 0; pr < r; pr++) { nodeOffset += racks[pr].nodes; }
+            for (var n = 0; n < rackInfo.nodes; n++) {
+                var serverU = topServerU - n * 2;
+                if (serverU < 1) break;
+                var serverY = ry + 10 + (42 - serverU) * uH;
+                var serverColor = hasGpu ? '#d97706' : '#aaaaaa';
+                var serverStroke = hasGpu ? '#b45309' : '#888888';
+                var serverFontColor = hasGpu ? '#FFFFFF' : '#333333';
+                addCell('Node ' + (nodeOffset + n + 1), devX, serverY + 1, devW, 2 * uH - 2,
+                    'rounded=1;whiteSpace=wrap;html=1;fillColor=' + serverColor + ';strokeColor=' + serverStroke + ';fontColor=' + serverFontColor + ';fontSize=10;fontStyle=1;arcSize=8;');
+            }
+        }
+
+        // Legend
+        var legendY = racksTopY + rackOuterH + 30;
+        var legendItems = [
+            { color: '#aaaaaa', label: 'Server Node' },
+            { color: '#444444', label: 'ToR Switch' },
+            { color: '#3b82f6', label: 'BMC Switch' },
+            { color: '#1a6fc4', label: 'Core Switch' }
+        ];
+        if (hasGpu) {
+            legendItems.splice(1, 0, { color: '#d97706', label: 'GPU Node' });
+        }
+        var lgW = 20, lgH = 14, lgGap = 16;
+        var lgTotalW = 0;
+        for (var li = 0; li < legendItems.length; li++) {
+            lgTotalW += lgW + 4 + legendItems[li].label.length * 7 + lgGap;
+        }
+        var lgX = (pageW - lgTotalW) / 2;
+        for (var lj = 0; lj < legendItems.length; lj++) {
+            var item = legendItems[lj];
+            addCell('', lgX, legendY, lgW, lgH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=' + item.color + ';strokeColor=#555555;');
+            addCell(item.label, lgX + lgW + 4, legendY - 1, item.label.length * 7, lgH + 2,
+                'text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#aaaaaa;fontSize=10;');
+            lgX += lgW + 4 + item.label.length * 7 + lgGap;
+        }
+
+        // U count summary
+        var nodesU = nodeCount * 2;
+        var switchesU = torPerRack * rackCount;
+        var bmcU2 = bmcPerRack * rackCount;
+        var usedU = nodesU + switchesU + bmcU2;
+        var totalU = 42 * rackCount;
+        addCell(usedU + 'U used / ' + totalU + 'U total', 0, legendY + 24, pageW, 18,
+            'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#888888;fontSize=10;');
+
+        // Build XML
+        var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        xml += '<mxfile host="app.diagrams.net" type="device">\n';
+        xml += '  <diagram name="Rack Layout" id="odin-rack-layout">\n';
+        xml += '    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="' + Math.round(pageW) + '" pageHeight="' + Math.round(pageH + 60) + '" math="0" shadow="0">\n';
+        xml += '      <root>\n';
+        xml += '        <mxCell id="0" />\n';
+        xml += '        <mxCell id="1" parent="0" />\n';
+        for (var vi = 0; vi < cells.length; vi++) {
+            var c = cells[vi];
+            xml += '        <mxCell id="' + c.id + '" value="' + c.value + '" style="' + c.style + '" vertex="1" parent="' + c.parent + '">\n';
+            xml += '          <mxGeometry x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h + '" as="geometry" />\n';
+            xml += '        </mxCell>\n';
+        }
+        xml += '      </root>\n';
+        xml += '    </mxGraphModel>\n';
+        xml += '  </diagram>\n';
+        xml += '</mxfile>';
+        return xml;
+    }
+
+    // ── Disaggregated Rack Draw.io Generator ──
+    // config: { storageType, backupEnabled, rackCount, nodesPerRack, spineCount }
+    function generateDisaggregatedRackDrawio(config) {
+        var storageType = config.storageType || 'fc_san';
+        var backupEnabled = config.backupEnabled || false;
+        var rackCount = config.rackCount || 4;
+        var nodesPerRack = config.nodesPerRack || 16;
+        var spineCount = config.spineCount || 2;
+        var baseAsn = 64789;
+        var spineAsn = 64841;
+        var serviceLeafAsn = 65005;
+
+        var hasFC = storageType === 'fc_san';
+        var hasIscsi = storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic';
+        var fcDevices = hasFC ? 2 : 0;
+
+        // Layout constants (draw.io scale)
+        var rackW = 260;
+        var uH = 24;
+        var rackGap = rackCount > 4 ? 30 : 50;
+        var rackInnerH = 42 * uH;
+        var rackOuterH = rackInnerH + 20;
+        var padX = 40;
+        var padY = 40;
+
+        var totalRacksW = rackCount * rackW + (rackCount - 1) * rackGap;
+
+        // Spine/service leaf area
+        var slBoxW = 160;
+        var slBoxH = 30;
+        var spineBoxW = 200;
+        var spineBoxH = 34;
+        var spineGap = 30;
+        var slY = padY + 30;
+        var spineY = slY + slBoxH + 14;
+        var rackLabelH = 30;
+        var racksTopY = spineY + spineBoxH + rackLabelH + 10;
+        var sanH = (hasFC || hasIscsi) ? 60 : 0;
+        var legendH = 60;
+
+        var pageW = Math.max(totalRacksW + padX * 2, 600);
+        var pageH = racksTopY + rackOuterH + sanH + legendH + 60;
+
+        var cells = [];
+        var cellId = 2;
+        function nextId() { return String(cellId++); }
+        function addCell(value, x, y, w, h, style, parent) {
+            var id = nextId();
+            cells.push({ id: id, value: xmlEsc(value), x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h), style: style, parent: parent || '1' });
+            return id;
+        }
+
+        // Background
+        addCell('', 0, 0, pageW, pageH,
+            'rounded=0;whiteSpace=wrap;html=1;fillColor=#0a0a0a;strokeColor=none;');
+
+        // Title
+        var storageLabel = storageType === 'fc_san' ? 'FC SAN' : (storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC');
+        addCell('Rack Layout — Front View (Disaggregated, ' + storageLabel + ')', 0, padY - 24, pageW, 24,
+            'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#cccccc;fontSize=14;fontStyle=1;');
+
+        // Azure Local brand
+        addCell('Azure Local', pageW - 140, padY - 22, 100, 20,
+            'text;html=1;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#B596F5;fontSize=12;fontStyle=1;');
+
+        // Service Leaf boxes
+        var slStartX = (pageW - 2 * slBoxW - 30) / 2;
+        var slLabels = ['Service Leaf A', 'Service Leaf B'];
+        for (var sl = 0; sl < 2; sl++) {
+            var slx = slStartX + sl * (slBoxW + 30);
+            addCell(slLabels[sl] + '\\nASN ' + serviceLeafAsn, slx, slY, slBoxW, slBoxH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#0d9488;strokeColor=#14b8a6;fontColor=#FFFFFF;fontSize=10;fontStyle=1;arcSize=12;');
+        }
+
+        // Spine switches
+        var totalSpineW = spineCount * spineBoxW + (spineCount - 1) * spineGap;
+        var spineStartX = (pageW - totalSpineW) / 2;
+        for (var s = 0; s < spineCount; s++) {
+            var sx = spineStartX + s * (spineBoxW + spineGap);
+            addCell('Spine ' + (s + 1) + '\\nASN ' + spineAsn, sx, spineY, spineBoxW, spineBoxH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#1a6fc4;strokeColor=#2a8ad4;fontColor=#FFFFFF;fontSize=11;fontStyle=1;arcSize=8;');
+        }
+
+        // Racks
+        var racksStartX = (pageW - totalRacksW) / 2;
+        for (var r = 0; r < rackCount; r++) {
+            var rackAsn = baseAsn + r;
+            var rx = racksStartX + r * (rackW + rackGap);
+            var ry = racksTopY;
+
+            // Rack label
+            addCell('Rack ' + (r + 1) + ' (ASN ' + rackAsn + ')', rx, ry - 22, rackW, 20,
+                'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#cccccc;fontSize=11;fontStyle=1;');
+
+            // Rack frame
+            addCell('', rx, ry, rackW, rackOuterH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#2a2a2a;strokeColor=#555555;arcSize=1;');
+
+            // Inner area
+            addCell('', rx + 10, ry + 10, rackW - 20, rackInnerH,
+                'rounded=0;whiteSpace=wrap;html=1;fillColor=#1a1a1a;strokeColor=none;');
+
+            var devW = rackW - 28;
+            var devX = rx + 14;
+
+            // Leaf switches (U42, U41)
+            addCell('Leaf ' + (r + 1) + 'A', devX, ry + 10 + 1, devW, uH - 2,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#444444;strokeColor=#666666;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=15;');
+            addCell('Leaf ' + (r + 1) + 'B', devX, ry + 10 + uH + 1, devW, uH - 2,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#444444;strokeColor=#666666;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=15;');
+
+            // BMC switch (U40)
+            addCell('BMC Switch ' + (r + 1), devX, ry + 10 + 2 * uH + 1, devW, uH - 2,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#3b82f6;strokeColor=#2563eb;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=15;');
+
+            // Server nodes (2U each, starting U38 down)
+            var nodeStart = r * nodesPerRack + 1;
+            for (var n = 0; n < nodesPerRack; n++) {
+                var uPos = 38 - n * 2;
+                if (uPos < 3) break;
+                var serverY = ry + 10 + (42 - uPos) * uH;
+                addCell('Node ' + (nodeStart + n), devX, serverY + 1, devW, 2 * uH - 2,
+                    'rounded=1;whiteSpace=wrap;html=1;fillColor=#aaaaaa;strokeColor=#888888;fontColor=#333333;fontSize=9;fontStyle=1;arcSize=8;');
+            }
+
+            // FC switches at bottom (U2, U1)
+            if (hasFC) {
+                var fcY2 = ry + 10 + (42 - 2) * uH;
+                var fcY1 = ry + 10 + (42 - 1) * uH;
+                addCell('FC Switch ' + (r + 1) + 'A', devX, fcY2 + 1, devW, uH - 2,
+                    'rounded=1;whiteSpace=wrap;html=1;fillColor=#7c3aed;strokeColor=#6d28d9;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=15;');
+                addCell('FC Switch ' + (r + 1) + 'B', devX, fcY1 + 1, devW, uH - 2,
+                    'rounded=1;whiteSpace=wrap;html=1;fillColor=#7c3aed;strokeColor=#6d28d9;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=15;');
+            }
+        }
+
+        // SAN / iSCSI layer
+        var sanY = racksTopY + rackOuterH + 16;
+        if (hasFC) {
+            var sanBoxW = (totalRacksW - 20) / 2;
+            var sanBoxH = 40;
+            var sanX1 = racksStartX;
+            var sanX2 = racksStartX + sanBoxW + 20;
+            addCell('SAN Storage Array — Fabric A\\nFC 32G / Connected to FC Switch A in each rack', sanX1, sanY, sanBoxW, sanBoxH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#6d28d9;strokeColor=#7c3aed;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=6;');
+            addCell('SAN Storage Array — Fabric B\\nFC 32G / Connected to FC Switch B in each rack', sanX2, sanY, sanBoxW, sanBoxH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#6d28d9;strokeColor=#7c3aed;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=6;');
+        } else if (hasIscsi) {
+            var iscsiBoxW = (totalRacksW - 20) / 2;
+            var iscsiBoxH = 40;
+            var iscsiX1 = racksStartX;
+            var iscsiX2 = racksStartX + iscsiBoxW + 20;
+            addCell('iSCSI Storage Array — Target A', iscsiX1, sanY, iscsiBoxW, iscsiBoxH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#ea580c;strokeColor=#c2410c;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=6;');
+            addCell('iSCSI Storage Array — Target B', iscsiX2, sanY, iscsiBoxW, iscsiBoxH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=#ea580c;strokeColor=#c2410c;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=6;');
+        }
+
+        // Legend
+        var legendY = sanY + (sanH > 0 ? 56 : 16);
+        var legendItems = [
+            { color: '#aaaaaa', label: 'Server Node' },
+            { color: '#444444', label: 'Leaf Switch' },
+            { color: '#3b82f6', label: 'BMC Switch' }
+        ];
+        if (hasFC) legendItems.push({ color: '#7c3aed', label: 'FC Switch' });
+        if (hasIscsi) legendItems.push({ color: '#ea580c', label: 'iSCSI Storage' });
+        legendItems.push({ color: '#1a6fc4', label: 'Spine Switch' });
+        legendItems.push({ color: '#0d9488', label: 'Service Leaf' });
+        if (hasFC) legendItems.push({ color: '#6d28d9', label: 'SAN Storage' });
+
+        var lgW = 20, lgH = 14, lgGap = 16;
+        var lgTotalW = 0;
+        for (var li = 0; li < legendItems.length; li++) {
+            lgTotalW += lgW + 4 + legendItems[li].label.length * 7 + lgGap;
+        }
+        var lgX = (pageW - lgTotalW) / 2;
+        for (var lj = 0; lj < legendItems.length; lj++) {
+            var lItem = legendItems[lj];
+            addCell('', lgX, legendY, lgW, lgH,
+                'rounded=1;whiteSpace=wrap;html=1;fillColor=' + lItem.color + ';strokeColor=#555555;');
+            addCell(lItem.label, lgX + lgW + 4, legendY - 1, lItem.label.length * 7, lgH + 2,
+                'text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#aaaaaa;fontSize=10;');
+            lgX += lgW + 4 + lItem.label.length * 7 + lgGap;
+        }
+
+        // Summary
+        var totalNodes = rackCount * nodesPerRack;
+        var usedU = rackCount * (3 + nodesPerRack * 2 + fcDevices);
+        var totalU = rackCount * 42;
+        var backupStr = backupEnabled ? ' | Backup' : '';
+        addCell(usedU + 'U used / ' + totalU + 'U total | ' + totalNodes + ' nodes | ' + rackCount + ' racks | ' + spineCount + ' spines | ' + storageLabel + backupStr, 0, legendY + 24, pageW, 18,
+            'text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=none;strokeColor=none;fontColor=#888888;fontSize=10;');
+
+        // Build XML
+        var xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+        xml += '<mxfile host="app.diagrams.net" type="device">\n';
+        xml += '  <diagram name="Rack Layout" id="odin-rack-layout">\n';
+        xml += '    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="' + Math.round(pageW) + '" pageHeight="' + Math.round(pageH) + '" math="0" shadow="0">\n';
+        xml += '      <root>\n';
+        xml += '        <mxCell id="0" />\n';
+        xml += '        <mxCell id="1" parent="0" />\n';
+        for (var vi = 0; vi < cells.length; vi++) {
+            var c = cells[vi];
+            xml += '        <mxCell id="' + c.id + '" value="' + c.value + '" style="' + c.style + '" vertex="1" parent="' + c.parent + '">\n';
+            xml += '          <mxGeometry x="' + c.x + '" y="' + c.y + '" width="' + c.w + '" height="' + c.h + '" as="geometry" />\n';
+            xml += '        </mxCell>\n';
+        }
+        xml += '      </root>\n';
+        xml += '    </mxGraphModel>\n';
+        xml += '  </diagram>\n';
+        xml += '</mxfile>';
+        return xml;
+    }
+
     // Expose globally
     window.generateRackSvg = generateRackSvg;
     window.generateDisaggregatedRackSvg = generateDisaggregatedRackSvg;
+    window.generateRackDrawio = generateRackDrawio;
+    window.generateDisaggregatedRackDrawio = generateDisaggregatedRackDrawio;
 })();
