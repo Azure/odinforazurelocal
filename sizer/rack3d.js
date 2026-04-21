@@ -830,6 +830,9 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     var routerBottomY = routerY - rHeight / 2;
     var routerRearZ = backRZ;
     var routerFrontZ = backRZ - rDepth;
+    // Top of the entire spine stack (top face of the highest spine switch).
+    // Cables must route above this to avoid clipping through any spine body.
+    var spineStackTopY = baseY + (spineCount - 1) * (rHeight + spineGap) + rHeight / 2;
 
     // QSFP port X offset helper (port index 0-3)
     function qsfpX(rackCx, portIdx) {
@@ -883,8 +886,10 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         }
         function makeUplinkCable(portX, portY, landingX, landingY) {
             // Per-cable arc height makes the bundle look less like a flat
-            // plane by spreading them vertically at the top.
-            var topY = Math.max(portY, landingY) + 0.12 + ri * 0.02;
+            // plane by spreading them vertically at the top. Must clear the
+            // top of the entire spine stack so cables never pass through
+            // the spine chassis on the horizontal traversal.
+            var topY = spineStackTopY + 0.08 + ri * 0.02;
             var pts = [
                 new THREE.Vector3(portX, portY, rearPortZ),       // at rear port
                 new THREE.Vector3(portX, portY, exitZ),           // out the rear of the ToR
