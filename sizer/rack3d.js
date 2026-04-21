@@ -1598,20 +1598,26 @@ function renderRack3D(config) {
         var frontStartX = -frontWidth / 2 + RACK.WIDTH / 2;
         var backZ = -ROW_Z_GAP / 2;
         var frontZ = ROW_Z_GAP / 2;
-        // Back row: Racks 1..backCount (leftmost = Rack 1)
+        // The camera sits at (+X, Y, -Z) looking at origin, so higher world X
+        // renders on the viewer's LEFT and the -Z row (named backZ above) is
+        // actually the viewer's FRONT row (closer to camera). We want Rack 1
+        // on the front row, left-hand side, so assign rackIndex in reverse
+        // across X in each row (highest X = lowest rackIndex).
+        // Front row (near camera): Racks 1..backCount, Rack 1 on viewer's left.
         for (let bi = 0; bi < backCount; bi++) {
             rackPositions.push({
                 x: backStartX + bi * (RACK.WIDTH + RACK.GAP_BETWEEN),
                 z: backZ,
-                rackIndex: bi
+                rackIndex: backCount - 1 - bi
             });
         }
-        // Front row: Racks backCount+1..rackCount
+        // Back row (far from camera): Racks backCount+1..rackCount, lowest
+        // number on viewer's left (highest X).
         for (let fi = 0; fi < frontCount; fi++) {
             rackPositions.push({
                 x: frontStartX + fi * (RACK.WIDTH + RACK.GAP_BETWEEN),
                 z: frontZ,
-                rackIndex: backCount + fi
+                rackIndex: backCount + (frontCount - 1 - fi)
             });
         }
         startX = Math.min(backStartX, frontStartX);
