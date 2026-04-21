@@ -184,6 +184,9 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
     var cx = rackGroup.position.x;
+    var cz = rackGroup.position.z;
+    frontZ += cz;
+    backZ += cz;
 
     var bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.3 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 });
@@ -193,7 +196,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.set(cx, y, 0);
+    body.position.set(cx, y, cz);
     scene.add(body);
 
     // ── Front face details ──
@@ -342,6 +345,9 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
     var cx = rackGroup.position.x;
+    var cz = rackGroup.position.z;
+    frontZ += cz;
+    backZ += cz;
 
     var switchMat = new THREE.MeshStandardMaterial({ color: COLORS.TOR_SWITCH, roughness: 0.45, metalness: 0.35 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.8, metalness: 0.2 });
@@ -351,7 +357,7 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, switchMat);
-    body.position.set(cx, y, 0);
+    body.position.set(cx, y, cz);
     scene.add(body);
 
     // ── Front face — clean panel with status LEDs (ports face rear) ──
@@ -450,6 +456,9 @@ function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
     var cx = rackGroup.position.x;
+    var cz = rackGroup.position.z;
+    frontZ += cz;
+    backZ += cz;
 
     var bmcMat = new THREE.MeshStandardMaterial({ color: COLORS.BMC_SWITCH, roughness: 0.4, metalness: 0.3 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.8, metalness: 0.2 });
@@ -459,7 +468,7 @@ function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, bmcMat);
-    body.position.set(cx, y, 0);
+    body.position.set(cx, y, cz);
     scene.add(body);
 
     // Front face — clean panel with status LEDs
@@ -532,6 +541,9 @@ function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
     var cx = rackGroup.position.x;
+    var cz = rackGroup.position.z;
+    frontZ += cz;
+    backZ += cz;
 
     var fcMat = new THREE.MeshStandardMaterial({ color: 0x9933cc, roughness: 0.4, metalness: 0.4 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0033, roughness: 0.8, metalness: 0.2 });
@@ -541,7 +553,7 @@ function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, fcMat);
-    body.position.set(cx, y, 0);
+    body.position.set(cx, y, cz);
     scene.add(body);
 
     // Front face
@@ -599,6 +611,9 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
     var cx = rackGroup.position.x;
+    var cz = rackGroup.position.z;
+    frontZ += cz;
+    backZ += cz;
 
     var sanMat = new THREE.MeshStandardMaterial({ color: 0x6d28d9, roughness: 0.3, metalness: 0.4 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0033, roughness: 0.8, metalness: 0.2 });
@@ -609,7 +624,7 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, sanMat);
-    body.position.set(cx, y, 0);
+    body.position.set(cx, y, cz);
     scene.add(body);
 
     // Front panel
