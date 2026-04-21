@@ -829,7 +829,6 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     var tor2QsfpY = tor2Y - torDeviceH * 0.2;
     var routerBottomY = routerY - rHeight / 2;
     var routerRearZ = backRZ;
-    var routerFrontZ = backRZ - rDepth;
     // Top face of the highest spine in the stack — cables route above this
     // on the horizontal traversal so they never clip through any spine body.
     var spineStackTopY = baseY + (spineCount - 1) * (rHeight + spineGap) + rHeight / 2;
