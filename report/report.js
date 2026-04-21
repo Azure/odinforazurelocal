@@ -6750,7 +6750,7 @@
             sections.push(block('Disaggregated Host Networking (Diagram)',
                 renderDisaggregatedHostNetworkingDiagram(s)
             ));
-            sections.push(block('Leaf &amp; Spine Fabric Requirements',
+            sections.push(block('Leaf & Spine Fabric Requirements',
                 renderDisaggregatedFabricRequirements(s)
             ));
         }
