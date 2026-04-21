@@ -849,29 +849,47 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
             rackZ_i = 0;
             rackFacing_i = 1;
         }
-        // For flipped (back-row) racks, the ToR's rear ports are on the -Z
-        // side of the rack center, so flip the torQsfpZ anchor accordingly.
-        // Push the cable emergence point a small amount past the rear panel
-        // into the hot aisle so the cable clearly comes out of the rear of
-        // the ToR, rather than overlapping the rack volume itself.
-        var AISLE_EXIT = 0.04;
-        var rackCableZ = rackZ_i + (torQsfpZ + AISLE_EXIT) * rackFacing_i;
+        // Rear-of-ToR port face in world Z (no aisle exit yet)
+        var rearPortZ = rackZ_i + torQsfpZ * rackFacing_i;
+        // Horizontal exit point pushed into the hot aisle so the cable
+        // clearly leaves the rear of the ToR before rising up.
+        var AISLE_EXIT = 0.06;
+        var exitZ = rackZ_i + (torQsfpZ + AISLE_EXIT) * rackFacing_i;
         // Terminate each cable on the hot-aisle side of the spine (i.e. the
         // spine face nearer each rack's own hot-aisle) so the cable travels
         // from the rack rear, through the hot aisle, to the spine — not
         // crossing to the far cold-aisle face of the spine.
         var spineCableZ = rackFacing_i === -1 ? routerRearZ : routerFrontZ;
         var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
-        makeCable(
-            { x: qsfpX(rackX_i, 2), y: tor1QsfpY, z: rackCableZ },
-            { x: routerX + routerSlot * rWidth * 0.4, y: routerBottomY, z: spineCableZ },
-            blueMat, 0.12 + ri * 0.02
-        );
-        makeCable(
-            { x: qsfpX(rackX_i, 3), y: tor2QsfpY, z: rackCableZ },
-            { x: routerX + routerSlot * rWidth * 0.2, y: routerBottomY, z: spineCableZ },
-            blueMat, 0.10 + ri * 0.02
-        );
+
+        // Build a 5-segment path that emerges horizontally from the rear of
+        // the ToR before rising, then crosses over and drops onto the spine.
+        // Path: port → exit (horizontal out the rear) → up → across in X →
+        // across in Z → down to spine.
+        function makeUplinkCable(portX, portY, endX, endYPos, arcH) {
+            var topY = Math.max(portY, endYPos) + arcH;
+            var midZ = (exitZ + spineCableZ) / 2;
+            var pts = [
+                new THREE.Vector3(portX, portY, rearPortZ),   // at rear port
+                new THREE.Vector3(portX, portY, exitZ),       // straight out the rear
+                new THREE.Vector3(portX, topY, exitZ),        // up to top
+                new THREE.Vector3(endX, topY, midZ),          // across (diagonal run at top)
+                new THREE.Vector3(endX, topY, spineCableZ),   // align Z to spine
+                new THREE.Vector3(endX, endYPos, spineCableZ) // down to spine face
+            ];
+            for (let pi = 0; pi < pts.length - 1; pi++) {
+                var segGeo = new THREE.TubeGeometry(
+                    new THREE.LineCurve3(pts[pi], pts[pi + 1]),
+                    2, cableRadius, 6, false
+                );
+                scene.add(new THREE.Mesh(segGeo, blueMat));
+            }
+        }
+
+        makeUplinkCable(qsfpX(rackX_i, 2), tor1QsfpY,
+            routerX + routerSlot * rWidth * 0.4, routerBottomY, 0.12 + ri * 0.02);
+        makeUplinkCable(qsfpX(rackX_i, 3), tor2QsfpY,
+            routerX + routerSlot * rWidth * 0.2, routerBottomY, 0.10 + ri * 0.02);
     }
 
     // ── Pink/Magenta cables: SMB Storage Trunks — rack-aware only (not disaggregated) ──
