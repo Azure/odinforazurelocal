@@ -1656,7 +1656,10 @@ function renderRack3D(config) {
         var twoRowNote = useTwoRows
             ? '<br><span style="color: var(--accent-blue);">Multi-row layout: racks are arranged in two rows with a hot aisle between them for 5+ rack deployments.</span>'
             : '';
-        infoText.innerHTML = 'Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>' + twoRowNote + '⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.';
+        var disaggSanNote = isDisaggregated
+            ? '<br><br>Note: Each rack has a \'SAN appliance\' shown for graphical representation, in practice your SAN array will be consolidated in a separate rack(s), this is for illustration purposes only.'
+            : '';
+        infoText.innerHTML = 'Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>' + twoRowNote + disaggSanNote + '<br>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.';
     }
 
     for (let r = 0; r < rackCount; r++) {
