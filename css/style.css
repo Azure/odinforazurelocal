@@ -362,7 +362,12 @@ body {
 
 .onboarding-btn-primary:hover {
     background: #0066b8;
-    transform: translateY(-2px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .onboarding-btn-primary:hover {
+        transform: translateY(-2px);
+    }
 }
 
 .onboarding-btn-secondary {
@@ -2826,12 +2831,6 @@ header .header-description {
 .stat-value {
     color: var(--text-primary);
     font-weight: 600;
-}
-
-@media (hover: none) and (pointer: coarse) {
-    .onboarding-btn-primary:hover {
-        transform: none;
-    }
 }
 
 /* Ensure tap feedback */
