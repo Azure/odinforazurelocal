@@ -1105,12 +1105,22 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     };
 }
 
+// Disaggregated: maximum nodes per rack, matching Designer logic.
+// Total cluster is capped at 64 nodes across 1–8 racks. Per-rack port
+// budget allows up to 16 nodes, so effective limit = min(16, floor(64 / racks)).
+// Results: 1–4 racks → 16/rack; 5 → 12; 6 → 10; 7 → 9; 8 → 8.
+function getDisaggMaxNodesPerRack(rackCount) {
+    var rc = parseInt(rackCount, 10) || 1;
+    if (rc < 1) rc = 1;
+    return Math.min(16, Math.floor(64 / rc));
+}
+
 // Get the maximum node cap for the current cluster type
 function getMaxNodeCap() {
     var ct = document.getElementById('cluster-type').value;
     if (ct === 'disaggregated') {
         var rc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 4;
-        return rc * 16;
+        return rc * getDisaggMaxNodesPerRack(rc);
     }
     if (ct === 'rack-aware') return 8;
     if (ct === 'single') return 1;
@@ -1134,9 +1144,10 @@ function snapToAvailableNodeCount(recommended) {
     if (clusterType === 'disaggregated') {
         var rackCountEl = document.getElementById('disagg-rack-count');
         var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
-        // Snap to nearest multiple of rackCount (up to 16 per rack)
+        // Snap to nearest multiple of rackCount (capped by Designer-matched per-rack max)
+        var maxPerRack = getDisaggMaxNodesPerRack(rackCount);
         var snapped = Math.ceil(recommended / rackCount) * rackCount;
-        return Math.min(snapped, 16 * rackCount);
+        return Math.min(snapped, maxPerRack * rackCount);
     }
     const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     for (const opt of options) {
@@ -3138,11 +3149,13 @@ function updateNodeOptionsForClusterType() {
             nodeSelect.value = 8;
         }
     } else if (clusterType === 'disaggregated') {
-        // Disaggregated: nodes per rack (1–16), label shows "per rack"
+        // Disaggregated: nodes per rack, label shows "per rack".
+        // Per-rack maximum matches the Designer: min(16, floor(64 / rackCount))
+        // so total nodes stay within the 64-node cluster cap across 1–8 racks.
         nodeSelect.disabled = false;
         var rackCountEl = document.getElementById('disagg-rack-count');
         var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
-        var maxPerRack = 16;
+        var maxPerRack = getDisaggMaxNodesPerRack(rackCount);
         var nodeOptions = [];
         for (var n = 1; n <= maxPerRack; n++) nodeOptions.push(n);
         nodeSelect.innerHTML = nodeOptions.map(function (n) {

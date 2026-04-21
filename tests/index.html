@@ -2903,6 +2903,22 @@
             assert(formatDiskSize(2048) === '2.0 TB', 'Format 2048 GB = 2.0 TB', '2.0 TB', formatDiskSize(2048))
         ]);
 
+        // --- getDisaggMaxNodesPerRack() ---
+        // Mirrors Designer logic: min(16, floor(64 / racks)) so total stays ≤ 64 nodes.
+        testSuite('getDisaggMaxNodesPerRack()', 'sizer.js', [
+            assert(getDisaggMaxNodesPerRack(1) === 16, '1 rack → 16 nodes/rack', 16, getDisaggMaxNodesPerRack(1)),
+            assert(getDisaggMaxNodesPerRack(2) === 16, '2 racks → 16 nodes/rack', 16, getDisaggMaxNodesPerRack(2)),
+            assert(getDisaggMaxNodesPerRack(3) === 16, '3 racks → 16 nodes/rack (48 total)', 16, getDisaggMaxNodesPerRack(3)),
+            assert(getDisaggMaxNodesPerRack(4) === 16, '4 racks → 16 nodes/rack (64 total)', 16, getDisaggMaxNodesPerRack(4)),
+            assert(getDisaggMaxNodesPerRack(5) === 12, '5 racks → 12 nodes/rack (60 total)', 12, getDisaggMaxNodesPerRack(5)),
+            assert(getDisaggMaxNodesPerRack(6) === 10, '6 racks → 10 nodes/rack (60 total)', 10, getDisaggMaxNodesPerRack(6)),
+            assert(getDisaggMaxNodesPerRack(7) === 9, '7 racks → 9 nodes/rack (63 total)', 9, getDisaggMaxNodesPerRack(7)),
+            assert(getDisaggMaxNodesPerRack(8) === 8, '8 racks → 8 nodes/rack (64 total)', 8, getDisaggMaxNodesPerRack(8)),
+            assert(getDisaggMaxNodesPerRack('5') === 12, 'String "5" parsed correctly', 12, getDisaggMaxNodesPerRack('5')),
+            assert(getDisaggMaxNodesPerRack(0) === 16, 'Zero guarded → treated as 1 rack', 16, getDisaggMaxNodesPerRack(0)),
+            assert(getDisaggMaxNodesPerRack(null) === 16, 'Null guarded → treated as 1 rack', 16, getDisaggMaxNodesPerRack(null))
+        ]);
+
         // --- escapeHtmlSizer() ---
         testSuite('escapeHtmlSizer()', 'sizer.js', [
             assert(escapeHtmlSizer('hello') === 'hello', 'Plain text unchanged', 'hello', escapeHtmlSizer('hello')),

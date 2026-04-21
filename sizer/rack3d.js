@@ -117,9 +117,10 @@ function makeFaceLabel(text, fontSize, color, facing) {
 
 // ── Build a single 42U rack frame ────────────
 
-function buildRackFrame(scene, offsetX) {
+function buildRackFrame(scene, offsetX, offsetZ) {
     var group = new THREE.Group();
     group.position.x = offsetX;
+    group.position.z = offsetZ || 0;
 
     var frameMat = new THREE.MeshStandardMaterial({ color: COLORS.RACK_FRAME, roughness: 0.7, metalness: 0.5 });
     var railMat  = new THREE.MeshStandardMaterial({ color: COLORS.RACK_RAIL, roughness: 0.6, metalness: 0.4 });
@@ -695,7 +696,7 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
 
 // ── Core network for rack-aware and disaggregated topologies ──
 
-function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackStartX, isDisaggLayout) {
+function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackStartX, isDisaggLayout, rackPositions) {
     spineCount = spineCount || 2;
     allRackCount = allRackCount || 2;
     rackStartX = rackStartX || rack1X;
@@ -823,15 +824,22 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     // ── Blue cables: Management/Compute Trunks (each rack's ToRs → Spine) ──
     // Connect every rack's ToR to the bottom spine switch
     for (let ri = 0; ri < allRackCount; ri++) {
-        var rackX_i = rackStartX + ri * (RACK.WIDTH + RACK.GAP_BETWEEN);
+        var rackX_i, rackZ_i;
+        if (rackPositions && rackPositions[ri]) {
+            rackX_i = rackPositions[ri].x;
+            rackZ_i = rackPositions[ri].z;
+        } else {
+            rackX_i = rackStartX + ri * (RACK.WIDTH + RACK.GAP_BETWEEN);
+            rackZ_i = 0;
+        }
         var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
         makeCable(
-            { x: qsfpX(rackX_i, 2), y: tor1QsfpY, z: torQsfpZ },
+            { x: qsfpX(rackX_i, 2), y: tor1QsfpY, z: torQsfpZ + rackZ_i },
             { x: routerX + routerSlot * rWidth * 0.4, y: routerBottomY, z: routerRearZ },
             blueMat, 0.12 + ri * 0.02
         );
         makeCable(
-            { x: qsfpX(rackX_i, 3), y: tor2QsfpY, z: torQsfpZ },
+            { x: qsfpX(rackX_i, 3), y: tor2QsfpY, z: torQsfpZ + rackZ_i },
             { x: routerX + routerSlot * rWidth * 0.2, y: routerBottomY, z: routerRearZ },
             blueMat, 0.10 + ri * 0.02
         );
@@ -1448,8 +1456,16 @@ function renderRack3D(config) {
     fillLight.position.set(-2, 1, -1);
     _rack3d.scene.add(fillLight);
 
-    // Floor plane — scale for multi-rack disaggregated layouts
-    var floorSize = rackCount > 2 ? 4 + rackCount * 2 : (rackCount === 2 ? 8 : 6);
+    // Floor plane — scale for multi-rack disaggregated layouts.
+    // Two-row layouts (5+ racks) use ceil(N/2) racks per row and need a
+    // larger, more square floor so both rows fit with margin on all sides.
+    var floorSize;
+    if (config.clusterType === 'disaggregated' && rackCount > 4) {
+        var perRow = Math.ceil(rackCount / 2);
+        floorSize = Math.max(4 + perRow * 2, 4 + rackCount); // accommodate both rows
+    } else {
+        floorSize = rackCount > 2 ? 4 + rackCount * 2 : (rackCount === 2 ? 8 : 6);
+    }
     var floorGeo = new THREE.PlaneGeometry(floorSize, floorSize);
     var floorMat = new THREE.MeshStandardMaterial({ color: COLORS.FLOOR, roughness: 1 });
     var floor = new THREE.Mesh(floorGeo, floorMat);
@@ -1552,8 +1568,51 @@ function renderRack3D(config) {
     }
 
     // Build racks
-    var totalWidth = rackCount * RACK.WIDTH + (rackCount - 1) * RACK.GAP_BETWEEN;
-    var startX = -totalWidth / 2 + RACK.WIDTH / 2;
+    // Two-row layout for disaggregated when rackCount > 4. Back row gets the
+    // larger half (ceil(N/2)), front row gets the rest. Hot aisle runs between.
+    var useTwoRows = isDisaggregated && rackCount > 4;
+    var ROW_Z_GAP = RACK.DEPTH * 1.6; // distance between row centers (hot aisle)
+    var rackPositions = [];
+    var startX; // Used by standard/rack-aware single-row helpers below
+    if (useTwoRows) {
+        var backCount = Math.ceil(rackCount / 2);
+        var frontCount = rackCount - backCount;
+        var backWidth = backCount * RACK.WIDTH + (backCount - 1) * RACK.GAP_BETWEEN;
+        var frontWidth = frontCount * RACK.WIDTH + (frontCount - 1) * RACK.GAP_BETWEEN;
+        var backStartX = -backWidth / 2 + RACK.WIDTH / 2;
+        var frontStartX = -frontWidth / 2 + RACK.WIDTH / 2;
+        var backZ = -ROW_Z_GAP / 2;
+        var frontZ = ROW_Z_GAP / 2;
+        // Back row: Racks 1..backCount (leftmost = Rack 1)
+        for (let bi = 0; bi < backCount; bi++) {
+            rackPositions.push({
+                x: backStartX + bi * (RACK.WIDTH + RACK.GAP_BETWEEN),
+                z: backZ,
+                rackIndex: bi
+            });
+        }
+        // Front row: Racks backCount+1..rackCount
+        for (let fi = 0; fi < frontCount; fi++) {
+            rackPositions.push({
+                x: frontStartX + fi * (RACK.WIDTH + RACK.GAP_BETWEEN),
+                z: frontZ,
+                rackIndex: backCount + fi
+            });
+        }
+        startX = Math.min(backStartX, frontStartX);
+    } else {
+        var totalWidth = rackCount * RACK.WIDTH + (rackCount - 1) * RACK.GAP_BETWEEN;
+        startX = -totalWidth / 2 + RACK.WIDTH / 2;
+        for (let si = 0; si < rackCount; si++) {
+            // Keep original reverse-build convention so Rack 1 appears on viewer's left
+            var rackIndex = (isRackAware || isDisaggregated) ? (rackCount - 1 - si) : si;
+            rackPositions.push({
+                x: startX + si * (RACK.WIDTH + RACK.GAP_BETWEEN),
+                z: 0,
+                rackIndex: rackIndex
+            });
+        }
+    }
 
     // Reset legend items to standard rack view
     var stdLegendReset = {
@@ -1573,14 +1632,18 @@ function renderRack3D(config) {
     // Restore standard info text
     var infoText = document.getElementById('rack-viz-info-text');
     if (infoText) {
-        infoText.innerHTML = 'Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.';
+        var twoRowNote = useTwoRows
+            ? '<br><span style="color: var(--accent-blue);">Multi-row layout: racks are arranged in two rows with a hot aisle between them for 5+ rack deployments.</span>'
+            : '';
+        infoText.innerHTML = 'Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>' + twoRowNote + '⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.';
     }
 
     for (let r = 0; r < rackCount; r++) {
-        // For rack-aware or disaggregated, build in reverse order so Rack 1 appears on viewer's left
-        var rackIndex = (isRackAware || isDisaggregated) ? (rackCount - 1 - r) : r;
-        var offsetX = startX + r * (RACK.WIDTH + RACK.GAP_BETWEEN);
-        var rack = buildRackFrame(_rack3d.scene, offsetX);
+        var pos = rackPositions[r];
+        var rackIndex = pos.rackIndex;
+        var offsetX = pos.x;
+        var offsetZ = pos.z;
+        var rack = buildRackFrame(_rack3d.scene, offsetX, offsetZ);
         var rackInfo = racks[rackIndex];
 
         // Place ToR switches at top of rack (U41, U42)
@@ -1635,17 +1698,23 @@ function renderRack3D(config) {
         var rackLabel = (isRackAware || isDisaggregated) ? 'Rack ' + (rackIndex + 1) : '42U Rack';
         var labelY = RACK.OUTER_HEIGHT + 0.08;
         var rackSprite = makeTextSprite(rackLabel, 28, '#ffffff');
-        rackSprite.position.set(offsetX - RACK.WIDTH / 2, labelY, -RACK.DEPTH / 2);
+        rackSprite.position.set(offsetX - RACK.WIDTH / 2, labelY, offsetZ - RACK.DEPTH / 2);
         rackSprite.scale.set(0.5, 0.12, 1);
         _rack3d.scene.add(rackSprite);
     }
 
     // Core network for rack-aware and disaggregated topologies
     if (isRackAware || isDisaggregated) {
-        var rack1X = startX;
-        var rack2X = startX + (RACK.WIDTH + RACK.GAP_BETWEEN) * (rackCount - 1);
+        // For two-row layouts: center the spine over the hot aisle by using the
+        // min/max X across all rack positions so the spine sits above the centroid.
+        var minRackX = rackPositions[0].x;
+        var maxRackX = rackPositions[0].x;
+        for (let rp = 1; rp < rackPositions.length; rp++) {
+            if (rackPositions[rp].x < minRackX) minRackX = rackPositions[rp].x;
+            if (rackPositions[rp].x > maxRackX) maxRackX = rackPositions[rp].x;
+        }
         var spineCount = config.spineCount || 2;
-        placeCoreNetwork(_rack3d.scene, rack1X, rack2X, spineCount, rackCount, startX, isDisaggregated);
+        placeCoreNetwork(_rack3d.scene, minRackX, maxRackX, spineCount, rackCount, startX, isDisaggregated, rackPositions);
     } else {
         // Core switch/router for standard (single-rack) clusters
         placeStandardCoreNetwork(_rack3d.scene, startX, torPerRack, nodeCount);
@@ -1688,7 +1757,13 @@ function renderRack3D(config) {
         var spineH = RACK.U_HEIGHT * 1.5;
         var spineGapH = spineH * 0.4;
         var routerTopY = RACK.OUTER_HEIGHT + 0.35 + (spCount - 1) * (spineH + spineGapH) + spineH / 2 + 0.05;
-        if (rackCount >= 4) {
+        if (useTwoRows) {
+            // 5–8 racks in two rows: pull camera back and up, square-ish floor
+            var perRowCam = Math.ceil(rackCount / 2);
+            camDist = 3.2 + perRowCam * 0.25;
+            camTargetY = RACK.OUTER_HEIGHT * 0.45;
+            _rack3d.camera.position.set(2.2 + perRowCam * 0.15, routerTopY * 1.2, -camDist);
+        } else if (rackCount >= 4) {
             // 4 racks: right-front perspective, moderately elevated, closer zoom
             camDist = 3.2;
             camTargetY = RACK.OUTER_HEIGHT * 0.5;
