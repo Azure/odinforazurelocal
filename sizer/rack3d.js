@@ -830,6 +830,9 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     var routerBottomY = routerY - rHeight / 2;
     var routerRearZ = backRZ;
     var routerFrontZ = backRZ - rDepth;
+    // Top face of the highest spine in the stack — cables route above this
+    // on the horizontal traversal so they never clip through any spine body.
+    var spineStackTopY = baseY + (spineCount - 1) * (rHeight + spineGap) + rHeight / 2;
 
     // QSFP port X offset helper (port index 0-3)
     function qsfpX(rackCx, portIdx) {
@@ -872,7 +875,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         // body.
         // rackX_i is captured from the enclosing loop.
         var rackSide = rackX_i < routerX ? -1 : 1;          // -1 = drop on spine left, +1 = right
-        var spineSideX = routerX + rackSide * (rWidth / 2 + 0.03); // just past the spine side face
+        var spineSideX = routerX + rackSide * (rWidth / 2 + 0.09); // well past the spine side face
         // Keep the landing X on the same side as the drop so the final
         // horizontal segment never crosses through the spine body. rackSide
         // < 0 → land in the left half of the rear face; > 0 → right half.
@@ -882,9 +885,10 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
             return routerX + rackSide * (rWidth * (0.45 - offsetFrac));
         }
         function makeUplinkCable(portX, portY, landingX, landingY) {
-            // Per-cable arc height makes the bundle look less like a flat
-            // plane by spreading them vertically at the top.
-            var topY = Math.max(portY, landingY) + 0.12 + ri * 0.02;
+            // Route above the top of the entire spine stack so the
+            // horizontal traversal never passes through any spine body.
+            // Per-cable stagger spreads the bundle vertically at the top.
+            var topY = spineStackTopY + 0.12 + ri * 0.015;
             var pts = [
                 new THREE.Vector3(portX, portY, rearPortZ),       // at rear port
                 new THREE.Vector3(portX, portY, exitZ),           // out the rear of the ToR
