@@ -127,9 +127,11 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚖️ Sizer: Disaggregated Storage</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Disaggregated Storage deployment type:</strong> Rack count (1–4), spine switch count (2/4), and storage connectivity (Fibre Channel / iSCSI) selectors with 3D rack visualization.</li>
-                        <li><strong>3D Visualization:</strong> FC switches (purple) rendered per rack for Fibre Channel; per-rack uplink cables to spine switches; no SMB/LAG cables for disaggregated.</li>
-                        <li><strong>Designer → Sizer transfer:</strong> Rack count, spine count, and storage type transfer from Designer; all buttons open in new tabs.</li>
+                        <li><strong>Disaggregated Storage deployment type:</strong> Rack count <strong>1–8</strong>, spine switch count (2/4), and storage connectivity (Fibre Channel / iSCSI) selectors — total cluster capped at 64 nodes with per-rack node maximum reduced (16/12/10/9/8 for 4/5/6/7/8 racks).</li>
+                        <li><strong>Two-row 3D layout for 5+ racks:</strong> Disaggregated deployments with more than 4 racks render in two rows with a true hot-aisle / cold-aisle orientation — spine switches sit centered above the hot aisle, per-rack uplink cables exit the ToR rear, route above and beside the spine stack, and land on the spine rear face.</li>
+                        <li><strong>3D Visualization:</strong> FC switches (purple) rendered per rack for Fibre Channel; per-rack blue uplink cables to spine switches; no SMB/LAG cables for disaggregated; explanatory note clarifying that the external SAN appliance is not rendered.</li>
+                        <li><strong>Auto-scale beyond 16 nodes:</strong> Sizer auto-scaler can now grow node count beyond the single-site 16-node limit when workload demand requires it (up to 64 nodes for disaggregated).</li>
+                        <li><strong>Designer → Sizer transfer:</strong> Rack count, spine count, and storage type transfer from Designer; <code>disaggSpineCount</code> is preserved in both directions; all buttons open in new tabs.</li>
                         <li><strong>Import/Export:</strong> Disaggregated state persisted in save, resume, and JSON import/export.</li>
                         <li><strong>QoS Validator:</strong> Smart PFC detection using QoS service-policy; dynamic CoS detection; actionable warnings listing specific interfaces.</li>
                     </ul>
@@ -141,10 +143,20 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Import from Azure Portal:</strong> Paste a machine JSON View to import exact CPU model, core count, sockets, and memory — non-catalog CPUs shown with "(imported)" label.</li>
                         <li><strong>Share Config as URL:</strong> Encode your full Sizer configuration in a shareable URL with optional name — recipients see a branded confirmation banner.</li>
                         <li><strong>CSV Export:</strong> Download hardware BOM as a CSV spreadsheet for procurement and planning.</li>
+                        <li><strong>Save as PDF:</strong> New "Save as PDF" export on both the Designer and the Sizer — renders the current summary / sizing view as a multi-page PDF for sharing and archiving.</li>
                         <li><strong>Capacity Runway:</strong> 5-year growth projection table showing when vCPU, memory, or storage will exceed 90% capacity.</li>
                         <li><strong>Power Breakdown:</strong> Verbose per-component power calculations with PSU efficiency (Titanium 96%), network infrastructure, and full assumptions.</li>
                         <li><strong>VM Capacity Check:</strong> VMs exceeding per-machine capacity trigger errors, block Designer export, and show toast warnings.</li>
                         <li><strong>Pricing Link:</strong> Azure Local pricing calculator link with hardware cost caveat.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-blue); margin: 0 0 12px 0;">📄 Report & Site Structure</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Outbound / Arc / Proxy / Private Endpoints:</strong> Moved into the Configuration Summary immediately after Infrastructure Network for a more logical read-order, and a new direct link to the Interactive Outbound Connectivity Diagram Builder. The redundant higher-level Connectivity section has been removed.</li>
+                        <li><strong>Leaf &amp; Spine fabric diagrams:</strong> Stacked full-width in the report for better readability on wide screens.</li>
+                        <li><strong>Cleaner Switch Config URL:</strong> The Switch Config Generator now lives at <code>/switch-config/</code> (was <code>/switch-config.html</code>).</li>
                     </ul>
                 </div>
 
@@ -154,7 +166,10 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>SDN Feature Toggle:</strong> Generate buttons now update immediately when checking LNET/NSG features.</li>
                         <li><strong>Disaggregated Resume:</strong> DA wizard steps now fully restore card selections and slider values on session resume.</li>
                         <li><strong>Sizer Logo Toggle:</strong> ODIN logo correctly switches between dark/light variants in the Sizer.</li>
-                        <li><strong>920 Tests:</strong> 114 new session resume tests covering all wizard state keys.</li>
+                        <li><strong>Leaf &amp; Spine heading:</strong> Fixed a double-escaped ampersand in the "Leaf &amp; Spine Fabric Requirements" heading.</li>
+                        <li><strong>Rack Layout badge:</strong> Fixed a malformed step-number badge in the cluster report.</li>
+                        <li><strong>Onboarding on touch:</strong> Hover transform restricted to hover-capable devices so touch users no longer see sticky hover states.</li>
+                        <li><strong>969 Tests:</strong> Test suite grew to 969 tests covering disaggregated 1–8 racks, two-row 3D math, <code>disaggSpineCount</code> round-trip, PDF export, and all session-resume state keys.</li>
                     </ul>
                 </div>
 

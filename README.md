@@ -53,22 +53,30 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Designer: Management VLAN Guidance**: Improved VLAN option descriptions and expanded info box explaining host-side vs switch-side VLAN configuration
 - **Designer → Switch Config Integration**: "Generate / Validate ToR Switch Configuration" button on the Designer summary page opens the switch config page in a new tab
 - **Sizer: Low Capacity Cluster Type**: New deployment option with enforced hardware limits — 1–3 nodes, single socket, max 14 cores, 32–128 GB memory per node, all-flash storage only, 3D visualization support
-- **Sizer: Disaggregated Storage**: New deployment type in the Sizer with rack count (1–4), spine switch count (2 or 4), and storage connectivity (Fibre Channel / iSCSI) selectors — up to 16 nodes per rack (64 total), storage fields disabled with external SAN tooltip, and 3D rack visualization with multi-rack layouts, per-rack FC switches (purple), and per-rack uplink cables to spine switches
-- **Sizer: Designer → Sizer Transfer**: Disaggregated architecture transfers from Designer to Sizer with rack count, spine count, and storage type; all Sizer buttons open in new tabs
+- **Sizer: Disaggregated Storage (1–8 racks)**: New deployment type in the Sizer with rack count **1–8**, spine switch count (2 or 4), and storage connectivity (Fibre Channel / iSCSI) selectors — total cluster capped at 64 nodes, with per-rack node maximum automatically reduced (16/12/10/9/8 for 4/5/6/7/8 racks) to match Designer logic; storage fields disabled with external SAN tooltip
+- **Sizer: Two-Row 3D Layout for 5+ Racks**: Disaggregated 3D visualization now renders deployments with more than 4 racks in two rows with a true hot-aisle / cold-aisle orientation — back row gets ⌈N/2⌉ racks, front row gets the rest; spine switches sit centered above the hot aisle; per-rack uplink cables exit the ToR rear, route above and beside the spine stack, and land on the spine rear face for both single-row and two-row layouts. An explanatory note clarifies that the external SAN appliance is not rendered
+- **Sizer: Auto-Scale Beyond 16 Nodes**: Sizer auto-scaler can now grow cluster node count beyond the single-site 16-node limit when workload demand requires it (up to 64 nodes for disaggregated), with a clear indicator when scaling has pushed the recommendation past 16
+- **Sizer: Designer → Sizer Transfer**: Disaggregated architecture transfers from Designer to Sizer with rack count, spine count (2 or 4), and storage type; `disaggSpineCount` is preserved in both directions; all Sizer buttons open in new tabs
 - **Sizer: Import/Export**: Disaggregated rack count, spine count, and storage type persisted in Sizer save, resume, and JSON import/export
 - **QoS Validator: Smart PFC Detection**: Interface PFC validation now uses QoS service-policy presence to identify storage-facing interfaces, correctly distinguishing them from uplink/BMC trunks that don’t need PFC
 - **QoS Validator: Dynamic CoS Detection**: Detects actual CoS values from class-maps (not hardcoded to 3/7), reports detected values, and provides actionable warnings with specific interface names for missing PFC or non-standard bandwidth
 - **Sizer: Import from Azure Portal JSON**: Import hardware specs from an existing Azure Local machine by pasting the JSON View — auto-detects CPU model, core count, sockets, and memory with MANUAL badge locking and custom "imported" dropdown options for non-catalog CPUs
 - **Sizer: Share Config as URL**: Shareable URL encoding of the full Sizer configuration with optional config name — recipients see a confirmation banner with the name and workload count
 - **Sizer: CSV Export**: Export hardware BOM as a CSV spreadsheet for procurement and planning
+- **Designer & Sizer: Save as PDF**: New "Save as PDF" export on both the Designer and the Sizer — renders the current summary / sizing view as a multi-page PDF for sharing and archiving (browser-native print-to-PDF, no server round-trip)
 - **Sizer: Capacity Runway Projection**: Year-over-year growth projection table showing vCPU, memory, and storage demand over 5 years with compound annual growth rate and capacity exhaustion warning
 - **Sizer: Power Calculation Detail**: Collapsible verbose breakdown of per-machine and instance power estimates — CPU TDP scaling, memory DIMMs, disk power, GPU, PSU efficiency (80 Plus Titanium 96%), network infrastructure, and full assumptions list
 - **Sizer: VM Capacity Validation**: Workloads where a single VM exceeds per-machine capacity (vCPU or memory) are blocked with 🚫 errors, toast notification, and Configure in Designer disabled
 - **Sizer: Azure Local Pricing Link**: Link to Azure Local pricing calculator in the multi-instance section with hardware cost caveat
+- **Report: Connectivity Restructure**: The Outbound, Arc, Proxy & Private Endpoints section has moved into the Configuration Summary immediately after Infrastructure Network for a more logical read-order, with a new direct link to the Interactive Outbound Connectivity Diagram Builder. The redundant higher-level Connectivity section has been removed
+- **Switch Config: Cleaner URL**: The Switch Config Generator now lives at `/switch-config/` (was `/switch-config.html`) for a shorter, more shareable URL
 - **Designer: SDN Feature Fix**: Fixed generate buttons not re-evaluating when SDN features (LNET/NSG) are checked — previously required clicking "Enable SDN" twice
 - **Designer: Disaggregated Session Resume**: New `restoreDisaggregatedUI()` function restores DA step card selections, slider values, and explanations on session resume
+- **Designer: "Leaf & Spine Fabric Requirements" heading**: Fixed a double-escaped ampersand that rendered as `&amp;amp;` in the step heading
+- **Report: Rack Layout step badge**: Fixed a malformed step-number badge on the Rack Layout section of the cluster report
 - **Sizer: Light/Dark Logo Fix**: ODIN logo now correctly toggles between dark and light variants in the Sizer
-- **Tests: Session Resume Coverage**: 114 new tests covering all wizard state keys, disaggregated restore safety, and save/restore round-trip validation (920 total)
+- **Onboarding: Touch-Device Hover**: Restricted the onboarding card hover-transform to hover-capable devices so touch users no longer see sticky hover states
+- **Tests: 969 Total**: Test suite grew to **969 tests** (up from 855 before v0.20.06) — new coverage for disaggregated rack count 1–8, two-row 3D layout math, `disaggSpineCount` round-trip, PDF export entry points, and all session-resume state keys
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 

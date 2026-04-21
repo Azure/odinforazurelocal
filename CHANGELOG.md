@@ -81,19 +81,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Import from Azure Portal JSON**: Import hardware specs from an existing Azure Local machine by pasting the machine JSON View from the Azure Portal — auto-detects CPU model name, core count, socket count, and memory; injects exact processor name and non-standard core counts as custom dropdown options; locks all imported fields as MANUAL
 - **Share Config as URL**: New "Share Sizer Config as URL" button encodes the full Sizer configuration (including workloads) as a base64 URL parameter — prompts for an optional configuration name; recipients see a confirmation banner with the name and workload count; supports Unicode names; 100-character limit
 - **CSV Export**: New "Export CSV" button generates a hardware BOM spreadsheet with cluster topology, CPU, memory, storage, GPU, power estimates, rack units, and per-workload details
+- **Save as PDF**: New "Save as PDF" export in both the Designer and the Sizer — renders the current summary / sizing view as a multi-page PDF for sharing and archiving (uses browser-native print-to-PDF; no server round-trip)
+- **Auto-Scale Beyond 16 Nodes**: Sizer auto-scaler can now grow cluster node count beyond 16 when workload demand requires it (e.g., large disaggregated configurations up to 64 nodes), with a clear indicator when scaling has pushed the recommendation past the single-site 16-node limit
 - **Capacity Runway Projection**: Collapsible year-over-year growth projection table showing vCPU, memory, and storage demand over 5 years at the configured annual growth rate — flags the year when capacity exceeds 90% and shows a capacity runway summary
 - **Power Calculation Breakdown**: Collapsible "Power calculations, verbose information and assumptions" section with per-component DC power (CPU TDP, memory DIMMs, disks, GPU, base overhead), PSU efficiency (80 Plus Titanium 96%), network infrastructure itemization (ToR/BMC/FC/Spine switches), SAN caveat for disaggregated, and full assumptions list
 - **VM Capacity Validation**: Individual VM workloads where vCPU or memory exceeds per-machine capacity trigger 🚫 sizing notes, block Configure in Designer, and show a toast error notification
 - **Azure Local Pricing Link**: Pricing calculator link in multi-instance section with note that it covers Azure service costs only, excluding hardware
 
+#### Report: Connectivity Restructure
+- **Outbound, Arc, Proxy & Private Endpoints section repositioned**: Moved into Configuration Summary immediately after Infrastructure Network for a more logical read-order in the generated report
+- **Interactive Diagram Builder link**: Added direct link from the report's connectivity section to the Interactive Outbound Connectivity Diagram Builder
+- **Duplicate section removed**: Removed the now-redundant higher-level Connectivity section; only the detailed Outbound/Arc/Proxy/Private Endpoints section remains
+
+#### Switch Config: Cleaner URL
+- **`/switch-config/` URL**: Renamed `switch-config.html` to `switch-config/index.html` so the page now serves at `https://azure.github.io/odinforazurelocal/switch-config/` instead of `.../switch-config.html`
+
+### Changed
+
+- **Disaggregated rack diagram hierarchy**: Service Leaf switches now render above Spine switches in the rack topology diagram, matching standard leaf-spine convention
+- **Leaf & Spine fabric diagrams**: Stacked full-width in the report for better readability on wide screens
+
 ### Fixed
 
 - **Designer: SDN Feature Toggle**: Fixed generate buttons (Report/ARM) not updating when SDN features (LNET/NSG) are checked — `toggleSdnFeature()` now calls `updateUI()` so buttons re-evaluate immediately without requiring a second click on "Enable SDN"
 - **Designer: Disaggregated Session Resume**: Added `restoreDisaggregatedUI()` to re-populate DA step card selections (storage type, backup, rack count, spine count), slider values, and explanation text after session resume — previously DA steps appeared blank after F5 refresh
+- **Designer: "Leaf & Spine Fabric Requirements" heading**: Fixed a double-escaped ampersand that rendered as `&amp;amp;` in the step heading
+- **Report: Rack Layout step badge**: Fixed a malformed step-number badge on the Rack Layout section of the cluster report
 - **Sizer: ODIN Logo Light/Dark**: Fixed ODIN logo not switching between dark and light variants when toggling theme in the Sizer — the local `applyTheme()` was looking for `.odin-tab-logo img` which doesn't exist; now uses `#odin-logo`
 - **Sizer: Share Button Disabled State**: Share URL buttons now start disabled with tooltip "Add workload(s) before you can share" and enable when workloads are added; added `.btn-secondary:disabled` CSS for visual disabled state (40% opacity, not-allowed cursor)
 - **Sizer: PSU Efficiency**: Separated PSU efficiency from base overhead — component power (DC) is now divided by 96% efficiency (80 Plus Titanium at 50% load) to calculate wall power (AC), matching current-gen 2U server PSU ratings
-- **Tests: Session Resume Coverage**: Added 114 new tests for session resume state preservation — all core wizard keys and disaggregated keys validated through save/load round-trip, `restoreDisaggregatedUI` safety checks (920 total tests)
+- **Sizer ↔ Designer: Disaggregated spine count round-trip**: `disaggSpineCount` is now preserved in both directions so a 4-spine selection from the Designer no longer reverts to 2 spines after a Sizer round-trip
+- **3D Visualization: Disaggregated uplink cable routing**: Multiple refinements so blue uplink cables exit the ToR rear cleanly, route above and beside the spine stack (never through it), and land on the rear face of the spine switches for both single-row and two-row (5+ rack) layouts
+- **3D Visualization: SAN appliance clarification note**: Added a caption clarifying that the external SAN appliance is not rendered in the 3D view for Disaggregated Storage deployments
+- **Onboarding walkthrough: Touch-device hover**: Restricted the onboarding card hover-transform to hover-capable devices so touch users no longer see sticky hover states
+- **Tests: Expanded coverage**: Test suite grew to **969 tests** (up from 920) — new coverage for disaggregated rack count 1–8, two-row 3D layout math, `disaggSpineCount` round-trip, and PDF export entry points
 
 ---
 
