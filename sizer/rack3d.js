@@ -864,7 +864,6 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         // rear of Spine 1 / Spine 2 rather than splitting across both
         // spine faces.
         var spineCableZ = routerRearZ;
-        var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
 
         // Build a path that emerges horizontally from the rear of the ToR,
         // rises, crosses over, then drops down the SIDE of the spine (just
@@ -874,6 +873,14 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         // rackX_i is captured from the enclosing loop.
         var rackSide = rackX_i < routerX ? -1 : 1;          // -1 = drop on spine left, +1 = right
         var spineSideX = routerX + rackSide * (rWidth / 2 + 0.03); // just past the spine side face
+        // Keep the landing X on the same side as the drop so the final
+        // horizontal segment never crosses through the spine body. rackSide
+        // < 0 → land in the left half of the rear face; > 0 → right half.
+        function sideLandingX(offsetFrac) {
+            // offsetFrac in 0..0.45 controls how far into the rear face the
+            // cable terminates (0 = at the side, 0.45 = near the centreline).
+            return routerX + rackSide * (rWidth * (0.45 - offsetFrac));
+        }
         function makeUplinkCable(portX, portY, landingX, landingY) {
             // Per-cable arc height makes the bundle look less like a flat
             // plane by spreading them vertically at the top.
@@ -896,10 +903,12 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
             }
         }
 
+        // Give each of the two cables a slightly different landing X within
+        // the rack's side of the spine rear face (so they don't overlap).
         makeUplinkCable(qsfpX(rackX_i, 2), tor1QsfpY,
-            routerX + routerSlot * rWidth * 0.4, routerBottomY);
+            sideLandingX(0.15), routerBottomY);
         makeUplinkCable(qsfpX(rackX_i, 3), tor2QsfpY,
-            routerX + routerSlot * rWidth * 0.2, routerBottomY);
+            sideLandingX(0.25), routerBottomY);
     }
 
     // ── Pink/Magenta cables: SMB Storage Trunks — rack-aware only (not disaggregated) ──
