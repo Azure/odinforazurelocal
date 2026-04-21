@@ -851,10 +851,15 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         }
         // For flipped (back-row) racks, the ToR's rear ports are on the -Z
         // side of the rack center, so flip the torQsfpZ anchor accordingly.
-        var rackCableZ = rackZ_i + torQsfpZ * rackFacing_i;
-        // Terminate on whichever spine face the rack points its rear at:
-        // front-row racks (facing +1) land on the spine's -Z face;
-        // back-row racks (facing -1) land on the spine's +Z face.
+        // Push the cable emergence point a small amount past the rear panel
+        // into the hot aisle so the cable clearly comes out of the rear of
+        // the ToR, rather than overlapping the rack volume itself.
+        var AISLE_EXIT = 0.04;
+        var rackCableZ = rackZ_i + (torQsfpZ + AISLE_EXIT) * rackFacing_i;
+        // Terminate each cable on the hot-aisle side of the spine (i.e. the
+        // spine face nearer each rack's own hot-aisle) so the cable travels
+        // from the rack rear, through the hot aisle, to the spine — not
+        // crossing to the far cold-aisle face of the spine.
         var spineCableZ = rackFacing_i === -1 ? routerRearZ : routerFrontZ;
         var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
         makeCable(
