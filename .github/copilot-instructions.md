@@ -49,14 +49,15 @@
 - Runtime state lives in `localStorage` and in-memory globals. Do not add client-side state libraries (Redux, Zustand, etc.).
 
 ## Linting & Validation (must pass before push)
-CI (`.github/workflows/test.yml`) runs ESLint on `js/*.js`, the full test suite, and HTML validation on every PR. Local pre-push checks that mirror CI:
+CI (`.github/workflows/test.yml`) runs ESLint on all browser-facing JS (`js/`, `arm/`, `report/`, `sizer/`, `switch-config/`, `docs/outbound-connectivity/`), the full test suite, and HTML validation on every PR. Local pre-push checks that mirror CI:
 ```powershell
-npx eslint js/*.js                   # must pass — CI blocks the PR on lint errors here
+npx eslint "js/*.js" "arm/*.js" "report/*.js" "sizer/*.js" "switch-config/**/*.js" "docs/outbound-connectivity/*.js"
 npx html-validate "**/*.html"        # must pass — run after any .html edit
 node scripts/run-tests.js            # must show 958/958 passed
 ```
+- Zero **errors** are allowed; warnings are tolerated (legacy `var`, indentation, etc.). Don't introduce new warnings in new code — use `let`/`const`, follow existing indentation.
 - Do not disable lint rules inline (`// eslint-disable-line`) without a comment explaining why.
-- Do not modify `.eslintrc.json` or `.htmlvalidate.json` to make errors go away — fix the underlying issue.
+- Do not modify `.eslintrc.json` or `.htmlvalidate.json` to make errors go away — fix the underlying issue or, for pre-existing structural patterns, downgrade specific rules with justification.
 - Node.js scripts (under `scripts/`, `tools/`) are not linted by CI. `tools/` has its own `.eslintrc.json` with `env.node = true` so local broad-scope lints (`npx eslint tools/`) still pass.
 
 ## CHANGELOG & Version Discipline

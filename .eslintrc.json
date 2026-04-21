@@ -107,7 +107,15 @@
     "updateDisaggIntentOverride": "readonly",
     "updateDisaggOverride": "readonly",
     "confirmDisaggOverrides": "readonly",
-    "editDisaggOverrides": "readonly"
+    "editDisaggOverrides": "readonly",
+    "THREE": "readonly",
+    "html2canvas": "readonly",
+    "renderRack3D": "readonly",
+    "fetchAndDisplayStats": "readonly",
+    "generateRackSvg": "readonly",
+    "generateRackDrawio": "readonly",
+    "generateDisaggregatedRackSvg": "readonly",
+    "generateDisaggregatedRackDrawio": "readonly"
   },
   "rules": {
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
@@ -133,7 +141,10 @@
     }],
     "no-useless-escape": "warn",
     "no-prototype-builtins": "warn",
-    "no-case-declarations": "warn"
+    "no-case-declarations": "warn",
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "no-inner-declarations": "warn",
+    "no-redeclare": "warn"
   },
   "ignorePatterns": [
     "docs/archive/**",
