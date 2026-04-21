@@ -837,16 +837,9 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     }
 
     // ── Blue cables: Management/Compute Trunks (each rack's ToRs → Spine) ──
-    // Connect every rack's ToR to the bottom spine switch.
-    // Detect two-row layout: any rack with a non-zero Z means two rows are
-    // in use; single-row layouts keep the original behaviour where every
-    // rack's uplink cables terminate on the spine's rear face.
-    var isTwoRow = false;
-    if (rackPositions) {
-        for (let rpZ = 0; rpZ < rackPositions.length; rpZ++) {
-            if (rackPositions[rpZ].z && rackPositions[rpZ].z !== 0) { isTwoRow = true; break; }
-        }
-    }
+    // Connect every rack's ToR to the bottom spine switch. All racks (in
+    // either single-row or two-row disaggregated layouts) land on the
+    // spine's rear face.
     for (let ri = 0; ri < allRackCount; ri++) {
         var rackX_i, rackZ_i, rackFacing_i;
         if (rackPositions && rackPositions[ri]) {
@@ -864,19 +857,13 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         // clearly leaves the rear of the ToR before rising up.
         var AISLE_EXIT = 0.06;
         var exitZ = rackZ_i + (torQsfpZ + AISLE_EXIT) * rackFacing_i;
-        // Terminate each cable on the hot-aisle side of the spine (i.e. the
-        // spine face nearer each rack's own hot-aisle) so the cable travels
-        // from the rack rear, through the hot aisle, to the spine — not
-        // crossing to the far cold-aisle face of the spine.
-        // Single-row layouts: all cables land on the spine's rear face
-        // (classic top-of-row cabling). Two-row layouts: front-row racks
-        // land on the spine's front face, back-row racks on the rear.
-        var spineCableZ;
-        if (isTwoRow) {
-            spineCableZ = rackFacing_i === -1 ? routerRearZ : routerFrontZ;
-        } else {
-            spineCableZ = routerRearZ;
-        }
+        // Terminate all uplink cables on the spine's rear face (classic
+        // top-of-row cabling) regardless of single-row or two-row layout.
+        // In two-row mode the cables still exit the rear of each rack's ToR
+        // into the hot aisle and rise up, but they all converge onto the
+        // rear of Spine 1 / Spine 2 rather than splitting across both
+        // spine faces.
+        var spineCableZ = routerRearZ;
         var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
 
         // Build a 5-segment path that emerges horizontally from the rear of
