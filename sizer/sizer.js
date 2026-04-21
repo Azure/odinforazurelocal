@@ -1366,6 +1366,11 @@ let _nodeCountUserSet = false;
 
 // Physical port count from Designer (default 4 if user hasn't come from Designer)
 let _designerPortCount = 4;
+// Spine count carried across the Designer↔Sizer boundary. The Sizer has no
+// spine-count UI of its own, so this preserves the Designer-chosen value (2
+// or 4) through import, save/resume, and export back to the Designer. Default
+// 2 matches the Designer's default 2-spine Clos fabric.
+let _designerSpineCount = 2;
 
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
@@ -2210,6 +2215,7 @@ function getSizerState() {
         clusterType: document.getElementById('cluster-type').value,
         disaggRackCount: (document.getElementById('disagg-rack-count') || {}).value || null,
         disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || null,
+        disaggSpineCount: _designerSpineCount || 2,
         nodeCount: document.getElementById('node-count').value,
         nodeCountUserSet: _nodeCountUserSet,
         futureGrowth: document.getElementById('future-growth').value,
@@ -2327,6 +2333,12 @@ function checkForDesignerImport() {
         // Store physical port count from Designer for 3D rack visualization
         if (payload.ports) {
             _designerPortCount = parseInt(payload.ports, 10) || 4;
+        }
+        // Preserve Designer-chosen spine count (2 or 4) so the Sizer's 3D
+        // visualization and any subsequent Sizer→Designer round-trip keep
+        // the original fabric width.
+        if (payload.spineCount) {
+            _designerSpineCount = parseInt(payload.spineCount, 10) || 2;
         }
         if (payload.disaggStorageType) {
             var storageTypeSelect = document.getElementById('disagg-storage-type');
@@ -2472,6 +2484,9 @@ function resumeSizerState() {
     if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
         var rackEl = document.getElementById('disagg-rack-count');
         if (rackEl) rackEl.value = String(d.disaggRackCount);
+    }
+    if (d.disaggSpineCount) {
+        _designerSpineCount = parseInt(d.disaggSpineCount, 10) || 2;
     }
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
@@ -4737,7 +4752,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
                 nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
                 disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
                 disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
-                spineCount: 2,
+                spineCount: _designerSpineCount || 2,
                 hasGpu: false,
                 gpuModel: '',
                 perNodeWatts: 0,
@@ -4959,7 +4974,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             nodeCount: nodeCount,
             disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
             disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
-            spineCount: 2,
+            spineCount: _designerSpineCount || 2,
             hasGpu: hwConfig.gpuCount > 0,
             gpuModel: hwConfig.gpuType || '',
             perNodeWatts: perNodeW,
@@ -6055,7 +6070,7 @@ function selectRegionAndConfigure(region, cloud) {
         disaggStorageType: clusterType === 'disaggregated' ? ((document.getElementById('disagg-storage-type') || {}).value || 'fc_san') : undefined,
         disaggRackCount: clusterType === 'disaggregated' ? (parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2) : undefined,
         disaggNodesPerRack: clusterType === 'disaggregated' ? Math.ceil(parseInt(nodeCount, 10) / (parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2)) : undefined,
-        disaggSpineCount: clusterType === 'disaggregated' ? 2 : undefined,
+        disaggSpineCount: clusterType === 'disaggregated' ? (_designerSpineCount || 2) : undefined,
         // Hardware details (hidden in Designer, shown in report)
         sizerHardware: {
             clusterType: clusterType,
@@ -6742,6 +6757,9 @@ function applyImportedSizerState(d) {
     if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
         var rackEl = document.getElementById('disagg-rack-count');
         if (rackEl) rackEl.value = String(d.disaggRackCount);
+    }
+    if (d.disaggSpineCount) {
+        _designerSpineCount = parseInt(d.disaggSpineCount, 10) || 2;
     }
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
