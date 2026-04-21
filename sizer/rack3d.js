@@ -117,10 +117,18 @@ function makeFaceLabel(text, fontSize, color, facing) {
 
 // ── Build a single 42U rack frame ────────────
 
-function buildRackFrame(scene, offsetX, offsetZ) {
+function buildRackFrame(scene, offsetX, offsetZ, facing) {
     var group = new THREE.Group();
     group.position.x = offsetX;
     group.position.z = offsetZ || 0;
+    // facing: +1 = default (front of rack faces -Z, viewer/camera side);
+    //         -1 = rotated 180° so the rack's rear points at -Z. Used for the
+    //         far row in a two-row hot-aisle layout so both rows' rears meet
+    //         in the hot aisle between them.
+    if (facing === -1) {
+        group.rotation.y = Math.PI;
+    }
+    group.userData.facing = (facing === -1) ? -1 : 1;
 
     var frameMat = new THREE.MeshStandardMaterial({ color: COLORS.RACK_FRAME, roughness: 0.7, metalness: 0.5 });
     var railMat  = new THREE.MeshStandardMaterial({ color: COLORS.RACK_RAIL, roughness: 0.6, metalness: 0.4 });
@@ -183,10 +191,9 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    var cx = rackGroup.position.x;
-    var cz = rackGroup.position.z;
-    frontZ += cz;
-    backZ += cz;
+    // Add meshes to the rack group (local coords) so rack rotation/position propagates.
+    scene = rackGroup;
+    var cx = 0;
 
     var bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.3 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8, metalness: 0.2 });
@@ -196,7 +203,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.set(cx, y, cz);
+    body.position.set(cx, y, 0);
     scene.add(body);
 
     // ── Front face details ──
@@ -344,10 +351,8 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    var cx = rackGroup.position.x;
-    var cz = rackGroup.position.z;
-    frontZ += cz;
-    backZ += cz;
+    scene = rackGroup;
+    var cx = 0;
 
     var switchMat = new THREE.MeshStandardMaterial({ color: COLORS.TOR_SWITCH, roughness: 0.45, metalness: 0.35 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.8, metalness: 0.2 });
@@ -357,7 +362,7 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, switchMat);
-    body.position.set(cx, y, cz);
+    body.position.set(cx, y, 0);
     scene.add(body);
 
     // ── Front face — clean panel with status LEDs (ports face rear) ──
@@ -455,10 +460,8 @@ function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    var cx = rackGroup.position.x;
-    var cz = rackGroup.position.z;
-    frontZ += cz;
-    backZ += cz;
+    scene = rackGroup;
+    var cx = 0;
 
     var bmcMat = new THREE.MeshStandardMaterial({ color: COLORS.BMC_SWITCH, roughness: 0.4, metalness: 0.3 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, roughness: 0.8, metalness: 0.2 });
@@ -468,7 +471,7 @@ function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, bmcMat);
-    body.position.set(cx, y, cz);
+    body.position.set(cx, y, 0);
     scene.add(body);
 
     // Front face — clean panel with status LEDs
@@ -540,10 +543,8 @@ function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    var cx = rackGroup.position.x;
-    var cz = rackGroup.position.z;
-    frontZ += cz;
-    backZ += cz;
+    scene = rackGroup;
+    var cx = 0;
 
     var fcMat = new THREE.MeshStandardMaterial({ color: 0x9933cc, roughness: 0.4, metalness: 0.4 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0033, roughness: 0.8, metalness: 0.2 });
@@ -553,7 +554,7 @@ function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, fcMat);
-    body.position.set(cx, y, cz);
+    body.position.set(cx, y, 0);
     scene.add(body);
 
     // Front face
@@ -610,10 +611,8 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    var cx = rackGroup.position.x;
-    var cz = rackGroup.position.z;
-    frontZ += cz;
-    backZ += cz;
+    scene = rackGroup;
+    var cx = 0;
 
     var sanMat = new THREE.MeshStandardMaterial({ color: 0x6d28d9, roughness: 0.3, metalness: 0.4 });
     var darkMat = new THREE.MeshStandardMaterial({ color: 0x1a0033, roughness: 0.8, metalness: 0.2 });
@@ -624,7 +623,7 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     // Main chassis
     var bodyGeo = new THREE.BoxGeometry(deviceWidth, deviceHeight, deviceDepth);
     var body = new THREE.Mesh(bodyGeo, sanMat);
-    body.position.set(cx, y, cz);
+    body.position.set(cx, y, 0);
     scene.add(body);
 
     // Front panel
@@ -830,6 +829,7 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     var tor2QsfpY = tor2Y - torDeviceH * 0.2;
     var routerBottomY = routerY - rHeight / 2;
     var routerRearZ = backRZ;
+    var routerFrontZ = backRZ - rDepth;
 
     // QSFP port X offset helper (port index 0-3)
     function qsfpX(rackCx, portIdx) {
@@ -839,23 +839,32 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     // ── Blue cables: Management/Compute Trunks (each rack's ToRs → Spine) ──
     // Connect every rack's ToR to the bottom spine switch
     for (let ri = 0; ri < allRackCount; ri++) {
-        var rackX_i, rackZ_i;
+        var rackX_i, rackZ_i, rackFacing_i;
         if (rackPositions && rackPositions[ri]) {
             rackX_i = rackPositions[ri].x;
             rackZ_i = rackPositions[ri].z;
+            rackFacing_i = rackPositions[ri].facing || 1;
         } else {
             rackX_i = rackStartX + ri * (RACK.WIDTH + RACK.GAP_BETWEEN);
             rackZ_i = 0;
+            rackFacing_i = 1;
         }
+        // For flipped (back-row) racks, the ToR's rear ports are on the -Z
+        // side of the rack center, so flip the torQsfpZ anchor accordingly.
+        var rackCableZ = rackZ_i + torQsfpZ * rackFacing_i;
+        // Terminate on whichever spine face the rack points its rear at:
+        // front-row racks (facing +1) land on the spine's -Z face;
+        // back-row racks (facing -1) land on the spine's +Z face.
+        var spineCableZ = rackFacing_i === -1 ? routerRearZ : routerFrontZ;
         var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
         makeCable(
-            { x: qsfpX(rackX_i, 2), y: tor1QsfpY, z: torQsfpZ + rackZ_i },
-            { x: routerX + routerSlot * rWidth * 0.4, y: routerBottomY, z: routerRearZ },
+            { x: qsfpX(rackX_i, 2), y: tor1QsfpY, z: rackCableZ },
+            { x: routerX + routerSlot * rWidth * 0.4, y: routerBottomY, z: spineCableZ },
             blueMat, 0.12 + ri * 0.02
         );
         makeCable(
-            { x: qsfpX(rackX_i, 3), y: tor2QsfpY, z: torQsfpZ + rackZ_i },
-            { x: routerX + routerSlot * rWidth * 0.2, y: routerBottomY, z: routerRearZ },
+            { x: qsfpX(rackX_i, 3), y: tor2QsfpY, z: rackCableZ },
+            { x: routerX + routerSlot * rWidth * 0.2, y: routerBottomY, z: spineCableZ },
             blueMat, 0.10 + ri * 0.02
         );
     }
@@ -1604,20 +1613,26 @@ function renderRack3D(config) {
         // on the front row, left-hand side, so assign rackIndex in reverse
         // across X in each row (highest X = lowest rackIndex).
         // Front row (near camera): Racks 1..backCount, Rack 1 on viewer's left.
+        // Facing = +1 (default): rack fronts face -Z (toward camera, cold aisle).
         for (let bi = 0; bi < backCount; bi++) {
             rackPositions.push({
                 x: backStartX + bi * (RACK.WIDTH + RACK.GAP_BETWEEN),
                 z: backZ,
-                rackIndex: backCount - 1 - bi
+                rackIndex: backCount - 1 - bi,
+                facing: 1
             });
         }
         // Back row (far from camera): Racks backCount+1..rackCount, lowest
         // number on viewer's left (highest X).
+        // Facing = -1: rack is rotated 180° so its front faces +Z (outward
+        // away from the hot aisle) and its rear faces -Z (into the hot aisle
+        // between rows). This gives a real hot-aisle / cold-aisle layout.
         for (let fi = 0; fi < frontCount; fi++) {
             rackPositions.push({
                 x: frontStartX + fi * (RACK.WIDTH + RACK.GAP_BETWEEN),
                 z: frontZ,
-                rackIndex: backCount + (frontCount - 1 - fi)
+                rackIndex: backCount + (frontCount - 1 - fi),
+                facing: -1
             });
         }
         startX = Math.min(backStartX, frontStartX);
@@ -1630,7 +1645,8 @@ function renderRack3D(config) {
             rackPositions.push({
                 x: startX + si * (RACK.WIDTH + RACK.GAP_BETWEEN),
                 z: 0,
-                rackIndex: rackIndex
+                rackIndex: rackIndex,
+                facing: 1
             });
         }
     }
@@ -1654,7 +1670,7 @@ function renderRack3D(config) {
     var infoText = document.getElementById('rack-viz-info-text');
     if (infoText) {
         var twoRowNote = useTwoRows
-            ? '<br><span style="color: var(--accent-blue);">Multi-row layout: racks are arranged in two rows with a hot aisle between them for 5+ rack deployments.</span>'
+            ? '<br><span style="color: var(--accent-blue);">Multi-row layout: racks are arranged in two rows for 5+ rack deployments, with the back row rotated 180° so server exhausts from both rows face each other into a shared hot aisle (hot-aisle / cold-aisle orientation).</span>'
             : '';
         var disaggSanNote = isDisaggregated
             ? '<br><br>Note: Each rack has a \'SAN appliance\' shown for graphical representation, in practice your SAN array will be consolidated in a separate rack(s), this is for illustration purposes only.'
@@ -1667,7 +1683,8 @@ function renderRack3D(config) {
         var rackIndex = pos.rackIndex;
         var offsetX = pos.x;
         var offsetZ = pos.z;
-        var rack = buildRackFrame(_rack3d.scene, offsetX, offsetZ);
+        var facing = pos.facing || 1;
+        var rack = buildRackFrame(_rack3d.scene, offsetX, offsetZ, facing);
         var rackInfo = racks[rackIndex];
 
         // Place ToR switches at top of rack (U41, U42)
@@ -1718,7 +1735,9 @@ function renderRack3D(config) {
                 nodeLabel, false, config.diskCount || 8, config.portCount || 4);
         }
 
-        // Rack label above (just above the rack frame, below the core router)
+        // Rack label above (just above the rack frame, below the core router).
+        // Always place on the camera-facing (-Z) side of the rack so viewers
+        // can see the label for both rows in the two-row hot-aisle layout.
         var rackLabel = (isRackAware || isDisaggregated) ? 'Rack ' + (rackIndex + 1) : '42U Rack';
         var labelY = RACK.OUTER_HEIGHT + 0.08;
         var rackSprite = makeTextSprite(rackLabel, 28, '#ffffff');
