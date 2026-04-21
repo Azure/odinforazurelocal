@@ -866,20 +866,26 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         var spineCableZ = routerRearZ;
         var routerSlot = (ri - (allRackCount - 1) / 2) / Math.max(allRackCount - 1, 1);
 
-        // Build a 5-segment path that emerges horizontally from the rear of
-        // the ToR before rising, then crosses over and drops onto the spine.
-        // Path: port → exit (horizontal out the rear) → up → across in X →
-        // across in Z → down to spine.
-        function makeUplinkCable(portX, portY, endX, endYPos, arcH) {
-            var topY = Math.max(portY, endYPos) + arcH;
-            var midZ = (exitZ + spineCableZ) / 2;
+        // Build a path that emerges horizontally from the rear of the ToR,
+        // rises, crosses over, then drops down the SIDE of the spine (just
+        // past its left or right face) before turning in to land on the
+        // rear face. This avoids cables visibly passing through the spine
+        // body.
+        // rackX_i is captured from the enclosing loop.
+        var rackSide = rackX_i < routerX ? -1 : 1;          // -1 = drop on spine left, +1 = right
+        var spineSideX = routerX + rackSide * (rWidth / 2 + 0.03); // just past the spine side face
+        function makeUplinkCable(portX, portY, landingX, landingY) {
+            // Per-cable arc height makes the bundle look less like a flat
+            // plane by spreading them vertically at the top.
+            var topY = Math.max(portY, landingY) + 0.12 + ri * 0.02;
             var pts = [
-                new THREE.Vector3(portX, portY, rearPortZ),   // at rear port
-                new THREE.Vector3(portX, portY, exitZ),       // straight out the rear
-                new THREE.Vector3(portX, topY, exitZ),        // up to top
-                new THREE.Vector3(endX, topY, midZ),          // across (diagonal run at top)
-                new THREE.Vector3(endX, topY, spineCableZ),   // align Z to spine
-                new THREE.Vector3(endX, endYPos, spineCableZ) // down to spine face
+                new THREE.Vector3(portX, portY, rearPortZ),       // at rear port
+                new THREE.Vector3(portX, portY, exitZ),           // out the rear of the ToR
+                new THREE.Vector3(portX, topY, exitZ),            // up to top
+                new THREE.Vector3(spineSideX, topY, exitZ),       // across in X to spine's side
+                new THREE.Vector3(spineSideX, topY, spineCableZ), // align Z to spine rear face
+                new THREE.Vector3(spineSideX, landingY, spineCableZ), // drop down the side of the spine
+                new THREE.Vector3(landingX, landingY, spineCableZ)    // into the rear face
             ];
             for (let pi = 0; pi < pts.length - 1; pi++) {
                 var segGeo = new THREE.TubeGeometry(
@@ -891,9 +897,9 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         }
 
         makeUplinkCable(qsfpX(rackX_i, 2), tor1QsfpY,
-            routerX + routerSlot * rWidth * 0.4, routerBottomY, 0.12 + ri * 0.02);
+            routerX + routerSlot * rWidth * 0.4, routerBottomY);
         makeUplinkCable(qsfpX(rackX_i, 3), tor2QsfpY,
-            routerX + routerSlot * rWidth * 0.2, routerBottomY, 0.10 + ri * 0.02);
+            routerX + routerSlot * rWidth * 0.2, routerBottomY);
     }
 
     // ── Pink/Magenta cables: SMB Storage Trunks — rack-aware only (not disaggregated) ──
