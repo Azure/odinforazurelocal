@@ -4064,15 +4064,15 @@
                 + (multiRack ? '' : ' <em>Single-rack disaggregated clusters that don\'t require SDN at scale may use a simpler 2-switch HSRP pair instead of the full leaf-spine fabric.</em>')
                 + '</p>';
 
-            // Topology + Service-leaf architecture diagrams
-            var diagrams = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">'
+            // Topology + Service-leaf architecture diagrams (stacked full-width for readability)
+            var diagrams = '<div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 16px;">'
                 + '<div style="text-align: center;">'
                 + '<p style="margin: 0 0 6px 0; font-size: 0.82rem; font-weight: 600; color: var(--accent-purple);">Leaf-Spine Topology (' + rackCount + ' rack' + (rackCount === 1 ? '' : 's') + ')</p>'
-                + '<img src="../images/disaggregated/leaf-spine-topology-four-racks.svg" alt="Leaf-spine topology for disaggregated Azure Local" style="width: 100%; max-width: 420px; border-radius: 6px; border: 1px solid var(--glass-border);">'
+                + '<img src="../images/disaggregated/leaf-spine-topology-four-racks.svg" alt="Leaf-spine topology for disaggregated Azure Local" style="width: 100%; max-width: 1130px; border-radius: 6px; border: 1px solid var(--glass-border);">'
                 + '</div>'
                 + '<div style="text-align: center;">'
                 + '<p style="margin: 0 0 6px 0; font-size: 0.82rem; font-weight: 600; color: var(--accent-purple);">Service Leaf Integration</p>'
-                + '<img src="../images/disaggregated/firewall-load-balancer-network-controller-service-leafs.svg" alt="Service leaf with firewall, load balancer and network controller integration" style="width: 100%; max-width: 420px; border-radius: 6px; border: 1px solid var(--glass-border);">'
+                + '<img src="../images/disaggregated/firewall-load-balancer-network-controller-service-leafs.svg" alt="Service leaf with firewall, load balancer and network controller integration" style="width: 100%; max-width: 1150px; border-radius: 6px; border: 1px solid var(--glass-border);">'
                 + '</div>'
                 + '</div>';
 
