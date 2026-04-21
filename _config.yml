@@ -1,0 +1,38 @@
+# GitHub Pages / Jekyll configuration
+#
+# This file controls which files are published to https://azure.github.io/odinforazurelocal/.
+# Jekyll is the default build system for GitHub Pages. Files listed under `exclude`
+# are NOT uploaded to the live site, even though they remain in the repository.
+#
+# Why exclude? Two reasons:
+#   1. Reduce the published surface area — local dev tooling, test harnesses, and
+#      build scripts don't belong on a public static site.
+#   2. Avoid confusion — visitors shouldn't be able to download demo scripts or
+#      internal test pages by guessing URLs.
+#
+# Excluded folders remain visible on GitHub (the source is already public),
+# so this is a surface-reduction measure, not a secrecy measure.
+
+exclude:
+  # Local dev tooling (Playwright demo video recording)
+  - tools/
+
+  # Node.js build / export / generator scripts — not used at runtime
+  - scripts/
+
+  # Local test harness (tests/index.html + serve.ps1)
+  - tests/
+
+  # CI test output artifacts
+  - test-results/
+
+  # Historical / archived markdown documentation (not linked from the site)
+  - docs/archive/
+
+  # Dev config & package manifests
+  - node_modules/
+  - package.json
+  - package-lock.json
+  - .eslintrc.json
+  - .htmlvalidate.json
+  - CONTRIBUTING.md

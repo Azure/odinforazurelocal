@@ -333,6 +333,21 @@ For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 - Review imported configs before applying
 - Use prerequisites checklist to verify security requirements
 
+### Published Site Surface Area
+The live site at `https://azure.github.io/odinforazurelocal/` is published via GitHub Pages (Jekyll). The root [`_config.yml`](_config.yml) excludes local-only folders from publication to keep the public surface minimal:
+
+- `tools/` — Playwright demo video recording (local dev only)
+- `scripts/` — Node.js build / export / generator scripts
+- `tests/` — local test harness
+- `test-results/` — CI output artifacts
+- `docs/archive/` — historical markdown not linked from the site
+- `node_modules/`, `package*.json`, lint configs, `CONTRIBUTING.md`
+
+The source of these files is still visible on GitHub — this is a surface-reduction measure, not a secrecy measure.
+
+### Demo Video Tooling (Playwright)
+The [`tools/`](tools/) folder contains scripted [Playwright](https://playwright.dev/) demos for producing short walkthrough videos (e.g. for LinkedIn or the README). Playwright is Apache 2.0 licensed, a `devDependency` only, and never runs on the published site. See [`tools/README.md`](tools/README.md) for setup and safety rules. Demo scripts must only target `http://localhost:5500` and must not include credentials or real tenant data.
+
 ---
 
 ## Additional Resources
