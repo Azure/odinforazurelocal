@@ -1971,6 +1971,7 @@
                     'disaggBackupSubnet',
                     'disaggMgmtVlanMode',
                     'disaggClusterVlanMode',
+                    'disaggClusterNetworkNames',
                     // Disaggregated SAN (create-cluster-san) LUN IDs — Step 16
                     'infraVolLunId',
                     'infraPerfLunId'
@@ -2027,6 +2028,7 @@
                     'disaggIscsiSubnet1', 'disaggIscsiSubnet2', 'disaggBackupSubnet',
                     'disaggMgmtVlanMode',
                     'disaggClusterVlanMode',
+                    'disaggClusterNetworkNames',
                     'infraVolLunId', 'infraPerfLunId'
                 ];
                 
@@ -8078,6 +8080,23 @@
                 results.push(assert(ic2 && ic2[1] && ic2[1].vlanId === 712,
                     'Cluster B vlanId === 712 when DA4 mode is trunk',
                     712, ic2 && ic2[1] && ic2[1].vlanId));
+
+                // Custom cluster network names flow to adapterIPConfig[*].name (sanitized)
+                state.disaggClusterNetworkNames = { cluster1: 'Prod Cluster East', cluster2: 'Prod Cluster West!' };
+                localStorage.removeItem('azloc_arm_payload');
+                generateArmParameters();
+                var raw3 = localStorage.getItem('azloc_arm_payload');
+                var arm3 = raw3 ? JSON.parse(raw3).parametersFile : null;
+                var ic3 = arm3 && arm3.parameters && arm3.parameters.sanNetworkList
+                    && arm3.parameters.sanNetworkList.value
+                    && arm3.parameters.sanNetworkList.value.clusterNetworkConfig
+                    && arm3.parameters.sanNetworkList.value.clusterNetworkConfig.adapterIPConfig;
+                results.push(assert(ic3 && ic3[0] && ic3[0].name === 'Prod-Cluster-East',
+                    'Custom cluster A name emitted to ARM (spaces→hyphens, sanitized)',
+                    'Prod-Cluster-East', ic3 && ic3[0] && ic3[0].name));
+                results.push(assert(ic3 && ic3[1] && ic3[1].name === 'Prod-Cluster-West',
+                    'Custom cluster B name sanitized (special chars stripped)',
+                    'Prod-Cluster-West', ic3 && ic3[1] && ic3[1].name));
 
             } catch (e) {
                 results.push(assert(false, 'Disaggregated ARM generation did not throw', 'no error', e.message));

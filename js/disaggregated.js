@@ -44,6 +44,7 @@ function selectDisaggOption(category, value) {
         state.disaggIpConfigConfirmed = false;
         state.disaggMgmtVlanMode = 'access';
         state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
+        state.disaggClusterNetworkNames = { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' };
         state.disaggTenantNetworks = [];
 
         // Show explanation
@@ -244,12 +245,14 @@ function renderVlanGrid() {
     // Cluster A and B VLAN modes are paired — toggling one updates the other.
     // Default is Access (per MS Disaggregated docs — leaf in access mode, host untagged).
     if (!state.disaggClusterVlanMode) state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
+    if (!state.disaggClusterNetworkNames) state.disaggClusterNetworkNames = { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' };
+    const clusterNames = state.disaggClusterNetworkNames;
     const cluster1Mode = state.disaggClusterVlanMode.cluster1 === 'trunk' ? 'Trunk' : 'Access';
     const cluster2Mode = state.disaggClusterVlanMode.cluster2 === 'trunk' ? 'Trunk' : 'Access';
     const rows = [
         { key: 'mgmt', label: 'Management (Infra)', vlan: vlans.mgmt, vni: vnis.mgmt, mode: mgmtMode, modeToggle: 'mgmt' },
-        { key: 'cluster1', label: 'Cluster (CSV/LM) A', vlan: vlans.cluster1, vni: vnis.cluster1, mode: cluster1Mode, modeToggle: 'cluster' },
-        { key: 'cluster2', label: 'Cluster (CSV/LM) B', vlan: vlans.cluster2, vni: vnis.cluster2, mode: cluster2Mode, modeToggle: 'cluster' }
+        { key: 'cluster1', label: 'Cluster (CSV/LM) A', vlan: vlans.cluster1, vni: vnis.cluster1, mode: cluster1Mode, modeToggle: 'cluster', netName: clusterNames.cluster1 },
+        { key: 'cluster2', label: 'Cluster (CSV/LM) B', vlan: vlans.cluster2, vni: vnis.cluster2, mode: cluster2Mode, modeToggle: 'cluster', netName: clusterNames.cluster2 }
     ];
 
     if (state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic') {
@@ -276,6 +279,15 @@ function renderVlanGrid() {
         return `
         <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 12px;">
             <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">${r.label}</label>
+            ${typeof r.netName === 'string' ? `
+            <div style="margin-bottom: 8px;">
+                <span style="font-size: 0.75rem; color: var(--text-secondary);">Network Name <span title="Display name for this cluster network. Shown on the Adapter Mapping view and emitted to ARM as sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name (sanitized: spaces → hyphens, alphanumeric + hyphen only)." style="color: var(--accent-blue); cursor: help;">&#9432;</span></span>
+                <input type="text" value="${escapeHtml(r.netName)}" maxlength="40"
+                    style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"
+                    ${confirmed ? 'disabled' : ''}
+                    onchange="updateDisaggClusterNetworkName('${r.key}', this.value)"
+                    placeholder="Cluster Network ${r.key === 'cluster1' ? '1' : '2'}">
+            </div>` : ''}
             <div style="display: flex; gap: 8px;">
                 <div style="flex: 1;">
                     <span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN ${modeCtrl}</span>
@@ -309,6 +321,23 @@ function updateDisaggVni(key, value) {
     if (value >= 1 && value <= 16777215) state.disaggVnis[key] = value;
     state.disaggVlanConfigConfirmed = false;
     renderDisaggVlanConfirmState();
+}
+// Cluster network display name editor (DA4). Flows to DA8 intent-zone titles
+// and to ARM sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name.
+function updateDisaggClusterNetworkName(key, value) {
+    if (key !== 'cluster1' && key !== 'cluster2') return;
+    if (!state.disaggClusterNetworkNames) state.disaggClusterNetworkNames = { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' };
+    const fallback = key === 'cluster1' ? 'Cluster Network 1' : 'Cluster Network 2';
+    const trimmed = typeof value === 'string' ? value.trim() : '';
+    state.disaggClusterNetworkNames[key] = trimmed.length > 0 ? trimmed.slice(0, 40) : fallback;
+    state.disaggVlanConfigConfirmed = false;
+    renderDisaggVlanConfirmState();
+    // Re-render adapter-mapping intent zones so the updated name shows in the
+    // zone title immediately if DA8 is already visible.
+    if (typeof renderDisaggAdapterMappingUi === 'function' && state.disaggAdapterMapping) {
+        renderDisaggAdapterMappingUi();
+    }
+    if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 function updateDisaggVrf(value) {
     state.disaggVrfName = value;
@@ -1710,9 +1739,12 @@ function getDisaggIntentZones() {
     });
 
     // Cluster Network 1 — Standalone, 1 NIC to Leaf-A
+    const cNames = state.disaggClusterNetworkNames || {};
+    const cName1 = (typeof cNames.cluster1 === 'string' && cNames.cluster1.trim()) ? cNames.cluster1.trim() : 'Cluster Network 1';
+    const cName2 = (typeof cNames.cluster2 === 'string' && cNames.cluster2.trim()) ? cNames.cluster2.trim() : 'Cluster Network 2';
     zones.push({
         key: 'cluster_1',
-        title: 'Cluster Network 1 (VLAN ' + (vlans.cluster1 || 711) + ')',
+        title: cName1 + ' (VLAN ' + (vlans.cluster1 || 711) + ')',
         description: 'Access port to Leaf-A. One standalone NIC, no SET teaming.',
         titleClass: 'compute',
         cardClass: 'zone-cluster',
@@ -1724,7 +1756,7 @@ function getDisaggIntentZones() {
     // Cluster Network 2 — Standalone, 1 NIC to Leaf-B
     zones.push({
         key: 'cluster_2',
-        title: 'Cluster Network 2 (VLAN ' + (vlans.cluster2 || 712) + ')',
+        title: cName2 + ' (VLAN ' + (vlans.cluster2 || 712) + ')',
         description: 'Access port to Leaf-B. One standalone NIC, no SET teaming.',
         titleClass: 'compute',
         cardClass: 'zone-cluster',

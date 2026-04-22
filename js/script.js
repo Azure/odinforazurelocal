@@ -187,6 +187,11 @@ const state = {
     // is emitted as the VLAN value (rather than 0). Cluster A and B modes are
     // always paired (UI enforces: toggling one toggles the other).
     disaggClusterVlanMode: { cluster1: 'access', cluster2: 'access' },
+    // Display names for the two disaggregated cluster networks. Editable on DA4.
+    // Flow to the Adapter-Mapping zone titles (DA8) and to ARM
+    // `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name` (sanitized:
+    // spaces → hyphens, alphanumeric + hyphen only).
+    disaggClusterNetworkNames: { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' },
     disaggVrfName: 'AZLOCALINFRA',
     disaggVrfMode: 'single',
     disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' },
@@ -2134,6 +2139,17 @@ function generateArmParameters() {
                 const nicNames = state.disaggNicNames || {};
                 const clusterAdapter1 = nicNames.cluster1 || 'PCIe1-NIC3';
                 const clusterAdapter2 = nicNames.cluster2 || 'PCIe1-NIC4';
+                // Cluster-network display names (DA4). Sanitize for ARM: strip
+                // to alphanumeric + hyphen so the template accepts them as
+                // adapterIPConfig[*].name. Fall back to the historic
+                // "clusterNetwork-A/B" identifiers if sanitization empties the string.
+                const clusterNames = state.disaggClusterNetworkNames || {};
+                const sanitizeNetName = (s, fallback) => {
+                    const cleaned = String(s || '').trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+                    return cleaned || fallback;
+                };
+                const clusterName1 = sanitizeNetName(clusterNames.cluster1, 'clusterNetwork-A');
+                const clusterName2 = sanitizeNetName(clusterNames.cluster2, 'clusterNetwork-B');
                 const sanNetworkList = {
                     clusterNetworkConfig: {
                         adapterProperties: {
@@ -2146,13 +2162,13 @@ function generateArmParameters() {
                         },
                         adapterIPConfig: [
                             {
-                                name: 'clusterNetwork-A',
+                                name: clusterName1,
                                 networkAdapterName: clusterAdapter1,
                                 vlanId: cluster1VlanId,
                                 addressPrefix: disaggSubnets.cluster1 || 'REPLACE_WITH_CLUSTER_A_CIDR'
                             },
                             {
-                                name: 'clusterNetwork-B',
+                                name: clusterName2,
                                 networkAdapterName: clusterAdapter2,
                                 vlanId: cluster2VlanId,
                                 addressPrefix: disaggSubnets.cluster2 || 'REPLACE_WITH_CLUSTER_B_CIDR'
@@ -2691,6 +2707,7 @@ function selectOption(category, value) {
         state.disaggSpineCount = null;
         state.disaggMgmtVlanMode = 'access';
         state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
+        state.disaggClusterNetworkNames = { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' };
         state.disaggQosCustomized = false;
     } else if (category === 'architecture') {
         state.architecture = value;
@@ -2714,6 +2731,7 @@ function selectOption(category, value) {
         state.disaggSpineCount = null;
         state.disaggMgmtVlanMode = 'access';
         state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
+        state.disaggClusterNetworkNames = { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' };
         state.disaggQosCustomized = false;
         // Storage pool configuration + SAN LUN IDs are architecture-scoped.
         // Disaggregated (create-cluster-san) mandates InfraOnly; HCI lets the
