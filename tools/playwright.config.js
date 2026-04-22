@@ -15,14 +15,16 @@ module.exports = defineConfig({
   outputDir: './output',
   use: {
     baseURL: 'http://localhost:5500',
-    viewport: { width: 1920, height: 1080 },
+    // 1600x900 landscape — fits inside a 1920x1080 monitor when running headed
+    // (leaving room for OS taskbar + browser chrome), and still has a true 16:9
+    // aspect ratio for clean LinkedIn playback.
+    viewport: { width: 1600, height: 900 },
     deviceScaleFactor: 1,
-    // Record every action — we want the video regardless of pass/fail
     video: {
       mode: 'on',
-      size: { width: 1920, height: 1080 },
+      size: { width: 1600, height: 900 },
     },
-    // Run headed so the user can watch the demo being recorded
+    // Run headed so you can watch the demo being recorded live.
     headless: false,
     // Slow down actions slightly so the resulting video is human-watchable
     launchOptions: {
@@ -34,7 +36,10 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'chromium-1080p',
-      use: { ...devices['Desktop Chrome'] },
+      // Don't spread devices['Desktop Chrome'] here — it overrides the top-level
+      // viewport (1920x1080) back to 1280x720, which leaves the page content
+      // rendered in only the top-left of the 1920x1080 recording framebuffer.
+      use: { browserName: 'chromium' },
     },
   ],
 });

@@ -1,7 +1,9 @@
 {
   "scripts": {
     "demo:sizer": "playwright test --config=tools/playwright.config.js demos/sizer-walkthrough.spec.js",
-    "demo:convert": "node tools/scripts/convert-to-mp4.js"
+    "demo:full": "playwright test --config=tools/playwright.config.js demos/odin-full-walkthrough.spec.js",
+    "demo:convert": "node tools/scripts/convert-to-mp4.js",
+    "demo:full:mobile": "node tools/scripts/convert-to-mp4-mobile.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
