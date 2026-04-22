@@ -2566,8 +2566,12 @@
                         <span class="step-number">16</span>
                         <h2>Storage Pool Configuration</h2>
                     </div>
+                    <div id="step-5-5-disagg-note" class="hidden" style="margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.35); color: var(--text-secondary); font-size: 0.9rem;">
+                        <strong style="color: var(--accent-purple);">Disaggregated (SAN) auto-selection:</strong>
+                        The <code>create-cluster-san</code> ARM template only supports <strong>InfraOnly</strong>. <em>Express</em> and <em>KeepStorage</em> are not valid for SAN-backed deployments and have been disabled.
+                    </div>
                     <div class="options-grid">
-                        <div class="option-card" data-value="Express"
+                        <div class="option-card" id="storage-pool-express-card" data-value="Express"
                             onclick="selectOption('storagePoolConfiguration', 'Express')">
                             <div class="icon">
                                 <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -2577,7 +2581,7 @@
                             <h3>Express</h3>
                             <p>Create one UserStorage volume per physical machine</p>
                         </div>
-                        <div class="option-card" data-value="InfraOnly"
+                        <div class="option-card" id="storage-pool-infraonly-card" data-value="InfraOnly"
                             onclick="selectOption('storagePoolConfiguration', 'InfraOnly')">
                             <div class="icon">
                                 <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -2588,7 +2592,7 @@
                             <h3>InfraOnly</h3>
                             <p>Create only the Infrastructure volume, no storage volumes for workload</p>
                         </div>
-                        <div class="option-card" data-value="KeepStorage"
+                        <div class="option-card" id="storage-pool-keepstorage-card" data-value="KeepStorage"
                             onclick="selectOption('storagePoolConfiguration', 'KeepStorage')">
                             <div class="icon">
                                 <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -2598,6 +2602,24 @@
                             </div>
                             <h3>KeepStorage</h3>
                             <p>Retain the existing volumes present on the data disks of the physical machines</p>
+                        </div>
+                    </div>
+                    <!-- SAN LUN ID inputs — shown only when InfraOnly is selected -->
+                    <div id="san-lun-id-section" class="hidden" style="margin-top: 18px; padding: 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid var(--glass-border);">
+                        <h3 style="margin: 0 0 6px 0; color: var(--text-primary); font-size: 1rem;">SAN Volume LUN IDs</h3>
+                        <p style="margin: 0 0 14px 0; color: var(--text-secondary); font-size: 0.875rem;">
+                            Enter the LUN identifiers your SAN array has pre-provisioned for the Infrastructure_1 volume and the Cluster Performance History volume. These map directly to <code>infraVolLunId</code> and <code>infraPerfLunId</code> in the <code>create-cluster-san</code> ARM parameters file.
+                            <a href="https://learn.microsoft.com/azure/azure-local/deploy/disaggregated-storage" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;" aria-label="Open Azure Local disaggregated storage documentation in a new tab" title="Docs: Disaggregated storage — LUN IDs">&#9432;</a>
+                        </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                            <div>
+                                <label for="infra-vol-lun-id" style="display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 0.875rem; font-weight: 500;">Infrastructure_1 Volume SAN LUN ID</label>
+                                <input type="text" id="infra-vol-lun-id" oninput="updateInfraVolLunId()" placeholder="e.g. PURE1234567890ABCDEF" autocomplete="off" spellcheck="false" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--card-bg); color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 0.875rem;">
+                            </div>
+                            <div>
+                                <label for="infra-perf-lun-id" style="display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 0.875rem; font-weight: 500;">Cluster Performance History Volume SAN LUN ID</label>
+                                <input type="text" id="infra-perf-lun-id" oninput="updateInfraPerfLunId()" placeholder="e.g. PURE0987654321MNOPQR" autocomplete="off" spellcheck="false" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--card-bg); color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 0.875rem;">
+                            </div>
                         </div>
                     </div>
                 </section>

@@ -1969,7 +1969,10 @@
                     'disaggIscsiSubnet1',
                     'disaggIscsiSubnet2',
                     'disaggBackupSubnet',
-                    'disaggMgmtVlanMode'
+                    'disaggMgmtVlanMode',
+                    // Disaggregated SAN (create-cluster-san) LUN IDs — Step 16
+                    'infraVolLunId',
+                    'infraPerfLunId'
                 ];
                 
                 const actualFields = Object.keys(state);
@@ -2021,7 +2024,8 @@
                     'disaggOverridesConfirmed',
                     'disaggClusterSubnet1', 'disaggClusterSubnet2',
                     'disaggIscsiSubnet1', 'disaggIscsiSubnet2', 'disaggBackupSubnet',
-                    'disaggMgmtVlanMode'
+                    'disaggMgmtVlanMode',
+                    'infraVolLunId', 'infraPerfLunId'
                 ];
                 
                 const actualFields = Object.keys(state);
@@ -7639,6 +7643,8 @@
             state.sdnEnabled = 'no';
             state.securityConfiguration = 'recommended';
             state.privateEndpoints = 'pe_disabled';
+            state.infraVolLunId = 'PURE1234567890ABCDEF';
+            state.infraPerfLunId = 'PURE0987654321MNOPQR';
 
             // Save and load
             saveStateToLocalStorage();
@@ -7652,7 +7658,8 @@
                 'torSwitchCount', 'intent', 'outbound', 'arc', 'ip',
                 'infra', 'infraCidr', 'infraGateway', 'infraVlan', 'infraVlanId',
                 'storageAutoIp', 'activeDirectory', 'adDomain',
-                'sdnEnabled', 'securityConfiguration', 'privateEndpoints'
+                'sdnEnabled', 'securityConfiguration', 'privateEndpoints',
+                'infraVolLunId', 'infraPerfLunId'
             ];
 
             keysToCheck.forEach(function(key) {
@@ -7714,7 +7721,9 @@
                 // Sizer Integration
                 'sizerHardware', 'sizerWorkloads',
                 // Disconnected
-                'fqdnConfirmed', 'storagePoolConfiguration'
+                'fqdnConfirmed', 'storagePoolConfiguration',
+                // Disaggregated SAN LUN IDs (Step 16)
+                'infraVolLunId', 'infraPerfLunId'
             ];
 
             coreKeys.forEach(function(key) {
@@ -7775,6 +7784,81 @@
 
             return results;
         })());
+
+        // ========================================================================
+        // Step 16 — Disaggregated auto-locks storagePoolConfiguration to InfraOnly
+        // (create-cluster-san ARM template only supports InfraOnly)
+        // ========================================================================
+        testSuite('Step 16: Disaggregated auto-locks storagePoolConfiguration=InfraOnly', 'script.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+
+            // Reset state
+            state.architecture = null;
+            state.storagePoolConfiguration = null;
+            state.infraVolLunId = null;
+            state.infraPerfLunId = null;
+
+            // Selecting disaggregated should auto-set InfraOnly
+            if (typeof selectOption === 'function') {
+                selectOption('architecture', 'disaggregated');
+                results.push(assert(state.storagePoolConfiguration === 'InfraOnly',
+                    'architecture=disaggregated forces storagePoolConfiguration=InfraOnly',
+                    'InfraOnly', state.storagePoolConfiguration));
+
+                // Attempt to switch to Express while disagg → should be a no-op
+                selectOption('storagePoolConfiguration', 'Express');
+                results.push(assert(state.storagePoolConfiguration === 'InfraOnly',
+                    'Express is blocked when architecture=disaggregated',
+                    'InfraOnly', state.storagePoolConfiguration));
+
+                // Attempt to switch to KeepStorage while disagg → should be a no-op
+                selectOption('storagePoolConfiguration', 'KeepStorage');
+                results.push(assert(state.storagePoolConfiguration === 'InfraOnly',
+                    'KeepStorage is blocked when architecture=disaggregated',
+                    'InfraOnly', state.storagePoolConfiguration));
+
+                // Set LUN IDs, then switch architecture away from disaggregated
+                state.infraVolLunId = 'PURELUN1';
+                state.infraPerfLunId = 'PURELUN2';
+                selectOption('architecture', 'hci');
+                results.push(assert(state.infraVolLunId === null,
+                    'infraVolLunId cleared when leaving disaggregated',
+                    null, state.infraVolLunId));
+                results.push(assert(state.infraPerfLunId === null,
+                    'infraPerfLunId cleared when leaving disaggregated',
+                    null, state.infraPerfLunId));
+            } else {
+                results.push(assert(false, 'selectOption is available', true, false));
+            }
+
+            // Restore
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
+
+        testSuite('Step 16: syncStoragePoolUi() exists and is safe (no DOM)', 'script.js', [
+            assert(typeof syncStoragePoolUi === 'function',
+                'syncStoragePoolUi is defined', true,
+                typeof syncStoragePoolUi === 'function'),
+
+            assert((() => { try { syncStoragePoolUi(); return true; } catch(e) { return false; } })(),
+                'syncStoragePoolUi runs safely when DOM elements are absent',
+                true,
+                (() => { try { syncStoragePoolUi(); return true; } catch(e) { return false; } })())
+        ]);
+
+        testSuite('Step 16: updateInfraVolLunId/updateInfraPerfLunId functions exist', 'script.js', [
+            assert(typeof updateInfraVolLunId === 'function',
+                'updateInfraVolLunId is defined', true,
+                typeof updateInfraVolLunId === 'function'),
+
+            assert(typeof updateInfraPerfLunId === 'function',
+                'updateInfraPerfLunId is defined', true,
+                typeof updateInfraPerfLunId === 'function')
+        ]);
 
         // ========================================================================
         // FINAL SUMMARY

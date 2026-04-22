@@ -110,6 +110,12 @@ const state = {
     torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged/Low Capacity
     switchlessLinkMode: null,
     storagePoolConfiguration: null,
+    // SAN LUN IDs — only populated when storagePoolConfiguration === 'InfraOnly'
+    // (auto-locked to 'InfraOnly' when architecture === 'disaggregated'). Emitted
+    // to the create-cluster-san ARM template as parameters.infraVolLunId /
+    // parameters.infraPerfLunId.
+    infraVolLunId: null,
+    infraPerfLunId: null,
     rackAwareZones: null,
     rackAwareZonesConfirmed: false,
     rackAwareZoneSwapSelection: null,
@@ -303,6 +309,14 @@ function computeWizardProgress() {
         if (state.disaggRackCount) {
             add('Multi-Rack', Boolean(state.disaggRackCount && state.disaggNodesPerRack));
         }
+        // Storage Pool Configuration is auto-locked to InfraOnly for Disaggregated,
+        // but the two SAN LUN IDs (infraVolLunId / infraPerfLunId) must be
+        // entered by the user before ARM parameters can be generated.
+        add('Storage Pool Configuration', Boolean(state.storagePoolConfiguration));
+        add('Infrastructure Volume SAN LUN ID',
+            Boolean(state.infraVolLunId && String(state.infraVolLunId).trim()));
+        add('Cluster Performance History Volume SAN LUN ID',
+            Boolean(state.infraPerfLunId && String(state.infraPerfLunId).trim()));
     } else {
         add('Ports', Boolean(state.ports));
         add('Storage Connectivity', Boolean(state.storage));
@@ -395,6 +409,8 @@ const missingSectionToStep = {
     'Multi-Rack': 'step-da3',
     'Ports': 'step-5',
     'Storage Pool Configuration': 'step-5-5',
+    'Infrastructure Volume SAN LUN ID': 'step-5-5',
+    'Cluster Performance History Volume SAN LUN ID': 'step-5-5',
     'Traffic Intent': 'step-6',
     'Outbound Connectivity': 'step-7',
     'Azure Arc Gateway': 'step-8',
@@ -2482,6 +2498,16 @@ function selectOption(category, value) {
         state.disaggSpineCount = null;
         state.disaggMgmtVlanMode = 'access';
         state.disaggQosCustomized = false;
+        // Storage pool configuration + SAN LUN IDs are architecture-scoped.
+        // Disaggregated (create-cluster-san) mandates InfraOnly; HCI lets the
+        // user pick Express / InfraOnly / KeepStorage at Step 16.
+        state.infraVolLunId = null;
+        state.infraPerfLunId = null;
+        if (value === 'disaggregated') {
+            state.storagePoolConfiguration = 'InfraOnly';
+        } else {
+            state.storagePoolConfiguration = null;
+        }
     } else if (category === 'region') {
         state.region = value;
         state.localInstanceRegion = null;
@@ -2596,7 +2622,23 @@ function selectOption(category, value) {
         state.infraVlan = null;
         state.infraVlanId = null;
     } else if (category === 'storagePoolConfiguration') {
+        // Disaggregated (create-cluster-san) only supports InfraOnly — ignore
+        // any attempt to pick Express or KeepStorage. The Step 16 cards for
+        // those options are visually locked when architecture is disaggregated,
+        // but this guard protects against programmatic calls (tests, imports).
+        // Note: the generic dispatch at the top of selectOption() has already
+        // stored `value` into state[category]; restore InfraOnly here.
+        if (state.architecture === 'disaggregated' && value !== 'InfraOnly') {
+            state.storagePoolConfiguration = 'InfraOnly';
+            return;
+        }
         state.storagePoolConfiguration = value;
+        // Clear SAN LUN IDs when moving away from InfraOnly — they only apply
+        // there and stale values could otherwise confuse the generator.
+        if (value !== 'InfraOnly') {
+            state.infraVolLunId = null;
+            state.infraPerfLunId = null;
+        }
     } else if (category === 'intent') {
         state.intent = value;
         state.customIntentConfirmed = false;
@@ -3409,6 +3451,53 @@ function getPrivateEndpointInfo(serviceKey) {
         }
     };
     return peInfo[serviceKey] || null;
+}
+
+// Step 16 "Storage Pool Configuration" DOM sync — handles:
+//   1. Auto-locking Express + KeepStorage cards when architecture=disaggregated
+//      (create-cluster-san only supports InfraOnly).
+//   2. Showing/hiding the SAN LUN ID input section based on whether
+//      storagePoolConfiguration === 'InfraOnly'.
+//   3. Keeping the LUN ID <input> .value in sync with state (for resume).
+// Safe to call in test environments — all DOM lookups are null-guarded.
+function syncStoragePoolUi() {
+    const isDisagg = state.architecture === 'disaggregated';
+    const isInfraOnly = state.storagePoolConfiguration === 'InfraOnly';
+
+    // 1. Lock Express / KeepStorage for Disaggregated
+    const expressCard = document.getElementById('storage-pool-express-card');
+    const keepCard = document.getElementById('storage-pool-keepstorage-card');
+    const disaggNote = document.getElementById('step-5-5-disagg-note');
+    [expressCard, keepCard].forEach(card => {
+        if (!card) return;
+        if (isDisagg) card.classList.add('disabled');
+        else card.classList.remove('disabled');
+    });
+    if (disaggNote) {
+        if (isDisagg) disaggNote.classList.remove('hidden');
+        else disaggNote.classList.add('hidden');
+    }
+
+    // 2. Show/hide SAN LUN ID section
+    const lunSection = document.getElementById('san-lun-id-section');
+    if (lunSection) {
+        if (isInfraOnly) lunSection.classList.remove('hidden');
+        else lunSection.classList.add('hidden');
+    }
+
+    // 3. Sync input values (state → DOM) so resume / architecture-switch paths
+    //    keep the UI in sync. Only touch the input if its current value
+    //    differs, to avoid stomping on in-progress typing.
+    const volInput = document.getElementById('infra-vol-lun-id');
+    const perfInput = document.getElementById('infra-perf-lun-id');
+    if (volInput) {
+        const want = state.infraVolLunId || '';
+        if (document.activeElement !== volInput && volInput.value !== want) volInput.value = want;
+    }
+    if (perfInput) {
+        const want = state.infraPerfLunId || '';
+        if (document.activeElement !== perfInput && perfInput.value !== want) perfInput.value = want;
+    }
 }
 
 function updateUI() {
@@ -5419,6 +5508,9 @@ function updateUI() {
 
     updateSummary();
 
+    // Step 16 — storage pool lock + SAN LUN inputs (Disaggregated auto-lock)
+    syncStoragePoolUi();
+
     // Progress indicator
     updateProgressUi();
 
@@ -6422,11 +6514,27 @@ function updateSummary() {
                 if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo — ${label}`, escapeHtml(ov.jumboFrames));
             }
         }
+
+        // Storage Pool + SAN LUN IDs (Disaggregated is auto-locked to InfraOnly)
+        if (state.storagePoolConfiguration) hostNetworkingRows += renderRow('Storage Pool', escapeHtml(state.storagePoolConfiguration));
+        if (state.storagePoolConfiguration === 'InfraOnly') {
+            const volLun = state.infraVolLunId ? escapeHtml(String(state.infraVolLunId)) : '<span style="color:var(--text-tertiary);">(missing)</span>';
+            const perfLun = state.infraPerfLunId ? escapeHtml(String(state.infraPerfLunId)) : '<span style="color:var(--text-tertiary);">(missing)</span>';
+            hostNetworkingRows += renderRow('SAN Infra Volume LUN ID', volLun, { mono: true });
+            hostNetworkingRows += renderRow('SAN Perf Volume LUN ID', perfLun, { mono: true });
+        }
     } else {
         // ── HCI Host Networking summary ──
         if (state.storage) hostNetworkingRows += renderRow('Storage', escapeHtml(capitalize(state.storage)));
         if (state.ports) hostNetworkingRows += renderRow('Ports', escapeHtml(state.ports), { mono: true });
         if (state.storagePoolConfiguration) hostNetworkingRows += renderRow('Storage Pool', escapeHtml(state.storagePoolConfiguration));
+        // HCI can also pick InfraOnly — render LUN IDs in that case too
+        if (state.storagePoolConfiguration === 'InfraOnly') {
+            const volLun = state.infraVolLunId ? escapeHtml(String(state.infraVolLunId)) : '<span style="color:var(--text-tertiary);">(missing)</span>';
+            const perfLun = state.infraPerfLunId ? escapeHtml(String(state.infraPerfLunId)) : '<span style="color:var(--text-tertiary);">(missing)</span>';
+            hostNetworkingRows += renderRow('SAN Infra Volume LUN ID', volLun, { mono: true });
+            hostNetworkingRows += renderRow('SAN Perf Volume LUN ID', perfLun, { mono: true });
+        }
         if (state.intent) {
             hostNetworkingRows += renderRow('Intent', escapeHtml(formatIntent(state.intent)));
 
@@ -7544,6 +7652,8 @@ function resetAll() {
     state.torSwitchCount = null;
     state.switchlessLinkMode = null;
     state.storagePoolConfiguration = null;
+    state.infraVolLunId = null;
+    state.infraPerfLunId = null;
     state.rackAwareZones = null;
     state.rackAwareZonesConfirmed = false;
     state.rackAwareZoneSwapSelection = null;
@@ -7779,6 +7889,29 @@ function updateAdfsServerName() {
     const value = input.value.trim();
     state.adfsServerName = value || null;
     updateSummary();
+}
+
+// SAN LUN ID handlers — Step 16 "Storage Pool Configuration" only shows these
+// inputs when storagePoolConfiguration === 'InfraOnly' (auto-locked for
+// Disaggregated). Both fields are required for ARM generation when the
+// architecture is Disaggregated; readiness in computeWizardProgress() gates
+// the Generate ARM button.
+function updateInfraVolLunId() {
+    const input = document.getElementById('infra-vol-lun-id');
+    if (!input) return;
+    const value = input.value.trim();
+    state.infraVolLunId = value || null;
+    updateSummary();
+    saveStateToLocalStorage();
+}
+
+function updateInfraPerfLunId() {
+    const input = document.getElementById('infra-perf-lun-id');
+    if (!input) return;
+    const value = input.value.trim();
+    state.infraPerfLunId = value || null;
+    updateSummary();
+    saveStateToLocalStorage();
 }
 
 function updateSecuritySetting(settingName, value) {
@@ -9708,7 +9841,13 @@ function showTemplates() {
                 disaggOverridesConfirmed: true,
                 disaggVlanConfigConfirmed: true,
                 disaggIpConfigConfirmed: true,
-                disaggTenantNetworks: []
+                disaggTenantNetworks: [],
+                // Step 16: Disaggregated uses create-cluster-san (InfraOnly) — LUN IDs
+                // identify the Infrastructure and Cluster-Performance volumes pre-provisioned
+                // on the SAN array and map to infraVolLunId / infraPerfLunId ARM params.
+                storagePoolConfiguration: 'InfraOnly',
+                infraVolLunId: 'PURE1234567890ABCDEF',
+                infraPerfLunId: 'PURE0987654321MNOPQR'
             }
         },
         {
@@ -10072,6 +10211,9 @@ function loadTemplate(templateIndex) {
         }
 
         if (config.storagePoolConfiguration) selectOption('storagePoolConfiguration', config.storagePoolConfiguration);
+        // Restore SAN LUN IDs (only meaningful when storagePoolConfiguration === 'InfraOnly')
+        if (config.infraVolLunId) state.infraVolLunId = config.infraVolLunId;
+        if (config.infraPerfLunId) state.infraPerfLunId = config.infraPerfLunId;
         if (config.intent) selectOption('intent', config.intent);
         // storageAutoIp must come AFTER outbound (outbound handler resets storageAutoIp to null)
         if (config.outbound) selectOption('outbound', config.outbound);
