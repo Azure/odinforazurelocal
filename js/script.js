@@ -2841,17 +2841,19 @@ function selectOption(category, value) {
         // those options are visually locked when architecture is disaggregated,
         // but this guard protects against programmatic calls (tests, imports).
         // Note: the generic dispatch at the top of selectOption() has already
-        // stored `value` into state[category]; restore InfraOnly here.
+        // stored `value` into state[category]; force it back to InfraOnly here
+        // and fall through to updateUI() at the end of the function so the
+        // InfraOnly card gets its `.selected` class refreshed.
         if (state.architecture === 'disaggregated' && value !== 'InfraOnly') {
             state.storagePoolConfiguration = 'InfraOnly';
-            return;
-        }
-        state.storagePoolConfiguration = value;
-        // Clear SAN LUN IDs when moving away from InfraOnly — they only apply
-        // there and stale values could otherwise confuse the generator.
-        if (value !== 'InfraOnly') {
-            state.infraVolLunId = null;
-            state.infraPerfLunId = null;
+        } else {
+            state.storagePoolConfiguration = value;
+            // Clear SAN LUN IDs when moving away from InfraOnly — they only apply
+            // there and stale values could otherwise confuse the generator.
+            if (value !== 'InfraOnly') {
+                state.infraVolLunId = null;
+                state.infraPerfLunId = null;
+            }
         }
     } else if (category === 'intent') {
         state.intent = value;
