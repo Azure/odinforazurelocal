@@ -194,6 +194,37 @@
             + (refUrl ? ('<div><strong>Reference template:</strong> <a href="' + escapeHtml(refUrl) + '" target="_blank" rel="noopener" style="color:var(--accent-blue);">' + escapeHtml(refName || refUrl) + '</a></div>') : '')
             + (version ? ('<div><strong>Wizard version:</strong> <span style="color:var(--text-secondary);">' + escapeHtml(version) + '</span></div>') : '')
             + '</div>';
+
+        // Architecture-aware prerequisites banner. For Disaggregated (create-cluster-san)
+        // remind the operator that the SAN fabric + LUN provisioning must be staged
+        // BEFORE running Validate — the template itself cannot zone the fabric.
+        var archBanner = document.getElementById('arm-architecture-banner');
+        if (archBanner) {
+            if (payload.architecture === 'disaggregated') {
+                archBanner.hidden = false;
+                archBanner.classList.add('visible');
+                archBanner.style.background = 'rgba(139, 92, 246, 0.08)';
+                archBanner.style.border = '1px solid rgba(139, 92, 246, 0.35)';
+                archBanner.innerHTML = ''
+                    + '<div style="display:flex; flex-direction:column; gap:0.5rem;">'
+                    + '<div><strong style="color: var(--accent-purple);">🔌 Disaggregated storage (SAN) — pre-deployment checklist</strong></div>'
+                    + '<div style="color:var(--text-secondary); font-size:0.9rem; line-height:1.5;">'
+                    + 'The <code>create-cluster-san</code> template assumes the external SAN array is already presented to the hosts. Validate will fail if any of these steps are incomplete:'
+                    + '<ul style="margin:0.5rem 0 0 1.2rem; color:var(--text-secondary); font-size:0.9rem;">'
+                    + '<li>Fibre Channel (or iSCSI) fabric zoning — each host WWPN/IQN must see both the Infrastructure LUN and the Cluster Performance History LUN.</li>'
+                    + '<li>Host registrations on the array — all physical node HBAs / iSCSI initiators registered with the correct host group.</li>'
+                    + '<li>LUN mapping — the two LUN IDs in the parameters file (<code>infraVolLunId</code>, <code>infraPerfLunId</code>) must match the array\'s NAA / serial / target IDs.</li>'
+                    + '<li>Leaf (ToR) switch configuration — cluster / mgmt / iSCSI / backup VLANs configured in <em>access mode</em> (or trunk if chosen on DA4) on all host-facing ports. See the Switch Config Generator for a leaf template.</li>'
+                    + '<li>Cluster network CIDRs (<code>sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].addressPrefix</code>) must be reachable between physical nodes before Validate runs.</li>'
+                    + '</ul>'
+                    + '</div>'
+                    + '</div>';
+            } else {
+                archBanner.hidden = true;
+                archBanner.classList.remove('visible');
+                archBanner.innerHTML = '';
+            }
+        }
     }
 
     function setPlaceholders(placeholdersEl, placeholders) {

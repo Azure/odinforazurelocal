@@ -48,6 +48,17 @@
                 <span id="sc-deployment-text">Loading deployment details...</span>
             </div>
 
+            <!-- Disaggregated leaf-scope banner (shown only when Designer architecture is disaggregated) -->
+            <div id="sc-disagg-scope-banner" class="sc-info-banner" style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.35); display: none;">
+                <span class="sc-icon">🔌</span>
+                <span>
+                    <strong>Disaggregated deployment — leaf (ToR) scope only.</strong>
+                    This generator produces leaf configuration for management, cluster, iSCSI (if used), and backup VLANs.
+                    <strong>Not emitted:</strong> spine / super-spine VXLAN-EVPN fabric, BGP underlay, VTEP setup, SAN fibre-channel zoning, and array host registrations —
+                    configure those on your fabric controller / SAN management tool before running Validate.
+                </span>
+            </div>
+
             <!-- SC1: Switch Selection -->
             <section class="step" style="margin-bottom: 1.5rem;">
                 <div class="step-header">

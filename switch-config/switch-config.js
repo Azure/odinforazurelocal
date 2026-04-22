@@ -90,6 +90,14 @@
             }
         }
 
+        // Leaf-only scope banner for disaggregated deployments. The external SAN
+        // fabric (FC zoning, iSCSI targets) and the EVPN spine/underlay are out
+        // of scope for this leaf-focused generator — make that crystal clear.
+        var disaggScopeBanner = document.getElementById('sc-disagg-scope-banner');
+        if (disaggScopeBanner) {
+            disaggScopeBanner.style.display = (ds.architecture === 'disaggregated') ? 'flex' : 'none';
+        }
+
         // Infrastructure VLAN
         var infraVlanNote = document.getElementById('sc-infra-vlan-note');
         if (ds.architecture === 'disaggregated' && ds.disaggVlans && ds.disaggVlans.mgmt) {

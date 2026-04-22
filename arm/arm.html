@@ -199,6 +199,9 @@
                 <h2>Metadata</h2>
             </div>
             <div id="arm-meta" class="info-box visible"></div>
+            <!-- Architecture-aware prerequisites banner (Disaggregated SAN, etc.).
+                 Populated by arm.js setMeta() when payload.architecture === 'disaggregated'. -->
+            <div id="arm-architecture-banner" class="info-box" style="margin-top: 1rem;" hidden></div>
         </section>
 
         <section class="step" style="margin-bottom:1.5rem;">
