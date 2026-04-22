@@ -190,7 +190,10 @@
         var svgH = titleH + coreH + coreGap + outerRackH + bottomPad + legendH + 10;
 
         var parts = [];
-        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" width="' + svgW + '" height="' + svgH + '" style="font-family: \'Segoe UI\', sans-serif;">');
+        // viewBox + style="max-width:100%; height:auto" keeps the aspect ratio while
+        // allowing the diagram to scale down into narrow report cards (e.g. when
+        // rackCount > 5 the natural width exceeds typical container width).
+        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="max-width: 100%; height: auto; display: block; font-family: \'Segoe UI\', sans-serif;">');
 
         // Background
         parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="' + C.BACKGROUND + '" rx="6"/>');
@@ -350,7 +353,9 @@
         var svgH = titleH + spineH + rackLabelH + outerRackH + sanH + legendH + 40;
 
         var parts = [];
-        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" width="' + svgW + '" font-family="Segoe UI, sans-serif">');
+        // Responsive: viewBox scales to container width. Wide disaggregated
+        // layouts (rackCount > ~5) would otherwise overflow the report column.
+        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="max-width: 100%; height: auto; display: block;" font-family="Segoe UI, sans-serif">');
         parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="' + C.BACKGROUND + '"/>');
 
         // Title
