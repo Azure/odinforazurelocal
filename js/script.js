@@ -8977,6 +8977,16 @@ function checkForSizerImport() {
 
         // Update UI to reflect imported values
         updateUI();
+
+        // Disaggregated: re-select DA1/DA2/DA3 option-cards + explanations + slider.
+        // updateUI() alone doesn't repaint the disaggregated wizard cards — only
+        // restoreDisaggregatedUI() does. Without this, state.disaggStorageType
+        // (and rack/node counts) is set in state but DA1 "Storage Type" and the
+        // downstream DA2/DA3 cards visually appear unselected.
+        if (payload.architecture === 'disaggregated' && typeof restoreDisaggregatedUI === 'function') {
+            restoreDisaggregatedUI();
+        }
+
         saveStateToLocalStorage();
 
         // Clean up: remove the payload so it doesn't re-apply on next load
