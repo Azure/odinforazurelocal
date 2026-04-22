@@ -175,9 +175,19 @@
         }
 
         // Storage VLANs — for disaggregated, use cluster VLANs from Designer
+        // and relabel the section as "Cluster Networks" using Designer-supplied names.
         if (isDisaggregated && ds.disaggVlans) {
             if (ds.disaggVlans.cluster1) setVal('sc-storage1-vlan', String(ds.disaggVlans.cluster1));
             if (ds.disaggVlans.cluster2) setVal('sc-storage2-vlan', String(ds.disaggVlans.cluster2));
+            var cNames = ds.disaggClusterNetworkNames || {};
+            var cName1 = (cNames.cluster1 && String(cNames.cluster1).trim()) || 'Cluster Network 1';
+            var cName2 = (cNames.cluster2 && String(cNames.cluster2).trim()) || 'Cluster Network 2';
+            var sectionTitle = document.getElementById('sc-storage-section-title');
+            if (sectionTitle) sectionTitle.textContent = 'Cluster Networks';
+            var lbl1 = document.getElementById('sc-storage1-vlan-label');
+            if (lbl1) lbl1.innerHTML = escapeAttr(cName1) + ' \u2014 <abbr title="Virtual Local Area Network">VLAN</abbr> (<abbr title="Top of Rack">ToR</abbr>1)';
+            var lbl2 = document.getElementById('sc-storage2-vlan-label');
+            if (lbl2) lbl2.innerHTML = escapeAttr(cName2) + ' \u2014 <abbr title="Virtual Local Area Network">VLAN</abbr> (<abbr title="Top of Rack">ToR</abbr>2)';
         } else if (pattern === 'switchless') {
             document.getElementById('sc-storage-section').style.display = 'none';
         } else {

@@ -9439,7 +9439,8 @@ function openSwitchConfigDirect() { // eslint-disable-line no-unused-vars
         intentOverrides: state.intentOverrides || null,
         disaggVlans: state.disaggVlans || null,
         disaggTenantNetworks: state.disaggTenantNetworks || null,
-        disaggStorageType: state.disaggStorageType || null
+        disaggStorageType: state.disaggStorageType || null,
+        disaggClusterNetworkNames: state.disaggClusterNetworkNames || null
     };
 
     try {
@@ -9479,7 +9480,8 @@ function transferToSwitchConfig() {
         intentOverrides: state.intentOverrides || null,
         disaggVlans: state.disaggVlans || null,
         disaggTenantNetworks: state.disaggTenantNetworks || null,
-        disaggStorageType: state.disaggStorageType || null
+        disaggStorageType: state.disaggStorageType || null,
+        disaggClusterNetworkNames: state.disaggClusterNetworkNames || null
     };
 
     try {

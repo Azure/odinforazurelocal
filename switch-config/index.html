@@ -368,16 +368,16 @@
 
                 <hr class="sc-section-divider">
 
-                <!-- Storage VLANs -->
+                <!-- Storage VLANs (renamed to Cluster Networks for disaggregated deployments) -->
                 <div id="sc-storage-section">
-                    <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Storage Networks</h4>
+                    <h4 id="sc-storage-section-title" style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Storage Networks</h4>
                     <div class="sc-grid">
                         <div class="sc-field">
-                            <label for="sc-storage1-vlan">Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 1 (<abbr title="Top of Rack">ToR</abbr>1)</label>
+                            <label id="sc-storage1-vlan-label" for="sc-storage1-vlan">Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 1 (<abbr title="Top of Rack">ToR</abbr>1)</label>
                             <input type="number" id="sc-storage1-vlan" min="1" max="4094" value="711" placeholder="711">
                         </div>
                         <div class="sc-field">
-                            <label for="sc-storage2-vlan">Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 2 (<abbr title="Top of Rack">ToR</abbr>2)</label>
+                            <label id="sc-storage2-vlan-label" for="sc-storage2-vlan">Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 2 (<abbr title="Top of Rack">ToR</abbr>2)</label>
                             <input type="number" id="sc-storage2-vlan" min="1" max="4094" value="712" placeholder="712">
                         </div>
                     </div>
