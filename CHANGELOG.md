@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Disaggregated Leaf-Scope Banner (Switch Config Generator)
 - **Leaf-only scope note**: Switch Config page now shows a banner when the Designer is in Disaggregated mode, calling out that it emits leaf-only configuration and that spine/EVPN fabric, SAN fibre-channel zoning, and array host registrations are out of scope.
+- **Per-rack leaf switches (SC1b)**: New "Per-Rack Leaf Switches" panel for disaggregated deployments with 2–8 racks. Each rack gets its own collapsible card with editable ToR-A / ToR-B / BMC hostnames, leaf BGP ASN (auto-increments from 64789), loopback pair, Mgmt SVI IPs, and site. The generator now emits up to **16 ToR configs + 8 BMC configs** (2 ToRs + 1 BMC per rack) in a single run, with labels `Rack N — ToR-A (hostname)`. Output tabs scroll horizontally when they exceed the container width.
+- **Editable Cluster Network names (DA4)**: Disaggregated "Cluster (CSV/LM) A" and "Cluster (CSV/LM) B" rows on DA4 now have a "Network Name" text input (default `Cluster Network 1` / `Cluster Network 2`). The name flows to the DA8 Adapter Mapping intent-zone titles, the DA8 Overrides card headings, and to ARM `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name` (sanitized: spaces → hyphens, alphanumeric + hyphen only).
+
+#### Report: Responsive Rack Layout
+- **Scaling fit for wide racks**: The Rack Layout SVG (both HCI and Disaggregated) now uses `viewBox` + `max-width: 100%` + `height: auto` so 6-, 8-, and 16-rack disaggregated layouts scale to fit the report column instead of overflowing horizontally. Download-as-SVG still preserves the original pixel fidelity via the viewBox.
 
 #### Disaggregated Architecture Wizard
 - **New disaggregated wizard**: End-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks

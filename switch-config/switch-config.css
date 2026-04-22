@@ -203,6 +203,12 @@ body {
     gap: 0;
     border-bottom: 2px solid var(--glass-border);
     margin-bottom: 0;
+    /* When disaggregated multi-rack produces 16+ tabs, allow horizontal
+       scrolling rather than wrapping to multiple lines which breaks the
+       sticky underline. */
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
 }
 
 .sc-tab {
@@ -216,6 +222,8 @@ body {
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .sc-tab:hover {

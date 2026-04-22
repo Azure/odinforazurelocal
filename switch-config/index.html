@@ -129,6 +129,23 @@
                 </div>
             </section>
 
+            <!-- SC1.5: Per-Rack Leaf Overrides (Disaggregated only, rackCount >= 2) -->
+            <section id="sc-disagg-racks-section" class="step" style="margin-bottom: 1.5rem; display: none;">
+                <div class="step-header">
+                    <span class="step-number">SC1b</span>
+                    <h2>Per-Rack Leaf Switches</h2>
+                </div>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.75rem;">
+                    Disaggregated deployments use one <strong>leaf pair per rack</strong> (2 ToR switches each) joined to a shared VXLAN-EVPN spine fabric.
+                    Each rack gets its own <abbr title="Border Gateway Protocol">BGP</abbr> <abbr title="Autonomous System Number">ASN</abbr>, loopback pair, and Mgmt <abbr title="Switched Virtual Interface">SVI</abbr> IPs.
+                    <strong>Up to 8 racks</strong> (16 ToR switches) are supported. Expand each card to review or edit the auto-generated per-rack values.
+                </p>
+                <div id="sc-disagg-racks-container" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+                <p class="sc-hint" style="margin-top: 0.75rem;">
+                    Common VLAN IDs, QoS, TACACS, NTP, and spine-underlay BGP peering (Border1/Border2 P2P + iBGP) are configured in SC2/SC3 below and applied to every rack. Per-rack values here override the single-rack defaults and flow into the generated config for each ToR and BMC switch.
+                </p>
+            </section>
+
             <!-- SC2: ToR Switch Network Parameters -->
             <section class="step" style="margin-bottom: 1.5rem;">
                 <div class="step-header">

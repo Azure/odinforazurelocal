@@ -72,6 +72,9 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>ARM Tools — SAN pre-deployment checklist:</strong> When the payload is Disaggregated, the ARM Tools page shows a purple pre-deployment checklist banner listing what must be staged before Validate: fabric zoning, array host registrations, LUN mapping, leaf VLAN config, and cluster-network reachability.</li>
                         <li><strong>Switch Config — leaf-only scope banner:</strong> Switch Config page shows a banner when the Designer is Disaggregated, calling out that it emits leaf-only configuration and that spine/EVPN fabric, SAN fibre-channel zoning, and array host registrations are out of scope.</li>
+                        <li><strong>Switch Config — Per-Rack Leaf Switches (up to 8 racks / 16 ToRs):</strong> New "Per-Rack Leaf Switches" panel for disaggregated deployments with 2–8 racks. Each rack gets its own collapsible card with editable ToR-A/ToR-B/BMC hostnames, per-rack BGP ASN (auto-increments from 64789), loopback pair, Mgmt SVI IPs, and site. Generator emits up to 16 ToR + 8 BMC configs per run, tabs scroll horizontally.</li>
+                        <li><strong>DA4 — Editable Cluster Network names:</strong> Disaggregated DA4 Cluster A / Cluster B rows now have a Network Name input. Custom names flow to the DA8 Adapter Mapping intent-zone titles, the DA8 Overrides card headings, and ARM <code>sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name</code> (sanitized: spaces → hyphens).</li>
+                        <li><strong>Report — Responsive rack layout:</strong> Rack Layout SVG now uses <code>viewBox</code> + <code>max-width: 100%</code> so 6-, 8-, and 16-rack disaggregated layouts scale to fit the report column instead of overflowing horizontally.</li>
                     </ul>
                 </div>
 
