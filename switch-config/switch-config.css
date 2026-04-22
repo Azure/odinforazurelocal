@@ -514,6 +514,16 @@ body {
 .qa-row-fail { background: rgba(239, 68, 68, 0.04); }
 .qa-row-na   { background: rgba(148, 163, 184, 0.05); opacity: 0.85; }
 
+/* ── Disaggregated per-rack cards (SC1b) ───────────────────────────── */
+.sc-rack-subhead {
+    color: var(--accent-blue);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0.75rem 0 0.25rem;
+    font-weight: 600;
+}
+
 .qa-reference {
     font-size: 0.82rem;
     color: var(--text-secondary);

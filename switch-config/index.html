@@ -79,6 +79,7 @@
                         </select>
                     </div>
                 </div>
+                <div id="sc-sc1-rack1-fields">
                 <div id="sc-hostname-grid" class="sc-grid" style="margin-top: 1rem;">
                     <!-- Rack headings (shown only for rack-aware) -->
                     <h3 id="sc-rack1-heading" class="sc-rack-heading" style="display: none;">Rack 1</h3>
@@ -127,6 +128,7 @@
                         <input type="text" id="sc-site2" placeholder="e.g. Datacenter-A Rack-2">
                     </div>
                 </div>
+                </div>
             </section>
 
             <!-- SC1.5: Per-Rack Leaf Overrides (Disaggregated only, rackCount >= 2) -->
@@ -137,12 +139,12 @@
                 </div>
                 <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.75rem;">
                     Disaggregated deployments use one <strong>leaf pair per rack</strong> (2 ToR switches each) joined to a shared VXLAN-EVPN spine fabric.
-                    Each rack gets its own <abbr title="Border Gateway Protocol">BGP</abbr> <abbr title="Autonomous System Number">ASN</abbr>, loopback pair, and Mgmt <abbr title="Switched Virtual Interface">SVI</abbr> IPs.
-                    <strong>Up to 8 racks</strong> (16 ToR switches) are supported. Expand each card to review or edit the auto-generated per-rack values.
+                    Each rack gets its own <abbr title="Border Gateway Protocol">BGP</abbr> <abbr title="Autonomous System Number">ASN</abbr>, loopback pair, Mgmt <abbr title="Switched Virtual Interface">SVI</abbr> IPs, underlay <abbr title="Point-to-Point">P2P</abbr> links to the spine, and intra-pair <abbr title="Internal Border Gateway Protocol">iBGP</abbr> peering — all editable below.
+                    <strong>Up to 8 racks</strong> (16 ToR switches) are supported.
                 </p>
                 <div id="sc-disagg-racks-container" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
                 <p class="sc-hint" style="margin-top: 0.75rem;">
-                    Common VLAN IDs, QoS, TACACS, NTP, and spine-underlay BGP peering (Border1/Border2 P2P + iBGP) are configured in SC2/SC3 below and applied to every rack. Per-rack values here override the single-rack defaults and flow into the generated config for each ToR and BMC switch.
+                    Common VLAN IDs, QoS, TACACS, NTP, and the shared Border Router <abbr title="Autonomous System Number">ASN</abbr> are configured in SC2/SC3 below and applied to every rack.
                 </p>
             </section>
 
@@ -407,7 +409,7 @@
                     <h2><abbr title="Border Gateway Protocol">BGP</abbr> &amp; Routing</h2>
                 </div>
                 <div class="sc-grid">
-                    <div class="sc-field">
+                    <div class="sc-field" id="sc-sc3-tor-asn-wrap">
                         <label for="sc-bgp-tor-asn"><abbr title="Top of Rack">ToR</abbr> <abbr title="Border Gateway Protocol">BGP</abbr> <abbr title="Autonomous System Number">ASN</abbr></label>
                         <input type="number" id="sc-bgp-tor-asn" min="1" max="4294967295" value="65001">
                     </div>
@@ -417,6 +419,7 @@
                     </div>
                 </div>
 
+                <div id="sc-sc3-rack1-routing">
                 <hr class="sc-section-divider">
 
                 <h4 style="color: var(--accent-blue); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 0.5rem;">Loopback Addresses</h4>
@@ -528,6 +531,7 @@
                         </div>
                     </div>
                 </div>
+                </div><!-- /#sc-sc3-rack1-routing -->
             </section>
 
             <!-- SC-Infra: Infrastructure Services (collapsible) -->

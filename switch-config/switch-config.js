@@ -513,46 +513,88 @@
         var rackCount = parseInt(ds.disaggRackCount, 10) || 0;
         var isDisagg = ds.architecture === 'disaggregated';
 
-        // Only show for disaggregated + 2+ racks. Clamp to 8 per spec.
-        if (!isDisagg || rackCount < 2) {
+        // Show for any disaggregated deployment (1..8 racks). Every rack gets
+        // its own card — Rack 1 inclusive — so all rack-specific values
+        // (hostnames, ASN, loopbacks, SVIs, P2P, iBGP) live in one place.
+        if (!isDisagg) {
             section.style.display = 'none';
             container.innerHTML = '';
             return;
         }
+        if (rackCount < 1) rackCount = 1;
         if (rackCount > 8) rackCount = 8;
 
         section.style.display = '';
         var parts = [];
 
-        // Emit cards for racks 2..N. Rack 1 uses the existing SC1 inputs.
-        for (var r = 2; r <= rackCount; r++) {
-            var defAsn = 64789 + (r - 1);                          // Rack 1 default ASN = 64789 (SC3 field), Rack N increments
+        // Emit cards for racks 1..N.
+        for (var r = 1; r <= rackCount; r++) {
+            var defAsn = 64789 + (r - 1);                          // Rack 1 = 64789
             var defLoopA = '10.0.255.' + (2 * r - 1) + '/32';
             var defLoopB = '10.0.255.' + (2 * r) + '/32';
-            var defHostA = 'Rack' + r + '-tor-a';
-            var defHostB = 'Rack' + r + '-tor-b';
-            var defBmc   = 'Rack' + r + '-bmc';
-            var open = (r === 2) ? ' open' : '';
+            var defHostA = r === 1 ? 'tor-1a' : ('Rack' + r + '-tor-a');
+            var defHostB = r === 1 ? 'tor-1b' : ('Rack' + r + '-tor-b');
+            var defBmc   = r === 1 ? 'bmc-1' : ('Rack' + r + '-bmc');
+            var defSite  = 'Datacenter-A Rack-' + r;
+            // Per-rack P2P underlay IPs to the spine Border1/Border2.
+            // Default scheme: /30 blocks of 4 starting at 10.0.0.2 for Rack 1.
+            var p2pBase = (r - 1) * 16;  // 16 addresses per rack to leave room
+            var defP2pB1A = '10.0.0.' + (p2pBase + 2)  + '/30';
+            var defP2pB1B = '10.0.0.' + (p2pBase + 6)  + '/30';
+            var defP2pB2A = '10.0.0.' + (p2pBase + 10) + '/30';
+            var defP2pB2B = '10.0.0.' + (p2pBase + 14) + '/30';
+            var defIbgpA  = '10.0.' + (100 + r) + '.1';
+            var defIbgpB  = '10.0.' + (100 + r) + '.2';
+            var open = (r === 1) ? ' open' : '';
 
             parts.push(
                 '<details class="sc-rack-card" id="sc-disagg-rack-card-' + r + '"' + open + ' style="border: 1px solid var(--glass-border); border-radius: 6px; padding: 0.5rem 0.75rem; background: var(--subtle-bg);">' +
                 '<summary style="cursor:pointer; font-weight:600; padding: 0.25rem 0;">Rack ' + r + ' — Leaf Pair <span style="font-weight:400; color:var(--text-secondary); font-size:0.85rem;">(ASN ' + defAsn + ', ' + defHostA + ' + ' + defHostB + ')</span></summary>' +
-                '<div class="sc-grid" style="margin-top: 0.5rem;">' +
+                '<h4 class="sc-rack-subhead">Identity</h4>' +
+                '<div class="sc-grid" style="margin-top: 0.25rem;">' +
                   rackField(r, 'host-a',   'ToR-A Hostname',   defHostA, 'text') +
                   rackField(r, 'host-b',   'ToR-B Hostname',   defHostB, 'text') +
                   rackField(r, 'host-bmc', 'BMC Hostname',     defBmc,   'text') +
+                  rackField(r, 'site',     'Site / Location',  defSite,  'text') +
+                '</div>' +
+                '<h4 class="sc-rack-subhead">Loopbacks &amp; BGP</h4>' +
+                '<div class="sc-grid" style="margin-top: 0.25rem;">' +
                   rackField(r, 'asn',      'Leaf ASN',         String(defAsn), 'number') +
                   rackField(r, 'loop-a',   'Loopback ToR-A',   defLoopA, 'text') +
                   rackField(r, 'loop-b',   'Loopback ToR-B',   defLoopB, 'text') +
+                '</div>' +
+                '<h4 class="sc-rack-subhead">Management SVI IPs</h4>' +
+                '<div class="sc-grid" style="margin-top: 0.25rem;">' +
                   rackField(r, 'svi-a',    'Mgmt SVI ToR-A',   '',       'text', 'e.g. 10.0.' + r + '.2') +
                   rackField(r, 'svi-b',    'Mgmt SVI ToR-B',   '',       'text', 'e.g. 10.0.' + r + '.3') +
-                  rackField(r, 'site',     'Site / Location',  '',       'text', 'e.g. Datacenter-A Rack-' + r) +
+                '</div>' +
+                '<h4 class="sc-rack-subhead">P2P Links to Spine (Border1 / Border2)</h4>' +
+                '<div class="sc-grid" style="margin-top: 0.25rem;">' +
+                  rackField(r, 'p2p-b1-a', 'ToR-A → Border1',  defP2pB1A, 'text') +
+                  rackField(r, 'p2p-b1-b', 'ToR-B → Border1',  defP2pB1B, 'text') +
+                  rackField(r, 'p2p-b2-a', 'ToR-A → Border2',  defP2pB2A, 'text') +
+                  rackField(r, 'p2p-b2-b', 'ToR-B → Border2',  defP2pB2B, 'text') +
+                '</div>' +
+                '<h4 class="sc-rack-subhead">iBGP Peering (within leaf pair)</h4>' +
+                '<div class="sc-grid" style="margin-top: 0.25rem;">' +
+                  rackField(r, 'ibgp-a',   'ToR-A iBGP IP',    defIbgpA, 'text') +
+                  rackField(r, 'ibgp-b',   'ToR-B iBGP IP',    defIbgpB, 'text') +
                 '</div>' +
                 '</details>'
             );
         }
 
         container.innerHTML = parts.join('');
+
+        // Hide the single-rack SC1/SC3 fields that are now superseded by the
+        // per-rack cards. Border Router ASN stays in SC3 because it is shared
+        // across the whole fabric.
+        var sc1Rack1 = document.getElementById('sc-sc1-rack1-fields');
+        var sc3ToRAsn = document.getElementById('sc-sc3-tor-asn-wrap');
+        var sc3Routing = document.getElementById('sc-sc3-rack1-routing');
+        if (sc1Rack1)   sc1Rack1.style.display   = 'none';
+        if (sc3ToRAsn)  sc3ToRAsn.style.display  = 'none';
+        if (sc3Routing) sc3Routing.style.display = 'none';
     }
 
     function rackField(rackNum, slug, label, defaultVal, type, placeholder) {
@@ -568,24 +610,36 @@
             '</div>';
     }
 
-    // Collect per-rack overrides from the UI. Returns an array of rack objects,
-    // index 0 = Rack 2 (Rack 1 is the existing SC1 fields).
+    // Collect per-rack overrides from the UI. For disaggregated deployments,
+    // EVERY rack (including Rack 1) has its own card in SC1b. Returns an array
+    // of rack objects ordered by rack number. Safe to call with rackCount < 1.
     function collectDisaggRackOverrides(rackCount) {
         var racks = [];
+        if (rackCount < 1) return racks;
         if (rackCount > 8) rackCount = 8;
-        for (var r = 2; r <= rackCount; r++) {
+        for (var r = 1; r <= rackCount; r++) {
             var defAsn = 64789 + (r - 1);
+            var p2pBase = (r - 1) * 16;
+            var defHostA = r === 1 ? 'tor-1a' : ('Rack' + r + '-tor-a');
+            var defHostB = r === 1 ? 'tor-1b' : ('Rack' + r + '-tor-b');
+            var defBmc   = r === 1 ? 'bmc-1' : ('Rack' + r + '-bmc');
             racks.push({
                 rackNumber: r,
-                hostA:   getVal('sc-disagg-rack-' + r + '-host-a')   || ('Rack' + r + '-tor-a'),
-                hostB:   getVal('sc-disagg-rack-' + r + '-host-b')   || ('Rack' + r + '-tor-b'),
-                hostBmc: getVal('sc-disagg-rack-' + r + '-host-bmc') || ('Rack' + r + '-bmc'),
+                hostA:   getVal('sc-disagg-rack-' + r + '-host-a')   || defHostA,
+                hostB:   getVal('sc-disagg-rack-' + r + '-host-b')   || defHostB,
+                hostBmc: getVal('sc-disagg-rack-' + r + '-host-bmc') || defBmc,
                 asn:     parseInt(getVal('sc-disagg-rack-' + r + '-asn'), 10) || defAsn,
                 loopA:   getVal('sc-disagg-rack-' + r + '-loop-a')   || ('10.0.255.' + (2 * r - 1) + '/32'),
                 loopB:   getVal('sc-disagg-rack-' + r + '-loop-b')   || ('10.0.255.' + (2 * r) + '/32'),
                 sviA:    getVal('sc-disagg-rack-' + r + '-svi-a')    || '',
                 sviB:    getVal('sc-disagg-rack-' + r + '-svi-b')    || '',
-                site:    getVal('sc-disagg-rack-' + r + '-site')     || ''
+                site:    getVal('sc-disagg-rack-' + r + '-site')     || ('Datacenter-A Rack-' + r),
+                p2pB1A:  getVal('sc-disagg-rack-' + r + '-p2p-b1-a') || ('10.0.0.' + (p2pBase + 2)  + '/30'),
+                p2pB1B:  getVal('sc-disagg-rack-' + r + '-p2p-b1-b') || ('10.0.0.' + (p2pBase + 6)  + '/30'),
+                p2pB2A:  getVal('sc-disagg-rack-' + r + '-p2p-b2-a') || ('10.0.0.' + (p2pBase + 10) + '/30'),
+                p2pB2B:  getVal('sc-disagg-rack-' + r + '-p2p-b2-b') || ('10.0.0.' + (p2pBase + 14) + '/30'),
+                ibgpA:   getVal('sc-disagg-rack-' + r + '-ibgp-a')   || ('10.0.' + (100 + r) + '.1'),
+                ibgpB:   getVal('sc-disagg-rack-' + r + '-ibgp-b')   || ('10.0.' + (100 + r) + '.2')
             });
         }
         return racks;
@@ -608,8 +662,34 @@
         }
 
         var isRackAware = designerState && (designerState.scale === 'rack-aware' || designerState.scale === 'rack_aware');
-        var isDisaggMulti = designerState && designerState.architecture === 'disaggregated'
-            && (parseInt(designerState.disaggRackCount, 10) || 1) >= 2;
+        var isDisagg = designerState && designerState.architecture === 'disaggregated';
+        var disaggRackCount = isDisagg ? (parseInt(designerState.disaggRackCount, 10) || 1) : 1;
+        var isDisaggMulti = isDisagg && disaggRackCount >= 2;
+
+        // For disaggregated deployments, Rack 1's identity/routing fields live
+        // in the SC1b Rack 1 card. Sync them into the legacy SC1/SC3 field IDs
+        // so the existing single-rack build path below (TOR1/TOR2/BMC) picks
+        // up the per-rack values without further refactoring.
+        if (isDisagg) {
+            var r1 = collectDisaggRackOverrides(1)[0];
+            if (r1) {
+                setVal('sc-hostname-tor1', r1.hostA);
+                setVal('sc-hostname-tor2', r1.hostB);
+                setVal('sc-hostname-bmc',  r1.hostBmc);
+                setVal('sc-site',          r1.site);
+                setVal('sc-bgp-tor-asn',   String(r1.asn));
+                setVal('sc-loopback1',     r1.loopA);
+                setVal('sc-loopback2',     r1.loopB);
+                setVal('sc-p2p-b1-tor1',   r1.p2pB1A);
+                setVal('sc-p2p-b1-tor2',   r1.p2pB1B);
+                setVal('sc-p2p-b2-tor1',   r1.p2pB2A);
+                setVal('sc-p2p-b2-tor2',   r1.p2pB2B);
+                setVal('sc-ibgp-tor1',     r1.ibgpA);
+                setVal('sc-ibgp-tor2',     r1.ibgpB);
+                if (r1.sviA) setVal('sc-infra-ip-tor1', r1.sviA);
+                if (r1.sviB) setVal('sc-infra-ip-tor2', r1.sviB);
+            }
+        }
 
         var builder = new SwitchConfigBuilder({
             designerState: designerState || {},
@@ -775,19 +855,16 @@
         }
 
         // ── Disaggregated multi-rack: emit additional leaf pairs + BMCs ─────
-        // Rack 1 is already emitted via the single-rack path above. For racks
-        // 2..N, build a fresh SwitchConfigBuilder per rack scoped to that
-        // rack's hostnames, ASN, loopbacks, and Mgmt SVI IPs while reusing the
-        // common VLAN/QoS/BGP-underlay settings. This keeps the builder core
-        // unchanged and just loops it N times.
-        var isDisagg = designerState && designerState.architecture === 'disaggregated';
-        var disaggRackCount = isDisagg ? (parseInt(designerState.disaggRackCount, 10) || 1) : 1;
-        if (isDisagg && disaggRackCount >= 2) {
+        // Rack 1 is already emitted via the single-rack path above (its values
+        // were synced from the SC1b Rack 1 card). For racks 2..N, build a
+        // fresh SwitchConfigBuilder per rack scoped to that rack's hostnames,
+        // ASN, loopbacks, Mgmt SVI IPs, and P2P/iBGP underlay peering while
+        // reusing the common VLAN/QoS settings.
+        if (isDisaggMulti) {
             var rackOverrides = collectDisaggRackOverrides(disaggRackCount);
             for (var ri = 0; ri < rackOverrides.length; ri++) {
                 var ro = rackOverrides[ri];
-                // Fall back to Rack 1 SVI if operator left this rack's SVI blank
-                // — builder will emit placeholder comments rather than crash.
+                if (ro.rackNumber === 1) continue; // already emitted above
                 var rackBuilder = new SwitchConfigBuilder({
                     designerState: designerState || {},
                     torModelKey: torModelKey,
@@ -807,15 +884,15 @@
                     ips: {
                         loopback1: ro.loopA,
                         loopback2: ro.loopB,
-                        // Inherit underlay P2P + iBGP from Rack 1 — operators are
-                        // expected to adjust per-rack spine peering in their spine
-                        // generator (out of scope for this leaf-only tool).
-                        p2pBorder1Tor1: getVal('sc-p2p-b1-tor1'),
-                        p2pBorder1Tor2: getVal('sc-p2p-b1-tor2'),
-                        p2pBorder2Tor1: getVal('sc-p2p-b2-tor1'),
-                        p2pBorder2Tor2: getVal('sc-p2p-b2-tor2'),
-                        ibgpTor1: getVal('sc-ibgp-tor1'),
-                        ibgpTor2: getVal('sc-ibgp-tor2'),
+                        // Per-rack underlay: each leaf pair has its own P2P
+                        // links to the shared spine borders and its own iBGP
+                        // within the pair.
+                        p2pBorder1Tor1: ro.p2pB1A,
+                        p2pBorder1Tor2: ro.p2pB1B,
+                        p2pBorder2Tor1: ro.p2pB2A,
+                        p2pBorder2Tor2: ro.p2pB2B,
+                        ibgpTor1: ro.ibgpA,
+                        ibgpTor2: ro.ibgpB,
                         bmcGateway: getVal('sc-bmc-gateway')
                     },
                     vlans: {
