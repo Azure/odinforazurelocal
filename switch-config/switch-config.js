@@ -226,6 +226,22 @@
             setVal('sc-ibgp-tor3', '10.0.0.33');
             setVal('sc-ibgp-tor4', '10.0.0.34');
         }
+
+        // Pre-select the QoS Validator deployment-type dropdown to match the
+        // Designer handoff, so validating an existing switch config against
+        // the right rule set is one click away.
+        var profileSelect = document.getElementById('sc-qos-audit-profile');
+        if (profileSelect) {
+            var profileKey = 'hci_switched';
+            if (ds.architecture === 'disaggregated') {
+                if (ds.disaggStorageType === 'fc_san') profileKey = 'disagg_fc';
+                else if (ds.disaggStorageType === 'iscsi_4nic' || ds.disaggStorageType === 'iscsi_6nic') profileKey = 'disagg_iscsi';
+                else profileKey = 'disagg_fc';
+            } else if ((ds.storage || '').toLowerCase() === 'switchless') {
+                profileKey = 'hci_switchless';
+            }
+            profileSelect.value = profileKey;
+        }
     }
 
     function resolveDeploymentPattern(ds) {

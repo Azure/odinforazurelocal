@@ -672,12 +672,24 @@
 
             <div class="sc-info-banner" style="margin-bottom: 1rem;">
                 <span class="sc-icon">✅</span>
-                <span>This audit checks: <strong><abbr title="Priority Flow Control">PFC</abbr></strong> (IEEE 802.1Qbb) on CoS 3 for lossless storage, <strong><abbr title="Enhanced Transmission Selection">ETS</abbr></strong> (IEEE 802.1Qaz) bandwidth reservations (Storage ≥50%, Cluster 1–2%), <strong><abbr title="Explicit Congestion Notification">ECN</abbr></strong> on the storage queue, <strong>MTU 9216</strong> (jumbo frames), <strong>system <abbr title="Quality of Service">QoS</abbr> policy</strong> application, <strong>VLAN trunking</strong> on host-facing interfaces, and <strong>interface-level <abbr title="Priority Flow Control">PFC</abbr></strong> enablement.</span>
+                <span>This audit checks: <strong><abbr title="Priority Flow Control">PFC</abbr></strong> (IEEE 802.1Qbb) on CoS 3 for lossless storage, <strong><abbr title="Enhanced Transmission Selection">ETS</abbr></strong> (IEEE 802.1Qaz) bandwidth reservations (Storage ≥50%, Cluster 1–2%), <strong><abbr title="Explicit Congestion Notification">ECN</abbr></strong> on the storage queue, <strong>MTU 9216</strong> (jumbo frames), <strong>system <abbr title="Quality of Service">QoS</abbr> policy</strong> application, <strong>VLAN trunking</strong> on host-facing interfaces, and <strong>interface-level <abbr title="Priority Flow Control">PFC</abbr></strong> enablement. Which checks are required vs. optional depends on the <strong>Deployment Type</strong> selected below.</span>
             </div>
 
             <div class="sc-info-banner" style="margin-bottom: 1rem; background: rgba(234, 179, 8, 0.08); border-color: rgba(234, 179, 8, 0.25);">
                 <span class="sc-icon">🔒</span>
                 <span><strong>Privacy:</strong> All processing is performed entirely in your browser. No switch configuration data is stored, transmitted, or sent to any external service. Sanitize any passwords or shared secrets before pasting.</span>
+            </div>
+
+            <div class="sc-field" style="margin-bottom: 1rem;">
+                <label for="sc-qos-audit-profile">Deployment Type</label>
+                <select id="sc-qos-audit-profile" style="width:100%; padding:0.6rem; background:var(--card-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px;">
+                    <option value="auto">Auto-detect from Designer (fallback: Hyperconverged — Switched)</option>
+                    <option value="hci_switched">Hyperconverged — Switched storage (RoCE/RDMA, all checks required)</option>
+                    <option value="hci_switchless">Hyperconverged — Switchless storage (storage + cluster NICs back-to-back, not on ToR)</option>
+                    <option value="disagg_fc">Disaggregated — Fibre Channel SAN (storage on FC fabric, PFC/ECN not required on Ethernet)</option>
+                    <option value="disagg_iscsi">Disaggregated — iSCSI (PFC/ECN recommended but not mandated — guidance evolving)</option>
+                </select>
+                <small style="color: var(--text-secondary); display: block; margin-top: 0.35rem;">Selecting the right deployment type suppresses checks that don't apply and demotes non-mandated ones from <em>fail</em> to <em>recommended</em>. Hyperconverged switched is the strictest profile.</small>
             </div>
 
             <div class="sc-field" style="margin-bottom: 1rem;">

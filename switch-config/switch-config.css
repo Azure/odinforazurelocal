@@ -462,6 +462,7 @@ body {
 .qa-stat-pass { color: #22c55e; }
 .qa-stat-warn { color: #eab308; }
 .qa-stat-fail { color: #ef4444; }
+.qa-stat-na { color: #94a3b8; }
 
 .qa-table {
     width: 100%;
@@ -511,6 +512,7 @@ body {
 .qa-row-pass { }
 .qa-row-warn { background: rgba(234, 179, 8, 0.04); }
 .qa-row-fail { background: rgba(239, 68, 68, 0.04); }
+.qa-row-na   { background: rgba(148, 163, 184, 0.05); opacity: 0.85; }
 
 .qa-reference {
     font-size: 0.82rem;

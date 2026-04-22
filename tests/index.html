@@ -7598,6 +7598,128 @@
             return results;
         })());
 
+        // Deployment-profile suppression/demotion — verify that the same
+        // non-compliant parsed config is scored differently depending on the
+        // selected deployment profile (HCI Switchless / Disagg FC / Disagg iSCSI).
+        testSuite('validate: disagg_fc skips PFC/ECN/storage-queue checks', 'qos-audit.js', (() => {
+            const results = [];
+            const parsed = {
+                platform: 'nxos',
+                pfcCos: [],
+                classMapCos3: false,
+                classMapCos7: true,
+                etsBandwidthQueue3: 0,
+                etsBandwidthQueue7: 2,
+                etsBandwidthDefault: 98,
+                ecnOnStorageQueue: false,
+                mtu9216: true,
+                systemQosNetworkPolicy: true,
+                systemQosQueuingPolicy: true,
+                interfacePfc: [],
+                interfaceQosPolicy: ['Ethernet1/1'],
+                interfaceTrunks: ['Ethernet1/1'],
+                interfaceMtu: []
+            };
+            const checks = QosAudit.validate(parsed, 'disagg_fc');
+            const pfc = checks.find(c => c.id === 'pfc-cos3');
+            const ets = checks.find(c => c.id === 'ets-storage');
+            const ecn = checks.find(c => c.id === 'ecn-storage');
+            const intfPfc = checks.find(c => c.id === 'intf-pfc');
+            results.push(assert(pfc.status === 'na', 'PFC is N/A on disagg_fc', 'na', pfc.status));
+            results.push(assert(ets.status === 'na', 'ETS storage is N/A on disagg_fc', 'na', ets.status));
+            results.push(assert(ecn.status === 'na', 'ECN storage is N/A on disagg_fc', 'na', ecn.status));
+            results.push(assert(intfPfc.status === 'na', 'Interface PFC is N/A on disagg_fc', 'na', intfPfc.status));
+            // Cluster checks should still be evaluated (storage on FC, cluster on Ethernet)
+            const cluster = checks.find(c => c.id === 'ets-cluster');
+            results.push(assert(cluster.status === 'pass', 'Cluster ETS still evaluated on disagg_fc', 'pass', cluster.status));
+            return results;
+        })());
+
+        testSuite('validate: disagg_iscsi demotes missing PFC/ECN to warn', 'qos-audit.js', (() => {
+            const results = [];
+            const parsed = {
+                platform: 'nxos',
+                pfcCos: [],
+                classMapCos3: false,
+                classMapCos7: true,
+                etsBandwidthQueue3: 50,
+                etsBandwidthQueue7: 2,
+                etsBandwidthDefault: 48,
+                ecnOnStorageQueue: false,
+                mtu9216: true,
+                systemQosNetworkPolicy: true,
+                systemQosQueuingPolicy: true,
+                interfacePfc: [],
+                interfaceQosPolicy: ['Ethernet1/1'],
+                interfaceTrunks: ['Ethernet1/1'],
+                interfaceMtu: []
+            };
+            const checks = QosAudit.validate(parsed, 'disagg_iscsi');
+            const pfc = checks.find(c => c.id === 'pfc-cos3');
+            const ecn = checks.find(c => c.id === 'ecn-storage');
+            const intfPfc = checks.find(c => c.id === 'intf-pfc');
+            results.push(assert(pfc.status === 'warn', 'Missing PFC demoted to warn on iSCSI', 'warn', pfc.status));
+            results.push(assert(ecn.status === 'warn', 'Missing ECN demoted to warn on iSCSI', 'warn', ecn.status));
+            results.push(assert(intfPfc.status === 'warn', 'Missing interface PFC demoted to warn on iSCSI', 'warn', intfPfc.status));
+            return results;
+        })());
+
+        testSuite('validate: hci_switchless skips all storage/cluster ToR checks', 'qos-audit.js', (() => {
+            const results = [];
+            const parsed = {
+                platform: 'nxos',
+                pfcCos: [],
+                classMapCos3: false,
+                classMapCos7: false,
+                etsBandwidthQueue3: 0,
+                etsBandwidthQueue7: 0,
+                etsBandwidthDefault: 100,
+                ecnOnStorageQueue: false,
+                mtu9216: true,
+                systemQosNetworkPolicy: false,
+                systemQosQueuingPolicy: false,
+                interfacePfc: [],
+                interfaceQosPolicy: [],
+                interfaceTrunks: ['Ethernet1/1'],
+                interfaceMtu: []
+            };
+            const checks = QosAudit.validate(parsed, 'hci_switchless');
+            const naIds = ['pfc-cos3','classmap-cos3','classmap-cos7','ets-storage','ets-cluster','ecn-storage','system-qos','intf-pfc','intf-qos-policy'];
+            naIds.forEach(function(id) {
+                const ch = checks.find(c => c.id === id);
+                results.push(assert(ch && ch.status === 'na', id + ' is N/A on hci_switchless', 'na', ch && ch.status));
+            });
+            const trunks = checks.find(c => c.id === 'intf-trunks');
+            results.push(assert(trunks.status === 'pass', 'VLAN trunking still required on hci_switchless', 'pass', trunks.status));
+            return results;
+        })());
+
+        testSuite('validate: back-compat — single-arg call uses hci_switched profile', 'qos-audit.js', (() => {
+            const results = [];
+            const parsed = {
+                platform: 'nxos',
+                pfcCos: [3],
+                classMapCos3: true,
+                classMapCos7: true,
+                etsBandwidthQueue3: 50,
+                etsBandwidthQueue7: 2,
+                etsBandwidthDefault: 48,
+                ecnOnStorageQueue: true,
+                mtu9216: true,
+                systemQosNetworkPolicy: true,
+                systemQosQueuingPolicy: true,
+                interfacePfc: ['Ethernet1/1'],
+                interfaceQosPolicy: ['Ethernet1/1'],
+                interfaceTrunks: ['Ethernet1/1'],
+                interfaceMtu: []
+            };
+            const checks = QosAudit.validate(parsed);
+            results.push(assert(checks.length >= 11, 'At least 11 checks produced', true, checks.length >= 11));
+            const naChecks = checks.filter(c => c.status === 'na');
+            results.push(assert(naChecks.length === 0, 'No N/A statuses under default (HCI switched) profile', 0, naChecks.length));
+            return results;
+        })());
+
         // ========================================================================
         // SESSION RESUME — STATE RESTORATION TESTS
         // Tests that the resume path correctly preserves disaggregated state keys

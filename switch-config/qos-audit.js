@@ -432,8 +432,181 @@
         return result;
     }
 
+    // ── Deployment Profile ───────────────────────────────────────────
+    // Controls which checks are "required" (fail if missing), "recommended"
+    // (demoted from fail to warn with a clear tooltip), or "skip" (suppressed
+    // from the results entirely with an informational note).
+    //
+    // Profiles:
+    //   hci_switched    — Hyperconverged with switched storage (RoCE/RDMA). Strictest.
+    //   hci_switchless  — Hyperconverged with switchless storage. Storage never
+    //                     hits the ToR, so PFC/ECN/ETS-storage/intf-PFC are N/A.
+    //   disagg_fc       — Disaggregated, Fibre Channel SAN. Storage on FC fabric;
+    //                     PFC/ECN/ETS-storage/intf-PFC on Ethernet are N/A.
+    //   disagg_iscsi    — Disaggregated, iSCSI. Placeholder — guidance evolving
+    //                     (8–12 weeks). For now we recommend (not mandate)
+    //                     PFC/ECN on the iSCSI path. Revisit once authoritative
+    //                     Azure Local Disaggregated iSCSI QoS guidance is published.
+    //   hci_switched    — also used as fallback when no profile is supplied,
+    //                     preserving the original behaviour from before profiles
+    //                     existed.
+    var PROFILES = {
+        hci_switched: {
+            label: 'Hyperconverged — Switched',
+            rules: {
+                'pfc-cos3':        'required',
+                'classmap-cos3':   'required',
+                'classmap-cos7':   'required',
+                'ets-storage':     'required',
+                'ets-cluster':     'required',
+                'ecn-storage':     'required',
+                'mtu-9216':        'required',
+                'system-qos':      'required',
+                'intf-pfc':        'required',
+                'intf-qos-policy': 'required',
+                'intf-trunks':     'required'
+            }
+        },
+        hci_switchless: {
+            label: 'Hyperconverged — Switchless',
+            rules: {
+                // Storage NICs are wired back-to-back between nodes and never
+                // traverse the ToR. Cluster CSV/LM traffic typically rides
+                // those same switchless links (not the ToR). The ToR only
+                // carries Management + Compute VLANs, so virtually all QoS
+                // checks are N/A here.
+                'pfc-cos3':        'skip',
+                'classmap-cos3':   'skip',
+                'classmap-cos7':   'skip',
+                'ets-storage':     'skip',
+                'ets-cluster':     'skip',
+                'ecn-storage':     'skip',
+                'mtu-9216':        'recommended',
+                'system-qos':      'skip',
+                'intf-pfc':        'skip',
+                'intf-qos-policy': 'skip',
+                'intf-trunks':     'required'
+            }
+        },
+        disagg_fc: {
+            label: 'Disaggregated — Fibre Channel SAN',
+            rules: {
+                // Storage is on the FC fabric. Ethernet ToR carries
+                // Mgmt + Compute + Cluster CSV/LM. Cluster heartbeat QoS
+                // therefore still applies (class-map CoS 7, ETS cluster
+                // 1–2%, system QoS + intf QoS policy). PFC/ECN/storage-queue
+                // checks are N/A.
+                'pfc-cos3':        'skip',
+                'classmap-cos3':   'skip',
+                'classmap-cos7':   'required',
+                'ets-storage':     'skip',
+                'ets-cluster':     'required',
+                'ecn-storage':     'skip',
+                'mtu-9216':        'required',
+                'system-qos':      'required',
+                'intf-pfc':        'skip',
+                'intf-qos-policy': 'required',
+                'intf-trunks':     'required'
+            }
+        },
+        disagg_iscsi: {
+            label: 'Disaggregated — iSCSI (evolving guidance)',
+            rules: {
+                'pfc-cos3':        'recommended',
+                'classmap-cos3':   'recommended',
+                'classmap-cos7':   'required',
+                'ets-storage':     'recommended',
+                'ets-cluster':     'required',
+                'ecn-storage':     'recommended',
+                'mtu-9216':        'required',
+                'system-qos':      'required',
+                'intf-pfc':        'recommended',
+                'intf-qos-policy': 'required',
+                'intf-trunks':     'required'
+            }
+        }
+    };
+
+    var NA_NOTES = {
+        hci_switchless: {
+            'pfc-cos3':        'Switchless HCI — storage NICs are direct node-to-node; storage traffic never traverses the ToR.',
+            'classmap-cos3':   'Switchless HCI — no storage traffic on the ToR.',
+            'classmap-cos7':   'Switchless HCI — cluster CSV/LM rides the direct switchless links, not the ToR.',
+            'ets-storage':     'Switchless HCI — no storage queue on the ToR.',
+            'ets-cluster':     'Switchless HCI — cluster traffic is not on the ToR.',
+            'ecn-storage':     'Switchless HCI — ECN on the ToR storage queue is not applicable.',
+            'system-qos':      'Switchless HCI — ToR only carries Mgmt + Compute; no storage/cluster QoS policy needed.',
+            'intf-pfc':        'Switchless HCI — no storage-facing interfaces on the ToR.',
+            'intf-qos-policy': 'Switchless HCI — no storage/cluster service-policy needed on the ToR.'
+        },
+        disagg_fc: {
+            'pfc-cos3':      'Disaggregated FC SAN — storage runs on the Fibre Channel fabric, not Ethernet. PFC on the ToR is not required.',
+            'classmap-cos3': 'Disaggregated FC SAN — no Ethernet storage class-map needed; storage is on FC.',
+            'ets-storage':   'Disaggregated FC SAN — no Ethernet storage queue; storage bandwidth is on the FC fabric.',
+            'ecn-storage':   'Disaggregated FC SAN — ECN on the Ethernet storage queue is not applicable; storage is on FC.',
+            'intf-pfc':      'Disaggregated FC SAN — no storage-facing Ethernet interfaces on the ToR.'
+        }
+    };
+
+    var RECOMMENDED_NOTES = {
+        disagg_iscsi: {
+            'pfc-cos3':        'Recommended for iSCSI-based deployments to reduce drops under congestion, but not mandated as with RoCE. Guidance is evolving.',
+            'classmap-cos3':   'Recommended to classify iSCSI storage traffic for PFC/ETS. Guidance is evolving.',
+            'ets-storage':     'Recommended bandwidth reservation for iSCSI storage queue. Guidance is evolving.',
+            'ecn-storage':     'ECN is recommended for iSCSI congestion management but not strictly required. Guidance is evolving.',
+            'intf-pfc':        'Recommended on iSCSI-facing trunks. Guidance is evolving.'
+        },
+        hci_switchless: {
+            'mtu-9216':        'Jumbo frames on the ToR benefit compute/VM traffic but are not mandated in a switchless design.'
+        }
+    };
+
+    function getProfile(profileKey) {
+        if (profileKey && PROFILES[profileKey]) return PROFILES[profileKey];
+        return PROFILES.hci_switched; // fallback — preserves pre-profile behaviour
+    }
+
+    function getRule(profile, checkId) {
+        return (profile.rules && profile.rules[checkId]) || 'required';
+    }
+
     // ── Validator ────────────────────────────────────────────────────
-    function validate(parsed) {
+    function validate(parsed, profileKey) {
+        var profile = getProfile(profileKey);
+        var checks = rawChecks(parsed);
+        var filtered = [];
+        for (var i = 0; i < checks.length; i++) {
+            var ch = checks[i];
+            var rule = getRule(profile, ch.id);
+            if (rule === 'skip') {
+                // Emit an informational row rather than drop silently so
+                // operators can see we evaluated but intentionally skipped.
+                var naNote = (NA_NOTES[profileKey] && NA_NOTES[profileKey][ch.id]) || 'Not applicable for this deployment type.';
+                filtered.push({
+                    id: ch.id,
+                    name: ch.name,
+                    description: ch.description,
+                    status: 'na',
+                    expected: ch.expected,
+                    found: naNote
+                });
+                continue;
+            }
+            if (rule === 'recommended' && ch.status === 'fail') {
+                var recNote = (RECOMMENDED_NOTES[profileKey] && RECOMMENDED_NOTES[profileKey][ch.id]) ||
+                    'Recommended for this deployment type but not mandated.';
+                ch.status = 'warn';
+                ch.found = ch.found + ' — ' + recNote;
+            }
+            filtered.push(ch);
+        }
+        return filtered;
+    }
+
+    // Raw checks — profile-agnostic. Always produces pass/warn/fail for every
+    // check based purely on the parsed config. validate() then re-maps status
+    // according to the selected deployment profile.
+    function rawChecks(parsed) {
         var checks = [];
         var isNxos = parsed.platform === 'nxos';
         var detectedCos = parsed.cosValues && parsed.cosValues.length > 0 ? parsed.cosValues.sort(function(a,b){return a-b;}) : [];
@@ -618,15 +791,17 @@
     }
 
     // ── Render Results ───────────────────────────────────────────────
-    function renderResults(checks, platform) {
-        var passCount = 0, warnCount = 0, failCount = 0;
+    function renderResults(checks, platform, profileKey) {
+        var passCount = 0, warnCount = 0, failCount = 0, naCount = 0;
         for (var c = 0; c < checks.length; c++) {
             if (checks[c].status === 'pass') passCount++;
             else if (checks[c].status === 'warn') warnCount++;
+            else if (checks[c].status === 'na') naCount++;
             else failCount++;
         }
 
         var platformLabel = platform === 'nxos' ? 'Cisco NX-OS' : (platform === 'os10' ? 'Dell OS10' : 'Unknown');
+        var profile = getProfile(profileKey);
         var overallStatus = failCount === 0 ? (warnCount === 0 ? 'COMPLIANT' : 'COMPLIANT WITH WARNINGS') : 'NOT COMPLIANT';
         var overallClass = failCount === 0 ? (warnCount === 0 ? 'qa-pass' : 'qa-warn') : 'qa-fail';
 
@@ -635,10 +810,11 @@
         // Summary banner
         html += '<div class="qa-summary ' + overallClass + '">';
         html += '<div class="qa-summary-status">' + escapeHtml(overallStatus) + '</div>';
-        html += '<div class="qa-summary-detail">Platform: <strong>' + escapeHtml(platformLabel) + '</strong> &nbsp;|&nbsp; ';
+        html += '<div class="qa-summary-detail">Platform: <strong>' + escapeHtml(platformLabel) + '</strong> &nbsp;|&nbsp; Profile: <strong>' + escapeHtml(profile.label) + '</strong> &nbsp;|&nbsp; ';
         html += '<span class="qa-stat-pass">\u2705 ' + passCount + ' passed</span>';
         if (warnCount > 0) html += ' &nbsp; <span class="qa-stat-warn">\u26A0\uFE0F ' + warnCount + ' warning(s)</span>';
         if (failCount > 0) html += ' &nbsp; <span class="qa-stat-fail">\u274C ' + failCount + ' failed</span>';
+        if (naCount > 0) html += ' &nbsp; <span class="qa-stat-na">\u2139\uFE0F ' + naCount + ' not applicable</span>';
         html += '</div></div>';
 
         // Detail table
@@ -647,7 +823,9 @@
         html += '<tbody>';
         for (var i = 0; i < checks.length; i++) {
             var ch = checks[i];
-            var icon = ch.status === 'pass' ? '\u2705' : (ch.status === 'warn' ? '\u26A0\uFE0F' : '\u274C');
+            var icon = ch.status === 'pass' ? '\u2705'
+                : (ch.status === 'warn' ? '\u26A0\uFE0F'
+                : (ch.status === 'na' ? '\u2139\uFE0F' : '\u274C'));
             var rowClass = 'qa-row-' + ch.status;
             html += '<tr class="' + rowClass + '">';
             html += '<td class="qa-icon">' + icon + '</td>';
@@ -691,12 +869,37 @@
             return;
         }
 
+        // Resolve deployment profile from the dropdown. "auto" inspects the
+        // Designer handoff in localStorage to pick a sensible default.
+        var profileSelect = document.getElementById('sc-qos-audit-profile');
+        var profileKey = profileSelect ? profileSelect.value : 'hci_switched';
+        if (profileKey === 'auto') profileKey = resolveAutoProfile();
+
         var parsed = platform === 'nxos' ? parseNxos(config) : parseOs10(config);
-        var checks = validate(parsed);
-        resultsDiv.innerHTML = renderResults(checks, platform);
+        var checks = validate(parsed, profileKey);
+        resultsDiv.innerHTML = renderResults(checks, platform, profileKey);
         resultsDiv.style.display = 'block';
         resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
+
+    // Inspect Designer handoff to pick a matching profile. Safe defaults if
+    // nothing is stored (fresh visit to the validator without Designer context).
+    function resolveAutoProfile() {
+        try {
+            var raw = localStorage.getItem('odinDesignerToSwitchConfig');
+            if (!raw) return 'hci_switched';
+            var ds = JSON.parse(raw);
+            if (ds && ds.architecture === 'disaggregated') {
+                if (ds.disaggStorageType === 'fc_san') return 'disagg_fc';
+                if (ds.disaggStorageType === 'iscsi_4nic' || ds.disaggStorageType === 'iscsi_6nic') return 'disagg_iscsi';
+                return 'disagg_fc';
+            }
+            if (ds && (ds.storage === 'switchless' || ds.storage === 'Switchless')) return 'hci_switchless';
+            return 'hci_switched';
+        } catch (e) {
+            return 'hci_switched';
+        }
+    }
 
     // Expose internals for testing
     window.QosAudit = {
