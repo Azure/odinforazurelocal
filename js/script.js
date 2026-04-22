@@ -3827,8 +3827,12 @@ function updateUI() {
 
         // Architecture-based step visibility
         if (state.architecture === 'disaggregated') {
-            // Hide HCI-only steps
-            const hciOnlyIds = ['step-2', 'step-3', 'step-3-5', 'step-4', 'step-5', 'step-6', 'step-5-5', 'step-14'];
+            // Hide HCI-only steps. NOTE: 'step-5-5' (Storage Pool Configuration /
+            // SAN LUN IDs) is intentionally NOT in this list — disaggregated
+            // (create-cluster-san) auto-locks it to InfraOnly and uses its
+            // infraVolLunId / infraPerfLunId inputs to capture the two SAN
+            // LUN identifiers the template needs (Step 16 in the UI).
+            const hciOnlyIds = ['step-2', 'step-3', 'step-3-5', 'step-4', 'step-5', 'step-6', 'step-14'];
             steps.forEach(s => {
                 if (s && hciOnlyIds.includes(s.id)) {
                     s.classList.add('hidden');
@@ -4304,7 +4308,11 @@ function updateUI() {
         'InfraOnly': document.querySelector('#step-5-5 [data-value="InfraOnly"]'),
         'KeepStorage': document.querySelector('#step-5-5 [data-value="KeepStorage"]')
     };
-    if (!state.ports) {
+    if (state.architecture === 'disaggregated') {
+        // Disaggregated doesn't use state.ports. InfraOnly is auto-forced; the
+        // other two cards are locked visually by syncStoragePoolUi() below.
+        Object.values(storagePoolCards).forEach(c => c && c.classList.remove('disabled'));
+    } else if (!state.ports) {
         Object.values(storagePoolCards).forEach(c => c && c.classList.add('disabled'));
     } else {
         Object.values(storagePoolCards).forEach(c => c && c.classList.remove('disabled'));
