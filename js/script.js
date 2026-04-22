@@ -1341,6 +1341,9 @@ function getArmReadiness() {
         const perf = state.infraPerfLunId && String(state.infraPerfLunId).trim();
         if (!vol) sanMissing.push('Infrastructure Volume SAN LUN ID (Step 16)');
         if (!perf) sanMissing.push('Cluster Performance History Volume SAN LUN ID (Step 16)');
+        if (vol && perf && vol.toLowerCase() === perf.toLowerCase()) {
+            sanMissing.push('Infrastructure_1 and Cluster Performance History SAN LUN IDs must be unique (Step 16)');
+        }
         if (state.storagePoolConfiguration !== 'InfraOnly') {
             sanMissing.push('Storage Pool Configuration must be InfraOnly for Disaggregated (Step 16)');
         }
@@ -8135,13 +8138,28 @@ function validateSanLunInputs() {
     const errorBorder = '1px solid var(--danger, #ef4444)';
     const defaultBorder = '1px solid var(--glass-border)';
 
-    const applyState = (inputId, errorId, value) => {
+    // Uniqueness check — the two LUN IDs must point to two different SAN
+    // volumes, so matching values are a deployment-breaking misconfiguration.
+    // Compare case-insensitively since LUN/NAA identifiers are hex and many
+    // SAN vendors accept mixed case.
+    const vol = state.infraVolLunId ? String(state.infraVolLunId).trim() : '';
+    const perf = state.infraPerfLunId ? String(state.infraPerfLunId).trim() : '';
+    const duplicate = isActive && vol && perf && vol.toLowerCase() === perf.toLowerCase();
+
+    const applyState = (inputId, errorId, value, emptyMsg) => {
         const input = document.getElementById(inputId);
         const err = document.getElementById(errorId);
         if (!input || !err) return;
+        let errorText = '';
         if (isActive && !value) {
+            errorText = emptyMsg;
+        } else if (duplicate) {
+            errorText = 'Infrastructure_1 and Cluster Performance History must reference different SAN LUNs.';
+        }
+        if (errorText) {
             input.style.border = errorBorder;
             input.setAttribute('aria-invalid', 'true');
+            err.textContent = errorText;
             err.classList.remove('hidden');
         } else {
             input.style.border = defaultBorder;
@@ -8149,8 +8167,10 @@ function validateSanLunInputs() {
             err.classList.add('hidden');
         }
     };
-    applyState('infra-vol-lun-id', 'infra-vol-lun-id-error', state.infraVolLunId);
-    applyState('infra-perf-lun-id', 'infra-perf-lun-id-error', state.infraPerfLunId);
+    applyState('infra-vol-lun-id', 'infra-vol-lun-id-error',
+        state.infraVolLunId, 'Infrastructure_1 Volume SAN LUN ID is required.');
+    applyState('infra-perf-lun-id', 'infra-perf-lun-id-error',
+        state.infraPerfLunId, 'Cluster Performance History Volume SAN LUN ID is required.');
 }
 
 function updateInfraVolLunId() {
