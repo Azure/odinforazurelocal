@@ -3841,7 +3841,7 @@ function updateUI() {
             } else if (state.architecture === 'disaggregated' && archExp) {
                 archExp.innerHTML = `<strong style="color: var(--accent-purple);">Disaggregated Architecture</strong>
         External SAN storage (FC or iSCSI), Clos leaf-spine fabric with VXLAN EVPN overlay, up to 64 nodes across multiple racks.<br><br>
-        <strong style="color: #f97316;">&#9432; SDN note:</strong> Microsoft SDN (Network Controller) is <strong>not supported</strong> on disaggregated. Logical Networks (LNETs) and segmentation must be implemented <strong>externally on the leaf-spine fabric</strong> (VXLAN EVPN), not via the on-cluster SDN stack. As of Azure Local 2604, disaggregated supports <em>External SDN LNETs</em> only.`;
+        <strong style="color: #f97316;">&#9432; SDN note:</strong> Microsoft SDN (Network Controller) is <span style="font-weight:600;color:var(--accent-blue);">not supported</span> on disaggregated. Logical Networks (LNETs) and segmentation must be implemented <span style="font-weight:600;color:var(--accent-blue);">externally on the leaf-spine fabric</span> (VXLAN EVPN), not via the on-cluster SDN stack. As of Azure Local 2604, disaggregated supports <em>External SDN LNETs</em> only.`;
                 archExp.classList.add('visible');
             }
         }
