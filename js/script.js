@@ -1330,7 +1330,25 @@ function validateNodeSettings() {
 function getArmReadiness() {
     // Base readiness: reuse report readiness so we only generate from a coherent, supported wizard path.
     const base = getReportReadiness();
-    if (!base.ready) return { ready: false, missing: base.missing, placeholders: [] };
+
+    // Disaggregated (create-cluster-san) requires SAN LUN IDs + InfraOnly. These
+    // are independent of base/report readiness (they're ARM-generation specific),
+    // so we collect them separately and merge them into the blocking list when
+    // either base OR SAN items are missing.
+    const sanMissing = [];
+    if (state.architecture === 'disaggregated') {
+        const vol = state.infraVolLunId && String(state.infraVolLunId).trim();
+        const perf = state.infraPerfLunId && String(state.infraPerfLunId).trim();
+        if (!vol) sanMissing.push('Infrastructure Volume SAN LUN ID (Step 16)');
+        if (!perf) sanMissing.push('Cluster Performance History Volume SAN LUN ID (Step 16)');
+        if (state.storagePoolConfiguration !== 'InfraOnly') {
+            sanMissing.push('Storage Pool Configuration must be InfraOnly for Disaggregated (Step 16)');
+        }
+    }
+
+    if (!base.ready || sanMissing.length > 0) {
+        return { ready: false, missing: sanMissing.concat(base.missing || []), placeholders: [] };
+    }
 
     const placeholders = [];
     if (!state.infraCidr) placeholders.push('Infrastructure Network (CIDR)');
@@ -1438,9 +1456,13 @@ function generateArmParameters() {
         const isUsGovCloud = state.region === 'azure_government';
         const isRackAware = state.scale === 'rack_aware';
         const isAdlessExternalDns = state.activeDirectory === 'local_identity';
+        // Disaggregated architecture → create-cluster-san quickstart. Rack-Aware ×
+        // Disaggregated is blocked upstream at Scale, so the two branches never
+        // overlap. Precedence: ADLess > USGov > Disaggregated > RackAware > Default.
+        const isDisaggregated = state.architecture === 'disaggregated';
 
         // Choose the ARM template reference based on wizard selections.
-        // Priority: US Gov cloud template > Rack-Aware template > Commercial default.
+        // Priority: ADLess > US Gov > Disaggregated (SAN) > Rack-Aware > Commercial default.
         const referenceTemplate = isAdlessExternalDns
             ? {
                 name: 'Azure Stack HCI ADLess cluster (external DNS) — Public Preview',
@@ -1451,15 +1473,20 @@ function generateArmParameters() {
                     name: 'Azure Stack HCI create-cluster (US Gov)',
                     url: 'https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster-for-usgov/azuredeploy.json'
                 }
-                : isRackAware
+                : isDisaggregated
                     ? {
-                        name: 'Azure Stack HCI create-cluster (Rack-Aware)',
-                        url: 'https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster-rac-enabled/azuredeploy.json'
+                        name: 'Azure Local create-cluster-san (Disaggregated storage)',
+                        url: 'https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster-san/azuredeploy.json'
                     }
-                    : {
-                        name: 'Azure Stack HCI create-cluster',
-                        url: 'https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster/azuredeploy.json'
-                    };
+                    : isRackAware
+                        ? {
+                            name: 'Azure Stack HCI create-cluster (Rack-Aware)',
+                            url: 'https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster-rac-enabled/azuredeploy.json'
+                        }
+                        : {
+                            name: 'Azure Stack HCI create-cluster',
+                            url: 'https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster/azuredeploy.json'
+                        };
 
         const isLikelyGovLocation = (loc) => {
             const s = String(loc || '').trim().toLowerCase();
@@ -2072,6 +2099,170 @@ function generateArmParameters() {
         });
 
         const parameters = (() => {
+            // Disaggregated → create-cluster-san quickstart. Replaces storageNetworkList
+            // with sanNetworkList (object, not array), drops enableStorageAutoIp
+            // (no storage-network auto-IP concept on SAN), and adds the required
+            // infraVolLunId + infraPerfLunId SAN LUN identifiers captured in Step 16.
+            if (isDisaggregated) {
+                const domainFqdnD = (state.activeDirectory === 'azure_ad' && state.adDomain)
+                    ? state.adDomain
+                    : 'REPLACE_WITH_DOMAIN_FQDN';
+
+                // Derive the cluster-intent jumboPacket from user overrides. The
+                // Disaggregated DA8 Overrides panel drives mgmt_compute (which
+                // carries cluster heartbeat/CSV traffic on Disaggregated). Fall
+                // back to 9014 — the SAN template's own default — if no override.
+                const mgmtCompOv = (state.disaggIntentOverrides && state.disaggIntentOverrides.mgmt_compute) || {};
+                const clusterJumbo = parseInt(mgmtCompOv.jumboFrames, 10);
+                const jumboPacket = Number.isFinite(clusterJumbo) && clusterJumbo >= 1514 ? clusterJumbo : 9014;
+
+                // Cluster VLAN mode (DA4): access → host untagged → ARM vlanId=0.
+                // Trunk → host tags → ARM vlanId=<user-entered VLAN>. Paired
+                // (both A and B always match — enforced by DA4 updateDisaggClusterVlanMode).
+                const clusterMode = state.disaggClusterVlanMode || { cluster1: 'access', cluster2: 'access' };
+                const disaggVlans = state.disaggVlans || {};
+                const disaggSubnets = state.disaggSubnets || {};
+                const cluster1VlanId = clusterMode.cluster1 === 'trunk' ? (disaggVlans.cluster1 || 0) : 0;
+                const cluster2VlanId = clusterMode.cluster2 === 'trunk' ? (disaggVlans.cluster2 || 0) : 0;
+
+                // One cluster adapterIPConfig entry per fabric (A, B). networkAdapterName
+                // reads the user-entered custom port name from disaggNicNames when present,
+                // otherwise a predictable default.
+                const nicNames = state.disaggNicNames || {};
+                const clusterAdapter1 = nicNames.cluster1 || 'PCIe1-NIC3';
+                const clusterAdapter2 = nicNames.cluster2 || 'PCIe1-NIC4';
+                const sanNetworkList = {
+                    clusterNetworkConfig: {
+                        adapterProperties: {
+                            // DA5 defaults — see plan Phase 3 item D (read-only pass-through).
+                            // 20% = Priority-3 SMB/CSV ETS bucket; 7 = Cluster Heartbeat PFC; 3 = SMB/CSV.
+                            bandwidthPercentageSmb: 20,
+                            jumboPacket: jumboPacket,
+                            priorityValue8021ActionCluster: 7,
+                            priorityValue8021ActionSmb: 3
+                        },
+                        adapterIPConfig: [
+                            {
+                                name: 'clusterNetwork-A',
+                                networkAdapterName: clusterAdapter1,
+                                vlanId: cluster1VlanId,
+                                addressPrefix: disaggSubnets.cluster1 || 'REPLACE_WITH_CLUSTER_A_CIDR'
+                            },
+                            {
+                                name: 'clusterNetwork-B',
+                                networkAdapterName: clusterAdapter2,
+                                vlanId: cluster2VlanId,
+                                addressPrefix: disaggSubnets.cluster2 || 'REPLACE_WITH_CLUSTER_B_CIDR'
+                            }
+                        ]
+                    }
+                };
+
+                // intentList for Disaggregated: the only host-teamed intent is
+                // Management+Compute (OCP SET team). Cluster NICs flow to sanNetworkList,
+                // not intentList. Storage/Backup live on separate fabric (FC or dedicated iSCSI).
+                const mgmtAdapters = Array.isArray(state.disaggIntentMapping && state.disaggIntentMapping.mgmt_compute)
+                    ? state.disaggIntentMapping.mgmt_compute
+                        .map((p) => nicNames[p.replace('_p', '') + (p.endsWith('_p1') ? '1' : '2')] || nicNames[p.split('_')[0] + (p.endsWith('_p1') ? '1' : '2')] || p)
+                    : ['OCP-NIC1', 'OCP-NIC2'];
+                const sanIntentList = [{
+                    name: 'MgmtCompute',
+                    trafficType: ['Management', 'Compute'],
+                    adapter: mgmtAdapters,
+                    overrideVirtualSwitchConfiguration: false,
+                    virtualSwitchConfigurationOverrides: { enableIov: '', loadBalancingAlgorithm: '' },
+                    overrideQosPolicy: false,
+                    qosPolicyOverrides: { priorityValue8021Action_Cluster: '', priorityValue8021Action_SMB: '', bandwidthPercentage_SMB: '' },
+                    overrideAdapterProperty: true,
+                    adapterPropertyOverrides: {
+                        jumboPacket: String(jumboPacket),
+                        networkDirect: 'Disabled',
+                        networkDirectTechnology: ''
+                    }
+                }];
+
+                return {
+                    deploymentMode: { value: 'Validate' },
+
+                    keyVaultName: { value: 'REPLACE_WITH_KEYVAULT_NAME' },
+                    createNewKeyVault: { value: true },
+                    softDeleteRetentionDays: { value: 30 },
+                    diagnosticStorageAccountName: { value: 'REPLACE_WITH_DIAGNOSTIC_STORAGE_ACCOUNT' },
+                    logsRetentionInDays: { value: 30 },
+                    storageAccountType: { value: 'Standard_LRS' },
+
+                    clusterName: { value: 'REPLACE_WITH_CLUSTER_NAME' },
+                    location: { value: location },
+                    tenantId: { value: '' },
+
+                    witnessType: { value: witnessType },
+                    clusterWitnessStorageAccountName: { value: witnessType === 'Cloud' ? 'REPLACE_WITH_WITNESS_STORAGE_ACCOUNT' : '' },
+
+                    localAdminUserName: { value: 'REPLACE_WITH_LOCAL_ADMIN_USERNAME' },
+                    localAdminPassword: { value: null },
+
+                    AzureStackLCMAdminUsername: { value: 'REPLACE_WITH_LCM_USERNAME' },
+                    // SAN template uses single-'s' `AzureStackLCMAdminPassword`, same as commercial create-cluster.
+                    AzureStackLCMAdminPassword: { value: null },
+
+                    hciResourceProviderObjectID: { value: '' },
+                    arcNodeResourceIds: { value: arcNodeResourceIds },
+
+                    domainFqdn: { value: domainFqdnD },
+                    namingPrefix: { value: 'hci' },
+                    adouPath: { value: (state.activeDirectory === 'azure_ad' && state.adOuPath) ? state.adOuPath : '' },
+
+                    securityLevel: { value: state.securityConfiguration === 'customized' ? 'Customized' : 'Recommended' },
+                    driftControlEnforced: { value: state.securitySettings?.driftControlEnforced ?? true },
+                    credentialGuardEnforced: { value: state.securitySettings?.credentialGuardEnforced ?? true },
+                    smbSigningEnforced: { value: state.securitySettings?.smbSigningEnforced ?? true },
+                    smbClusterEncryption: { value: state.securitySettings?.smbClusterEncryption ?? true },
+                    bitlockerBootVolume: { value: state.securitySettings?.bitlockerBootVolume ?? true },
+                    bitlockerDataVolumes: { value: state.securitySettings?.bitlockerDataVolumes ?? true },
+                    wdacEnforced: { value: state.securitySettings?.wdacEnforced ?? true },
+
+                    streamingDataClient: { value: true },
+                    euLocation: { value: false },
+                    episodicDataUpload: { value: true },
+
+                    // SAN-specific: always InfraOnly (Step 16 auto-lock), plus the two LUN IDs.
+                    configurationMode: { value: state.storagePoolConfiguration || 'InfraOnly' },
+                    infraVolLunId: { value: state.infraVolLunId || '' },
+                    infraPerfLunId: { value: state.infraPerfLunId || '' },
+
+                    subnetMask: { value: subnetMask },
+                    defaultGateway: { value: useDhcp ? '' : (state.infraGateway || 'REPLACE_WITH_DEFAULT_GATEWAY') },
+                    startingIPAddress: { value: startIp },
+                    endingIPAddress: { value: endIp },
+                    dnsServers: { value: useDhcp ? [''] : dnsServers },
+                    useDhcp: { value: useDhcp },
+
+                    physicalNodesSettings: { value: physicalNodesSettings },
+
+                    // Disaggregated is always switched leaf-spine; never switchless.
+                    networkingType: { value: 'switchedMultiServerDeployment' },
+                    // 'custom' — Disaggregated uses a custom NIC layout (OCP SET team +
+                    // standalone cluster + standalone storage/backup), which maps to
+                    // the 'custom' networkingPattern in the SAN template.
+                    networkingPattern: { value: 'custom' },
+                    intentList: { value: sanIntentList },
+                    // REPLACED: storageNetworkList (HCI) → sanNetworkList (SAN)
+                    sanNetworkList: { value: sanNetworkList },
+                    storageConnectivitySwitchless: { value: false },
+                    // INTENTIONALLY OMITTED: enableStorageAutoIp — not a SAN-template param.
+
+                    customLocation: { value: '' },
+
+                    sbeVersion: { value: '' },
+                    sbeFamily: { value: '' },
+                    sbePublisher: { value: '' },
+                    sbeManifestSource: { value: '' },
+                    sbeManifestCreationDate: { value: '' },
+                    partnerProperties: { value: [] },
+                    partnerCredentiallist: { value: [] }
+                };
+            }
+
             // ADLess external DNS template: different parameter surface vs the create-cluster quickstarts.
             if (isAdlessExternalDns) {
                 const identityProvider = 'LocalIdentity';
@@ -2312,6 +2503,10 @@ function generateArmParameters() {
             version: '1.0',
             cloud: state.region || '',
             scenario: state.scenario || '',
+            // Architecture is surfaced so arm.html can gate Disaggregated-specific
+            // prerequisites banners (SAN zoning, LUN pre-provisioning) without
+            // inspecting param shape.
+            architecture: state.architecture || 'hyperconverged',
             referenceTemplate: referenceTemplate,
             readiness: readiness,
             parametersFile: file

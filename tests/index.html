@@ -7904,6 +7904,221 @@
         })());
 
         // ========================================================================
+        // Phase 3: Disaggregated ARM generation — create-cluster-san template
+        // ========================================================================
+        testSuite('ARM: Disaggregated picks create-cluster-san template + SAN params', 'script.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+            var origOpen = window.open;
+            window.open = function() {};
+
+            // Minimal disaggregated state that passes getReportReadiness — copy from
+            // the 64-node template we know works end-to-end.
+            state.scenario = 'connected';
+            state.architecture = 'disaggregated';
+            state.region = 'azure_commercial';
+            state.localInstanceRegion = 'east_us';
+            state.nodes = '4';
+            state.outbound = 'public';
+            state.arc = 'arc_gateway';
+            state.proxy = 'proxy';
+            state.ip = 'static';
+            state.infraCidr = '192.168.1.0/24';
+            state.infra = { start: '192.168.1.66', end: '192.168.1.71' };
+            state.infraGateway = '192.168.1.1';
+            state.infraGatewayManual = true;
+            state.infraCidrAuto = true;
+            state.nodeSettings = [
+                { name: 'node1', ipCidr: '192.168.1.2/24' },
+                { name: 'node2', ipCidr: '192.168.1.3/24' },
+                { name: 'node3', ipCidr: '192.168.1.4/24' },
+                { name: 'node4', ipCidr: '192.168.1.5/24' }
+            ];
+            state.infraVlan = 'default';
+            state.activeDirectory = 'azure_ad';
+            state.adDomain = 'datacenter.local';
+            state.dnsServers = ['192.168.1.254'];
+            state.privateEndpoints = 'pe_disabled';
+            state.securityConfiguration = 'recommended';
+            state.disaggStorageType = 'fc_san';
+            state.disaggBackupEnabled = false;
+            state.disaggPortCount = 4;
+            state.disaggRackCount = 1;
+            state.disaggNodesPerRack = 4;
+            state.disaggSpineCount = 2;
+            state.disaggVlans = { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 };
+            state.disaggVnis = { mgmt: 10007, cluster1: 10711, cluster2: 10712 };
+            state.disaggMgmtVlanMode = 'access';
+            state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
+            state.disaggVrfName = 'AZLOCALINFRA';
+            state.disaggVrfMode = 'single';
+            state.disaggSubnets = { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' };
+            state.disaggQosCustomized = false;
+            state.disaggPortSpeeds = { ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE' };
+            state.disaggIntentMapping = { mgmt_compute: ['ocp_p1', 'ocp_p2'] };
+            state.disaggClusterPortMapping = { pcie1_p1: '711', pcie1_p2: '712' };
+            state.disaggNicNames = { ocp1: 'OCP-NIC1', ocp2: 'OCP-NIC2', cluster1: 'PCIe1-NIC3', cluster2: 'PCIe1-NIC4', bmc: 'BMC' };
+            state.disaggNicNamesConfirmed = true;
+            state.disaggNicConfigConfirmed = true;
+            state.disaggPortConfig = {
+                ocp_p1: { customName: null, speed: '25GbE', rdma: true },
+                ocp_p2: { customName: null, speed: '25GbE', rdma: true },
+                pcie1_p1: { customName: null, speed: '25GbE', rdma: true },
+                pcie1_p2: { customName: null, speed: '25GbE', rdma: true },
+                bmc_p1: { customName: null, speed: '1GbE', rdma: false }
+            };
+            state.disaggPortConfigConfirmed = true;
+            state.disaggAdapterMapping = { ocp_p1: 'mgmt_compute', ocp_p2: 'mgmt_compute', pcie1_p1: 'cluster_1', pcie1_p2: 'cluster_2', bmc_p1: 'pool' };
+            state.disaggAdapterMappingConfirmed = true;
+            state.disaggIntentOverrides = {
+                mgmt_compute: { rdmaMode: 'Disabled', jumboFrames: '1514', enableIov: '' }
+            };
+            state.disaggOverridesConfirmed = true;
+            state.disaggVlanConfigConfirmed = true;
+            state.disaggIpConfigConfirmed = true;
+            state.disaggTenantNetworks = [];
+            state.storagePoolConfiguration = 'InfraOnly';
+            state.infraVolLunId = 'PURE1234567890ABCDEF';
+            state.infraPerfLunId = 'PURE0987654321MNOPQR';
+
+            try {
+                localStorage.removeItem('azloc_arm_payload');
+                generateArmParameters();
+                var raw = localStorage.getItem('azloc_arm_payload');
+                var payload = raw ? JSON.parse(raw) : null;
+                var arm = payload && payload.parametersFile;
+                var params = arm && arm.parameters || {};
+
+                // Template picker
+                results.push(assert(
+                    payload && payload.referenceTemplate && /create-cluster-san/.test(payload.referenceTemplate.url),
+                    'referenceTemplate URL includes create-cluster-san',
+                    'contains create-cluster-san',
+                    payload && payload.referenceTemplate ? payload.referenceTemplate.url : 'no payload'));
+
+                results.push(assert(payload && payload.architecture === 'disaggregated',
+                    'payload.architecture === disaggregated',
+                    'disaggregated', payload && payload.architecture));
+
+                // SAN-specific params
+                results.push(assert(params.configurationMode && params.configurationMode.value === 'InfraOnly',
+                    'configurationMode === InfraOnly', 'InfraOnly',
+                    params.configurationMode && params.configurationMode.value));
+
+                results.push(assert(params.infraVolLunId && params.infraVolLunId.value === 'PURE1234567890ABCDEF',
+                    'infraVolLunId passes through from state', 'PURE1234567890ABCDEF',
+                    params.infraVolLunId && params.infraVolLunId.value));
+
+                results.push(assert(params.infraPerfLunId && params.infraPerfLunId.value === 'PURE0987654321MNOPQR',
+                    'infraPerfLunId passes through from state', 'PURE0987654321MNOPQR',
+                    params.infraPerfLunId && params.infraPerfLunId.value));
+
+                // sanNetworkList shape
+                results.push(assert(params.sanNetworkList && params.sanNetworkList.value
+                    && params.sanNetworkList.value.clusterNetworkConfig,
+                    'sanNetworkList.value.clusterNetworkConfig present', 'object', typeof (params.sanNetworkList && params.sanNetworkList.value && params.sanNetworkList.value.clusterNetworkConfig)));
+
+                var cfg = params.sanNetworkList && params.sanNetworkList.value && params.sanNetworkList.value.clusterNetworkConfig;
+                var ap = cfg && cfg.adapterProperties;
+                results.push(assert(ap && ap.bandwidthPercentageSmb === 20,
+                    'adapterProperties.bandwidthPercentageSmb === 20 (DA5 Priority-3 default)',
+                    20, ap && ap.bandwidthPercentageSmb));
+                results.push(assert(ap && ap.priorityValue8021ActionCluster === 7 && ap.priorityValue8021ActionSmb === 3,
+                    'priorityValue8021Action Cluster/Smb === 7/3',
+                    '7/3', (ap && ap.priorityValue8021ActionCluster) + '/' + (ap && ap.priorityValue8021ActionSmb)));
+
+                // Cluster VLAN mode = access → ARM vlanId = 0 (host untagged)
+                var ic = cfg && cfg.adapterIPConfig;
+                results.push(assert(ic && ic.length === 2,
+                    'adapterIPConfig has 2 entries (A, B)', 2, ic && ic.length));
+                results.push(assert(ic && ic[0] && ic[0].vlanId === 0,
+                    'Cluster A vlanId === 0 when DA4 mode is access',
+                    0, ic && ic[0] && ic[0].vlanId));
+                results.push(assert(ic && ic[1] && ic[1].vlanId === 0,
+                    'Cluster B vlanId === 0 when DA4 mode is access',
+                    0, ic && ic[1] && ic[1].vlanId));
+
+                // REMOVED params vs HCI
+                results.push(assert(params.storageNetworkList === undefined,
+                    'storageNetworkList NOT emitted for SAN',
+                    'undefined', typeof params.storageNetworkList));
+                results.push(assert(params.enableStorageAutoIp === undefined,
+                    'enableStorageAutoIp NOT emitted for SAN',
+                    'undefined', typeof params.enableStorageAutoIp));
+
+                // Switched leaf-spine only
+                results.push(assert(params.storageConnectivitySwitchless && params.storageConnectivitySwitchless.value === false,
+                    'storageConnectivitySwitchless === false',
+                    false, params.storageConnectivitySwitchless && params.storageConnectivitySwitchless.value));
+
+                // intentList has MgmtCompute only (cluster NICs flow via sanNetworkList)
+                var il = params.intentList && params.intentList.value;
+                results.push(assert(Array.isArray(il) && il.length === 1 && il[0].name === 'MgmtCompute',
+                    'intentList has single MgmtCompute entry (cluster via sanNetworkList)',
+                    'MgmtCompute', il && il[0] && il[0].name));
+                results.push(assert(il && il[0] && Array.isArray(il[0].trafficType)
+                    && il[0].trafficType.indexOf('Management') !== -1
+                    && il[0].trafficType.indexOf('Compute') !== -1,
+                    'MgmtCompute trafficType includes Management+Compute',
+                    'Management+Compute', il && il[0] && (il[0].trafficType || []).join('+')));
+
+                // Trunk mode path
+                state.disaggClusterVlanMode = { cluster1: 'trunk', cluster2: 'trunk' };
+                localStorage.removeItem('azloc_arm_payload');
+                generateArmParameters();
+                var raw2 = localStorage.getItem('azloc_arm_payload');
+                var arm2 = raw2 ? JSON.parse(raw2).parametersFile : null;
+                var ic2 = arm2 && arm2.parameters && arm2.parameters.sanNetworkList
+                    && arm2.parameters.sanNetworkList.value
+                    && arm2.parameters.sanNetworkList.value.clusterNetworkConfig
+                    && arm2.parameters.sanNetworkList.value.clusterNetworkConfig.adapterIPConfig;
+                results.push(assert(ic2 && ic2[0] && ic2[0].vlanId === 711,
+                    'Cluster A vlanId === 711 when DA4 mode is trunk',
+                    711, ic2 && ic2[0] && ic2[0].vlanId));
+                results.push(assert(ic2 && ic2[1] && ic2[1].vlanId === 712,
+                    'Cluster B vlanId === 712 when DA4 mode is trunk',
+                    712, ic2 && ic2[1] && ic2[1].vlanId));
+
+            } catch (e) {
+                results.push(assert(false, 'Disaggregated ARM generation did not throw', 'no error', e.message));
+            }
+
+            // Restore
+            window.open = origOpen;
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
+
+        // Readiness blocks Generate ARM when LUN IDs blank
+        testSuite('ARM: Readiness blocks Disaggregated when LUN IDs blank', 'script.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+
+            state.architecture = 'disaggregated';
+            state.storagePoolConfiguration = 'InfraOnly';
+            state.infraVolLunId = null;
+            state.infraPerfLunId = null;
+
+            if (typeof getArmReadiness === 'function') {
+                var r = getArmReadiness();
+                results.push(assert(r && r.ready === false,
+                    'getArmReadiness().ready is false when LUN IDs blank',
+                    false, r && r.ready));
+                results.push(assert(r && Array.isArray(r.missing)
+                    && r.missing.some(function(m) { return /Infrastructure Volume SAN LUN ID/.test(m); }),
+                    'missing list includes Infrastructure Volume SAN LUN ID',
+                    true, r && r.missing && r.missing.some(function(m) { return /Infrastructure Volume SAN LUN ID/.test(m); })));
+            }
+
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
+
+        // ========================================================================
         // FINAL SUMMARY
         // ========================================================================
         updateTestSummary();
