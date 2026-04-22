@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 const state = {
     scenario: null,
-    architecture: null, // 'hyperconverged' | 'disaggregated' â€” selected in Step 1b
+    architecture: null, // 'hyperconverged' | 'disaggregated' — selected in Step 1b
     region: null,
     localInstanceRegion: null,
     scale: null,
@@ -110,7 +110,7 @@ const state = {
     torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged/Low Capacity
     switchlessLinkMode: null,
     storagePoolConfiguration: null,
-    // SAN LUN IDs â€” only populated when storagePoolConfiguration === 'InfraOnly'
+    // SAN LUN IDs — only populated when storagePoolConfiguration === 'InfraOnly'
     // (auto-locked to 'InfraOnly' when architecture === 'disaggregated'). Emitted
     // to the create-cluster-san ARM template as parameters.infraVolLunId /
     // parameters.infraPerfLunId.
@@ -181,7 +181,7 @@ const state = {
     disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
     disaggMgmtVlanMode: 'access',
     // Per MS Disaggregated-storage docs, cluster VLANs (1711/1712) are configured
-    // in access mode on leaf ports by default â€” the leaf tags/strips and the host
+    // in access mode on leaf ports by default — the leaf tags/strips and the host
     // NIC sees untagged frames. When toggled to trunk on DA4, the host NIC must
     // tag and the ARM `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].vlanId`
     // is emitted as the VLAN value (rather than 0). Cluster A and B modes are
@@ -190,7 +190,7 @@ const state = {
     // Display names for the two disaggregated cluster networks. Editable on DA4.
     // Flow to the Adapter-Mapping zone titles (DA8) and to ARM
     // `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name` (sanitized:
-    // spaces â†’ hyphens, alphanumeric + hyphen only).
+    // spaces → hyphens, alphanumeric + hyphen only).
     disaggClusterNetworkNames: { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' },
     disaggVrfName: 'AZLOCALINFRA',
     disaggVrfMode: 'single',
@@ -281,17 +281,17 @@ function clearSavedState() {
 
 // ============================================================================
 // NOTE: The following functions have been moved to modular files:
-// - escapeHtml, sanitizeInput, formatNumber, capitalize â†’ js/utils.js
-// - isValidNetbiosName, isValidIpv4Cidr, isValidCidrFormat â†’ js/utils.js
-// - extractIpFromCidr, extractPrefixFromCidr â†’ js/utils.js
-// - ipv4ToInt, intToIpv4, prefixToMask, ipToLong, longToIp â†’ js/utils.js
-// - incrementCidrThirdOctet â†’ js/utils.js
-// - showToast, reportUiError, showNotification â†’ js/notifications.js
-// - copyToClipboard, fallbackCopyToClipboard â†’ js/notifications.js
-// - FIREBASE_CONFIG, analytics, initializeAnalytics â†’ js/analytics.js
-// - trackPageView, trackFormCompletion, fetchAndDisplayStats â†’ js/analytics.js
-// - increaseFontSize, decreaseFontSize, applyFontSize â†’ js/theme.js
-// - toggleTheme, applyTheme â†’ js/theme.js
+// - escapeHtml, sanitizeInput, formatNumber, capitalize → js/utils.js
+// - isValidNetbiosName, isValidIpv4Cidr, isValidCidrFormat → js/utils.js
+// - extractIpFromCidr, extractPrefixFromCidr → js/utils.js
+// - ipv4ToInt, intToIpv4, prefixToMask, ipToLong, longToIp → js/utils.js
+// - incrementCidrThirdOctet → js/utils.js
+// - showToast, reportUiError, showNotification → js/notifications.js
+// - copyToClipboard, fallbackCopyToClipboard → js/notifications.js
+// - FIREBASE_CONFIG, analytics, initializeAnalytics → js/analytics.js
+// - trackPageView, trackFormCompletion, fetchAndDisplayStats → js/analytics.js
+// - increaseFontSize, decreaseFontSize, applyFontSize → js/theme.js
+// - toggleTheme, applyTheme → js/theme.js
 // ============================================================================
 
 function computeWizardProgress() {
@@ -388,7 +388,7 @@ function updateProgressUi() {
     if (!root || !text || !fill) return;
 
     const p = computeWizardProgress();
-    text.textContent = `${p.percent}% â€¢ ${p.completed}/${p.total}`;
+    text.textContent = `${p.percent}% • ${p.completed}/${p.total}`;
     fill.style.width = `${p.percent}%`;
     root.setAttribute('aria-valuenow', String(p.percent));
 
@@ -568,7 +568,7 @@ function getReportReadiness() {
         // DA8: Port count + NIC configuration
         if (!state.disaggPortCount) missing.push('Network Port Count (DA8)');
         if (!state.disaggNicConfigConfirmed) missing.push('Network Adapter Configuration (DA8)');
-        // Shared steps â€” same as HCI
+        // Shared steps — same as HCI
         if (!state.region) missing.push('Azure Cloud');
         if (!state.localInstanceRegion) missing.push('Azure Local Instance Region');
         if (!state.outbound) missing.push('Outbound Connectivity');
@@ -848,7 +848,7 @@ function getMgmtComputeNicAssignment(portCount) {
         };
     }
 
-    // Fewer than 2 non-RDMA ports â€” fall back to fixed Pair 1 / Pair 2+ model.
+    // Fewer than 2 non-RDMA ports — fall back to fixed Pair 1 / Pair 2+ model.
     const mgmtCompute = [1, 2].filter(n => n <= p);
     const mgmtComputeSet = new Set(mgmtCompute);
     return {
@@ -902,9 +902,9 @@ const MAX_NODE_NAME_LENGTH = 15;
 
 /**
  * Parse a node name into base prefix and numeric suffix.
- * E.g., "customname01" â†’ { base: "customname", num: 1, padding: 2 }
- *       "node5"        â†’ { base: "node", num: 5, padding: 1 }
- *       "myserver"     â†’ { base: "myserver", num: null, padding: 0 }
+ * E.g., "customname01" → { base: "customname", num: 1, padding: 2 }
+ *       "node5"        → { base: "node", num: 5, padding: 1 }
+ *       "myserver"     → { base: "myserver", num: null, padding: 0 }
  */
 function parseNodeNamePattern(name) {
     const trimmed = String(name || '').trim();
@@ -1142,7 +1142,7 @@ function renderNodeSettings() {
     const container = document.getElementById('node-config-container');
     if (!section || !container) return;
 
-    // For disaggregated, re-sync node count from DA3 (racks Ã— nodesPerRack)
+    // For disaggregated, re-sync node count from DA3 (racks × nodesPerRack)
     // in case a downstream reset handler cleared state.nodes
     if (state.architecture === 'disaggregated') {
         const total = (state.disaggRackCount || 0) * (state.disaggNodesPerRack || 0);
@@ -1464,7 +1464,7 @@ function generateArmParameters() {
         const isUsGovCloud = state.region === 'azure_government';
         const isRackAware = state.scale === 'rack_aware';
         const isAdlessExternalDns = state.activeDirectory === 'local_identity';
-        // Disaggregated architecture â†’ create-cluster-san quickstart. Rack-Aware Ã—
+        // Disaggregated architecture → create-cluster-san quickstart. Rack-Aware ×
         // Disaggregated is blocked upstream at Scale, so the two branches never
         // overlap. Precedence: ADLess > USGov > Disaggregated > RackAware > Default.
         const isDisaggregated = state.architecture === 'disaggregated';
@@ -1473,7 +1473,7 @@ function generateArmParameters() {
         // Priority: ADLess > US Gov > Disaggregated (SAN) > Rack-Aware > Commercial default.
         const referenceTemplate = isAdlessExternalDns
             ? {
-                name: 'Azure Stack HCI ADLess cluster (external DNS) â€” Public Preview',
+                name: 'Azure Stack HCI ADLess cluster (external DNS) — Public Preview',
                 url: 'https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-adless-cluster-external-dns-public-preview/azuredeploy.json'
             }
             : isUsGovCloud
@@ -1751,7 +1751,7 @@ function generateArmParameters() {
         const storageNetworkList = (() => {
             // Special-case: 3-node switchless requires explicit storage subnet/IP assignment.
             // Use the same example subnet numbering shown in the report:
-            // 1-2: Node1â†”Node2, 3-4: Node1â†”Node3, 5-6: Node2â†”Node3.
+            // 1-2: Node1↔Node2, 3-4: Node1↔Node3, 5-6: Node2↔Node3.
             if (state.storage === 'switchless' && nodeCount === 3) {
                 const vlanId = (storageVlans[0] !== null && storageVlans[0] !== undefined) ? String(storageVlans[0]) : 'REPLACE_WITH_STORAGE_VLAN_1';
 
@@ -2107,7 +2107,7 @@ function generateArmParameters() {
         });
 
         const parameters = (() => {
-            // Disaggregated â†’ create-cluster-san quickstart. Replaces storageNetworkList
+            // Disaggregated → create-cluster-san quickstart. Replaces storageNetworkList
             // with sanNetworkList (object, not array), drops enableStorageAutoIp
             // (no storage-network auto-IP concept on SAN), and adds the required
             // infraVolLunId + infraPerfLunId SAN LUN identifiers captured in Step 16.
@@ -2119,14 +2119,14 @@ function generateArmParameters() {
                 // Derive the cluster-intent jumboPacket from user overrides. The
                 // Disaggregated DA8 Overrides panel drives mgmt_compute (which
                 // carries cluster heartbeat/CSV traffic on Disaggregated). Fall
-                // back to 9014 â€” the SAN template's own default â€” if no override.
+                // back to 9014 — the SAN template's own default — if no override.
                 const mgmtCompOv = (state.disaggIntentOverrides && state.disaggIntentOverrides.mgmt_compute) || {};
                 const clusterJumbo = parseInt(mgmtCompOv.jumboFrames, 10);
                 const jumboPacket = Number.isFinite(clusterJumbo) && clusterJumbo >= 1514 ? clusterJumbo : 9014;
 
-                // Cluster VLAN mode (DA4): access â†’ host untagged â†’ ARM vlanId=0.
-                // Trunk â†’ host tags â†’ ARM vlanId=<user-entered VLAN>. Paired
-                // (both A and B always match â€” enforced by DA4 updateDisaggClusterVlanMode).
+                // Cluster VLAN mode (DA4): access → host untagged → ARM vlanId=0.
+                // Trunk → host tags → ARM vlanId=<user-entered VLAN>. Paired
+                // (both A and B always match — enforced by DA4 updateDisaggClusterVlanMode).
                 const clusterMode = state.disaggClusterVlanMode || { cluster1: 'access', cluster2: 'access' };
                 const disaggVlans = state.disaggVlans || {};
                 const disaggSubnets = state.disaggSubnets || {};
@@ -2153,7 +2153,7 @@ function generateArmParameters() {
                 const sanNetworkList = {
                     clusterNetworkConfig: {
                         adapterProperties: {
-                            // DA5 defaults â€” see plan Phase 3 item D (read-only pass-through).
+                            // DA5 defaults — see plan Phase 3 item D (read-only pass-through).
                             // 20% = Priority-3 SMB/CSV ETS bucket; 7 = Cluster Heartbeat PFC; 3 = SMB/CSV.
                             bandwidthPercentageSmb: 20,
                             jumboPacket: jumboPacket,
@@ -2270,15 +2270,15 @@ function generateArmParameters() {
 
                     // Disaggregated is always switched leaf-spine; never switchless.
                     networkingType: { value: 'switchedMultiServerDeployment' },
-                    // 'custom' â€” Disaggregated uses a custom NIC layout (OCP SET team +
+                    // 'custom' — Disaggregated uses a custom NIC layout (OCP SET team +
                     // standalone cluster + standalone storage/backup), which maps to
                     // the 'custom' networkingPattern in the SAN template.
                     networkingPattern: { value: 'custom' },
                     intentList: { value: sanIntentList },
-                    // REPLACED: storageNetworkList (HCI) â†’ sanNetworkList (SAN)
+                    // REPLACED: storageNetworkList (HCI) → sanNetworkList (SAN)
                     sanNetworkList: { value: sanNetworkList },
                     storageConnectivitySwitchless: { value: false },
-                    // INTENTIONALLY OMITTED: enableStorageAutoIp â€” not a SAN-template param.
+                    // INTENTIONALLY OMITTED: enableStorageAutoIp — not a SAN-template param.
 
                     customLocation: { value: '' },
 
@@ -2711,7 +2711,7 @@ function selectOption(category, value) {
         state.disaggQosCustomized = false;
     } else if (category === 'architecture') {
         state.architecture = value;
-        // Management cluster is always HCI â€” clear if switching to disaggregated
+        // Management cluster is always HCI — clear if switching to disaggregated
         if (value === 'disaggregated' && state.clusterRole === 'management') {
             state.clusterRole = null;
         }
@@ -2857,7 +2857,7 @@ function selectOption(category, value) {
         state.infraVlan = null;
         state.infraVlanId = null;
     } else if (category === 'storagePoolConfiguration') {
-        // Disaggregated (create-cluster-san) only supports InfraOnly â€” ignore
+        // Disaggregated (create-cluster-san) only supports InfraOnly — ignore
         // any attempt to pick Express or KeepStorage. The Step 16 cards for
         // those options are visually locked when architecture is disaggregated,
         // but this guard protects against programmatic calls (tests, imports).
@@ -2869,7 +2869,7 @@ function selectOption(category, value) {
             state.storagePoolConfiguration = 'InfraOnly';
         } else {
             state.storagePoolConfiguration = value;
-            // Clear SAN LUN IDs when moving away from InfraOnly â€” they only apply
+            // Clear SAN LUN IDs when moving away from InfraOnly — they only apply
             // there and stale values could otherwise confuse the generator.
             if (value !== 'InfraOnly') {
                 state.infraVolLunId = null;
@@ -3146,7 +3146,7 @@ function toggleRackAwareZonesConfirmed() {
             // Validate 50/50 split
             const expectedPerZone = n / 2;
             if (zone1Count !== expectedPerZone || zone2Count !== expectedPerZone) {
-                alert(`Rack Aware clusters require an even 50/50 split of nodes between zones.\n\nCurrent distribution:\nâ€¢ ${z.zone1Name || 'Zone1'}: ${zone1Count} node${zone1Count !== 1 ? 's' : ''}\nâ€¢ ${z.zone2Name || 'Zone2'}: ${zone2Count} node${zone2Count !== 1 ? 's' : ''}\n\nRequired:\nâ€¢ Each zone must have exactly ${expectedPerZone} node${expectedPerZone !== 1 ? 's' : ''}\n\nPlease adjust the node assignments and try again.`);
+                alert(`Rack Aware clusters require an even 50/50 split of nodes between zones.\n\nCurrent distribution:\n• ${z.zone1Name || 'Zone1'}: ${zone1Count} node${zone1Count !== 1 ? 's' : ''}\n• ${z.zone2Name || 'Zone2'}: ${zone2Count} node${zone2Count !== 1 ? 's' : ''}\n\nRequired:\n• Each zone must have exactly ${expectedPerZone} node${expectedPerZone !== 1 ? 's' : ''}\n\nPlease adjust the node assignments and try again.`);
                 return;
             }
         }
@@ -3410,7 +3410,7 @@ function renderRackAwareTorUi() {
             root.insertBefore(lockMsg, root.firstChild.nextSibling);
         }
         lockMsg.classList.toggle('hidden', confirmed);
-        lockMsg.innerHTML = '<strong>Confirm availability zones to continue</strong><p style="margin-top:0.35rem;">Use the â€œConfirm zones &amp; node placementâ€ button above, then select TOR switches per room.</p>';
+        lockMsg.innerHTML = '<strong>Confirm availability zones to continue</strong><p style="margin-top:0.35rem;">Use the “Confirm zones &amp; node placement” button above, then select TOR switches per room.</p>';
 
         // Disable cards until confirmed (visual + functional).
         try {
@@ -3642,61 +3642,61 @@ function getPrivateEndpointInfo(serviceKey) {
             fqdn: 'vault.azure.net',
             privateLink: 'privatelink.vaultcore.azure.net',
             notes: 'Required for deployment. Keep public access enabled during initial deployment, then restrict.',
-            icon: 'ðŸ”'
+            icon: '🔐'
         },
         'storage': {
             name: 'Azure Storage (Blob)',
             fqdn: 'blob.core.windows.net',
             privateLink: 'privatelink.blob.core.windows.net',
             notes: 'Required for 2-node deployments as cloud witness. Keep public access during deployment.',
-            icon: 'ðŸ’¾'
+            icon: '💾'
         },
         'acr': {
             name: 'Azure Container Registry',
             fqdn: 'azurecr.io',
             privateLink: 'privatelink.azurecr.io',
             notes: 'Important: Wildcards (*.azurecr.io) are NOT supported. Use specific ACR FQDNs before deployment.',
-            icon: 'ðŸ“¦'
+            icon: '📦'
         },
         'asr': {
             name: 'Azure Site Recovery',
             fqdn: 'siterecovery.windowsazure.com',
             privateLink: 'privatelink.siterecovery.windowsazure.com',
             notes: 'Not allowed via Arc Gateway. Add to proxy bypass list for direct traffic to private endpoint.',
-            icon: 'ðŸ”„'
+            icon: '🔄'
         },
         'backup': {
             name: 'Recovery Services Vault',
             fqdn: 'backup.windowsazure.com',
             privateLink: 'privatelink.backup.windowsazure.com',
             notes: 'Azure Backup private endpoints for VM backup and recovery.',
-            icon: 'ðŸ—„ï¸'
+            icon: '🗄️'
         },
         'sql': {
             name: 'SQL Managed Instance',
             fqdn: 'database.windows.net',
             privateLink: 'privatelink.database.windows.net',
             notes: 'Private connectivity for Azure SQL Managed Instance.',
-            icon: 'ðŸ—ƒï¸'
+            icon: '🗃️'
         },
         'defender': {
             name: 'Microsoft Defender for Cloud',
             fqdn: 'Various security endpoints',
             privateLink: 'Multiple Private Link endpoints',
             notes: 'For advanced security monitoring scenarios.',
-            icon: 'ðŸ›¡ï¸'
+            icon: '🛡️'
         }
     };
     return peInfo[serviceKey] || null;
 }
 
-// Step 16 "Storage Pool Configuration" DOM sync â€” handles:
+// Step 16 "Storage Pool Configuration" DOM sync — handles:
 //   1. Auto-locking Express + KeepStorage cards when architecture=disaggregated
 //      (create-cluster-san only supports InfraOnly).
 //   2. Showing/hiding the SAN LUN ID input section based on whether
 //      storagePoolConfiguration === 'InfraOnly'.
 //   3. Keeping the LUN ID <input> .value in sync with state (for resume).
-// Safe to call in test environments â€” all DOM lookups are null-guarded.
+// Safe to call in test environments — all DOM lookups are null-guarded.
 function syncStoragePoolUi() {
     const isDisagg = state.architecture === 'disaggregated';
     const isInfraOnly = state.storagePoolConfiguration === 'InfraOnly';
@@ -3722,7 +3722,7 @@ function syncStoragePoolUi() {
         else lunSection.classList.add('hidden');
     }
 
-    // 3. Sync input values (state â†’ DOM) so resume / architecture-switch paths
+    // 3. Sync input values (state → DOM) so resume / architecture-switch paths
     //    keep the UI in sync. Only touch the input if its current value
     //    differs, to avoid stomping on in-progress typing.
     const volInput = document.getElementById('infra-vol-lun-id');
@@ -3829,14 +3829,14 @@ function updateUI() {
         } else if (state.scenario === 'disconnected') {
             if (scenarioExp) {
                 scenarioExp.innerHTML = `<strong style="color: #ef4444;">Disconnected Mode</strong>
-        No Internet connection required. Arc Gateway and private endpoint features are unavailable. Management clusters are fixed at 3 nodes; workload clusters support 1â€“16 nodes. Selection between Air-Gapped or limited connectivity options for Azure Local disconnected operations will be requested during the wizard.`;
+        No Internet connection required. Arc Gateway and private endpoint features are unavailable. Management clusters are fixed at 3 nodes; workload clusters support 1–16 nodes. Selection between Air-Gapped or limited connectivity options for Azure Local disconnected operations will be requested during the wizard.`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
         } else if (state.scenario === 'm365local') {
             if (scenarioExp) {
                 scenarioExp.innerHTML = `<strong style="color: var(--accent-blue);">Microsoft 365 Local Deployment</strong>
         Optimized for Microsoft 365 workloads. Requires a minimum of 9 physical nodes for high availability and performance. Supports Standard scale configuration only.
-        <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">ðŸ“˜ More information on Microsoft 365 Local</a>`;
+        <br><a href="https://learn.microsoft.com/azure/azure-local/concepts/microsoft-365-local-overview" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline; font-weight: 500;">📘 More information on Microsoft 365 Local</a>`;
             }
             if (scenarioExp) scenarioExp.classList.add('visible');
         } else if (state.scenario === 'connected') {
@@ -3867,7 +3867,7 @@ function updateUI() {
         // Architecture-based step visibility
         if (state.architecture === 'disaggregated') {
             // Hide HCI-only steps. NOTE: 'step-5-5' (Storage Pool Configuration /
-            // SAN LUN IDs) is intentionally NOT in this list â€” disaggregated
+            // SAN LUN IDs) is intentionally NOT in this list — disaggregated
             // (create-cluster-san) auto-locks it to InfraOnly and uses its
             // infraVolLunId / infraPerfLunId inputs to capture the two SAN
             // LUN identifiers the template needs (Step 16 in the UI).
@@ -3881,7 +3881,7 @@ function updateUI() {
             if (daSteps[0]) daSteps[0].classList.remove('hidden'); // DA1 always visible
             if (state.disaggStorageType && daSteps[1]) daSteps[1].classList.remove('hidden'); // DA2
             if ((state.disaggStorageType === 'fc_san' || state.disaggBackupEnabled !== undefined) && daSteps[2]) daSteps[2].classList.remove('hidden'); // DA3
-            // Spine count auto-set to 2 in DA3 â€” no separate spine step
+            // Spine count auto-set to 2 in DA3 — no separate spine step
             if (state.disaggRackCount && state.disaggNodesPerRack) {
                 if (daSteps[3]) daSteps[3].classList.remove('hidden'); // DA4 (VLANs)
                 if (daSteps[4]) daSteps[4].classList.remove('hidden'); // DA5 (QoS)
@@ -3897,7 +3897,7 @@ function updateUI() {
                 if (typeof renderDisaggNicConfig === 'function') renderDisaggNicConfig();
             }
             // Shared steps (cloud, region, outbound, arc, proxy, PE, mgmt, infra VLAN, infra network, AD, security)
-            // remain visible â€” they were un-hidden in the reset block above
+            // remain visible — they were un-hidden in the reset block above
         } else if (!state.architecture) {
             // No architecture selected yet - hide all downstream steps
             steps.forEach(s => s && s.classList.add('hidden'));
@@ -3978,7 +3978,7 @@ function updateUI() {
             : ('Missing: ' + readiness.missing.join(', '));
     }
 
-    // Sizer transfer button gating â€” enabled once scenario and nodes are chosen
+    // Sizer transfer button gating — enabled once scenario and nodes are chosen
     const sizerBtn = document.getElementById('transfer-to-sizer-btn');
     if (sizerBtn) {
         const canTransfer = Boolean(state.scenario && state.nodes);
@@ -3988,7 +3988,7 @@ function updateUI() {
             : 'Select a Deployment Type and Node count first';
     }
 
-    // Switch Config transfer button gating â€” enabled once scenario and nodes are chosen
+    // Switch Config transfer button gating — enabled once scenario and nodes are chosen
     const switchCfgBtn = document.getElementById('transfer-to-switch-config-btn');
     if (switchCfgBtn) {
         const canTransfer = Boolean(state.scenario && state.nodes);
@@ -4250,7 +4250,7 @@ function updateUI() {
         // Only allow Medium (Standard)
         if (cards.scale.low_capacity) cards.scale.low_capacity.classList.add('disabled');
 
-        // Management cluster: fixed at 3 nodes â€” rack_aware requires 2/4/6/8, so disable it
+        // Management cluster: fixed at 3 nodes — rack_aware requires 2/4/6/8, so disable it
         if (state.clusterRole === 'management') {
             if (cards.scale.rack_aware) cards.scale.rack_aware.classList.add('disabled');
             if (state.scale === 'rack_aware') state.scale = null;
@@ -4393,7 +4393,7 @@ function updateUI() {
             }
         }
 
-        // Ports (Step 07): User requirement â€” Rack Aware supports only 4 ports per node.
+        // Ports (Step 07): User requirement — Rack Aware supports only 4 ports per node.
         // Keep other options visible but disabled (so users can see they exist).
         if (cards.ports) {
             const card4 = cards.ports['4'];
@@ -4445,7 +4445,7 @@ function updateUI() {
             if (enabledCard) {
                 enabledCard.classList.add('disabled');
                 enabledCard.classList.remove('selected');
-                enabledCard.title = 'Required: Switchless 3â€“4 node clusters must use Storage Auto IP Disabled.';
+                enabledCard.title = 'Required: Switchless 3–4 node clusters must use Storage Auto IP Disabled.';
             }
         }
     }
@@ -4618,7 +4618,7 @@ function updateUI() {
         const daNoticeText = document.getElementById('infra-vlan-da-notice-text');
         if (daNotice) { daNotice.classList.remove('hidden'); }
         if (state.disaggMgmtVlanMode === 'trunk') {
-            // Trunk â†’ Custom VLAN with the VLAN ID from DA4
+            // Trunk → Custom VLAN with the VLAN ID from DA4
             state.infraVlan = 'custom';
             state.infraVlanId = mgmtVlanId;
             if (cards.infraVlan['default']) {
@@ -4636,9 +4636,9 @@ function updateUI() {
             if (vlanCustom) { vlanCustom.classList.remove('hidden'); vlanCustom.classList.add('visible'); }
             if (vlanInput) { vlanInput.value = mgmtVlanId || ''; vlanInput.disabled = true; }
             if (vlanInfo) { vlanInfo.classList.remove('hidden'); vlanInfo.classList.add('visible'); }
-            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Trunk mode on DA4. Custom VLAN ' + (mgmtVlanId || '') + ' is applied â€” the host NICs will tag management traffic with this VLAN ID.';
+            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Trunk mode on DA4. Custom VLAN ' + (mgmtVlanId || '') + ' is applied — the host NICs will tag management traffic with this VLAN ID.';
         } else {
-            // Access â†’ Default VLAN, show the native VLAN ID from DA4
+            // Access → Default VLAN, show the native VLAN ID from DA4
             state.infraVlan = 'default';
             state.infraVlanId = null;
             if (cards.infraVlan['custom']) {
@@ -4656,7 +4656,7 @@ function updateUI() {
             if (vlanCustom) { vlanCustom.classList.add('hidden'); vlanCustom.classList.remove('visible'); }
             if (vlanInput) { vlanInput.value = ''; vlanInput.disabled = true; }
             if (vlanInfo) { vlanInfo.classList.add('hidden'); vlanInfo.classList.remove('visible'); }
-            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Access mode on DA4. The host sends untagged traffic (VLAN ID 0) â€” the TOR switch assigns it to native VLAN ' + (mgmtVlanId || '') + ' internally.';
+            if (daNoticeText) daNoticeText.textContent = 'Management VLAN is set to Access mode on DA4. The host sends untagged traffic (VLAN ID 0) — the TOR switch assigns it to native VLAN ' + (mgmtVlanId || '') + ' internally.';
         }
     } else {
         const daNotice = document.getElementById('infra-vlan-da-notice');
@@ -5217,7 +5217,7 @@ function updateUI() {
             const defaultRdmaEnabled = isLowCapacity ? false : true;
             const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
 
-            // Single-node default RDMA alignment (speed is NOT overridden â€” user may change it).
+            // Single-node default RDMA alignment (speed is NOT overridden — user may change it).
             if (isSingleNode && !isLowCapacity) {
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
@@ -5265,7 +5265,7 @@ function updateUI() {
                 rdmaWarn.classList.add('visible');
                 state.rdmaGuardMessage = null;
             } else if (requiredRdma > 0 && rdmaEnabled < requiredRdma) {
-                rdmaWarn.innerHTML = '<strong style="color:#ffc107;">âš  Not supported</strong><br>At least ' + escapeHtml(String(requiredRdma)) + ' port(s) must be RDMA capable unless you selected Low Capacity. Update Port Configuration to enable RDMA on at least ' + escapeHtml(String(requiredRdma)) + ' port(s).';
+                rdmaWarn.innerHTML = '<strong style="color:#ffc107;">⚠ Not supported</strong><br>At least ' + escapeHtml(String(requiredRdma)) + ' port(s) must be RDMA capable unless you selected Low Capacity. Update Port Configuration to enable RDMA on at least ' + escapeHtml(String(requiredRdma)) + ' port(s).';
                 rdmaWarn.classList.remove('hidden');
                 rdmaWarn.classList.add('visible');
             } else {
@@ -5606,7 +5606,7 @@ function updateUI() {
                 if (nonStorageRdma.length > 0) {
                     parts.push('RDMA is enabled on non-Storage port(s): ' + nonStorageRdma.map(i => 'Port ' + i).join(', ') + '.');
                 }
-                rdmaIntentWarn.innerHTML = '<strong style="color:#ffc107;">âš  Not supported</strong><br>' + parts.join('<br>') + '<br>Update Step 07 Port Configuration so RDMA is enabled on the ports used for Storage traffic.';
+                rdmaIntentWarn.innerHTML = '<strong style="color:#ffc107;">⚠ Not supported</strong><br>' + parts.join('<br>') + '<br>Update Step 07 Port Configuration so RDMA is enabled on the ports used for Storage traffic.';
                 rdmaIntentWarn.classList.remove('hidden');
                 rdmaIntentWarn.classList.add('visible');
 
@@ -5660,7 +5660,7 @@ function updateUI() {
     } else if (state.arc === 'no_arc') {
         arcExp.classList.add('visible');
         arcExp.classList.add('warning');
-        arcExp.innerHTML = `<strong style="color:#ffc107;">âš  Important</strong>
+        arcExp.innerHTML = `<strong style="color:#ffc107;">⚠ Important</strong>
         <p>Disabling Arc Gateway requires you to allowlist 80+ individual endpoints in your firewall/proxy for proper operation.</p>
         <p><a href="https://learn.microsoft.com/en-us/azure/azure-local/concepts/firewall-requirements?view=azloc-2511" target="_blank" style="color: var(--accent-blue); text-decoration: underline;">Review the required firewall endpoints</a></p>`;
     } else {
@@ -5757,7 +5757,7 @@ function updateUI() {
 
     updateSummary();
 
-    // Step 16 â€” storage pool lock + SAN LUN inputs (Disaggregated auto-lock)
+    // Step 16 — storage pool lock + SAN LUN inputs (Disaggregated auto-lock)
     syncStoragePoolUi();
 
     // Progress indicator
@@ -6059,7 +6059,7 @@ function updateCustomStorageSubnetsConfirmButton() {
 
     if (confirmStatus) {
         if (confirmed) {
-            confirmStatus.textContent = 'âœ“ Confirmed';
+            confirmStatus.textContent = '✓ Confirmed';
             confirmStatus.style.color = 'var(--accent-blue)';
         } else if (allFilled && !allValid) {
             confirmStatus.textContent = 'Fix invalid CIDR format';
@@ -6566,7 +6566,7 @@ function updateStepIndicators() {
             // Add checkmark indicator
             const indicator = document.createElement('span');
             indicator.className = 'step-indicator';
-            indicator.innerHTML = 'âœ“';
+            indicator.innerHTML = '✓';
             indicator.style.cssText = 'color: var(--success); font-size: 20px; font-weight: bold; margin-left: 8px;';
             stepHeader.appendChild(indicator);
         }
@@ -6635,7 +6635,7 @@ function updateSummary() {
     };
 
     // Build section rows (grouped by step ranges)
-    // Step 01â€“05: Scenario and Scale
+    // Step 01–05: Scenario and Scale
     let scenarioScaleRows = '';
     if (state.scenario) scenarioScaleRows += renderRow('Scenario', escapeHtml(formatScenario(state.scenario)));
     if (state.architecture) scenarioScaleRows += renderRow('Architecture', state.architecture === 'disaggregated' ? 'Disaggregated' : 'Hyperconverged (HCI)');
@@ -6676,7 +6676,7 @@ function updateSummary() {
                 const nodeName = (state.nodeSettings && state.nodeSettings[i - 1] && state.nodeSettings[i - 1].name)
                     ? String(state.nodeSettings[i - 1].name).trim()
                     : '';
-                lines.push(`${nodeName || `Node ${i}`} â†’ ${zoneName}`);
+                lines.push(`${nodeName || `Node ${i}`} → ${zoneName}`);
             }
             rackAwareRows += `<div class="summary-row">
                 <div class="summary-label">Zone assignments</div>
@@ -6695,11 +6695,11 @@ function updateSummary() {
         }
     }
 
-    // Step 06â€“08: Host Networking
+    // Step 06–08: Host Networking
     let hostNetworkingRows = '';
 
     if (state.architecture === 'disaggregated') {
-        // â”€â”€ Disaggregated Host Networking summary â”€â”€
+        // ── Disaggregated Host Networking summary ──
         const storageTypeLabels = { fc_san: 'Fibre Channel SAN', iscsi_4nic: 'iSCSI SAN (4-NIC)', iscsi_6nic: 'iSCSI SAN (6-NIC)' };
         if (state.disaggStorageType) hostNetworkingRows += renderRow('Storage Type', escapeHtml(storageTypeLabels[state.disaggStorageType] || state.disaggStorageType));
         if (state.disaggPortCount) hostNetworkingRows += renderRow('Ports per Node', escapeHtml(String(state.disaggPortCount)), { mono: true });
@@ -6759,8 +6759,8 @@ function updateSummary() {
             for (const [key, ov] of Object.entries(dov)) {
                 if (!ov) continue;
                 const label = key === 'mgmt_compute' ? 'Mgmt+Compute' : key === 'backup' ? 'Backup' : key;
-                if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA â€” ${label}`, escapeHtml(ov.rdmaMode));
-                if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo â€” ${label}`, escapeHtml(ov.jumboFrames));
+                if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${label}`, escapeHtml(ov.rdmaMode));
+                if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo — ${label}`, escapeHtml(ov.jumboFrames));
             }
         }
 
@@ -6773,11 +6773,11 @@ function updateSummary() {
             hostNetworkingRows += renderRow('SAN Perf Volume LUN ID', perfLun, { mono: true });
         }
     } else {
-        // â”€â”€ HCI Host Networking summary â”€â”€
+        // ── HCI Host Networking summary ──
         if (state.storage) hostNetworkingRows += renderRow('Storage', escapeHtml(capitalize(state.storage)));
         if (state.ports) hostNetworkingRows += renderRow('Ports', escapeHtml(state.ports), { mono: true });
         if (state.storagePoolConfiguration) hostNetworkingRows += renderRow('Storage Pool', escapeHtml(state.storagePoolConfiguration));
-        // HCI can also pick InfraOnly â€” render LUN IDs in that case too
+        // HCI can also pick InfraOnly — render LUN IDs in that case too
         if (state.storagePoolConfiguration === 'InfraOnly') {
             const volLun = state.infraVolLunId ? escapeHtml(String(state.infraVolLunId)) : '<span style="color:var(--text-tertiary);">(missing)</span>';
             const perfLun = state.infraPerfLunId ? escapeHtml(String(state.infraPerfLunId)) : '<span style="color:var(--text-tertiary);">(missing)</span>';
@@ -6819,8 +6819,8 @@ function updateSummary() {
             for (const g of groups) {
                 const ov = state.intentOverrides[g.key];
                 if (!ov) continue;
-                if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA â€” ${g.label}`, escapeHtml(ov.rdmaMode));
-                if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo Frames â€” ${g.label}`, escapeHtml(ov.jumboFrames));
+                if (ov.rdmaMode) hostNetworkingRows += renderRow(`RDMA — ${g.label}`, escapeHtml(ov.rdmaMode));
+                if (ov.jumboFrames) hostNetworkingRows += renderRow(`Jumbo Frames — ${g.label}`, escapeHtml(ov.jumboFrames));
 
                 if (g.key === 'storage' || g.key === 'custom_storage' || g.key === 'all') {
                     const count = getStorageVlanOverrideNetworkCount();
@@ -6831,7 +6831,7 @@ function updateSummary() {
                             ? ov[vlanKey]
                             : (legacyKey ? ov[legacyKey] : undefined);
                         if (vVal !== undefined && vVal !== null) {
-                            hostNetworkingRows += renderRow(`Storage Network ${n} VLAN ID â€” ${g.label}`, escapeHtml(vVal), { mono: true });
+                            hostNetworkingRows += renderRow(`Storage Network ${n} VLAN ID — ${g.label}`, escapeHtml(vVal), { mono: true });
                         }
                     }
                 }
@@ -6839,13 +6839,13 @@ function updateSummary() {
         }
     }
 
-    // Step 09â€“11: Connectivity
+    // Step 09–11: Connectivity
     let connectivityRows = '';
     if (state.outbound) connectivityRows += renderRow('Outbound', escapeHtml(formatOutbound(state.outbound)));
     if (state.arc) connectivityRows += renderRow('Arc Gateway', state.arc === 'arc_gateway' ? 'Enabled' : 'Disabled');
     if (state.proxy) connectivityRows += renderRow('Proxy', state.proxy === 'no_proxy' ? 'Disabled' : 'Enabled');
 
-    // Step 12â€“14: Infrastructure network
+    // Step 12–14: Infrastructure network
     let infraNetworkRows = '';
     if (state.ip) infraNetworkRows += renderRow('IP', escapeHtml(capitalize(state.ip)));
     if (state.nodeSettings && state.nodeSettings.length > 0) {
@@ -6854,8 +6854,8 @@ function updateSummary() {
                 const name = (n && n.name) ? String(n.name).trim() : '';
                 const ipCidr = (n && n.ipCidr) ? String(n.ipCidr).trim() : '';
                 if (!name && !ipCidr) return `Node ${idx + 1}: (not set)`;
-                if (name && ipCidr) return `${name} â€” ${ipCidr}`;
-                return `${name || `Node ${idx + 1}`} â€” ${ipCidr || '(IP not set)'}`;
+                if (name && ipCidr) return `${name} — ${ipCidr}`;
+                return `${name || `Node ${idx + 1}`} — ${ipCidr || '(IP not set)'}`;
             })
             .filter(Boolean);
         infraNetworkRows += `<div class="summary-row">
@@ -6968,7 +6968,7 @@ function renderDiagram() {
         return;
     }
 
-    // â”€â”€ Disaggregated mini node diagram â”€â”€
+    // ── Disaggregated mini node diagram ──
     if (state.architecture === 'disaggregated') {
         const dn = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
         const isMultiRack = state.disaggRackCount && state.disaggRackCount > 1;
@@ -7066,7 +7066,7 @@ function renderDiagram() {
         return;
     }
 
-    // â”€â”€ HCI mini node diagram â”€â”€
+    // ── HCI mini node diagram ──
     const n = parseInt(state.nodes === '16+' ? 16 : state.nodes) || 1;
     const isRackAware = state.scale === 'rack_aware';
 
@@ -7279,7 +7279,7 @@ function renderPortConfiguration(count) {
         const borderColor = isDuplicate ? '#ef4444' : (hasCustomName ? 'var(--accent-blue)' : 'rgba(255,255,255,0.15)');
         // Determine label: 'duplicate' warning or 'custom' indicator
         const labelHtml = isDuplicate
-            ? '<span style="font-size:10px; color:#ef4444; font-weight:600;">âš  duplicate</span>'
+            ? '<span style="font-size:10px; color:#ef4444; font-weight:600;">⚠ duplicate</span>'
             : (hasCustomName ? '<span style="font-size:10px; color:var(--accent-blue); opacity:0.7;">custom</span>' : '');
 
         const card = document.createElement('div');
@@ -7298,7 +7298,7 @@ function renderPortConfiguration(count) {
                         onchange="updatePortConfig(${i}, 'customName', this.value);"
                         onkeydown="if(event.key==='Enter'){this.blur();}"
                         title="${isDuplicate ? 'Duplicate adapter name - each port must have a unique name' : (isConfirmed ? 'Edit configuration to rename' : 'Enter custom port name')}">
-                    ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">âš¡</span>' : ''}
+                    ${config.rdma ? '<span style="color:var(--accent-purple); font-size:16px;">⚡</span>' : ''}
                 </div>
                 ${labelHtml}
             </div>
@@ -7385,7 +7385,7 @@ function updatePortConfig(index, key, value) {
                     (key === 'rdmaMode' && String(value) === 'Disabled' && state.portConfig[index].rdma === true);
 
                 if (isDisablingRdma && (currentRdmaEnabled - 1) < requiredRdma) {
-                    state.rdmaGuardMessage = 'âš  Not supported: At least ' + String(requiredRdma) + ' port(s) must remain RDMA capable unless you selected Low Capacity.';
+                    state.rdmaGuardMessage = '⚠ Not supported: At least ' + String(requiredRdma) + ' port(s) must remain RDMA capable unless you selected Low Capacity.';
                     updateUI();
                     return;
                 }
@@ -7711,7 +7711,7 @@ function updateInfraNetwork() {
     // Valid
     state.infra = { start, end };
     if (succ) {
-        succ.innerText = `âœ“ Valid Range (${count} IPs)`;
+        succ.innerText = `✓ Valid Range (${count} IPs)`;
         succ.classList.remove('hidden');
     }
 
@@ -8140,14 +8140,14 @@ function updateAdfsServerName() {
     updateSummary();
 }
 
-// SAN LUN ID handlers â€” Step 16 "Storage Pool Configuration" only shows these
+// SAN LUN ID handlers — Step 16 "Storage Pool Configuration" only shows these
 // inputs when storagePoolConfiguration === 'InfraOnly' (auto-locked for
 // Disaggregated). Both fields are required for ARM generation when the
 // architecture is Disaggregated; readiness in getArmReadiness() gates the
 // Generate ARM button, and validateSanLunInputs() provides inline visual
 // feedback (red border + error message) directly on the Step 16 inputs.
 function validateSanLunInputs() {
-    // Only apply visual validation when the section is actually active â€” i.e.
+    // Only apply visual validation when the section is actually active — i.e.
     // Disaggregated architecture on InfraOnly. Outside that path, clear any
     // previous error state so stale red borders don't persist after a reset.
     const isActive = state.architecture === 'disaggregated'
@@ -8156,7 +8156,7 @@ function validateSanLunInputs() {
     const errorBorder = '1px solid var(--danger, #ef4444)';
     const defaultBorder = '1px solid var(--glass-border)';
 
-    // Uniqueness check â€” the two LUN IDs must point to two different SAN
+    // Uniqueness check — the two LUN IDs must point to two different SAN
     // volumes, so matching values are a deployment-breaking misconfiguration.
     // Compare case-insensitively since LUN/NAA identifiers are hex and many
     // SAN vendors accept mixed case.
@@ -8781,7 +8781,7 @@ function showArmImportOptionsDialog(armState) {
     overlay.innerHTML = `
         <div style="background:var(--card-bg);border:2px solid var(--accent-blue);border-radius:16px;padding:28px;max-width:650px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);">
             <div style="text-align:center;margin-bottom:24px;">
-                <div style="font-size:48px;margin-bottom:12px;">ðŸ“¥</div>
+                <div style="font-size:48px;margin-bottom:12px;">📥</div>
                 <h2 style="margin:0 0 8px 0;color:var(--accent-blue);font-size:22px;">ARM Template Import Options</h2>
                 <p style="color:var(--text-secondary);font-size:14px;margin:0;">
                     The following settings are not included in ARM templates.<br>Please specify them for your imported deployment.
@@ -8857,31 +8857,31 @@ function showArmImportOptionsDialog(armState) {
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="keyvault" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">ðŸ” Key Vault</span>
+                            <span style="color:var(--text-primary);font-size:13px;">🔐 Key Vault</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="storage" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">ðŸ“¦ Storage Account</span>
+                            <span style="color:var(--text-primary);font-size:13px;">📦 Storage Account</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="acr" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">ðŸ³ Container Registry</span>
+                            <span style="color:var(--text-primary);font-size:13px;">🐳 Container Registry</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="asr" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">ðŸ”„ Site Recovery</span>
+                            <span style="color:var(--text-primary);font-size:13px;">🔄 Site Recovery</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="backup" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">ðŸ’¾ Azure Backup</span>
+                            <span style="color:var(--text-primary);font-size:13px;">💾 Azure Backup</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="sql" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">ðŸ—„ï¸ SQL Managed Instance</span>
+                            <span style="color:var(--text-primary);font-size:13px;">🗄️ SQL Managed Instance</span>
                         </label>
                         <label style="display:flex;align-items:center;padding:10px;background:rgba(255,255,255,0.02);border:1px solid var(--glass-border);border-radius:6px;cursor:pointer;transition:all 0.2s;">
                             <input type="checkbox" name="import-pe-service" value="defender" style="margin-right:10px;">
-                            <span style="color:var(--text-primary);font-size:13px;">ðŸ›¡ï¸ Microsoft Defender</span>
+                            <span style="color:var(--text-primary);font-size:13px;">🛡️ Microsoft Defender</span>
                         </label>
                     </div>
                 </div>
@@ -9276,7 +9276,7 @@ function checkForSizerImport() {
         updateUI();
 
         // Disaggregated: re-select DA1/DA2/DA3 option-cards + explanations + slider.
-        // updateUI() alone doesn't repaint the disaggregated wizard cards â€” only
+        // updateUI() alone doesn't repaint the disaggregated wizard cards — only
         // restoreDisaggregatedUI() does. Without this, state.disaggStorageType
         // (and rack/node counts) is set in state but DA1 "Storage Type" and the
         // downstream DA2/DA3 cards visually appear unselected.
@@ -9316,7 +9316,7 @@ function checkForSizerImport() {
         `;
 
         const hw = payload.sizerHardware || {};
-        const details = `${hw.nodeCount || '?'} node(s) â€¢ ${hw.cpu ? hw.cpu.totalCores + ' cores' : ''} â€¢ ${hw.memory ? hw.memory.perNodeGB + ' GB memory' : ''} per node`;
+        const details = `${hw.nodeCount || '?'} node(s) • ${hw.cpu ? hw.cpu.totalCores + ' cores' : ''} • ${hw.memory ? hw.memory.perNodeGB + ' GB memory' : ''} per node`;
 
         const regionLabels = {
             'east_us': 'East US', 'west_europe': 'West Europe', 'australia_east': 'Australia East',
@@ -9329,7 +9329,7 @@ function checkForSizerImport() {
             <div style="flex: 1;">
                 <div style="font-weight: 700; margin-bottom: 4px;">Sizer Configuration Imported</div>
                 <div style="font-size: 12px; opacity: 0.9;">${escapeHtml(details)}</div>
-                <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">ðŸ“ Azure region: ${escapeHtml(regionLabel)}</div>
+                <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">📍 Azure region: ${escapeHtml(regionLabel)}</div>
             </div>
             <button onclick="this.parentElement.remove()" style="padding: 8px 16px; background: rgba(255,255,255,0.2); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">Dismiss</button>
         `;
@@ -9417,7 +9417,7 @@ function transferToSizer() {
 /**
  * Open the ToR Switch Config page directly from the summary panel.
  * Transfers whatever Designer state is available (partial or complete).
- * Can be used before the Designer is fully completed â€” the switch config page
+ * Can be used before the Designer is fully completed — the switch config page
  * will work with whatever data is provided, and the QoS validator is always available.
  */
 function openSwitchConfigDirect() { // eslint-disable-line no-unused-vars
@@ -9580,7 +9580,7 @@ function resumeSavedState() {
             }
         }
 
-        // Migrate legacy SDN features (vnet, slb) from saved state â€” only LNET and NSG supported
+        // Migrate legacy SDN features (vnet, slb) from saved state — only LNET and NSG supported
         if (state.sdnFeatures && state.sdnFeatures.length > 0) {
             state.sdnFeatures = state.sdnFeatures.filter(f => f === 'lnet' || f === 'nsg');
             if (state.sdnFeatures.length > 0) {
@@ -9964,13 +9964,13 @@ function showComparison(category) {
             title: 'Disconnected Outbound Connectivity Comparison',
             options: [
                 {
-                    name: 'ðŸš« Air Gapped',
+                    name: '🚫 Air Gapped',
                     pros: ['Complete network isolation from the internet', 'Highest security posture for sensitive environments', 'No risk of external data exfiltration', 'Meets strictest regulatory and compliance requirements'],
                     useCases: ['Classified or top-secret environments', 'Critical infrastructure with strict isolation mandates', 'Regulatory requirements prohibiting any internet connectivity', 'Environments where zero external communication is required'],
                     recommended: 'For environments requiring complete network isolation'
                 },
                 {
-                    name: 'â„¹ï¸ Limited Connectivity',
+                    name: 'ℹ️ Limited Connectivity',
                     pros: ['Restricted internet access with controlled endpoints', 'Enables log collection from disconnected operations appliance', 'Balances security with operational flexibility'],
                     useCases: ['Government and regulated industries with controlled egress', 'Environments allowing limited, approved internet access', 'Organizations needing remote management capabilities', 'Deployments requiring periodic cloud sync for updates'],
                     recommended: 'For disconnected environments that allow restricted internet access'
@@ -9980,14 +9980,14 @@ function showComparison(category) {
             title: 'Outbound Connectivity Comparison',
             options: [
                 {
-                    name: 'ðŸŒ Public Path',
+                    name: '🌐 Public Path',
                     pros: ['Simpler initial setup', 'Lower cost (no ExpressRoute/VPN required)', 'Uses existing on-premises proxy/firewall infrastructure', 'Multiple configuration options (4 scenarios)'],
                     cons: ['Requires public internet egress', 'Traffic routes through public endpoints', 'More firewall rules if not using Arc Gateway'],
                     useCases: ['Standard deployments with reliable internet', 'Existing on-premises proxy/firewall infrastructure', 'Cost-sensitive environments', 'Public internet egress acceptable per security policy'],
                     recommended: 'For most deployments with internet connectivity'
                 },
                 {
-                    name: 'ðŸ” Private Path (ExpressRoute)',
+                    name: '🔐 Private Path (ExpressRoute)',
                     pros: ['Zero public internet exposure', 'Traffic stays on private network', 'Azure Firewall provides centralized security', 'Highest security posture', 'Compliance-friendly for regulated industries'],
                     cons: ['Higher cost (ExpressRoute + Azure Firewall)', 'More complex initial setup', 'Requires Arc Gateway + Azure Firewall Explicit Proxy', 'ExpressRoute or Site-to-Site VPN required'],
                     useCases: ['Zero public internet exposure required', 'Government, healthcare, financial industries', 'Existing ExpressRoute or Site-to-Site VPN', 'Regulatory/compliance requirements mandate private connectivity'],
@@ -10043,28 +10043,28 @@ function showComparison(category) {
                 <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">${escapeHtml(option.name)}</h4>
 
                 <div style="margin-bottom: 12px;">
-                    <strong style="color: #10b981;">âœ“ Pros:</strong>
+                    <strong style="color: #10b981;">✓ Pros:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.pros.map(pro => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(pro)}</li>`).join('')}
                     </ul>
                 </div>
 
                 ${option.cons && option.cons.length ? `<div style="margin-bottom: 12px;">
-                    <strong style="color: #ef4444;">âœ— Cons:</strong>
+                    <strong style="color: #ef4444;">✗ Cons:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.cons.map(con => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(con)}</li>`).join('')}
                     </ul>
                 </div>` : ''}
 
                 <div style="margin-bottom: 12px;">
-                    <strong style="color: var(--accent-blue);">ðŸ“Œ Use Cases:</strong>
+                    <strong style="color: var(--accent-blue);">📌 Use Cases:</strong>
                     <ul style="margin: 6px 0 0 20px; padding: 0;">
                         ${option.useCases.map(uc => `<li style="margin: 4px 0; color: var(--text-primary);">${escapeHtml(uc)}</li>`).join('')}
                     </ul>
                 </div>
 
                 <div style="padding: 10px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; color: var(--accent-blue); font-size: 13px;">
-                    <strong>ðŸ’¡ Recommended:</strong> ${escapeHtml(option.recommended)}
+                    <strong>💡 Recommended:</strong> ${escapeHtml(option.recommended)}
                 </div>
             </div>
         `;
@@ -10158,10 +10158,10 @@ function showTemplates() {
                 disaggVlanConfigConfirmed: true,
                 disaggIpConfigConfirmed: true,
                 disaggTenantNetworks: [],
-                // Step 16: Disaggregated uses create-cluster-san (InfraOnly) â€” LUN IDs
+                // Step 16: Disaggregated uses create-cluster-san (InfraOnly) — LUN IDs
                 // identify the Infrastructure and Cluster-Performance volumes pre-provisioned
                 // on the SAN array and map to infraVolLunId / infraPerfLunId ARM params.
-                // Example (non-vendor-specific) values that illustrate the expected shape â€”
+                // Example (non-vendor-specific) values that illustrate the expected shape —
                 // operators must replace with the real LUN / NAA identifiers from their array.
                 storagePoolConfiguration: 'InfraOnly',
                 infraVolLunId: 'LUN1234567890ABCDEF',
@@ -10428,7 +10428,7 @@ function showTemplates() {
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 16px; padding: 24px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="margin: 0; color: var(--accent-blue);">ðŸ“‹ Example Configuration Templates</h3>
+                <h3 style="margin: 0; color: var(--accent-blue);">📋 Example Configuration Templates</h3>
                 <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
             </div>
 
@@ -10680,7 +10680,7 @@ function loadTemplate(templateIndex) {
     }
 
     // Show success message
-    showNotification('âœ… Template loaded successfully!', 'success');
+    showNotification('✅ Template loaded successfully!', 'success');
 
     // Save state
     saveStateToLocalStorage();
@@ -11007,7 +11007,7 @@ function showShortcutsHelp() {
     overlay.innerHTML = `
         <div class="preview-content" style="max-width: 500px;">
             <div class="preview-header">
-                <h2>âŒ¨ï¸ Keyboard Shortcuts</h2>
+                <h2>⌨️ Keyboard Shortcuts</h2>
                 <button class="preview-close" data-action="close-modal">&times;</button>
             </div>
             <div class="preview-body">
@@ -11121,12 +11121,12 @@ function exportToPDF() {
         <h1>Odin for Azure Local</h1>
         <p>Configuration Summary - Generated ${new Date().toLocaleString()}</p>
         <div class="status ${readiness.ready ? 'ready' : 'incomplete'}">
-            ${readiness.ready ? 'âœ“ Configuration Complete' : `âš  ${readiness.missing.length} items need attention`}
+            ${readiness.ready ? '✓ Configuration Complete' : `⚠ ${readiness.missing.length} items need attention`}
         </div>
     </div>
 
     <div class="section">
-        <div class="section-title">ðŸ¢ Deployment Configuration</div>
+        <div class="section-title">🏢 Deployment Configuration</div>
         <div class="grid">
             <div class="item"><div class="item-label">Deployment Type</div><div class="item-value">${getDisplayName('scenario', state.scenario)}</div></div>
             ${state.scenario === 'disconnected' && state.clusterRole ? `
@@ -11141,7 +11141,7 @@ function exportToPDF() {
     </div>
 
     <div class="section">
-        <div class="section-title">ðŸ–¥ï¸ Cluster Configuration</div>
+        <div class="section-title">🖥️ Cluster Configuration</div>
         <div class="grid">
             <div class="item"><div class="item-label">Node Count</div><div class="item-value">${state.nodes || 'Not configured'}</div></div>
             <div class="item"><div class="item-label">Witness Type</div><div class="item-value">${getDisplayName('witnessType', state.witnessType)}</div></div>
@@ -11151,7 +11151,7 @@ function exportToPDF() {
     </div>
 
     <div class="section">
-        <div class="section-title">ðŸŒ Network Configuration</div>
+        <div class="section-title">🌐 Network Configuration</div>
         <div class="grid">
             <div class="item"><div class="item-label">IP Assignment</div><div class="item-value">${getDisplayName('ip', state.ip)}</div></div>
             <div class="item"><div class="item-label">Infrastructure CIDR</div><div class="item-value">${state.infraCidr || 'Not configured'}</div></div>
@@ -11163,7 +11163,7 @@ function exportToPDF() {
     </div>
 
     <div class="section">
-        <div class="section-title">ðŸ” Identity & Security</div>
+        <div class="section-title">🔐 Identity & Security</div>
         <div class="grid">
             <div class="item"><div class="item-label">Identity Provider</div><div class="item-value">${getDisplayName('activeDirectory', state.activeDirectory)}</div></div>
             <div class="item"><div class="item-label">AD Domain</div><div class="item-value">${state.adDomain || 'Not configured'}</div></div>
@@ -11174,7 +11174,7 @@ function exportToPDF() {
 
     ${state.nodeSettings && state.nodeSettings.length > 0 ? `
     <div class="section">
-        <div class="section-title">ðŸ“ Node Settings</div>
+        <div class="section-title">📝 Node Settings</div>
         <table>
             <thead>
                 <tr><th>Node</th><th>Name</th><th>IP Address</th></tr>
@@ -11192,7 +11192,7 @@ function exportToPDF() {
 
     ${!readiness.ready ? `
     <div class="section">
-        <div class="section-title" style="color: #dc3545;">âš ï¸ Missing Configuration</div>
+        <div class="section-title" style="color: #dc3545;">⚠️ Missing Configuration</div>
         <ul style="padding-left: 20px;">
             ${readiness.missing.map(item => item.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')).map(item => `<li>${item}</li>`).join('')}
         </ul>
@@ -11229,34 +11229,34 @@ const onboardingSteps = [
         icon: '<img src="images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
         isImage: true,
         title: 'Welcome to ODIN for Azure Local',
-        description: 'Your intelligent guide for planning and configuring Azure Local deployments â€” from hardware sizing to deployment-ready ARM templates.',
+        description: 'Your intelligent guide for planning and configuring Azure Local deployments — from hardware sizing to deployment-ready ARM templates.',
         features: [
-            { icon: 'âš–ï¸', title: 'Sizer', text: 'Calculate hardware requirements based on your workloads (VMs, AKS, AVD)' },
-            { icon: 'ðŸ§­', title: 'Designer', text: 'Step-by-step wizard for cluster configuration with intelligent defaults' },
-            { icon: 'ðŸ”Œ', title: 'Switch Config', text: 'Generate ToR switch configs and validate QoS for Cisco / Dell' },
-            { icon: 'ðŸ“Š', title: 'Reports & ARM', text: 'Generate deployment reports, rack diagrams, and ARM parameter files' }
+            { icon: '⚖️', title: 'Sizer', text: 'Calculate hardware requirements based on your workloads (VMs, AKS, AVD)' },
+            { icon: '🧭', title: 'Designer', text: 'Step-by-step wizard for cluster configuration with intelligent defaults' },
+            { icon: '🔌', title: 'Switch Config', text: 'Generate ToR switch configs and validate QoS for Cisco / Dell' },
+            { icon: '📊', title: 'Reports & ARM', text: 'Generate deployment reports, rack diagrams, and ARM parameter files' }
         ]
     },
     {
-        icon: 'ðŸ”§',
+        icon: '🔧',
         title: 'How It Works',
         description: 'Choose your starting point based on where you are in your planning process.',
         features: [
-            { icon: 'âš–ï¸', title: 'Start with Sizer', text: 'Add workloads, review hardware recommendations, then transfer to Designer' },
-            { icon: 'ðŸ§­', title: 'Start with Designer', text: 'Configure deployment type, network, identity, and security settings' },
-            { icon: 'ðŸ—ï¸', title: 'Disaggregated', text: 'Use the Disaggregated Architecture wizard for external SAN with Clos fabric' },
-            { icon: 'ðŸ“š', title: 'Knowledge', text: 'Explore outbound connectivity guides and architecture diagrams' }
+            { icon: '⚖️', title: 'Start with Sizer', text: 'Add workloads, review hardware recommendations, then transfer to Designer' },
+            { icon: '🧭', title: 'Start with Designer', text: 'Configure deployment type, network, identity, and security settings' },
+            { icon: '🏗️', title: 'Disaggregated', text: 'Use the Disaggregated Architecture wizard for external SAN with Clos fabric' },
+            { icon: '📚', title: 'Knowledge', text: 'Explore outbound connectivity guides and architecture diagrams' }
         ]
     },
     {
-        icon: 'âŒ¨ï¸',
+        icon: '⌨️',
         title: 'Pro Tips',
         description: 'Make the most of ODIN with these helpful features.',
         features: [
-            { icon: 'ðŸ“‹', title: 'Templates', text: 'Load pre-configured templates for common scenarios (incl. disaggregated)' },
-            { icon: 'ðŸ”„', title: 'Import/Export', text: 'Save and share configurations as JSON files' },
-            { icon: 'ðŸŽ¨', title: 'Customization', text: 'Adjust font size and toggle dark/light theme' },
-            { icon: 'ðŸ’¾', title: 'Auto-Save', text: 'Progress is automatically saved â€” resume anytime from where you left off' }
+            { icon: '📋', title: 'Templates', text: 'Load pre-configured templates for common scenarios (incl. disaggregated)' },
+            { icon: '🔄', title: 'Import/Export', text: 'Save and share configurations as JSON files' },
+            { icon: '🎨', title: 'Customization', text: 'Adjust font size and toggle dark/light theme' },
+            { icon: '💾', title: 'Auto-Save', text: 'Progress is automatically saved — resume anytime from where you left off' }
         ]
     }
 ];
@@ -11435,7 +11435,7 @@ function getIntentZonesForIntent(intent) {
         const portCount = parseInt(state.ports) || 0;
         const has8Ports = portCount >= 8;
         if (has8Ports) {
-            // 8+ ports: Fixed structure â€” Mgmt+Compute (required), Compute 1 & 2 (optional), Storage (required)
+            // 8+ ports: Fixed structure — Mgmt+Compute (required), Compute 1 & 2 (optional), Storage (required)
             // Management, Compute+Storage, and Group All Traffic are NOT available
             zones.push({
                 key: 'mgmt_compute',
@@ -11602,7 +11602,7 @@ function getDefaultAdapterMapping(intent, portCount) {
         const has8Ports = portCount >= 8;
         if (has8Ports) {
             // 8-port custom: Mgmt+Compute and Storage are mandatory
-            // Default: first 2 non-RDMA (or first 2) â†’ mgmt_compute, last 2 RDMA â†’ storage, rest â†’ pool
+            // Default: first 2 non-RDMA (or first 2) → mgmt_compute, last 2 RDMA → storage, rest → pool
             if (nonRdmaPorts.length >= 2) {
                 mapping[nonRdmaPorts[0]] = 'mgmt_compute';
                 mapping[nonRdmaPorts[1]] = 'mgmt_compute';
@@ -12192,7 +12192,7 @@ function renderHciHostNetworkingPreview() {
 
     let svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Host networking preview">';
     svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
-    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Host Networking â€” ' + escapeHtml(intentLabel) + ' â€” ' + portCount + ' ports â€” ' + escapeHtml(storageLabel) + (nodeCount > 2 ? (' â€” Showing 2 of ' + nodeCount + ' nodes') : '') + '</text>';
+    svg += '<text x="' + (svgW / 2) + '" y="36" text-anchor="middle" font-size="13" fill="var(--text-secondary)">Host Networking — ' + escapeHtml(intentLabel) + ' — ' + portCount + ' ports — ' + escapeHtml(storageLabel) + (nodeCount > 2 ? (' — Showing 2 of ' + nodeCount + ' nodes') : '') + '</text>';
 
     if (showToR) {
         svg += '<rect x="' + switch1X + '" y="' + switchY + '" width="' + switchW + '" height="' + switchH + '" rx="10" fill="rgba(59,130,246,0.15)" stroke="rgba(59,130,246,0.6)" stroke-width="2" />';
@@ -12428,7 +12428,7 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
     // Build SVG
     const autoIpLabel = state.storageAutoIp === 'enabled' ? 'AutoIP: True' : state.storageAutoIp === 'disabled' ? 'AutoIP: False' : 'AutoIP: -';
     const linkLabel = (n === 3) ? (linkMode === 'single_link' ? ', Single-Link' : ', Dual-Link') : '';
-    const titleText = 'Storage Network ATC intent â€” Switchless=true' + linkLabel + ', ' + autoIpLabel;
+    const titleText = 'Storage Network ATC intent — Switchless=true' + linkLabel + ', ' + autoIpLabel;
 
     let svg = '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%; max-width:' + svgW + 'px;" role="img" aria-label="Switchless storage connectivity preview">';
     svg += '<rect x="20" y="45" width="' + (svgW - 40) + '" height="' + (svgH - 65) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(139,92,246,0.45)" stroke-dasharray="6 4" />';
@@ -12505,7 +12505,7 @@ function renderHciSwitchlessPreview(container, portCount, nodeCount) {
         const nodeB = getNodeLabel(led.b.n);
         legendHtml += '<div class="switchless-diagram__legend-item">'
             + '<svg width="40" height="10" viewBox="0 0 40 10" aria-hidden="true"><line x1="0" y1="5" x2="40" y2="5" stroke="' + subnetColor(led.subnet) + '" stroke-width="2" /></svg>'
-            + '<span class="switchless-diagram__legend-text">Subnet ' + led.subnet + ' â€” ' + escapeHtml(nodeA) + ' â†” ' + escapeHtml(nodeB) + '</span>'
+            + '<span class="switchless-diagram__legend-text">Subnet ' + led.subnet + ' — ' + escapeHtml(nodeA) + ' ↔ ' + escapeHtml(nodeB) + '</span>'
             + '</div>';
     }
     legendHtml += '</div></div>';
