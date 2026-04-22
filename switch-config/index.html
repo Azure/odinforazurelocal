@@ -684,20 +684,33 @@
                 <span><strong>Privacy:</strong> All processing is performed entirely in your browser. No switch configuration data is stored, transmitted, or sent to any external service. Sanitize any passwords or shared secrets before pasting.</span>
             </div>
 
-            <div class="sc-field" style="margin-bottom: 1rem;">
-                <label for="sc-qos-audit-profile">Deployment Type</label>
-                <select id="sc-qos-audit-profile" style="width:100%; padding:0.6rem; background:var(--card-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px;">
-                    <option value="auto">Auto-detect from Designer (fallback: Hyperconverged — Switched)</option>
+            <div id="sc-qos-profile-panel" style="margin-bottom: 1.25rem; padding: 1rem 1.1rem; background: linear-gradient(135deg, rgba(59, 130, 246, 0.10), rgba(139, 92, 246, 0.08)); border: 2px solid var(--accent-blue); border-radius: 8px; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.5rem;">
+                    <span style="display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:50%; background:var(--accent-blue); color:#fff; font-weight:700; font-size:0.9rem;">1</span>
+                    <label for="sc-qos-audit-profile" style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Deployment Type <span style="color: #ef4444;">*</span>
+                    </label>
+                </div>
+                <p style="margin: 0 0 0.6rem 0; color: var(--text-secondary); font-size: 0.88rem;">
+                    <strong>Select the deployment scenario first</strong> — this determines which <abbr title="Quality of Service">QoS</abbr> checks are <em>required</em>, <em>recommended</em>, or <em>not applicable</em> for your architecture.
+                </p>
+                <select id="sc-qos-audit-profile" style="width:100%; padding:0.7rem 0.8rem; background:var(--card-bg); border:2px solid var(--accent-blue); color:var(--text-primary); border-radius:6px; font-size: 0.95rem; font-weight: 500; cursor: pointer;">
+                    <option value="auto">🔍 Auto-detect from Designer (fallback: Hyperconverged — Switched)</option>
                     <option value="hci_switched">Hyperconverged — Switched storage (RoCE/RDMA, all checks required)</option>
                     <option value="hci_switchless">Hyperconverged — Switchless storage (storage + cluster NICs back-to-back, not on ToR)</option>
                     <option value="disagg_fc">Disaggregated — Fibre Channel SAN (storage on FC fabric, PFC/ECN not required on Ethernet)</option>
                     <option value="disagg_iscsi">Disaggregated — iSCSI (PFC/ECN recommended but not mandated — guidance evolving)</option>
                 </select>
-                <small style="color: var(--text-secondary); display: block; margin-top: 0.35rem;">Selecting the right deployment type suppresses checks that don't apply and demotes non-mandated ones from <em>fail</em> to <em>recommended</em>. Hyperconverged switched is the strictest profile.</small>
+                <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem; font-size: 0.82rem;">
+                    💡 The wrong profile will falsely fail checks that don't apply (e.g. PFC on a Disaggregated FC SAN deployment). Hyperconverged — Switched is the strictest profile.
+                </small>
             </div>
 
             <div class="sc-field" style="margin-bottom: 1rem;">
-                <label for="sc-qos-audit-input">Switch Running Configuration</label>
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.35rem;">
+                    <span style="display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:50%; background:var(--text-secondary); color:#fff; font-weight:700; font-size:0.9rem;">2</span>
+                    <label for="sc-qos-audit-input" style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0;">Switch Running Configuration</label>
+                </div>
                 <textarea id="sc-qos-audit-input" rows="12" placeholder="Paste the full output of 'show running-config' (Cisco) or 'show running-configuration' (Dell OS10) here..."
                           style="width:100%; padding:0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:0.82rem; line-height:1.5; resize:vertical;"></textarea>
             </div>
