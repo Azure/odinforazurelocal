@@ -2161,9 +2161,19 @@ function generateArmParameters() {
                 // intentList for Disaggregated: the only host-teamed intent is
                 // Management+Compute (OCP SET team). Cluster NICs flow to sanNetworkList,
                 // not intentList. Storage/Backup live on separate fabric (FC or dedicated iSCSI).
+                // Port keys in `disaggIntentMapping` are of the form `ocp_p1`, `ocp_p2`,
+                // `pcie1_p1`, etc. `disaggNicNames` is keyed by `ocp1`/`ocp2`/`cluster1`/
+                // `cluster2`/`bmc`. Translate via a small map so the adapter list is
+                // the user-visible custom name (e.g. "OCP-NIC1") rather than the
+                // internal port key.
+                const portToNicKey = {
+                    ocp_p1: 'ocp1',
+                    ocp_p2: 'ocp2',
+                    pcie1_p1: 'cluster1',
+                    pcie1_p2: 'cluster2'
+                };
                 const mgmtAdapters = Array.isArray(state.disaggIntentMapping && state.disaggIntentMapping.mgmt_compute)
-                    ? state.disaggIntentMapping.mgmt_compute
-                        .map((p) => nicNames[p.replace('_p', '') + (p.endsWith('_p1') ? '1' : '2')] || nicNames[p.split('_')[0] + (p.endsWith('_p1') ? '1' : '2')] || p)
+                    ? state.disaggIntentMapping.mgmt_compute.map((p) => nicNames[portToNicKey[p]] || p)
                     : ['OCP-NIC1', 'OCP-NIC2'];
                 const sanIntentList = [{
                     name: 'MgmtCompute',
@@ -2677,6 +2687,7 @@ function selectOption(category, value) {
         state.disaggNodesPerRack = null;
         state.disaggSpineCount = null;
         state.disaggMgmtVlanMode = 'access';
+        state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
         state.disaggQosCustomized = false;
     } else if (category === 'architecture') {
         state.architecture = value;
@@ -2699,6 +2710,7 @@ function selectOption(category, value) {
         state.disaggNodesPerRack = null;
         state.disaggSpineCount = null;
         state.disaggMgmtVlanMode = 'access';
+        state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
         state.disaggQosCustomized = false;
         // Storage pool configuration + SAN LUN IDs are architecture-scoped.
         // Disaggregated (create-cluster-san) mandates InfraOnly; HCI lets the
