@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Disaggregated ARM Parameters (create-cluster-san)
+- **ARM generator (Disaggregated branch)**: Generate ARM now emits an Azure-Local-SAN–shaped `deploymentParameters.json` when the Designer is in the Disaggregated architecture — based on the upstream [`microsoft.azurestackhci/create-cluster-san`](https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster-san) quickstart template. Emits `configurationMode: "InfraOnly"`, `infraVolLunId`, `infraPerfLunId`, `sanNetworkList` (cluster A/B adapter properties, IP config, VLAN mode), and a single `MgmtCompute` intent.
+- **DA8 — Step 16 (Storage Pool + LUN IDs)**: New wizard step auto-locked to `InfraOnly` for Disaggregated, with required inputs for the two SAN LUN IDs the template needs (Infrastructure Volume + Cluster Performance History).
+- **DA4 — Cluster VLAN mode toggle (access / trunk)**: New per-row mode toggle on the VLAN grid for cluster1 / cluster2. Access mode (default) emits `vlanId: 0` in ARM — host sends untagged, matching the reference template. Trunk mode passes the numeric VLAN through. cluster1 and cluster2 are paired (toggling one toggles the other).
+- **Readiness gate**: Generate ARM is blocked with a clear message when Disaggregated is selected but LUN IDs are blank or Storage Pool Configuration is not InfraOnly.
+- **Reference template metadata**: ARM payload now carries `architecture` and a matching `referenceTemplate` link (`create-cluster-san` for Disaggregated, `create-cluster`/`create-cluster-rackaware`/adless/US-Gov otherwise).
+
+#### Disaggregated SAN Prerequisites Banner (ARM Tools)
+- **Pre-deployment checklist**: The ARM Tools page now shows a purple "Disaggregated storage (SAN) — pre-deployment checklist" banner when the payload is disaggregated, listing what must be done on the array and fabric before Validate (zoning, host registrations, LUN mapping, leaf VLAN config, cluster-network reachability).
+
+#### Disaggregated Leaf-Scope Banner (Switch Config Generator)
+- **Leaf-only scope note**: Switch Config page now shows a banner when the Designer is in Disaggregated mode, calling out that it emits leaf-only configuration and that spine/EVPN fabric, SAN fibre-channel zoning, and array host registrations are out of scope.
+
 #### Disaggregated Architecture Wizard
 - **New disaggregated wizard**: End-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks
 - **DA1 — Storage Type**: Choose external SAN connectivity — Fibre Channel SAN, iSCSI (4-NIC), or iSCSI (6-NIC)

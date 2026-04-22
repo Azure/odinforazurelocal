@@ -58,6 +58,24 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧩 Disaggregated ARM Parameters (create-cluster-san)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New ARM branch:</strong> Generate ARM now emits an Azure-Local-SAN–shaped <code>deploymentParameters.json</code> when Designer is in the Disaggregated architecture — based on the upstream <code>microsoft.azurestackhci/create-cluster-san</code> quickstart. Emits <code>configurationMode: "InfraOnly"</code>, <code>infraVolLunId</code>, <code>infraPerfLunId</code>, <code>sanNetworkList</code>, and a single <code>MgmtCompute</code> intent; HCI-only params (<code>storageNetworkList</code>, <code>enableStorageAutoIp</code>) are suppressed.</li>
+                        <li><strong>DA8 Step 16 — Storage Pool + LUN IDs:</strong> Auto-locked to <code>InfraOnly</code> for Disaggregated with required inputs for the two SAN LUN IDs the template needs (Infrastructure Volume + Cluster Performance History).</li>
+                        <li><strong>DA4 — Cluster VLAN access/trunk toggle:</strong> Per-row mode toggle for cluster1/cluster2 on the VLAN grid. Access mode (default) emits <code>vlanId: 0</code> in ARM — host sends untagged, matching the reference template. Trunk mode passes the numeric VLAN through. cluster1 and cluster2 are paired (toggling one toggles the other). DA8 cluster inputs are now read-only and track the DA4 mode.</li>
+                        <li><strong>Readiness gate:</strong> Generate ARM is blocked with a clear message when Disaggregated is selected but the LUN IDs are blank or Storage Pool Configuration is not <code>InfraOnly</code>.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 Disaggregated Prerequisites &amp; Leaf-Scope Banners</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>ARM Tools — SAN pre-deployment checklist:</strong> When the payload is Disaggregated, the ARM Tools page shows a purple pre-deployment checklist banner listing what must be staged before Validate: fabric zoning, array host registrations, LUN mapping, leaf VLAN config, and cluster-network reachability.</li>
+                        <li><strong>Switch Config — leaf-only scope banner:</strong> Switch Config page shows a banner when the Designer is Disaggregated, calling out that it emits leaf-only configuration and that spine/EVPN fabric, SAN fibre-channel zoning, and array host registrations are out of scope.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🏗️ Disaggregated Architecture Wizard</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>New disaggregated wizard:</strong> End-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks.</li>
