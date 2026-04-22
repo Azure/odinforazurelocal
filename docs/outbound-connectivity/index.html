@@ -27,27 +27,6 @@
                 }
             } catch (e) { /* cross-origin iframe – leave nav visible */ }
         })();
-
-        // Optional deep-link: ?flow=public | ?flow=private
-        // Redirects straight to the interactive flow diagram page so callers
-        // (e.g. the Designer Knowledge tab iframe) can open a specific flow
-        // as the default landing page without hand-editing the iframe src.
-        (function() {
-            try {
-                var params = new URLSearchParams(window.location.search);
-                var flow = (params.get('flow') || '').toLowerCase();
-                var target = null;
-                if (flow === 'public') {
-                    target = 'azure-local-public-path-dark-flows.html';
-                } else if (flow === 'private') {
-                    target = 'azure-local-private-path-dark-flows.html';
-                }
-                if (target) {
-                    // Preserve hash (if any) but drop the flow= param to avoid loops.
-                    window.location.replace(target + window.location.hash);
-                }
-            } catch (e) { /* fall through to default overview page */ }
-        })();
     </script>
 
     <nav class="sidebar">
