@@ -2610,19 +2610,21 @@
                     </div>
                     <!-- SAN LUN ID inputs — shown only when InfraOnly is selected -->
                     <div id="san-lun-id-section" class="hidden" style="margin-top: 18px; padding: 16px; border-radius: 10px; background: var(--card-bg); border: 1px solid var(--glass-border);">
-                        <h3 style="margin: 0 0 6px 0; color: var(--text-primary); font-size: 1rem;">SAN Volume LUN IDs</h3>
+                        <h3 style="margin: 0 0 6px 0; color: var(--text-primary); font-size: 1rem;">SAN Volume LUN IDs <span style="color: var(--danger, #ef4444); font-weight: 600;" aria-hidden="true">*</span></h3>
                         <p style="margin: 0 0 14px 0; color: var(--text-secondary); font-size: 0.875rem;">
-                            Enter the LUN identifiers your SAN array has pre-provisioned for the Infrastructure_1 volume and the Cluster Performance History volume. These map directly to <code>infraVolLunId</code> and <code>infraPerfLunId</code> in the <code>create-cluster-san</code> ARM parameters file.
+                            Enter the LUN identifiers your SAN array has pre-provisioned for the Infrastructure_1 volume and the Cluster Performance History volume. Both values are <strong>required</strong> — they map directly to <code>infraVolLunId</code> and <code>infraPerfLunId</code> in the <code>create-cluster-san</code> ARM parameters file.
                             <a href="https://learn.microsoft.com/azure/azure-local/deploy/disaggregated-storage" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;" aria-label="Open Azure Local disaggregated storage documentation in a new tab" title="Docs: Disaggregated storage — LUN IDs">&#9432;</a>
                         </p>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                             <div>
-                                <label for="infra-vol-lun-id" style="display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 0.875rem; font-weight: 500;">Infrastructure_1 Volume SAN LUN ID</label>
-                                <input type="text" id="infra-vol-lun-id" oninput="updateInfraVolLunId()" placeholder="e.g. PURE1234567890ABCDEF" autocomplete="off" spellcheck="false" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--card-bg); color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 0.875rem;">
+                                <label for="infra-vol-lun-id" style="display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 0.875rem; font-weight: 500;">Infrastructure_1 Volume SAN LUN ID <span style="color: var(--danger, #ef4444);" aria-hidden="true">*</span></label>
+                                <input type="text" id="infra-vol-lun-id" oninput="updateInfraVolLunId()" onblur="updateInfraVolLunId()" placeholder="e.g. LUN1234567890ABCDEF" required aria-required="true" aria-describedby="infra-vol-lun-id-error" autocomplete="off" spellcheck="false" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--card-bg); color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 0.875rem;">
+                                <div id="infra-vol-lun-id-error" class="hidden" role="alert" style="margin-top: 6px; color: var(--danger, #ef4444); font-size: 0.8rem;">Infrastructure_1 Volume SAN LUN ID is required.</div>
                             </div>
                             <div>
-                                <label for="infra-perf-lun-id" style="display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 0.875rem; font-weight: 500;">Cluster Performance History Volume SAN LUN ID</label>
-                                <input type="text" id="infra-perf-lun-id" oninput="updateInfraPerfLunId()" placeholder="e.g. PURE0987654321MNOPQR" autocomplete="off" spellcheck="false" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--card-bg); color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 0.875rem;">
+                                <label for="infra-perf-lun-id" style="display: block; margin-bottom: 6px; color: var(--text-primary); font-size: 0.875rem; font-weight: 500;">Cluster Performance History Volume SAN LUN ID <span style="color: var(--danger, #ef4444);" aria-hidden="true">*</span></label>
+                                <input type="text" id="infra-perf-lun-id" oninput="updateInfraPerfLunId()" onblur="updateInfraPerfLunId()" placeholder="e.g. LUN0987654321MNOPQR" required aria-required="true" aria-describedby="infra-perf-lun-id-error" autocomplete="off" spellcheck="false" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--card-bg); color: var(--text-primary); font-family: var(--font-mono, monospace); font-size: 0.875rem;">
+                                <div id="infra-perf-lun-id-error" class="hidden" role="alert" style="margin-top: 6px; color: var(--danger, #ef4444); font-size: 0.8rem;">Cluster Performance History Volume SAN LUN ID is required.</div>
                             </div>
                         </div>
                     </div>

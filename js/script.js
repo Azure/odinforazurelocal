@@ -3714,6 +3714,10 @@ function syncStoragePoolUi() {
         const want = state.infraPerfLunId || '';
         if (document.activeElement !== perfInput && perfInput.value !== want) perfInput.value = want;
     }
+
+    // Refresh the required-input validation state so red borders / error
+    // messages reflect the current value (and clear when the section hides).
+    if (typeof validateSanLunInputs === 'function') validateSanLunInputs();
 }
 
 function updateUI() {
@@ -8118,13 +8122,43 @@ function updateAdfsServerName() {
 // SAN LUN ID handlers — Step 16 "Storage Pool Configuration" only shows these
 // inputs when storagePoolConfiguration === 'InfraOnly' (auto-locked for
 // Disaggregated). Both fields are required for ARM generation when the
-// architecture is Disaggregated; readiness in computeWizardProgress() gates
-// the Generate ARM button.
+// architecture is Disaggregated; readiness in getArmReadiness() gates the
+// Generate ARM button, and validateSanLunInputs() provides inline visual
+// feedback (red border + error message) directly on the Step 16 inputs.
+function validateSanLunInputs() {
+    // Only apply visual validation when the section is actually active — i.e.
+    // Disaggregated architecture on InfraOnly. Outside that path, clear any
+    // previous error state so stale red borders don't persist after a reset.
+    const isActive = state.architecture === 'disaggregated'
+        && state.storagePoolConfiguration === 'InfraOnly';
+
+    const errorBorder = '1px solid var(--danger, #ef4444)';
+    const defaultBorder = '1px solid var(--glass-border)';
+
+    const applyState = (inputId, errorId, value) => {
+        const input = document.getElementById(inputId);
+        const err = document.getElementById(errorId);
+        if (!input || !err) return;
+        if (isActive && !value) {
+            input.style.border = errorBorder;
+            input.setAttribute('aria-invalid', 'true');
+            err.classList.remove('hidden');
+        } else {
+            input.style.border = defaultBorder;
+            input.removeAttribute('aria-invalid');
+            err.classList.add('hidden');
+        }
+    };
+    applyState('infra-vol-lun-id', 'infra-vol-lun-id-error', state.infraVolLunId);
+    applyState('infra-perf-lun-id', 'infra-perf-lun-id-error', state.infraPerfLunId);
+}
+
 function updateInfraVolLunId() {
     const input = document.getElementById('infra-vol-lun-id');
     if (!input) return;
     const value = input.value.trim();
     state.infraVolLunId = value || null;
+    validateSanLunInputs();
     updateSummary();
     saveStateToLocalStorage();
 }
@@ -8134,6 +8168,7 @@ function updateInfraPerfLunId() {
     if (!input) return;
     const value = input.value.trim();
     state.infraPerfLunId = value || null;
+    validateSanLunInputs();
     updateSummary();
     saveStateToLocalStorage();
 }
