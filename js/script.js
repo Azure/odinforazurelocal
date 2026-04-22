@@ -10135,9 +10135,11 @@ function showTemplates() {
                 // Step 16: Disaggregated uses create-cluster-san (InfraOnly) — LUN IDs
                 // identify the Infrastructure and Cluster-Performance volumes pre-provisioned
                 // on the SAN array and map to infraVolLunId / infraPerfLunId ARM params.
+                // Example (non-vendor-specific) values that illustrate the expected shape —
+                // operators must replace with the real LUN / NAA identifiers from their array.
                 storagePoolConfiguration: 'InfraOnly',
-                infraVolLunId: 'PURE1234567890ABCDEF',
-                infraPerfLunId: 'PURE0987654321MNOPQR'
+                infraVolLunId: 'LUN1234567890ABCDEF',
+                infraPerfLunId: 'LUN0987654321MNOPQR'
             }
         },
         {
