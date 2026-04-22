@@ -337,6 +337,11 @@ function updateDisaggClusterNetworkName(key, value) {
     if (typeof renderDisaggAdapterMappingUi === 'function' && state.disaggAdapterMapping) {
         renderDisaggAdapterMappingUi();
     }
+    // Re-render the DA8 Overrides panel so the Cluster A/B override card
+    // headings pick up the new custom name.
+    if (typeof renderDisaggOverrides === 'function') {
+        renderDisaggOverrides();
+    }
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
 function updateDisaggVrf(value) {
@@ -2210,9 +2215,15 @@ function renderDisaggOverrides() {
         : 'Cluster B leaf port is in Access mode — host sends untagged frames. VLAN ' + (vlans.cluster2 || 712) + ' is configured on the switch only. To change, switch DA4 → Cluster Network VLAN Mode to Trunk.';
     const readonlyVlanStyle = 'width: 100%; padding: 6px 10px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-secondary); border-radius: 4px; font-size: 0.9rem; cursor: not-allowed; opacity: 0.75;';
 
+    // Custom display names (DA4) — escape for safe HTML heading text.
+    const overrideCNames = state.disaggClusterNetworkNames || {};
+    const overrideCName1 = (typeof overrideCNames.cluster1 === 'string' && overrideCNames.cluster1.trim()) ? overrideCNames.cluster1.trim() : 'Cluster Network 1';
+    const overrideCName2 = (typeof overrideCNames.cluster2 === 'string' && overrideCNames.cluster2.trim()) ? overrideCNames.cluster2.trim() : 'Cluster Network 2';
+    const esc = (typeof escapeHtml === 'function') ? escapeHtml : function(s) { return String(s); };
+
     html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">';
     html += '<div style="padding: 12px; border: 1px solid #22c55e40; border-left: 4px solid #22c55e; border-radius: 6px; background: #22c55e08; min-width: 0; overflow: hidden;">';
-    html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">Cluster Network 1 (Standalone)</h5>';
+    html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">' + esc(overrideCName1) + ' <span style="font-weight:400; color:var(--text-secondary); font-size:0.82rem;">(Standalone)</span></h5>';
     html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN <span style="font-size:0.72rem; color:var(--accent-purple);">🔒 bound to DA4</span></label>';
     html += '<input type="number" value="' + cluster1Vlan + '" readonly title="' + cluster1Tip.replace(/"/g, '&quot;') + '" style="' + readonlyVlanStyle + '">';
     html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
@@ -2220,7 +2231,7 @@ function renderDisaggOverrides() {
     html += '</div></div>';
 
     html += '<div style="padding: 12px; border: 1px solid #22c55e40; border-left: 4px solid #22c55e; border-radius: 6px; background: #22c55e08; min-width: 0; overflow: hidden;">';
-    html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">Cluster Network 2 (Standalone)</h5>';
+    html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">' + esc(overrideCName2) + ' <span style="font-weight:400; color:var(--text-secondary); font-size:0.82rem;">(Standalone)</span></h5>';
     html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN <span style="font-size:0.72rem; color:var(--accent-purple);">🔒 bound to DA4</span></label>';
     html += '<input type="number" value="' + cluster2Vlan + '" readonly title="' + cluster2Tip.replace(/"/g, '&quot;') + '" style="' + readonlyVlanStyle + '">';
     html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
