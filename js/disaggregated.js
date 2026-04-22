@@ -43,6 +43,7 @@ function selectDisaggOption(category, value) {
         state.disaggVlanConfigConfirmed = false;
         state.disaggIpConfigConfirmed = false;
         state.disaggMgmtVlanMode = 'access';
+        state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
         state.disaggTenantNetworks = [];
 
         // Show explanation
@@ -240,10 +241,15 @@ function renderVlanGrid() {
     const confirmed = state.disaggVlanConfigConfirmed === true;
 
     const mgmtMode = state.disaggMgmtVlanMode === 'trunk' ? 'Trunk' : 'Access';
+    // Cluster A and B VLAN modes are paired — toggling one updates the other.
+    // Default is Access (per MS Disaggregated docs — leaf in access mode, host untagged).
+    if (!state.disaggClusterVlanMode) state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
+    const cluster1Mode = state.disaggClusterVlanMode.cluster1 === 'trunk' ? 'Trunk' : 'Access';
+    const cluster2Mode = state.disaggClusterVlanMode.cluster2 === 'trunk' ? 'Trunk' : 'Access';
     const rows = [
-        { key: 'mgmt', label: 'Management (Infra)', vlan: vlans.mgmt, vni: vnis.mgmt, mode: mgmtMode, modeToggle: true },
-        { key: 'cluster1', label: 'Cluster (CSV/LM) A', vlan: vlans.cluster1, vni: vnis.cluster1, mode: 'Access' },
-        { key: 'cluster2', label: 'Cluster (CSV/LM) B', vlan: vlans.cluster2, vni: vnis.cluster2, mode: 'Access' }
+        { key: 'mgmt', label: 'Management (Infra)', vlan: vlans.mgmt, vni: vnis.mgmt, mode: mgmtMode, modeToggle: 'mgmt' },
+        { key: 'cluster1', label: 'Cluster (CSV/LM) A', vlan: vlans.cluster1, vni: vnis.cluster1, mode: cluster1Mode, modeToggle: 'cluster' },
+        { key: 'cluster2', label: 'Cluster (CSV/LM) B', vlan: vlans.cluster2, vni: vnis.cluster2, mode: cluster2Mode, modeToggle: 'cluster' }
     ];
 
     if (state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic') {
@@ -255,15 +261,24 @@ function renderVlanGrid() {
         rows.push({ key: 'backup', label: 'Backup Network', vlan: vlans.backup, vni: vnis.backup, mode: 'Access' });
     }
 
-    grid.innerHTML = rows.map(r => `
+    grid.innerHTML = rows.map(r => {
+        // Build the mode selector inline. Mgmt uses updateDisaggMgmtVlanMode;
+        // Cluster A/B share updateDisaggClusterVlanMode (paired — toggling
+        // either updates both). Other rows display a static "(Access)" label.
+        let modeCtrl;
+        if (r.modeToggle === 'mgmt') {
+            modeCtrl = `<select onchange="updateDisaggMgmtVlanMode(this.value)" style="font-size: 0.75rem; padding: 1px 4px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 3px; cursor: pointer;" ${confirmed ? 'disabled' : ''}><option value="access" ${r.mode === 'Access' ? 'selected' : ''}>Access</option><option value="trunk" ${r.mode === 'Trunk' ? 'selected' : ''}>Trunk</option></select>`;
+        } else if (r.modeToggle === 'cluster') {
+            modeCtrl = `<select onchange="updateDisaggClusterVlanMode('${r.key}', this.value)" style="font-size: 0.75rem; padding: 1px 4px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 3px; cursor: pointer;" ${confirmed ? 'disabled' : ''} title="Cluster A and B modes are paired — toggling one updates the other. Access (default): leaf tags/strips VLAN, host untagged. Trunk: host NIC must tag with this VLAN and it is emitted to ARM clusterNetworkConfig.vlanId."><option value="access" ${r.mode === 'Access' ? 'selected' : ''}>Access</option><option value="trunk" ${r.mode === 'Trunk' ? 'selected' : ''}>Trunk</option></select>`;
+        } else {
+            modeCtrl = `<span style="color: var(--accent-purple);">(${r.mode})</span>`;
+        }
+        return `
         <div style="background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 6px; padding: 12px;">
             <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 8px;">${r.label}</label>
             <div style="display: flex; gap: 8px;">
                 <div style="flex: 1;">
-                    <span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN ${r.modeToggle
-        ? `<select onchange="updateDisaggMgmtVlanMode(this.value)" style="font-size: 0.75rem; padding: 1px 4px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--accent-purple); border-radius: 3px; cursor: pointer;" ${confirmed ? 'disabled' : ''}><option value="access" ${r.mode === 'Access' ? 'selected' : ''}>Access</option><option value="trunk" ${r.mode === 'Trunk' ? 'selected' : ''}>Trunk</option></select>`
-        : `<span style="color: var(--accent-purple);">(${r.mode})</span>`
-}</span>
+                    <span style="font-size: 0.75rem; color: var(--text-secondary);">VLAN ${modeCtrl}</span>
                     <input type="number" value="${r.vlan}" min="1" max="4094"
                         style="width: 100%; padding: 4px 8px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 4px; font-size: 0.9rem;"
                         ${confirmed ? 'disabled' : ''}
@@ -278,7 +293,8 @@ function renderVlanGrid() {
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 
     renderDisaggTenantNetworks();
     renderDisaggVlanConfirmState();
@@ -356,6 +372,30 @@ function updateDisaggMgmtVlanMode(value) {
     state.disaggVlanConfigConfirmed = false;
     renderVlanGrid();
     renderDisaggVlanConfirmState();
+    updateUI();
+    if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
+}
+
+// Cluster A and B VLAN modes are paired — toggling either updates both to the
+// same value. Per MS Disaggregated-storage docs, leaf ports default to access
+// mode (host untagged, leaf tags/strips). When Trunk is selected, the host NIC
+// must tag the frames with the Cluster A/B VLAN IDs from DA4, and the ARM
+// `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].vlanId` emits those
+// VLAN values instead of 0. The pairing rule prevents asymmetric fabric setups.
+function updateDisaggClusterVlanMode(key, value) {
+    const mode = (value === 'trunk') ? 'trunk' : 'access';
+    if (!state.disaggClusterVlanMode) state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
+    // Always pair cluster1 and cluster2 — ignore the `key` other than to know
+    // which control fired the event. Setting both to the same value keeps the
+    // ARM output and leaf config consistent across both cluster fabrics.
+    state.disaggClusterVlanMode.cluster1 = mode;
+    state.disaggClusterVlanMode.cluster2 = mode;
+    state.disaggVlanConfigConfirmed = false;
+    renderVlanGrid();
+    renderDisaggVlanConfirmState();
+    // Re-render DA8 Overrides so the read-only cluster VLAN inputs update
+    // their displayed value (0 for access, <vlan> for trunk) immediately.
+    if (typeof renderDisaggOverrides === 'function') renderDisaggOverrides();
     updateUI();
     if (typeof saveStateToLocalStorage === 'function') saveStateToLocalStorage();
 }
@@ -2122,20 +2162,35 @@ function renderDisaggOverrides() {
     html += '</div>';
     html += '</div>';
 
-    // ── Cluster Network Overrides (VLAN + Subnet) ──
+    // ── Cluster Network Overrides (VLAN read-only + Subnet editable) ──
+    // VLAN boxes are READ-ONLY by design — they reflect DA4's Cluster VLAN Mode
+    // (access vs trunk) toggle. Value = 0 for access (host untagged — leaf tags),
+    // or the cluster1/cluster2 VLAN ID for trunk (host must tag). Subnet (CIDR)
+    // inputs remain editable.
+    const clusterMode = state.disaggClusterVlanMode || { cluster1: 'access', cluster2: 'access' };
+    const cluster1Vlan = clusterMode.cluster1 === 'trunk' ? (vlans.cluster1 || 711) : 0;
+    const cluster2Vlan = clusterMode.cluster2 === 'trunk' ? (vlans.cluster2 || 712) : 0;
+    const cluster1Tip = clusterMode.cluster1 === 'trunk'
+        ? 'Cluster A leaf port is in Trunk mode — host NIC must tag with VLAN ' + (vlans.cluster1 || 711) + ' (set on DA4). This value is emitted to ARM sanNetworkList.clusterNetworkConfig.adapterIPConfig[0].vlanId and must match the leaf trunk configuration.'
+        : 'Cluster A leaf port is in Access mode — host sends untagged frames. VLAN ' + (vlans.cluster1 || 711) + ' is configured on the switch only. To change, switch DA4 → Cluster Network VLAN Mode to Trunk.';
+    const cluster2Tip = clusterMode.cluster2 === 'trunk'
+        ? 'Cluster B leaf port is in Trunk mode — host NIC must tag with VLAN ' + (vlans.cluster2 || 712) + ' (set on DA4). This value is emitted to ARM sanNetworkList.clusterNetworkConfig.adapterIPConfig[1].vlanId and must match the leaf trunk configuration.'
+        : 'Cluster B leaf port is in Access mode — host sends untagged frames. VLAN ' + (vlans.cluster2 || 712) + ' is configured on the switch only. To change, switch DA4 → Cluster Network VLAN Mode to Trunk.';
+    const readonlyVlanStyle = 'width: 100%; padding: 6px 10px; background: var(--subtle-bg); border: 1px solid var(--glass-border); color: var(--text-secondary); border-radius: 4px; font-size: 0.9rem; cursor: not-allowed; opacity: 0.75;';
+
     html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">';
     html += '<div style="padding: 12px; border: 1px solid #22c55e40; border-left: 4px solid #22c55e; border-radius: 6px; background: #22c55e08; min-width: 0; overflow: hidden;">';
     html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">Cluster Network 1 (Standalone)</h5>';
-    html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN</label>';
-    html += renderInput('cluster1', 'cluster1_vlan', vlans.cluster1 || 711, '', 'number', confirmed);
+    html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN <span style="font-size:0.72rem; color:var(--accent-purple);">🔒 bound to DA4</span></label>';
+    html += '<input type="number" value="' + cluster1Vlan + '" readonly title="' + cluster1Tip.replace(/"/g, '&quot;') + '" style="' + readonlyVlanStyle + '">';
     html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
     html += renderInput('cluster1', 'cluster1_subnet', subnets.cluster1 || '10.71.1.0/24', '10.71.1.0/24', 'text', confirmed);
     html += '</div></div>';
 
     html += '<div style="padding: 12px; border: 1px solid #22c55e40; border-left: 4px solid #22c55e; border-radius: 6px; background: #22c55e08; min-width: 0; overflow: hidden;">';
     html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">Cluster Network 2 (Standalone)</h5>';
-    html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN</label>';
-    html += renderInput('cluster2', 'cluster2_vlan', vlans.cluster2 || 712, '', 'number', confirmed);
+    html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN <span style="font-size:0.72rem; color:var(--accent-purple);">🔒 bound to DA4</span></label>';
+    html += '<input type="number" value="' + cluster2Vlan + '" readonly title="' + cluster2Tip.replace(/"/g, '&quot;') + '" style="' + readonlyVlanStyle + '">';
     html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
     html += renderInput('cluster2', 'cluster2_subnet', subnets.cluster2 || '10.71.2.0/24', '10.71.2.0/24', 'text', confirmed);
     html += '</div></div>';

@@ -1970,6 +1970,7 @@
                     'disaggIscsiSubnet2',
                     'disaggBackupSubnet',
                     'disaggMgmtVlanMode',
+                    'disaggClusterVlanMode',
                     // Disaggregated SAN (create-cluster-san) LUN IDs — Step 16
                     'infraVolLunId',
                     'infraPerfLunId'
@@ -2025,6 +2026,7 @@
                     'disaggClusterSubnet1', 'disaggClusterSubnet2',
                     'disaggIscsiSubnet1', 'disaggIscsiSubnet2', 'disaggBackupSubnet',
                     'disaggMgmtVlanMode',
+                    'disaggClusterVlanMode',
                     'infraVolLunId', 'infraPerfLunId'
                 ];
                 
@@ -7859,6 +7861,47 @@
                 'updateInfraPerfLunId is defined', true,
                 typeof updateInfraPerfLunId === 'function')
         ]);
+
+        // ========================================================================
+        // DA4 Cluster VLAN mode toggle — Access (default) vs Trunk, paired
+        // ========================================================================
+        testSuite('DA4: updateDisaggClusterVlanMode pairs cluster1 & cluster2', 'disaggregated.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+
+            results.push(assert(typeof updateDisaggClusterVlanMode === 'function',
+                'updateDisaggClusterVlanMode is defined', true,
+                typeof updateDisaggClusterVlanMode === 'function'));
+
+            if (typeof updateDisaggClusterVlanMode === 'function') {
+                state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
+
+                // Toggle cluster1 to trunk — cluster2 should follow
+                updateDisaggClusterVlanMode('cluster1', 'trunk');
+                results.push(assert(state.disaggClusterVlanMode.cluster1 === 'trunk',
+                    'cluster1 set to trunk', 'trunk', state.disaggClusterVlanMode.cluster1));
+                results.push(assert(state.disaggClusterVlanMode.cluster2 === 'trunk',
+                    'cluster2 paired to trunk when cluster1 toggled', 'trunk', state.disaggClusterVlanMode.cluster2));
+
+                // Toggle cluster2 back to access — cluster1 should follow
+                updateDisaggClusterVlanMode('cluster2', 'access');
+                results.push(assert(state.disaggClusterVlanMode.cluster1 === 'access',
+                    'cluster1 paired to access when cluster2 toggled', 'access', state.disaggClusterVlanMode.cluster1));
+                results.push(assert(state.disaggClusterVlanMode.cluster2 === 'access',
+                    'cluster2 set to access', 'access', state.disaggClusterVlanMode.cluster2));
+
+                // Unknown values normalize to access
+                updateDisaggClusterVlanMode('cluster1', 'garbage');
+                results.push(assert(state.disaggClusterVlanMode.cluster1 === 'access',
+                    'unknown mode value normalizes to access', 'access', state.disaggClusterVlanMode.cluster1));
+            }
+
+            // State init default
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
 
         // ========================================================================
         // FINAL SUMMARY

@@ -180,6 +180,13 @@ const state = {
     disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 },
     disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
     disaggMgmtVlanMode: 'access',
+    // Per MS Disaggregated-storage docs, cluster VLANs (1711/1712) are configured
+    // in access mode on leaf ports by default — the leaf tags/strips and the host
+    // NIC sees untagged frames. When toggled to trunk on DA4, the host NIC must
+    // tag and the ARM `sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].vlanId`
+    // is emitted as the VLAN value (rather than 0). Cluster A and B modes are
+    // always paired (UI enforces: toggling one toggles the other).
+    disaggClusterVlanMode: { cluster1: 'access', cluster2: 'access' },
     disaggVrfName: 'AZLOCALINFRA',
     disaggVrfMode: 'single',
     disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' },
@@ -9824,6 +9831,7 @@ function showTemplates() {
                 disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 },
                 disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
                 disaggMgmtVlanMode: 'access',
+                disaggClusterVlanMode: { cluster1: 'access', cluster2: 'access' },
                 disaggVrfName: 'AZLOCALINFRA',
                 disaggVrfMode: 'single',
                 disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' },

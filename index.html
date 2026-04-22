@@ -994,6 +994,10 @@
                             <li><strong>Management VLAN</strong> &mdash; Can be configured as the <strong>default VLAN ID</strong> (access/native) or as a <strong>trunk VLAN</strong>. Using trunk mode is common because additional tenant network VLANs share the same vSwitch and must be configured in trunk mode.</li>
                         </ul>
                     </div>
+                    <div style="margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.35); color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
+                        <strong style="color: var(--accent-purple);">Tip — Access-mode VLANs are switch-only</strong><br>
+                        The VLAN IDs below (Management, Cluster A/B, iSCSI A/B, Backup) are configured on the physical leaf switch ports in <strong>Access Mode</strong> by default. The leaf adds/strips the 802.1Q tag — the host NICs receive <em>untagged</em> frames on these networks. That means on DA8 <strong>Network Adapter Ports → Overrides</strong>, the Cluster VLAN boxes are shown as <code>0</code> (untagged) and are read-only by design. Toggling the Cluster A/B drop-downs to <strong>Trunk</strong> flips both (they are paired) — the host NIC then tags and the VLAN value is emitted to the ARM <code>sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].vlanId</code> parameter. Tenant LNET VLANs remain trunked to the host regardless.
+                    </div>
                     <div id="da4-vlan-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
                         <!-- Dynamically populated by disaggregated.js -->
                     </div>
