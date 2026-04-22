@@ -2237,7 +2237,7 @@
                         <div class="private-endpoints-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
                             <!-- Arc Private Link (Not Supported) -->
                             <div class="pe-service-card disabled" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; cursor: not-allowed;">
-                                <input type="checkbox" disabled style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <input type="checkbox" disabled aria-label="Arc Private Link Endpoint (not supported for Azure Local)" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">🔗 Arc Private Link Endpoint</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>his.arc.azure.com</code></div>
@@ -2247,7 +2247,7 @@
 
                             <!-- Key Vault -->
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-keyvault')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
-                                <input type="checkbox" id="pe-keyvault" name="pe-service" value="keyvault" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <input type="checkbox" id="pe-keyvault" name="pe-service" value="keyvault" onchange="updatePrivateEndpointsList()" aria-label="Azure Key Vault private endpoint" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">🔐 Azure Key Vault</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>vault.azure.net</code></div>
@@ -2257,7 +2257,7 @@
 
                             <!-- Storage Blob -->
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-storage')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
-                                <input type="checkbox" id="pe-storage" name="pe-service" value="storage" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <input type="checkbox" id="pe-storage" name="pe-service" value="storage" onchange="updatePrivateEndpointsList()" aria-label="Azure Storage Blob private endpoint" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">💾 Azure Storage (Blob)</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>blob.core.windows.net</code></div>
@@ -2267,7 +2267,7 @@
 
                             <!-- Azure Container Registry -->
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-acr')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
-                                <input type="checkbox" id="pe-acr" name="pe-service" value="acr" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <input type="checkbox" id="pe-acr" name="pe-service" value="acr" onchange="updatePrivateEndpointsList()" aria-label="Azure Container Registry private endpoint" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">📦 Azure Container Registry</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>azurecr.io</code></div>
@@ -2277,7 +2277,7 @@
 
                             <!-- Azure Site Recovery -->
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-asr')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
-                                <input type="checkbox" id="pe-asr" name="pe-service" value="asr" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <input type="checkbox" id="pe-asr" name="pe-service" value="asr" onchange="updatePrivateEndpointsList()" aria-label="Azure Site Recovery private endpoint" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">🔄 Azure Site Recovery</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>siterecovery.windowsazure.com</code></div>
@@ -2287,7 +2287,7 @@
 
                             <!-- Recovery Services Vault -->
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-backup')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
-                                <input type="checkbox" id="pe-backup" name="pe-service" value="backup" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <input type="checkbox" id="pe-backup" name="pe-service" value="backup" onchange="updatePrivateEndpointsList()" aria-label="Recovery Services Vault private endpoint" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">🗄️ Recovery Services Vault</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>backup.windowsazure.com</code></div>
@@ -2297,7 +2297,7 @@
 
                             <!-- SQL Managed Instance -->
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-sql')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
-                                <input type="checkbox" id="pe-sql" name="pe-service" value="sql" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <input type="checkbox" id="pe-sql" name="pe-service" value="sql" onchange="updatePrivateEndpointsList()" aria-label="SQL Managed Instance private endpoint" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">🗃️ SQL Managed Instance</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;"><code>database.windows.net</code></div>
@@ -2307,7 +2307,7 @@
 
                             <!-- Microsoft Defender for Cloud -->
                             <div class="pe-service-card" onclick="togglePeCheckbox('pe-defender')" style="display: flex; align-items: flex-start; padding: 1rem; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: 8px; cursor: pointer;">
-                                <input type="checkbox" id="pe-defender" name="pe-service" value="defender" onchange="updatePrivateEndpointsList()" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
+                                <input type="checkbox" id="pe-defender" name="pe-service" value="defender" onchange="updatePrivateEndpointsList()" aria-label="Microsoft Defender for Cloud private endpoint" style="margin-right: 12px; margin-top: 2px; pointer-events: none;">
                                 <div style="pointer-events: none;">
                                     <strong style="color: var(--text-primary);">🛡️ Microsoft Defender for Cloud</strong>
                                     <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">Security monitoring endpoints</div>

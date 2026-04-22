@@ -79,7 +79,7 @@ function selectDisaggOption(category, value) {
         const warning = document.getElementById('da2-warning');
         if (warning) {
             if (value && state.disaggStorageType === 'iscsi_6nic') {
-                warning.innerHTML = '<strong style="color: #a78bfa;">&#9432; iSCSI Shared Mode</strong><p>With backup enabled, iSCSI 6-NIC loses its dedicated NICs. iSCSI traffic will <strong>share the cluster standalone ports and VLAN</strong> instead. The PCIe2 ports will be used for the <strong>Backup Compute Intent</strong>.</p>';
+                warning.innerHTML = '<strong style="color: var(--accent-purple);">&#9432; iSCSI Shared Mode</strong><p>With backup enabled, iSCSI 6-NIC loses its dedicated NICs. iSCSI traffic will <strong>share the cluster standalone ports and VLAN</strong> instead. The PCIe2 ports will be used for the <strong>Backup Compute Intent</strong>.</p>';
                 warning.classList.remove('hidden');
             } else {
                 warning.classList.add('hidden');
@@ -182,7 +182,7 @@ function restoreDisaggregatedUI() {
         const warning = document.getElementById('da2-warning');
         if (warning) {
             if (state.disaggBackupEnabled && state.disaggStorageType === 'iscsi_6nic') {
-                warning.innerHTML = '<strong style="color: #a78bfa;">&#9432; iSCSI Shared Mode</strong><p>With backup enabled, iSCSI 6-NIC loses its dedicated NICs. iSCSI traffic will <strong>share the cluster standalone ports and VLAN</strong> instead. The PCIe2 ports will be used for the <strong>Backup Compute Intent</strong>.</p>';
+                warning.innerHTML = '<strong style="color: var(--accent-purple);">&#9432; iSCSI Shared Mode</strong><p>With backup enabled, iSCSI 6-NIC loses its dedicated NICs. iSCSI traffic will <strong>share the cluster standalone ports and VLAN</strong> instead. The PCIe2 ports will be used for the <strong>Backup Compute Intent</strong>.</p>';
                 warning.classList.remove('hidden');
             } else {
                 warning.classList.add('hidden');

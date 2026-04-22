@@ -1,4 +1,15 @@
 (function () {
+    // Debug logging — enable by setting localStorage.setItem('odinDebug','1') or
+    // loading the page with #debug=1 in the hash.  Off by default so the browser
+    // console stays clean for end users.
+    var DEBUG = false;
+    try {
+        DEBUG = (localStorage.getItem('odinDebug') === '1') ||
+                /[#&?]debug=1\b/.test(window.location.hash || '');
+    } catch (e) { /* localStorage can throw on file:// — ignore */ }
+    function dlog() { if (DEBUG && typeof console !== 'undefined') console.log.apply(console, arguments); }
+    function derr() { if (DEBUG && typeof console !== 'undefined') console.error.apply(console, arguments); }
+
     function escapeHtml(s) {
         return String(s)
             .replace(/&/g, '&amp;')
@@ -122,17 +133,17 @@
     }
 
     function tryParsePayload() {
-        console.log('tryParsePayload: Starting...');
-        console.log('window.location.hash:', window.location.hash);
+        dlog('tryParsePayload: Starting...');
+        dlog('window.location.hash:', window.location.hash);
         
         // 1) URL hash payload (preferred for file:// reliability)
         try {
             var hash = window.location.hash || '';
             var idx = hash.indexOf('data=');
             if (idx >= 0) {
-                console.log('Found data= in hash at index:', idx);
+                dlog('Found data= in hash at index:', idx);
                 var encoded = hash.substring(idx + 5);
-                console.log('Encoded data length:', encoded.length);
+                dlog('Encoded data length:', encoded.length);
                 encoded = decodeURIComponent(encoded);
                 var binary = atob(encoded);
                 var bytes = new Uint8Array(binary.length);
@@ -141,27 +152,27 @@
                 }
                 var json = new TextDecoder('utf-8').decode(bytes);
                 var parsed = JSON.parse(json);
-                console.log('Successfully parsed from hash:', parsed);
+                dlog('Successfully parsed from hash:', parsed);
                 return parsed;
             }
         } catch (e) {
-            console.error('Error parsing hash:', e);
+            derr('Error parsing hash:', e);
         }
 
         // 2) localStorage fallback
         try {
             var raw = localStorage.getItem('azloc_arm_payload');
-            console.log('localStorage data exists:', !!raw);
+            dlog('localStorage data exists:', !!raw);
             if (raw) {
                 var parsed = JSON.parse(raw);
-                console.log('Successfully parsed from localStorage:', parsed);
+                dlog('Successfully parsed from localStorage:', parsed);
                 return parsed;
             }
         } catch (e2) {
-            console.error('Error parsing localStorage:', e2);
+            derr('Error parsing localStorage:', e2);
         }
 
-        console.log('No payload found');
+        dlog('No payload found');
         return null;
     }
 
@@ -443,9 +454,9 @@
     }
 
     function main() {
-        console.log('main: Starting...');
+        dlog('main: Starting...');
         var payload = tryParsePayload();
-        console.log('Payload received:', payload);
+        dlog('Payload received:', payload);
         
         // Store payload globally for updateParameters and deployToAzure
         window.armPayload = payload;
@@ -456,7 +467,7 @@
         var copyBtn = document.getElementById('arm-copy-btn');
         var statusEl = document.getElementById('arm-copy-status');
 
-        console.log('Elements found:', {
+        dlog('Elements found:', {
             metaEl: !!metaEl,
             placeholdersEl: !!placeholdersEl,
             codeEl: !!codeEl,
@@ -504,7 +515,15 @@ function deployToAzure() {
     var payload = window.armPayload;
     
     if (!payload || !payload.referenceTemplate || !payload.referenceTemplate.url) {
-        alert('No ARM template reference found. Please generate the ARM parameters from the wizard first.');
+        // Prefer the shared toast (loaded via ../js/notifications.js on arm.html);
+        // fall back to alert() only when the global isn't available (e.g. the
+        // page is opened stand-alone without the notifications script).
+        var msg = 'No ARM template reference found. Please generate the ARM parameters from the wizard first.';
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(msg, 'error');
+        } else {
+            alert(msg);
+        }
         return;
     }
     

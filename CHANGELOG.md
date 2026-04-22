@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.20.06] - 2026-04-08
 
+### Fixed
+
+#### Accessibility, UX & Theming Cleanups
+- **Private Endpoints checkbox labels**: Added `aria-label` to every Private Endpoints service checkbox (Key Vault, Storage, ACR, ASR, Recovery Services, SQL MI, Defender, Arc) so screen readers announce the service each checkbox toggles. Previously the checkboxes had no accessible name because the emoji+text label sits in a sibling `<div>` outside the checkbox (the wrapping card carries the click handler).
+- **ARM Tools — cleaner browser console**: Debug `console.log` / `console.error` calls in `arm/arm.js` are now gated behind an opt-in `odinDebug` flag (set `localStorage.setItem('odinDebug','1')` or load the page with `#debug=1`). End-user console is clean by default; internal parsing diagnostics are still available when needed.
+- **ARM Tools — non-blocking error toast**: The "No ARM template reference found" error on Deploy-to-Azure now surfaces via the shared `showNotification()` toast instead of a blocking `alert()` dialog, matching the notification UX used elsewhere in the Designer. Falls back to `alert()` if the notifications script isn't loaded.
+- **Disaggregated — theme-safe colours**: Replaced 5 hardcoded `#a78bfa` purples in `js/disaggregated.js` info-box HTML (DA1 Storage-Type descriptions, DA2 iSCSI Shared-Mode warning, DA2 Backup Network note) with `var(--accent-purple)`, so the accent tint follows the light/dark theme like the rest of the UI.
+
 ### Added
 
 #### Disaggregated ARM Parameters (create-cluster-san)
