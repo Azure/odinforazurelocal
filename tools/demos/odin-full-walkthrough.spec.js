@@ -1,7 +1,7 @@
 // @ts-check
 /**
- * ODIN full walkthrough - Sizer â†’ 3D viz â†’ Designer â†’ Switch Config Generator/Validator.
- * Target runtime: ~40 seconds.  Viewport 2200x1238 (convert to portrait via ffmpeg for mobile).
+ * ODIN full walkthrough - Sizer → 3D viz → Designer → Switch Config Generator/Validator.
+ * Target runtime: ~40 seconds.  Viewport 1600x900 (convert to portrait via ffmpeg for mobile).
  *
  * Storyline:
  *   1. Sizer: add 10x AKS Arc clusters + 1000 Azure Local VMs.

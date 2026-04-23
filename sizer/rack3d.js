@@ -792,30 +792,6 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     // ── Cable runs ──
     var cableRadius = 0.004;
 
-    // Helper: create a right-angle cable between two points (up, across, down)
-    function makeCable(startPos, endPos, color, arcHeight) {
-        var topY = Math.max(startPos.y, endPos.y) + (arcHeight || 0.15);
-        var midZ = (startPos.z + endPos.z) / 2;
-        // Path: start → up → across at top → down → end
-        var points = [
-            new THREE.Vector3(startPos.x, startPos.y, startPos.z),
-            new THREE.Vector3(startPos.x, topY, startPos.z),
-            new THREE.Vector3(startPos.x, topY, midZ),
-            new THREE.Vector3(endPos.x, topY, midZ),
-            new THREE.Vector3(endPos.x, topY, endPos.z),
-            new THREE.Vector3(endPos.x, endPos.y, endPos.z)
-        ];
-        // Use LineCurve segments joined together for sharp 90° bends
-        for (let i = 0; i < points.length - 1; i++) {
-            var segGeo = new THREE.TubeGeometry(
-                new THREE.LineCurve3(points[i], points[i + 1]),
-                2, cableRadius, 6, false
-            );
-            var segMesh = new THREE.Mesh(segGeo, color);
-            scene.add(segMesh);
-        }
-    }
-
     // ToR QSFP uplink port positions (rear of switch)
     var torDeviceH = 1 * RACK.U_HEIGHT - 0.004;
     var torDeviceW = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;

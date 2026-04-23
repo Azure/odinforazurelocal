@@ -5122,7 +5122,6 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         const currentGpuPercent = parseInt(document.getElementById('gpu-percent').textContent) || 0;
         const gpuSectionVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
         if (gpuSectionVisible && currentGpuPercent >= 90) {
-            const clusterTypeGpu = document.getElementById('cluster-type').value;
             const maxNodesGpu = getMaxNodeCap();
             const atMaxNodes = nodeCount >= maxNodesGpu;
             const gpuAdvice = atMaxNodes

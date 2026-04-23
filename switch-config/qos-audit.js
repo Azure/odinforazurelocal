@@ -897,6 +897,7 @@
             if (ds && (ds.storage === 'switchless' || ds.storage === 'Switchless')) return 'hci_switchless';
             return 'hci_switched';
         } catch (e) {
+            console.warn('QoS audit: failed to resolve auto profile from localStorage, using default profile.', e);
             return 'hci_switched';
         }
     }

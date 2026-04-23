@@ -7,8 +7,8 @@
 function getMaxNodesPerRack(storageType, backupEnabled) {
     // Cisco Nexus 93180YC-FX3: 48 × 25G ports + 6 × 100G
     // Port 49 = iBGP between leaf-A/B, Ports 51-54 = 100G spine uplinks
-    // Usable 25G ports: 1-48
-    const portsPerLeaf = 48;
+    // Usable 25G ports: 1-48 (grouped into three 16-port ranges; we return 16 regardless
+    // of storageType/backupEnabled so a node's NIC set always fits in a single range).
     let portsUsedPerNode = 2; // OCP (Compute/Mgmt) = ports 1-16 range (1 per leaf)
 
     // Cluster NICs always use 1 port per leaf (PCIe1, ports 17-32 range)
@@ -2443,10 +2443,8 @@ function renderDisaggHostNetworkingPreview() {
     const storageType = state.disaggStorageType || 'fc_san';
     const backupEnabled = !!state.disaggBackupEnabled;
     const portCount = parseInt(state.disaggPortCount, 10) || 4;
-    const totalNodes = (parseInt(state.disaggRackCount, 10) || 1) * (parseInt(state.disaggNodesPerRack, 10) || 1);
     const hasFc = (storageType === 'fc_san');
     const hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
-    const hasDedicatedIscsi = (storageType === 'iscsi_6nic' && !backupEnabled);
     const hasSharedIscsi = (storageType === 'iscsi_4nic' || (storageType === 'iscsi_6nic' && backupEnabled));
     const adapterMapping = state.disaggAdapterMapping || {};
 

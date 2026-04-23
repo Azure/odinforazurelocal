@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.20.06] - 2026-04-08
 
+### Changed
+
+#### Code Quality & Security Hardening (April 23, 2026)
+- **Firebase analytics config validation** (`js/analytics.js`): `initializeAnalytics()` now validates every required Firebase config key (`apiKey`, `authDomain`, `databaseURL`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`) for presence, type, and non-placeholder (`REPLACE_WITH_`) values before initialising Firebase, instead of checking only `apiKey`. Addresses an AI scan finding about inconsistent validation logic.
+- **CIDR prefix validation** (`js/disconnected.js`): `calculateSubnetMask(prefix)` now rejects non-number, non-integer, or out-of-range (`<0` or `>32`) inputs with an `Invalid CIDR prefix` error instead of producing undefined bitwise results. The sole caller (`validateApplianceIps`) was hardened to guard the prefix before calling, so malformed mid-typing `infraCidr` values gracefully skip the cross-CIDR check rather than throw. Addresses an AI scan finding.
+- **SVG export hardening** (`scripts/svg-export-common.js`): Switched from string-interpolated `execSync` to `execFileSync` with an argv array and `shell: false`, removing the command-injection surface around user-supplied `.drawio` filenames returned by `fs.readdirSync`. Addresses an AI scan finding.
+- **QoS Validator diagnostics** (`switch-config/qos-audit.js`): `resolveAutoProfile()` now logs a `console.warn` when the Designer handoff in `localStorage` fails to parse, instead of silently swallowing the error. Addresses an AI scan finding.
+- **Walkthrough demo spec** (`tools/demos/odin-full-walkthrough.spec.js`): Fixed mojibake (`â†'` → `→`) in the file header comment and corrected the documented viewport to match `playwright.config.js` (1600×900, previously incorrectly documented as 2200×1238). Addresses two AI scan findings.
+- **CodeQL unused-declaration cleanup**: Removed 8 unused variables / functions flagged by CodeQL:
+  - `arm/arm.js` — dropped unused `payload` locals in `generateDevOpsPipeline()` and `generateGitHubWorkflow()`.
+  - `js/disaggregated.js` — removed unused `portsPerLeaf` from `getMaxNodesPerRack()` (comment updated to explain the hardcoded 16-port return), and removed unused `totalNodes` and `hasDedicatedIscsi` locals from the DA8 overrides renderer.
+  - `sizer/sizer.js` — removed unused `clusterTypeGpu` local in the GPU capacity notes block.
+  - `sizer/rack3d.js` — removed the unused `makeCable()` helper (dead code — the actual cable routing uses explicit `LineCurve3` segments inline).
+  - `report/report.js` — removed unused `startX` local in `renderCustomAdaptersHorizontal()` (a separate `groupedStartX` is used for the actual layout).
+
 ### Fixed
 
 #### Accessibility, UX & Theming Cleanups
