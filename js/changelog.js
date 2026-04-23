@@ -53,6 +53,22 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.07</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">April 23, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔒 Code-Quality & Hardening</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Firebase analytics config validation:</strong> <code>initializeAnalytics()</code> now validates every required Firebase config key (<code>apiKey</code>, <code>authDomain</code>, <code>databaseURL</code>, <code>projectId</code>, <code>storageBucket</code>, <code>messagingSenderId</code>, <code>appId</code>) for presence and non-placeholder values, not just <code>apiKey</code>.</li>
+                        <li><strong>CIDR prefix validation:</strong> <code>calculateSubnetMask(prefix)</code> in <code>disconnected.js</code> now rejects non-integer or out-of-range (&lt;0 or &gt;32) values with a clear error instead of producing undefined bitwise results.</li>
+                        <li><strong>SVG export hardening:</strong> <code>scripts/svg-export-common.js</code> switched from string-interpolated <code>execSync</code> to <code>execFileSync</code> with an argv array (no shell), removing the command-injection surface around user-supplied <code>.drawio</code> filenames.</li>
+                        <li><strong>QoS Validator diagnostics:</strong> <code>resolveAutoProfile()</code> now logs a <code>console.warn</code> when the Designer handoff in <code>localStorage</code> fails to parse, instead of silently swallowing the error.</li>
+                        <li><strong>Walkthrough demo spec:</strong> Fixed mojibake in the file header comment and corrected the documented viewport to match <code>playwright.config.js</code> (1600×900).</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px; opacity: 0.85;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.06</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">April 8, 2026</div>
                 </div>

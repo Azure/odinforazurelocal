@@ -352,6 +352,9 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
     function calculateSubnetMask(prefix) {
         // Compute IPv4 subnet mask as a 32-bit unsigned integer from CIDR prefix length.
         // Example: prefix 24 -> 0xFFFFFF00 (255.255.255.0)
+        if (typeof prefix !== 'number' || !Number.isInteger(prefix) || prefix < 0 || prefix > 32) {
+            throw new Error('Invalid CIDR prefix');
+        }
         if (prefix === 0) return 0;
         // Start from all 1s, shift left to create leading 1s followed by trailing 0s,
         // then coerce to unsigned 32-bit integer.

@@ -63,7 +63,12 @@ const analytics = {
 function initializeAnalytics() {
     try {
         // Check if Firebase config is properly set up (not using placeholder values)
-        if (FIREBASE_CONFIG.apiKey.startsWith('REPLACE_WITH_')) {
+        const requiredConfigKeys = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+        const hasInvalidConfig = requiredConfigKeys.some((key) => {
+            const value = FIREBASE_CONFIG[key];
+            return typeof value !== 'string' || value.trim() === '' || value.startsWith('REPLACE_WITH_');
+        });
+        if (hasInvalidConfig) {
             console.log('Analytics: Firebase not configured. To enable analytics, update FIREBASE_CONFIG in analytics.js');
             return false;
         }

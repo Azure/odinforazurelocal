@@ -6,7 +6,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 
 const DOCS_DIR = path.join(__dirname, '..', 'docs', 'disconnected-operations');
 
@@ -80,12 +80,13 @@ function exportDiagrams(fileFilter, label) {
         const svgPath = path.join(DOCS_DIR, svgName);
 
         console.log('Exporting: ' + drawioFile);
+        const drawioArgs = ['--export', '--format', 'svg', '--svg-theme', 'dark', '--embed-diagram', '--embed-svg-images', '--crop', '--border', '0', '--output', svgPath, drawioPath];
         try {
-            execSync(`"${exePath}" --export --format svg --svg-theme dark --embed-diagram --embed-svg-images --crop --border 0 --output "${svgPath}" "${drawioPath}"`, { stdio: 'pipe', timeout: 60000 });
+            execFileSync(exePath, drawioArgs, { stdio: 'pipe', timeout: 60000, shell: false });
         } catch (e) {
             // draw.io CLI sometimes crashes but still writes the file; retry once
             console.log('  Retry...');
-            execSync(`"${exePath}" --export --format svg --svg-theme dark --embed-diagram --embed-svg-images --crop --border 0 --output "${svgPath}" "${drawioPath}"`, { stdio: 'pipe', timeout: 60000 });
+            execFileSync(exePath, drawioArgs, { stdio: 'pipe', timeout: 60000, shell: false });
         }
 
         let content = fs.readFileSync(svgPath, 'utf-8');

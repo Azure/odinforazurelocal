@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.20.07] - 2026-04-23
+
+### Changed
+
+#### Code Quality & Security Hardening
+- **Firebase analytics config validation** (`js/analytics.js`): `initializeAnalytics()` now validates every required Firebase config key (`apiKey`, `authDomain`, `databaseURL`, `projectId`, `storageBucket`, `messagingSenderId`, `appId`) for presence, type, and non-placeholder (`REPLACE_WITH_`) values before initialising Firebase, instead of checking only `apiKey`. Addresses an AI scan finding about inconsistent validation logic.
+- **CIDR prefix validation** (`js/disconnected.js`): `calculateSubnetMask(prefix)` now rejects non-number, non-integer, or out-of-range (`<0` or `>32`) inputs with an `Invalid CIDR prefix` error instead of producing undefined bitwise results. Addresses an AI scan finding.
+- **SVG export hardening** (`scripts/svg-export-common.js`): Switched from string-interpolated `execSync` to `execFileSync` with an argv array and `shell: false`, removing the command-injection surface around user-supplied `.drawio` filenames returned by `fs.readdirSync`. Addresses an AI scan finding.
+- **QoS Validator diagnostics** (`switch-config/qos-audit.js`): `resolveAutoProfile()` now logs a `console.warn` when the Designer handoff in `localStorage` fails to parse, instead of silently swallowing the error. Addresses an AI scan finding.
+- **Walkthrough demo spec** (`tools/demos/odin-full-walkthrough.spec.js`): Fixed mojibake (`â†'` → `→`) in the file header comment and corrected the documented viewport to match `playwright.config.js` (1600×900, previously incorrectly documented as 2200×1238). Addresses two AI scan findings.
+
+---
+
 ## [0.20.06] - 2026-04-08
 
 ### Fixed

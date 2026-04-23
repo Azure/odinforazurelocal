@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.20.06 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.20.07 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -43,7 +43,10 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.20.06 - Latest Release
+### 🎉 Version 0.20.07 - Latest Release
+- **Code-quality & hardening**: Applied GitHub AI-scan findings across the static site and local tooling — Firebase analytics now validates every required config key (not just `apiKey`) before initialising; `calculateSubnetMask(prefix)` in `disconnected.js` rejects non-integer / out-of-range CIDR prefixes with a clear error; `scripts/svg-export-common.js` switched from string-interpolated `execSync` to `execFileSync` with an argv array (no shell, removes command-injection surface around user-supplied `.drawio` filenames); QoS Validator's `resolveAutoProfile` now logs a `console.warn` when the Designer handoff in `localStorage` fails to parse instead of swallowing silently; fixed mojibake in `tools/demos/odin-full-walkthrough.spec.js` header comment and corrected the documented viewport to match `playwright.config.js` (1600×900).
+
+### 🎉 Version 0.20.06
 - **Disaggregated ARM Parameters (`create-cluster-san`)**: Generate ARM now emits an Azure-Local-SAN–shaped `deploymentParameters.json` when the Designer is in the Disaggregated architecture — based on the upstream [`microsoft.azurestackhci/create-cluster-san`](https://github.com/Azure/azure-quickstart-templates/blob/master/quickstarts/microsoft.azurestackhci/create-cluster-san) quickstart. Emits `configurationMode: "InfraOnly"`, `infraVolLunId`, `infraPerfLunId`, `sanNetworkList` (cluster A/B adapter properties + IP config + VLAN mode), and a single `MgmtCompute` intent — HCI-only params (`storageNetworkList`, `enableStorageAutoIp`) are suppressed
 - **DA8 — Step 16 (Storage Pool + LUN IDs)**: New Step 16 in the Designer flow auto-locks Storage Pool Configuration to `InfraOnly` for Disaggregated and adds required inputs for the two SAN LUN IDs the template needs (Infrastructure Volume + Cluster Performance History)
 - **DA4 — Cluster VLAN access/trunk toggle**: Per-row mode toggle on cluster1 / cluster2 in the VLAN grid. Access mode (default) emits `vlanId: 0` in ARM — host sends untagged, matching the reference template. Trunk mode passes the numeric VLAN through. cluster1 and cluster2 are paired so switching one switches the other. DA8 cluster-VLAN inputs are now read-only and track the DA4 mode
@@ -407,6 +410,13 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.20.x Series (April 2026)
+
+#### 0.20.07 - Code Quality & Security Hardening
+- **Firebase analytics config validation**: `initializeAnalytics()` now validates every required Firebase config key for presence and non-placeholder values before initialising, not just `apiKey`
+- **CIDR prefix validation**: `calculateSubnetMask(prefix)` rejects non-integer / out-of-range values with a clear error
+- **SVG export hardening**: `scripts/svg-export-common.js` uses `execFileSync` with an argv array (no shell) to eliminate command-injection surface around user-supplied filenames
+- **QoS Validator diagnostics**: `resolveAutoProfile()` logs a `console.warn` on `localStorage` parse failure instead of silently swallowing
+- **Walkthrough demo spec**: Fixed mojibake and corrected documented viewport to match `playwright.config.js` (1600×900)
 
 #### 0.20.06 - Disaggregated Architecture, ToR Switch Config Generator & QoS Validator
 - **Disaggregated Architecture Wizard**: New end-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks, with VLAN/VNI/VRF configuration, QoS policy, IP planning, drag-and-drop NIC-to-intent mapping, breadcrumb navigation, and interactive SVG rack topology diagrams
