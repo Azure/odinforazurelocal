@@ -38,6 +38,8 @@
 const FIREBASE_CONFIG = {
     // Replace with your Firebase project configuration
     // Get these values from: Firebase Console > Project Settings > General > Your apps > Config
+    // NOTE: This is intentionally a public client-side API key with no sensitive write access.
+    // Firebase security rules (above) restrict operations to increment-only counters.
     apiKey: 'AIzaSyDBMPWx1F7G6T-KMEkkfhLNbl145mU9m-Q',
     authDomain: 'odin-analytics-7881f.firebaseapp.com',
     databaseURL: 'https://odin-analytics-7881f-default-rtdb.firebaseio.com',

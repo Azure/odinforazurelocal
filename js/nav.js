@@ -111,12 +111,20 @@
     // if so, triggers the flow-diagram onboarding; otherwise falls back to Designer onboarding.
     if (active === 'designer' && !window.showNavHelp) {
         window.showNavHelp = function() {
-            const knowledgeTab = document.getElementById('tab-knowledge');
+            var knowledgeTab = document.getElementById('tab-knowledge');
             if (knowledgeTab && knowledgeTab.classList.contains('active')) {
-                const iframe = document.getElementById('knowledge-iframe');
-                if (iframe && iframe.contentWindow && typeof iframe.contentWindow.showFlowOnboarding === 'function') {
-                    iframe.contentWindow.showFlowOnboarding();
-                    return;
+                var iframe = document.getElementById('knowledge-iframe');
+                // Accessing contentWindow.* on a cross-origin navigated iframe
+                // throws a SecurityError synchronously (even inside typeof).
+                // Wrap in try/catch so the Help button still works when the
+                // user has navigated the Knowledge iframe to an external URL.
+                try {
+                    if (iframe && iframe.contentWindow && typeof iframe.contentWindow.showFlowOnboarding === 'function') {
+                        iframe.contentWindow.showFlowOnboarding();
+                        return;
+                    }
+                } catch (e) {
+                    // Cross-origin frame — fall through to Designer onboarding.
                 }
             }
             if (typeof showOnboarding === 'function') {

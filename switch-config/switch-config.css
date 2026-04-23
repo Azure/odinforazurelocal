@@ -1,0 +1,540 @@
+/* Switch Config Generator – page-specific styles
+   Shared base styles come from ../css/style.css
+   Page structure mirrors arm.html / report.html */
+
+/* ── Acronym tooltips ─────────────────────────────────────────────── */
+abbr[title] {
+    text-decoration: none;
+    border-bottom: 1px dotted var(--text-secondary);
+    cursor: help;
+}
+
+/* ── Page header bar ──────────────────────────────────────────────── */
+.page-header-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+}
+
+.page-header-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.page-header-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    padding-right: 24px;
+    border-right: 1px solid var(--glass-border);
+    margin-right: 16px;
+}
+
+.page-header-logo img {
+    width: 32px;
+    height: 32px;
+}
+
+.page-header-logo span {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.page-header-logo:hover span {
+    color: var(--accent-blue);
+}
+
+.page-header-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+body {
+    padding-top: 56px;
+}
+
+/* ── Form grid layout ─────────────────────────────────────────────── */
+.sc-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.sc-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+}
+
+.sc-grid-4 {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+}
+
+.sc-rack-heading {
+    grid-column: span 2;
+    margin: 0;
+    padding: 0.3rem 0 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent-blue);
+    border-bottom: 2px solid var(--accent-blue);
+}
+
+.sc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.sc-field label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.sc-field .sc-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: -0.2rem;
+}
+
+.sc-field input,
+.sc-field select {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: 6px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 0.9rem;
+}
+
+.sc-field select option {
+    background: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.sc-field input:focus,
+.sc-field select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.sc-field input:not(:placeholder-shown):invalid {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.sc-field input[readonly] {
+    opacity: 0.7;
+    cursor: default;
+}
+
+/* ── Deployment info banner ───────────────────────────────────────── */
+.sc-info-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.sc-info-banner .sc-icon {
+    font-size: 1.1rem;
+    color: var(--accent-blue);
+}
+
+/* ── Generate button ──────────────────────────────────────────────── */
+.sc-generate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 2rem;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sc-generate-btn:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.sc-generate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ── Tabbed output ────────────────────────────────────────────────── */
+.sc-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--glass-border);
+    margin-bottom: 0;
+    /* When disaggregated multi-rack produces 16+ tabs, allow horizontal
+       scrolling rather than wrapping to multiple lines which breaks the
+       sticky underline. */
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
+}
+
+.sc-tab {
+    padding: 0.6rem 1.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.sc-tab:hover {
+    color: var(--text-primary);
+}
+
+.sc-tab.active {
+    color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+}
+
+.sc-tab-content {
+    display: none;
+}
+
+.sc-tab-content.active {
+    display: block;
+}
+
+/* ── Code output block ────────────────────────────────────────────── */
+.sc-code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    margin-top: 1rem;
+}
+
+.sc-code-header span {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sc-code-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sc-code-btn {
+    padding: 0.3rem 0.75rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sc-code-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.sc-code-block {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 0 0 8px 8px;
+    padding: 1rem;
+    max-height: 600px;
+    overflow: auto;
+    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: pre;
+    tab-size: 2;
+}
+
+/* ── Credit / attribution ─────────────────────────────────────────── */
+.sc-credit {
+    margin-top: 2rem;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.sc-credit a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.sc-credit a:hover {
+    text-decoration: underline;
+}
+
+/* ── No data state ────────────────────────────────────────────────── */
+.sc-no-data {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--text-secondary);
+}
+
+.sc-no-data h3 {
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.sc-no-data a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+/* ── Section divider ──────────────────────────────────────────────── */
+.sc-section-divider {
+    border: none;
+    border-top: 1px solid var(--glass-border);
+    margin: 1.5rem 0;
+}
+
+/* ── Collapsible details/summary ──────────────────────────────────── */
+.sc-details {
+    cursor: default;
+}
+
+.sc-summary {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+}
+
+.sc-summary::-webkit-details-marker {
+    display: none;
+}
+
+.sc-summary h2::after {
+    content: ' ▸';
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+}
+
+.sc-details[open] > .sc-summary h2::after {
+    content: ' ▾';
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .sc-grid,
+    .sc-grid-3,
+    .sc-grid.sc-grid-4 {
+        grid-template-columns: 1fr;
+    }
+
+    .sc-tabs {
+        overflow-x: auto;
+    }
+
+    .sc-code-block {
+        max-height: 400px;
+        font-size: 0.75rem;
+    }
+
+    .page-header-bar {
+        padding: 0 12px;
+    }
+}
+
+/* Compute VLAN add/remove buttons */
+.sc-add-btn {
+    background: transparent;
+    color: var(--accent-blue, #4da6ff);
+    border: 1px dashed var(--accent-blue, #4da6ff);
+    border-radius: 6px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.sc-add-btn:hover {
+    background: rgba(77, 166, 255, 0.1);
+}
+.sc-add-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+.sc-remove-btn {
+    background: transparent;
+    color: #e06c75;
+    border: 1px solid #e06c75;
+    border-radius: 6px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.sc-remove-btn:hover {
+    background: rgba(224, 108, 117, 0.12);
+}
+
+/* ── QoS Audit Results ────────────────────────────────────────────── */
+.qa-summary {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.25rem;
+    border: 1px solid;
+}
+
+.qa-summary.qa-pass {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.qa-summary.qa-warn {
+    background: rgba(234, 179, 8, 0.08);
+    border-color: rgba(234, 179, 8, 0.3);
+}
+
+.qa-summary.qa-fail {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.qa-summary-status {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+    color: var(--text-primary);
+}
+
+.qa-summary-detail {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.qa-stat-pass { color: #22c55e; }
+.qa-stat-warn { color: #eab308; }
+.qa-stat-fail { color: #ef4444; }
+.qa-stat-na { color: #94a3b8; }
+
+.qa-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.qa-table thead th {
+    text-align: left;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 2px solid var(--glass-border);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.qa-table tbody tr {
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.qa-table tbody td {
+    padding: 0.65rem 0.75rem;
+    vertical-align: top;
+    color: var(--text-primary);
+}
+
+.qa-icon {
+    width: 2rem;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.qa-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.qa-mono {
+    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    font-size: 0.8rem;
+    word-break: break-word;
+}
+
+.qa-row-pass { }
+.qa-row-warn { background: rgba(234, 179, 8, 0.04); }
+.qa-row-fail { background: rgba(239, 68, 68, 0.04); }
+.qa-row-na   { background: rgba(148, 163, 184, 0.05); opacity: 0.85; }
+
+/* ── Disaggregated per-rack cards (SC1b) ───────────────────────────── */
+.sc-rack-subhead {
+    color: var(--accent-blue);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0.75rem 0 0.25rem;
+    font-weight: 600;
+}
+
+.qa-reference {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 0.75rem;
+}
+
+.qa-reference a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.qa-reference a:hover {
+    text-decoration: underline;
+}

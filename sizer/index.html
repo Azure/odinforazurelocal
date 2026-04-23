@@ -10,8 +10,8 @@
     <meta name="keywords" content="Azure Local, Azure Stack HCI, Cluster Sizing, Capacity Planning, Odin">
     <title>ODIN Sizer - Azure Local Sizing Tool</title>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
     <!-- Segoe UI is a Windows system font - no Google Fonts import needed -->
     <link rel="stylesheet" href="sizer.css">
     <link rel="stylesheet" href="rack3d.css">
@@ -33,9 +33,9 @@
             <div class="header-title-wrapper">
                 <h1 class="header-title">ODIN Sizer for Azure Local</h1>
                 <div class="header-logo-wrapper">
-                    <img src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
+                    <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.18.04 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.20.06 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -45,7 +45,7 @@
             <div id="page-statistics">
                 <div class="stats-container">
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
                         </svg>
@@ -53,7 +53,7 @@
                         <span id="stat-page-views" class="stat-value">—</span>
                     </div>
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
                         </svg>
@@ -61,20 +61,20 @@
                         <span id="stat-design-docs" class="stat-value">—</span>
                     </div>
                     <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                        </svg>
-                        <span class="stat-label">ARM Deployments:</span>
-                        <span id="stat-arm-deployments" class="stat-value">—</span>
-                    </div>
-                    <div class="stat-item">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
                             <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
                             <line x1="8" y1="21" x2="16" y2="21"/>
                             <line x1="12" y1="17" x2="12" y2="21"/>
                         </svg>
                         <span class="stat-label">Sizes Calculated:</span>
                         <span id="stat-sizer-calcs" class="stat-value">—</span>
+                    </div>
+                    <div class="stat-item">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        </svg>
+                        <span class="stat-label">ARM Deployments:</span>
+                        <span id="stat-arm-deployments" class="stat-value">—</span>
                     </div>
                 </div>
             </div>
@@ -89,11 +89,10 @@
                 <div class="panel-section">
                     <div class="section-header-row">
                         <h2>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                             </svg>
                             Workload Scenarios
-                            <span class="start-here-badge">START HERE</span>
                         </h2>
                         <div class="section-header-actions">
                             <button class="btn btn-secondary btn-sm" onclick="importSizerJSON()" title="Import configuration from a JSON file">
@@ -109,7 +108,7 @@
                     </div>
                     <!-- Hidden file input for JSON import -->
                     <input type="file" id="sizer-import-file" accept=".json" style="display: none;" onchange="handleSizerFileImport(event)">
-                    <p class="section-desc">Add workloads to calculate your Azure Local cluster requirements.</p>
+                    <p class="section-desc">Add workloads to calculate your <a href="https://learn.microsoft.com/azure/azure-local/overview" target="_blank" style="color: var(--accent-blue); text-decoration: none;">Azure Local</a> instance requirements.</p>
                 </div>
 
                 <!-- Workload Type Selector -->
@@ -155,30 +154,52 @@
                 <!-- Cluster Configuration - FIRST -->
                 <div class="panel-section cluster-config">
                     <h2>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="3"/>
                             <path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/>
                         </svg>
-                        Recommended Cluster Configuration
+                        Recommended Instance Configuration
                     </h2>
-                    <p class="section-desc">Configure your cluster topology and storage settings.</p>
+                    <p class="section-desc">Configure your instance topology and storage settings.</p>
 
                     <div class="config-info config-info-subtle" id="hadr-tip">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
-                        <span>Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local clusters, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster configuration type.</span>
+                        <span>Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local instances, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster deployment type.</span>
                     </div>
 
                     <div class="config-row cluster-setting">
                         <label for="cluster-type">Deployment Type</label>
                         <select id="cluster-type" onchange="onClusterTypeChange()">
                             <option value="single">Single Node</option>
-                            <option value="standard" selected>Standard Cluster</option>
+                            <option value="standard" selected>Hyperconverged</option>
+                            <option value="low-capacity">Low Capacity</option>
                             <option value="rack-aware">Rack-Aware Cluster</option>
+                            <option value="disaggregated">Disaggregated Storage</option>
                             <option value="aldo-mgmt">ALDO Management Cluster</option>
-                            <option value="aldo-wl">ALDO Workload Cluster</option>
+                        </select>
+                    </div>
+                    <div class="config-row cluster-setting" id="disagg-rack-count-row" style="display: none;">
+                        <label for="disagg-rack-count">Number of Racks</label>
+                        <select id="disagg-rack-count" onchange="onDisaggRackCountChange()">
+                            <option value="1">1 Rack</option>
+                            <option value="2" selected>2 Racks</option>
+                            <option value="3">3 Racks</option>
+                            <option value="4">4 Racks</option>
+                            <option value="5">5 Racks</option>
+                            <option value="6">6 Racks</option>
+                            <option value="7">7 Racks</option>
+                            <option value="8">8 Racks</option>
+                        </select>
+                    </div>
+                    <div class="config-row cluster-setting" id="disagg-storage-type-row" style="display: none;">
+                        <label for="disagg-storage-type">Storage Connectivity</label>
+                        <select id="disagg-storage-type" onchange="onDisaggStorageTypeChange()">
+                            <option value="fc_san" selected>Fibre Channel SAN</option>
+                            <option value="iscsi_4nic">iSCSI SAN (4-NIC)</option>
+                            <option value="iscsi_6nic">iSCSI SAN (6-NIC)</option>
                         </select>
                     </div>
                     <div class="config-row cluster-setting">
@@ -196,7 +217,7 @@
                         </select>
                     </div>
                     <div class="config-info" id="node-recommendation" style="display: none;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
@@ -220,32 +241,32 @@
                         </select>
                     </div>
                     <div class="config-info config-info-warning" id="resiliency-recommendation" style="display: none;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
                         <span id="resiliency-recommendation-text">We highly recommend using Three-way Mirror for the highest level of resiliency and performance.</span>
                     </div>
                     <div class="config-info config-info-warning" id="cluster-info" style="display: none;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
                         <span id="cluster-info-text"></span>
                     </div>
                     <div class="config-info config-info-subtle" id="node-n1-tip">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
-                        <span id="node-n1-tip-text">Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.</span>
+                        <span id="node-n1-tip-text">Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node instances will always incur workload downtime during updates.</span>
                     </div>
                 </div>
 
                 <!-- Physical Node(s) - Example Hardware Configuration -->
                 <div class="panel-section hardware-config">
                     <h2>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
                             <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
                             <line x1="6" y1="6" x2="6.01" y2="6"/>
@@ -326,7 +347,7 @@
                             <option value="l40">NVIDIA L40 (48 GB, 300W, max 2/node)</option>
                             <option value="l40s">NVIDIA L40S (48 GB, 350W, max 4/node)</option>
                             <option value="rtxpro6000">NVIDIA RTX Pro 6000 (48 GB, 600W, max 2/node)</option>
-                            <option value="h100">NVIDIA H100 (80 GB, 700W, max 4/node)</option>
+                            <option value="h100">NVIDIA H100 (80 GB, 700W, max 2/node)</option>
                         </select>
                     </div>
                     <div class="config-row" id="gpu-max-warning" style="display: none;">
@@ -358,7 +379,7 @@
                         </select>
                     </div>
                     <div class="config-info config-info-warning" id="hybrid-storage-warning" style="display: none;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
@@ -456,7 +477,7 @@
                                 </select>
                             </div>
                             <div class="config-info disk-type-info" id="cache-disk-type-info">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"/>
                                     <path d="M12 16v-4M12 8h.01"/>
                                 </svg>
@@ -495,7 +516,7 @@
                                 </select>
                             </div>
                             <div class="config-info disk-type-info" id="tiered-capacity-disk-type-info">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"/>
                                     <path d="M12 16v-4M12 8h.01"/>
                                 </svg>
@@ -518,7 +539,7 @@
                     <!-- Remove Manual Overrides button (hidden by default) -->
                     <div id="clear-manual-overrides" class="clear-manual-overrides" style="display: none;">
                         <button class="btn btn-clear-manual" onclick="clearAllManualOverrides()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <line x1="18" y1="6" x2="6" y2="18"/>
                                 <line x1="6" y1="6" x2="18" y2="18"/>
                             </svg>
@@ -531,34 +552,41 @@
             <!-- Right Panel: Results -->
             <div class="results-panel">
                 <div class="panel-section">
-                    <h2>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 3v18h18"/>
-                            <path d="M18 17V9"/>
-                            <path d="M13 17V5"/>
-                            <path d="M8 17v-3"/>
-                        </svg>
-                        Requirements Summary
-                    </h2>
+                    <div class="section-header-row">
+                        <h2>
+                            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18"/>
+                                <path d="M18 17V9"/>
+                                <path d="M13 17V5"/>
+                                <path d="M8 17v-3"/>
+                            </svg>
+                            Hardware Requirements Summary
+                        </h2>
+                        <div class="section-header-actions">
+                            <button id="share-url-btn-header" class="btn btn-secondary btn-sm" onclick="shareSizerURL()" title="Add workload(s) before you can share your Sizer configuration with others" disabled>
+                                🔗 Share Sizer Config as URL
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Configure in Designer -->
                 <div class="designer-action" id="designer-action" style="display: none;">
                     <button class="btn btn-designer" onclick="configureInDesigner()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 20h9"/>
                             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                         </svg>
                         Configure in Designer
                     </button>
-                    <p class="designer-action-desc">Continue to add additional workloads, if required. Once complete, open the Designer wizard pre-configured with this cluster and hardware sizer settings.</p>
+                    <p class="designer-action-desc">Continue to add additional workloads, if required. Once complete, open the Designer wizard pre-configured with this instance and hardware sizer settings.</p>
                 </div>
 
                 <!-- Total Requirements -->
                 <div class="requirements-grid">
                     <div class="requirement-card">
                         <div class="req-icon cpu">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="4" y="4" width="16" height="16" rx="2"/>
                                 <rect x="9" y="9" width="6" height="6"/>
                                 <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>
@@ -571,7 +599,7 @@
                     </div>
                     <div class="requirement-card">
                         <div class="req-icon memory">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M6 19v-3M10 19v-3M14 19v-3M18 19v-3M6 8V5M10 8V5M14 8V5M18 8V5"/>
                                 <rect x="3" y="8" width="18" height="8" rx="1"/>
                             </svg>
@@ -583,20 +611,20 @@
                     </div>
                     <div class="requirement-card">
                         <div class="req-icon storage">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <ellipse cx="12" cy="5" rx="9" ry="3"/>
                                 <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
                                 <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
                             </svg>
                         </div>
                         <div class="req-content">
-                            <span class="req-label">Total Storage</span>
+                            <span class="req-label" id="total-storage-label">Total Storage</span>
                             <span class="req-value" id="total-storage">0 TB</span>
                         </div>
                     </div>
                     <div class="requirement-card">
                         <div class="req-icon workloads">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                             </svg>
                         </div>
@@ -619,12 +647,12 @@
                             <span class="label">Memory</span>
                             <span class="value" id="per-node-memory">0 GB</span>
                         </div>
-                        <div class="per-node-item">
-                            <span class="label">Raw Storage</span>
+                        <div class="per-node-item" id="per-node-storage-section">
+                            <span class="label" id="per-node-storage-label">Raw Storage</span>
                             <span class="value" id="per-node-storage">0 TB</span>
                         </div>
-                        <div class="per-node-item">
-                            <span class="label">Usable Storage</span>
+                        <div class="per-node-item" id="per-node-usable-section">
+                            <span class="label" id="per-node-usable-label">Usable Storage</span>
                             <span class="value" id="per-node-usable">0 TB</span>
                         </div>
                     </div>
@@ -636,7 +664,7 @@
                     <div class="breakdown-bars">
                         <div class="breakdown-item">
                             <div class="breakdown-header">
-                                <span>Azure Local hyperconverged instance size</span>
+                                <span id="nodes-bar-label">Azure Local hyperconverged instance size</span>
                                 <span id="nodes-count-label">0 / 16</span>
                             </div>
                             <div class="breakdown-bar">
@@ -670,9 +698,9 @@
                                 <span id="memory-used">0</span> / <span id="memory-total">0</span> GB
                             </div>
                         </div>
-                        <div class="breakdown-item">
+                        <div class="breakdown-item" id="storage-capacity-section">
                             <div class="breakdown-header">
-                                <span>Usable Storage - Consumed</span>
+                                <span id="storage-bar-label">Usable Storage - Consumed</span>
                                 <span id="storage-percent">0%</span>
                             </div>
                             <div class="breakdown-bar">
@@ -718,18 +746,18 @@
                 <!-- Power & Rack Estimate -->
                 <div class="power-rack-estimate" id="power-rack-section" style="display: none;">
                     <h3>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                         </svg>
-                        Estimated Power, Heat &amp; Rack Space
+                        Estimated Power, Heat &amp; Rack Space per Instance
                     </h3>
                     <div class="power-rack-grid">
                         <div class="power-rack-item">
-                            <span class="label">Per-Node Power (est.)</span>
+                            <span class="label">Per-Machine Power (est.)</span>
                             <span class="value" id="power-per-node">—</span>
                         </div>
                         <div class="power-rack-item">
-                            <span class="label">Total Cluster Power (est.)</span>
+                            <span class="label">Total Instance Power (est.)</span>
                             <span class="value" id="power-total">—</span>
                         </div>
                         <div class="power-rack-item">
@@ -737,17 +765,30 @@
                             <span class="value" id="power-btu">—</span>
                         </div>
                         <div class="power-rack-item">
-                            <span class="label">Rack Units (est., incl. 2× ToR switches)</span>
+                            <span class="label" id="rack-units-label">Rack Units (est., incl. 2× ToR switches)</span>
                             <span class="value" id="rack-units">—</span>
                         </div>
                     </div>
+                    <div id="power-infra-note" style="display: none; margin-top: 6px; font-size: 12px; color: var(--text-secondary); padding: 6px 10px; background: rgba(139, 92, 246, 0.06); border: 1px solid rgba(139, 92, 246, 0.15); border-radius: 6px;"></div>
+                    <details id="power-detail-section" style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+                        <summary style="cursor: pointer; color: var(--accent-blue); font-weight: 600; font-size: 13px; padding: 6px 0;">Power calculations, verbose information and assumptions</summary>
+                        <div id="power-detail-content" style="margin-top: 8px; padding: 10px 12px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.12); border-radius: 6px; line-height: 1.8;"></div>
+                    </details>
                     <div class="config-info" style="margin-top: 8px;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M12 16v-4M12 8h.01"/>
                         </svg>
                         <span>Estimates based on component TDP ratings. Actual power varies by workload and OEM hardware design. <strong>Consult your preferred OEM hardware partner for accurate power and rack planning.</strong></span>
                     </div>
+                </div>
+
+                <!-- Capacity Runway Projection -->
+                <div id="growth-projection-section" style="display: none; margin-top: 12px;">
+                    <details>
+                        <summary style="cursor: pointer; color: var(--accent-blue); font-weight: 600; font-size: 13px; padding: 6px 0;">📈 Capacity Runway — Year-over-Year Growth Projection</summary>
+                        <div id="growth-projection-content" style="margin-top: 8px; padding: 10px 12px; background: rgba(59, 130, 246, 0.04); border: 1px solid rgba(59, 130, 246, 0.12); border-radius: 6px; font-size: 12px; overflow-x: auto;"></div>
+                    </details>
                 </div>
 
                 <!-- Notes -->
@@ -760,7 +801,7 @@
 
                 <!-- Export Actions -->
                 <div class="export-actions">
-                    <button class="btn btn-secondary" onclick="window.print()" title="Save as PDF via browser print dialog">
+                    <button class="btn btn-secondary" onclick="exportSizerPDF()" title="Download as PDF document">
                         💾 Save as PDF
                     </button>
                     <button class="btn btn-secondary" onclick="exportSizerWord()" title="Download as Word document">
@@ -769,21 +810,62 @@
                     <button class="btn btn-secondary" onclick="exportSizerJSON()" title="Export configuration as a shareable JSON file">
                         📤 Export JSON
                     </button>
+                    <button class="btn btn-secondary" onclick="exportSizerCSV()" title="Export hardware BOM as CSV spreadsheet">
+                        📊 Export CSV
+                    </button>
+                    <button id="share-url-btn-footer" class="btn btn-secondary" onclick="shareSizerURL()" title="Add workload(s) before you can share your Sizer configuration with others" disabled>
+                        🔗 Share URL
+                    </button>
                     <button class="btn btn-secondary" onclick="importSizerJSON()" title="Import configuration from a JSON file">
                         📂 Import JSON
                     </button>
                 </div>
             </div>
         </div>
+        <!-- Multi-Instance Summary -->
+        <div id="multi-instance-section" class="power-rack-estimate" style="display: none; margin-top: 8px; margin-bottom: 16px;">
+            <h3>
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="18" rx="2"/><path d="M12 3v18M2 12h20"/>
+                </svg>
+                Multi-Instance Scale-Out
+            </h3>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                <label for="instance-count" style="font-weight: 600; font-size: 14px; color: var(--text-primary); white-space: nowrap;">Number of Instances</label>
+                <select id="instance-count" onchange="updateMultiInstanceSummary()" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--glass-border); color: var(--text-primary); border-radius: 6px; font-size: 14px;">
+                    <option value="1" selected>1</option>
+                    <option value="2">2</option>
+                    <option value="4">4</option>
+                    <option value="6">6</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                    <option value="25">25</option>
+                    <option value="30">30</option>
+                    <option value="40">40</option>
+                    <option value="50">50</option>
+                    <option value="75">75</option>
+                    <option value="100">100</option>
+                </select>
+                <span style="font-size: 12px; color: var(--text-secondary);">Scale-out view only &mdash; does not affect workload sizing or Designer output</span>
+            </div>
+            <div id="multi-instance-summary" style="display: none; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; font-size: 13px; color: var(--text-primary);"></div>
+            <div style="margin-top: 8px; font-size: 12px;">
+                <a href="https://azure.microsoft.com/pricing/details/azure-local/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;">💰 Azure Local Pricing Calculator ↗</a>
+                <span style="color: var(--text-secondary);"> — Azure service costs only, excludes hardware. Contact your OEM partner for hardware pricing.</span>
+            </div>
+        </div>
+
         <!-- 3D Rack Visualization (Preview) -->
         <section class="rack-viz-section" id="rack-viz-section" style="display: none;">
             <div class="rack-viz-header">
                 <h3 onclick="toggleRackViz()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="2" y="2" width="20" height="20" rx="2"/>
                         <path d="M6 6h12M6 10h12M6 14h12M6 18h12"/>
                     </svg>
-                    Azure Local - 3D Rack Visualization
+                    Azure Local - 3D Hardware Visualization
                     <span class="toggle-arrow" id="rack-viz-toggle-arrow">▼</span>
                 </h3>
             </div>
@@ -798,12 +880,17 @@
                         &#128161; Tip: Left-click and hold to rotate · Scroll to zoom · Right-click and hold to move
                     </div>
                     <div class="rack-viz-legend">
-                        <span class="legend-item"><span class="legend-swatch" style="background:#aaaaaa;"></span> Server Node</span>
-                        <span class="legend-item"><span class="legend-swatch" style="background:#444444;"></span> ToR Switch</span>
-                        <span class="legend-item"><span class="legend-swatch" style="background:#1a6fc4;"></span> Core Router / Firewall</span>
-                        <span class="legend-item"><span class="legend-swatch" style="background:#3399ff;"></span> Mgmt/Compute</span>
-                        <span class="legend-item"><span class="legend-swatch" style="background:#ff66bb;"></span> SMB Trunk</span>
-                        <span class="legend-item"><span class="legend-swatch" style="background:#ff9933;"></span> LAG</span>
+                        <span class="legend-item" id="legend-server-node"><span class="legend-swatch" style="background:#aaaaaa;"></span> Server Node</span>
+                        <span class="legend-item" id="legend-edge-appliance" style="display:none;"><span class="legend-swatch" style="background:#888888;"></span> Edge Appliance</span>
+                        <span class="legend-item" id="legend-tor-switch"><span class="legend-swatch" style="background:#444444;"></span> ToR Switch</span>
+                        <span class="legend-item" id="legend-edge-switch" style="display:none;"><span class="legend-swatch" style="background:#333333;"></span> Edge Switch</span>
+                        <span class="legend-item" id="legend-bmc-switch"><span class="legend-swatch" style="background:#e0e0e0;"></span> BMC Switch</span>
+                        <span class="legend-item" id="legend-core-router"><span class="legend-swatch" style="background:#1a6fc4;"></span> Core Router / Firewall</span>
+                        <span class="legend-item" id="legend-mgmt-compute"><span class="legend-swatch" style="background:#3399ff;"></span> Mgmt/Compute</span>
+                        <span class="legend-item" id="legend-smb-trunk"><span class="legend-swatch" style="background:#ff66bb;"></span> SMB Trunk</span>
+                        <span class="legend-item" id="legend-lag"><span class="legend-swatch" style="background:#ff9933;"></span> LAG</span>
+                        <span class="legend-item" id="legend-fc-switch" style="display:none;"><span class="legend-swatch" style="background:#9933cc;"></span> FC Switch</span>
+                        <span class="legend-item" id="legend-san-appliance" style="display:none;"><span class="legend-swatch" style="background:#6d28d9;"></span> SAN Appliance</span>
                         <span class="legend-item" id="rack-viz-used-u"></span>
                         <span class="legend-item"> / </span>
                         <span class="legend-item" id="rack-viz-total-u"></span>
@@ -811,11 +898,11 @@
                 </div>
             </div>
             <div class="rack-viz-info">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"/>
                     <path d="M12 16v-4M12 8h.01"/>
                 </svg>
-                <span>Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the TOR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.</span>
+                <span id="rack-viz-info-text">Interactive 3D preview of the estimated rack layout. Each server node occupies 2U, ToR switches occupy 1U each. The cables from each node to the ToR switches are not shown.<br><span id="rack-viz-rackaware-note" style="display:none;">Rack-aware deployments show balanced distribution of nodes across two cabinets, in real deployments these can be in separate rooms or datacenter locations.<br></span>⚠️ This is an approximate representation only, contact your preferred hardware OEM partner for detailed physical space requirements for their Azure Local solutions.</span>
             </div>
         </section>
 
@@ -899,12 +986,116 @@
     </div>
 
     <!-- Analytics -->
+    <!-- Import Configuration Modal -->
+    <div class="onboarding-overlay" id="import-modal-overlay" style="display: none;">
+        <div class="onboarding-card" style="max-width: 680px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 class="onboarding-title" style="margin: 0;">📂 Import Configuration</h2>
+                <button onclick="closeImportModal()" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px 8px;">&times;</button>
+            </div>
+
+            <!-- Tab Buttons -->
+            <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+                <button id="import-tab-sizer" onclick="switchImportTab('sizer')" class="onboarding-btn onboarding-btn-primary" style="flex: 1;">📤 Sizer Configuration</button>
+                <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary" style="flex: 1;">☁️ Azure Local Instance</button>
+            </div>
+
+            <!-- Tab 1: Sizer Config Import -->
+            <div id="import-panel-sizer">
+                <div class="onboarding-features" style="grid-template-columns: 1fr; margin-bottom: 16px;">
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">📄</span>
+                        <div class="onboarding-feature-text">
+                            <strong>Import a previously exported ODIN Sizer configuration</strong>
+                            Select a .json file that was exported using the Export JSON button. This will restore all workloads, hardware settings, and MANUAL overrides.
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align: center;">
+                    <button class="onboarding-btn onboarding-btn-primary" onclick="importSizerJSONFromModal()">Select JSON File</button>
+                </div>
+            </div>
+
+            <!-- Tab 2: Azure Cluster JSON Import -->
+            <div id="import-panel-cluster" style="display: none;">
+                <div class="onboarding-features" style="grid-template-columns: 1fr; margin-bottom: 16px;">
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">☁️</span>
+                        <div class="onboarding-feature-text">
+                            <strong>Import hardware specs from an existing Azure Local machine</strong>
+                            Navigate to any machine (node) in your instance in the <a href="https://portal.azure.com" target="_blank" style="color: var(--accent-blue);">Azure Portal</a> &rarr; <strong>JSON View</strong> &rarr; Copy the full JSON and paste it below. The exact CPU model, core count, and memory will be extracted.
+                        </div>
+                    </div>
+                </div>
+                <textarea id="cluster-json-input" placeholder="Paste Azure Local instance JSON here..." style="width: 100%; height: 160px; background: var(--subtle-bg); border: 1px solid var(--glass-border); border-radius: 8px; color: var(--text-primary); font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; padding: 12px; resize: vertical; box-sizing: border-box;"></textarea>
+                <div style="margin-top: 6px; font-size: 11px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 6px;">
+                    <span>🔒</span>
+                    <span><strong>Privacy:</strong> All processing is performed entirely in your browser. No instance configuration data is stored, transmitted, or sent to any external service. Sanitize any sensitive information before pasting.</span>
+                </div>
+                <div id="cluster-json-error" style="display: none; margin-top: 8px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: var(--danger); font-size: 12px;"></div>
+                <div id="cluster-json-preview" style="display: none; margin-top: 8px; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; font-size: 13px;"></div>
+                <div style="text-align: center; margin-top: 12px;">
+                    <button class="onboarding-btn onboarding-btn-primary" onclick="parseAndPreviewClusterJSON()">Parse &amp; Preview</button>
+                    <button id="cluster-import-apply-btn" class="onboarding-btn onboarding-btn-primary" onclick="applyClusterJSONImport()" style="display: none; margin-left: 8px;">Apply Configuration</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post-Import Instructions Modal (shown after cluster JSON import) -->
+    <div class="onboarding-overlay" id="post-import-overlay" style="display: none;">
+        <div class="onboarding-card" style="max-width: 600px;">
+            <div class="onboarding-icon">🔧</div>
+            <h2 class="onboarding-title">Configuration Imported</h2>
+            <p class="onboarding-description" id="post-import-summary"></p>
+
+            <div class="onboarding-features">
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">💾</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Configure Storage</strong>
+                        Set the disk count, disk size, and storage type to match your cluster's physical disks.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">📦</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Add Workloads</strong>
+                        Add your VMs, AKS Arc clusters, and AVD sessions to see how the existing hardware handles them.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">🔒</span>
+                    <div class="onboarding-feature-text">
+                        <strong>MANUAL Overrides</strong>
+                        Imported values are locked as MANUAL — auto-scaling won't override them.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">📊</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Review Capacity</strong>
+                        Check utilization bars and sizing notes to see if your hardware fits the workloads.
+                    </div>
+                </div>
+            </div>
+
+            <div class="onboarding-buttons">
+                <button class="onboarding-btn onboarding-btn-primary" onclick="closePostImportOverlay()">Got it — Let's Configure</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/utils.js"></script>
+    <script src="../js/notifications.js"></script>
     <script src="../js/analytics.js"></script>
     <script src="../js/changelog.js"></script>
     <!-- Three.js (MIT) for 3D Rack Visualization -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- html2canvas (MIT) + jsPDF (MIT) for PDF export -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
     <script src="rack3d.js?v=20260330z9"></script>
     <script src="sizer.js"></script>
 </body>

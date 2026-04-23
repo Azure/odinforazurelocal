@@ -50,6 +50,8 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
         initDisconnectedState();
 
         if (category === 'clusterRole') {
+            // Management cluster is always HCI — block for disaggregated
+            if (value === 'management' && state.architecture === 'disaggregated') return;
             state.clusterRole = value;
             state.fqdnConfirmed = false;
             state.autonomousCloudFqdn = null;
@@ -330,7 +332,7 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
         const errors = validateApplianceIps(ip1, ip2, requireInfraSubnet);
         if (errors.length > 0) {
             if (errEl) {
-                errEl.innerHTML = errors.map(function(e) { return '\u26A0 ' + (typeof escapeHtml === 'function' ? escapeHtml(e) : e); }).join('<br>');
+                errEl.innerHTML = errors.map(function(e) { return '\u26A0 ' + escapeHtml(e); }).join('<br>');
                 errEl.classList.remove('hidden');
                 errEl.classList.add('visible');
             }
@@ -580,6 +582,14 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
         document.querySelectorAll('#step-d1 .option-card').forEach(function(card) {
             const val = card.getAttribute('data-value');
             card.classList.toggle('selected', val === state.clusterRole);
+            // Management cluster is always HCI — disable for disaggregated
+            if (val === 'management' && state.architecture === 'disaggregated') {
+                card.classList.add('disabled');
+                card.title = 'Management clusters are always Hyperconverged';
+            } else if (val === 'management') {
+                card.classList.remove('disabled');
+                card.title = '';
+            }
         });
     }
 

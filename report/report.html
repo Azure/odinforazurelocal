@@ -140,6 +140,7 @@
             right: 0;
             z-index: 1000;
             background: var(--nav-bg, linear-gradient(180deg, rgba(17, 17, 17, 0.98) 0%, rgba(17, 17, 17, 0.95) 100%));
+            -webkit-backdrop-filter: blur(20px);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--glass-border);
             padding: 0 24px;
@@ -336,7 +337,7 @@
                 <button type="button" class="header-action-btn" onclick="downloadReportMarkdown()">
                     📝 Download Markdown
                 </button>
-                <button type="button" class="header-action-btn" onclick="window.print()">
+                <button type="button" class="header-action-btn" onclick="exportReportPDF()">
                     💾 Save as PDF
                 </button>
             </div>
@@ -357,9 +358,18 @@
             <div id="report-meta" class="info-box visible"></div>
         </section>
 
-        <section class="step" style="margin-bottom:1.5rem;">
+        <section id="rack-diagram-section" class="step" style="margin-bottom:1.5rem; display:none;">
             <div class="step-header">
                 <span class="step-number">R2</span>
+                <h2>Rack Layout</h2>
+            </div>
+            <div id="rack-diagram-container" style="text-align:center; padding:0.5rem 0;"></div>
+            <div class="no-print" id="rack-diagram-actions" style="display:none; margin-top:0.5rem; text-align:center;"></div>
+        </section>
+
+        <section class="step" style="margin-bottom:1.5rem;">
+            <div class="step-header">
+                <span class="step-number">R3</span>
                 <h2>Configuration Summary</h2>
             </div>
             <div id="report-summary"></div>
@@ -367,7 +377,7 @@
 
         <section class="step no-print" style="margin-bottom:1.5rem;">
             <div class="step-header">
-                <span class="step-number">R3</span>
+                <span class="step-number">R4</span>
                 <h2>Validation Summary</h2>
             </div>
             <div id="report-validations"></div>
@@ -375,7 +385,7 @@
 
         <section class="step" style="margin-bottom:1.5rem;">
             <div class="step-header">
-                <span class="step-number">R4</span>
+                <span class="step-number">R5</span>
                 <h2>Decisions &amp; Rationale</h2>
             </div>
             <div id="report-rationale"></div>
@@ -386,6 +396,10 @@
         </button>
     </main>
 
+    <!-- html2canvas (MIT) + jsPDF (MIT) for PDF export -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
+    <script src="rack-svg.js"></script>
     <script src="report.js"></script>
     <script>
         // Apply saved theme on load

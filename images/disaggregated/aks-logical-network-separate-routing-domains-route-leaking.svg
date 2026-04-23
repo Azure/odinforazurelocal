@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="900px" height="720px" viewBox="0 0 900 720" style="background: #1a1a1a;">
+  <defs>
+    <marker id="arrowhead-purple" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#b48ce8"/>
+    </marker>
+
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="900" height="720" fill="#1a1a1a"/>
+
+  <!-- Title -->
+  <text x="450" y="30" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">Separate VRFs — route leaking required on service leaf switches</text>
+
+  <!-- VRF 1 boundary (Infrastructure) -->
+  <rect x="30" y="48" width="410" height="570" rx="12" ry="12" fill="none" stroke="#6ccb5f" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="50" y="72" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="bold" fill="#6ccb5f">VRF: Infrastructure</text>
+
+  <!-- VRF 2 boundary (AKS Workloads) -->
+  <rect x="460" y="48" width="410" height="570" rx="12" ry="12" fill="none" stroke="#e6a817" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="480" y="72" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="bold" fill="#e6a817">VRF: AKS Workloads</text>
+
+  <!-- Row 1: Service leaf switches (top, spanning boundary) -->
+  <rect x="310" y="90" width="130" height="40" rx="6" ry="6" fill="#5c2d91" stroke="#7a4db5" stroke-width="2"/>
+  <text x="375" y="115" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Service Leaf 1</text>
+  <rect x="460" y="90" width="130" height="40" rx="6" ry="6" fill="#5c2d91" stroke="#7a4db5" stroke-width="2"/>
+  <text x="525" y="115" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Service Leaf 2</text>
+
+  <!-- Route leak label on service leafs -->
+  <rect x="370" y="135" width="160" height="22" rx="4" ry="4" fill="#5c2d91" stroke="none"/>
+  <text x="450" y="150" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#ffffff" text-anchor="middle">⇄ Route leaking configured here</text>
+
+  <!-- Label: To DC Core -->
+  <text x="450" y="82" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#a0a0a0" text-anchor="middle">↑ To data center core</text>
+
+  <!-- Row 2: Spine switches -->
+  <rect x="335" y="200" width="100" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="385" y="225" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#ffffff" text-anchor="middle">Spine 1</text>
+  <rect x="465" y="200" width="100" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="515" y="225" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#ffffff" text-anchor="middle">Spine 2</text>
+
+  <!-- Service leaf to spine connections removed for clarity -->
+
+  <!-- Row 3: Compute leaf switches (ToR) -->
+  <!-- Left pair (Infra VRF) -->
+  <rect x="80" y="300" width="120" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="140" y="325" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Compute Leaf 1</text>
+  <rect x="230" y="300" width="120" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="290" y="325" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Compute Leaf 2</text>
+
+  <!-- Right pair (AKS VRF) -->
+  <rect x="550" y="300" width="120" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="610" y="325" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Compute Leaf 3</text>
+  <rect x="700" y="300" width="120" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="760" y="325" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Compute Leaf 4</text>
+
+  <!-- Spine to compute leaf connections removed for clarity -->
+
+  <!-- === TRAFFIC FLOW PATH: 5-hop hairpin through service leaf === -->
+  <!-- The flow goes: Compute Leaf 3 → Spine 2 → Service Leaf 2 (route leak) → Spine 1 → Compute Leaf 1 -->
+  <!-- Use offset lines so they don't overlap fabric connections -->
+
+  <!-- Step 1: AKS LNET top border → CL3 bottom border -->
+  <path d="M635,390 Q630,365 620,340" fill="none" stroke="#ff6b6b" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Step 2: CL3 top border → Spine 2 bottom border -->
+  <path d="M600,300 Q580,260 530,240" fill="none" stroke="#ff6b6b" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Step 3: Spine 2 top border → Service Leaf 2 bottom border -->
+  <path d="M515,200 Q520,165 525,130" fill="none" stroke="#ff6b6b" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Step 4 (dashed): Service Leaf 2 bottom-left border → Spine 1 top border (cross-VRF route leak) -->
+  <path d="M485,130 Q430,155 385,200" fill="none" stroke="#ff6b6b" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="8,4"/>
+  <!-- Step 5: Spine 1 bottom border → CL1 top border -->
+  <path d="M360,240 Q250,255 155,300" fill="none" stroke="#ff6b6b" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Step 6: CL1 bottom border → Mgmt LNET top border -->
+  <path d="M140,340 Q150,365 165,390" fill="none" stroke="#ff6b6b" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Hop number labels -->
+  <text x="642" y="370" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ff6b6b" font-weight="bold">①</text>
+  <text x="580" y="262" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ff6b6b" font-weight="bold">②</text>
+  <text x="535" y="165" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ff6b6b" font-weight="bold">③</text>
+  <text x="425" y="158" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ff6b6b" font-weight="bold">④</text>
+  <text x="242" y="262" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ff6b6b" font-weight="bold">⑤</text>
+  <text x="132" y="370" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#ff6b6b" font-weight="bold">⑥</text>
+
+  <!-- Flow label -->
+  <rect x="60" y="195" width="240" height="24" rx="4" ry="4" fill="#4a1a1a" stroke="#ff6b6b" stroke-width="1"/>
+  <text x="180" y="212" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#ff6b6b" text-anchor="middle" font-weight="bold">Packet flow: 5 hops (hairpin through service leaf)</text>
+
+  <!-- Rack labels -->
+  <text x="215" y="375" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#808080" text-anchor="middle">Rack 1</text>
+  <text x="685" y="375" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#808080" text-anchor="middle">Rack 2</text>
+
+  <!-- Row 4: LNET boxes -->
+
+  <!-- Management LNET box -->
+  <rect x="55" y="390" width="330" height="180" rx="8" ry="8" fill="#1e2e1e" stroke="#6ccb5f" stroke-width="1.5"/>
+  <text x="220" y="415" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6ccb5f" text-anchor="middle">Management LNET (VLAN 7)</text>
+
+  <!-- Nodes -->
+  <rect x="75" y="430" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#6ccb5f" stroke-width="1"/>
+  <text x="130" y="452" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">Node 1</text>
+  <rect x="75" y="475" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#6ccb5f" stroke-width="1"/>
+  <text x="130" y="497" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">Node 2</text>
+  <rect x="245" y="430" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#6ccb5f" stroke-width="1"/>
+  <text x="300" y="452" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">Node 3</text>
+  <rect x="245" y="475" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#6ccb5f" stroke-width="1"/>
+  <text x="300" y="497" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">Node N</text>
+
+  <!-- Exported prefix label (management side) -->
+  <rect x="110" y="535" width="210" height="22" rx="3" ry="3" fill="#6ccb5f" stroke="none"/>
+  <text x="215" y="550" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#1a1a1a" font-weight="bold" text-anchor="middle">Export: 10.1.0.0/24 (Mgmt prefix)</text>
+
+  <!-- Compute leaf to management LNET connections removed for clarity -->
+
+  <!-- AKS LNET box -->
+  <rect x="515" y="390" width="330" height="180" rx="8" ry="8" fill="#2e2510" stroke="#e6a817" stroke-width="1.5"/>
+  <text x="680" y="415" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="bold" fill="#e6a817" text-anchor="middle">AKS LNET (VLAN 20)</text>
+
+  <!-- AKS workloads -->
+  <rect x="535" y="430" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#e6a817" stroke-width="1"/>
+  <text x="590" y="452" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">AKS Cluster 1</text>
+  <rect x="535" y="475" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#e6a817" stroke-width="1"/>
+  <text x="590" y="497" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">AKS Cluster 2</text>
+  <rect x="705" y="430" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#e6a817" stroke-width="1"/>
+  <text x="760" y="452" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">AKS Node Pool</text>
+
+  <!-- Exported prefix label (AKS side) -->
+  <rect x="575" y="535" width="210" height="22" rx="3" ry="3" fill="#e6a817" stroke="none"/>
+  <text x="680" y="550" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#1a1a1a" font-weight="bold" text-anchor="middle">Export: 10.2.0.0/24 (AKS prefix)</text>
+
+  <!-- Compute leaf to AKS LNET connections removed for clarity -->
+
+  <!-- Route leak dashed arrows between VRFs through service leaf area -->
+  <line x1="385" y1="490" x2="515" y2="490" stroke="#b48ce8" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrowhead-purple)"/>
+  <line x1="515" y1="500" x2="385" y2="500" stroke="#b48ce8" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#arrowhead-purple)"/>
+  <rect x="405" y="478" width="90" height="18" rx="3" ry="3" fill="#1a1a1a" stroke="none"/>
+  <text x="450" y="492" font-family="Segoe UI, Arial, sans-serif" font-size="10" font-weight="bold" fill="#b48ce8" text-anchor="middle">Route leak</text>
+
+  <!-- VRF boundary separator visual -->
+  <line x1="450" y1="370" x2="450" y2="570" stroke="#505050" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- Warning -->
+  <text x="450" y="640" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e6a817" text-anchor="middle" font-weight="bold">⚠ Without route leaking on the service leaf switches, AKS LNETs can't reach the management network.</text>
+  <text x="450" y="660" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ff6b6b" text-anchor="middle">Traffic hairpins through the service leaf, adding latency and making it a potential bottleneck.</text>
+
+  <!-- Legend -->
+  <rect x="60" y="690" width="12" height="12" rx="2" ry="2" fill="#5c2d91"/>
+  <text x="78" y="701" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Service Leaf</text>
+  <rect x="175" y="690" width="12" height="12" rx="2" ry="2" fill="#0078d4"/>
+  <text x="193" y="701" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Spine / Compute Leaf</text>
+  <rect x="335" y="690" width="12" height="12" rx="2" ry="2" fill="#6ccb5f"/>
+  <text x="353" y="701" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Infrastructure VRF</text>
+  <rect x="465" y="690" width="12" height="12" rx="2" ry="2" fill="#e6a817"/>
+  <text x="483" y="701" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">AKS Workloads VRF</text>
+  <line x1="610" y1="696" x2="640" y2="696" stroke="#b48ce8" stroke-width="2" stroke-dasharray="6,3"/>
+  <text x="648" y="701" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Leaked route</text>
+  <line x1="730" y1="696" x2="760" y2="696" stroke="#ff6b6b" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="768" y="701" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Packet flow</text>
+</svg>

@@ -43,7 +43,7 @@ jobs:
           done
       
       - name: Run ESLint on JS modules
-        run: npx eslint js/*.js --format stylish
+        run: npx eslint "js/*.js" "arm/*.js" "report/*.js" "sizer/*.js" "switch-config/**/*.js" "docs/outbound-connectivity/*.js" --format stylish
 
   test:
     name: ODIN Unit Tests

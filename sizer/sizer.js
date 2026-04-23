@@ -156,7 +156,7 @@ const GPU_MODELS = {
     l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
     l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
     rtxpro6000:{ name: 'NVIDIA RTX Pro 6000',    vramGB: 48, tdpW: 600, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
-    h100:      { name: 'NVIDIA H100',            vramGB: 80, tdpW: 700, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
+    h100:      { name: 'NVIDIA H100',            vramGB: 80, tdpW: 700, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: false, supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] }
 };
 
 // AKS GPU-enabled VM sizes (DDA only — AKS does not support GPU-P)
@@ -282,6 +282,9 @@ function onCpuGenerationChange() {
     ).join('');
     coresSelect.disabled = false;
 
+    // Filter core options for Low Capacity (must be called after populating)
+    enforceLowCapacityLimits();
+
     _cpuConfigUserSet = true;
     markManualSet('cpu-generation');
     onHardwareConfigChange();
@@ -391,6 +394,7 @@ function onVcpuRatioChange() {
 function onMemoryChange() {
     _memoryUserSet = true;
     markManualSet('node-memory');
+    enforceLowCapacityLimits();
     onHardwareConfigChange();
 }
 
@@ -399,6 +403,7 @@ function onCpuConfigChange() {
     _cpuConfigUserSet = true;
     markManualSet('cpu-cores');
     markManualSet('cpu-sockets');
+    enforceLowCapacityLimits();
     onHardwareConfigChange();
 }
 
@@ -967,7 +972,14 @@ function buildMaxHardwareConfig(hwConfig) {
         maxCoresPerSocket = hwConfig.generation.coreOptions[hwConfig.generation.coreOptions.length - 1];
     }
     // Use max 2 sockets — Azure Local certified hardware supports 1 or 2 sockets only
-    const MAX_SOCKETS = 2;
+    var MAX_SOCKETS = 2;
+
+    // Low Capacity: constrain max hardware to deployment limits
+    var currentClusterType = document.getElementById('cluster-type').value;
+    if (currentClusterType === 'low-capacity') {
+        maxCoresPerSocket = Math.min(maxCoresPerSocket, LOW_CAPACITY_MAX_CORES_PER_NODE);
+        MAX_SOCKETS = LOW_CAPACITY_MAX_SOCKETS;
+    }
 
     // Use a fixed per-node memory cap (1.5 TB) for node estimation to prefer adding
     // nodes over expensive high-capacity DIMMs. This cap must NOT depend on the current
@@ -982,6 +994,12 @@ function buildMaxHardwareConfig(hwConfig) {
         ? Math.max(NODE_WEIGHT_PREFERRED_MEMORY_GB, hwConfig.memoryGB || 0)
         : NODE_WEIGHT_PREFERRED_MEMORY_GB;
 
+    // Low Capacity: cap memory at deployment limit
+    var effectiveMaxMemory = PREFERRED_MAX_MEMORY_GB;
+    if (currentClusterType === 'low-capacity') {
+        effectiveMaxMemory = Math.min(effectiveMaxMemory, LOW_CAPACITY_MAX_MEMORY_GB);
+    }
+
     // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
     const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
     let maxDiskConfig = hwConfig.diskConfig;
@@ -992,7 +1010,7 @@ function buildMaxHardwareConfig(hwConfig) {
 
     return {
         totalPhysicalCores: maxCoresPerSocket * MAX_SOCKETS,
-        memoryGB: PREFERRED_MAX_MEMORY_GB,
+        memoryGB: effectiveMaxMemory,
         sockets: MAX_SOCKETS,
         coresPerSocket: maxCoresPerSocket,
         diskConfig: maxDiskConfig // disk size scaled to max for node recommendation
@@ -1040,7 +1058,9 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     const totalMemoryWithARB = totalMemoryGB + ARB_MEMORY_OVERHEAD_GB;
     let computeNodes = vcpusPerNode > 0 ? Math.ceil(totalVcpusWithARB / vcpusPerNode) : 1;
     let memoryNodes = usableMemoryPerNode > 0 ? Math.ceil(totalMemoryWithARB / usableMemoryPerNode) : 1;
-    let storageNodes = maxRawStoragePerNodeGB > 0 ? Math.ceil(totalRawStorageNeededGB / maxRawStoragePerNodeGB) : 1;
+    // Disaggregated storage: external SAN, no S2D — skip storage node sizing
+    const isDisaggCluster = document.getElementById('cluster-type') && document.getElementById('cluster-type').value === 'disaggregated';
+    let storageNodes = (!isDisaggCluster && maxRawStoragePerNodeGB > 0) ? Math.ceil(totalRawStorageNeededGB / maxRawStoragePerNodeGB) : 0;
 
     // GPU node calculation: GPUs need N+1 for maintenance (same as compute/memory)
     let gpuNodes = 0;
@@ -1085,11 +1105,50 @@ function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwCo
     };
 }
 
+// Disaggregated: maximum nodes per rack, matching Designer logic.
+// Total cluster is capped at 64 nodes across 1–8 racks. Per-rack port
+// budget allows up to 16 nodes, so effective limit = min(16, floor(64 / racks)).
+// Results: 1–4 racks → 16/rack; 5 → 12; 6 → 10; 7 → 9; 8 → 8.
+function getDisaggMaxNodesPerRack(rackCount) {
+    var rc = parseInt(rackCount, 10) || 1;
+    if (rc < 1) rc = 1;
+    return Math.min(16, Math.floor(64 / rc));
+}
+
+// Get the maximum node cap for the current cluster type
+function getMaxNodeCap() {
+    var ct = document.getElementById('cluster-type').value;
+    if (ct === 'disaggregated') {
+        var rc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 4;
+        return rc * getDisaggMaxNodesPerRack(rc);
+    }
+    if (ct === 'rack-aware') return 8;
+    if (ct === 'single') return 1;
+    if (ct === 'aldo-mgmt') return 3;
+    if (ct === 'low-capacity') return LOW_CAPACITY_MAX_NODES;
+    return 16;
+}
+
 // Snap a recommended node count to the nearest available dropdown option
 function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'single') return 1;
     if (clusterType === 'aldo-mgmt') return 3;
+    if (clusterType === 'low-capacity') {
+        const options = [1, 2, 3];
+        for (const opt of options) {
+            if (opt >= recommended) return opt;
+        }
+        return 3;
+    }
+    if (clusterType === 'disaggregated') {
+        var rackCountEl = document.getElementById('disagg-rack-count');
+        var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
+        // Snap to nearest multiple of rackCount (capped by Designer-matched per-rack max)
+        var maxPerRack = getDisaggMaxNodesPerRack(rackCount);
+        var snapped = Math.ceil(recommended / rackCount) * rackCount;
+        return Math.min(snapped, maxPerRack * rackCount);
+    }
     const options = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     for (const opt of options) {
         if (opt >= recommended) return opt;
@@ -1123,8 +1182,8 @@ function updateNodeRecommendation(recommendation) {
         const driver = bottleneckLabels[recommendation.bottleneck];
 
         let msg = '';
-        if (recommendation.recommended > 16) {
-            msg = `⚠️ Workload requires ~${recommendation.recommended} nodes which exceeds max 16. Consider increasing per-node hardware capacity.`;
+        if (recommendation.recommended > getMaxNodeCap()) {
+            msg = `Auto-scaling requires ~${recommendation.recommended} nodes which exceeds max ${getMaxNodeCap()}. Consider increasing per-node hardware capacity.`;
         } else {
             msg = `Auto-configured ${snapped} node(s) based on ${driver} requirements.`;
             if (recommendation.bottleneck !== 'storage' && recommendation.recommended > 1) {
@@ -1148,8 +1207,8 @@ function updateNodeRecommendationInfo(recommendation, currentNodeCount) {
     const snapped = snapToAvailableNodeCount(recommendation.recommended);
 
     let msg = '';
-    if (recommendation.recommended > 16) {
-        msg = `⚠️ Workload requires ~${recommendation.recommended} nodes (${driver} bottleneck) which exceeds max 16. Consider increasing per-node hardware capacity (CPU cores, memory, or disk size).`;
+    if (recommendation.recommended > getMaxNodeCap()) {
+        msg = `⚠️ Workload requires ~${recommendation.recommended} nodes (${driver} bottleneck) which exceeds max ${getMaxNodeCap()}. Consider increasing per-node hardware capacity (CPU cores, memory, or disk size).`;
     } else if (snapped > currentNodeCount) {
         msg = `ℹ️ Workload recommends ${snapped} node(s) based on ${driver} requirements. Current selection: ${currentNodeCount} node(s).`;
     } else {
@@ -1194,6 +1253,16 @@ const ALDO_MIN_MEMORY_GB = 96;          // Minimum 96 GB memory per node
 const ALDO_MIN_CORES_PER_NODE = 24;     // Minimum 24 physical cores per node
 const ALDO_MIN_STORAGE_PER_NODE_TB = 2; // Minimum 2 TB SSD/NVMe storage per node
 const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM reservation per node
+
+// Low Capacity deployment type hardware limits
+// Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
+const LOW_CAPACITY_MAX_NODES = 3;               // 1–3 nodes supported
+const LOW_CAPACITY_MAX_CORES_PER_NODE = 14;     // Up to 14 physical cores
+const LOW_CAPACITY_MAX_SOCKETS = 1;             // Single socket only
+const LOW_CAPACITY_MIN_MEMORY_GB = 32;          // Minimum 32 GB per node
+const LOW_CAPACITY_MAX_MEMORY_GB = 128;         // Maximum 128 GB per node
+const LOW_CAPACITY_MAX_GPU_VRAM_GB = 192;       // Maximum 192 GB GPU memory per node
+const LOW_CAPACITY_MAX_DISK_COUNT = 2;          // Maximum 2 data disks per node
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
 
@@ -1297,6 +1366,11 @@ let _nodeCountUserSet = false;
 
 // Physical port count from Designer (default 4 if user hasn't come from Designer)
 let _designerPortCount = 4;
+// Spine count carried across the Designer↔Sizer boundary. The Sizer has no
+// spine-count UI of its own, so this preserves the Designer-chosen value (2
+// or 4) through import, save/resume, and export back to the Designer. Default
+// 2 matches the Designer's default 2-spine Clos fabric.
+let _designerSpineCount = 2;
 
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
@@ -1305,6 +1379,9 @@ let _diskCountUserSet = false;
 
 // Track whether the user manually set GPU count per node (prevents GPU auto-scaling from overriding)
 let _gpuCountUserSet = false;
+
+// Track whether auto-upgrade from Standard → Disaggregated has already fired (prevents re-triggering)
+let _disaggAutoUpgraded = false;
 
 // Track disk bay consolidation details for sizing notes
 let _diskConsolidationInfo = null;
@@ -1387,12 +1464,14 @@ function clearAllManualOverrides() {
     _gpuCountUserSet = false;
     _nodeCountUserSet = false;
     _repairDisksUserSet = false;
+    _disaggAutoUpgraded = false;
     clearManualBadges();
     calculateRequirements();
 }
 
 // Human-readable names for manually-set hardware fields
 const _MANUAL_FIELD_LABELS = {
+    'cluster-type': 'Deployment Type',
     'node-count': 'Node Count',
     'vcpu-ratio': 'vCPU Ratio',
     'node-memory': 'Memory',
@@ -1405,12 +1484,14 @@ const _MANUAL_FIELD_LABELS = {
     'tiered-capacity-disk-size': 'Capacity Disk Size',
     'tiered-capacity-disk-count': 'Capacity Disk Count',
     'repair-disk-count': 'S2D Repair Disks',
-    'tiered-repair-disk-count': 'S2D Repair Disks'
+    'tiered-repair-disk-count': 'S2D Repair Disks',
+    'disagg-rack-count': 'Number of Racks'
 };
 
 // Map element IDs to their corresponding _*UserSet flag name and sibling IDs
 // that share the same flag (clearing one clears all siblings).
 const _MANUAL_FIELD_TO_FLAG = {
+    'cluster-type':              { flag: 'clusterType', siblings: [] },
     'node-count':                { flag: 'nodeCount',   siblings: [] },
     'vcpu-ratio':                { flag: 'vcpuRatio',   siblings: [] },
     'node-memory':               { flag: 'memory',      siblings: [] },
@@ -1424,7 +1505,8 @@ const _MANUAL_FIELD_TO_FLAG = {
     'tiered-capacity-disk-count':{ flag: 'diskCount',   siblings: ['capacity-disk-count'] },
     'repair-disk-count':         { flag: 'repairDisks', siblings: ['tiered-repair-disk-count'] },
     'tiered-repair-disk-count':  { flag: 'repairDisks', siblings: ['repair-disk-count'] },
-    'gpu-count':                 { flag: 'gpuCount',    siblings: [] }
+    'gpu-count':                 { flag: 'gpuCount',    siblings: [] },
+    'disagg-rack-count':         { flag: 'rackCount',   siblings: [] }
 };
 
 // Remove a single manual override — clears the flag (and sibling badges that share it), then re-runs auto-scaling
@@ -1434,6 +1516,7 @@ function clearSingleManualOverride(elementId) {
 
     // Reset the corresponding _*UserSet flag
     switch (mapping.flag) {
+        case 'clusterType': _disaggAutoUpgraded  = false; break;
         case 'nodeCount':   _nodeCountUserSet   = false; break;
         case 'vcpuRatio':   _vcpuRatioUserSet   = false; break;
         case 'memory':      _memoryUserSet       = false; break;
@@ -1664,11 +1747,19 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // --- Auto-scale CPU cores (and sockets if needed) ---
     // Skip when the user has manually set CPU cores/sockets (respect user override).
     // For ALDO management clusters, enforce minimum 24 physical cores per node
+    const isLowCapacity = clusterTypeForOverhead === 'low-capacity';
     const aldoMinCores = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_CORES_PER_NODE : 0;
     const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
-    const SOCKET_OPTIONS = [1, 2];
+    const SOCKET_OPTIONS = isLowCapacity ? [1] : [1, 2];
+
+    // Low Capacity: force single socket
+    if (isLowCapacity && sockets > LOW_CAPACITY_MAX_SOCKETS) {
+        sockets = LOW_CAPACITY_MAX_SOCKETS;
+        socketsSelect.value = LOW_CAPACITY_MAX_SOCKETS;
+        changed = true;
+    }
 
     let manufacturer = document.getElementById('cpu-manufacturer').value;
     let genId = document.getElementById('cpu-generation').value;
@@ -1710,11 +1801,17 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             // If still no option is big enough, pick max cores and max sockets
             if (targetCores === null) {
                 targetCores = maxCoresForGen;
-                if (sockets < 2) {
+                if (sockets < 2 && !isLowCapacity) {
                     socketsSelect.value = 2;
                     changed = true;
                     markAutoScaled('cpu-sockets');
                 }
+            }
+
+            // Low Capacity: cap cores at maximum allowed
+            if (isLowCapacity && targetCores > LOW_CAPACITY_MAX_CORES_PER_NODE) {
+                const validCores = generation.coreOptions.filter(c => c <= LOW_CAPACITY_MAX_CORES_PER_NODE);
+                targetCores = validCores.length > 0 ? validCores[validCores.length - 1] : generation.coreOptions[0];
             }
 
             if (targetCores !== currentCores) {
@@ -1741,10 +1838,15 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // In conservative mode (default), cap at 2 TB and let node scaling add nodes instead.
         // For ALDO management clusters, enforce minimum 96 GB per node
         const aldoMinMem = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_MEMORY_GB : 0;
-        const effectiveMinMem = Math.max(requiredMemPerNode, aldoMinMem);
+        const lowCapMinMem = isLowCapacity ? LOW_CAPACITY_MIN_MEMORY_GB : 0;
+        const effectiveMinMem = Math.max(requiredMemPerNode, aldoMinMem, lowCapMinMem);
         let targetMem = MEMORY_OPTIONS_GB.find(m => m >= effectiveMinMem) || MAX_MEMORY_GB;
         if (!allowHighMemory && targetMem > PREFERRED_MEM_CAP_GB) {
             targetMem = PREFERRED_MEM_CAP_GB;
+        }
+        // Low Capacity: enforce maximum memory cap
+        if (isLowCapacity && targetMem > LOW_CAPACITY_MAX_MEMORY_GB) {
+            targetMem = LOW_CAPACITY_MAX_MEMORY_GB;
         }
         if (targetMem !== currentMem) {
             memInput.value = targetMem;
@@ -1790,8 +1892,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         const currentDiskCount = parseInt(diskCountInput.value) || 4;
 
         // Set disk count to the required amount, clamped between min (2) and max for storage type
-        const maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
-        let targetDisks = Math.max(MIN_DISK_COUNT, Math.min(disksNeeded, maxDisksForType));
+        let maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
+        // Low Capacity: enforce reduced disk count cap
+        if (isLowCapacity) maxDisksForType = Math.min(maxDisksForType, LOW_CAPACITY_MAX_DISK_COUNT);
+        const minDisksForType = isLowCapacity ? 1 : MIN_DISK_COUNT;
+        let targetDisks = Math.max(minDisksForType, Math.min(disksNeeded, maxDisksForType));
 
         // --- Disk bay consolidation ---
         // When the required disk count reaches ≥50% of max bays, check if fewer
@@ -2010,9 +2115,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Skip when the user has manually set memory (respect user override).
     if (!_memoryUserSet) {
         const baseMemCap = allowHighMemory ? MAX_MEMORY_GB : PREFERRED_MEM_CAP_GB;
-        const memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
+        let memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
             ? Math.min(NODE_WEIGHT_PREFERRED_MEMORY_GB, baseMemCap)
             : baseMemCap;
+        // Low Capacity: enforce hard memory cap
+        if (isLowCapacity) memCapLimit = Math.min(memCapLimit, LOW_CAPACITY_MAX_MEMORY_GB);
         let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
         let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
         let memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
@@ -2106,6 +2213,9 @@ let isCalculating = false;
 function getSizerState() {
     return {
         clusterType: document.getElementById('cluster-type').value,
+        disaggRackCount: (document.getElementById('disagg-rack-count') || {}).value || null,
+        disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || null,
+        disaggSpineCount: _designerSpineCount || 2,
         nodeCount: document.getElementById('node-count').value,
         nodeCountUserSet: _nodeCountUserSet,
         futureGrowth: document.getElementById('future-growth').value,
@@ -2134,7 +2244,9 @@ function getSizerState() {
         repairDiskCount: document.getElementById('repair-disk-count').value,
         repairDisksUserSet: _repairDisksUserSet,
         workloads: workloads,
-        workloadIdCounter: workloadIdCounter
+        workloadIdCounter: workloadIdCounter,
+        importedProcessorName: window._importedProcessorName || null,
+        importedCoresPerSocket: window._importedCoresPerSocket || null
     };
 }
 
@@ -2201,15 +2313,36 @@ function checkForDesignerImport() {
             clusterTypeSelect.value = payload.clusterType;
         }
 
+        // For disaggregated, apply rack count before updating node options
+        if (payload.clusterType === 'disaggregated' && payload.disaggRackCount) {
+            var rackCountSelect = document.getElementById('disagg-rack-count');
+            if (rackCountSelect) {
+                rackCountSelect.value = String(payload.disaggRackCount);
+            }
+        }
+
         // Trigger cluster type change handlers to update node options, storage, etc.
+        var isDisaggImport = payload.clusterType === 'disaggregated';
         updateNodeOptionsForClusterType();
         updateStorageForClusterType();
+        if (isDisaggImport) updateDisaggregatedUI(true);
         updateResiliencyOptions();
         updateAldoWorkloadButtons();
+        enforceLowCapacityLimits();
 
         // Store physical port count from Designer for 3D rack visualization
         if (payload.ports) {
             _designerPortCount = parseInt(payload.ports, 10) || 4;
+        }
+        // Preserve Designer-chosen spine count (2 or 4) so the Sizer's 3D
+        // visualization and any subsequent Sizer→Designer round-trip keep
+        // the original fabric width.
+        if (payload.spineCount) {
+            _designerSpineCount = parseInt(payload.spineCount, 10) || 2;
+        }
+        if (payload.disaggStorageType) {
+            var storageTypeSelect = document.getElementById('disagg-storage-type');
+            if (storageTypeSelect) storageTypeSelect.value = payload.disaggStorageType;
         }
 
         // Apply node count (after node options are updated for the cluster type)
@@ -2251,10 +2384,11 @@ function checkForDesignerImport() {
         // Build cluster type label for banner
         const clusterLabels = {
             'single': 'Single Node',
-            'standard': 'Standard Cluster',
-            'rack-aware': 'Rack-Aware Cluster',
-            'aldo-mgmt': 'ALDO Management Cluster',
-            'aldo-wl': 'ALDO Workload Cluster'
+            'standard': 'Hyperconverged',
+            'low-capacity': 'Low Capacity',
+            'rack-aware': 'Rack-Aware Instance',
+            'disaggregated': 'Disaggregated Storage',
+            'aldo-mgmt': 'ALDO Management Cluster'
         };
         const typeLabel = clusterLabels[payload.clusterType] || payload.clusterType;
         const nodeLabel = payload.nodeCount === '1' ? '1 node' : (payload.nodeCount + ' nodes');
@@ -2346,8 +2480,17 @@ function resumeSizerState() {
 
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
+    // Restore disaggregated rack count before updating node options
+    if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
+        var rackEl = document.getElementById('disagg-rack-count');
+        if (rackEl) rackEl.value = String(d.disaggRackCount);
+    }
+    if (d.disaggSpineCount) {
+        _designerSpineCount = parseInt(d.disaggSpineCount, 10) || 2;
+    }
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
+    if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '0';
 
@@ -2416,6 +2559,7 @@ function resumeSizerState() {
     // Restore workloads
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
+    // Spine count is always 2 (legacy saves may have had other values)
 
     // Restore all MANUAL override flags
     _nodeCountUserSet = !!d.nodeCountUserSet;
@@ -2466,6 +2610,7 @@ function resumeSizerState() {
 
     // Update UI
     updateAldoWorkloadButtons();
+    enforceLowCapacityLimits();
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
@@ -2489,6 +2634,40 @@ function dismissSizerResumeBanner() {
         banner.style.animation = 'slideUp 0.3s ease';
         setTimeout(() => banner.remove(), 300);
     }
+}
+
+// Show a toast notification in the Sizer
+function showSizerToast(message, type) {
+    // Remove any existing toast
+    var existing = document.getElementById('sizer-toast');
+    if (existing) existing.remove();
+
+    var bgColor = type === 'info' ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))'
+                : type === 'success' ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95))'
+                : type === 'error' ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95))'
+                : 'linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 0.95))';
+
+    var icon = type === 'info' ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M10 9v5M10 6.5v0" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>'
+             : type === 'success' ? '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+             : '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="flex-shrink:0"><circle cx="10" cy="10" r="9" stroke="white" stroke-width="1.5"/><path d="M10 6v5M10 13.5v0" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+    var toast = document.createElement('div');
+    toast.id = 'sizer-toast';
+    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:14px 24px;background:' + bgColor + ';color:white;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:12px;animation:slideDown 0.3s ease;max-width:600px;cursor:pointer;';
+    toast.innerHTML = icon + '<span>' + message + '</span>';
+    toast.onclick = function() {
+        toast.style.animation = 'slideUp 0.3s ease';
+        setTimeout(function() { toast.remove(); }, 300);
+    };
+    document.body.appendChild(toast);
+
+    // Auto-dismiss after 6 seconds
+    setTimeout(function() {
+        if (toast.parentNode) {
+            toast.style.animation = 'slideUp 0.3s ease';
+            setTimeout(function() { toast.remove(); }, 300);
+        }
+    }, 6000);
 }
 
 // ============================================
@@ -2577,7 +2756,8 @@ const RESILIENCY_CONFIG = {
     'simple': { multiplier: 1, minNodes: 1, name: 'Simple (No Fault Tolerance)', singleNodeOnly: true },
     '2way': { multiplier: 2, minNodes: 1, name: 'Two-way Mirror' },
     '3way': { multiplier: 3, minNodes: 3, name: 'Three-way Mirror' },
-    '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' }
+    '4way': { multiplier: 4, minNodes: 4, name: 'Four-way Mirror' },
+    'external': { multiplier: 1, minNodes: 1, name: 'External SAN Storage' }
 };
 
 
@@ -2595,11 +2775,16 @@ function onNodeCountChange() {
     calculateRequirements();
 }
 
-// Handle cluster type change (single / standard / rack-aware)
+// Handle cluster type change (single / standard / rack-aware / disaggregated)
 function onClusterTypeChange() {
     const clusterType = document.getElementById('cluster-type').value;
     const wasAldo = workloads.some(w => w.isAldoFixed);
     const isAldo = clusterType === 'aldo-mgmt';
+    const isDisagg = clusterType === 'disaggregated';
+
+    // Suppress auto-upgrade when user manually selects a cluster type.
+    _disaggAutoUpgraded = true;
+    markManualSet('cluster-type');
 
     // Switching TO aldo-mgmt: clear workloads and add IRVM1
     if (isAldo && !wasAldo) {
@@ -2621,11 +2806,88 @@ function onClusterTypeChange() {
     updateAldoWorkloadButtons();
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
+    updateDisaggregatedUI(isDisagg);
     updateResiliencyOptions();
     updateResiliencyRecommendation();
     updateClusterInfo();
     enforceAldoMinimums();
+    enforceLowCapacityLimits();
     calculateRequirements();
+}
+
+// Handle disaggregated rack count change
+function onDisaggRackCountChange() { // eslint-disable-line no-unused-vars
+    markManualSet('disagg-rack-count');
+    updateNodeOptionsForClusterType();
+    updateDisaggregatedUI(true);
+    calculateRequirements();
+}
+
+// Handle disaggregated storage type change
+function onDisaggStorageTypeChange() { // eslint-disable-line no-unused-vars
+    updateDisaggLegend();
+    calculateRequirements();
+}
+
+// Update legend items for disaggregated vs rack-aware
+function updateDisaggLegend() {
+    var clusterType = document.getElementById('cluster-type').value;
+    var isDisagg = clusterType === 'disaggregated';
+    var storageType = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
+    var smbEl = document.getElementById('legend-smb-trunk');
+    var lagEl = document.getElementById('legend-lag');
+    var fcEl = document.getElementById('legend-fc-switch');
+    var sanEl = document.getElementById('legend-san-appliance');
+    if (smbEl) smbEl.style.display = isDisagg ? 'none' : '';
+    if (lagEl) lagEl.style.display = isDisagg ? 'none' : '';
+    if (fcEl) fcEl.style.display = (isDisagg && storageType === 'fc_san') ? '' : 'none';
+    if (sanEl) sanEl.style.display = isDisagg ? '' : 'none';
+}
+
+// Show/hide disaggregated-specific UI and disable storage fields
+function updateDisaggregatedUI(isDisagg) {
+    // Show/hide rack count row
+    var rackRow = document.getElementById('disagg-rack-count-row');
+    if (rackRow) rackRow.style.display = isDisagg ? '' : 'none';
+
+    // Show/hide storage type row
+    var storageTypeRow = document.getElementById('disagg-storage-type-row');
+    if (storageTypeRow) storageTypeRow.style.display = isDisagg ? '' : 'none';
+
+    // Update legend for disaggregated
+    updateDisaggLegend();
+
+    // Storage section fields to disable
+    var storageFieldIds = [
+        'storage-config', 'storage-tiering',
+        'capacity-disk-count', 'capacity-disk-size', 'repair-disk-count',
+        'cache-disk-count', 'cache-disk-size',
+        'tiered-capacity-disk-count', 'tiered-capacity-disk-size', 'tiered-repair-disk-count'
+    ];
+    var tooltip = isDisagg ? 'External SAN storage is used for workload storage requirements' : '';
+    storageFieldIds.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) {
+            el.disabled = isDisagg;
+            el.title = tooltip;
+            el.style.opacity = isDisagg ? '0.4' : '';
+        }
+    });
+
+    // Storage capacity bar is always visible — styled differently for disaggregated in calculateRequirements()
+
+    // Update HA/DR tip for disaggregated
+    var hadrTip = document.getElementById('hadr-tip');
+    if (hadrTip) {
+        var currentClusterType = document.getElementById('cluster-type').value;
+        if (isDisagg) {
+            hadrTip.querySelector('span').textContent = 'Disaggregated storage: compute nodes use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Configure up to 4 racks with up to 16 nodes each (64 nodes maximum).';
+        } else if (currentClusterType === 'low-capacity') {
+            hadrTip.querySelector('span').textContent = 'Low Capacity: supports 1\u20133 nodes with reduced hardware (max 14 CPU cores, 32\u2013128 GB memory per node). All-flash storage only, no caching. RDMA is optional. See Azure Local documentation for low capacity hardware requirements.';
+        } else {
+            hadrTip.querySelector('span').textContent = 'Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local clusters, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster Deployment Type.';
+        }
+    }
 }
 
 // Enable/disable workload add buttons for ALDO Management Cluster
@@ -2705,13 +2967,139 @@ function enforceAldoMinimums() {
     }
 }
 
+// Enforce Low Capacity deployment type hardware limits
+// Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
+// This function both restricts dropdown options AND clamps current values.
+function enforceLowCapacityLimits() {
+    const clusterType = document.getElementById('cluster-type').value;
+    const isLowCap = clusterType === 'low-capacity';
+
+    // --- CPU Sockets: lock at 1, or restore ---
+    const socketsSelect = document.getElementById('cpu-sockets');
+    if (socketsSelect) {
+        if (isLowCap) {
+            socketsSelect.value = String(LOW_CAPACITY_MAX_SOCKETS);
+            socketsSelect.disabled = true;
+        } else {
+            socketsSelect.disabled = false;
+        }
+    }
+
+    // --- CPU Cores: filter dropdown to ≤14, or restore full list ---
+    const coresSelect = document.getElementById('cpu-cores');
+    if (coresSelect && coresSelect.options.length > 0) {
+        const manufacturer = document.getElementById('cpu-manufacturer').value;
+        const genId = document.getElementById('cpu-generation').value;
+        if (manufacturer && genId) {
+            const generation = CPU_GENERATIONS[manufacturer] &&
+                CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
+            if (generation) {
+                const currentCores = parseInt(coresSelect.value) || 0;
+                const allowedCores = isLowCap
+                    ? generation.coreOptions.filter(c => c <= LOW_CAPACITY_MAX_CORES_PER_NODE)
+                    : generation.coreOptions;
+
+                coresSelect.innerHTML = allowedCores.map(c =>
+                    '<option value="' + c + '">' + c + ' cores</option>'
+                ).join('');
+
+                // Preserve current value if still valid, otherwise pick largest valid
+                if (allowedCores.includes(currentCores)) {
+                    coresSelect.value = currentCores;
+                } else if (allowedCores.length > 0) {
+                    coresSelect.value = allowedCores[allowedCores.length - 1];
+                }
+            }
+        }
+    }
+
+    // --- Memory: filter dropdown to 32–128 GB, or restore full list ---
+    const memSelect = document.getElementById('node-memory');
+    if (memSelect) {
+        const currentMem = parseInt(memSelect.value) || 512;
+        if (isLowCap) {
+            const allowedMem = MEMORY_OPTIONS_GB.filter(
+                m => m >= LOW_CAPACITY_MIN_MEMORY_GB && m <= LOW_CAPACITY_MAX_MEMORY_GB
+            );
+            memSelect.innerHTML = allowedMem.map(m =>
+                '<option value="' + m + '">' + m + ' GB</option>'
+            ).join('');
+            // Pick closest valid value
+            if (allowedMem.includes(currentMem)) {
+                memSelect.value = currentMem;
+            } else {
+                memSelect.value = allowedMem[allowedMem.length - 1]; // default to max allowed
+            }
+        } else {
+            // Restore full memory options (only if currently restricted)
+            if (memSelect.options.length < MEMORY_OPTIONS_GB.length) {
+                memSelect.innerHTML = MEMORY_OPTIONS_GB.map(m =>
+                    '<option value="' + m + '"' + (m === 512 ? ' selected' : '') + '>' + m + ' GB</option>'
+                ).join('');
+                // Preserve current value if it's a valid option
+                if (MEMORY_OPTIONS_GB.includes(currentMem)) {
+                    memSelect.value = currentMem;
+                }
+            }
+        }
+    }
+
+    // --- Disk Count: filter dropdown to 1–2, or restore full list ---
+    const diskCountSelect = document.getElementById('capacity-disk-count');
+    if (diskCountSelect) {
+        const currentCount = parseInt(diskCountSelect.value) || 4;
+        if (isLowCap) {
+            const maxCount = LOW_CAPACITY_MAX_DISK_COUNT;
+            var diskOpts = '';
+            for (var d = 1; d <= maxCount; d++) {
+                diskOpts += '<option value="' + d + '">' + d + '</option>';
+            }
+            diskCountSelect.innerHTML = diskOpts;
+            diskCountSelect.value = Math.min(currentCount, maxCount);
+            if (!diskCountSelect.value || diskCountSelect.selectedIndex < 0) {
+                diskCountSelect.value = maxCount;
+            }
+        } else {
+            // Restore full disk count options (only if currently restricted)
+            if (diskCountSelect.options.length < (MAX_DISK_COUNT - MIN_DISK_COUNT + 1)) {
+                var fullDiskOpts = '';
+                for (var d2 = MIN_DISK_COUNT; d2 <= MAX_DISK_COUNT; d2++) {
+                    fullDiskOpts += '<option value="' + d2 + '"' + (d2 === 4 ? ' selected' : '') + '>' + d2 + '</option>';
+                }
+                diskCountSelect.innerHTML = fullDiskOpts;
+                if (currentCount >= MIN_DISK_COUNT && currentCount <= MAX_DISK_COUNT) {
+                    diskCountSelect.value = currentCount;
+                }
+            }
+        }
+    }
+
+    if (!isLowCap) return;
+
+    // --- GPU VRAM limit (192 GB per node) ---
+    const gpuCountEl = document.getElementById('gpu-count');
+    const gpuTypeEl = document.getElementById('gpu-type');
+    if (gpuCountEl && gpuTypeEl) {
+        const gpuCount = parseInt(gpuCountEl.value) || 0;
+        const gpuType = gpuTypeEl.value;
+        const gpuModel = GPU_MODELS[gpuType];
+        if (gpuModel && gpuCount > 0) {
+            const totalVram = gpuModel.vramGB * gpuCount;
+            if (totalVram > LOW_CAPACITY_MAX_GPU_VRAM_GB) {
+                const maxGpus = Math.floor(LOW_CAPACITY_MAX_GPU_VRAM_GB / gpuModel.vramGB);
+                gpuCountEl.value = Math.max(0, maxGpus);
+            }
+        }
+    }
+}
+
 // Enforce storage constraints based on cluster type
 function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
     if (!storageSelect) return; // Guard for test harness
-    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt') {
-        // Rack-aware, single-node, and ALDO management require all-flash
+    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt' || clusterType === 'disaggregated' || clusterType === 'low-capacity') {
+        // Rack-aware, single-node, low-capacity, ALDO management, and disaggregated require all-flash (or external SAN)
         storageSelect.value = 'all-flash';
         storageSelect.disabled = true;
         onStorageConfigChange();
@@ -2734,8 +3122,8 @@ function updateResiliencyRecommendation() {
     const clusterType = document.getElementById('cluster-type').value;
     const nodeCount = parseInt(document.getElementById('node-count').value) || 3;
     const resiliency = document.getElementById('resiliency').value;
-    // Show warning only for standard or aldo-wl clusters with 3+ nodes that chose 2-way mirror
-    el.style.display = ((clusterType === 'standard' || clusterType === 'aldo-wl') && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
+    // Show warning only for standard clusters with 3+ nodes that chose 2-way mirror
+    el.style.display = (clusterType === 'standard' && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
 }
 
 // Update node count options based on cluster type
@@ -2775,6 +3163,51 @@ function updateNodeOptionsForClusterType() {
         } else {
             nodeSelect.value = 8;
         }
+    } else if (clusterType === 'disaggregated') {
+        // Disaggregated: nodes per rack, label shows "per rack".
+        // Per-rack maximum matches the Designer: min(16, floor(64 / rackCount))
+        // so total nodes stay within the 64-node cluster cap across 1–8 racks.
+        nodeSelect.disabled = false;
+        var rackCountEl = document.getElementById('disagg-rack-count');
+        var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
+        var maxPerRack = getDisaggMaxNodesPerRack(rackCount);
+        var nodeOptions = [];
+        for (var n = 1; n <= maxPerRack; n++) nodeOptions.push(n);
+        nodeSelect.innerHTML = nodeOptions.map(function (n) {
+            var total = n * rackCount;
+            return '<option value="' + total + '">' + n + ' Nodes per Rack (' + total + ' total)</option>';
+        }).join('');
+        // Preserve closest valid value
+        var closestTotal = Math.min(Math.max(currentValue, rackCount), maxPerRack * rackCount);
+        // Snap to a multiple of rackCount
+        closestTotal = Math.round(closestTotal / rackCount) * rackCount;
+        if (closestTotal < rackCount) closestTotal = rackCount;
+        if (closestTotal > maxPerRack * rackCount) closestTotal = maxPerRack * rackCount;
+        nodeSelect.value = closestTotal;
+        // If exact match not found, pick closest
+        if (!nodeSelect.value || nodeSelect.selectedIndex < 0) {
+            nodeSelect.selectedIndex = 0;
+        }
+        // Update label to say "Nodes per Rack"
+        var nodeLabel = document.querySelector('label[for="node-count"]');
+        if (nodeLabel) nodeLabel.textContent = 'Nodes per Rack';
+    } else if (clusterType === 'low-capacity') {
+        // Low Capacity: 1-3 nodes
+        nodeSelect.disabled = false;
+        const nodeOptions = [1, 2, 3];
+        nodeSelect.innerHTML = nodeOptions.map(n => {
+            let label = `${n} Node${n > 1 ? 's' : ''}`;
+            if (n === 1) label += ' (Minimum)';
+            if (n === 3) label += ' (Maximum for Low Capacity)';
+            return `<option value="${n}">${label}</option>`;
+        }).join('');
+
+        // Preserve current value if valid, otherwise default to 1
+        if (nodeOptions.includes(currentValue)) {
+            nodeSelect.value = currentValue;
+        } else {
+            nodeSelect.value = currentValue > 3 ? 3 : 1;
+        }
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
@@ -2788,6 +3221,12 @@ function updateNodeOptionsForClusterType() {
             nodeSelect.value = 2;
         }
     }
+
+    // Reset node label back to default for non-disaggregated types
+    if (clusterType !== 'disaggregated') {
+        var nodeLabel = document.querySelector('label[for="node-count"]');
+        if (nodeLabel) nodeLabel.textContent = 'Number of Physical Nodes';
+    }
 }
 
 // Update resiliency options based on cluster type and node count
@@ -2800,11 +3239,16 @@ function updateResiliencyOptions() {
     // Build resiliency options based on cluster type and node count
     let options = '';
     
-    if (clusterType === 'single') {
+    if (clusterType === 'single' || (clusterType === 'low-capacity' && nodeCount === 1)) {
         // Single node: only simple and 2-way mirror available
         options = `
             <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
             <option value="2way">Two-way Mirror (2+ drives, single fault tolerance)</option>
+        `;
+    } else if (clusterType === 'disaggregated') {
+        // Disaggregated: external SAN storage — no S2D resiliency applies
+        options = `
+            <option value="external">External SAN Storage (resiliency managed by SAN)</option>
         `;
     } else if (clusterType === 'aldo-mgmt') {
         // ALDO Management: fixed 3 nodes, three-way mirror only
@@ -2841,7 +3285,7 @@ function updateResiliencyOptions() {
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
     if (clusterType === 'rack-aware') {
         // Rack-aware has only one option per node count — already selected
-    } else if (clusterType === 'single') {
+    } else if (clusterType === 'single' || (clusterType === 'low-capacity' && nodeCount === 1)) {
         // Single node: default to 2-way mirror for fault tolerance
         resiliencySelect.value = '2way';
     } else if (clusterType === 'aldo-mgmt') {
@@ -2867,7 +3311,7 @@ function updateClusterInfo() {
     let showWarning = false;
     let message = '';
     
-    if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && resiliency === '3way' && nodeCount < config.minNodes) {
+    if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && clusterType !== 'low-capacity' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
         message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
     }
@@ -2886,13 +3330,13 @@ function updateNodeTip() {
     const tipText = document.getElementById('node-n1-tip-text');
     
     if (clusterType === 'single') {
-        tipText.textContent = 'Tip: Single node clusters will always incur workload downtime during updates. No N+1 capacity is available.';
+        tipText.textContent = 'Tip: Single node instances will always incur workload downtime during updates. No N+1 capacity is available.';
     } else if (clusterType === 'aldo-mgmt') {
         tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
-    } else if (clusterType === 'aldo-wl') {
-        tipText.textContent = 'Tip: ALDO Workload Cluster is used for disconnected operations workloads. N+1 capacity is reserved for maintenance (ability to drain a node during servicing).';
+    } else if (clusterType === 'low-capacity') {
+        tipText.textContent = 'Tip: Low Capacity supports 1\u20133 nodes with reduced hardware specifications (max 14 CPU cores, max 128 GB memory per node). Single node deployments will incur workload downtime during updates.';
     } else {
-        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node clusters will always incur workload downtime during updates.';
+        tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node instances will always incur workload downtime during updates.';
     }
     tipDiv.style.display = 'flex';
 }
@@ -2947,6 +3391,10 @@ function closeModal() {
 function getVMModalContent() {
     const defaults = WORKLOAD_DEFAULTS.vm;
     return `
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/azure/azure-local/manage/azure-arc-vm-management-overview#limitations-of-azure-local-vm-management" target="_blank" style="color: var(--link-color);">Azure Local VM management - Overview &amp; limitations</a>
+        </div>
         <div class="form-group">
             <label>Input Mode
                 <span class="info-icon" title="Per VM: specify resources per VM and multiply by count. Total: enter aggregate vCPU, memory, and storage totals directly.">ⓘ</span>
@@ -3014,6 +3462,10 @@ function toggleVMInputMode() {
 function getAKSModalContent() {
     const defaults = WORKLOAD_DEFAULTS.aks;
     return `
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/scale-requirements" target="_blank" style="color: var(--link-color);">AKS Arc on Azure Local - Scale requirements &amp; limits</a>
+        </div>
         <div class="form-group">
             <label>Workload Name</label>
             <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production AKS">
@@ -3041,6 +3493,11 @@ function getAKSModalContent() {
             <label>Memory per Node (GB)</label>
             <input type="number" id="aks-cp-memory" value="${defaults.controlPlaneMemory}" min="4" max="128">
         </div>
+        <div class="form-group">
+            <label>OS Disk per Node (GB)</label>
+            <input type="number" id="aks-cp-storage" value="200" disabled style="opacity: 0.5;" title="Fixed 200 GB dynamically expanding virtual hard disk per AKS Arc node (since Azure Local 2509)">
+            <span class="hint">Fixed 200 GB dynamically expanding virtual hard disk — <a href="https://learn.microsoft.com/azure/aks/aksarc/scale-requirements#default-values-for-virtual-machine-sizes:~:text=the%20default%20OS%20disk%20size%20for%20VMs%20used%20as%20AKS%20Arc%20nodes%20is%20set%20to%20200%20GB" target="_blank" style="color: var(--link-color);">learn more</a></span>
+        </div>
         <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">Worker Nodes (per cluster)</h4>
         <div class="form-row">
             <div class="form-group">
@@ -3058,9 +3515,16 @@ function getAKSModalContent() {
                 <input type="number" id="aks-worker-memory" value="${defaults.workerMemory}" min="4" max="256">
             </div>
             <div class="form-group">
-                <label>Storage per Node (GB)</label>
-                <input type="number" id="aks-worker-storage" value="${defaults.workerStorage}" min="50" max="4000">
+                <label>Data Storage per Node (GB)
+                    <span class="info-icon" title="Additional data disk capacity per worker node (on top of the fixed 200 GB OS disk).">&#9432;</span>
+                </label>
+                <input type="number" id="aks-worker-storage" value="${defaults.workerStorage}" min="0" max="4000">
             </div>
+        </div>
+        <div class="form-group" style="margin-top: 8px;">
+            <label>OS Disk per Worker Node (GB)</label>
+            <input type="number" value="200" disabled style="opacity: 0.5;" title="Fixed 200 GB dynamically expanding virtual hard disk per AKS Arc node (since Azure Local 2509)">
+            <span class="hint">Fixed 200 GB dynamically expanding virtual hard disk — <a href="https://learn.microsoft.com/azure/aks/aksarc/scale-requirements#default-values-for-virtual-machine-sizes:~:text=the%20default%20OS%20disk%20size%20for%20VMs%20used%20as%20AKS%20Arc%20nodes%20is%20set%20to%20200%20GB" target="_blank" style="color: var(--link-color);">learn more</a></span>
         </div>
         ${getGpuRequirementFields('aks')}
     `;
@@ -3072,6 +3536,10 @@ function getAVDModalContent() {
     const medSpecs = AVD_PROFILES.medium.multi;
     const custSpecs = AVD_PROFILES.custom.multi;
     return `
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/azure/virtual-desktop/azure-local-overview#supported-deployment-configurations" target="_blank" style="color: var(--link-color);">Azure Virtual Desktop for Azure Local - Supported configurations</a>
+        </div>
         <div class="form-group">
             <label>Workload Name</label>
             <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Corporate AVD">
@@ -3602,12 +4070,13 @@ function calculateWorkloadRequirements(w) {
             // Control plane requirements per cluster
             const cpVcpus = w.controlPlaneNodes * w.controlPlaneVcpus;
             const cpMemory = w.controlPlaneNodes * w.controlPlaneMemory;
-            const cpStorage = w.controlPlaneNodes * 100; // ~100GB per CP node
+            const AKS_OS_DISK_GB = 200; // Fixed OS disk size per AKS Arc node (since Azure Local 2509)
+            const cpStorage = w.controlPlaneNodes * AKS_OS_DISK_GB;
             
             // Worker requirements per cluster
             const workerVcpus = w.workerNodes * w.workerVcpus;
             const workerMemory = w.workerNodes * w.workerMemory;
-            const workerStorage = w.workerNodes * w.workerStorage;
+            const workerStorage = w.workerNodes * (AKS_OS_DISK_GB + w.workerStorage); // OS disk + data storage
             
             // Total for all clusters
             vcpus = (cpVcpus + workerVcpus) * w.clusterCount;
@@ -3823,7 +4292,7 @@ function calculateRequirements(options) {
             // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
             if (clusterType !== 'single' && clusterType !== 'aldo-mgmt' && !skipAutoNodeRecommend) {
-                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : (clusterType === 'low-capacity' ? [1, 2, 3] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
                 let attempts = 0;
@@ -3902,6 +4371,37 @@ function calculateRequirements(options) {
                 // When conservative scaling succeeded, skip this pass to avoid unnecessary
                 // memory/ratio escalation (e.g. bumping from 2 TB to 3 TB for headroom).
                 if (!conservativeSuccess) {
+
+                // --- Prefer disaggregated upgrade over aggressive memory/ratio escalation ---
+                // When we've hit 16-node max on a standard cluster, try adding more nodes
+                // via disaggregated BEFORE resorting to expensive 3-4 TB DIMMs or high ratios.
+                if (clusterType === 'standard' && !_disaggAutoUpgraded && nodeCount >= 16) {
+                    var disaggRec = getRecommendedNodeCount(
+                        totalVcpus, totalMemory, totalStorage,
+                        hwConfig, resiliencyMultiplier, resiliency, totalGpus
+                    );
+                    var estimatedNodes = disaggRec ? Math.max(disaggRec.recommended, nodeCount) : nodeCount;
+                    var minRacks = Math.min(4, Math.max(1, Math.ceil(estimatedNodes / 16)));
+
+                    _disaggAutoUpgraded = true;
+                    document.getElementById('cluster-type').value = 'disaggregated';
+                    markAutoScaled('cluster-type');
+                    var rackEl = document.getElementById('disagg-rack-count');
+                    if (rackEl) rackEl.value = String(minRacks);
+                    updateNodeOptionsForClusterType();
+                    updateStorageForClusterType();
+                    updateResiliencyOptions();
+                    updateClusterInfo();
+                    updateDisaggregatedUI(true);
+                    _nodeCountUserSet = false;
+
+                    showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+
+                    isCalculating = false;
+                    calculateRequirements();
+                    return;
+                }
+
                 const aggressiveChanged = autoScaleHardware(
                     totalVcpus, totalMemory, totalStorage, nodeCount,
                     resiliencyMultiplier, hwConfig, previouslyAutoScaled,
@@ -4055,25 +4555,67 @@ function calculateRequirements(options) {
         const perNodeStorageRaw = (totalStorage / 1000) * resiliencyMultiplier / nodeCount; // TB raw per node
         const perNodeUsable = totalStorage / 1000 / nodeCount; // TB usable per node (storage accessible during drain)
 
+        // Determine if disaggregated for storage display logic
+        var isDisaggPerNode = document.getElementById('cluster-type').value === 'disaggregated';
+        // SAN overhead: Infrastructure_1 (256 GB) + PerformanceHistory (20 GB), once per instance
+        var sanInfraOverheadForDisplay = 0.27; // 0.25 + 0.02 TB
+        var sanTotalTB = (totalStorage / 1000) + sanInfraOverheadForDisplay;
+
         // Update total requirement cards
         document.getElementById('total-vcpus').textContent = totalVcpus;
         document.getElementById('total-memory').textContent = totalMemory + ' GB';
-        document.getElementById('total-storage').textContent = (totalStorage / 1000).toFixed(2) + ' TB';
+        // For disaggregated, include infra volume overhead in total storage display
+        var totalStorageDisplayTB = isDisaggPerNode ? sanTotalTB : (totalStorage / 1000);
+        document.getElementById('total-storage').textContent = totalStorageDisplayTB.toFixed(2) + ' TB';
         document.getElementById('total-workloads').textContent = workloads.length;
 
         // Update per-node requirement cards
         document.getElementById('per-node-cores').textContent = perNodeCores || 0;
         document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
-        document.getElementById('per-node-storage').textContent = perNodeStorageRaw.toFixed(2) + ' TB';
-        document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
+
+        // For disaggregated, show SAN storage requirement instead of per-node raw/usable
+        var perNodeStorageLabel = document.getElementById('per-node-storage-label');
+        var perNodeUsableLabel = document.getElementById('per-node-usable-label');
+        var perNodeUsableSection = document.getElementById('per-node-usable-section');
+        if (isDisaggPerNode) {
+            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'SAN Storage Required (Total)';
+            document.getElementById('per-node-storage').textContent = sanTotalTB.toFixed(2) + ' TB';
+            if (perNodeUsableSection) perNodeUsableSection.style.display = 'none';
+        } else {
+            if (perNodeStorageLabel) perNodeStorageLabel.textContent = 'Raw Storage';
+            if (perNodeUsableLabel) perNodeUsableLabel.textContent = 'Usable Storage';
+            document.getElementById('per-node-storage').textContent = perNodeStorageRaw.toFixed(2) + ' TB';
+            document.getElementById('per-node-usable').textContent = perNodeUsable.toFixed(2) + ' TB';
+            if (perNodeUsableSection) perNodeUsableSection.style.display = '';
+        }
 
         // --- Capacity bars from hardware config ---
         // Physical Nodes bar
         const clusterType = document.getElementById('cluster-type').value;
-        const MAX_NODES = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : clusterType === 'aldo-mgmt' ? 3 : 16;
+        var MAX_NODES;
+        if (clusterType === 'disaggregated') {
+            MAX_NODES = 64; // Always show max 64 for disaggregated (4 racks × 16 nodes)
+        } else if (clusterType === 'rack-aware') {
+            MAX_NODES = 8;
+        } else if (clusterType === 'single') {
+            MAX_NODES = 1;
+        } else if (clusterType === 'aldo-mgmt') {
+            MAX_NODES = 3;
+        } else {
+            MAX_NODES = 16;
+        }
         const nodesPercent = Math.round((nodeCount / MAX_NODES) * 100);
         document.getElementById('nodes-count-label').textContent = nodeCount + ' / ' + MAX_NODES;
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
+        var nodesBarLabel = document.getElementById('nodes-bar-label');
+        if (nodesBarLabel) {
+            nodesBarLabel.textContent = clusterType === 'disaggregated' ? 'Azure Local disaggregated instance size' : 'Azure Local hyperconverged instance size';
+        }
+        const isDisaggregated = clusterType === 'disaggregated';
+        var storageLabelEl = document.getElementById('total-storage-label');
+        if (storageLabelEl) {
+            storageLabelEl.textContent = isDisaggregated ? 'External SAN Storage Required' : 'Total Storage';
+        }
 
         const physicalCoresPerNode = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
         const memoryPerNode = hwConfig.memoryGB || 512;
@@ -4092,7 +4634,8 @@ function calculateRequirements(options) {
         // S2D repair reservation: min(nodeCount, 4) capacity disks reserved from pool raw space
         const capacityDiskSizeGB = (hwConfig.diskConfig.capacity ? hwConfig.diskConfig.capacity.sizeGB : 0);
         const s2dRepairReservedTB = getS2dRepairReservedGB(nodeCount, capacityDiskSizeGB) / 1024;
-        const totalAvailableStorage = Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
+
+        const totalAvailableStorage = isDisaggregated ? 0 : Math.max((rawStoragePerNodeTB * nodeCount) / resiliencyMultiplier - infraVolumeUsableTB - s2dRepairReservedTB / resiliencyMultiplier, 0);
 
         const computePercent = Math.min(100, Math.round((totalVcpus / totalAvailableVcpus) * 100)) || 0;
         const memoryPercent = Math.min(100, Math.round((totalMemory / totalAvailableMemory) * 100)) || 0;
@@ -4112,6 +4655,21 @@ function calculateRequirements(options) {
         document.getElementById('storage-fill').style.width = storagePercent + '%';
         document.getElementById('storage-used').textContent = (totalStorage / 1000).toFixed(1);
         document.getElementById('storage-total').textContent = totalAvailableStorage.toFixed(1);
+
+        // Update storage bar label and style for disaggregated (SAN requirement, not utilization)
+        var storageBarLabel = document.getElementById('storage-bar-label');
+        if (isDisaggregated) {
+            var sanStorageTBDisplay = sanTotalTB.toFixed(1);
+            if (storageBarLabel) storageBarLabel.textContent = 'SAN Storage — Usable Capacity Required';
+            document.getElementById('storage-percent').textContent = sanStorageTBDisplay + ' TB';
+            document.getElementById('storage-fill').style.width = workloads.length > 0 ? '100%' : '0%';
+            document.getElementById('storage-fill').className = 'breakdown-fill storage san-storage';
+            document.getElementById('storage-used').textContent = sanStorageTBDisplay;
+            document.getElementById('storage-total').textContent = 'External SAN';
+        } else {
+            if (storageBarLabel) storageBarLabel.textContent = 'Usable Storage - Consumed';
+            document.getElementById('storage-fill').className = 'breakdown-fill storage';
+        }
 
         // --- GPU Capacity Bar ---
         const gpuCountPerNode = hwConfig.gpuCount || 0;
@@ -4141,23 +4699,27 @@ function calculateRequirements(options) {
         const UTILIZATION_THRESHOLD = 90;
         document.getElementById('compute-fill').classList.toggle('over-threshold', computePercent >= UTILIZATION_THRESHOLD);
         document.getElementById('memory-fill').classList.toggle('over-threshold', memoryPercent >= UTILIZATION_THRESHOLD);
-        document.getElementById('storage-fill').classList.toggle('over-threshold', storagePercent >= UTILIZATION_THRESHOLD);
+        document.getElementById('storage-fill').classList.toggle('over-threshold', !isDisaggregated && storagePercent >= UTILIZATION_THRESHOLD);
 
-        // Show/hide utilization warning banner (include GPU)
-        const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storagePercent >= UTILIZATION_THRESHOLD || (gpuCountPerNode > 0 && totalGpus > 0 && gpuPercent >= UTILIZATION_THRESHOLD)) && workloads.length > 0;
+        // Show/hide utilization warning banner (include GPU, exclude storage for disaggregated)
+        var storageOverThreshold = !isDisaggregated && storagePercent >= UTILIZATION_THRESHOLD;
+        const anyOverThreshold = (computePercent >= UTILIZATION_THRESHOLD || memoryPercent >= UTILIZATION_THRESHOLD || storageOverThreshold || (gpuCountPerNode > 0 && totalGpus > 0 && gpuPercent >= UTILIZATION_THRESHOLD)) && workloads.length > 0;
         const warningBanner = document.getElementById('capacity-utilization-warning');
         if (warningBanner) {
             warningBanner.style.display = anyOverThreshold ? 'flex' : 'none';
         }
 
         // Show/hide manual-override capacity warning
-        updateManualOverrideWarning(computePercent, memoryPercent, storagePercent);
+        updateManualOverrideWarning(computePercent, memoryPercent, isDisaggregated ? 0 : storagePercent);
 
         // --- Power & Rack Space Estimates ---
         updatePowerRackEstimates(nodeCount, hwConfig);
 
         // Update sizing notes
         updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, resiliency, hwConfig, totalGpus, effectiveNodes);
+
+        // Update capacity runway projection
+        updateGrowthProjection(totalVcpus, totalMemory, totalStorage, totalGpus, nodeCount, hwConfig, effectiveNodes);
 
         // Auto-save state after every calculation (skip during initial page load)
         if (!isInitialLoad) {
@@ -4188,6 +4750,9 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             renderRack3D({
                 clusterType: document.getElementById('cluster-type').value || 'standard',
                 nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
+                disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
+                disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
+                spineCount: _designerSpineCount || 2,
                 hasGpu: false,
                 gpuModel: '',
                 perNodeWatts: 0,
@@ -4239,23 +4804,159 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         if (gpuModel) gpuPowerW = gpuModel.tdpW * hwConfig.gpuCount;
     }
 
-    // Motherboard, fans, PSU efficiency loss, NICs, BMC: ~150W baseline
-    const baseOverheadW = 150;
+    // Motherboard, fans, NICs, BMC: ~100W baseline (excludes PSU efficiency loss)
+    const baseOverheadW = 100;
 
-    const perNodeW = cpuPowerW + memPowerW + diskPowerW + osDiskPowerW + gpuPowerW + baseOverheadW;
-    const totalW = perNodeW * nodeCount;
+    // Component power (DC) before PSU efficiency
+    const componentPowerW = cpuPowerW + memPowerW + diskPowerW + osDiskPowerW + gpuPowerW + baseOverheadW;
+
+    // PSU efficiency: 80 Plus Titanium at ~50% load ≈ 96% efficiency (17th gen 2U servers)
+    // Wall power = component power / efficiency
+    const psuEfficiency = 0.96;
+    const perNodeW = Math.round(componentPowerW / psuEfficiency);
+    var totalNodeW = perNodeW * nodeCount;
+
+    // Network infrastructure power (switches, spine switches)
+    var infraPowerW = 0;
+    var infraPowerNote = '';
+    var clusterType = document.getElementById('cluster-type').value;
+    if (clusterType === 'disaggregated') {
+        var drc = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
+        var dst = (document.getElementById('disagg-storage-type') || {}).value || 'fc_san';
+        var spineCount = 2;
+        // ToR/Leaf switches: ~250W each (Cisco 93180YC-FX class)
+        var torSwitchPower = 250;
+        var torCount = drc * 2;
+        // BMC switches: ~150W each (Cisco 9348GC class)
+        var bmcSwitchPower = 150;
+        var bmcCount = drc;
+        // FC switches: ~200W each (if FC SAN)
+        var fcSwitchPower = (dst === 'fc_san') ? 200 : 0;
+        var fcCount = (dst === 'fc_san') ? drc * 2 : 0;
+        // Spine switches: ~350W each
+        var spineSwitchPower = 350;
+        infraPowerW = (torCount * torSwitchPower) + (bmcCount * bmcSwitchPower) + (fcCount * fcSwitchPower) + (spineCount * spineSwitchPower);
+        infraPowerNote = torCount + '× ToR (' + torSwitchPower + 'W), ' + bmcCount + '× BMC (' + bmcSwitchPower + 'W)';
+        if (fcCount > 0) infraPowerNote += ', ' + fcCount + '× FC (' + fcSwitchPower + 'W)';
+        infraPowerNote += ', ' + spineCount + '× Spine (' + spineSwitchPower + 'W)';
+    } else if (nodeCount > 1) {
+        // Standard/Rack-Aware: 2 × ToR switches (~250W each)
+        infraPowerW = 2 * 250;
+    }
+
+    const totalW = totalNodeW + infraPowerW;
     const totalBtu = Math.round(totalW * 3.412); // 1W ≈ 3.412 BTU/hr
 
-    // Rack units: 2U per node + 2 × ToR switches (1U each) for multi-node clusters
-    const torSwitchUnits = nodeCount > 1 ? 2 : 0; // 2 × 1U ToR switches
-    const rackUnits = (nodeCount * 2) + torSwitchUnits;
+    // Rack units: 2U per node + switches per rack
+    var rackUnits;
+    var rackUnitLabel;
+    if (clusterType === 'disaggregated') {
+        var torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
+        var bmcPerRack = 1; // 1 × 1U BMC switch per rack
+        var fcPerRack = (dst === 'fc_san') ? 2 : 0; // 2 × 1U FC switches per rack (FC only)
+        var sanPerRack = 5; // 5U SAN appliance per rack
+        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack + sanPerRack;
+        rackUnits = (nodeCount * 2) + (drc * switchesPerRack);
+        var rackDetail = 'across ' + drc + ' racks, incl. ' + (drc * torPerRack) + ' \u00d7 ToR, ' + drc + ' \u00d7 BMC' + (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + ' \u00d7 FC' : '') + ', ' + drc + ' \u00d7 SAN switches';
+        rackUnitLabel = rackUnits + 'U <span style="font-size: 0.75em; opacity: 0.7;">(' + rackDetail + ')</span>';
+    } else {
+        var torSwitchUnits = nodeCount > 1 ? 2 : 0; // 2 × 1U ToR switches
+        rackUnits = (nodeCount * 2) + torSwitchUnits;
+        rackUnitLabel = rackUnits + 'U';
+    }
 
     // Update DOM
     document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' Watts';
     document.getElementById('power-total').textContent = totalW.toLocaleString() + ' Watts';
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
-    document.getElementById('rack-units').textContent = rackUnits + 'U';
+    document.getElementById('rack-units').innerHTML = rackUnitLabel;
+
+    // Update rack units label
+    var rackUnitsLabelEl = document.getElementById('rack-units-label');
+    if (rackUnitsLabelEl) {
+        rackUnitsLabelEl.textContent = clusterType === 'disaggregated'
+            ? 'Rack Units (est.)'
+            : (nodeCount > 1 ? 'Rack Units (est., incl. 2 \u00d7 ToR switches)' : 'Rack Units (est.)');
+    }
+
+    // Infrastructure power breakdown note
+    var infraNoteEl = document.getElementById('power-infra-note');
+    if (infraNoteEl) {
+        if (clusterType === 'disaggregated' && infraPowerNote) {
+            infraNoteEl.innerHTML = '<strong>Network infrastructure power:</strong> ' + infraPowerW.toLocaleString() + ' W (' + infraPowerNote + ') included in total.'
+                + '<br><strong>Note:</strong> SAN storage appliance power is <em>not included</em> in the estimate above \u2014 consult your SAN vendor for storage array power requirements.';
+            infraNoteEl.style.display = '';
+        } else {
+            infraNoteEl.style.display = 'none';
+        }
+    }
+
     section.style.display = 'block';
+
+    // Populate Advanced Detail breakdown
+    var detailEl = document.getElementById('power-detail-content');
+    if (detailEl) {
+        var lines = [];
+        lines.push('<strong>Per-Node Component Power (DC):</strong>');
+        lines.push('CPU: ' + sockets + ' × ' + cpuTdp + 'W TDP = <strong>' + cpuPowerW + 'W</strong>');
+        if (hwConfig.generation && hwConfig.generation.maxCores && hwConfig.coresPerSocket) {
+            lines.push('&nbsp;&nbsp;&nbsp;↳ ' + hwConfig.coresPerSocket + '/' + hwConfig.generation.maxCores + ' cores × ' + maxTdp + 'W max TDP (40% base + 60% proportional)');
+        }
+        lines.push('Memory: ' + dimmCount + ' DIMMs × 4W = <strong>' + memPowerW + 'W</strong> (' + memoryGB + ' GB ÷ 32 GB/DIMM)');
+        lines.push('Data disks: <strong>' + diskPowerW + 'W</strong> (NVMe/SSD: 8W each, HDD: 12W each)');
+        lines.push('Boot disks: 2 × 8W = <strong>' + osDiskPowerW + 'W</strong> (M.2 boot drives)');
+        if (gpuPowerW > 0) {
+            var gpuName = hwConfig.gpuType ? (GPU_MODELS[hwConfig.gpuType] ? GPU_MODELS[hwConfig.gpuType].name : hwConfig.gpuType) : '';
+            var gpuTdpEach = GPU_MODELS[hwConfig.gpuType] ? GPU_MODELS[hwConfig.gpuType].tdpW : 0;
+            lines.push('GPU: ' + hwConfig.gpuCount + ' × ' + gpuTdpEach + 'W (' + gpuName + ') = <strong>' + gpuPowerW + 'W</strong>');
+        }
+        lines.push('Base overhead: <strong>' + baseOverheadW + 'W</strong> (fans, motherboard, NICs, BMC)');
+        lines.push('');
+        lines.push('<strong>Component total (DC): ' + componentPowerW + 'W</strong>');
+        lines.push('');
+        lines.push('<strong>PSU Efficiency:</strong> 80 Plus Titanium @ ~50% load = ' + Math.round(psuEfficiency * 100) + '%');
+        lines.push('Wall power per node: ' + componentPowerW + 'W ÷ ' + psuEfficiency + ' = <strong>' + perNodeW + 'W</strong>');
+        lines.push('');
+        lines.push('<strong>Instance Total:</strong>');
+        lines.push('Nodes: ' + nodeCount + ' × ' + perNodeW + 'W = ' + totalNodeW.toLocaleString() + 'W');
+        if (infraPowerW > 0) {
+            lines.push('');
+            lines.push('<strong>Network Infrastructure Power:</strong>');
+            if (clusterType === 'disaggregated') {
+                lines.push('ToR/Leaf switches: ' + torCount + ' × ' + torSwitchPower + 'W = ' + (torCount * torSwitchPower).toLocaleString() + 'W');
+                lines.push('BMC switches: ' + bmcCount + ' × ' + bmcSwitchPower + 'W = ' + (bmcCount * bmcSwitchPower).toLocaleString() + 'W');
+                if (fcCount > 0) {
+                    lines.push('FC switches: ' + fcCount + ' × ' + fcSwitchPower + 'W = ' + (fcCount * fcSwitchPower).toLocaleString() + 'W');
+                }
+                lines.push('Spine switches: ' + spineCount + ' × ' + spineSwitchPower + 'W = ' + (spineCount * spineSwitchPower).toLocaleString() + 'W');
+                lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+            } else {
+                lines.push('ToR switches: 2 × 250W = <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+            }
+        }
+        lines.push('');
+        lines.push('Total wall power: <strong>' + totalW.toLocaleString() + 'W</strong>');
+        lines.push('BTU/hr: ' + totalW.toLocaleString() + 'W × 3.412 = <strong>' + totalBtu.toLocaleString() + ' BTU/hr</strong>');
+        if (clusterType === 'disaggregated') {
+            lines.push('');
+            lines.push('<strong>⚠️ Note:</strong> SAN storage appliance/array power is <em>not included</em> in the estimate above — consult your SAN vendor for storage array power requirements.');
+        }
+        if (gpuPowerW === 0) {
+            lines.push('');
+            lines.push('<em>No GPUs configured. GPU power will be added when GPU acceleration is enabled on a workload.</em>');
+        }
+        lines.push('');
+        lines.push('<strong>Assumptions:</strong>');
+        lines.push('• CPU TDP scaled by core count: 40% base (uncore, memory controller, PCIe, I/O) + 60% proportional to active cores');
+        lines.push('• Memory: ~4W per DIMM, 1 DIMM per 32 GB (DDR5 RDIMM)');
+        lines.push('• NVMe/SSD: ~8W per drive, HDD: ~12W per drive');
+        lines.push('• Boot: 2 × M.2 boot drives at ~8W each');
+        lines.push('• Base overhead: ~100W per node (fans, motherboard chipset, NICs, BMC)');
+        lines.push('• PSU: 80 Plus Titanium rated, ~96% efficient at 50% load');
+        lines.push('• ToR switch: ~250W (48-port 25GbE class), BMC switch: ~150W, Spine: ~350W, FC: ~200W');
+        lines.push('• Actual power varies by OEM hardware, workload intensity, ambient temperature, and PSU load point');
+        detailEl.innerHTML = lines.join('<br>');
+    }
 
     // Update 3D rack visualization
     if (typeof renderRack3D === 'function') {
@@ -4271,6 +4972,9 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         renderRack3D({
             clusterType: document.getElementById('cluster-type').value || 'standard',
             nodeCount: nodeCount,
+            disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
+            disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
+            spineCount: _designerSpineCount || 2,
             hasGpu: hwConfig.gpuCount > 0,
             gpuModel: hwConfig.gpuType || '',
             perNodeWatts: perNodeW,
@@ -4290,9 +4994,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     } else {
         // Cluster size + N+1 note — always first
         if (clusterType === 'single') {
-            notes.push('1 x Node Cluster — Single node deployment: No node fault tolerance or maintenance capacity');
+            notes.push('1 x Node Instance — Single node deployment: No node fault tolerance or maintenance capacity');
         } else {
-            notes.push(`${nodeCount} x Node Cluster - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} nodes available during servicing / maintenance`);
+            notes.push(`${nodeCount} x Node Instance - N+1 capacity: hardware requirements calculated assuming ${nodeCount - 1} nodes available during servicing / maintenance`);
         }
 
         // Per node hardware config note — always second
@@ -4323,9 +5027,6 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`ALDO Infrastructure VM (IRVM1): ${ALDO_IRVM.vcpus} vCPUs, ${ALDO_IRVM.memory} GB memory, ${(ALDO_IRVM.storage / 1024).toFixed(0)} TB storage — automatically added as a fixed workload for the ALDO management infrastructure, additional infrastructure workloads may be added in a future release`);
             notes.push('Boot disk: 960 GB SSD/NVMe recommended per node to reduce deployment complexity. Systems with smaller boot disks require extra data disks for the appliance installation');
             notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
-        } else if (clusterType === 'aldo-wl') {
-            notes.push('ALDO Workload Cluster: A multi-node cluster for Azure Local Disconnected Operations (ALDO) workloads. Configured as a Disconnected Workload Cluster in the Designer.');
-            notes.push('📖 Learn more: <a href="https://learn.microsoft.com/azure/azure-local/manage/disconnected-operations-overview" target="_blank" rel="noopener noreferrer">Azure Local disconnected operations overview</a>');
         } else {
             // Rack-aware note
             if (clusterType === 'rack-aware') {
@@ -4338,12 +5039,13 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             'simple': 'Simple (no redundancy, 1x raw storage)',
             '2way': 'Two-way mirror (50% efficiency for two copies of data), performant and resilient to one fault domain (node) failure',
             '3way': 'Three-way mirror (33% efficiency for three copies of data), most performant and resilient to two fault domain (nodes) failures',
-            '4way': 'Four-way mirror (25% efficiency), implemented as a rack-level nested mirror'
+            '4way': 'Four-way mirror (25% efficiency), implemented as a rack-level nested mirror',
+            'external': 'External SAN Storage — resiliency managed by the SAN array (not Storage Spaces Direct)'
         };
         notes.push(`Storage resiliency: ${resiliencyNames[resiliency]}`);
         
-        // Storage config note
-        if (hwConfig && hwConfig.diskConfig) {
+        // Storage config note (skip for disaggregated — external SAN, no local S2D disks)
+        if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig) {
             const dc = hwConfig.diskConfig;
             if (dc.isTiered) {
                 notes.push(`Storage layout: ${dc.cache.count} × ${dc.cache.type} cache + ${dc.capacity.count} × ${dc.capacity.type} capacity disks per node`);
@@ -4414,14 +5116,14 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (currentMemoryPercent >= 90) {
             notes.push('🚫 Memory utilization is at ' + currentMemoryPercent + '% — configurations at or above 90% are not recommended. Increase memory per node, add nodes, or reduce workloads.');
         }
-        if (currentStoragePercent >= 90) {
+        if (clusterType !== 'disaggregated' && currentStoragePercent >= 90) {
             notes.push('🚫 Storage utilization is at ' + currentStoragePercent + '% — configurations at or above 90% are not recommended. Add nodes, increase disk count/size, or reduce workloads.');
         }
         const currentGpuPercent = parseInt(document.getElementById('gpu-percent').textContent) || 0;
         const gpuSectionVisible = document.getElementById('gpu-capacity-section') && document.getElementById('gpu-capacity-section').style.display !== 'none';
         if (gpuSectionVisible && currentGpuPercent >= 90) {
             const clusterTypeGpu = document.getElementById('cluster-type').value;
-            const maxNodesGpu = clusterTypeGpu === 'rack-aware' ? 8 : clusterTypeGpu === 'single' ? 1 : 16;
+            const maxNodesGpu = getMaxNodeCap();
             const atMaxNodes = nodeCount >= maxNodesGpu;
             const gpuAdvice = atMaxNodes
                 ? 'Reduce GPU workloads or increase GPUs per node. Node count is at maximum (' + maxNodesGpu + ').'
@@ -4434,8 +5136,7 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             if (totalGpus > physicalMaxGpus) {
                 const gpuModel = GPU_MODELS[hwConfig.gpuType];
                 const maxPerNode = gpuModel ? gpuModel.maxPerNode : gpuCountPerNode;
-                const clusterType = document.getElementById('cluster-type').value;
-                const maxNodes = clusterType === 'rack-aware' ? 8 : clusterType === 'single' ? 1 : 16;
+                const maxNodes = getMaxNodeCap();
                 const canAddNodes = nodeCount < maxNodes;
                 const canAddGpus = gpuCountPerNode < maxPerNode;
                 let advice = '';
@@ -4449,8 +5150,8 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // Storage metadata memory overhead note (4 GB per TB of cache drive capacity)
-        if (hwConfig && hwConfig.diskConfig) {
+        // Storage metadata memory overhead note (4 GB per TB of cache drive capacity) — S2D only
+        if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig) {
             const dc = hwConfig.diskConfig;
             let cacheTB = 0;
             if (dc.isTiered && dc.cache) {
@@ -4462,10 +5163,35 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // 400 TB per-machine storage validation
+        // 400 TB per-machine storage validation (S2D only)
         let storageLimitExceeded = false;
         let storageLimitMessages = [];
-        if (hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+
+        // Single workload exceeds per-node capacity check
+        var _vmExceedsNode = false;
+        if (hwConfig) {
+            var singleVmVcpuRatio = getVcpuRatio();
+            var usableMemPerNode = hwConfig.memoryGB - 32;
+            var maxVcpuPerNode = hwConfig.totalPhysicalCores * singleVmVcpuRatio;
+            workloads.forEach(function(w) {
+                if (w.type === 'vm') {
+                    if (w.vcpus > maxVcpuPerNode) {
+                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.vcpus + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + hwConfig.totalPhysicalCores + ' physical cores). This VM cannot be placed on a single machine.');
+                        _vmExceedsNode = true;
+                    }
+                    if (w.memory > usableMemPerNode) {
+                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.memory + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after 32 GB host overhead). This VM cannot be placed on a single machine.');
+                        _vmExceedsNode = true;
+                    }
+                }
+            });
+            if (_vmExceedsNode) {
+                showToast('One or more VMs exceed per-machine capacity — configuration cannot be deployed', 'error');
+            }
+        }
+        // Store flag for Designer button gating
+        window._sizerVmExceedsNode = _vmExceedsNode;
+        if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
             const dc = hwConfig.diskConfig;
             let rawStoragePerMachineTB = (dc.capacity.count * dc.capacity.sizeGB) / 1024;
             if (dc.isTiered && dc.cache) {
@@ -4513,10 +5239,14 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         }
 
         // Infrastructure_1 volume + ARB appliance note
-        notes.push('ℹ️ Infrastructure overhead: 256 GB usable storage reserved by Storage Spaces Direct (Infrastructure_1 volume) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster — deducted from workload-available capacity.');
+        if (clusterType === 'disaggregated') {
+            notes.push('Disaggregated SAN storage requirement includes 256 GB for the Infrastructure_1 volume and 20 GB for the PerformanceHistory volume (276 GB total, once per instance), in addition to workload storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+        } else {
+            notes.push('Infrastructure overhead: 256 GB usable storage reserved by Storage Spaces Direct (Infrastructure_1 volume) has been deducted from the overall usable storage. Azure Resource Bridge (ARB) appliance VM reserves ' + ARB_MEMORY_OVERHEAD_GB + ' GB memory and ' + ARB_VCPU_OVERHEAD + ' vCPUs per cluster.');
+        }
 
-        // S2D Resiliency Repair note
-        if (nodeCount >= 1 && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
+        // S2D Resiliency Repair note (skip for disaggregated — no S2D)
+        if (clusterType !== 'disaggregated' && nodeCount >= 1 && hwConfig && hwConfig.diskConfig && hwConfig.diskConfig.capacity) {
             const reservedDisks = getRepairDiskCount();
             const recommendedDisks = Math.min(nodeCount, S2D_REPAIR_MAX_RESERVED_DISKS);
             const reservedDiskSizeGB = hwConfig.diskConfig.capacity.sizeGB;
@@ -4531,8 +5261,8 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // Disk bay consolidation note
-        if (_diskConsolidationInfo) {
+        // Disk bay consolidation note (skip for disaggregated)
+        if (clusterType !== 'disaggregated' && _diskConsolidationInfo) {
             const info = _diskConsolidationInfo;
             notes.push(`💡 Disk bay optimization: ${info.originalCount} × ${info.originalSizeTB} TB capacity disks would use ${Math.round(info.originalCount / info.maxBays * 100)}% of available disk bays (${info.maxBays} max). Auto-scaled to ${info.newCount} × ${info.newSizeTB} TB disks instead, freeing ${info.baysFreed} bay${info.baysFreed > 1 ? 's' : ''} per node for future expansion. Note: Disk size and number can be edited, if you prefer a larger number of smaller capacity disks.`);
         }
@@ -4541,7 +5271,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         notes.push('ℹ️ Host overhead: 32 GB memory reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
 
         // Network note
-        notes.push('ℹ️ Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
+        if (clusterType === 'disaggregated') {
+            notes.push('Network: Disaggregated deployments use a Clos leaf-spine fabric with RDMA-capable NICs (25 GbE+ recommended). Compute nodes connect to external SAN storage via Fibre Channel HBAs or iSCSI over the leaf switches.');
+        } else {
+            notes.push('Network: Multinode Azure Local hyperconverged instances requires RDMA-capable NICs (25 GbE+ recommended). Storage traffic uses dedicated NICs for east-west storage replication bandwidth.');
+        }
 
         // Boot/OS drive note — only shown when memory exceeds 768 GB (larger boot drive needed)
         if (hwConfig && hwConfig.memoryGB > 768) {
@@ -4554,9 +5288,192 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
 
     // Show/hide "Configure in Designer" button
     updateDesignerActionVisibility();
+
+    // Update multi-instance summary if visible
+    updateMultiInstanceSummary();
+}
+
+// ── Capacity Runway — Year-over-Year Growth Projection ──
+function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, nodeCount, hwConfig, effectiveNodes) {
+    var section = document.getElementById('growth-projection-section');
+    var content = document.getElementById('growth-projection-content');
+    if (!section || !content) return;
+
+    var growthPct = parseInt((document.getElementById('future-growth') || {}).value, 10) || 0;
+
+    // Hide if no workloads or no growth configured
+    if (workloads.length === 0 || growthPct === 0 || !hwConfig) {
+        section.style.display = 'none';
+        return;
+    }
+
+    // Remove the growth factor already applied to totals to get raw base demand
+    var growthFactor = 1 + growthPct / 100;
+    var rawVcpus = Math.round(baseVcpus / growthFactor);
+    var rawMemory = Math.round(baseMemory / growthFactor);
+    var rawStorage = Math.round(baseStorage / growthFactor);
+
+    // Calculate capacity ceilings
+    var vcpuRatio = getVcpuRatio();
+    var totalVcpuCap = hwConfig.totalPhysicalCores * effectiveNodes * vcpuRatio;
+    var usableMemPerNode = hwConfig.memoryGB - 32;
+    var totalMemCap = usableMemPerNode * effectiveNodes;
+    var totalStorageCap = 0;
+    var clusterType = document.getElementById('cluster-type').value;
+    if (clusterType !== 'disaggregated') {
+        var usableStorageEl = document.getElementById('usable-storage');
+        if (usableStorageEl) {
+            var parsed = parseFloat(usableStorageEl.textContent.replace(/,/g, ''));
+            if (!isNaN(parsed)) totalStorageCap = Math.round(parsed * 1024); // TB to GB
+        }
+    }
+
+    var years = 5;
+    var rows = [];
+    var runwayYear = null;
+
+    for (var y = 0; y <= years; y++) {
+        var factor = Math.pow(1 + growthPct / 100, y);
+        var yVcpu = Math.ceil(rawVcpus * factor);
+        var yMem = Math.ceil(rawMemory * factor);
+        var yStor = Math.ceil(rawStorage * factor);
+
+        var vcpuPct = totalVcpuCap > 0 ? Math.min(100, Math.round((yVcpu / totalVcpuCap) * 100)) : 0;
+        var memPct = totalMemCap > 0 ? Math.min(100, Math.round((yMem / totalMemCap) * 100)) : 0;
+        var storPct = totalStorageCap > 0 ? Math.min(100, Math.round((yStor / totalStorageCap) * 100)) : 0;
+        var maxPct = Math.max(vcpuPct, memPct, storPct);
+
+        var status;
+        if (maxPct >= 90) {
+            status = '🚫 ' + maxPct + '%';
+            if (runwayYear === null && y > 0) runwayYear = y;
+        } else if (maxPct >= 75) {
+            status = '⚠️ ' + maxPct + '%';
+        } else {
+            status = '✅ ' + maxPct + '%';
+        }
+
+        rows.push({
+            label: y === 0 ? 'Now' : 'Year ' + y,
+            vcpu: yVcpu.toLocaleString(),
+            mem: yMem.toLocaleString() + ' GB',
+            stor: yStor >= 1024 ? (yStor / 1024).toFixed(1) + ' TB' : yStor + ' GB',
+            status: status
+        });
+    }
+
+    // Build table
+    var html = '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+    html += '<thead><tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">';
+    html += '<th style="padding: 4px 8px;">Year</th>';
+    html += '<th style="padding: 4px 8px;">vCPU</th>';
+    html += '<th style="padding: 4px 8px;">Memory</th>';
+    html += '<th style="padding: 4px 8px;">Storage</th>';
+    html += '<th style="padding: 4px 8px;">Peak Utilization</th>';
+    html += '</tr></thead><tbody>';
+
+    rows.forEach(function(r) {
+        html += '<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">';
+        html += '<td style="padding: 4px 8px; font-weight: 600;">' + r.label + '</td>';
+        html += '<td style="padding: 4px 8px;">' + r.vcpu + '</td>';
+        html += '<td style="padding: 4px 8px;">' + r.mem + '</td>';
+        html += '<td style="padding: 4px 8px;">' + r.stor + '</td>';
+        html += '<td style="padding: 4px 8px;">' + r.status + '</td>';
+        html += '</tr>';
+    });
+
+    html += '</tbody></table>';
+
+    if (runwayYear !== null) {
+        html += '<p style="margin: 8px 0 0 0; color: var(--danger); font-weight: 600;">⏳ Capacity runway: ~' + runwayYear + ' year' + (runwayYear > 1 ? 's' : '') + ' before expansion is needed at ' + growthPct + '% annual growth</p>';
+    } else {
+        html += '<p style="margin: 8px 0 0 0; color: var(--success); font-weight: 600;">✅ Capacity runway: 5+ years at ' + growthPct + '% annual growth</p>';
+    }
+
+    html += '<p style="margin: 4px 0 0 0; font-size: 11px; color: var(--text-secondary);">Based on compound annual growth rate applied to current workload demand. The ' + growthPct + '% growth buffer is already factored into the hardware sizing above.</p>';
+
+    content.innerHTML = html;
+    section.style.display = '';
 }
 
 // Show "Configure in Designer" button only when workloads exist and all resources are under 90%
+// Update multi-instance summary (scale-out view — visual only, not used in sizing)
+function updateMultiInstanceSummary() {
+    var section = document.getElementById('multi-instance-section');
+    var summaryDiv = document.getElementById('multi-instance-summary');
+    if (!section || !summaryDiv) return;
+
+    // Show the section when workloads exist
+    section.style.display = workloads.length > 0 ? '' : 'none';
+
+    var count = parseInt((document.getElementById('instance-count') || {}).value, 10) || 1;
+    if (count <= 1) {
+        summaryDiv.style.display = 'none';
+        return;
+    }
+
+    var nodeCount = parseInt(document.getElementById('node-count').value, 10) || 2;
+    var clusterType = document.getElementById('cluster-type').value;
+    var totalPowerText = document.getElementById('power-total');
+    var totalBtuText = document.getElementById('power-btu');
+    var rackUnitsEl = document.getElementById('rack-units');
+
+    // Parse single-instance values
+    var singlePowerW = parseInt((totalPowerText ? totalPowerText.textContent : '0').replace(/,/g, ''), 10) || 0;
+    var singleBtu = parseInt((totalBtuText ? totalBtuText.textContent : '0').replace(/,/g, ''), 10) || 0;
+    // Extract numeric rack units from the beginning of the text
+    var rackUnitText = rackUnitsEl ? rackUnitsEl.textContent : '0';
+    var singleRU = parseInt(rackUnitText, 10) || 0;
+    var racksPerInstance = 1;
+    if (clusterType === 'disaggregated') {
+        racksPerInstance = parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2;
+    } else if (clusterType === 'rack-aware') {
+        racksPerInstance = 2;
+    }
+
+    var totalNodes = nodeCount * count;
+    var totalRacks = racksPerInstance * count;
+    var totalPower = singlePowerW * count;
+    var totalBtu = singleBtu * count;
+    var totalRU = singleRU * count;
+    var hwConfig = getHardwareConfig();
+    var totalCores = (hwConfig.totalPhysicalCores || 0) * nodeCount * count;
+    var gpuLine = '';
+    if (hwConfig.gpuCount > 0 && hwConfig.gpuType) {
+        var totalGpus = hwConfig.gpuCount * nodeCount * count;
+        var gpuModel = GPU_MODELS[hwConfig.gpuType];
+        var gpuSpec = gpuModel ? gpuModel.name + ' (' + gpuModel.vramGB + ' GB VRAM)' : hwConfig.gpuType;
+        gpuLine = '<span>Total GPUs: <strong>' + totalGpus.toLocaleString() + ' \u00d7 ' + gpuSpec + '</strong></span>';
+    }
+    var totalMemoryGB = (hwConfig.memoryGB || 0) * nodeCount * count;
+    var totalMemoryLabel = totalMemoryGB >= 1048576 ? (totalMemoryGB / 1048576).toFixed(2) + ' PB'
+        : totalMemoryGB >= 1024 ? (totalMemoryGB / 1024).toFixed(1) + ' TB'
+        : totalMemoryGB.toLocaleString() + ' GB';
+    var totalPowerKW = (totalPower / 1000).toFixed(1);
+    var powerLabel = totalPower >= 1000000
+        ? totalPower.toLocaleString() + ' W (' + (totalPower / 1000000).toFixed(2) + ' MW)'
+        : totalPower.toLocaleString() + ' W (' + totalPowerKW + ' kW)';
+
+    summaryDiv.innerHTML = '<strong>Multi-Instance Scale-Out Summary (\u00d7' + count + ' instances)</strong>'
+        + '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 8px;">'
+        + '<span>Total Nodes: <strong>' + totalNodes.toLocaleString() + '</strong></span>'
+        + '<span>Total Racks: <strong>' + totalRacks.toLocaleString() + '</strong></span>'
+        + '<span>Total Cores: <strong>' + totalCores.toLocaleString() + '</strong></span>'
+        + '<span>Total Memory: <strong>' + totalMemoryLabel + '</strong></span>'
+        + '</div>'
+        + (gpuLine ? '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 6px;">' + gpuLine + '</div>' : '')
+        + '<div style="display: flex; flex-wrap: wrap; gap: 24px; margin-top: 6px;">'
+        + '<span>Total Power: <strong>' + powerLabel + '</strong></span>'
+        + '<span>Total BTU/hr: <strong>' + totalBtu.toLocaleString() + '</strong></span>'
+        + '<span>Total Rack Units: <strong>' + totalRU.toLocaleString() + 'U</strong></span>'
+        + '</div>'
+        + '<div style="margin-top: 10px; padding: 8px 12px; background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; font-size: 12px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 8px;">'
+        + '<span style="color: #eab308; font-size: 14px; flex-shrink: 0;">\u26A0\uFE0F</span>'
+        + '<span>Multi-instance estimates are approximate projections based on the single-instance configuration above. Each instance is independently sized and deployed. Actual power, cooling, and rack requirements may vary by site, OEM hardware, and deployment configuration. Contact your preferred hardware partner for detailed and accurate information.</span>'
+        + '</div>';
+    summaryDiv.style.display = '';
+}
+
 function updateDesignerActionVisibility() {
     const actionDiv = document.getElementById('designer-action');
     const designerBtn = document.querySelector('.btn-designer');
@@ -4567,7 +5484,8 @@ function updateDesignerActionVisibility() {
     if (designerBtn) {
         const computePercent = parseInt(document.getElementById('compute-percent').textContent) || 0;
         const memoryPercent = parseInt(document.getElementById('memory-percent').textContent) || 0;
-        const storagePercent = parseInt(document.getElementById('storage-percent').textContent) || 0;
+        const clusterTypeForBtn = document.getElementById('cluster-type').value;
+        const storagePercent = clusterTypeForBtn === 'disaggregated' ? 0 : (parseInt(document.getElementById('storage-percent').textContent) || 0);
         const overResources = [];
         if (computePercent >= 90) overResources.push('Compute');
         if (memoryPercent >= 90) overResources.push('Memory');
@@ -4581,18 +5499,37 @@ function updateDesignerActionVisibility() {
         if (overResources.length > 0 && workloads.length > 0) {
             designerBtn.disabled = true;
             designerBtn.title = overResources.join(', ') + ' utilization must be below 90% before configuring in Designer';
+        } else if (window._sizerVmExceedsNode) {
+            designerBtn.disabled = true;
+            designerBtn.title = 'One or more VMs exceed per-machine capacity. Reduce VM specs or increase hardware configuration.';
         } else {
             designerBtn.disabled = false;
             designerBtn.title = '';
         }
     }
+
+    // Gate share URL buttons on workload presence
+    var shareButtonIds = ['share-url-btn-header', 'share-url-btn-footer'];
+    shareButtonIds.forEach(function(id) {
+        var btn = document.getElementById(id);
+        if (btn) {
+            if (workloads.length === 0) {
+                btn.disabled = true;
+                btn.title = 'Add workload(s) before you can share your Sizer configuration with others';
+            } else {
+                btn.disabled = false;
+                btn.title = 'Copy a shareable URL with your configuration encoded';
+            }
+        }
+    });
 }
 
 // Map sizer cluster type to Designer scale value
 function mapSizerToDesignerScale(clusterType) {
     if (clusterType === 'rack-aware') return 'rack_aware';
+    if (clusterType === 'low-capacity') return 'low_capacity';
     if (clusterType === 'aldo-mgmt') return 'medium';
-    if (clusterType === 'aldo-wl') return 'medium';
+    if (clusterType === 'disaggregated') return 'medium';
     // Both 'single' and 'standard' map to 'medium' (Hyperconverged)
     return 'medium';
 }
@@ -4601,6 +5538,102 @@ function mapSizerToDesignerScale(clusterType) {
 // ============================================
 // Export Functions
 // ============================================
+
+// Export sizer results as PDF using html2canvas + jsPDF
+function exportSizerPDF() { // eslint-disable-line no-unused-vars
+    const sizerLayout = document.querySelector('.sizer-layout');
+    if (!sizerLayout) {
+        alert('No results to export. Add workloads first.');
+        return;
+    }
+
+    showToast('Generating PDF — this may take a few seconds...', 'success');
+
+    // Collect sections to capture individually for clean page breaks
+    const sections = [];
+    // Config panel sections
+    const configPanel = document.querySelector('.config-panel');
+    if (configPanel) {
+        configPanel.querySelectorAll('.panel-section, .workloads-list, .cluster-config').forEach(function(s) {
+            if (s.offsetHeight > 0) sections.push(s);
+        });
+    }
+    // Results panel sections
+    const resultsPanel = document.querySelector('.results-panel');
+    if (resultsPanel) {
+        resultsPanel.querySelectorAll('.panel-section, .requirements-grid, .per-node-section, .capacity-breakdown, .power-rack-estimate, #growth-projection-section, .notes-section, #multi-instance-section').forEach(function(s) {
+            if (s.offsetHeight > 0 && s.style.display !== 'none') sections.push(s);
+        });
+    }
+
+    // Expand all collapsed sections
+    const allDetails = sizerLayout.querySelectorAll('details');
+    const wasOpen = [];
+    allDetails.forEach(function(d) { wasOpen.push(d.open); d.open = true; });
+
+    // Hide buttons
+    const hideEls = sizerLayout.querySelectorAll('.export-actions, #designer-action, .rack-viz-section, .workload-card-actions, .onboarding-overlay, .section-header-actions');
+    hideEls.forEach(function(el) { el.style.display = 'none'; });
+
+    const { jsPDF } = window.jspdf; // eslint-disable-line no-undef
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const usableW = pageWidth - margin * 2;
+
+    // Header
+    pdf.setFontSize(14);
+    pdf.setTextColor(0, 120, 212);
+    pdf.text('ODIN Sizer for Azure Local', margin, 12);
+    pdf.setFontSize(8);
+    pdf.setTextColor(128, 128, 128);
+    pdf.text('Generated: ' + new Date().toLocaleString(), margin, 17);
+
+    let currentY = 22;
+    let sectionIndex = 0;
+
+    function captureNextSection() {
+        if (sectionIndex >= sections.length) {
+            // Done — restore and save
+            allDetails.forEach(function(d, i) { d.open = wasOpen[i]; });
+            hideEls.forEach(function(el) { el.style.display = ''; });
+            const st = getSizerState();
+            const dateStr = new Date().toISOString().slice(0, 10);
+            pdf.save('odin-sizer_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.pdf');
+            showToast('PDF downloaded', 'success');
+            return;
+        }
+
+        const section = sections[sectionIndex];
+        html2canvas(section, {
+            backgroundColor: '#000000',
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            windowWidth: 800
+        }).then(function(canvas) {
+            const imgH = (canvas.height * usableW) / canvas.width;
+
+            // If this section won't fit on current page, add a new page
+            if (currentY + imgH > pageHeight - margin && currentY > 25) {
+                pdf.addPage();
+                currentY = margin;
+            }
+
+            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, currentY, usableW, imgH);
+            currentY += imgH + 4; // 4mm gap between sections
+
+            sectionIndex++;
+            captureNextSection();
+        }).catch(function() {
+            sectionIndex++;
+            captureNextSection();
+        });
+    }
+
+    captureNextSection();
+}
 
 function exportSizerWord() {
     // Block export if storage limits are exceeded
@@ -4616,7 +5649,7 @@ function exportSizerWord() {
     var futureGrowth = document.getElementById('future-growth').value;
     var resConfig = RESILIENCY_CONFIG[resiliency] || {};
 
-    var clusterLabels = { 'single': 'Single Node', 'standard': 'Standard Cluster', 'rack-aware': 'Rack Aware Cluster', 'aldo-mgmt': 'ALDO Management Cluster', 'aldo-wl': 'ALDO Workload Cluster' };
+    var clusterLabels = { 'single': 'Single Node', 'standard': 'Hyperconverged', 'rack-aware': 'Rack-Aware Instance', 'aldo-mgmt': 'ALDO Management Cluster', 'disaggregated': 'Disaggregated Storage' };
     var storageLabels = { 'all-flash': 'All-Flash (NVMe or SSD)', 'mixed-flash': 'Mixed All-Flash (NVMe + SSD)', 'hybrid': 'Hybrid (SSD/NVMe + HDD)' };
     var growthLabels = { '0': 'None', '10': '10%', '20': '20%', '30': '30%', '50': '50%' };
 
@@ -4795,8 +5828,8 @@ function configureInDesigner() {
 
     const clusterType = document.getElementById('cluster-type').value;
 
-    // ALDO Management or Workload Cluster: show FQDN modal instead of region picker
-    if (clusterType === 'aldo-mgmt' || clusterType === 'aldo-wl') {
+    // ALDO Management Cluster: always disconnected — show FQDN modal directly
+    if (clusterType === 'aldo-mgmt') {
         const fqdnModal = document.getElementById('aldo-fqdn-modal');
         const fqdnOverlay = document.getElementById('aldo-fqdn-modal-overlay');
         if (fqdnModal && fqdnOverlay) {
@@ -4810,17 +5843,23 @@ function configureInDesigner() {
         return;
     }
 
-    // Show region picker modal — the user selects a region, then we navigate
-    const modal = document.getElementById('region-picker-modal');
-    const overlay = document.getElementById('region-modal-overlay');
-    if (modal && overlay) {
-        // Reset to Azure Commercial and show its regions
-        const commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
-        if (commercialRadio) commercialRadio.checked = true;
-        updateRegionOptions();
-        modal.classList.add('active');
-        overlay.classList.add('active');
+    // Low Capacity: always connected — skip connectivity choice, go straight to region picker
+    if (clusterType === 'low-capacity') {
+        window._sizerConnectivityChoice = 'connected';
+        var modal = document.getElementById('region-picker-modal');
+        var regionOverlay = document.getElementById('region-modal-overlay');
+        if (modal && regionOverlay) {
+            var commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
+            if (commercialRadio) commercialRadio.checked = true;
+            updateRegionOptions();
+            modal.classList.add('active');
+            regionOverlay.classList.add('active');
+        }
+        return;
     }
+
+    // All other cluster types: ask Connected or Disconnected first
+    showConnectivityChoice();
 }
 
 // Update visible region buttons based on selected cloud type
@@ -4830,6 +5869,70 @@ function updateRegionOptions() {
     buttons.forEach(btn => {
         btn.style.display = btn.getAttribute('data-cloud') === selectedCloud ? '' : 'none';
     });
+}
+
+// ============================================
+// Connected / Disconnected Choice
+// ============================================
+
+// Show connectivity choice modal before proceeding to Designer
+function showConnectivityChoice() {
+    // Remove any existing modal
+    var existing = document.getElementById('connectivity-choice-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'connectivity-choice-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+
+    overlay.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--glass-border);border-radius:16px;padding:24px;max-width:500px;width:100%;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">'
+        + '<h3 style="margin:0;color:var(--accent-blue);">Deployment Connectivity</h3>'
+        + '<button onclick="document.getElementById(\'connectivity-choice-overlay\').remove()" style="background:transparent;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer;">&times;</button>'
+        + '</div>'
+        + '<p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">Will this cluster be cloud-connected or disconnected (air-gapped)?</p>'
+        + '<div style="display:flex;flex-direction:column;gap:12px;">'
+        + '<button onclick="selectConnectivity(\'connected\')" style="padding:16px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--text-primary);border-radius:8px;cursor:pointer;text-align:left;font-size:14px;">'
+        + '<strong style="color:var(--accent-blue);">Connected</strong><br><span style="font-size:12px;color:var(--text-secondary);">Cloud-connected deployment with full Azure Arc integration</span></button>'
+        + '<button onclick="selectConnectivity(\'disconnected\')" style="padding:16px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:var(--text-primary);border-radius:8px;cursor:pointer;text-align:left;font-size:14px;">'
+        + '<strong style="color:#ef4444;">Disconnected</strong><br><span style="font-size:12px;color:var(--text-secondary);">Air-gapped operation with Autonomous Cloud endpoint</span></button>'
+        + '</div></div>';
+
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+}
+
+// Handle connectivity choice
+function selectConnectivity(mode) { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('connectivity-choice-overlay');
+    if (overlay) overlay.remove();
+
+    if (mode === 'disconnected') {
+        // Store choice and show FQDN modal
+        window._sizerConnectivityChoice = 'disconnected';
+        var fqdnModal = document.getElementById('aldo-fqdn-modal');
+        var fqdnOverlay = document.getElementById('aldo-fqdn-modal-overlay');
+        if (fqdnModal && fqdnOverlay) {
+            var fqdnInput = document.getElementById('aldo-fqdn-input');
+            if (fqdnInput) fqdnInput.value = '';
+            clearAldoFqdnValidation();
+            fqdnModal.classList.add('active');
+            fqdnOverlay.classList.add('active');
+            if (fqdnInput) fqdnInput.focus();
+        }
+    } else {
+        // Connected: show region picker
+        window._sizerConnectivityChoice = 'connected';
+        var modal = document.getElementById('region-picker-modal');
+        var regionOverlay = document.getElementById('region-modal-overlay');
+        if (modal && regionOverlay) {
+            var commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
+            if (commercialRadio) commercialRadio.checked = true;
+            updateRegionOptions();
+            modal.classList.add('active');
+            regionOverlay.classList.add('active');
+        }
+    }
 }
 
 // ============================================
@@ -4897,15 +6000,15 @@ function confirmAldoFqdnAndConfigure() {
 
     const clusterType = document.getElementById('cluster-type').value;
 
-    // ALDO Workload Cluster: skip region picker (region not used for disconnected workload)
-    if (clusterType === 'aldo-wl') {
+    // Disconnected workload cluster (non-ALDO): skip region picker
+    if (clusterType !== 'aldo-mgmt' && window._sizerConnectivityChoice === 'disconnected') {
         window._aldoPendingFqdn = fqdn;
+        window._sizerConnectivityChoice = 'disconnected';
         selectRegionAndConfigure('', '');
         return;
     }
 
     // ALDO Management Cluster: show region picker next
-    // Pass FQDN through a temporary variable
     window._aldoPendingFqdn = fqdn;
 
     const modal = document.getElementById('region-picker-modal');
@@ -4936,19 +6039,25 @@ function selectRegionAndConfigure(region, cloud) {
     const resiliency = document.getElementById('resiliency').value;
     const hwConfig = getHardwareConfig();
 
-    // ALDO Management or Workload Cluster: set disconnected scenario + cluster role
-    const isAldo = clusterType === 'aldo-mgmt' || clusterType === 'aldo-wl';
+    // Determine connectivity mode from user choice or ALDO type
+    const isAldo = clusterType === 'aldo-mgmt';
+    const isDisconnected = isAldo || window._sizerConnectivityChoice === 'disconnected';
     const aldoFqdn = window._aldoPendingFqdn || null;
-    if (isAldo) delete window._aldoPendingFqdn;
+    if (isAldo || isDisconnected) {
+        delete window._aldoPendingFqdn;
+        delete window._sizerConnectivityChoice;
+    }
 
     // Build the sizer-to-designer payload
     const sizerPayload = {
         source: 'sizer',
         timestamp: new Date().toISOString(),
-        // Scenario: disconnected for ALDO types, hyperconverged for others
-        scenario: isAldo ? 'disconnected' : 'hyperconverged',
-        // ALDO-specific fields
-        clusterRole: clusterType === 'aldo-mgmt' ? 'management' : (clusterType === 'aldo-wl' ? 'workload' : undefined),
+        // Scenario: disconnected when ALDO or user chose disconnected
+        scenario: isDisconnected ? 'disconnected' : 'connected',
+        // Architecture: disaggregated or hyperconverged
+        architecture: clusterType === 'disaggregated' ? 'disaggregated' : 'hyperconverged',
+        // Disconnected cluster role
+        clusterRole: isAldo ? 'management' : (isDisconnected ? 'workload' : undefined),
         autonomousCloudFqdn: aldoFqdn || undefined,
         fqdnConfirmed: aldoFqdn ? true : undefined,
         // Region selected by user
@@ -4957,6 +6066,11 @@ function selectRegionAndConfigure(region, cloud) {
         // Designer-compatible fields
         scale: mapSizerToDesignerScale(clusterType),
         nodes: nodeCount,
+        // Disaggregated-specific fields (passed through to Designer state)
+        disaggStorageType: clusterType === 'disaggregated' ? ((document.getElementById('disagg-storage-type') || {}).value || 'fc_san') : undefined,
+        disaggRackCount: clusterType === 'disaggregated' ? (parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2) : undefined,
+        disaggNodesPerRack: clusterType === 'disaggregated' ? Math.ceil(parseInt(nodeCount, 10) / (parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2)) : undefined,
+        disaggSpineCount: clusterType === 'disaggregated' ? (_designerSpineCount || 2) : undefined,
         // Hardware details (hidden in Designer, shown in report)
         sizerHardware: {
             clusterType: clusterType,
@@ -5089,13 +6203,508 @@ function exportSizerJSON() {
     }
 }
 
+// Export hardware BOM as CSV spreadsheet
+function exportSizerCSV() { // eslint-disable-line no-unused-vars
+    try {
+        var st = getSizerState();
+        var hwConfig = getHardwareConfig();
+        var rows = [];
+        rows.push(['Category', 'Item', 'Value']);
+
+        // Cluster
+        rows.push(['Cluster', 'Deployment Type', st.clusterType || 'standard']);
+        rows.push(['Cluster', 'Number of Machines', st.nodeCount || '']);
+        rows.push(['Cluster', 'Resiliency', st.resiliency || '']);
+        rows.push(['Cluster', 'Future Growth', (st.futureGrowth || 0) + '%']);
+
+        // CPU
+        rows.push(['CPU', 'Manufacturer', st.cpuManufacturer || '']);
+        rows.push(['CPU', 'Generation', hwConfig.generation ? hwConfig.generation.name : (st.cpuGeneration || '')]);
+        rows.push(['CPU', 'Cores per Socket', st.cpuCores || '']);
+        rows.push(['CPU', 'Sockets', st.cpuSockets || '']);
+        rows.push(['CPU', 'Total Physical Cores per Machine', (parseInt(st.cpuCores, 10) || 0) * (parseInt(st.cpuSockets, 10) || 1)]);
+
+        // Memory
+        rows.push(['Memory', 'Per Machine (GB)', st.nodeMemory || '']);
+
+        // Storage
+        var isTiered = st.storageTiering === 'tiered';
+        if (isTiered) {
+            rows.push(['Storage', 'Type', 'Hybrid (Tiered)']);
+            rows.push(['Storage', 'Cache Disk Count', st.cacheDiskCount || '']);
+            rows.push(['Storage', 'Cache Disk Size (TB)', st.cacheDiskSize || '']);
+            rows.push(['Storage', 'Capacity Disk Count', st.tieredCapacityDiskCount || '']);
+            rows.push(['Storage', 'Capacity Disk Size (TB)', st.tieredCapacityDiskSize || '']);
+        } else {
+            rows.push(['Storage', 'Type', 'All-Flash']);
+            rows.push(['Storage', 'Capacity Disk Count', st.capacityDiskCount || '']);
+            rows.push(['Storage', 'Capacity Disk Size (TB)', st.capacityDiskSize || '']);
+        }
+
+        // GPU
+        if (st.gpuCount && parseInt(st.gpuCount, 10) > 0) {
+            var gpuModel = GPU_MODELS[st.gpuType];
+            rows.push(['GPU', 'Model', gpuModel ? gpuModel.name : (st.gpuType || '')]);
+            rows.push(['GPU', 'Per Machine', st.gpuCount]);
+            rows.push(['GPU', 'VRAM (GB)', gpuModel ? gpuModel.vramGB : '']);
+            rows.push(['GPU', 'TDP (W)', gpuModel ? gpuModel.tdpW : '']);
+        }
+
+        // Power estimates
+        var perNodeEl = document.getElementById('power-per-node');
+        var totalPowerEl = document.getElementById('power-total');
+        var btuEl = document.getElementById('power-btu');
+        var rackEl = document.getElementById('rack-units');
+        if (perNodeEl && perNodeEl.textContent !== '—') {
+            rows.push(['Power', 'Per Machine (est.)', perNodeEl.textContent]);
+            rows.push(['Power', 'Total Instance (est.)', totalPowerEl ? totalPowerEl.textContent : '']);
+            rows.push(['Power', 'BTU/hr (est.)', btuEl ? btuEl.textContent : '']);
+            rows.push(['Rack', 'Rack Units (est.)', rackEl ? rackEl.textContent : '']);
+        }
+
+        // Workloads
+        if (st.workloads && st.workloads.length > 0) {
+            rows.push([]);
+            rows.push(['Workload', 'Type', 'Detail', 'vCPUs', 'Memory (GB)', 'Storage (GB)', 'GPU']);
+            st.workloads.forEach(function(w) {
+                if (w.type === 'vm') {
+                    var vmCount = w.count || 1;
+                    var totalVcpus = (w.vcpus || 0) * vmCount;
+                    var totalMem = (w.memory || 0) * vmCount;
+                    var totalStor = (w.storage || 0) * vmCount;
+                    rows.push(['Workload', 'Azure Local VM', vmCount + ' VMs (' + (w.vcpus || 0) + ' vCPU, ' + (w.memory || 0) + ' GB, ' + (w.storage || 0) + ' GB each)', totalVcpus, totalMem, totalStor, w.gpuEnabled ? 'Yes' : 'No']);
+                } else if (w.type === 'aks') {
+                    var aksReqs = calculateWorkloadRequirements(w);
+                    var aksDetail = (w.clusterCount || 1) + ' cluster(s), ' + (w.controlPlaneNodes || 3) + ' CP + ' + (w.workerNodes || 3) + ' workers each';
+                    rows.push(['Workload', 'AKS Arc', aksDetail, aksReqs.vcpus, aksReqs.memory, aksReqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
+                } else if (w.type === 'avd') {
+                    var avdProfile = w.profile || 'medium';
+                    var users = w.userCount || 0;
+                    var reqs = calculateWorkloadRequirements(w);
+                    rows.push(['Workload', 'AVD', users + ' users (' + avdProfile + ')', reqs.vcpus, reqs.memory, reqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
+                }
+            });
+        }
+
+        // Convert to CSV string
+        var csv = rows.map(function(row) {
+            return row.map(function(cell) {
+                var s = String(cell == null ? '' : cell);
+                if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+                    return '"' + s.replace(/"/g, '""') + '"';
+                }
+                return s;
+            }).join(',');
+        }).join('\n');
+
+        var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var dateStr = new Date().toISOString().slice(0, 10);
+        var filename = 'odin-sizer-bom_' + (st.clusterType || 'standard') + '_' + (st.nodeCount || '0') + 'n_' + dateStr + '.csv';
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('CSV export failed:', e);
+        alert('Failed to export CSV. See console for details.');
+    }
+}
+
+// Share sizer configuration via URL (compressed base64 in query parameter)
+function shareSizerURL() { // eslint-disable-line no-unused-vars
+    if (workloads.length === 0) {
+        showToast('Add at least one workload before sharing', 'error');
+        return;
+    }
+    try {
+        var shareName = prompt('Enter a name for this configuration (optional):', '');
+        if (shareName === null) return; // User cancelled
+
+        var state = getSizerState();
+        if (shareName.trim()) {
+            // Limit to 100 characters
+            state._shareName = shareName.trim().substring(0, 100);
+        }
+        var json = JSON.stringify(state);
+        var encoded = btoa(unescape(encodeURIComponent(json)));
+        var url = window.location.origin + window.location.pathname + '?config=' + encodeURIComponent(encoded);
+
+        if (url.length > 8000) {
+            alert('Configuration is too large to share via URL (' + Math.round(url.length / 1024) + ' KB). Use Export JSON instead.');
+            return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(function() {
+                showToast('Shareable URL copied to clipboard!', 'success');
+            }).catch(function() {
+                prompt('Copy this URL to share your configuration:', url);
+            });
+        } else {
+            prompt('Copy this URL to share your configuration:', url);
+        }
+    } catch (e) {
+        console.error('Share URL failed:', e);
+        alert('Failed to generate shareable URL. Use Export JSON instead.');
+    }
+}
+
+// Import sizer configuration from URL query parameter on page load
+function loadSizerFromURL() {
+    var params = new URLSearchParams(window.location.search);
+    var configParam = params.get('config');
+    if (!configParam) return false;
+
+    try {
+        var json = decodeURIComponent(escape(atob(decodeURIComponent(configParam))));
+        var data = JSON.parse(json);
+        if (data && (data.clusterType || data.workloads)) {
+            var shareName = data._shareName || '';
+            applyImportedSizerState(data);
+            // Clean URL after loading
+            history.replaceState(null, '', window.location.pathname);
+            // Dismiss any resume banner that may have been triggered
+            var existingBanner = document.getElementById('sizer-resume-banner');
+            if (existingBanner) existingBanner.remove();
+            // Show a confirmation banner with Ok button
+            var wlCount = data.workloads ? data.workloads.length : 0;
+            var bannerMsg = shareName
+                ? 'Shared configuration loaded: <strong>"' + escapeHtml(shareName) + '"</strong>'
+                : 'Configuration loaded from a shared URL';
+            if (wlCount > 0) bannerMsg += ' — ' + wlCount + ' workload(s)';
+            var urlBanner = document.createElement('div');
+            urlBanner.id = 'sizer-resume-banner';
+            urlBanner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:16px 24px;background:linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));color:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:16px;animation:slideDown 0.3s ease;max-width:600px;';
+            urlBanner.innerHTML = '<span>🔗 ' + bannerMsg + '</span>'
+                + '<button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">Ok</button>';
+            document.body.appendChild(urlBanner);
+            return true;
+        }
+    } catch (e) {
+        console.error('Failed to load configuration from URL:', e);
+    }
+    return false;
+}
+
 // Trigger file picker for JSON import
-function importSizerJSON() {
-    const fileInput = document.getElementById('sizer-import-file');
+function importSizerJSON() { // eslint-disable-line no-unused-vars
+    showImportModal();
+}
+
+// Show the import modal
+function showImportModal() {
+    var overlay = document.getElementById('import-modal-overlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        switchImportTab('sizer');
+        // Clear previous state
+        var textarea = document.getElementById('cluster-json-input');
+        if (textarea) textarea.value = '';
+        var err = document.getElementById('cluster-json-error');
+        if (err) err.style.display = 'none';
+        var preview = document.getElementById('cluster-json-preview');
+        if (preview) preview.style.display = 'none';
+        var applyBtn = document.getElementById('cluster-import-apply-btn');
+        if (applyBtn) applyBtn.style.display = 'none';
+        window._pendingClusterImport = null;
+    }
+}
+
+function closeImportModal() { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('import-modal-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function switchImportTab(tab) { // eslint-disable-line no-unused-vars
+    var sizerPanel = document.getElementById('import-panel-sizer');
+    var clusterPanel = document.getElementById('import-panel-cluster');
+    var sizerTab = document.getElementById('import-tab-sizer');
+    var clusterTab = document.getElementById('import-tab-cluster');
+    if (tab === 'sizer') {
+        if (sizerPanel) sizerPanel.style.display = '';
+        if (clusterPanel) clusterPanel.style.display = 'none';
+        if (sizerTab) { sizerTab.className = 'onboarding-btn onboarding-btn-primary'; }
+        if (clusterTab) { clusterTab.className = 'onboarding-btn onboarding-btn-secondary'; }
+    } else {
+        if (sizerPanel) sizerPanel.style.display = 'none';
+        if (clusterPanel) clusterPanel.style.display = '';
+        if (sizerTab) { sizerTab.className = 'onboarding-btn onboarding-btn-secondary'; }
+        if (clusterTab) { clusterTab.className = 'onboarding-btn onboarding-btn-primary'; }
+    }
+}
+
+function importSizerJSONFromModal() { // eslint-disable-line no-unused-vars
+    closeImportModal();
+    var fileInput = document.getElementById('sizer-import-file');
     if (fileInput) {
-        fileInput.value = ''; // reset so the same file can be re-selected
+        fileInput.value = '';
         fileInput.click();
     }
+}
+
+function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
+    var textarea = document.getElementById('cluster-json-input');
+    var errDiv = document.getElementById('cluster-json-error');
+    var previewDiv = document.getElementById('cluster-json-preview');
+    var applyBtn = document.getElementById('cluster-import-apply-btn');
+    if (!textarea) return;
+
+    errDiv.style.display = 'none';
+    previewDiv.style.display = 'none';
+    applyBtn.style.display = 'none';
+    window._pendingClusterImport = null;
+
+    var text = textarea.value.trim();
+    if (!text) {
+        errDiv.textContent = 'Please paste the Azure Local cluster JSON.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    var data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        errDiv.textContent = 'Invalid JSON: ' + e.message;
+        errDiv.style.display = '';
+        return;
+    }
+
+    // Validate it's an Azure Local machine resource
+    var resourceType = (data.type || '').toLowerCase();
+    var isNode = resourceType === 'microsoft.hybridcompute/machines';
+
+    if (!isNode) {
+        errDiv.textContent = 'Please paste the JSON View of a machine (node), not the instance. Navigate to a machine in your instance in the Azure Portal → JSON View.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    var clusterName, coreCount, memoryGiB, model, manufacturer, cpuMfr, processorName, sockets;
+
+    // Node-level JSON — rich data available
+    var nProps = data.properties;
+    var hwProfile = nProps && nProps.hardwareProfile;
+    var detected = nProps && nProps.detectedProperties;
+
+    clusterName = (nProps && nProps.displayName) || data.name || 'Unknown';
+    manufacturer = (detected && detected.manufacturer) || 'Unknown';
+    model = (detected && detected.model) || 'Unknown';
+
+    if (hwProfile && hwProfile.processors && hwProfile.processors.length > 0) {
+        var proc = hwProfile.processors[0];
+        coreCount = proc.numberOfCores || 0;
+        processorName = proc.name || '';
+        sockets = hwProfile.numberOfCpuSockets || 1;
+    } else if (detected) {
+        coreCount = parseInt(detected.coreCount, 10) || 0;
+        processorName = detected.processorNames || '';
+        sockets = parseInt(detected.processorCount, 10) || 1;
+    } else {
+        errDiv.textContent = 'No hardware profile found in the machine JSON.';
+        errDiv.style.display = '';
+        return;
+    }
+
+    if (hwProfile && hwProfile.totalPhysicalMemoryInBytes) {
+        memoryGiB = Math.round(hwProfile.totalPhysicalMemoryInBytes / (1024 * 1024 * 1024));
+    } else if (detected && detected.totalPhysicalMemoryInGigabytes) {
+        memoryGiB = parseInt(detected.totalPhysicalMemoryInGigabytes, 10) || 0;
+    } else {
+        memoryGiB = 0;
+    }
+
+    var nodeCount = 2; // default — user sets in preview
+
+    // Determine CPU manufacturer from processor name or heuristics
+    var cpuMfr = 'intel'; // default
+    var cpuNameLower = (processorName || '').toLowerCase();
+    if (cpuNameLower.indexOf('amd') !== -1 || cpuNameLower.indexOf('epyc') !== -1) {
+        cpuMfr = 'amd';
+    }
+
+    var coresPerSocket = Math.round(coreCount / sockets);
+    var dimmOptions = [64, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096];
+    var snappedMemory = dimmOptions.reduce(function(prev, curr) {
+        return Math.abs(curr - memoryGiB) < Math.abs(prev - memoryGiB) ? curr : prev;
+    });
+
+    // Determine sockets (1 or 2) — heuristic: if cores > max single-socket for gen, must be 2
+    var sockets = coreCount > 64 ? 2 : 1;
+    var coresPerSocket = Math.round(coreCount / sockets);
+
+    // Find best matching CPU generation
+    var bestGen = null;
+    var genMatchConfidence = 'none';
+    var gens = CPU_GENERATIONS[cpuMfr] || [];
+    // Find the generation where coresPerSocket falls within the core range
+    for (var g = 0; g < gens.length; g++) {
+        var gen = gens[g];
+        if (coresPerSocket >= gen.minCores && coresPerSocket <= gen.maxCores) {
+            // Check if the exact core count is available as an option
+            if (gen.coreOptions.indexOf(coresPerSocket) !== -1) {
+                bestGen = gen;
+                genMatchConfidence = 'exact';
+                break;
+            } else if (!bestGen) {
+                bestGen = gen;
+                genMatchConfidence = 'range';
+            }
+        }
+    }
+    // If no range match, find closest — but mark as uncertain
+    if (!bestGen && gens.length > 0) {
+        bestGen = gens.reduce(function(prev, curr) {
+            return Math.abs(curr.maxCores - coresPerSocket) < Math.abs(prev.maxCores - coresPerSocket) ? curr : prev;
+        });
+        genMatchConfidence = 'approximate';
+    }
+
+    // Build preview
+    var previewHTML = '<strong style="color: var(--accent-purple);">Detected Machine: ' + escapeHtml(clusterName) + '</strong><br>';
+    previewHTML += '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 12px;">';
+    previewHTML += '<span style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">How many machines in this instance? <input type="number" id="cluster-node-count-input" value="2" min="1" max="16" style="width: 56px; background: var(--card-bg); border: 2px solid var(--accent-purple); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-weight: 700; text-align: center;"></span>';
+    previewHTML += '<span>Cores/Machine: <strong>' + coreCount + '</strong> (' + coresPerSocket + ' × ' + sockets + ' socket' + (sockets > 1 ? 's' : '') + ')</span>';
+    previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> → ' + snappedMemory + ' GB (DIMM-aligned)</span>';
+    previewHTML += '<span>Model: <strong>' + escapeHtml(model) + '</strong></span>';
+    previewHTML += '<span>Manufacturer: <strong>' + escapeHtml(manufacturer) + '</strong></span>';
+    if (processorName) {
+        previewHTML += '<span>CPU: <strong>' + escapeHtml(processorName) + '</strong></span>';
+    } else if (genMatchConfidence === 'exact') {
+        previewHTML += '<span>CPU Generation: <strong>' + escapeHtml(bestGen.name) + '</strong></span>';
+    } else if (bestGen) {
+        previewHTML += '<span>CPU Generation: <strong>' + escapeHtml(bestGen.name) + '</strong> <em style="color: var(--warning);">(closest match)</em></span>';
+    } else {
+        previewHTML += '<span>CPU Generation: <em style="color: var(--text-secondary);">Not in catalog</em></span>';
+    }
+    previewHTML += '<span>Location: <strong>' + escapeHtml(data.location || '—') + '</strong></span>';
+    previewHTML += '</div>';
+    if (genMatchConfidence !== 'exact' && processorName) {
+        previewHTML += '<div style="margin-top: 8px; color: var(--warning); font-size: 12px;">⚠️ CPU "' + escapeHtml(processorName) + '" is not in the current hardware catalog. The exact processor name and core count will be imported — verify the configuration after import.</div>';
+    }
+
+    previewDiv.innerHTML = previewHTML;
+    previewDiv.style.display = '';
+    applyBtn.style.display = '';
+
+    // Store parsed data for apply
+    window._pendingClusterImport = {
+        clusterName: clusterName,
+        nodeCount: nodeCount,
+        coresPerSocket: coresPerSocket,
+        sockets: sockets,
+        memoryGB: snappedMemory,
+        cpuManufacturer: cpuMfr,
+        cpuGeneration: bestGen ? bestGen.id : null,
+        genMatchConfidence: genMatchConfidence,
+        processorName: processorName || '',
+        model: model
+    };
+}
+
+function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
+    var cfg = window._pendingClusterImport;
+    if (!cfg) return;
+
+    closeImportModal();
+
+    // Apply to sizer dropdowns
+    var nodeCountInput = document.getElementById('cluster-node-count-input');
+    var actualNodeCount = nodeCountInput ? (parseInt(nodeCountInput.value, 10) || 2) : cfg.nodeCount;
+    if (actualNodeCount < 1) actualNodeCount = 1;
+    if (actualNodeCount > 16) actualNodeCount = 16;
+    var nodeCountEl = document.getElementById('node-count');
+    if (nodeCountEl) nodeCountEl.value = String(actualNodeCount);
+    _nodeCountUserSet = true;
+    markManualSet('node-count');
+
+    var cpuMfrEl = document.getElementById('cpu-manufacturer');
+    if (cpuMfrEl) cpuMfrEl.value = cfg.cpuManufacturer;
+
+    // Trigger generation dropdown population
+    if (typeof onCpuManufacturerChange === 'function') onCpuManufacturerChange();
+
+    // Select the matched generation or inject imported processor name
+    var genEl = document.getElementById('cpu-generation');
+    if (cfg.processorName && genEl) {
+        // Always show exact processor name from import when available
+        var importedGenOption = document.createElement('option');
+        importedGenOption.value = cfg.cpuGeneration || 'imported';
+        importedGenOption.textContent = cfg.processorName + ' (imported)';
+        genEl.insertBefore(importedGenOption, genEl.firstChild);
+        genEl.value = importedGenOption.value;
+        // Trigger core options if we have a valid generation
+        if (cfg.cpuGeneration && typeof onCpuGenerationChange === 'function') {
+            onCpuGenerationChange();
+        }
+    } else if (cfg.cpuGeneration && genEl) {
+        genEl.value = cfg.cpuGeneration;
+        if (typeof onCpuGenerationChange === 'function') onCpuGenerationChange();
+    }
+    markManualSet('cpu-manufacturer');
+    markManualSet('cpu-generation');
+
+    var cpuCoresEl = document.getElementById('cpu-cores');
+    if (cpuCoresEl) {
+        var options = Array.from(cpuCoresEl.options).map(function(o) { return parseInt(o.value, 10); });
+        var exactMatch = options.indexOf(cfg.coresPerSocket) !== -1;
+
+        if (exactMatch) {
+            cpuCoresEl.value = String(cfg.coresPerSocket);
+        } else {
+            // Inject a custom option with the exact imported core count
+            var importedOption = document.createElement('option');
+            importedOption.value = String(cfg.coresPerSocket);
+            importedOption.textContent = cfg.coresPerSocket + ' cores (imported)';
+            // Insert in sorted position
+            var inserted = false;
+            for (var oi = 0; oi < cpuCoresEl.options.length; oi++) {
+                if (parseInt(cpuCoresEl.options[oi].value, 10) > cfg.coresPerSocket) {
+                    cpuCoresEl.insertBefore(importedOption, cpuCoresEl.options[oi]);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) cpuCoresEl.appendChild(importedOption);
+            cpuCoresEl.value = String(cfg.coresPerSocket);
+        }
+    }
+    markManualSet('cpu-cores');
+
+    // Store imported CPU info for URL sharing / export persistence
+    window._importedProcessorName = cfg.processorName || null;
+    window._importedCoresPerSocket = cfg.coresPerSocket || null;
+
+    var cpuSocketsEl = document.getElementById('cpu-sockets');
+    if (cpuSocketsEl) cpuSocketsEl.value = String(cfg.sockets);
+    markManualSet('cpu-sockets');
+
+    var memEl = document.getElementById('node-memory');
+    if (memEl) memEl.value = String(cfg.memoryGB);
+    markManualSet('node-memory');
+
+    calculateRequirements({ skipAutoNodeRecommend: true });
+
+    // Show post-import instructions
+    var summary = document.getElementById('post-import-summary');
+    if (summary) {
+        summary.innerHTML = 'Imported <strong>' + actualNodeCount + ' machines</strong> from <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
+            + ' — ' + cfg.coresPerSocket + ' cores × ' + cfg.sockets + ' socket' + (cfg.sockets > 1 ? 's' : '') + ', ' + cfg.memoryGB + ' GB memory per machine.'
+            + '<br><br>To complete your sizing, configure the items below to match your cluster:';
+    }
+    var postOverlay = document.getElementById('post-import-overlay');
+    if (postOverlay) postOverlay.style.display = 'flex';
+
+    showToast('"' + cfg.clusterName + '" imported (' + actualNodeCount + ' machines) — configure storage and add workloads', 'success');
+}
+
+function closePostImportOverlay() { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('post-import-overlay');
+    if (overlay) overlay.style.display = 'none';
 }
 
 // Handle the selected file for import
@@ -5144,8 +6753,17 @@ function handleSizerFileImport(event) {
 function applyImportedSizerState(d) {
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
+    // Restore disaggregated rack count before updating node options
+    if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
+        var rackEl = document.getElementById('disagg-rack-count');
+        if (rackEl) rackEl.value = String(d.disaggRackCount);
+    }
+    if (d.disaggSpineCount) {
+        _designerSpineCount = parseInt(d.disaggSpineCount, 10) || 2;
+    }
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
+    if (d.clusterType === 'disaggregated') updateDisaggregatedUI(true);
     document.getElementById('node-count').value = d.nodeCount || '3';
     document.getElementById('future-growth').value = d.futureGrowth || '0';
 
@@ -5169,6 +6787,34 @@ function applyImportedSizerState(d) {
             ).join('');
             coresSelect.disabled = false;
             coresSelect.value = d.cpuCores || '24';
+
+            // Inject imported core count if not a standard option
+            if (d.importedCoresPerSocket && gen.coreOptions.indexOf(d.importedCoresPerSocket) === -1) {
+                var impCoreOpt = document.createElement('option');
+                impCoreOpt.value = String(d.importedCoresPerSocket);
+                impCoreOpt.textContent = d.importedCoresPerSocket + ' cores (imported)';
+                var inserted = false;
+                for (var oi = 0; oi < coresSelect.options.length; oi++) {
+                    if (parseInt(coresSelect.options[oi].value, 10) > d.importedCoresPerSocket) {
+                        coresSelect.insertBefore(impCoreOpt, coresSelect.options[oi]);
+                        inserted = true;
+                        break;
+                    }
+                }
+                if (!inserted) coresSelect.appendChild(impCoreOpt);
+                coresSelect.value = String(d.importedCoresPerSocket);
+            }
+        }
+
+        // Inject imported processor name as generation option
+        if (d.importedProcessorName) {
+            var impGenOpt = document.createElement('option');
+            impGenOpt.value = d.cpuGeneration || 'imported';
+            impGenOpt.textContent = d.importedProcessorName + ' (imported)';
+            genSelect.insertBefore(impGenOpt, genSelect.firstChild);
+            genSelect.value = impGenOpt.value;
+            window._importedProcessorName = d.importedProcessorName;
+            window._importedCoresPerSocket = d.importedCoresPerSocket;
         }
     }
 
@@ -5214,6 +6860,7 @@ function applyImportedSizerState(d) {
     // Restore workloads
     workloads = d.workloads || [];
     workloadIdCounter = d.workloadIdCounter || 0;
+    // Spine count is always 2 (legacy saves may have had other values)
 
     // Restore all MANUAL override flags
     _nodeCountUserSet = !!d.nodeCountUserSet;
@@ -5264,6 +6911,7 @@ function applyImportedSizerState(d) {
 
     // Update UI
     updateAldoWorkloadButtons();
+    enforceLowCapacityLimits();
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
@@ -5291,6 +6939,7 @@ function resetScenario() {
     _gpuCountUserSet = false;
     _nodeCountUserSet = false;
     _repairDisksUserSet = false;
+    _disaggAutoUpgraded = false;
     clearManualBadges();
     
     // Reset hardware config
@@ -5365,8 +7014,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check for Designer-to-Sizer transfer BEFORE saved state check
     const designerImported = checkForDesignerImport();
 
+    // Check for URL-based config sharing
+    const urlImported = !designerImported && loadSizerFromURL();
+
     // Check for saved session BEFORE initial calc (so it doesn't get overwritten)
-    if (!designerImported) {
+    if (!designerImported && !urlImported) {
         checkForSavedSizerState();
     }
 
@@ -5381,6 +7033,7 @@ document.addEventListener('DOMContentLoaded', function() {
     onStorageConfigChange();
     calculateRequirements();
     applyTheme(); // Apply saved theme
+    updateDesignerActionVisibility(); // Gate share/designer buttons on initial load
 
     // Allow saves from now on
     isInitialLoad = false;
@@ -5395,19 +7048,19 @@ document.addEventListener('DOMContentLoaded', function() {
 // ONBOARDING WALKTHROUGH
 // ============================================
 
-const SIZER_ONBOARDING_KEY = 'odin_sizer_onboarding_complete';
+const SIZER_ONBOARDING_KEY = 'odin_sizer_onboarding_v0_20_06';
 
 const sizerOnboardingSteps = [
     {
-        icon: '<img src="../images/odin-logo.png" alt="Odin Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
         isImage: true,
         title: 'Welcome to the ODIN Sizer',
         description: 'Plan your Azure Local hardware requirements by modelling workloads, resiliency, and capacity — before you buy.',
         features: [
             { icon: '🖥️', title: 'Workload Modelling', text: 'Add VMs, AKS Arc, and AVD workloads with CPU, memory, and storage needs' },
-            { icon: '⚖️', title: 'Resiliency Options', text: 'Choose mirror types and see the real impact on usable storage' },
-            { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, and storage utilization update in real time' },
-            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved to your browser — export your config as JSON to share or back up, and import it later to resume' }
+            { icon: '⚖️', title: 'Deployment Types', text: 'Standard, Rack-Aware, Disaggregated Storage, Single Node, and ALDO clusters' },
+            { icon: '📊', title: 'Live Capacity Bars', text: 'Compute, memory, storage, and GPU utilization update in real time' },
+            { icon: '💾', title: 'Auto-Save & Import/Export', text: 'Progress is auto-saved — export your config as JSON to share or back up' }
         ]
     },
     {
@@ -5415,10 +7068,10 @@ const sizerOnboardingSteps = [
         title: 'How It Works',
         description: 'Configure your cluster, add workloads, and let the sizer recommend the right hardware.',
         features: [
-            { icon: '1️⃣', title: 'Choose Cluster Type', text: 'Standard, Rack-Aware, or Single Node — each with its own constraints' },
+            { icon: '1️⃣', title: 'Choose Deployment Type', text: 'Standard, Rack-Aware, Disaggregated, or Single Node — each with its own constraints' },
             { icon: '2️⃣', title: 'Add Workloads', text: 'Click VM, AKS, or AVD buttons to define your workload scenarios' },
             { icon: '3️⃣', title: 'Review Sizing', text: 'Auto-sizing recommends nodes, cores, memory, and disks' },
-            { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config into the deployment wizard' }
+            { icon: '4️⃣', title: 'Send to Designer', text: 'Click "Configure in Designer" to transfer your config (opens in new tab)' }
         ]
     },
     {
@@ -5428,8 +7081,8 @@ const sizerOnboardingSteps = [
         features: [
             { icon: '📈', title: 'Growth Factor', text: 'Plan for future growth — the sizer applies your growth % to all workloads' },
             { icon: '🔄', title: 'Auto-Scaling', text: 'The engine scales up cores, memory, and disks before adding nodes' },
-            { icon: '🚫', title: 'Utilization Guard', text: 'Configurations above 90% utilization are flagged with warnings' },
-            { icon: '📄', title: 'Export Results', text: 'Download your sizing as PDF or Word for stakeholder review' }
+            { icon: '🏗️', title: 'Disaggregated Storage', text: 'External SAN mode with 1–4 racks, up to 64 nodes, no S2D storage' },
+            { icon: '📷', title: '3D Rack Visualization', text: 'Interactive 3D preview of your rack layout with multi-rack support' }
         ]
     }
 ];
@@ -5561,7 +7214,7 @@ function toggleTheme() {
 function applyTheme() {
     const root = document.documentElement;
     const themeButton = document.getElementById('theme-toggle');
-    const logo = document.querySelector('.odin-tab-logo img');
+    const logo = document.getElementById('odin-logo') || document.querySelector('.odin-tab-logo img');
     
     if (currentTheme === 'light') {
         root.style.setProperty('--bg-dark', '#f5f5f5');

@@ -1,4 +1,15 @@
 (function () {
+    // Debug logging — enable by setting localStorage.setItem('odinDebug','1') or
+    // loading the page with #debug=1 in the hash.  Off by default so the browser
+    // console stays clean for end users.
+    var DEBUG = false;
+    try {
+        DEBUG = (localStorage.getItem('odinDebug') === '1') ||
+                /[#&?]debug=1\b/.test(window.location.hash || '');
+    } catch (e) { /* localStorage can throw on file:// — ignore */ }
+    function dlog() { if (DEBUG && typeof console !== 'undefined') console.log.apply(console, arguments); }
+    function derr() { if (DEBUG && typeof console !== 'undefined') console.error.apply(console, arguments); }
+
     function escapeHtml(s) {
         return String(s)
             .replace(/&/g, '&amp;')
@@ -122,17 +133,17 @@
     }
 
     function tryParsePayload() {
-        console.log('tryParsePayload: Starting...');
-        console.log('window.location.hash:', window.location.hash);
+        dlog('tryParsePayload: Starting...');
+        dlog('window.location.hash:', window.location.hash);
         
         // 1) URL hash payload (preferred for file:// reliability)
         try {
             var hash = window.location.hash || '';
             var idx = hash.indexOf('data=');
             if (idx >= 0) {
-                console.log('Found data= in hash at index:', idx);
+                dlog('Found data= in hash at index:', idx);
                 var encoded = hash.substring(idx + 5);
-                console.log('Encoded data length:', encoded.length);
+                dlog('Encoded data length:', encoded.length);
                 encoded = decodeURIComponent(encoded);
                 var binary = atob(encoded);
                 var bytes = new Uint8Array(binary.length);
@@ -141,27 +152,27 @@
                 }
                 var json = new TextDecoder('utf-8').decode(bytes);
                 var parsed = JSON.parse(json);
-                console.log('Successfully parsed from hash:', parsed);
+                dlog('Successfully parsed from hash:', parsed);
                 return parsed;
             }
         } catch (e) {
-            console.error('Error parsing hash:', e);
+            derr('Error parsing hash:', e);
         }
 
         // 2) localStorage fallback
         try {
             var raw = localStorage.getItem('azloc_arm_payload');
-            console.log('localStorage data exists:', !!raw);
+            dlog('localStorage data exists:', !!raw);
             if (raw) {
                 var parsed = JSON.parse(raw);
-                console.log('Successfully parsed from localStorage:', parsed);
+                dlog('Successfully parsed from localStorage:', parsed);
                 return parsed;
             }
         } catch (e2) {
-            console.error('Error parsing localStorage:', e2);
+            derr('Error parsing localStorage:', e2);
         }
 
-        console.log('No payload found');
+        dlog('No payload found');
         return null;
     }
 
@@ -194,6 +205,37 @@
             + (refUrl ? ('<div><strong>Reference template:</strong> <a href="' + escapeHtml(refUrl) + '" target="_blank" rel="noopener" style="color:var(--accent-blue);">' + escapeHtml(refName || refUrl) + '</a></div>') : '')
             + (version ? ('<div><strong>Wizard version:</strong> <span style="color:var(--text-secondary);">' + escapeHtml(version) + '</span></div>') : '')
             + '</div>';
+
+        // Architecture-aware prerequisites banner. For Disaggregated (create-cluster-san)
+        // remind the operator that the SAN fabric + LUN provisioning must be staged
+        // BEFORE running Validate — the template itself cannot zone the fabric.
+        var archBanner = document.getElementById('arm-architecture-banner');
+        if (archBanner) {
+            if (payload.architecture === 'disaggregated') {
+                archBanner.hidden = false;
+                archBanner.classList.add('visible');
+                archBanner.style.background = 'rgba(139, 92, 246, 0.08)';
+                archBanner.style.border = '1px solid rgba(139, 92, 246, 0.35)';
+                archBanner.innerHTML = ''
+                    + '<div style="display:flex; flex-direction:column; gap:0.5rem;">'
+                    + '<div><strong style="color: var(--accent-purple);">🔌 Disaggregated storage (SAN) — pre-deployment checklist</strong></div>'
+                    + '<div style="color:var(--text-secondary); font-size:0.9rem; line-height:1.5;">'
+                    + 'The <code>create-cluster-san</code> template assumes the external SAN array is already presented to the hosts. Validate will fail if any of these steps are incomplete:'
+                    + '<ul style="margin:0.5rem 0 0 1.2rem; color:var(--text-secondary); font-size:0.9rem;">'
+                    + '<li>Fibre Channel (or iSCSI) fabric zoning — each host WWPN/IQN must see both the Infrastructure LUN and the Cluster Performance History LUN.</li>'
+                    + '<li>Host registrations on the array — all physical node HBAs / iSCSI initiators registered with the correct host group.</li>'
+                    + '<li>LUN mapping — the two LUN IDs in the parameters file (<code>infraVolLunId</code>, <code>infraPerfLunId</code>) must match the array\'s NAA / serial / target IDs.</li>'
+                    + '<li>Leaf (ToR) switch configuration — cluster / mgmt / iSCSI / backup VLANs configured in <em>access mode</em> (or trunk if chosen on DA4) on all host-facing ports. See the Switch Config Generator for a leaf template.</li>'
+                    + '<li>Cluster network CIDRs (<code>sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].addressPrefix</code>) must be reachable between physical nodes before Validate runs.</li>'
+                    + '</ul>'
+                    + '</div>'
+                    + '</div>';
+            } else {
+                archBanner.hidden = true;
+                archBanner.classList.remove('visible');
+                archBanner.innerHTML = '';
+            }
+        }
     }
 
     function setPlaceholders(placeholdersEl, placeholders) {
@@ -412,9 +454,9 @@
     }
 
     function main() {
-        console.log('main: Starting...');
+        dlog('main: Starting...');
         var payload = tryParsePayload();
-        console.log('Payload received:', payload);
+        dlog('Payload received:', payload);
         
         // Store payload globally for updateParameters and deployToAzure
         window.armPayload = payload;
@@ -425,7 +467,7 @@
         var copyBtn = document.getElementById('arm-copy-btn');
         var statusEl = document.getElementById('arm-copy-status');
 
-        console.log('Elements found:', {
+        dlog('Elements found:', {
             metaEl: !!metaEl,
             placeholdersEl: !!placeholdersEl,
             codeEl: !!codeEl,
@@ -473,7 +515,15 @@ function deployToAzure() {
     var payload = window.armPayload;
     
     if (!payload || !payload.referenceTemplate || !payload.referenceTemplate.url) {
-        alert('No ARM template reference found. Please generate the ARM parameters from the wizard first.');
+        // Prefer the shared toast (loaded via ../js/notifications.js on arm.html);
+        // fall back to alert() only when the global isn't available (e.g. the
+        // page is opened stand-alone without the notifications script).
+        var msg = 'No ARM template reference found. Please generate the ARM parameters from the wizard first.';
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(msg, 'error');
+        } else {
+            alert(msg);
+        }
         return;
     }
     
@@ -766,7 +816,7 @@ jobs:
 
 function showRestApiInfo() {
     const overlay = document.createElement('div');
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; backdrop-filter: blur(8px);';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.85); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);';
     
     overlay.innerHTML = `
         <div style="background: var(--card-bg); border: 2px solid var(--accent-blue); border-radius: 16px; padding: 32px; max-width: 700px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
@@ -1102,6 +1152,26 @@ function generatePowerShellScript() {
         return;
     }
     
+    // Validate input formats to prevent command injection in generated scripts
+    var guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    var namePattern = /^[a-zA-Z0-9\-_.()]{1,90}$/;
+    if (!guidPattern.test(subId)) {
+        showNotification('Invalid Subscription ID format (must be a GUID)', 'error');
+        return;
+    }
+    if (tenantId && !guidPattern.test(tenantId)) {
+        showNotification('Invalid Tenant ID format (must be a GUID)', 'error');
+        return;
+    }
+    if (!namePattern.test(rgName)) {
+        showNotification('Invalid Resource Group name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
+        return;
+    }
+    if (!namePattern.test(deployName)) {
+        showNotification('Invalid Deployment name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
+        return;
+    }
+    
     const tenantParam = tenantId ? ` -TenantId "${tenantId}"` : '';
     
     const script = `# Azure Local Deployment Script
@@ -1157,6 +1227,26 @@ function generateAzCLIScript() {
     
     if (!subId || !rgName) {
         showNotification('Please fill in Subscription ID and Resource Group Name first', 'error');
+        return;
+    }
+    
+    // Validate input formats to prevent command injection in generated scripts
+    var guidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    var namePattern = /^[a-zA-Z0-9\-_.()]{1,90}$/;
+    if (!guidPattern.test(subId)) {
+        showNotification('Invalid Subscription ID format (must be a GUID)', 'error');
+        return;
+    }
+    if (tenantId && !guidPattern.test(tenantId)) {
+        showNotification('Invalid Tenant ID format (must be a GUID)', 'error');
+        return;
+    }
+    if (!namePattern.test(rgName)) {
+        showNotification('Invalid Resource Group name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
+        return;
+    }
+    if (!namePattern.test(deployName)) {
+        showNotification('Invalid Deployment name (alphanumeric, hyphens, underscores, periods, parentheses only)', 'error');
         return;
     }
     

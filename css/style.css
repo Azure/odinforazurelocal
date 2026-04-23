@@ -34,6 +34,7 @@ body {
     top: var(--nav-height); /* Account for fixed nav bar height */
     z-index: 100;
     background: var(--nav-bg);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
     padding: 12px 0;
@@ -119,6 +120,35 @@ body {
     color: var(--text-secondary);
     font-size: 16px;
     opacity: 0.5;
+}
+
+/* Breadcrumb Group (visual grouping of related steps) */
+.breadcrumb-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+}
+
+.breadcrumb-group-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--accent-purple);
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.breadcrumb-group-items {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    border-radius: 24px;
+    background: rgba(139, 92, 246, 0.05);
 }
 
 /* Collapsible Sections */
@@ -332,7 +362,12 @@ body {
 
 .onboarding-btn-primary:hover {
     background: #0066b8;
-    transform: translateY(-2px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .onboarding-btn-primary:hover {
+        transform: translateY(-2px);
+    }
 }
 
 .onboarding-btn-secondary {
@@ -870,7 +905,7 @@ header .header-description {
     border-color: rgba(255, 255, 255, 0.2);
 }
 
-.option-card:focus {
+.option-card:focus-visible {
     outline: none;
     border-color: var(--accent-blue);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
@@ -1003,6 +1038,7 @@ header .header-description {
     max-height: calc(100vh - 4rem);
     overflow-y: auto;
     background: var(--card-bg-transparent);
+    -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
@@ -1151,6 +1187,7 @@ header .header-description {
         padding: 0.75rem;
         border-radius: 0;
         background: rgba(15, 23, 42, 0.95);
+        -webkit-backdrop-filter: blur(10px);
         backdrop-filter: blur(10px);
         border-top: 1px solid var(--glass-border);
     }
@@ -1806,7 +1843,7 @@ header .header-description {
 
 .intent-overrides-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1rem;
 }
 
@@ -1815,6 +1852,8 @@ header .header-description {
     border: 1px solid var(--glass-border);
     border-radius: 12px;
     padding: 0.9rem;
+    overflow: hidden;
+    min-width: 0;
 }
 
 .override-card h5 {
@@ -1823,8 +1862,8 @@ header .header-description {
     color: var(--text-primary);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .override-hint {
@@ -2113,6 +2152,43 @@ header .header-description {
     background: rgba(34, 197, 94, 0.05);
 }
 
+/* Type-specific zone colors for disaggregated */
+.intent-zone-card.zone-mgmt {
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.05);
+}
+.intent-zone-card.zone-mgmt.is-complete {
+    border-color: rgba(59, 130, 246, 0.5);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.intent-zone-card.zone-cluster {
+    border-color: rgba(34, 197, 94, 0.3);
+    background: rgba(34, 197, 94, 0.05);
+}
+.intent-zone-card.zone-cluster.is-complete {
+    border-color: rgba(34, 197, 94, 0.5);
+    background: rgba(34, 197, 94, 0.08);
+}
+
+.intent-zone-card.zone-storage {
+    border-color: rgba(139, 92, 246, 0.3);
+    background: rgba(139, 92, 246, 0.05);
+}
+.intent-zone-card.zone-storage.is-complete {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.intent-zone-card.zone-backup {
+    border-color: rgba(249, 115, 22, 0.3);
+    background: rgba(249, 115, 22, 0.05);
+}
+.intent-zone-card.zone-backup.is-complete {
+    border-color: rgba(249, 115, 22, 0.5);
+    background: rgba(249, 115, 22, 0.08);
+}
+
 .intent-zone-card.has-error {
     border-color: rgba(239, 68, 68, 0.4);
     background: rgba(239, 68, 68, 0.05);
@@ -2141,6 +2217,10 @@ header .header-description {
 
 .intent-zone-title.storage {
     color: #8b5cf6;
+}
+
+.intent-zone-title.backup {
+    color: #f97316;
 }
 
 .intent-zone-badge {
@@ -2618,6 +2698,7 @@ header .header-description {
         padding: 0.75rem !important;
         border-radius: 0 !important;
         background: rgba(15, 23, 42, 0.95) !important;
+        -webkit-backdrop-filter: blur(10px) !important;
         backdrop-filter: blur(10px) !important;
         border-top: 1px solid var(--glass-border) !important;
     }
@@ -2750,10 +2831,6 @@ header .header-description {
 .stat-value {
     color: var(--text-primary);
     font-weight: 600;
-}
-
-.onboarding-btn-primary:hover {
-    transform: none;
 }
 
 /* Ensure tap feedback */

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="900px" height="660px" viewBox="0 0 900 660" style="background: #1a1a1a;">
+  <defs>
+    <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#6ccb5f"/>
+    </marker>
+
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="900" height="660" fill="#1a1a1a"/>
+
+  <!-- Title -->
+  <text x="450" y="30" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="bold" fill="#ffffff" text-anchor="middle">Single VRF — AKS and management LNETs (recommended)</text>
+
+  <!-- Single VRF boundary -->
+  <rect x="30" y="48" width="840" height="505" rx="12" ry="12" fill="none" stroke="#4a90d9" stroke-width="2" stroke-dasharray="8,4"/>
+  <text x="50" y="72" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="bold" fill="#4a90d9">VRF: Infrastructure + Workloads</text>
+
+  <!-- Row 1: Service leaf switches (top) — dimmed, not involved -->
+  <rect x="335" y="90" width="100" height="40" rx="6" ry="6" fill="#3a2060" stroke="#4a3070" stroke-width="1" opacity="0.45"/>
+  <text x="385" y="115" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#908090" text-anchor="middle">Service Leaf 1</text>
+  <rect x="465" y="90" width="100" height="40" rx="6" ry="6" fill="#3a2060" stroke="#4a3070" stroke-width="1" opacity="0.45"/>
+  <text x="515" y="115" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#908090" text-anchor="middle">Service Leaf 2</text>
+
+  <!-- Label: To DC Core -->
+  <text x="450" y="82" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#606060" text-anchor="middle">↑ To data center core (north-south only)</text>
+
+  <!-- "Not involved" label on service leafs -->
+  <rect x="370" y="135" width="160" height="20" rx="4" ry="4" fill="none" stroke="#505050" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="450" y="149" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#707070" text-anchor="middle">Not involved in east-west traffic</text>
+
+  <!-- Service leaf to spine connections removed for clarity -->
+
+  <!-- Row 2: Spine switches -->
+  <rect x="335" y="175" width="100" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="385" y="200" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#ffffff" text-anchor="middle">Spine 1</text>
+  <rect x="465" y="175" width="100" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="515" y="200" font-family="Segoe UI, Arial, sans-serif" font-size="12" fill="#ffffff" text-anchor="middle">Spine 2</text>
+
+  <!-- Row 3: Compute leaf switches (ToR) — two pairs -->
+  <rect x="100" y="270" width="120" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="160" y="295" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Compute Leaf 1</text>
+  <rect x="250" y="270" width="120" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="310" y="295" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Compute Leaf 2</text>
+  <rect x="530" y="270" width="120" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="590" y="295" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Compute Leaf 3</text>
+  <rect x="680" y="270" width="120" height="40" rx="6" ry="6" fill="#0078d4" stroke="#3a9eea" stroke-width="1.5"/>
+  <text x="740" y="295" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#ffffff" text-anchor="middle">Compute Leaf 4</text>
+
+  <!-- Spine to compute leaf connections removed for clarity -->
+
+  <!-- === TRAFFIC FLOW PATH: Mgmt LNET → CL1 → Spine 1 → CL3 → AKS LNET (3 fabric hops) === -->
+  <!-- Step 1: Mgmt LNET top border → CL1 bottom border -->
+  <path d="M175,360 Q165,335 160,310" fill="none" stroke="#00bcf2" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Step 2: CL1 top border → Spine 1 bottom-left border -->
+  <path d="M190,270 Q270,225 355,215" fill="none" stroke="#00bcf2" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Step 3: Spine 1 bottom-right border → CL3 top border -->
+  <path d="M415,215 Q500,225 560,270" fill="none" stroke="#00bcf2" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Step 4: CL3 bottom border → AKS LNET top border -->
+  <path d="M590,310 Q605,335 615,360" fill="none" stroke="#00bcf2" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Flow label on spine area -->
+  <rect x="350" y="230" width="200" height="22" rx="4" ry="4" fill="#003a5c" stroke="#00bcf2" stroke-width="1"/>
+  <text x="450" y="245" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#00bcf2" text-anchor="middle" font-weight="bold">Packet flow: 3 hops (optimal)</text>
+
+  <!-- Flow step labels -->
+  <text x="148" y="340" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#00bcf2" text-anchor="middle">①</text>
+  <text x="258" y="237" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#00bcf2" text-anchor="middle">②</text>
+  <text x="505" y="237" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#00bcf2" text-anchor="middle">③</text>
+  <text x="618" y="340" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#00bcf2" text-anchor="middle">④</text>
+
+  <!-- Rack labels -->
+  <text x="225" y="345" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#808080" text-anchor="middle">Rack 1</text>
+  <text x="675" y="345" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#808080" text-anchor="middle">Rack 2</text>
+
+  <!-- Row 4: LNET boxes -->
+
+  <!-- Management LNET box -->
+  <rect x="60" y="360" width="330" height="180" rx="8" ry="8" fill="#1e2e1e" stroke="#6ccb5f" stroke-width="1.5"/>
+  <text x="225" y="385" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="bold" fill="#6ccb5f" text-anchor="middle">Management LNET (VLAN 7)</text>
+
+  <!-- Nodes -->
+  <rect x="80" y="400" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#6ccb5f" stroke-width="1"/>
+  <text x="135" y="422" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">Node 1</text>
+  <rect x="80" y="445" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#6ccb5f" stroke-width="1"/>
+  <text x="135" y="467" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">Node 2</text>
+  <rect x="250" y="400" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#6ccb5f" stroke-width="1"/>
+  <text x="305" y="422" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">Node 3</text>
+  <rect x="250" y="445" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#6ccb5f" stroke-width="1"/>
+  <text x="305" y="467" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">Node N</text>
+
+  <!-- Compute leaf to management LNET connections removed for clarity -->
+
+  <!-- AKS LNET box -->
+  <rect x="510" y="360" width="330" height="180" rx="8" ry="8" fill="#2e2510" stroke="#e6a817" stroke-width="1.5"/>
+  <text x="675" y="385" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="bold" fill="#e6a817" text-anchor="middle">AKS LNET (VLAN 20)</text>
+
+  <!-- AKS workloads -->
+  <rect x="530" y="400" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#e6a817" stroke-width="1"/>
+  <text x="585" y="422" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">AKS Cluster 1</text>
+  <rect x="530" y="445" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#e6a817" stroke-width="1"/>
+  <text x="585" y="467" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">AKS Cluster 2</text>
+  <rect x="700" y="400" width="110" height="35" rx="5" ry="5" fill="#2a2a2a" stroke="#e6a817" stroke-width="1"/>
+  <text x="755" y="422" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#e0e0e0" text-anchor="middle">AKS Node Pool</text>
+
+  <!-- Compute leaf to AKS LNET connections removed for clarity -->
+
+  <!-- Bidirectional reachability arrow -->
+  <line x1="390" y1="445" x2="510" y2="445" stroke="#6ccb5f" stroke-width="2.5" marker-end="url(#arrowhead-green)"/>
+  <line x1="510" y1="455" x2="390" y2="455" stroke="#6ccb5f" stroke-width="2.5" marker-end="url(#arrowhead-green)"/>
+  <rect x="410" y="433" width="100" height="20" rx="3" ry="3" fill="#1a1a1a" stroke="none"/>
+  <text x="460" y="448" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="bold" fill="#6ccb5f" text-anchor="middle">L3 reachable ✓</text>
+
+  <!-- Footer -->
+  <text x="450" y="575" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#a0a0a0" text-anchor="middle" font-style="italic">Both LNETs share a single VRF — routing between them is automatic.</text>
+  <text x="450" y="595" font-family="Segoe UI, Arial, sans-serif" font-size="11" fill="#00bcf2" text-anchor="middle">Traffic path: Compute Leaf → Spine → Compute Leaf (service leaf not involved)</text>
+
+  <!-- Legend -->
+  <rect x="140" y="620" width="12" height="12" rx="2" ry="2" fill="#3a2060" opacity="0.45"/>
+  <text x="158" y="631" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Service Leaf (not used)</text>
+  <rect x="300" y="620" width="12" height="12" rx="2" ry="2" fill="#0078d4"/>
+  <text x="318" y="631" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Spine / Compute Leaf</text>
+  <rect x="460" y="620" width="12" height="12" rx="2" ry="2" fill="#6ccb5f"/>
+  <text x="478" y="631" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Management LNET</text>
+  <rect x="590" y="620" width="12" height="12" rx="2" ry="2" fill="#e6a817"/>
+  <text x="608" y="631" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">AKS LNET</text>
+  <line x1="680" y1="626" x2="710" y2="626" stroke="#00bcf2" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="718" y="631" font-family="Segoe UI, Arial, sans-serif" font-size="10" fill="#c0c0c0">Packet flow</text>
+</svg>

@@ -53,12 +53,153 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.18.04</h4>
-                    <div style="font-size: 13px; color: var(--text-secondary);">March 30, 2026</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.06</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">April 8, 2026</div>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🖥️ Sizer: 3D Rack Visualization</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧩 Disaggregated ARM Parameters (create-cluster-san)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New ARM branch:</strong> Generate ARM now emits an Azure-Local-SAN–shaped <code>deploymentParameters.json</code> when Designer is in the Disaggregated architecture — based on the upstream <code>microsoft.azurestackhci/create-cluster-san</code> quickstart. Emits <code>configurationMode: "InfraOnly"</code>, <code>infraVolLunId</code>, <code>infraPerfLunId</code>, <code>sanNetworkList</code>, and a single <code>MgmtCompute</code> intent; HCI-only params (<code>storageNetworkList</code>, <code>enableStorageAutoIp</code>) are suppressed.</li>
+                        <li><strong>DA8 Step 16 — Storage Pool + LUN IDs:</strong> Auto-locked to <code>InfraOnly</code> for Disaggregated with required inputs for the two SAN LUN IDs the template needs (Infrastructure Volume + Cluster Performance History).</li>
+                        <li><strong>DA4 — Cluster VLAN access/trunk toggle:</strong> Per-row mode toggle for cluster1/cluster2 on the VLAN grid. Access mode (default) emits <code>vlanId: 0</code> in ARM — host sends untagged, matching the reference template. Trunk mode passes the numeric VLAN through. cluster1 and cluster2 are paired (toggling one toggles the other). DA8 cluster inputs are now read-only and track the DA4 mode.</li>
+                        <li><strong>Readiness gate:</strong> Generate ARM is blocked with a clear message when Disaggregated is selected but the LUN IDs are blank or Storage Pool Configuration is not <code>InfraOnly</code>.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 Disaggregated Prerequisites &amp; Leaf-Scope Banners</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>ARM Tools — SAN pre-deployment checklist:</strong> When the payload is Disaggregated, the ARM Tools page shows a purple pre-deployment checklist banner listing what must be staged before Validate: fabric zoning, array host registrations, LUN mapping, leaf VLAN config, and cluster-network reachability.</li>
+                        <li><strong>Switch Config — leaf-only scope banner:</strong> Switch Config page shows a banner when the Designer is Disaggregated, calling out that it emits leaf-only configuration and that spine/EVPN fabric, SAN fibre-channel zoning, and array host registrations are out of scope.</li>
+                        <li><strong>Switch Config — Per-Rack Leaf Switches (up to 8 racks / 16 ToRs):</strong> New "Per-Rack Leaf Switches" panel (SC1b) for disaggregated deployments covering <strong>every rack (Rack 1–N, 1–8 racks)</strong>. Each rack has its own collapsible card — grouped under Identity, Loopbacks &amp; BGP, Management SVI IPs, P2P Links to Spine, and iBGP Peering — with editable ToR-A/ToR-B/BMC hostnames, site, per-rack BGP ASN (auto-increments from 64789), loopback pair, Mgmt SVI IPs, per-rack P2P underlay links to Border1/Border2 (/30), and per-rack iBGP peering IPs. Legacy single-rack Rack 1 fields in SC1/SC3 are hidden for disaggregated; only the shared Border Router BGP ASN remains in SC3. Generator emits up to 16 ToR + 8 BMC configs per run; tabs scroll horizontally.</li>
+                        <li><strong>DA4 — Editable Cluster Network names:</strong> Disaggregated DA4 Cluster A / Cluster B rows now have a Network Name input. Custom names flow to the DA8 Adapter Mapping intent-zone titles, the DA8 Overrides card headings, and ARM <code>sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].name</code> (sanitized: spaces → hyphens).</li>
+                        <li><strong>Report — Responsive rack layout:</strong> Rack Layout SVG now uses <code>viewBox</code> + <code>max-width: 100%</code> so 6-, 8-, and 16-rack disaggregated layouts scale to fit the report column instead of overflowing horizontally.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🏗️ Disaggregated Architecture Wizard</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New disaggregated wizard:</strong> End-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks.</li>
+                        <li><strong>VLAN/VNI/VRF configuration:</strong> Full VLAN, VNI, and VRF setup for management, cluster, iSCSI, and backup networks with tenant network management.</li>
+                        <li><strong>QoS policy &amp; IP planning:</strong> QoS policy configuration, Clos topology diagram, and per-network IP allocation with subnet planning.</li>
+                        <li><strong>Drag-and-drop NIC mapping:</strong> Map physical NICs to intent zones (Compute+Mgmt, Cluster, Storage/Backup) with per-port speed configuration.</li>
+                        <li><strong>Breadcrumb navigation:</strong> Step progress breadcrumb with auto-completion tracking across the DA wizard flow.</li>
+                        <li><strong>Host networking preview:</strong> Interactive SVG diagrams for hyperconverged, switchless, FC SAN, and iSCSI topologies with light/dark SVG export.</li>
+                        <li><strong>SVG rack topology:</strong> Interactive multi-rack topology diagram with leaf-spine interconnects and downloadable SVG.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 ToR Switch Config Generator &amp; QoS Validator</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New Switch Config page:</strong> Full-featured ToR switch configuration generator for Cisco NX-OS and Dell OS10 platforms — generates ToR, BMC, and border switch configs from a structured JSON data model.</li>
+                        <li><strong>Rack-aware 4-ToR support:</strong> TOR1–TOR4 configurations with correct iBGP peering, loopback IPs, storage VLAN assignment, and per-rack HSRP/VRRP priorities.</li>
+                        <li><strong>BMC switch configs:</strong> BMC switch config with access VLANs, trunks to ToRs, and static default route.</li>
+                        <li><strong>Infrastructure tokens:</strong> Timezone (with DST), NTP, syslog, TACACS+, SNMP, management VLAN, and management gateway — all replaceable placeholders in rendered configs.</li>
+                        <li><strong>JSON export:</strong> Export structured JSON data model for each switch section (TOR1, TOR2, TOR3, TOR4, BMC).</li>
+                        <li><strong>Designer integration:</strong> "Generate / Validate ToR Switch Configuration" button on the Designer summary page transfers deployment state to the switch config page (opens in new tab).</li>
+                        <li><strong>QoS Configuration Validator:</strong> Paste a <code>show running-config</code> (Cisco) or <code>show running-configuration</code> (Dell OS10) to validate PFC, ETS bandwidth reservations, ECN, MTU 9216, system QoS policy, and interface-level PFC/trunking against Azure Local requirements — all processing is client-side.</li>
+                        <li><strong>Validator — Deployment Type profiles:</strong> Dropdown to score the pasted config against the right rule set: <em>Auto-detect from Designer</em>, <em>Hyperconverged — Switched</em>, <em>Hyperconverged — Switchless</em>, <em>Disaggregated — Fibre Channel SAN</em>, and <em>Disaggregated — iSCSI (evolving guidance)</em>. HCI Switchless reports PFC/ECN/ETS-storage/ETS-cluster/system-qos/interface-PFC as <strong>N/A</strong> (storage &amp; cluster NICs are back-to-back, not on the ToR). Disaggregated FC SAN reports the Ethernet-side storage checks as N/A (storage is on the FC fabric) while Cluster CSV/LM QoS still applies. Disaggregated iSCSI demotes storage-side checks from <code>fail</code> to <code>warn</code> as a placeholder — authoritative guidance is tracked for a future release. Results include a grey <code>&#x2139;&#xFE0F; N not applicable</code> count alongside pass/warn/fail.</li>
+                        <li><strong>Cisco 93108TC-FX3P as ToR:</strong> Added 10GBASE-T copper switch model as a ToR option (fully converged, switched, and switchless).</li>
+                        <li><strong>Per-Rack Site / Location:</strong> Rack-aware deployments support separate Site / Location for Rack 1 and Rack 2 (SNMP location).</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📐 Report: 2D SVG Rack Diagram</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>SVG rack layout:</strong> Static 2D front-view SVG rack diagram in the Report page with 42U rack frames, server nodes (2U), ToR switches (1U), BMC switches (1U), and U-position markers.</li>
+                        <li><strong>Core switch visualization:</strong> Core Switch / Router / Firewall box rendered above racks.</li>
+                        <li><strong>Rack-aware layout:</strong> Multi-rack diagrams with contiguous node numbering across racks (Node 1–4 in Rack 1, Node 5–8 in Rack 2).</li>
+                        <li><strong>Azure Local branding:</strong> Azure Local instance icon and "Azure Local" text in top-right corner.</li>
+                        <li><strong>Download:</strong> "Download Rack Diagram SVG" button exports the diagram as a standalone SVG file.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🖥️ 3D Rack Visualization Improvements</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Azure Local branding:</strong> Replaced Microsoft Azure logo with Azure Local instance icon + "Azure Local" purple text; replaced Azure "A" on server fronts with azurelocal-machine.svg.</li>
+                        <li><strong>BMC switch:</strong> Added 1U BMC switch (white/light grey) below ToR switches in every rack, including single-node.</li>
+                        <li><strong>ToR switch color:</strong> Changed from green to dark grey (#444444) for better visual contrast.</li>
+                        <li><strong>Single-node topology:</strong> Single-node deployments now show 1 ToR switch and 1 BMC switch with ToR-to-router cabling.</li>
+                        <li><strong>Label cleanup:</strong> Removed "(Front)" suffix from all devices; renamed "TOR" → "ToR"; contiguous node numbering across racks.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📝 Designer: Management VLAN Guidance</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Improved VLAN descriptions:</strong> Default VLAN card now reads "Untagged — management traffic uses the native VLAN (ID 0 on the host)"; Custom VLAN card updated to "Tag management traffic with a specific VLAN ID on the host NICs".</li>
+                        <li><strong>Expanded info box:</strong> Explains that even with untagged host traffic (ID 0), the ToR switch assigns it to a VLAN internally, and the switch-side VLAN ID is configured separately in the Switch Config Generator.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚖️ Sizer: Low Capacity Cluster Type</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Low Capacity deployment type:</strong> New cluster type option enforcing Azure Local low capacity hardware limits — 1–3 nodes, single socket, max 14 physical cores, 32–128 GB memory per node, max 192 GB GPU VRAM.</li>
+                        <li><strong>Auto-constrained hardware:</strong> Core dropdown, socket count, and memory slider automatically limited to deployment maximums. All-flash storage only (no cache tier).</li>
+                        <li><strong>3D Visualization:</strong> Rack visualization renders correctly for 1–3 node low capacity configurations.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚖️ Sizer: Disaggregated Storage</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Disaggregated Storage deployment type:</strong> Rack count <strong>1–8</strong>, spine switch count (2/4), and storage connectivity (Fibre Channel / iSCSI) selectors — total cluster capped at 64 nodes with per-rack node maximum reduced (16/12/10/9/8 for 4/5/6/7/8 racks).</li>
+                        <li><strong>Two-row 3D layout for 5+ racks:</strong> Disaggregated deployments with more than 4 racks render in two rows with a true hot-aisle / cold-aisle orientation — spine switches sit centered above the hot aisle, per-rack uplink cables exit the ToR rear, route above and beside the spine stack, and land on the spine rear face.</li>
+                        <li><strong>3D Visualization:</strong> FC switches (purple) rendered per rack for Fibre Channel; per-rack blue uplink cables to spine switches; no SMB/LAG cables for disaggregated; explanatory note clarifying that the external SAN appliance is not rendered.</li>
+                        <li><strong>Auto-scale beyond 16 nodes:</strong> Sizer auto-scaler can now grow node count beyond the single-site 16-node limit when workload demand requires it (up to 64 nodes for disaggregated).</li>
+                        <li><strong>Designer → Sizer transfer:</strong> Rack count, spine count, and storage type transfer from Designer; <code>disaggSpineCount</code> is preserved in both directions; all buttons open in new tabs.</li>
+                        <li><strong>Import/Export:</strong> Disaggregated state persisted in save, resume, and JSON import/export.</li>
+                        <li><strong>QoS Validator:</strong> Smart PFC detection using QoS service-policy; dynamic CoS detection; actionable warnings listing specific interfaces.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-blue); margin: 0 0 12px 0;">🏢 Sizer: Enterprise Features</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Import from Azure Portal:</strong> Paste a machine JSON View to import exact CPU model, core count, sockets, and memory — non-catalog CPUs shown with "(imported)" label.</li>
+                        <li><strong>Share Config as URL:</strong> Encode your full Sizer configuration in a shareable URL with optional name — recipients see a branded confirmation banner.</li>
+                        <li><strong>CSV Export:</strong> Download hardware BOM as a CSV spreadsheet for procurement and planning.</li>
+                        <li><strong>Save as PDF:</strong> New "Save as PDF" export on both the Designer and the Sizer — renders the current summary / sizing view as a multi-page PDF for sharing and archiving.</li>
+                        <li><strong>Capacity Runway:</strong> 5-year growth projection table showing when vCPU, memory, or storage will exceed 90% capacity.</li>
+                        <li><strong>Power Breakdown:</strong> Verbose per-component power calculations with PSU efficiency (Titanium 96%), network infrastructure, and full assumptions.</li>
+                        <li><strong>VM Capacity Check:</strong> VMs exceeding per-machine capacity trigger errors, block Designer export, and show toast warnings.</li>
+                        <li><strong>Pricing Link:</strong> Azure Local pricing calculator link with hardware cost caveat.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-blue); margin: 0 0 12px 0;">📄 Report & Site Structure</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Outbound / Arc / Proxy / Private Endpoints:</strong> Moved into the Configuration Summary immediately after Infrastructure Network for a more logical read-order, and a new direct link to the Interactive Outbound Connectivity Diagram Builder. The redundant higher-level Connectivity section has been removed.</li>
+                        <li><strong>Leaf &amp; Spine fabric diagrams:</strong> Stacked full-width in the report for better readability on wide screens.</li>
+                        <li><strong>Cleaner Switch Config URL:</strong> The Switch Config Generator now lives at <code>/switch-config/</code> (was <code>/switch-config.html</code>).</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--success); margin: 0 0 12px 0;">🔧 Fixes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>SDN Feature Toggle:</strong> Generate buttons now update immediately when checking LNET/NSG features.</li>
+                        <li><strong>Disaggregated Resume:</strong> DA wizard steps now fully restore card selections and slider values on session resume.</li>
+                        <li><strong>Sizer Logo Toggle:</strong> ODIN logo correctly switches between dark/light variants in the Sizer.</li>
+                        <li><strong>Leaf &amp; Spine heading:</strong> Fixed a double-escaped ampersand in the "Leaf &amp; Spine Fabric Requirements" heading.</li>
+                        <li><strong>Rack Layout badge:</strong> Fixed a malformed step-number badge in the cluster report.</li>
+                        <li><strong>Onboarding on touch:</strong> Hover transform restricted to hover-capable devices so touch users no longer see sticky hover states.</li>
+                        <li><strong>969 Tests:</strong> Test suite grew to 969 tests covering disaggregated 1–8 racks, two-row 3D math, <code>disaggSpineCount</code> round-trip, PDF export, and all session-resume state keys.</li>
+                    </ul>
+                </div>
+
+                <hr style="border: none; border-top: 2px solid var(--glass-border); margin: 24px 0;">
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Previous: Version 0.18.04</div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--text-secondary); margin: 0 0 12px 0;">🖥️ Sizer: 3D Rack Visualization</h4>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Interactive 3D rack preview:</strong> Renders 42U open-frame server cabinets with detailed 2U server nodes (disk bays, LEDs, Azure logo, dual PSUs, network ports) and 1U ToR switches (48-port ethernet, QSFP uplinks).</li>
                         <li><strong>Rack-aware support:</strong> Rack-aware deployments render two side-by-side cabinets with balanced node distribution and blue core switch/router.</li>
@@ -103,7 +244,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Per-Model GPU-P Partitions:</strong> Partition sizes filter based on selected GPU model, showing VRAM per partition (e.g., A2 up to 1:8, L40S up to 1:16).</li>
                         <li><strong>GPU Capacity Bar:</strong> New GPU capacity bar showing consumed vs available GPUs with N−1 node awareness.</li>
                         <li><strong>GPU Auto-Scaling:</strong> GPU demand drives node count and GPUs-per-node auto-scaling (AUTO badge) up to each model's physical maximum.</li>
-                        <li><strong>GPU Models:</strong> Added NVIDIA T4, RTX Pro 6000, and H100 with correct maxPerNode limits (up to 4/node).</li>
+                        <li><strong>GPU Models:</strong> Added NVIDIA T4, RTX Pro 6000, and H100 with correct maxPerNode limits (up to 2/node).</li>
                         <li><strong>AKS GPU VM Sizes:</strong> All supported GPU-enabled VM SKUs with fixed vCPU/memory — auto-sets hardware GPU type.</li>
                         <li><strong>GPU Badge:</strong> Workload cards show a yellow "GPU" badge when GPU-enabled.</li>
                         <li><strong>Threshold Warnings:</strong> GPU ≥90% triggers warnings and blocks Designer export.</li>
@@ -1405,7 +1546,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>Tool Rebranding:</strong> Now called "Odin for Azure Local" (Optimal Deployment and Infrastructure Navigator).</li>
                         <li><strong>Firewall Requirements Link:</strong> Direct access to firewall and endpoint documentation in Outbound Connectivity step.</li>
-                        <li><strong>M365 Local Guidance:</strong> Selecting M365 Local deployment type shows documentation link.</li>
+                        <li><strong>Microsoft 365 Local Guidance:</strong> Selecting Microsoft 365 Local deployment type shows documentation link.</li>
                     </ul>
                 </div>
 
