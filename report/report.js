@@ -3782,7 +3782,6 @@
             function renderCustomAdaptersHorizontal(nodeLeft, nodeTop, nodeIdx) {
                 var out = '';
                 var adaptersY = nodeTop + nodeH - adapterH - 20;
-                var startX = nodeLeft + (nodeW - totalAdapterW) / 2;
 
                 // Build a map of port to intent
                 var portIntent = {};

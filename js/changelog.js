@@ -65,6 +65,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>SVG export hardening:</strong> <code>scripts/svg-export-common.js</code> switched from string-interpolated <code>execSync</code> to <code>execFileSync</code> with an argv array (no shell), removing the command-injection surface around user-supplied <code>.drawio</code> filenames.</li>
                         <li><strong>QoS Validator diagnostics:</strong> <code>resolveAutoProfile()</code> now logs a <code>console.warn</code> when the Designer handoff in <code>localStorage</code> fails to parse, instead of silently swallowing the error.</li>
                         <li><strong>Walkthrough demo spec:</strong> Fixed mojibake in the file header comment and corrected the documented viewport to match <code>playwright.config.js</code> (1600×900).</li>
+                        <li><strong>CodeQL unused-declaration cleanup:</strong> Removed 8 unused variables / functions flagged by CodeQL across <code>arm/arm.js</code>, <code>js/disaggregated.js</code>, <code>sizer/sizer.js</code>, <code>sizer/rack3d.js</code>, and <code>report/report.js</code>.</li>
                     </ul>
                 </div>
 

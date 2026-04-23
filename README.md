@@ -417,6 +417,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **SVG export hardening**: `scripts/svg-export-common.js` uses `execFileSync` with an argv array (no shell) to eliminate command-injection surface around user-supplied filenames
 - **QoS Validator diagnostics**: `resolveAutoProfile()` logs a `console.warn` on `localStorage` parse failure instead of silently swallowing
 - **Walkthrough demo spec**: Fixed mojibake and corrected documented viewport to match `playwright.config.js` (1600×900)
+- **CodeQL unused-declaration cleanup**: Removed 8 unused variables / functions flagged by CodeQL across `arm/arm.js` (2 × `payload`), `js/disaggregated.js` (`portsPerLeaf`, `totalNodes`, `hasDedicatedIscsi`), `sizer/sizer.js` (`clusterTypeGpu`), `sizer/rack3d.js` (dead `makeCable()` helper), and `report/report.js` (`startX`)
 
 #### 0.20.06 - Disaggregated Architecture, ToR Switch Config Generator & QoS Validator
 - **Disaggregated Architecture Wizard**: New end-to-end wizard for disaggregated deployments with external SAN storage (Fibre Channel, iSCSI 4-NIC, iSCSI 6-NIC) and Clos leaf-spine fabric — up to 64 nodes across multiple racks, with VLAN/VNI/VRF configuration, QoS policy, IP planning, drag-and-drop NIC-to-intent mapping, breadcrumb navigation, and interactive SVG rack topology diagrams

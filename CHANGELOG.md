@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SVG export hardening** (`scripts/svg-export-common.js`): Switched from string-interpolated `execSync` to `execFileSync` with an argv array and `shell: false`, removing the command-injection surface around user-supplied `.drawio` filenames returned by `fs.readdirSync`. Addresses an AI scan finding.
 - **QoS Validator diagnostics** (`switch-config/qos-audit.js`): `resolveAutoProfile()` now logs a `console.warn` when the Designer handoff in `localStorage` fails to parse, instead of silently swallowing the error. Addresses an AI scan finding.
 - **Walkthrough demo spec** (`tools/demos/odin-full-walkthrough.spec.js`): Fixed mojibake (`â†'` → `→`) in the file header comment and corrected the documented viewport to match `playwright.config.js` (1600×900, previously incorrectly documented as 2200×1238). Addresses two AI scan findings.
+- **CodeQL unused-declaration cleanup**: Removed 8 unused variables / functions flagged by CodeQL:
+  - `arm/arm.js` — dropped unused `payload` locals in `generateDevOpsPipeline()` and `generateGitHubWorkflow()`.
+  - `js/disaggregated.js` — removed unused `portsPerLeaf` from `getMaxNodesPerRack()` (comment updated to explain the hardcoded 16-port return), and removed unused `totalNodes` and `hasDedicatedIscsi` locals from the DA8 overrides renderer.
+  - `sizer/sizer.js` — removed unused `clusterTypeGpu` local in the GPU capacity notes block.
+  - `sizer/rack3d.js` — removed the unused `makeCable()` helper (dead code — the actual cable routing uses explicit `LineCurve3` segments inline).
+  - `report/report.js` — removed unused `startX` local in `renderCustomAdaptersHorizontal()` (a separate `groupedStartX` is used for the actual layout).
 
 ---
 
