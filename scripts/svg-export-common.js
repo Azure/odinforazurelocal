@@ -85,6 +85,8 @@ function exportDiagrams(fileFilter, label) {
             execFileSync(exePath, drawioArgs, { stdio: 'pipe', timeout: 60000, shell: false });
         } catch (e) {
             // draw.io CLI sometimes crashes but still writes the file; retry once
+            const firstError = e && e.message ? e.message : String(e);
+            console.warn('  First export attempt failed for ' + drawioFile + ': ' + firstError);
             console.log('  Retry...');
             execFileSync(exePath, drawioArgs, { stdio: 'pipe', timeout: 60000, shell: false });
         }
