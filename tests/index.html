@@ -4056,7 +4056,7 @@
             })(),
             (() => {
                 // Verify the flag reset logic works without calling calculateRequirements
-                _disaggAutoUpgraded = true;
+                let _disaggAutoUpgraded = true;
                 const mapping = _MANUAL_FIELD_TO_FLAG['cluster-type'];
                 // Simulate what clearSingleManualOverride does for the flag
                 switch (mapping.flag) {

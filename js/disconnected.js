@@ -110,9 +110,16 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
     // Helper: check if the current FQDN value is a valid format
     function isValidFqdn(fqdn) {
         if (!fqdn) return false;
-        if (!FQDN_VALIDATION_REGEX.test(fqdn)) return false;
+        const normalizedFqdn = fqdn.trim();
 
-        const labels = fqdn.toLowerCase().split('.');
+        // RFC 1035/1123 practical DNS limits:
+        // - Entire FQDN must be <= 253 characters (without trailing dot).
+        // - Each label must be <= 63 characters.
+        if (normalizedFqdn.length > 253) return false;
+        if (!FQDN_VALIDATION_REGEX.test(normalizedFqdn)) return false;
+
+        const labels = normalizedFqdn.toLowerCase().split('.');
+        if (labels.some(function(label) { return label.length > 63; })) return false;
 
         // Reject apex/root domains like contoso.com (must be a host FQDN)
         if (labels.length < 3) return false;
@@ -358,7 +365,7 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
         if (prefix === 0) return 0;
         // Start from all 1s, shift left to create leading 1s followed by trailing 0s,
         // then coerce to unsigned 32-bit integer.
-        return (~0 << (32 - prefix)) >>> 0;
+        return (~0 << (32 - prefix)) >>> 0; // Mask with `prefix` leading 1s followed by trailing 0s.
     }
 
     function validateApplianceIps(ip1, ip2, requireInfraSubnet) {

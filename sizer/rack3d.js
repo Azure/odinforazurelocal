@@ -168,7 +168,7 @@ function buildRackFrame(scene, offsetX, offsetZ, facing) {
     // U-slot rail markers (thin horizontal lines on front posts)
     var railGeo = new THREE.BoxGeometry(RACK.RAIL_DEPTH, 0.002, RACK.POST_SIZE);
     var baseY = 0.06; // bottom offset inside frame
-    for (let u = 0; u <= RACK.TOTAL_U; u++) {
+    for (var u = 0; u <= RACK.TOTAL_U; u++) {
         var y = baseY + u * RACK.U_HEIGHT;
         [-RACK.WIDTH / 2 + RACK.POST_SIZE + RACK.RAIL_DEPTH / 2,
          RACK.WIDTH / 2 - RACK.POST_SIZE - RACK.RAIL_DEPTH / 2].forEach(function(x) {

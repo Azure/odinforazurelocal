@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `sizer/sizer.js` — removed unused `clusterTypeGpu` local in the GPU capacity notes block.
   - `sizer/rack3d.js` — removed the unused `makeCable()` helper (dead code — the actual cable routing uses explicit `LineCurve3` segments inline).
   - `report/report.js` — removed unused `startX` local in `renderCustomAdaptersHorizontal()` (a separate `groupedStartX` is used for the actual layout).
+- **FQDN validator — RFC length limits** (`js/disconnected.js`): `isValidFqdn()` now enforces the RFC 1035/1123 practical DNS limits (total FQDN ≤ 253 characters, each label ≤ 63 characters) in addition to the regex check, and trims whitespace before validating.
+- **Subnet mask inline comment** (`js/disconnected.js`): Added an inline explanatory comment next to the `(~0 << (32 - prefix)) >>> 0` bitwise expression so the mask construction is self-documenting.
+- **SVG export retry logging** (`scripts/svg-export-common.js`): The first-attempt failure is now logged with the error message before the retry, aiding diagnosis of intermittent draw.io CLI crashes.
+- **Loop-variable style consistency** (`sizer/rack3d.js`): Normalised a lone `let u` loop declaration to `var u` to match the surrounding `var`-based style in the file.
+- **QoS Validator structured error logging** (`switch-config/qos-audit.js`): `resolveAutoProfile()` now logs the caught error as a `{ message, stack }` object instead of the raw `Error` object for better browser-devtools readability.
+- **Walkthrough demo — dynamic template index** (`tools/demos/odin-full-walkthrough.spec.js`): The "8-Node Rack Aware" template is now located by text and its `loadTemplate(N)` index extracted from the card's `onclick`, rather than relying on a hardcoded index of 3. The demo fails fast with a clear error if the template is not present.
 
 ### Fixed
 
