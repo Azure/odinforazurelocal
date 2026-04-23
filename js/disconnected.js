@@ -379,29 +379,34 @@ const FQDN_VALIDATION_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z
             if (cidrParts.length === 2) {
                 const networkIp = cidrParts[0];
                 const prefix = parseInt(cidrParts[1]);
-                const networkLong = ipToLong(networkIp);
-                const mask = calculateSubnetMask(prefix);
-                const netStart = (networkLong & mask) >>> 0;
-                const netEnd = (netStart | (~mask >>> 0)) >>> 0;
+                // Skip the cross-CIDR check entirely when the infra CIDR is malformed
+                // (e.g. mid-typing, non-numeric, or out-of-range prefix). Lets appliance-IP
+                // format validation still surface; other validators flag bad infra CIDRs.
+                if (Number.isInteger(prefix) && prefix >= 0 && prefix <= 32) {
+                    const networkLong = ipToLong(networkIp);
+                    const mask = calculateSubnetMask(prefix);
+                    const netStart = (networkLong & mask) >>> 0;
+                    const netEnd = (netStart | (~mask >>> 0)) >>> 0;
 
-                if (ip1) {
-                    const ip1Long = ipToLong(ip1);
-                    const ip1InInfraSubnet = ip1Long > netStart && ip1Long < netEnd;
-                    if (requireInfraSubnet && !ip1InInfraSubnet) {
-                        errors.push('Appliance IP 1 (' + ip1 + ') is outside the infrastructure CIDR ' + state.infraCidr + '.');
+                    if (ip1) {
+                        const ip1Long = ipToLong(ip1);
+                        const ip1InInfraSubnet = ip1Long > netStart && ip1Long < netEnd;
+                        if (requireInfraSubnet && !ip1InInfraSubnet) {
+                            errors.push('Appliance IP 1 (' + ip1 + ') is outside the infrastructure CIDR ' + state.infraCidr + '.');
+                        }
+                        if (!requireInfraSubnet && ip1InInfraSubnet) {
+                            errors.push('Appliance IP 1 (' + ip1 + ') must not be in the infrastructure CIDR ' + state.infraCidr + ' when appliance VLAN is different.');
+                        }
                     }
-                    if (!requireInfraSubnet && ip1InInfraSubnet) {
-                        errors.push('Appliance IP 1 (' + ip1 + ') must not be in the infrastructure CIDR ' + state.infraCidr + ' when appliance VLAN is different.');
-                    }
-                }
-                if (ip2) {
-                    const ip2Long = ipToLong(ip2);
-                    const ip2InInfraSubnet = ip2Long > netStart && ip2Long < netEnd;
-                    if (requireInfraSubnet && !ip2InInfraSubnet) {
-                        errors.push('Appliance IP 2 (' + ip2 + ') is outside the infrastructure CIDR ' + state.infraCidr + '.');
-                    }
-                    if (!requireInfraSubnet && ip2InInfraSubnet) {
-                        errors.push('Appliance IP 2 (' + ip2 + ') must not be in the infrastructure CIDR ' + state.infraCidr + ' when appliance VLAN is different.');
+                    if (ip2) {
+                        const ip2Long = ipToLong(ip2);
+                        const ip2InInfraSubnet = ip2Long > netStart && ip2Long < netEnd;
+                        if (requireInfraSubnet && !ip2InInfraSubnet) {
+                            errors.push('Appliance IP 2 (' + ip2 + ') is outside the infrastructure CIDR ' + state.infraCidr + '.');
+                        }
+                        if (!requireInfraSubnet && ip2InInfraSubnet) {
+                            errors.push('Appliance IP 2 (' + ip2 + ') must not be in the infrastructure CIDR ' + state.infraCidr + ' when appliance VLAN is different.');
+                        }
                     }
                 }
             }
