@@ -53,7 +53,21 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.06</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.07</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">April 23, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📘 Knowledge Tab — Context-Aware Help Button</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Help now matches the Knowledge page you're on:</strong> The nav-bar Help button on the Knowledge tab now shows a dedicated walkthrough for whichever sidebar topic is active — either the <strong>Outbound Connectivity Architecture Guide</strong> (same-origin written reference) or <strong>AzLoFlows</strong> (external interactive diagram builder). Previously it fell through to the Designer onboarding because the old flow-diagram pages were replaced by AzLoFlows and the same-origin <code>showFlowOnboarding()</code> hook was no longer reachable.</li>
+                        <li><strong>New <code>showKnowledgeOnboarding()</code> in <code>js/script.js</code></strong> — branches on the active sidebar item's <code>data-src</code>; works with the cross-origin AzLoFlows iframe (no <code>contentWindow</code> probe needed).</li>
+                        <li><strong>Removed orphan pages:</strong> <code>docs/outbound-connectivity/azure-local-public-path-dark-flows.html</code> and <code>azure-local-private-path-dark-flows.html</code> — no longer linked from anywhere after the AzLoFlows integration.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.08); border-left: 4px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.20.06</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">April 23, 2026</div>
                 </div>
 

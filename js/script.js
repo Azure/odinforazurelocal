@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.20.06';
+const WIZARD_VERSION = '0.20.07';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -51,6 +51,124 @@ function switchKnowledgePage(linkEl, src) {
     // Update iframe
     const iframe = document.getElementById('knowledge-iframe');
     if (iframe) iframe.src = src;
+}
+
+/**
+ * Context-aware Help overlay for the Knowledge tab.
+ * Branches on which sidebar item is active:
+ *   - Architecture Guide (same-origin docs/outbound-connectivity/)
+ *   - AzLoFlows (cross-origin interactive diagram builder)
+ * Called by showNavHelp() in js/nav.js when the Knowledge tab is active.
+ */
+function showKnowledgeOnboarding() {
+    const activeItem = document.querySelector('#tab-knowledge .knowledge-nav-item.active');
+    const src = activeItem ? (activeItem.getAttribute('data-src') || '') : '';
+    const isAzLoFlows = src.indexOf('AzLoFlows') !== -1;
+
+    const steps = isAzLoFlows ? [
+        {
+            icon: '🔀',
+            title: 'Interactive Traffic Flow Diagrams',
+            description: 'AzLoFlows is an external interactive diagram tool (by Cristian Edwards) embedded here to visualise how traffic flows from Azure Local resources through your network to Azure services for both Public Path and Private Path architectures.',
+            features: [
+                { icon: '🧭', title: 'Built into the AzLoFlows iframe', text: 'All controls — scenario picker, architecture selector, source and traffic-type toggles — live inside the embedded page. This ODIN Help button covers orientation only; use the AzLoFlows in-page controls for the actual walkthrough.' },
+                { icon: '🌐', title: 'Loaded scenario', text: 'ODIN loads the <strong>Azure Local — Public Path</strong> scenario with proxy + Arc Gateway and all traffic sources and types pre-selected. You can switch to Private Path or other scenarios from the AzLoFlows sidebar at any time.' }
+            ]
+        },
+        {
+            icon: '🎛️',
+            title: 'Using the AzLoFlows Controls',
+            description: 'Interact with the embedded diagram to isolate specific traffic flows.',
+            features: [
+                { icon: '1', title: 'Architecture bar (top)', text: 'Switch between proxy, Arc Gateway, and combined configurations — the diagram redraws to show the chosen topology.' },
+                { icon: '2', title: 'Resources bar (bottom)', text: 'Click a source such as Azure Local Nodes, ARB, AKS, or VMs to focus the diagram on traffic originating from that resource.' },
+                { icon: '3', title: 'Traffic Types', text: 'When a resource is selected, traffic-type pills appear — toggle HTTPS Allowed, Azure Public Endpoint, Private Endpoint, or Bypass to highlight only those paths. Use <strong>Show All</strong> to see every flow at once.' }
+            ]
+        },
+        {
+            icon: '📘',
+            title: 'Need the Written Reference?',
+            description: 'The Architecture Guide (first item in the left sidebar) is the authoritative written reference — firewall endpoint tables, Arc Gateway requirements, and Public vs Private Path design decisions all live there.',
+            features: [
+                { icon: '📚', title: 'Switch topics any time', text: 'Use the <strong>Topic</strong> sidebar on the left to jump between the Architecture Guide and AzLoFlows without leaving the Knowledge tab.' }
+            ]
+        }
+    ] : [
+        {
+            icon: '📘',
+            title: 'Outbound Connectivity Architecture Guide',
+            description: 'The written reference for how Azure Local communicates with Azure — covering required endpoints, proxy and firewall considerations, Azure Arc Gateway, and both Public Path and Private Path (ExpressRoute) designs.',
+            features: [
+                { icon: '🌐', title: 'Public Path', text: 'Four configurations (direct internet, proxy, Arc Gateway, proxy + Arc Gateway) with the firewall endpoints and proxy rules each one requires.' },
+                { icon: '🔐', title: 'Private Path (ExpressRoute)', text: 'Zero-public-internet design using Azure Firewall Explicit Proxy and Arc Gateway over ExpressRoute or Site-to-Site VPN — recommended for regulated industries.' }
+            ]
+        },
+        {
+            icon: '🧭',
+            title: 'Navigating the Guide',
+            description: 'The Architecture Guide is a single scrollable page with architecture diagrams, decision tables, and endpoint lists.',
+            features: [
+                { icon: '1', title: 'Scroll through architectures', text: 'Each architecture section shows the topology diagram, when to choose it, and the firewall/proxy rules it needs.' },
+                { icon: '2', title: 'Endpoint tables', text: 'Required URL and IP endpoints are listed per service (Azure Arc, Azure Monitor, AKS on Azure Local, update channels, etc.) — use your browser\'s Find (Ctrl/Cmd + F) to jump to a specific service.' }
+            ]
+        },
+        {
+            icon: '🔀',
+            title: 'Explore the Interactive Diagrams',
+            description: 'For a visual, clickable walkthrough of the same traffic flows, switch to <strong>AzLoFlows</strong> in the <strong>Topic</strong> sidebar on the left.',
+            features: [
+                { icon: '🗺️', title: 'AzLoFlows', text: 'External interactive diagram builder (by Cristian Edwards) — pick a scenario, toggle traffic sources and types, and see the matching flows animated on the diagram.' }
+            ]
+        }
+    ];
+
+    let stepIndex = 0;
+    const render = function() {
+        const step = steps[stepIndex];
+        document.querySelectorAll('.onboarding-overlay').forEach(function(el) { el.remove(); });
+
+        const overlay = document.createElement('div');
+        overlay.className = 'onboarding-overlay';
+        overlay.innerHTML = '<div class="onboarding-card">' +
+            '<div class="onboarding-icon">' + step.icon + '</div>' +
+            '<h2 class="onboarding-title">' + escapeHtml(step.title) + '</h2>' +
+            '<p class="onboarding-description">' + step.description + '</p>' +
+            '<div class="onboarding-features">' +
+                step.features.map(function(f) {
+                    return '<div class="onboarding-feature">' +
+                        '<span class="onboarding-feature-icon">' + f.icon + '</span>' +
+                        '<div class="onboarding-feature-text">' +
+                            '<strong>' + escapeHtml(f.title) + '</strong>' + f.text +
+                        '</div></div>';
+                }).join('') +
+            '</div>' +
+            '<div class="onboarding-progress">' +
+                steps.map(function(_, i) { return '<div class="onboarding-dot' + (i === stepIndex ? ' active' : '') + '"></div>'; }).join('') +
+            '</div>' +
+            '<div class="onboarding-buttons">' +
+                '<button class="onboarding-btn onboarding-btn-secondary" data-action="skip">Skip</button>' +
+                '<button class="onboarding-btn onboarding-btn-primary" data-action="next">' +
+                    (stepIndex === steps.length - 1 ? 'Close' : 'Next') +
+                '</button>' +
+            '</div></div>';
+
+        const dismiss = function() {
+            document.querySelectorAll('.onboarding-overlay').forEach(function(el) { el.remove(); });
+        };
+        overlay.querySelector('[data-action="skip"]').addEventListener('click', dismiss);
+        overlay.querySelector('[data-action="next"]').addEventListener('click', function() {
+            if (stepIndex === steps.length - 1) {
+                dismiss();
+            } else {
+                stepIndex++;
+                render();
+            }
+        });
+
+        document.body.appendChild(overlay);
+    };
+
+    render();
 }
 
 // Restore active tab on page load (if navigating back, or via ?tab= URL param)

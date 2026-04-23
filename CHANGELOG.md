@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.20.07] - 2026-04-23
+
+### Fixed
+
+#### Knowledge Tab — Context-Aware Help Button
+- **Knowledge Help button now matches the active sub-page** (`js/script.js`, `js/nav.js`). The nav-bar Help button, when the Knowledge tab is active, now calls a new `showKnowledgeOnboarding()` that branches on which sidebar item is active: the **Architecture Guide** (same-origin `docs/outbound-connectivity/`) gets a 3-step overlay covering what the written reference covers, how to scroll through architectures, and how to find endpoint tables; **AzLoFlows** (cross-origin interactive diagram builder) gets a 3-step overlay covering what AzLoFlows is, how the embedded controls (Architecture bar, Resources bar, Traffic Types) work, and where to find the written reference.
+- **Root cause**: the two original same-origin flow-diagram pages (`azure-local-public-path-dark-flows.html`, `azure-local-private-path-dark-flows.html`) each defined a `showFlowOnboarding()` that `nav.js` probed via `iframe.contentWindow`. After the AzLoFlows integration replaced those pages with an external iframe, the `contentWindow` probe threw a `SecurityError` (cross-origin), the Architecture Guide had no such hook, and `showNavHelp()` silently fell through to the **Designer** onboarding walkthrough — unrelated to the Knowledge content on screen.
+- **Removed `contentWindow.showFlowOnboarding` probe** from `js/nav.js` — replaced with a direct call to `window.showKnowledgeOnboarding()`. The old try/catch for `SecurityError` is no longer needed.
+- **Removed orphan pages**: `docs/outbound-connectivity/azure-local-public-path-dark-flows.html` and `docs/outbound-connectivity/azure-local-private-path-dark-flows.html` were no longer linked from anywhere in the site after the AzLoFlows integration.
+
+---
+
 ## [0.20.06] - 2026-04-08
 
 ### Changed

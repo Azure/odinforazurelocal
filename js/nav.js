@@ -107,24 +107,16 @@
     nav.innerHTML = html;
 
     // Define showNavHelp globally so the Help button works regardless of script load order.
-    // Checks if the Knowledge tab is active with a flow diagram in the iframe;
-    // if so, triggers the flow-diagram onboarding; otherwise falls back to Designer onboarding.
+    // Checks if the Knowledge tab is active; if so, calls showKnowledgeOnboarding()
+    // (context-aware help for the Architecture Guide or AzLoFlows). Otherwise falls
+    // back to the Designer onboarding walkthrough.
     if (active === 'designer' && !window.showNavHelp) {
         window.showNavHelp = function() {
             var knowledgeTab = document.getElementById('tab-knowledge');
             if (knowledgeTab && knowledgeTab.classList.contains('active')) {
-                var iframe = document.getElementById('knowledge-iframe');
-                // Accessing contentWindow.* on a cross-origin navigated iframe
-                // throws a SecurityError synchronously (even inside typeof).
-                // Wrap in try/catch so the Help button still works when the
-                // user has navigated the Knowledge iframe to an external URL.
-                try {
-                    if (iframe && iframe.contentWindow && typeof iframe.contentWindow.showFlowOnboarding === 'function') {
-                        iframe.contentWindow.showFlowOnboarding();
-                        return;
-                    }
-                } catch (e) {
-                    // Cross-origin frame — fall through to Designer onboarding.
+                if (typeof window.showKnowledgeOnboarding === 'function') {
+                    window.showKnowledgeOnboarding();
+                    return;
                 }
             }
             if (typeof showOnboarding === 'function') {
