@@ -4238,15 +4238,43 @@
             // --- Build NIC groups dynamically from adapter mapping ---
             var nicGroups = [];
 
+            // Cluster NIC SET wrapper mode (mirrors wizard preview):
+            //   'workload'      — iSCSI 4-NIC: ClusterISCSI SET on NIC3/NIC4 (Cluster1/2 + iSCSI1/2 vNICs)
+            //   'clusterbackup' — iSCSI 6-NIC + backup: ClusterBackupSwitch SET (Cluster1/2 vNICs + Backup VLAN trunk)
+            //   null            — standalone bare-metal cluster NICs (FC SAN, iSCSI 6-NIC no backup)
+            var clusterSetMode = (storageType === 'iscsi_4nic') ? 'workload'
+                : (storageType === 'iscsi_6nic' && backupEnabled) ? 'clusterbackup'
+                    : null;
+            var clusterSetName = clusterSetMode === 'workload' ? 'ClusterISCSISwitch'
+                : clusterSetMode === 'clusterbackup' ? 'ClusterBackupSwitch'
+                    : null;
+            var vlansState = state.disaggVlans || {};
+            var cluster1VnicsAbove = clusterSetMode === 'workload'
+                ? [
+                    { name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlansState.cluster1 || '711') },
+                    { name: 'iSCSI1 vNIC', vlan: 'VLAN ' + (vlansState.iscsiA || '500'), color: '#f97316' }
+                ]
+                : clusterSetMode === 'clusterbackup'
+                    ? [{ name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlansState.cluster1 || '711') }]
+                    : [];
+            var cluster2VnicsAbove = clusterSetMode === 'workload'
+                ? [
+                    { name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlansState.cluster2 || '712') },
+                    { name: 'iSCSI2 vNIC', vlan: 'VLAN ' + (vlansState.iscsiB || '600'), color: '#f97316' }
+                ]
+                : clusterSetMode === 'clusterbackup'
+                    ? [{ name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlansState.cluster2 || '712') }]
+                    : [];
+
             // Define zone metadata — for shared iSCSI, cluster groups carry CSV/LiveMig + iSCSI traffic
             var clusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 1';
             var clusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 2';
             var zoneMeta = {
-                mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7') } },
-                cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
-                cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
-                iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiA) || '500'), forcedLeaf: 'A' },
-                iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.iscsiB) || '600'), forcedLeaf: 'B' },
+                mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicsAbove: [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') }] },
+                cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vnicsAbove: cluster1VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster1 || '711'), forcedLeaf: 'A' },
+                cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vnicsAbove: cluster2VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster2 || '712'), forcedLeaf: 'B' },
+                iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlansState.iscsiA || '500'), forcedLeaf: 'A' },
+                iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlansState.iscsiB || '600'), forcedLeaf: 'B' },
                 backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
             };
 
@@ -4290,17 +4318,42 @@
                     color: meta.color,
                     nics: groupsByZone[zk]
                 };
-                if (meta.vnicAbove) grp.vnicAbove = meta.vnicAbove;
+                if (meta.vnicsAbove && meta.vnicsAbove.length > 0) grp.vnicsAbove = meta.vnicsAbove;
                 if (meta.vlanBelow) grp.vlanBelow = meta.vlanBelow;
                 if (meta.subLabel) grp.subLabel = meta.subLabel;
                 nicGroups.push(grp);
+            }
+
+            // When a SET wraps the cluster NICs, merge cluster_1 + cluster_2 into a single
+            // "cluster_set" group so NIC3 and NIC4 share one dashed box (same UX as
+            // Mgmt+Compute combining OCP-NIC1 + OCP-NIC2). The merged group's box is the
+            // SET visual wrapper — no separate overlay rectangle is needed.
+            if (clusterSetMode) {
+                var c1Idx = -1, c2Idx = -1;
+                for (var ci = 0; ci < nicGroups.length; ci++) {
+                    if (nicGroups[ci].key === 'cluster_1') c1Idx = ci;
+                    else if (nicGroups[ci].key === 'cluster_2') c2Idx = ci;
+                }
+                if (c1Idx !== -1 && c2Idx !== -1) {
+                    var c1g = nicGroups[c1Idx], c2g = nicGroups[c2Idx];
+                    var mergedGrp = {
+                        key: 'cluster_set',
+                        label: clusterSetName,
+                        color: '#22c55e',
+                        nics: c1g.nics.concat(c2g.nics),
+                        vnicsAbove: (c1g.vnicsAbove || []).concat(c2g.vnicsAbove || []),
+                        showBackupBadge: clusterSetMode === 'clusterbackup'
+                    };
+                    nicGroups.splice(Math.max(c1Idx, c2Idx), 1);
+                    nicGroups.splice(Math.min(c1Idx, c2Idx), 1, mergedGrp);
+                }
             }
 
             // Fallback: if no adapter mapping, use hardcoded defaults
             if (nicGroups.length === 0) {
                 nicGroups.push({
                     key: 'mgmt_compute', label: 'Mgmt + Compute', color: '#3b82f6',
-                    vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((state.disaggVlans && state.disaggVlans.mgmt) || '7') },
+                    vnicsAbove: [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') }],
                     nics: [
                         { id: 'ocp_1', name: getNicName('ocp', 1), speed: getPortSpeed('ocp', 1), leaf: 'A' },
                         { id: 'ocp_2', name: getNicName('ocp', 2), speed: getPortSpeed('ocp', 2), leaf: 'B' }
@@ -4346,7 +4399,9 @@
             var adapterW = 62;
             var adapterH = 38;
             var adapterGap = 10;
-            var groupGap = 18;
+            var groupGap = 32;
+            var vnicH = 42;
+            var vnicGap = 4;
 
             // Compute single row width
             function rowWidth(groups) {
@@ -4363,7 +4418,12 @@
             var maxRowW = Math.max(nicRowW, storageW);
 
             var nodeW = Math.max(440, maxRowW + 60);
-            var mgmtVnicAreaH = 48;
+            // Single horizontal row of vNICs above NICs (per spec, all SET vNICs sit side-by-side).
+            var anyVnicAbove = false;
+            for (var ng = 0; ng < nicGroups.length; ng++) {
+                if (nicGroups[ng].vnicsAbove && nicGroups[ng].vnicsAbove.length > 0) { anyVnicAbove = true; break; }
+            }
+            var mgmtVnicAreaH = anyVnicAbove ? (vnicH + 18) : 0;
             var nodeH = 225 + mgmtVnicAreaH + (storageAdapters.length > 0 ? 70 : 0);
             var gapX = 50;
             var marginX = 50;
@@ -4386,7 +4446,88 @@
             // For iSCSI, widen SVG to fit the iSCSI Storage Array to the right of leaves
             var topRowW = totalLeafW + (hasIscsi ? (iscsiArrayGap + iscsiArrayW) : 0);
             var svgW = Math.max(nodesAreaW, topRowW + marginX * 2);
-            var svgH = marginTop + leafAreaH + nodeH + (hasIscsi ? 0 : sanAreaH) + marginBottom + (totalNodes > 2 ? 40 : 0);
+            // Build legend entry data (rendered inside the SVG below the diagram so it's
+            // included in the downloaded image). Each entry: { title, color, lines: [str] }.
+            function findGrp(key) { for (var fi = 0; fi < nicGroups.length; fi++) if (nicGroups[fi].key === key) return nicGroups[fi]; return null; }
+            var legendEntries = [];
+            if (clusterSetMode) {
+                // After the merge step, cluster_1/cluster_2 are gone — use the merged cluster_set group.
+                var setGrp = findGrp('cluster_set');
+                var memberNames = setGrp ? setGrp.nics.map(function(nx){ return nx.name; }) : [];
+                var vnicLabels = [].concat(cluster1VnicsAbove.map(function(v){ return v.name + ' (' + v.vlan + ')'; }))
+                    .concat(cluster2VnicsAbove.map(function(v){ return v.name + ' (' + v.vlan + ')'; }));
+                var setLines = [
+                    'Members: ' + memberNames.join(', '),
+                    'Host vNICs: ' + (vnicLabels.length ? vnicLabels.join(', ') : 'none')
+                ];
+                if (clusterSetMode === 'clusterbackup') {
+                    setLines.push('Trunk: Backup VLAN ' + (vlansState.backup || '800') + ' (no host vNIC)');
+                }
+                legendEntries.push({ title: clusterSetName + ' (SET — customer-managed, outside ATC)', color: '#22c55e', lines: setLines });
+            }
+            var mgmtGrp = findGrp('mgmt_compute');
+            if (mgmtGrp) {
+                legendEntries.push({
+                    title: 'Mgmt + Compute (ATC SET)',
+                    color: mgmtGrp.color,
+                    lines: [
+                        'Members: ' + mgmtGrp.nics.map(function(nx){ return nx.name; }).join(', '),
+                        'Host vNICs: Mgmt vNIC (VLAN ' + (vlansState.mgmt || '7') + ')'
+                    ]
+                });
+            }
+            if (!clusterSetMode) {
+                var sc1 = findGrp('cluster_1'), sc2 = findGrp('cluster_2');
+                if (sc1 || sc2) {
+                    var allClusterNics = [].concat(sc1 ? sc1.nics.map(function(nx){ return nx.name; }) : [])
+                        .concat(sc2 ? sc2.nics.map(function(nx){ return nx.name; }) : []);
+                    legendEntries.push({
+                        title: 'Cluster Networks (standalone — no SET)',
+                        color: '#22c55e',
+                        lines: [
+                            'Members: ' + allClusterNics.join(', '),
+                            'VLANs: ' + (vlansState.cluster1 || '711') + ', ' + (vlansState.cluster2 || '712') + ' (bare-metal, no host vNIC)'
+                        ]
+                    });
+                }
+            }
+            var iA = findGrp('iscsi_a'), iB = findGrp('iscsi_b');
+            if (iA || iB) {
+                var allIscsi = [].concat(iA ? iA.nics.map(function(nx){ return nx.name; }) : [])
+                    .concat(iB ? iB.nics.map(function(nx){ return nx.name; }) : []);
+                legendEntries.push({
+                    title: 'iSCSI Path A/B (standalone — no SET)',
+                    color: '#8b5cf6',
+                    lines: [
+                        'Members: ' + allIscsi.join(', '),
+                        'VLANs: ' + (vlansState.iscsiA || '500') + ' (Path A), ' + (vlansState.iscsiB || '600') + ' (Path B) — MPIO, bare-metal'
+                    ]
+                });
+            }
+            var bk = findGrp('backup');
+            if (bk) {
+                legendEntries.push({
+                    title: 'In-Guest Backup (dedicated NICs)',
+                    color: bk.color,
+                    lines: [
+                        'Members: ' + bk.nics.map(function(nx){ return nx.name; }).join(', '),
+                        'VLAN: ' + (vlansState.backup || '800')
+                    ]
+                });
+            }
+            // Legend block height (in SVG coordinates)
+            var legendTitleH = 18, legendEntryTitleH = 14, legendLineH = 12, legendEntryGap = 8, legendEntryPadY = 6;
+            var legendBlockH = 0;
+            if (legendEntries.length > 0) {
+                legendBlockH = legendTitleH + 6;
+                for (var le = 0; le < legendEntries.length; le++) {
+                    legendBlockH += legendEntryTitleH + legendEntries[le].lines.length * legendLineH + legendEntryPadY * 2;
+                    if (le < legendEntries.length - 1) legendBlockH += legendEntryGap;
+                }
+                legendBlockH += 16;
+            }
+            var baseSvgH = marginTop + leafAreaH + nodeH + (hasIscsi ? 0 : sanAreaH) + marginBottom + (totalNodes > 2 ? 40 : 0);
+            var svgH = baseSvgH + legendBlockH;
 
             // Leaf switch positions — shift left if iSCSI Storage Array is shown
             var leafY = marginTop + 10;
@@ -4410,39 +4551,70 @@
                 var out = '';
                 var rw = rowWidth(groups);
                 var currentX = nodeLeft + (nodeW - rw) / 2;
+                // Track cluster bounding box for SET wrapper (drawn after the loop).
+                var clusterSetBoxX = null, clusterSetBoxW = null, clusterSetBoxBottomY = null;
 
                 for (var gi = 0; gi < groups.length; gi++) {
                     var grp = groups[gi];
                     var grpW = grp.nics.length * adapterW + (grp.nics.length - 1) * adapterGap;
                     var boxX = currentX - 8;
                     var boxTotalW = grpW + 16;
-                    var hasVnicAbove = !!grp.vnicAbove;
-                    var vnicAboveAreaH = hasVnicAbove ? mgmtVnicAreaH : 0;
-                    var boxH = adapterH + 28 + vnicAboveAreaH;
-                    var boxY = baseY - 14 - vnicAboveAreaH;
+                    var grpVnics = grp.vnicsAbove || [];
+                    var hasVnicsArr = grpVnics.length > 0;
+                    var vnicAreaHGrp = hasVnicsArr ? (vnicH + 12) : 0;
+                    var boxH = adapterH + 28 + vnicAreaHGrp;
+                    var boxY = baseY - 14 - vnicAreaHGrp;
                     var rgb = colorRgb(grp.color);
+
+                    // Track merged cluster_set box for the Backup VLAN badge anchor.
+                    if (grp.key === 'cluster_set') {
+                        clusterSetBoxX = boxX;
+                        clusterSetBoxW = boxTotalW;
+                        clusterSetBoxBottomY = boxY + boxH;
+                    }
 
                     // Group box
                     out += '<rect x="' + boxX + '" y="' + boxY + '" width="' + boxTotalW + '" height="' + boxH + '" rx="10" fill="rgba(' + rgb + ',0.08)" stroke="rgba(' + rgb + ',0.45)" stroke-dasharray="5 3" />';
 
-                    // Label: below the box for iSCSI scenarios, above otherwise
-                    var labelY = hasIscsi ? (boxY + boxH + 12) : (boxY - 5);
-                    out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
-
-                    // Sub-label (e.g., "+ iSCSI") on a second line below the intent label
-                    if (grp.subLabel) {
-                        out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (labelY + 11) + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.70)">' + escapeHtml(grp.subLabel) + '</text>';
+                    // Suppress per-NIC labels for cluster zones when wrapped in a SET.
+                    var inSet = false; // merged cluster_set group renders its own label normally
+                    if (!inSet) {
+                        // Label: below the box for iSCSI scenarios, above otherwise
+                        var labelY = hasIscsi ? (boxY + boxH + 12) : (boxY - 5);
+                        out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + labelY + '" text-anchor="middle" font-size="9" fill="rgba(' + rgb + ',0.85)" font-weight="600">' + escapeHtml(grp.label) + '</text>';
+                        if (grp.subLabel) {
+                            out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + (labelY + 11) + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.70)">' + escapeHtml(grp.subLabel) + '</text>';
+                        }
                     }
 
-                    // vNIC above physical NICs (e.g., Management vNIC)
-                    if (hasVnicAbove) {
-                        var vaCardW = 80;
-                        var vaCardH = 30;
-                        var vaX = boxX + (boxTotalW - vaCardW) / 2;
-                        var vaY = boxY + 10;
-                        out += '<rect x="' + vaX + '" y="' + vaY + '" width="' + vaCardW + '" height="' + vaCardH + '" rx="6" fill="rgba(' + rgb + ',0.10)" stroke="rgba(' + rgb + ',0.55)" stroke-dasharray="4 2" />';
-                        out += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 13) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(grp.vnicAbove.name) + '</text>';
-                        out += '<text x="' + (vaX + vaCardW / 2) + '" y="' + (vaY + 24) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(grp.vnicAbove.vlan) + '</text>';
+                    // vNICs above physical NICs — single horizontal row, splitting the box width.
+                    if (hasVnicsArr) {
+                        var innerPad = 4;
+                        var slotW = (boxTotalW - innerPad * 2 - vnicGap * (grpVnics.length - 1)) / grpVnics.length;
+                        var vaY = boxY + 6;
+                        for (var vi = 0; vi < grpVnics.length; vi++) {
+                            var vnic = grpVnics[vi];
+                            var vaX = boxX + innerPad + vi * (slotW + vnicGap);
+                            var vRgb = vnic.color ? colorRgb(vnic.color) : rgb;
+                            out += '<rect x="' + vaX + '" y="' + vaY + '" width="' + slotW + '" height="' + vnicH + '" rx="6" fill="rgba(' + vRgb + ',0.10)" stroke="rgba(' + vRgb + ',0.55)" stroke-dasharray="4 2" />';
+                            // Render name on two lines so neighbouring vNIC cards don't visually collide:
+                            // primary identifier on row 1, the literal 'vNIC' on row 2, VLAN on row 3.
+                            var vnicNameMatch = /^(.*?)(?:\s+vNIC)$/.exec(vnic.name);
+                            var vnicPrimary = vnicNameMatch ? vnicNameMatch[1] : vnic.name;
+                            var vnicSuffix = vnicNameMatch ? 'vNIC' : '';
+                            out += '<text x="' + (vaX + slotW / 2) + '" y="' + (vaY + 12) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(vnicPrimary) + '</text>';
+                            if (vnicSuffix) {
+                                out += '<text x="' + (vaX + slotW / 2) + '" y="' + (vaY + 22) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(vnicSuffix) + '</text>';
+                            }
+                            out += '<text x="' + (vaX + slotW / 2) + '" y="' + (vaY + 35) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(vnic.vlan) + '</text>';
+                            // Anchor uplink at the vNIC's top-center; SET-bonded vNIC reaches every leaf its NICs touch.
+                            var uniqueLeaves = {};
+                            for (var nn = 0; nn < grp.nics.length; nn++) uniqueLeaves[grp.nics[nn].leaf] = true;
+                            var leafKeys = Object.keys(uniqueLeaves);
+                            for (var lk = 0; lk < leafKeys.length; lk++) {
+                                uplinkPositions.push({ x: vaX + slotW / 2, y: vaY, leaf: leafKeys[lk], color: vnic.color || grp.color });
+                            }
+                        }
                         out += '<line x1="' + (boxX + 6) + '" y1="' + (baseY - 6) + '" x2="' + (boxX + boxTotalW - 6) + '" y2="' + (baseY - 6) + '" stroke="rgba(' + rgb + ',0.3)" stroke-dasharray="3 2" />';
                     }
 
@@ -4456,16 +4628,30 @@
                         out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 16) + '" text-anchor="middle" font-size="8" fill="var(--text-primary)" font-weight="600">' + escapeHtml(nic.name) + '</text>';
                         out += '<text x="' + (x + adapterW / 2) + '" y="' + (y + 28) + '" text-anchor="middle" font-size="7" fill="var(--text-secondary)">' + escapeHtml(nic.speed) + '</text>';
 
-                        uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
+                        // Only push NIC-origin uplinks when the group has no vNICs above (otherwise vNICs own the uplink).
+                        if (!hasVnicsArr) {
+                            uplinkPositions.push({ x: x + adapterW / 2, y: y, leaf: nic.leaf, color: grp.color });
+                        }
                     }
 
-                    // VLAN label below the port shape (for standalone cluster/iSCSI networks)
-                    if (grp.vlanBelow) {
+                    // VLAN label below the port shape (for standalone cluster/iSCSI networks; suppressed inside SET)
+                    if (grp.vlanBelow && !inSet) {
                         var vlanY = grp.subLabel ? (boxY + boxH + 34) : (hasIscsi ? (boxY + boxH + 24) : (boxY + boxH + 12));
                         out += '<text x="' + (boxX + boxTotalW / 2) + '" y="' + vlanY + '" text-anchor="middle" font-size="8" fill="rgba(' + rgb + ',0.75)" font-style="italic">' + escapeHtml(grp.vlanBelow) + '</text>';
                     }
 
                     currentX += grpW + groupGap;
+                }
+
+                // Backup VLAN trunk badge (clusterbackup mode only) — anchored under the merged
+                // cluster_set group's dashed box (which is now the SET visual wrapper itself).
+                if (clusterSetMode === 'clusterbackup' && clusterSetBoxX !== null) {
+                    var bRgb = colorRgb('#f97316');
+                    var badgeW = 220, badgeH = 22;
+                    var badgeX = clusterSetBoxX + (clusterSetBoxW - badgeW) / 2;
+                    var badgeY = clusterSetBoxBottomY + 26;
+                    out += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="5" fill="rgba(' + bRgb + ',0.12)" stroke="rgba(' + bRgb + ',0.6)" stroke-dasharray="3 2" />';
+                    out += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 14) + '" text-anchor="middle" font-size="8" fill="rgba(' + bRgb + ',0.95)" font-weight="600">Backup VLAN ' + escapeHtml(String(vlansState.backup || '800')) + ' — trunk, no host vNIC</text>';
                 }
                 return out;
             }
@@ -4618,8 +4804,8 @@
             var svg = '';
             svg += '<svg class="switchless-diagram__svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="Disaggregated host networking diagram">';
 
-            // Outer container
-            svg += '<rect x="30" y="55" width="' + (svgW - 60) + '" height="' + (svgH - 85) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
+            // Outer container ends at the base diagram height — the legend sits below it.
+            svg += '<rect x="30" y="55" width="' + (svgW - 60) + '" height="' + (baseSvgH - 85) + '" rx="18" fill="rgba(255,255,255,0.02)" stroke="rgba(0,120,212,0.35)" stroke-dasharray="6 4" />';
 
             // Title
             var titleText = 'Disaggregated ' + storageLabel + ' connectivity — ' + portCount + ' ports' + (backupEnabled ? ' + Backup' : '') + ' — Total nodes: ' + totalNodes;
@@ -4665,9 +4851,31 @@
                 var badgeW = 180;
                 var badgeH = 26;
                 var badgeX = svgW - 60 - badgeW;
-                var badgeY = svgH - 85 - badgeH + 15;
+                var badgeY = baseSvgH - 85 - badgeH + 15;
                 svg += '<rect x="' + badgeX + '" y="' + badgeY + '" width="' + badgeW + '" height="' + badgeH + '" rx="13" fill="rgba(255,255,255,0.05)" stroke="var(--glass-border)" />';
                 svg += '<text x="' + (badgeX + badgeW / 2) + '" y="' + (badgeY + 17) + '" text-anchor="middle" font-size="12" fill="var(--text-secondary)">+' + more + ' more node' + (more === 1 ? '' : 's') + '</text>';
+            }
+
+            // ─── Legend rendered inside the SVG (so it's part of the downloaded image) ───
+            if (legendEntries.length > 0) {
+                var legX = 40;
+                var legW = svgW - 80;
+                var legY = baseSvgH - 30;
+                svg += '<text x="' + legX + '" y="' + (legY + 12) + '" font-size="12" font-weight="700" fill="var(--text-primary)">Net Adapter Team Mapping</text>';
+                legY += legendTitleH + 6;
+                for (var li = 0; li < legendEntries.length; li++) {
+                    var ent = legendEntries[li];
+                    var eRgb = colorRgb(ent.color);
+                    var entH = legendEntryTitleH + ent.lines.length * legendLineH + legendEntryPadY * 2;
+                    svg += '<rect x="' + legX + '" y="' + legY + '" width="' + legW + '" height="' + entH + '" rx="4" fill="rgba(' + eRgb + ',0.06)" stroke="rgba(' + eRgb + ',0.4)" />';
+                    svg += '<rect x="' + legX + '" y="' + legY + '" width="3" height="' + entH + '" fill="rgba(' + eRgb + ',0.85)" />';
+                    svg += '<text x="' + (legX + 10) + '" y="' + (legY + legendEntryPadY + 10) + '" font-size="11" font-weight="700" fill="rgba(' + eRgb + ',0.95)">' + escapeHtml(ent.title) + '</text>';
+                    for (var lj = 0; lj < ent.lines.length; lj++) {
+                        var ly = legY + legendEntryPadY + legendEntryTitleH + lj * legendLineH + 8;
+                        svg += '<text x="' + (legX + 10) + '" y="' + ly + '" font-size="10" fill="var(--text-secondary)">' + escapeHtml(ent.lines[lj]) + '</text>';
+                    }
+                    legY += entH + legendEntryGap;
+                }
             }
 
             svg += '</svg>';
