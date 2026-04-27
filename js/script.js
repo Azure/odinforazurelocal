@@ -295,8 +295,8 @@ const state = {
     disaggRackCount: null,
     disaggNodesPerRack: null,
     disaggSpineCount: null,
-    disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 },
-    disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
+    disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 300, iscsiB: 400, backup: 800 },
+    disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10300, iscsiB: 10400, backup: 10800 },
     disaggMgmtVlanMode: 'access',
     // Per MS Disaggregated-storage docs, cluster VLANs (1711/1712) are configured
     // in access mode on leaf ports by default — the leaf tags/strips and the host
@@ -312,7 +312,7 @@ const state = {
     disaggClusterNetworkNames: { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' },
     disaggVrfName: 'AZLOCALINFRA',
     disaggVrfMode: 'single',
-    disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.50.1.0/24', iscsiB: '10.60.1.0/24' },
+    disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.30.30.0/24', iscsiB: '10.40.40.0/24' },
     disaggIscsiTargets: [],
     disaggQosCustomized: false,
     // DA9: Node configuration
@@ -6861,7 +6861,10 @@ function updateSummary() {
             if (dv.mgmt != null) vlanLines.push(`Management: ${dv.mgmt}`);
             if (dv.cluster1 != null) vlanLines.push(`Cluster 1: ${dv.cluster1}`);
             if (dv.cluster2 != null) vlanLines.push(`Cluster 2: ${dv.cluster2}`);
-            if (state.disaggStorageType !== 'fc_san') {
+            if (state.disaggStorageType === 'iscsi_4nic') {
+                vlanLines.push('iSCSI-A: shared with Cluster 1');
+                vlanLines.push('iSCSI-B: shared with Cluster 2');
+            } else if (state.disaggStorageType === 'iscsi_6nic') {
                 if (dv.iscsiA != null) vlanLines.push(`iSCSI-A: ${dv.iscsiA}`);
                 if (dv.iscsiB != null) vlanLines.push(`iSCSI-B: ${dv.iscsiB}`);
             }
@@ -9809,9 +9812,9 @@ function startFresh() {
             // These object properties should be null or empty object initially
             state[key] = (key === 'infra') ? null : {};
         } else if (key === 'disaggVlans') {
-            state[key] = { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 };
+            state[key] = { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 300, iscsiB: 400, backup: 800 };
         } else if (key === 'disaggVnis') {
-            state[key] = { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 };
+            state[key] = { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10300, iscsiB: 10400, backup: 10800 };
         } else if (key === 'disaggVrfName') {
             state[key] = 'AZLOCALINFRA';
         } else if (key === 'disaggNicNames') {
@@ -10247,13 +10250,13 @@ function showTemplates() {
                 disaggRackCount: 4,
                 disaggNodesPerRack: 16,
                 disaggSpineCount: 2,
-                disaggVlans: { mgmt: 7, cluster1: 1711, cluster2: 1712, iscsiA: 500, iscsiB: 600, backup: 800 },
-                disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10500, iscsiB: 10600, backup: 10800 },
+                disaggVlans: { mgmt: 7, cluster1: 1711, cluster2: 1712, iscsiA: 300, iscsiB: 400, backup: 800 },
+                disaggVnis: { mgmt: 10007, cluster1: 10711, cluster2: 10712, iscsiA: 10300, iscsiB: 10400, backup: 10800 },
                 disaggMgmtVlanMode: 'access',
                 disaggClusterVlanMode: { cluster1: 'access', cluster2: 'access' },
                 disaggVrfName: 'AZLOCALINFRA',
                 disaggVrfMode: 'single',
-                disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.50.1.0/24', iscsiB: '10.60.1.0/24' },
+                disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.30.30.0/24', iscsiB: '10.40.40.0/24' },
                 disaggQosCustomized: false,
                 disaggPortSpeeds: { ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE' },
                 disaggIntentMapping: { mgmt_compute: ['ocp_p1', 'ocp_p2'] },

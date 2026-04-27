@@ -92,7 +92,7 @@
 <body>
     <h1>🧪 Unit Tests - Azure Local Wizard</h1>
     <p>Comprehensive test suite for ODIN modular JavaScript functions</p>
-    
+
     <div id="summary" class="summary">
         <div class="summary-stat pass">
             <span class="number" id="pass-count">0</span>
@@ -107,9 +107,9 @@
             <span>Total</span>
         </div>
     </div>
-    
+
     <div id="test-results"></div>
-    
+
     <!-- Modular JavaScript files (load before main script.js) -->
     <script src="../js/utils.js"></script>
     <script src="../js/notifications.js"></script>
@@ -8027,6 +8027,120 @@
             return results;
         })());
 
+        testSuite('DA8: iSCSI 4-NIC uses physical NIC3/NIC4 shared paths', 'disaggregated.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+            var oldOverridesSection = document.getElementById('da8-intent-overrides');
+            var oldOverridesContainer = document.getElementById('da8-intent-overrides-container');
+            var oldDiagram = document.getElementById('da8-nic-layout-diagram');
+            var overridesSection = oldOverridesSection || document.createElement('div');
+            var overridesContainer = oldOverridesContainer || document.createElement('div');
+            var diagram = oldDiagram || document.createElement('div');
+            if (!oldOverridesSection) { overridesSection.id = 'da8-intent-overrides'; document.body.appendChild(overridesSection); }
+            if (!oldOverridesContainer) { overridesContainer.id = 'da8-intent-overrides-container'; document.body.appendChild(overridesContainer); }
+            if (!oldDiagram) { diagram.id = 'da8-nic-layout-diagram'; document.body.appendChild(diagram); }
+
+            Object.assign(state, {
+                architecture: 'disaggregated',
+                disaggStorageType: 'iscsi_4nic',
+                disaggBackupEnabled: false,
+                disaggPortCount: 4,
+                disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, backup: 800 },
+                disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' },
+                disaggAdapterMapping: { ocp_p1: 'mgmt_compute', ocp_p2: 'mgmt_compute', pcie1_p1: 'cluster_1', pcie1_p2: 'cluster_2', bmc_p1: 'pool' },
+                disaggAdapterMappingConfirmed: true,
+                disaggIntentOverrides: { mgmt_compute: { rdmaMode: 'Disabled', jumboFrames: '1514', enableIov: '' } },
+                disaggOverridesConfirmed: false
+            });
+
+            try {
+                renderDisaggOverrides();
+                results.push(assert(overridesContainer.innerHTML.indexOf('iSCSI Network A') === -1,
+                    '4-NIC overrides do not show separate iSCSI Network A card', true,
+                    overridesContainer.innerHTML.indexOf('iSCSI Network A') === -1));
+                results.push(assert(overridesContainer.innerHTML.indexOf('Physical NIC3') !== -1,
+                    '4-NIC overrides describe physical NIC3 shared path', true,
+                    overridesContainer.innerHTML.indexOf('Physical NIC3') !== -1));
+
+                confirmDisaggOverrides();
+                var html = diagram.innerHTML;
+                results.push(assert(state.disaggOverridesConfirmed === true,
+                    '4-NIC confirm does not require separate iSCSI VLAN/subnet values', true,
+                    state.disaggOverridesConfirmed));
+                results.push(assert(html.indexOf('ClusterISCSISwitch') === -1,
+                    '4-NIC diagram excludes ClusterISCSISwitch', true,
+                    html.indexOf('ClusterISCSISwitch') === -1));
+                results.push(assert(html.indexOf('iSCSI1 vNIC') === -1 && html.indexOf('iSCSI2 vNIC') === -1,
+                    '4-NIC diagram excludes iSCSI host vNICs', true,
+                    html.indexOf('iSCSI1 vNIC') === -1 && html.indexOf('iSCSI2 vNIC') === -1));
+                results.push(assert(html.indexOf('NIC3 Path A') !== -1 && html.indexOf('NIC4 Path B') !== -1,
+                    '4-NIC diagram labels physical shared paths', true,
+                    html.indexOf('NIC3 Path A') !== -1 && html.indexOf('NIC4 Path B') !== -1));
+            } catch (err) {
+                results.push(assert(false, '4-NIC physical shared path rendering did not throw', 'no error', err.message));
+            }
+
+            if (!oldOverridesSection) overridesSection.remove();
+            if (!oldOverridesContainer) overridesContainer.remove();
+            if (!oldDiagram) diagram.remove();
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
+
+        testSuite('DA8: iSCSI 6-NIC + Backup keeps dedicated iSCSI adapters', 'disaggregated.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+            var oldDiagram = document.getElementById('da8-nic-layout-diagram');
+            var diagram = oldDiagram || document.createElement('div');
+            if (!oldDiagram) { diagram.id = 'da8-nic-layout-diagram'; document.body.appendChild(diagram); }
+
+            Object.assign(state, {
+                architecture: 'disaggregated',
+                disaggStorageType: 'iscsi_6nic',
+                disaggBackupEnabled: true,
+                disaggPortCount: 6,
+                disaggVlans: { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 300, iscsiB: 400, backup: 800 },
+                disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.30.30.0/24', iscsiB: '10.40.40.0/24' },
+                disaggAdapterMapping: { ocp_p1: 'mgmt_compute', ocp_p2: 'mgmt_compute', pcie1_p1: 'cluster_1', pcie1_p2: 'cluster_2', pcie2_p1: 'iscsi_a', pcie2_p2: 'iscsi_b', bmc_p1: 'pool' },
+                disaggAdapterMappingConfirmed: true,
+                disaggOverridesConfirmed: true
+            });
+
+            try {
+                var slots = getDisaggNicSlots();
+                var slotLabels = slots.map(function(slot) { return slot.label; }).join('|');
+                var defaultMapping = getDisaggDefaultMapping();
+                renderDisaggHostNetworkingPreview();
+                var html = diagram.innerHTML;
+
+                results.push(assert(slotLabels.indexOf('PCIe2 (iSCSI Dedicated)') !== -1,
+                    '6-NIC + Backup labels PCIe2 as dedicated iSCSI', true,
+                    slotLabels.indexOf('PCIe2 (iSCSI Dedicated)') !== -1));
+                results.push(assert(slotLabels.indexOf('PCIe2 (Backup)') === -1,
+                    '6-NIC + Backup does not relabel PCIe2 as Backup', true,
+                    slotLabels.indexOf('PCIe2 (Backup)') === -1));
+                results.push(assert(defaultMapping.pcie2_p1 === 'iscsi_a' && defaultMapping.pcie2_p2 === 'iscsi_b',
+                    '6-NIC + Backup default mapping keeps NIC5/NIC6 on iSCSI', 'iscsi_a/iscsi_b',
+                    defaultMapping.pcie2_p1 + '/' + defaultMapping.pcie2_p2));
+                results.push(assert(html.indexOf('ClusterBackupSwitch') !== -1,
+                    '6-NIC + Backup diagram keeps ClusterBackupSwitch', true,
+                    html.indexOf('ClusterBackupSwitch') !== -1));
+                results.push(assert(html.indexOf('iSCSI Storage A') !== -1 && html.indexOf('iSCSI Storage B') !== -1,
+                    '6-NIC + Backup diagram keeps dedicated iSCSI groups', true,
+                    html.indexOf('iSCSI Storage A') !== -1 && html.indexOf('iSCSI Storage B') !== -1));
+            } catch (err) {
+                results.push(assert(false, '6-NIC + Backup dedicated iSCSI rendering did not throw', 'no error', err.message));
+            }
+
+            if (!oldDiagram) diagram.remove();
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
+
         // ========================================================================
         // Phase 3: Disaggregated ARM generation — create-cluster-san template
         // ========================================================================
@@ -8070,7 +8184,7 @@
             state.disaggRackCount = 1;
             state.disaggNodesPerRack = 4;
             state.disaggSpineCount = 2;
-            state.disaggVlans = { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 500, iscsiB: 600, backup: 800 };
+            state.disaggVlans = { mgmt: 7, cluster1: 711, cluster2: 712, iscsiA: 300, iscsiB: 400, backup: 800 };
             state.disaggVnis = { mgmt: 10007, cluster1: 10711, cluster2: 10712 };
             state.disaggMgmtVlanMode = 'access';
             state.disaggClusterVlanMode = { cluster1: 'access', cluster2: 'access' };
