@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.20.07';
+const WIZARD_VERSION = '0.20.08';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -312,7 +312,7 @@ const state = {
     disaggClusterNetworkNames: { cluster1: 'Cluster Network 1', cluster2: 'Cluster Network 2' },
     disaggVrfName: 'AZLOCALINFRA',
     disaggVrfMode: 'single',
-    disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' },
+    disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.50.1.0/24', iscsiB: '10.60.1.0/24' },
     disaggIscsiTargets: [],
     disaggQosCustomized: false,
     // DA9: Node configuration
@@ -3997,7 +3997,10 @@ function updateUI() {
             });
             // Show DA steps progressively based on state
             if (daSteps[0]) daSteps[0].classList.remove('hidden'); // DA1 always visible
-            if (state.disaggStorageType && daSteps[1]) daSteps[1].classList.remove('hidden'); // DA2
+            if (state.disaggStorageType && daSteps[1]) {
+                daSteps[1].classList.remove('hidden'); // DA2
+                if (typeof window.updateDisaggBackupCardState === 'function') window.updateDisaggBackupCardState();
+            }
             if ((state.disaggStorageType === 'fc_san' || state.disaggBackupEnabled !== undefined) && daSteps[2]) daSteps[2].classList.remove('hidden'); // DA3
             // Spine count auto-set to 2 in DA3 — no separate spine step
             if (state.disaggRackCount && state.disaggNodesPerRack) {
@@ -10250,7 +10253,7 @@ function showTemplates() {
                 disaggClusterVlanMode: { cluster1: 'access', cluster2: 'access' },
                 disaggVrfName: 'AZLOCALINFRA',
                 disaggVrfMode: 'single',
-                disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24' },
+                disaggSubnets: { cluster1: '10.71.1.0/24', cluster2: '10.71.2.0/24', iscsiA: '10.50.1.0/24', iscsiB: '10.60.1.0/24' },
                 disaggQosCustomized: false,
                 disaggPortSpeeds: { ocp: '25GbE', pcie1: '25GbE', pcie2: '25GbE', backup: '25GbE', bmc: '1GbE' },
                 disaggIntentMapping: { mgmt_compute: ['ocp_p1', 'ocp_p2'] },

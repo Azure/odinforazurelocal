@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.20.07] - 2026-04-23
+## [0.20.08] - 2026-04-27
+
+### Changed
+
+#### Disaggregated Host-Networking Diagrams — Merged SET vSwitch wrapper
+- **NIC3/NIC4 cluster NICs are now wrapped in a single dashed group** when a SET vSwitch is present (`ClusterISCSISwitch` for iSCSI 4-NIC, `ClusterBackupSwitch` for iSCSI 6-NIC + backup), mirroring how Mgmt + Compute already wraps OCP-NIC1 + OCP-NIC2. Replaces the previous layout of two separate dashed boxes inside an outer SET overlay rectangle. Applied to both the wizard preview (`js/disaggregated.js`) and the configuration report's 2-node view (`report/report.js`).
+- **vNIC card layout — 3-line rendering** (primary identifier / literal `vNIC` / VLAN). vNIC card height bumped 30 → 42 px and a regex split parses ` vNIC` suffix from labels (`Cluster1 vNIC`, `iSCSI1 vNIC`, …). SET label and Backup VLAN trunk badge moved below the wrapper to eliminate border/label overlap.
+- **`WorkloadSwitch` → `ClusterISCSISwitch`** rename across explanations (DA1, DA8), warnings (DA2), port-count descriptions (DA4), cluster route descriptions, and the rendered SET label inside the diagrams.
+
+#### Disaggregated Overrides — iSCSI A/B subnet inputs
+- **Show iSCSI A/B VLAN + Subnet inputs for all iSCSI scenarios** (`js/disaggregated.js` `renderDisaggOverrides` + `confirmDisaggOverrides`). Previously gated to `iscsi_6nic && !backup` only — now also shown for `iscsi_4nic` (where NIC3/NIC4 host `iSCSI1`/`iSCSI2` vNICs in `ClusterISCSISwitch`) and `iscsi_6nic + backup` (NIC5/NIC6 still standalone). Card subtitle adapts to the transport: `(SET vNIC — ClusterISCSISwitch)` vs `(Standalone)`.
+- **Pre-populated iSCSI A/B defaults** (`10.50.1.0/24` and `10.60.1.0/24`) seeded into the initial `state.disaggSubnets` and the reset path in `js/script.js`, so users can confirm immediately or edit before confirming — same behaviour as Cluster 1/2 subnets.
+
+---
 
 ### Fixed
 
