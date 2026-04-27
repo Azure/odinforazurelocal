@@ -1777,11 +1777,10 @@
             { id: 'pcie1_p2', defaultName: 'PCIe1-NIC4', slot: 'pcie1' }
         ];
         if (storageType === 'iscsi_6nic') {
-            var pcie2Slot = backupEnabled ? 'backup' : 'pcie2';
-            ports.push({ id: 'pcie2_p1', defaultName: 'PCIe2-NIC5', slot: pcie2Slot });
-            ports.push({ id: 'pcie2_p2', defaultName: 'PCIe2-NIC6', slot: pcie2Slot });
+            ports.push({ id: 'pcie2_p1', defaultName: 'PCIe2-NIC5', slot: 'pcie2' });
+            ports.push({ id: 'pcie2_p2', defaultName: 'PCIe2-NIC6', slot: 'pcie2' });
         }
-        if (backupEnabled && storageType !== 'iscsi_6nic') {
+        if (backupEnabled && storageType === 'fc_san') {
             ports.push({ id: 'backup_p1', defaultName: 'BK-NIC1', slot: 'backup' });
             ports.push({ id: 'backup_p2', defaultName: 'BK-NIC2', slot: 'backup' });
         }
@@ -2265,8 +2264,8 @@
         var n = Math.min(2, totalNodes);
         var hasFc = (storageType === 'fc_san');
         var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
-        var hasDedicatedIscsi = (storageType === 'iscsi_6nic' && !backupEnabled);
-        var hasSharedIscsi = (storageType === 'iscsi_4nic' || (storageType === 'iscsi_6nic' && backupEnabled));
+        var hasDedicatedIscsi = (storageType === 'iscsi_6nic');
+        var hasSharedIscsi = (storageType === 'iscsi_4nic');
         var adapterMapping = s.disaggAdapterMapping || {};
 
         function xmlEsc(str) {
@@ -2300,14 +2299,14 @@
 
         // Build NIC groups dynamically from adapter mapping
         var nicGroups = [];
-        var dClusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 1';
-        var dClusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 2';
+        var dClusterLabel1 = hasSharedIscsi ? 'NIC3 Path A' : 'Cluster 1';
+        var dClusterLabel2 = hasSharedIscsi ? 'NIC4 Path B' : 'Cluster 2';
         var zoneMeta = {
             mgmt_compute: { label: 'Mgmt + Compute', color: 'blue', vnicAbove: { name: 'Mgmt vNIC', vlan: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.mgmt) || '7') } },
-            cluster_1: { label: dClusterLabel1, color: 'green', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
-            cluster_2: { label: dClusterLabel2, color: 'green', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
-            iscsi_a: { label: 'iSCSI Storage A', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiA) || '500'), forcedLeaf: 'A' },
-            iscsi_b: { label: 'iSCSI Storage B', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiB) || '600'), forcedLeaf: 'B' },
+            cluster_1: { label: dClusterLabel1, color: 'green', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster1) || '711'), forcedLeaf: 'A' },
+            cluster_2: { label: dClusterLabel2, color: 'green', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.cluster2) || '712'), forcedLeaf: 'B' },
+            iscsi_a: { label: 'iSCSI Storage A', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiA) || '300'), forcedLeaf: 'A' },
+            iscsi_b: { label: 'iSCSI Storage B', color: 'purple', vlanBelow: 'VLAN ' + ((s.disaggVlans && s.disaggVlans.iscsiB) || '400'), forcedLeaf: 'B' },
             backup: { label: 'In-Guest Backup Compute Intent', color: 'orange' }
         };
         var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
@@ -4202,8 +4201,8 @@
             var n = Math.min(2, totalNodes);
             var hasFc = (storageType === 'fc_san');
             var hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
-            var hasDedicatedIscsi = (storageType === 'iscsi_6nic' && !backupEnabled);
-            var hasSharedIscsi = (storageType === 'iscsi_4nic' || (storageType === 'iscsi_6nic' && backupEnabled));
+            var hasDedicatedIscsi = (storageType === 'iscsi_6nic');
+            var hasSharedIscsi = (storageType === 'iscsi_4nic');
             var adapterMapping = state.disaggAdapterMapping || {};
 
             // NIC name helper — port IDs must match wizard format: ocp_p1, pcie1_p2, etc.
@@ -4239,42 +4238,28 @@
             var nicGroups = [];
 
             // Cluster NIC SET wrapper mode (mirrors wizard preview):
-            //   'workload'      — iSCSI 4-NIC: ClusterISCSI SET on NIC3/NIC4 (Cluster1/2 + iSCSI1/2 vNICs)
             //   'clusterbackup' — iSCSI 6-NIC + backup: ClusterBackupSwitch SET (Cluster1/2 vNICs + Backup VLAN trunk)
-            //   null            — standalone bare-metal cluster NICs (FC SAN, iSCSI 6-NIC no backup)
-            var clusterSetMode = (storageType === 'iscsi_4nic') ? 'workload'
-                : (storageType === 'iscsi_6nic' && backupEnabled) ? 'clusterbackup'
-                    : null;
-            var clusterSetName = clusterSetMode === 'workload' ? 'ClusterISCSISwitch'
-                : clusterSetMode === 'clusterbackup' ? 'ClusterBackupSwitch'
+            //   null            — standalone physical cluster NICs, including iSCSI 4-NIC shared paths
+            var clusterSetMode = (storageType === 'iscsi_6nic' && backupEnabled) ? 'clusterbackup' : null;
+            var clusterSetName = clusterSetMode === 'clusterbackup' ? 'ClusterBackupSwitch'
                     : null;
             var vlansState = state.disaggVlans || {};
-            var cluster1VnicsAbove = clusterSetMode === 'workload'
-                ? [
-                    { name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlansState.cluster1 || '711') },
-                    { name: 'iSCSI1 vNIC', vlan: 'VLAN ' + (vlansState.iscsiA || '500'), color: '#f97316' }
-                ]
-                : clusterSetMode === 'clusterbackup'
+            var cluster1VnicsAbove = clusterSetMode === 'clusterbackup'
                     ? [{ name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlansState.cluster1 || '711') }]
                     : [];
-            var cluster2VnicsAbove = clusterSetMode === 'workload'
-                ? [
-                    { name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlansState.cluster2 || '712') },
-                    { name: 'iSCSI2 vNIC', vlan: 'VLAN ' + (vlansState.iscsiB || '600'), color: '#f97316' }
-                ]
-                : clusterSetMode === 'clusterbackup'
+            var cluster2VnicsAbove = clusterSetMode === 'clusterbackup'
                     ? [{ name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlansState.cluster2 || '712') }]
                     : [];
 
-            // Define zone metadata — for shared iSCSI, cluster groups carry CSV/LiveMig + iSCSI traffic
-            var clusterLabel1 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 1';
-            var clusterLabel2 = hasSharedIscsi ? 'CSV/LiveMig' : 'Cluster 2';
+            // Define zone metadata — for 4-NIC, cluster groups are physical shared Cluster+iSCSI paths.
+            var clusterLabel1 = hasSharedIscsi ? 'NIC3 Path A' : 'Cluster 1';
+            var clusterLabel2 = hasSharedIscsi ? 'NIC4 Path B' : 'Cluster 2';
             var zoneMeta = {
                 mgmt_compute: { label: 'Mgmt + Compute', color: '#3b82f6', vnicsAbove: [{ name: 'Mgmt vNIC', vlan: 'VLAN ' + (vlansState.mgmt || '7') }] },
-                cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vnicsAbove: cluster1VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster1 || '711'), forcedLeaf: 'A' },
-                cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? '+ iSCSI' : '', vnicsAbove: cluster2VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster2 || '712'), forcedLeaf: 'B' },
-                iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlansState.iscsiA || '500'), forcedLeaf: 'A' },
-                iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlansState.iscsiB || '600'), forcedLeaf: 'B' },
+                cluster_1: { label: clusterLabel1, color: '#22c55e', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vnicsAbove: cluster1VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster1 || '711'), forcedLeaf: 'A' },
+                cluster_2: { label: clusterLabel2, color: '#22c55e', subLabel: hasSharedIscsi ? 'Cluster + iSCSI' : '', vnicsAbove: cluster2VnicsAbove, vlanBelow: 'VLAN ' + (vlansState.cluster2 || '712'), forcedLeaf: 'B' },
+                iscsi_a: { label: 'iSCSI Storage A', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlansState.iscsiA || '300'), forcedLeaf: 'A' },
+                iscsi_b: { label: 'iSCSI Storage B', color: '#8b5cf6', vlanBelow: 'VLAN ' + (vlansState.iscsiB || '400'), forcedLeaf: 'B' },
                 backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
             };
 
@@ -4481,13 +4466,21 @@
                 if (sc1 || sc2) {
                     var allClusterNics = [].concat(sc1 ? sc1.nics.map(function(nx){ return nx.name; }) : [])
                         .concat(sc2 ? sc2.nics.map(function(nx){ return nx.name; }) : []);
-                    legendEntries.push({
-                        title: 'Cluster Networks (standalone — no SET)',
-                        color: '#22c55e',
-                        lines: [
+                    var clusterLegendTitle = hasSharedIscsi ? 'Shared Cluster + iSCSI Physical Paths (standalone — no SET)' : 'Cluster Networks (standalone — no SET)';
+                    var clusterLegendLines = hasSharedIscsi
+                        ? [
+                            'Members: ' + allClusterNics.join(', '),
+                            'Path A/B VLANs: ' + (vlansState.cluster1 || '711') + ', ' + (vlansState.cluster2 || '712') + ' — iSCSI uses the same physical NIC source IPs',
+                            'Host vNICs: none; target portal /32 routes are pinned to NIC3/NIC4'
+                        ]
+                        : [
                             'Members: ' + allClusterNics.join(', '),
                             'VLANs: ' + (vlansState.cluster1 || '711') + ', ' + (vlansState.cluster2 || '712') + ' (bare-metal, no host vNIC)'
-                        ]
+                        ];
+                    legendEntries.push({
+                        title: clusterLegendTitle,
+                        color: '#22c55e',
+                        lines: clusterLegendLines
                     });
                 }
             }
@@ -4500,7 +4493,7 @@
                     color: '#8b5cf6',
                     lines: [
                         'Members: ' + allIscsi.join(', '),
-                        'VLANs: ' + (vlansState.iscsiA || '500') + ' (Path A), ' + (vlansState.iscsiB || '600') + ' (Path B) — MPIO, bare-metal'
+                        'VLANs: ' + (vlansState.iscsiA || '300') + ' (Path A), ' + (vlansState.iscsiB || '400') + ' (Path B) — MPIO, bare-metal'
                     ]
                 });
             }
@@ -4794,10 +4787,10 @@
             var intro = ''
                 + '<div style="color:var(--text-secondary); margin-bottom:0.6rem;">'
                 + '<strong style="color:var(--text-primary);">Disaggregated (' + escapeHtml(storageLabel) + ')</strong> host networking diagram with Leaf-A / Leaf-B switches.'
-                + '<br>Intents: Management + Compute (SET), ' + (hasSharedIscsi ? 'CSV/LiveMig + iSCSI (Standalone)' : 'Cluster 1 &amp; 2 (Standalone)')
+                + '<br>Intents: Management + Compute (SET), ' + (hasSharedIscsi ? 'Cluster A/B + iSCSI Path A/B (Physical NIC3/NIC4, no SET)' : 'Cluster 1 &amp; 2 (Standalone)')
                 + (hasDedicatedIscsi ? ', iSCSI A &amp; B (Standalone)' : '')
                 + (backupEnabled ? ', In-Guest Backup (SET)' : '')
-                + (hasDedicatedIscsi ? '. Dedicated iSCSI adapters connect through leaf switch fabric to storage array.' : (hasSharedIscsi ? '. iSCSI shares cluster standalone NICs — traffic reaches storage array through leaf switch fabric.' : '. Storage adapters shown at bottom of each node.'))
+                + (hasDedicatedIscsi ? '. Dedicated iSCSI adapters connect through leaf switch fabric to storage array.' : (hasSharedIscsi ? '. iSCSI shares the standalone physical cluster NICs and uses per-target /32 routes through the leaf switch fabric.' : '. Storage adapters shown at bottom of each node.'))
                 + (totalNodes > 2 ? '<br><span style="color:var(--text-secondary);">Showing first 2 of ' + escapeHtml(String(totalNodes)) + ' nodes.</span>' : '')
                 + '</div>';
 
@@ -4881,7 +4874,7 @@
             svg += '</svg>';
 
             var note = '<div class="switchless-diagram__note">Note: Disaggregated ' + escapeHtml(storageLabel) + ' — Management + Compute intent (blue). '
-                + (hasSharedIscsi ? 'Standalone NICs (green) carry both CSV/Live Migration and iSCSI traffic on the same VLAN. iSCSI storage array is accessed through the leaf switch fabric (MPIO Active/Active, dual controllers). ' : 'Cluster networks are standalone NICs (green), one per leaf switch. ')
+                + (hasSharedIscsi ? 'Standalone physical NIC3/NIC4 (green) carry Cluster A/B and iSCSI Path A/B on the same VLAN/subnet/source IP. iSCSI target portal /32 routes are pinned to those physical adapters through the leaf switch fabric. ' : 'Cluster networks are standalone NICs (green), one per leaf switch. ')
                 + (hasDedicatedIscsi ? 'iSCSI uses dedicated standalone NICs (purple) connecting through leaf switches to the iSCSI storage array (MPIO Active/Active, dual controllers). ' : '')
                 + (hasFc ? 'FC HBA connects to separate SAN fabric (dedicated FC network, not through leaf switches). ' : '')
                 + (backupEnabled ? 'In-Guest Backup uses a Compute Intent (orange). ' : '')
@@ -7974,18 +7967,12 @@
             hostNetworkingRows += row('Cluster Network 2', 'Standalone, VLAN ' + clVlan2 + ' → Leaf-B');
 
             if (s.disaggStorageType === 'iscsi_4nic') {
-                hostNetworkingRows += row('iSCSI', 'Shared with Cluster standalone ports (same VLAN)');
+                hostNetworkingRows += row('iSCSI', 'Shared with physical NIC3/NIC4 Cluster paths (same VLAN/subnet/source IP)');
             } else if (s.disaggStorageType === 'iscsi_6nic') {
-                var iscsiA = (s.disaggVlans && s.disaggVlans.iscsiA) || '500';
-                var iscsiB = (s.disaggVlans && s.disaggVlans.iscsiB) || '600';
-                if (s.disaggBackupEnabled) {
-                    // 6-NIC + backup: iSCSI shares cluster ports (falls back), PCIe2 = backup
-                    hostNetworkingRows += row('iSCSI Mode', 'Shared with Cluster standalone ports');
-                } else {
-                    // 6-NIC no backup: dedicated iSCSI
-                    hostNetworkingRows += row('iSCSI Storage A', 'Standalone, VLAN ' + iscsiA + ' → Leaf-A');
-                    hostNetworkingRows += row('iSCSI Storage B', 'Standalone, VLAN ' + iscsiB + ' → Leaf-B');
-                }
+                var iscsiA = (s.disaggVlans && s.disaggVlans.iscsiA) || '300';
+                var iscsiB = (s.disaggVlans && s.disaggVlans.iscsiB) || '400';
+                hostNetworkingRows += row('iSCSI Storage A', 'Standalone, VLAN ' + iscsiA + ' → Leaf-A');
+                hostNetworkingRows += row('iSCSI Storage B', 'Standalone, VLAN ' + iscsiB + ' → Leaf-B');
             } else if (s.disaggStorageType === 'fc_san') {
                 hostNetworkingRows += row('FC SAN', 'FC HBA → Separate SAN Fabric (MPIO)');
             }

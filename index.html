@@ -864,7 +864,6 @@
                             <p>Dedicated FC HBAs on separate fabric. FC traffic is isolated from Ethernet leaf switches.</p>
                         </div>
                         <div class="option-card" data-value="iscsi_4nic" onclick="selectDisaggOption('storageType', 'iscsi_4nic')">
-                            <span class="coming-soon-badge">Coming Soon</span>
                             <div class="icon">
                                 <svg aria-hidden="true" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                     <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.5" />
@@ -872,8 +871,7 @@
                                 </svg>
                             </div>
                             <h3>iSCSI SAN (4-NIC)</h3>
-                            <p>iSCSI shares PCIe1 with CSV/LM via trunk. 4 NICs total per machine.</p>
-                            <p class="preview-note">⚠️ Feature not available yet</p>
+                            <p>NIC3/NIC4 stay physical: Cluster A/B and iSCSI Path A/B share the same adapters, VLANs, subnets, and source IPs. No SET or host vNICs.</p>
                         </div>
                         <div class="option-card" data-value="iscsi_6nic" onclick="selectDisaggOption('storageType', 'iscsi_6nic')">
                             <span class="coming-soon-badge">Coming Soon</span>
@@ -996,7 +994,7 @@
                     </div>
                     <div style="margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.35); color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5;">
                         <strong style="color: var(--accent-purple);">Tip — Access-mode VLANs are switch-only</strong><br>
-                        The VLAN IDs below (Management, Cluster A/B, iSCSI A/B, Backup) are configured on the physical leaf switch ports in <strong>Access Mode</strong> by default. The leaf adds/strips the 802.1Q tag — the host NICs receive <em>untagged</em> frames on these networks. That means on DA8 <strong>Network Adapter Ports → Overrides</strong>, the Cluster VLAN boxes are shown as <code>0</code> (untagged) and are read-only by design. Toggling the Cluster A/B drop-downs to <strong>Trunk</strong> flips both (they are paired) — the host NIC then tags and the VLAN value is emitted to the ARM <code>sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].vlanId</code> parameter. Tenant LNET VLANs remain trunked to the host regardless.
+                        The VLAN IDs below (Management, Cluster A/B, dedicated iSCSI A/B for 6-NIC, Backup) are configured on the physical leaf switch ports in <strong>Access Mode</strong> by default. In the 4-NIC iSCSI layout, iSCSI Path A/B derives from the Cluster A/B VLANs on NIC3/NIC4. The leaf adds/strips the 802.1Q tag — the host NICs receive <em>untagged</em> frames on these networks. That means on DA8 <strong>Network Adapter Ports → Overrides</strong>, the Cluster VLAN boxes are shown as <code>0</code> (untagged) and are read-only by design. Toggling the Cluster A/B drop-downs to <strong>Trunk</strong> flips both (they are paired) — the host NIC then tags and the VLAN value is emitted to the ARM <code>sanNetworkList.clusterNetworkConfig.adapterIPConfig[*].vlanId</code> parameter. Tenant LNET VLANs remain trunked to the host regardless.
                     </div>
                     <div id="da4-vlan-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
                         <!-- Dynamically populated by disaggregated.js -->
@@ -1230,7 +1228,7 @@
                     <div id="da8-intent-section" style="margin-top: 2rem;">
                         <h4 style="margin: 0 0 4px 0;">Network Traffic Intents</h4>
                         <p style="margin: 0 0 16px 0; color: var(--text-secondary); font-size: 0.9rem;">
-                            Drag and drop network adapters to assign them to traffic intents. In disaggregated mode, only the Management + Compute intent uses SET teaming. Cluster, iSCSI, and Backup NICs are standalone (one-to-one VLAN mapping).
+                            Drag and drop network adapters to assign them to traffic intents. In disaggregated mode, Management + Compute uses SET teaming. 4-NIC iSCSI keeps NIC3/NIC4 standalone as shared Cluster+iSCSI paths, while 6-NIC + Backup uses ClusterBackupSwitch on NIC3/NIC4 and leaves iSCSI on dedicated NIC5/NIC6.
                         </p>
 
                         <div id="da8-adapter-mapping-container" class="adapter-mapping">

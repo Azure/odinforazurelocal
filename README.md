@@ -44,11 +44,11 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 ### 🎉 Version 0.20.08 - Latest Release
-- **Disaggregated Host Networking — Merged SET vSwitch wrapper for Cluster NICs**: When NIC3/NIC4 carry a SET vSwitch (iSCSI 4-NIC `ClusterISCSISwitch`, or iSCSI 6-NIC + Backup `ClusterBackupSwitch`), the two cluster NICs are now wrapped in a single dashed group (matching how Mgmt + Compute already wraps OCP-NIC1 + OCP-NIC2), instead of two separate dashed boxes inside an outer overlay. Applies to both the wizard preview (`js/disaggregated.js`) and the configuration report's 2-node host-networking diagram (`report/report.js`).
-- **Disaggregated vNIC labels — readability**: Cluster/iSCSI host vNICs (e.g. `Cluster1 vNIC`, `iSCSI1 vNIC`) now render across 3 lines (name / `vNIC` / VLAN) so neighbouring cards no longer overlap. vNIC card height bumped 30 → 42 px. SET label moved below the wrapper to eliminate the previous label/border overlap.
-- **Disaggregated Overrides — iSCSI A/B subnets shown for all iSCSI scenarios**: The `iSCSI Network A` and `iSCSI Network B` VLAN + Subnet inputs are now shown for **iscsi_4nic** and **iscsi_6nic + backup** (previously only iscsi_6nic without backup), with the card subtitle adapting to the transport (`SET vNIC — ClusterISCSISwitch` vs `Standalone`). Confirm-overrides validation extended to require iSCSI A/B for the same broader set.
-- **Disaggregated Overrides — pre-populated iSCSI subnets**: Default iSCSI A `10.50.1.0/24` and iSCSI B `10.60.1.0/24` are seeded into initial state so users can confirm immediately or edit before confirming, matching how Cluster 1/2 already work.
-- **Naming consistency**: `WorkloadSwitch` renamed to `ClusterISCSISwitch` across explanations, warnings, port-count descriptions, route descriptions, and rendered SET labels for clarity vs `ClusterBackupSwitch`.
+- **Disaggregated Host Networking — iSCSI 4-NIC physical shared paths**: NIC3/NIC4 now render as standalone physical adapters. NIC3 carries Cluster A + iSCSI Path A, and NIC4 carries Cluster B + iSCSI Path B, using the same VLAN/subnet/source IP with no SET, no vSwitch, and no host vNICs. Applies to both the wizard preview (`js/disaggregated.js`) and the configuration report's 2-node host-networking diagram (`report/report.js`).
+- **Disaggregated Host Networking — 6-NIC + Backup correction**: `ClusterBackupSwitch` remains only for Cluster/Backup on NIC3/NIC4; dedicated iSCSI remains on NIC5/NIC6 and is no longer treated as sharing cluster ports.
+- **Disaggregated Overrides — shared vs dedicated iSCSI**: 4-NIC iSCSI now derives from the Cluster A/B VLAN/subnet inputs. Separate iSCSI Network A/B override cards are shown only for **iscsi_6nic**, including 6-NIC + Backup.
+- **Disaggregated Overrides — iSCSI defaults**: Dedicated iSCSI A/B defaults are now VLAN `300` / `400` with subnets `10.30.30.0/24` / `10.40.40.0/24`.
+- **Disaggregated vNIC labels — readability**: 3-line vNIC labels remain for layouts that genuinely have host vNICs, such as Management + Compute and 6-NIC + Backup Cluster vNICs.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -370,12 +370,12 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.20.x Series (April 2026)
 
-#### 0.20.08 - Disaggregated: Merged SET wrapper, iSCSI subnet overrides
-- **Merged SET vSwitch wrapper for Cluster NICs** in host-networking diagrams (wizard preview + report 2-node view): NIC3/NIC4 in `ClusterISCSISwitch` (iSCSI 4-NIC) or `ClusterBackupSwitch` (iSCSI 6-NIC + backup) are now wrapped in a single dashed group, mirroring how Mgmt + Compute already wraps OCP-NIC1 + OCP-NIC2.
-- **vNIC label readability**: 3-line vNIC cards (name / `vNIC` / VLAN), card height 30 → 42 px, SET label moved below the wrapper to remove border overlap.
-- **iSCSI A/B Subnet + VLAN inputs shown for all iSCSI scenarios** in DA8 → Overrides (previously only for `iscsi_6nic` without backup). Card subtitle adapts to the transport (`SET vNIC — ClusterISCSISwitch` vs `Standalone`). Confirm-overrides validation extended.
-- **Pre-populated iSCSI subnet defaults** (`10.50.1.0/24` / `10.60.1.0/24`) seeded into initial state so users can confirm immediately or edit, matching the Cluster 1/2 behaviour.
-- **`WorkloadSwitch` → `ClusterISCSISwitch`** rename across explanations, warnings, port-count descriptions, route descriptions, and rendered SET labels.
+#### 0.20.08 - Disaggregated: iSCSI 4-NIC physical paths
+- **iSCSI 4-NIC physical shared paths** in host-networking diagrams (wizard preview + report 2-node view): NIC3/NIC4 stay standalone physical adapters carrying Cluster A/B and iSCSI Path A/B with no SET, no vSwitch, and no host vNICs.
+- **6-NIC + Backup correction**: `ClusterBackupSwitch` remains only for Cluster/Backup on NIC3/NIC4; dedicated iSCSI remains on NIC5/NIC6.
+- **Shared vs dedicated iSCSI overrides**: 4-NIC iSCSI derives from Cluster A/B VLAN/subnet values. Dedicated iSCSI A/B override cards appear only for `iscsi_6nic`, including 6-NIC + Backup.
+- **Dedicated iSCSI defaults** updated to VLAN `300` / `400` and subnets `10.30.30.0/24` / `10.40.40.0/24`.
+- **vNIC label readability** remains for layouts that genuinely render host vNICs, such as Management + Compute and 6-NIC + Backup Cluster vNICs.
 
 #### 0.20.07 - Knowledge Tab: Context-Aware Help Button
 - **Knowledge Help button**: The nav-bar Help button on the Knowledge tab now shows a dedicated walkthrough for whichever sidebar topic is active — the **Outbound Connectivity Architecture Guide** (same-origin written reference) or **AzLoFlows** (external interactive diagram builder). Previously it fell through to the Designer onboarding because the original same-origin flow-diagram pages were replaced by AzLoFlows and the cross-origin `contentWindow.showFlowOnboarding()` probe in `nav.js` could no longer reach the embedded page.

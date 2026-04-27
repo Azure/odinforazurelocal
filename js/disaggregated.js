@@ -26,7 +26,8 @@ function getMaxNodesPerRack(storageType, backupEnabled) {
 }
 
 // Apply/remove disabled styling on the DA2 "Enable Backup Network" card based on
-// the currently-selected storage type. Spec §4: backup is not supported on iSCSI 4-NIC.
+// the currently-selected storage type. Backup is not supported on iSCSI 4-NIC because
+// NIC3/NIC4 stay as standalone physical Cluster+iSCSI paths with no vSwitch layer.
 function updateDisaggBackupCardState() {
     const card = document.querySelector('#step-da2 .option-card[data-value="true"]');
     if (!card) return;
@@ -77,7 +78,7 @@ function selectDisaggOption(category, value) {
         if (exp) {
             const explanations = {
                 fc_san: '<strong style="color: var(--accent-purple);">Fibre Channel SAN</strong> — Dedicated FC HBAs connect to separate FC switches. Storage traffic is completely isolated from the Ethernet leaf-spine fabric. Max 16 nodes per rack.',
-                iscsi_4nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (4-NIC)</strong> — NIC3/NIC4 are wrapped in a customer-managed SET vSwitch (<code>ClusterISCSISwitch</code>, outside ATC) hosting four host vNICs: <code>Cluster1 vNIC</code>, <code>Cluster2 vNIC</code>, <code>iSCSI1 vNIC</code>, <code>iSCSI2 vNIC</code>. Backup network is <strong>not supported</strong> on this layout. Max 16 nodes per rack.',
+                iscsi_4nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (4-NIC)</strong> — NIC3/NIC4 stay as standalone physical adapters. NIC3 carries Cluster A + iSCSI Path A; NIC4 carries Cluster B + iSCSI Path B, using the same VLAN, subnet, source IP, MTU 9014, and per-target /32 routes. No SET vSwitch, no host vNICs, and no ATC intent on NIC3/NIC4. Backup network is <strong>not supported</strong> on this layout. Max 16 nodes per rack.',
                 iscsi_6nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (6-NIC)</strong> — NIC5/NIC6 are dedicated standalone iSCSI Path A/B (no SET, no host vNIC). When backup is enabled, NIC3/NIC4 are wrapped in a customer-managed SET (<code>ClusterBackupSwitch</code>, outside ATC) hosting <code>Cluster1 vNIC</code>/<code>Cluster2 vNIC</code> host vNICs plus a tenant Backup VLAN trunk; iSCSI on NIC5/NIC6 is unchanged. Max 16 nodes per rack.'
             };
             exp.innerHTML = explanations[value] || '';
@@ -92,12 +93,12 @@ function selectDisaggOption(category, value) {
         renderDisaggNicConfig();
 
     } else if (category === 'backup') {
-        // Spec §4: backup network is NOT supported on the iSCSI 4-NIC layout.
+        // Backup network is NOT supported on the iSCSI 4-NIC layout.
         // The card is greyed out via updateDisaggBackupCardState(), but guard the handler too.
         if (value === true && state.disaggStorageType === 'iscsi_4nic') {
             const warning = document.getElementById('da2-warning');
             if (warning) {
-                warning.innerHTML = '<strong style="color: var(--error, #ef4444);">&#9888; Backup not supported on iSCSI 4-NIC</strong><p>The 4-NIC layout shares NIC3/NIC4 between Cluster and iSCSI traffic via a customer-managed <code>ClusterISCSISwitch</code> SET. There is no headroom for an additional tenant Backup VLAN without compromising iSCSI isolation. To enable backup, switch the storage type on <strong>DA1</strong> to <strong>iSCSI SAN (6-NIC)</strong> (or <strong>Fibre Channel SAN</strong>).</p>';
+                warning.innerHTML = '<strong style="color: var(--error, #ef4444);">&#9888; Backup not supported on iSCSI 4-NIC</strong><p>The 4-NIC layout keeps NIC3/NIC4 as standalone physical Cluster+iSCSI paths. It intentionally has no Hyper-V vSwitch or host vNIC layer where a tenant Backup VLAN could be trunked. To enable backup, switch the storage type on <strong>DA1</strong> to <strong>iSCSI SAN (6-NIC)</strong> (or <strong>Fibre Channel SAN</strong>).</p>';
                 warning.classList.remove('hidden');
             }
             // Force-select the "No Backup" card so state stays consistent.
@@ -208,7 +209,7 @@ function restoreDisaggregatedUI() {
         if (exp1) {
             const explanations = {
                 fc_san: '<strong style="color: var(--accent-purple);">Fibre Channel SAN</strong> — Dedicated FC HBAs connect to separate FC switches. Storage traffic is completely isolated from the Ethernet leaf-spine fabric. Max 16 nodes per rack.',
-                iscsi_4nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (4-NIC)</strong> — NIC3/NIC4 are wrapped in a customer-managed SET vSwitch (<code>ClusterISCSISwitch</code>, outside ATC) hosting four host vNICs: <code>Cluster1 vNIC</code>, <code>Cluster2 vNIC</code>, <code>iSCSI1 vNIC</code>, <code>iSCSI2 vNIC</code>. Backup network is <strong>not supported</strong> on this layout. Max 16 nodes per rack.',
+                iscsi_4nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (4-NIC)</strong> — NIC3/NIC4 stay as standalone physical adapters. NIC3 carries Cluster A + iSCSI Path A; NIC4 carries Cluster B + iSCSI Path B, using the same VLAN, subnet, source IP, MTU 9014, and per-target /32 routes. No SET vSwitch, no host vNICs, and no ATC intent on NIC3/NIC4. Backup network is <strong>not supported</strong> on this layout. Max 16 nodes per rack.',
                 iscsi_6nic: '<strong style="color: var(--accent-purple);">iSCSI SAN (6-NIC)</strong> — NIC5/NIC6 are dedicated standalone iSCSI Path A/B (no SET, no host vNIC). When backup is enabled, NIC3/NIC4 are wrapped in a customer-managed SET (<code>ClusterBackupSwitch</code>, outside ATC) hosting <code>Cluster1 vNIC</code>/<code>Cluster2 vNIC</code> host vNICs plus a tenant Backup VLAN trunk; iSCSI on NIC5/NIC6 is unchanged. Max 16 nodes per rack.'
             };
             exp1.innerHTML = explanations[state.disaggStorageType] || '';
@@ -298,7 +299,7 @@ function renderVlanGrid() {
         { key: 'cluster2', label: 'Cluster (CSV/LM) B', vlan: vlans.cluster2, vni: vnis.cluster2, mode: cluster2Mode, modeToggle: 'cluster', netName: clusterNames.cluster2 }
     ];
 
-    if (state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic') {
+    if (state.disaggStorageType === 'iscsi_6nic') {
         rows.push({ key: 'iscsiA', label: 'iSCSI Fabric A', vlan: vlans.iscsiA, vni: vnis.iscsiA, mode: 'Access' });
         rows.push({ key: 'iscsiB', label: 'iSCSI Fabric B', vlan: vlans.iscsiB, vni: vnis.iscsiB, mode: 'Access' });
     }
@@ -694,8 +695,8 @@ function confirmDisaggVlanConfig() {
     if (!vlans.mgmt) missing.push('Management VLAN');
     if (!vlans.cluster1) missing.push('Cluster A VLAN');
     if (!vlans.cluster2) missing.push('Cluster B VLAN');
-    if ((state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic') && !vlans.iscsiA) missing.push('iSCSI A VLAN');
-    if ((state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic') && !vlans.iscsiB) missing.push('iSCSI B VLAN');
+    if (state.disaggStorageType === 'iscsi_6nic' && !vlans.iscsiA) missing.push('iSCSI A VLAN');
+    if (state.disaggStorageType === 'iscsi_6nic' && !vlans.iscsiB) missing.push('iSCSI B VLAN');
     if (state.disaggBackupEnabled && !vlans.backup) missing.push('Backup VLAN');
 
     if (missing.length > 0) {
@@ -752,7 +753,8 @@ function renderQosSummary() {
     const container = document.getElementById('da5-qos-summary');
     if (!container) return;
 
-    const isIscsi = state.disaggStorageType === 'iscsi_4nic' || state.disaggStorageType === 'iscsi_6nic';
+    const isIscsi4Nic = state.disaggStorageType === 'iscsi_4nic';
+    const isIscsi6Nic = state.disaggStorageType === 'iscsi_6nic';
     const isFcSan = state.disaggStorageType === 'fc_san';
     const exp = document.getElementById('da5-explanation');
 
@@ -762,14 +764,13 @@ function renderQosSummary() {
         { priority: 7, desc: 'Cluster Heartbeat', pfc: 'No', bw: '1%' }
     ];
 
-    if (isIscsi) {
+    if (isIscsi6Nic) {
         rows.push({ priority: 4, desc: 'iSCSI Storage', pfc: 'No', bw: '50%' });
         rows[0].bw = '29%';
     }
 
-    // Backup traffic runs on a dedicated backup compute intent (PCIe adapter 2) with its own
-    // NICs/leaf ports, so it does NOT share bandwidth with the management/cluster ports shown
-    // in this QoS table. No row is added for backup, regardless of disaggBackupEnabled.
+    // Backup traffic is tenant-only: dedicated backup NICs for FC SAN, or a Backup VLAN
+    // trunk on ClusterBackupSwitch for 6-NIC iSCSI. No host QoS row is added here.
 
     rows.sort((a, b) => a.priority - b.priority);
 
@@ -798,10 +799,12 @@ function renderQosSummary() {
 
     if (exp) {
         const backupNote = state.disaggBackupEnabled
-            ? ' Backup traffic runs on a <strong>dedicated backup compute intent</strong> (PCIe adapter 2) with its own NICs and switch ports, so it doesn\'t consume bandwidth on the cluster/management ports above.'
+            ? ' Backup traffic is tenant-only: FC SAN uses dedicated backup NICs, while 6-NIC iSCSI trunks the Backup VLAN on <strong>ClusterBackupSwitch</strong> without a host backup vNIC.'
             : '';
         if (isFcSan) {
             exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — QoS is required for CSV/Live Migration traffic even with FC SAN. Storage traffic runs on a separate Fibre Channel fabric and does not need Ethernet QoS, but cluster traffic sharing the leaf ports still needs traffic classification and bandwidth reservation.' + backupNote;
+        } else if (isIscsi4Nic) {
+            exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — No PFC (Priority Flow Control) required. In the 4-NIC iSCSI layout, iSCSI sessions bind to the same standalone physical NICs, VLANs, and source IPs as Cluster A/B, with per-target /32 routes pinned to NIC3/NIC4. There is no separate iSCSI vSwitch, vNIC, or dedicated iSCSI QoS row.' + backupNote;
         } else {
             exp.innerHTML = '<strong style="color: var(--accent-purple);">802.1p + ETS</strong> — No PFC (Priority Flow Control) required. iSCSI is loss-tolerant unlike RDMA. 802.1p CoS marking with Weighted Round Robin (WRR) bandwidth allocation ensures each traffic class gets guaranteed bandwidth.' + backupNote;
         }
@@ -1346,16 +1349,13 @@ function getDisaggNicSlots() {
     // PCIe1: always present (2 ports) — Cluster (or Cluster+iSCSI in 4-NIC)
     const pcie1Label = st === 'iscsi_4nic' ? 'PCIe1 (Cluster + iSCSI Shared)' : 'PCIe1 (Cluster / CSV / Live Migration)';
     slots.push({ key: 'pcie1', label: pcie1Label, ports: 2, defaultSpeed: '25GbE', allowedSpeeds: ['10GbE', '25GbE', '100GbE'] });
-    // PCIe2: 6-NIC iSCSI dedicated (only when no backup)
-    if (st === 'iscsi_6nic' && !backup) {
+    // PCIe2: 6-NIC iSCSI dedicated, regardless of backup.
+    if (st === 'iscsi_6nic') {
         slots.push({ key: 'pcie2', label: 'PCIe2 (iSCSI Dedicated)', ports: 2, defaultSpeed: '25GbE', allowedSpeeds: ['10GbE', '25GbE', '100GbE'] });
     }
-    // PCIe2 as Backup: 6-NIC iSCSI + backup (iSCSI falls back to sharing cluster ports)
-    if (st === 'iscsi_6nic' && backup) {
-        slots.push({ key: 'pcie2', label: 'PCIe2 (Backup)', ports: 2, defaultSpeed: '25GbE', allowedSpeeds: ['10GbE', '25GbE', '100GbE'] });
-    }
-    // Backup: FC SAN or iSCSI 4-NIC with backup enabled
-    if (backup && st !== 'iscsi_6nic') {
+    // Backup: FC SAN uses dedicated backup NICs. iSCSI 6-NIC + backup trunks the
+    // Backup VLAN on ClusterBackupSwitch instead of adding backup adapters.
+    if (backup && st === 'fc_san') {
         slots.push({ key: 'backup', label: 'Backup (In-Guest VM Backup)', ports: 2, defaultSpeed: '25GbE', allowedSpeeds: ['10GbE', '25GbE', '100GbE'] });
     }
     // BMC: always (1 port, fixed 1GbE)
@@ -1449,10 +1449,10 @@ function getDisaggPortCountOptions() {
             options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + Cluster (2) + Backup (2). FC HBA handles storage separately.', dots: [6, 10, 14, 6, 10, 14], twoRow: true, disabled: true, disabledReason: 'Enable backup network on step DA2 to use 6 ports' });
         }
     } else if (st === 'iscsi_4nic') {
-        // Spec §4: backup is NOT supported on iSCSI 4-NIC.
+        // Backup is NOT supported on iSCSI 4-NIC.
         // Only the 4-port layout is valid; the 6-port card is always disabled.
-        options.push({ value: 4, label: '4 Ports', desc: 'OCP (2) + PCIe1 (2). NIC3/NIC4 wrapped in customer-managed ClusterISCSISwitch SET hosting Cluster1 vNIC / Cluster2 vNIC / iSCSI1 vNIC / iSCSI2 vNIC.', dots: [5, 9, 15, 19] });
-        options.push({ value: 6, label: '6 Ports', desc: 'Backup network is not supported on the iSCSI 4-NIC layout (spec §4). Switch storage type to iSCSI 6-NIC or FC SAN to enable backup.', dots: [6, 10, 14, 6, 10, 14], twoRow: true, disabled: true, disabledReason: 'Backup network is not supported on iSCSI 4-NIC. Switch to iSCSI 6-NIC or FC SAN.' });
+        options.push({ value: 4, label: '4 Ports', desc: 'OCP (2) + PCIe1 (2). NIC3/NIC4 are standalone physical adapters: NIC3 carries Cluster A + iSCSI Path A, NIC4 carries Cluster B + iSCSI Path B. No SET, no vSwitch, no host vNICs.', dots: [5, 9, 15, 19] });
+        options.push({ value: 6, label: '6 Ports', desc: 'Backup network is not supported on the iSCSI 4-NIC layout. Switch storage type to iSCSI 6-NIC or FC SAN to enable backup.', dots: [6, 10, 14, 6, 10, 14], twoRow: true, disabled: true, disabledReason: 'Backup network is not supported on iSCSI 4-NIC. Switch to iSCSI 6-NIC or FC SAN.' });
     } else if (st === 'iscsi_6nic') {
         if (backup) {
             options.push({ value: 6, label: '6 Ports', desc: 'OCP (2) + PCIe1 cluster SET on ClusterBackupSwitch (2, hosts Cluster1/Cluster2 + Backup VLAN trunk) + PCIe2 dedicated iSCSI Path A/B (2, standalone).', dots: [6, 10, 14, 6, 10, 14], twoRow: true });
@@ -1777,8 +1777,8 @@ function getDisaggIntentZones() {
         requiresRdma: false
     });
 
-    // Cluster Network 1 / 2 — transport depends on layout (spec §2.1, §3.1, §4.3):
-    //   iSCSI 4-NIC                : host vNIC on customer-managed WorkloadSwitch SET (NIC3/NIC4)
+    // Cluster Network 1 / 2 — transport depends on layout:
+    //   iSCSI 4-NIC                : standalone physical NIC3/NIC4 shared with iSCSI Path A/B
     //   iSCSI 6-NIC + backup       : host vNIC on customer-managed ClusterBackupSwitch SET (NIC3/NIC4) + Backup VLAN trunked
     //   iSCSI 6-NIC, no backup     : standalone bare-metal NIC (no SET, no host vNIC)
     //   FC SAN (any)               : standalone bare-metal NIC
@@ -1787,8 +1787,8 @@ function getDisaggIntentZones() {
     const cName2 = (typeof cNames.cluster2 === 'string' && cNames.cluster2.trim()) ? cNames.cluster2.trim() : 'Cluster Network 2';
     let clusterDescA, clusterDescB;
     if (st === 'iscsi_4nic') {
-        clusterDescA = 'Access port to Leaf-A on <code>ClusterISCSISwitch</code> SET (customer-managed, outside ATC). Shares NIC3 with iSCSI1 vNIC.';
-        clusterDescB = 'Access port to Leaf-B on <code>ClusterISCSISwitch</code> SET (customer-managed, outside ATC). Shares NIC4 with iSCSI2 vNIC.';
+        clusterDescA = 'Standalone physical <code>NIC3</code> to Leaf-A. Carries Cluster A and iSCSI Path A on the same VLAN/subnet/source IP. No SET, no vSwitch, no host vNIC.';
+        clusterDescB = 'Standalone physical <code>NIC4</code> to Leaf-B. Carries Cluster B and iSCSI Path B on the same VLAN/subnet/source IP. No SET, no vSwitch, no host vNIC.';
     } else if (st === 'iscsi_6nic' && backup) {
         clusterDescA = 'Host vNIC on <code>ClusterBackupSwitch</code> SET (customer-managed, outside ATC). Backup VLAN ' + (vlans.backup || 800) + ' trunked on the same SET (no host vNIC).';
         clusterDescB = 'Host vNIC on <code>ClusterBackupSwitch</code> SET (customer-managed, outside ATC). Backup VLAN ' + (vlans.backup || 800) + ' trunked on the same SET (no host vNIC).';
@@ -1823,7 +1823,7 @@ function getDisaggIntentZones() {
     if (st === 'iscsi_6nic') {
         zones.push({
             key: 'iscsi_a',
-            title: 'iSCSI Storage A (VLAN ' + (vlans.iscsiA || 500) + ')',
+            title: 'iSCSI Storage A (VLAN ' + (vlans.iscsiA || 300) + ')',
             description: 'Access port to Leaf-A. Dedicated iSCSI NIC, MTU 9216, MPIO.',
             titleClass: 'storage',
             cardClass: 'zone-storage',
@@ -1833,7 +1833,7 @@ function getDisaggIntentZones() {
         });
         zones.push({
             key: 'iscsi_b',
-            title: 'iSCSI Storage B (VLAN ' + (vlans.iscsiB || 600) + ')',
+            title: 'iSCSI Storage B (VLAN ' + (vlans.iscsiB || 400) + ')',
             description: 'Access port to Leaf-B. Dedicated iSCSI NIC, MTU 9216, MPIO.',
             titleClass: 'storage',
             cardClass: 'zone-storage',
@@ -1842,9 +1842,8 @@ function getDisaggIntentZones() {
             requiresRdma: false
         });
     }
-    // For iSCSI 4-NIC: iSCSI shares NIC3/NIC4 via WorkloadSwitch SET host vNICs
-    // (iSCSI1/iSCSI2). No separate iSCSI intent zones — the SET is customer-managed,
-    // not declared as an ATC intent.
+    // For iSCSI 4-NIC: iSCSI shares standalone physical NIC3/NIC4 with Cluster A/B.
+    // There are no separate iSCSI intent zones, SET switch, or host vNICs.
 
     // Compute Intent for In-Guest Backup Network — orange.
     // Spec §4: backup is supported on iSCSI 6-NIC (tenant VLAN trunked on cluster SET,
@@ -2273,8 +2272,11 @@ function renderDisaggOverrides() {
     const esc = (typeof escapeHtml === 'function') ? escapeHtml : function(s) { return String(s); };
 
     html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">';
+    const cluster1TransportSuffix = st === 'iscsi_4nic' ? '(Physical NIC3 — Cluster + iSCSI Path A)' : '(Standalone)';
+    const cluster2TransportSuffix = st === 'iscsi_4nic' ? '(Physical NIC4 — Cluster + iSCSI Path B)' : '(Standalone)';
+
     html += '<div style="padding: 12px; border: 1px solid #22c55e40; border-left: 4px solid #22c55e; border-radius: 6px; background: #22c55e08; min-width: 0; overflow: hidden;">';
-    html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">' + esc(overrideCName1) + ' <span style="font-weight:400; color:var(--text-secondary); font-size:0.82rem;">(Standalone)</span></h5>';
+    html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">' + esc(overrideCName1) + ' <span style="font-weight:400; color:var(--text-secondary); font-size:0.82rem;">' + cluster1TransportSuffix + '</span></h5>';
     html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN <span style="font-size:0.72rem; color:var(--accent-purple);">🔒 bound to DA4</span></label>';
     html += '<input type="number" value="' + cluster1Vlan + '" readonly title="' + cluster1Tip.replace(/"/g, '&quot;') + '" style="' + readonlyVlanStyle + '">';
     html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
@@ -2282,7 +2284,7 @@ function renderDisaggOverrides() {
     html += '</div></div>';
 
     html += '<div style="padding: 12px; border: 1px solid #22c55e40; border-left: 4px solid #22c55e; border-radius: 6px; background: #22c55e08; min-width: 0; overflow: hidden;">';
-    html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">' + esc(overrideCName2) + ' <span style="font-weight:400; color:var(--text-secondary); font-size:0.82rem;">(Standalone)</span></h5>';
+    html += '<h5 style="margin: 0 0 8px 0; color: #22c55e;">' + esc(overrideCName2) + ' <span style="font-weight:400; color:var(--text-secondary); font-size:0.82rem;">' + cluster2TransportSuffix + '</span></h5>';
     html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN <span style="font-size:0.72rem; color:var(--accent-purple);">🔒 bound to DA4</span></label>';
     html += '<input type="number" value="' + cluster2Vlan + '" readonly title="' + cluster2Tip.replace(/"/g, '&quot;') + '" style="' + readonlyVlanStyle + '">';
     html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
@@ -2290,28 +2292,32 @@ function renderDisaggOverrides() {
     html += '</div></div>';
     html += '</div>';
 
-    // ── iSCSI Overrides — required for any iSCSI scenario:
-    //   iscsi_4nic           : NIC3/NIC4 host iSCSI1/iSCSI2 vNICs in ClusterISCSISwitch SET
-    //   iscsi_6nic, no backup: NIC5/NIC6 standalone iSCSI Path A/B (bare-metal)
-    //   iscsi_6nic + backup  : NIC5/NIC6 standalone iSCSI Path A/B unchanged (NIC3/NIC4 host Cluster1/Cluster2 vNICs + Backup trunk in ClusterBackupSwitch SET)
-    const hasIscsi = (st === 'iscsi_4nic' || st === 'iscsi_6nic');
-    if (hasIscsi) {
-        const iscsiSuffix = (st === 'iscsi_4nic') ? '(SET vNIC — ClusterISCSISwitch)' : '(Standalone)';
+    if (st === 'iscsi_4nic') {
+        html += '<div class="info-box warning visible" style="margin-bottom: 12px;">'
+            + '<strong>4-NIC shared physical fabric</strong>'
+            + '<p style="margin:6px 0 0 0;">iSCSI Path A uses the ' + esc(overrideCName1) + ' VLAN/subnet and source IP on physical <code>NIC3</code>; iSCSI Path B uses the ' + esc(overrideCName2) + ' VLAN/subnet and source IP on physical <code>NIC4</code>. Do not create <code>ClusterISCSISwitch</code>, <code>Cluster1</code>/<code>Cluster2</code> host vNICs, or <code>iSCSI1</code>/<code>iSCSI2</code> host vNICs. Target portal /32 routes must be pinned to the matching physical NIC.</p>'
+            + '</div>';
+    }
+
+    // ── Dedicated iSCSI Overrides — only iSCSI 6-NIC has separate Path A/B
+    // VLAN/subnet inputs. In 4-NIC mode, iSCSI derives from Cluster A/B above.
+    if (st === 'iscsi_6nic') {
+        const iscsiSuffix = '(Standalone)';
         html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">';
         html += '<div style="padding: 12px; border: 1px solid #8b5cf640; border-left: 4px solid #8b5cf6; border-radius: 6px; background: #8b5cf608; min-width: 0; overflow: hidden;">';
         html += '<h5 style="margin: 0 0 8px 0; color: #8b5cf6;">iSCSI Network A <span style="font-weight:400; color:var(--text-secondary); font-size:0.82rem;">' + iscsiSuffix + '</span></h5>';
         html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN</label>';
-        html += renderInput('iscsiA', 'iscsiA_vlan', vlans.iscsiA || 500, '', 'number', confirmed);
+        html += renderInput('iscsiA', 'iscsiA_vlan', vlans.iscsiA || 300, '', 'number', confirmed);
         html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
-        html += renderInput('iscsiA', 'iscsiA_subnet', subnets.iscsiA || '10.50.1.0/24', '10.50.1.0/24', 'text', confirmed);
+        html += renderInput('iscsiA', 'iscsiA_subnet', subnets.iscsiA || '10.30.30.0/24', '10.30.30.0/24', 'text', confirmed);
         html += '</div></div>';
 
         html += '<div style="padding: 12px; border: 1px solid #8b5cf640; border-left: 4px solid #8b5cf6; border-radius: 6px; background: #8b5cf608; min-width: 0; overflow: hidden;">';
         html += '<h5 style="margin: 0 0 8px 0; color: #8b5cf6;">iSCSI Network B <span style="font-weight:400; color:var(--text-secondary); font-size:0.82rem;">' + iscsiSuffix + '</span></h5>';
         html += '<div style="margin-bottom:6px;"><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">VLAN</label>';
-        html += renderInput('iscsiB', 'iscsiB_vlan', vlans.iscsiB || 600, '', 'number', confirmed);
+        html += renderInput('iscsiB', 'iscsiB_vlan', vlans.iscsiB || 400, '', 'number', confirmed);
         html += '</div><div><label style="display:block; margin-bottom:4px; font-size:0.82rem; color:var(--text-secondary);">Subnet (CIDR)</label>';
-        html += renderInput('iscsiB', 'iscsiB_subnet', subnets.iscsiB || '10.60.1.0/24', '10.60.1.0/24', 'text', confirmed);
+        html += renderInput('iscsiB', 'iscsiB_subnet', subnets.iscsiB || '10.40.40.0/24', '10.40.40.0/24', 'text', confirmed);
         html += '</div></div>';
         html += '</div>';
     }
@@ -2379,8 +2385,7 @@ function updateDisaggOverride(networkKey, fieldId, value) {
 function validateDisaggSubnets() {
     const subnets = state.disaggSubnets || {};
     const st = state.disaggStorageType || 'fc_san';
-    const backup = !!state.disaggBackupEnabled;
-    const hasDedicatedIscsi = (st === 'iscsi_6nic' && !backup);
+    const hasDedicatedIscsi = (st === 'iscsi_6nic');
 
     // Collect all active subnet keys and their values
     const entries = [
@@ -2449,8 +2454,7 @@ function confirmDisaggOverrides() {
     const vlans = state.disaggVlans || {};
     const subnets = state.disaggSubnets || {};
     const st = state.disaggStorageType || 'fc_san';
-    const backup = !!state.disaggBackupEnabled;
-    const hasIscsi = (st === 'iscsi_4nic' || st === 'iscsi_6nic');
+    const requiresDedicatedIscsiFields = st === 'iscsi_6nic';
     const missing = [];
 
     if (!vlans.cluster1) missing.push('Cluster 1 VLAN');
@@ -2458,7 +2462,7 @@ function confirmDisaggOverrides() {
     if (!vlans.cluster2) missing.push('Cluster 2 VLAN');
     if (!(subnets.cluster2 || '').trim()) missing.push('Cluster 2 Subnet');
 
-    if (hasIscsi) {
+    if (requiresDedicatedIscsiFields) {
         if (!vlans.iscsiA) missing.push('iSCSI A VLAN');
         if (!(subnets.iscsiA || '').trim()) missing.push('iSCSI A Subnet');
         if (!vlans.iscsiB) missing.push('iSCSI B VLAN');
@@ -2501,18 +2505,15 @@ function renderDisaggHostNetworkingPreview() {
     const portCount = parseInt(state.disaggPortCount, 10) || 4;
     const hasFc = (storageType === 'fc_san');
     const hasIscsi = (storageType === 'iscsi_4nic' || storageType === 'iscsi_6nic');
+    const is4NicSharedClusterIscsi = storageType === 'iscsi_4nic';
     const adapterMapping = state.disaggAdapterMapping || {};
 
-    // Cluster NIC SET wrapper mode (spec §3.2 / §4.3):
-    //   'workload'       — iSCSI 4-NIC: WorkloadSwitch on NIC3/NIC4 with Cluster1/Cluster2/iSCSI1/iSCSI2 host vNICs
+    // Cluster NIC SET wrapper mode:
     //   'clusterbackup'  — iSCSI 6-NIC + backup: ClusterBackupSwitch on NIC3/NIC4 with Cluster1/Cluster2 host vNICs + Backup VLAN trunk
-    //   null             — standalone bare-metal cluster NICs (iSCSI 6-NIC no backup, FC SAN)
-    const clusterSetMode = (storageType === 'iscsi_4nic') ? 'workload'
-        : (storageType === 'iscsi_6nic' && backupEnabled) ? 'clusterbackup'
-            : null;
-    const clusterSetName = clusterSetMode === 'workload' ? 'ClusterISCSISwitch'
-        : clusterSetMode === 'clusterbackup' ? 'ClusterBackupSwitch'
-            : null;
+    //   null             — standalone physical cluster NICs (including iSCSI 4-NIC)
+    const clusterSetMode = (storageType === 'iscsi_6nic' && backupEnabled) ? 'clusterbackup' : null;
+    const clusterSetName = clusterSetMode === 'clusterbackup' ? 'ClusterBackupSwitch'
+        : null;
 
     function colorRgb(hex) {
         return parseInt(hex.slice(1, 3), 16) + ',' + parseInt(hex.slice(3, 5), 16) + ',' + parseInt(hex.slice(5, 7), 16);
@@ -2533,31 +2534,17 @@ function renderDisaggHostNetworkingPreview() {
     // Zone metadata. vnicsAbove is an array of host vNICs to stack above the NIC group.
     // vlansBelow is an array of italicised VLAN tags rendered under the group label.
     const vlans = state.disaggVlans || {};
-    const cluster1VnicsAbove = clusterSetMode === 'workload'
-        ? [
-            { name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlans.cluster1 || '711') },
-            { name: 'iSCSI1 vNIC', vlan: 'VLAN ' + (vlans.iscsiA || '300'), color: '#f97316' }
-        ]
-        : clusterSetMode === 'clusterbackup'
-            ? [{ name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlans.cluster1 || '711') }]
-            : [];
-    const cluster2VnicsAbove = clusterSetMode === 'workload'
-        ? [
-            { name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlans.cluster2 || '712') },
-            { name: 'iSCSI2 vNIC', vlan: 'VLAN ' + (vlans.iscsiB || '400'), color: '#f97316' }
-        ]
-        : clusterSetMode === 'clusterbackup'
-            ? [{ name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlans.cluster2 || '712') }]
-            : [];
-    const cluster1VlansBelow = clusterSetMode === 'workload'
-        ? ['VLAN ' + (vlans.cluster1 || '711'), 'VLAN ' + (vlans.iscsiA || '300')]
-        : ['VLAN ' + (vlans.cluster1 || '711')];
-    const cluster2VlansBelow = clusterSetMode === 'workload'
-        ? ['VLAN ' + (vlans.cluster2 || '712'), 'VLAN ' + (vlans.iscsiB || '400')]
-        : ['VLAN ' + (vlans.cluster2 || '712')];
-    const clusterLabel1 = (clusterSetMode === 'workload') ? 'NIC3 (SET member)' : 'Cluster Network 1';
-    const clusterLabel2 = (clusterSetMode === 'workload') ? 'NIC4 (SET member)' : 'Cluster Network 2';
-    const clusterSubLabel = (clusterSetMode === 'workload') ? 'shared cluster + iSCSI'
+    const cluster1VnicsAbove = clusterSetMode === 'clusterbackup'
+        ? [{ name: 'Cluster1 vNIC', vlan: 'VLAN ' + (vlans.cluster1 || '711') }]
+        : [];
+    const cluster2VnicsAbove = clusterSetMode === 'clusterbackup'
+        ? [{ name: 'Cluster2 vNIC', vlan: 'VLAN ' + (vlans.cluster2 || '712') }]
+        : [];
+    const cluster1VlansBelow = ['VLAN ' + (vlans.cluster1 || '711')];
+    const cluster2VlansBelow = ['VLAN ' + (vlans.cluster2 || '712')];
+    const clusterLabel1 = is4NicSharedClusterIscsi ? 'NIC3 Path A' : 'Cluster Network 1';
+    const clusterLabel2 = is4NicSharedClusterIscsi ? 'NIC4 Path B' : 'Cluster Network 2';
+    const clusterSubLabel = is4NicSharedClusterIscsi ? 'Cluster + iSCSI'
         : (clusterSetMode === 'clusterbackup') ? 'shared cluster + Backup VLAN trunk'
             : 'standalone — no SET';
 
@@ -2587,14 +2574,14 @@ function renderDisaggHostNetworkingPreview() {
             label: 'iSCSI Storage A',
             color: '#8b5cf6',
             subLabel: 'standalone — no SET',
-            vlansBelow: ['VLAN ' + (vlans.iscsiA || '500')],
+            vlansBelow: ['VLAN ' + (vlans.iscsiA || '300')],
             forcedLeaf: 'A'
         },
         iscsi_b: {
             label: 'iSCSI Storage B',
             color: '#8b5cf6',
             subLabel: 'standalone — no SET',
-            vlansBelow: ['VLAN ' + (vlans.iscsiB || '600')],
+            vlansBelow: ['VLAN ' + (vlans.iscsiB || '400')],
             forcedLeaf: 'B'
         },
         backup: { label: 'In-Guest Backup Compute Intent', color: '#f97316' }
@@ -2630,8 +2617,8 @@ function renderDisaggHostNetworkingPreview() {
         nicGroups.push(grp);
     }
 
-    // When a SET wraps the cluster NICs (4-NIC ClusterISCSISwitch / 6-NIC+backup
-    // ClusterBackupSwitch), merge cluster_1 + cluster_2 into a single "cluster_set"
+    // When 6-NIC+backup wraps the cluster NICs in ClusterBackupSwitch,
+    // merge cluster_1 + cluster_2 into a single "cluster_set"
     // group so NIC3 and NIC4 share one dashed box (same UX as Mgmt+Compute combining
     // OCP-NIC1 + OCP-NIC2). The merged group's own box becomes the SET visual wrapper
     // — no separate overlay rectangle is needed.
@@ -2648,7 +2635,7 @@ function renderDisaggHostNetworkingPreview() {
                 nics: c1.nics.concat(c2.nics),
                 vnicsAbove: (c1.vnicsAbove || []).concat(c2.vnicsAbove || []),
                 isSet: true,
-                showBackupBadge: clusterSetMode === 'clusterbackup'
+                showBackupBadge: true
             };
             // Replace c1 with merged; remove c2 (keep zone order: merged sits where c1 was).
             nicGroups.splice(Math.max(c1Idx, c2Idx), 1);
@@ -2744,13 +2731,21 @@ function renderDisaggHostNetworkingPreview() {
         const _c2 = (function(){ for (let i=0;i<nicGroups.length;i++) if (nicGroups[i].key==='cluster_2') return nicGroups[i]; return null; })();
         if (_c1 || _c2) {
             const allClusterNics = [].concat(_c1?_c1.nics.map(n=>n.name):[]).concat(_c2?_c2.nics.map(n=>n.name):[]);
-            legendEntries.push({
-                title: 'Cluster Networks (standalone — no SET)',
-                color: '#22c55e',
-                lines: [
+            const clusterLegendTitle = is4NicSharedClusterIscsi ? 'Shared Cluster + iSCSI Physical Paths (standalone — no SET)' : 'Cluster Networks (standalone — no SET)';
+            const clusterLegendLines = is4NicSharedClusterIscsi
+                ? [
+                    'Members: ' + allClusterNics.join(', '),
+                    'Path A/B VLANs: ' + (vlans.cluster1 || '711') + ', ' + (vlans.cluster2 || '712') + ' — iSCSI uses the same physical NIC source IPs',
+                    'Host vNICs: none; target portal /32 routes are pinned to NIC3/NIC4'
+                ]
+                : [
                     'Members: ' + allClusterNics.join(', '),
                     'VLANs: ' + (vlans.cluster1 || '711') + ', ' + (vlans.cluster2 || '712') + ' (bare-metal, no host vNIC)'
-                ]
+                ];
+            legendEntries.push({
+                title: clusterLegendTitle,
+                color: '#22c55e',
+                lines: clusterLegendLines
             });
         }
     }
@@ -2763,7 +2758,7 @@ function renderDisaggHostNetworkingPreview() {
             color: '#8b5cf6',
             lines: [
                 'Members: ' + allIscsi.join(', '),
-                'VLANs: ' + (vlans.iscsiA || '500') + ' (Path A), ' + (vlans.iscsiB || '600') + ' (Path B) — MPIO, bare-metal'
+                'VLANs: ' + (vlans.iscsiA || '300') + ' (Path A), ' + (vlans.iscsiB || '400') + ' (Path B) — MPIO, bare-metal'
             ]
         });
     }

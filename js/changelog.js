@@ -58,13 +58,13 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 Disaggregated — Merged SET wrapper & iSCSI subnet overrides</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔌 Disaggregated — iSCSI 4-NIC physical paths</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li><strong>Merged SET vSwitch wrapper for Cluster NICs</strong> in host-networking diagrams (wizard preview + report 2-node view): NIC3/NIC4 in <code>ClusterISCSISwitch</code> (iSCSI 4-NIC) or <code>ClusterBackupSwitch</code> (iSCSI 6-NIC + backup) are now wrapped in a single dashed group, matching how Mgmt + Compute already wraps OCP-NIC1 + OCP-NIC2.</li>
-                        <li><strong>vNIC label readability:</strong> 3-line vNIC cards (name / <code>vNIC</code> / VLAN), card height 30 → 42 px, SET label moved below the wrapper to eliminate border overlap.</li>
-                        <li><strong>iSCSI A/B Subnet + VLAN inputs shown for all iSCSI scenarios</strong> in DA8 → Overrides (previously only <code>iscsi_6nic</code> without backup). Card subtitle adapts to the transport (<code>SET vNIC — ClusterISCSISwitch</code> vs <code>Standalone</code>); confirm-overrides validation extended.</li>
-                        <li><strong>Pre-populated iSCSI subnet defaults</strong> (<code>10.50.1.0/24</code> / <code>10.60.1.0/24</code>) seeded into initial state so users can confirm immediately or edit, matching the Cluster 1/2 behaviour.</li>
-                        <li><strong><code>WorkloadSwitch</code> → <code>ClusterISCSISwitch</code></strong> rename across explanations, warnings, port-count descriptions, route descriptions, and rendered SET labels.</li>
+                        <li><strong>iSCSI 4-NIC now uses physical shared paths</strong>: NIC3 carries Cluster A + iSCSI Path A, and NIC4 carries Cluster B + iSCSI Path B. No <code>ClusterISCSISwitch</code>, no SET, and no host vNICs are rendered for this layout.</li>
+                        <li><strong>6-NIC + Backup stays dedicated for iSCSI</strong>: <code>ClusterBackupSwitch</code> remains only for Cluster/Backup on NIC3/NIC4, while iSCSI remains on NIC5/NIC6.</li>
+                        <li><strong>Shared vs dedicated iSCSI overrides</strong>: 4-NIC iSCSI derives from Cluster A/B VLAN/subnet values. Dedicated iSCSI A/B override cards appear only for <code>iscsi_6nic</code>.</li>
+                        <li><strong>Dedicated iSCSI defaults</strong> updated to VLAN <code>300</code> / <code>400</code> and subnets <code>10.30.30.0/24</code> / <code>10.40.40.0/24</code>.</li>
+                        <li><strong>vNIC label readability</strong> remains for layouts that genuinely render host vNICs, such as Management + Compute and 6-NIC + Backup Cluster vNICs.</li>
                     </ul>
                 </div>
 
