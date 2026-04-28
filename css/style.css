@@ -1000,6 +1000,10 @@ header .header-description {
     z-index: 1;
 }
 
+.option-card.selected .coming-soon-badge {
+    right: 36px;
+}
+
 .option-card .preview-note {
     margin-top: 0.75rem;
     padding: 6px 10px;
