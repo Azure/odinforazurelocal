@@ -576,61 +576,8 @@
             </div>
             <p class="header-description">Odin, the Norse god embodying strategic thinking and architecture, is your guide for Azure Local deployments. This <strong>O</strong>ptimal <strong>D</strong>eployment and <strong>I</strong>nfrastructure <strong>N</strong>avigator provides a decision tree interface to select an Azure Local deployment type, and instance design using validated architecture and network configuration.</p>
 
-            <!-- Page Statistics -->
-            <div id="page-statistics">
-                <div class="stats-container">
-                    <div class="stat-item">
-                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                        <span class="stat-label">Visitors:</span>
-                        <span id="stat-page-views" class="stat-value">—</span>
-                    </div>
-                    <div class="stat-item">
-                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                        </svg>
-                        <span class="stat-label">Designs Generated:</span>
-                        <span id="stat-design-docs" class="stat-value">—</span>
-                    </div>
-                    <div class="stat-item">
-                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-                            <line x1="8" y1="21" x2="16" y2="21"/>
-                            <line x1="12" y1="17" x2="12" y2="21"/>
-                        </svg>
-                        <span class="stat-label">Sizes Calculated:</span>
-                        <span id="stat-sizer-calcs" class="stat-value">—</span>
-                    </div>
-                    <div class="stat-item">
-                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                        </svg>
-                        <span class="stat-label">ARM Deployments:</span>
-                        <span id="stat-arm-deployments" class="stat-value">—</span>
-                    </div>
-                    <div class="stat-item">
-                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                            <rect x="2" y="2" width="20" height="8" rx="2"/>
-                            <rect x="2" y="14" width="20" height="8" rx="2"/>
-                            <line x1="6" y1="6" x2="6.01" y2="6"/>
-                            <line x1="6" y1="18" x2="6.01" y2="18"/>
-                        </svg>
-                        <span class="stat-label">Switch Configs:</span>
-                        <span id="stat-switch-configs" class="stat-value">—</span>
-                    </div>
-                    <div class="stat-item">
-                        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                            <polyline points="9 12 11 14 15 10"/>
-                        </svg>
-                        <span class="stat-label">Switch QoS Audits:</span>
-                        <span id="stat-qos-audits" class="stat-value">—</span>
-                    </div>
-                </div>
-            </div>
+            <!-- Page Statistics (rendered by js/stats-bar.js) -->
+            <div id="page-statistics" data-stats-bar></div>
         </header>
 
         <noscript>
@@ -3133,6 +3080,7 @@
     <script src="js/utils.js"></script>
     <script src="js/notifications.js"></script>
     <script src="js/analytics.js"></script>
+    <script src="js/stats-bar.js"></script>
     <script src="js/theme.js"></script>
     <script src="js/formatting.js"></script>
     <script src="js/validation.js"></script>
