@@ -48,7 +48,7 @@ description: |
 |------|------|
 | `title` | Slide title (also used as the eyebrow / footer title). |
 | `match` | Array of case-insensitive title prefixes. Any scraped `.summary-section` whose title matches contributes its rows (→ bullets) and diagrams (→ slide picture). |
-| `customExtract(state, scraped)` | Optional. Returns `{ bullets, picture, links, runs, bulletSz, extraSps, bodySvgString, footerSvgString, paragraphXmlOverride }` to override the default scrape. Used for slides whose source data isn't a flat list of `.summary-row` pairs (Scenario & Scale grid, Physical Topology, Leaf & Spine architecture, AKS Reachability, Host Networking, Security, Private Endpoints, etc.). |
+| `customExtract(state, scraped)` | Optional. Returns `{ bullets, picture, links, runs, bulletSz, extraSps, bodySvgString, footerSvgString, paragraphXmlOverride }` to override the default scrape. Used for slides whose source data isn't a flat list of `.summary-row` pairs (Scenario & Scale grid, Physical Topology, Leaf & Spine architecture, AKS Reachability, Host Networking, **Sizer Workloads**, Security, Private Endpoints, etc.). Returning `null` from a custom extractor causes the slide to be skipped — use this for Sizer-only slides whose data may be absent (see `extractSizerWorkloads` in `pptx-export.js`). |
 | `useRackDiagram: true` | Pin the slide picture to the rack diagram (Physical Network Configuration). |
 | `diagramSrcMatch` | Substring match against `<img src>` to pick a specific external diagram (e.g. service-leaf SVG) instead of the first one found. |
 | `requireDisagg: true` | Skip the slide entirely on hyperconverged configurations. |
@@ -106,7 +106,8 @@ Paraphrase Microsoft Learn copy in narrative bullets — never quote verbatim.
 ### Add a new content slide
 1. Append an entry to `SECTION_PLAN` with a `title` + either `match` or `customExtract`.
 2. If your data isn't a list of `.summary-row` pairs, write a custom extractor that returns `{ bullets, picture?, links?, runs?, extraSps?, footerSvgString? }`.
-3. Run the regression test (below). Open the resulting deck in PowerPoint Win + Mac.
+3. **For Sizer-only slides** (data only present when the report was started from the Sizer): return `null` from the extractor when `state.sizerWorkloads` / `state.sizerHardware` is missing or empty. The builder treats `null` as "skip this slide", so non-Sizer reports are unaffected. Pattern: `extractSizerWorkloads()` in `pptx-export.js`.
+4. Run the regression test (below). Open the resulting deck in PowerPoint Win + Mac.
 
 ### Adjust styling
 Edit the template (`report/template/OdinPPTTemplate.potx`) in PowerPoint and re-save. **Do not** change colors/fonts in `pptx-export.js`.
