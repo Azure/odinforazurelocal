@@ -265,8 +265,10 @@ header .header-description {
 }
 
 .stats-container {
-    display: flex;
-    gap: 24px;
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: center;
+    gap: 8px 24px;
     padding: 10px 20px;
     background: rgba(59, 130, 246, 0.1);
     border: 1px solid rgba(59, 130, 246, 0.3);
@@ -1570,7 +1572,6 @@ header .header-description {
     }
 
     .stats-container {
-        display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px 16px;
         padding: 10px 16px;
