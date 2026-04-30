@@ -7880,6 +7880,7 @@
             r.push(assert(s.architecture === 'disaggregated', 'architecture=disaggregated', 'disaggregated', s.architecture));
             r.push(assert(s.disaggStorageType === 'fc_san', 'disaggStorageType=fc_san', 'fc_san', s.disaggStorageType));
             r.push(assert(s.disaggRackCount === 1, 'disaggRackCount=1 for single rack', 1, s.disaggRackCount));
+            r.push(assert(s.nodes === 2, 'nodes=2 for 1 disagg rack (2 nodes per rack baseline)', 2, s.nodes));
             return r;
         })());
 
@@ -7889,8 +7890,40 @@
             r.push(assert(s.architecture === 'disaggregated', 'architecture=disaggregated', 'disaggregated', s.architecture));
             r.push(assert(s.disaggStorageType === 'iscsi_4nic', 'disaggStorageType=iscsi_4nic', 'iscsi_4nic', s.disaggStorageType));
             r.push(assert(s.scale === 'rack-aware', 'scale=rack-aware', 'rack-aware', s.scale));
-            r.push(assert(s.nodes === 8, 'nodes=8 for rack-aware default', 8, s.nodes));
-            r.push(assert(s.disaggRackCount === 2, 'disaggRackCount=2 for rack-aware', 2, s.disaggRackCount));
+            r.push(assert(s.nodes === 4, 'nodes=4 for rack-aware default (2 racks * 2 nodes)', 4, s.nodes));
+            r.push(assert(s.disaggRackCount === 2, 'disaggRackCount=2 for rack-aware default', 2, s.disaggRackCount));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_fc explicit rack count (4 racks)', 'switch-config.js', (() => {
+            // The Deployment Type picker allows the user to specify any
+            // number of disaggregated racks from 1 to 8. The third arg to
+            // buildQuickStartState() takes precedence over the scale toggle.
+            const r = [];
+            const s = window.__buildQuickStartState('disagg_fc', 'rack_aware', 4);
+            r.push(assert(s.disaggRackCount === 4, 'disaggRackCount=4 honoured', 4, s.disaggRackCount));
+            r.push(assert(s.nodes === 8, 'nodes=8 for 4 racks (2 per rack)', 8, s.nodes));
+            r.push(assert(s.scale === 'rack-aware', 'scale=rack-aware (>1 rack)', 'rack-aware', s.scale));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_iscsi 8 racks (max)', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('disagg_iscsi', 'rack_aware', 8);
+            r.push(assert(s.disaggRackCount === 8, 'disaggRackCount=8', 8, s.disaggRackCount));
+            r.push(assert(s.nodes === 16, 'nodes=16 for 8 racks', 16, s.nodes));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_fc rejects out-of-range rack counts', 'switch-config.js', (() => {
+            // Out-of-range values fall back to the scale-toggle mapping.
+            const r = [];
+            const s0 = window.__buildQuickStartState('disagg_fc', 'single', 0);
+            r.push(assert(s0.disaggRackCount === 1, 'rack count 0 → fallback (1)', 1, s0.disaggRackCount));
+            const s9 = window.__buildQuickStartState('disagg_fc', 'rack_aware', 9);
+            r.push(assert(s9.disaggRackCount === 2, 'rack count 9 → fallback (2)', 2, s9.disaggRackCount));
+            const sNaN = window.__buildQuickStartState('disagg_fc', 'single', 'foo');
+            r.push(assert(sNaN.disaggRackCount === 1, 'rack count NaN → fallback (1)', 1, sNaN.disaggRackCount));
             return r;
         })());
 

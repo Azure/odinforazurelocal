@@ -33,6 +33,10 @@
         // which scenario the form below is using, and change it without leaving
         // the page.
         preselectQuickStartFromDesigner();
+        // Make sure the right scale control is visible for the current
+        // dropdown value even when no Designer data is present (the default
+        // selection is hci_switched, which uses the radio).
+        updateQuickStartScaleControls();
         updateQuickStartHeading();
         if (designerState) {
             populateFromDesigner();
@@ -317,12 +321,21 @@
     // five canonical scenarios are available end-to-end.
 
     /**
-     * Map a Quick Start profile + scale to a synthetic Designer state
-     * that populateFromDesigner() can consume. Numeric defaults
-     * (4 nodes for single-rack, 8 nodes for rack-aware) are illustrative
-     * and editable via every form field downstream.
+     * Map a Quick Start profile + scale (+ optional disagg rack count) to a
+     * synthetic Designer state that populateFromDesigner() can consume.
+     * Numeric defaults (4 nodes for HCI single-rack, 8 for HCI rack-aware,
+     * 2 nodes per disagg rack) are illustrative and editable via every form
+     * field downstream.
+     *
+     * @param {string} profile  One of hci_converged | hci_switched |
+     *                          hci_switchless | disagg_fc | disagg_iscsi.
+     * @param {string} scale    'single' | 'rack_aware' (HCI scale toggle).
+     * @param {number} [disaggRackCount] Explicit rack count (1–8) for
+     *                          disaggregated profiles. When omitted, the
+     *                          legacy mapping (single → 1, rack_aware → 2)
+     *                          is used. The HCI scale toggle is unaffected.
      */
-    function buildQuickStartState(profile, scale) {
+    function buildQuickStartState(profile, scale, disaggRackCount) {
         var rackAware = scale === 'rack_aware' || scale === 'rack-aware';
         var nodes = rackAware ? 8 : 4;
         var s = {
@@ -332,6 +345,13 @@
             // marker so other code paths can detect Quick Start mode
             quickStartProfile: profile
         };
+        // Disaggregated rack count: explicit value (1–8) takes precedence;
+        // otherwise fall back to the HCI-style scale (single=1, rack_aware=2)
+        // for backwards compatibility with older callers.
+        var dRacks = parseInt(disaggRackCount, 10);
+        if (!(dRacks >= 1 && dRacks <= 8)) {
+            dRacks = rackAware ? 2 : 1;
+        }
         switch (profile) {
             case 'hci_converged':
                 s.architecture = 'hyperconverged';
@@ -352,13 +372,20 @@
                 s.architecture = 'disaggregated';
                 s.disaggStorageType = 'fc_san';
                 s.storage = 'switched';
-                s.disaggRackCount = rackAware ? 2 : 1;
+                s.disaggRackCount = dRacks;
+                // Override node count: 2 nodes per rack is the typical disagg
+                // density baseline (one leaf pair per rack hosting two compute
+                // nodes). Editable downstream.
+                s.nodes = dRacks * 2;
+                s.scale = dRacks > 1 ? 'rack-aware' : 'single';
                 break;
             case 'disagg_iscsi':
                 s.architecture = 'disaggregated';
                 s.disaggStorageType = 'iscsi_4nic';
                 s.storage = 'switched';
-                s.disaggRackCount = rackAware ? 2 : 1;
+                s.disaggRackCount = dRacks;
+                s.nodes = dRacks * 2;
+                s.scale = dRacks > 1 ? 'rack-aware' : 'single';
                 break;
             default:
                 s.architecture = 'hyperconverged';
@@ -394,7 +421,34 @@
         for (var i = 0; i < radios.length; i++) {
             radios[i].checked = (radios[i].value === scale);
         }
+        // For disagg, also seed the rack-count number input so the picker
+        // reflects what was loaded (1–8 for FC SAN / iSCSI).
+        var rackCountInput = document.getElementById('sc-quick-start-rack-count');
+        if (rackCountInput && ds.disaggRackCount) {
+            var rc = parseInt(ds.disaggRackCount, 10);
+            if (rc >= 1 && rc <= 8) rackCountInput.value = String(rc);
+        }
+        // Show the right scale control for this profile.
+        updateQuickStartScaleControls();
     }
+
+    /**
+     * Toggle which "scale" control is visible based on the current
+     * Deployment Type selection. Disaggregated scenarios (FC SAN, iSCSI)
+     * support 1–8 racks (one leaf pair per rack); HCI scenarios remain a
+     * binary single-rack / rack-aware toggle.
+     */
+    function updateQuickStartScaleControls() {
+        var profileSelect = document.getElementById('sc-quick-start-profile');
+        var radioWrap = document.getElementById('sc-quick-start-scale-radio');
+        var disaggWrap = document.getElementById('sc-quick-start-scale-disagg');
+        if (!profileSelect || !radioWrap || !disaggWrap) return;
+        var isDisagg = (profileSelect.value || '').indexOf('disagg_') === 0;
+        radioWrap.style.display = isDisagg ? 'none' : 'flex';
+        disaggWrap.style.display = isDisagg ? 'block' : 'none';
+    }
+    // Expose so the inline onchange handler in index.html can call it.
+    window.updateQuickStartScaleControls = updateQuickStartScaleControls;
 
     /**
      * Apply the Deployment Type picker's current values: synthesize a Designer
@@ -412,7 +466,24 @@
         for (var i = 0; i < radios.length; i++) {
             if (radios[i].checked) { scale = radios[i].value; break; }
         }
-        designerState = buildQuickStartState(profile, scale);
+        // For disaggregated profiles, the rack-count number input replaces
+        // the binary scale toggle (the radio is hidden in that mode and may
+        // still hold its previous value, which we ignore).
+        var disaggRackCount;
+        if (profile.indexOf('disagg_') === 0) {
+            var rcInput = document.getElementById('sc-quick-start-rack-count');
+            if (rcInput) {
+                var rc = parseInt(rcInput.value, 10);
+                if (rc >= 1 && rc <= 8) {
+                    disaggRackCount = rc;
+                    // Mirror the rack count back into the scale concept so
+                    // downstream code that switches on ds.scale still works:
+                    // 1 rack → single, 2+ racks → rack-aware.
+                    scale = rc > 1 ? 'rack_aware' : 'single';
+                }
+            }
+        }
+        designerState = buildQuickStartState(profile, scale, disaggRackCount);
         populateFromDesigner();
         var main = document.getElementById('sc-main');
         if (main) main.style.display = 'block';

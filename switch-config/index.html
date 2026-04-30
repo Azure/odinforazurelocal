@@ -67,7 +67,7 @@
                         Deployment Type <span style="color: #ef4444;" aria-hidden="true">*</span>
                     </label>
                 </div>
-                <select id="sc-quick-start-profile" style="width:100%; padding:0.7rem 0.8rem; background:var(--card-bg); border:2px solid var(--accent-blue); color:var(--text-primary); border-radius:6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; margin-bottom: 1rem;">
+                <select id="sc-quick-start-profile" onchange="window.updateQuickStartScaleControls && window.updateQuickStartScaleControls()" style="width:100%; padding:0.7rem 0.8rem; background:var(--card-bg); border:2px solid var(--accent-blue); color:var(--text-primary); border-radius:6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; margin-bottom: 1rem;">
                     <optgroup label="Hyperconverged">
                         <option value="hci_converged">All Traffic Converged (single intent, no separate storage VLAN)</option>
                         <option value="hci_switched" selected>Storage Switched (RoCE/RDMA storage VLANs on ToR)</option>
@@ -81,15 +81,31 @@
 
                 <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.5rem;">
                     <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:50%; background:var(--accent-blue); color:#fff; font-weight:700; font-size:0.9rem;">2</span>
-                    <label style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0;">Rack Scale</label>
+                    <label id="sc-quick-start-scale-label" style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0;">Rack Scale</label>
                 </div>
-                <div role="radiogroup" aria-label="Rack Scale" style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom: 1rem;">
+                <!--
+                    Two scale controls — only one is shown at a time, switched
+                    by the deployment-type select above (see updateQuickStartScaleControls()
+                    in switch-config.js).
+                      • HCI scenarios: "Single Rack / Rack-Aware" radio (2 ToRs vs 4 ToRs).
+                      • Disaggregated scenarios (FC SAN, iSCSI): a numeric input
+                        for 1–8 racks, since disaggregated supports up to 8
+                        racks of leaf pairs converging on a spine pair.
+                -->
+                <div id="sc-quick-start-scale-radio" role="radiogroup" aria-label="Rack Scale" style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom: 1rem;">
                     <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
                         <input type="radio" name="sc-quick-start-scale" value="single" checked> Single Rack (2 ToR switches)
                     </label>
                     <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
                         <input type="radio" name="sc-quick-start-scale" value="rack_aware"> Rack-Aware (2 racks, 4 ToR switches)
                     </label>
+                </div>
+                <div id="sc-quick-start-scale-disagg" style="display:none; margin-bottom: 1rem;">
+                    <label for="sc-quick-start-rack-count" style="display:block; font-size:0.85rem; color:var(--text-secondary); margin-bottom: 0.35rem;">
+                        Number of Racks (1–8) — each rack is one leaf pair (2 ToR switches per rack)
+                    </label>
+                    <input type="number" id="sc-quick-start-rack-count" min="1" max="8" step="1" value="1"
+                           style="width: 8rem; padding:0.5rem 0.7rem; background:var(--card-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-size: 0.95rem;">
                 </div>
 
                 <button type="button" id="sc-quick-start-btn" class="sc-generate-btn" onclick="window.applyQuickStart()" style="background: linear-gradient(135deg, var(--accent-blue), #6366f1);">

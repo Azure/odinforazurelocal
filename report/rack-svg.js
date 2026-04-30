@@ -186,8 +186,17 @@
         var coreH = 36;           // Height for core switch box above racks
         var coreGap = 26;         // Gap between core switch and rack tops (room for rack labels)
         var bottomPad = 24;
-        var svgW = totalWidth + 40;   // 20px padding each side
+        // Title (centered) and the "Azure Local" brand badge in the top-right
+        // need their own horizontal space — without a minimum width they
+        // overlap on narrow single-rack diagrams (the title slides under the
+        // "Azure Local" text). Title text is ~180px, brand icon+label is
+        // ~92px, plus 20px padding each side → 360px minimum.
+        var MIN_SVG_W = 380;
+        var svgW = Math.max(totalWidth + 40, MIN_SVG_W);
         var svgH = titleH + coreH + coreGap + outerRackH + bottomPad + legendH + 10;
+        // Centre the rack content if the SVG was widened to satisfy the
+        // title/brand layout above.
+        var rackBlockOffsetX = (svgW - (totalWidth + 40)) / 2;
 
         var parts = [];
         // viewBox + style keeps the aspect ratio while letting the diagram
@@ -229,7 +238,7 @@
         // Connecting lines from core switch down to each rack
         var coreBottomY = coreY + coreH;
         for (var cl = 0; cl < rackCount; cl++) {
-            var clOx = 20 + cl * (outerRackW + RACK_GAP);
+            var clOx = 20 + rackBlockOffsetX + cl * (outerRackW + RACK_GAP);
             var rackCenterX = clOx + outerRackW / 2;
             parts.push('<line x1="' + rackCenterX + '" y1="' + coreBottomY + '" x2="' + rackCenterX + '" y2="' + rackTopY + '" stroke="#2a8ad4" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.5"/>');
         }
@@ -237,7 +246,7 @@
         // Draw racks — Rack 1 on left
         for (var r = 0; r < rackCount; r++) {
             var rackIndex = r;  // Rack 1 = index 0 = left
-            var ox = 20 + r * (outerRackW + RACK_GAP);
+            var ox = 20 + rackBlockOffsetX + r * (outerRackW + RACK_GAP);
             var oy = rackTopY;
             var rackInfo = racks[rackIndex];
 
@@ -354,8 +363,14 @@
         var sanH = hasFC ? 50 : (hasIscsi ? 50 : 0);
         var legendH = 50;
         var padX = 20;
-        var svgW = totalRackWidth + padX * 2;
+        // Same min-width clamp as the standard rack SVG: title (~220px in
+        // disagg variant due to "(Disaggregated, FC SAN)") + brand badge
+        // (~80px) + padding need ~360px before they overlap.
+        var MIN_SVG_W = 380;
+        var svgW = Math.max(totalRackWidth + padX * 2, MIN_SVG_W);
         var svgH = titleH + spineH + rackLabelH + outerRackH + sanH + legendH + 40;
+        // Centre the rack/spine block when the SVG was widened.
+        var disaggOffsetX = (svgW - (totalRackWidth + padX * 2)) / 2;
 
         var parts = [];
         // Responsive: viewBox scales to container width. Wide disaggregated
@@ -406,7 +421,7 @@
         var racksY = titleH + spineH + rackLabelH;
         for (var r = 0; r < rackCount; r++) {
             var rackAsn = baseAsn + r;
-            var rx = padX + r * (outerRackW + rackGap);
+            var rx = padX + disaggOffsetX + r * (outerRackW + rackGap);
 
             // Rack label
             parts.push('<text x="' + (rx + outerRackW / 2) + '" y="' + (racksY - 4) + '" text-anchor="middle" font-size="' + (LABEL_FONT + 1) + '" font-weight="600" fill="#ccc">Rack ' + (r + 1) + ' (ASN ' + rackAsn + ')</text>');
@@ -486,8 +501,8 @@
         if (hasFC) {
             var sanBoxW = (totalRackWidth - 20) / 2;
             var sanBoxH = 30;
-            var sanX1 = padX;
-            var sanX2 = padX + sanBoxW + 20;
+            var sanX1 = padX + disaggOffsetX;
+            var sanX2 = padX + disaggOffsetX + sanBoxW + 20;
             parts.push('<rect x="' + sanX1 + '" y="' + sanY + '" width="' + sanBoxW + '" height="' + sanBoxH + '" rx="4" fill="' + DC.SAN_ARRAY + '"/>');
             parts.push('<text x="' + (sanX1 + sanBoxW / 2) + '" y="' + (sanY + 13) + '" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">SAN Storage Array — Fabric A</text>');
             parts.push('<text x="' + (sanX1 + sanBoxW / 2) + '" y="' + (sanY + 24) + '" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.5)">FC 32G / Connected to FC Switch A in each rack</text>');
@@ -497,7 +512,7 @@
 
             // FC → SAN connector lines
             for (var fr = 0; fr < rackCount; fr++) {
-                var frx = padX + fr * (outerRackW + rackGap) + outerRackW / 2;
+                var frx = padX + disaggOffsetX + fr * (outerRackW + rackGap) + outerRackW / 2;
                 var fcBottomY = racksY + outerRackH;
                 parts.push('<line x1="' + frx + '" y1="' + fcBottomY + '" x2="' + (sanX1 + sanBoxW / 2) + '" y2="' + sanY + '" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.25"/>');
                 parts.push('<line x1="' + frx + '" y1="' + fcBottomY + '" x2="' + (sanX2 + sanBoxW / 2) + '" y2="' + sanY + '" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.25"/>');
@@ -505,8 +520,8 @@
         } else if (hasIscsi) {
             var iscsiBoxW = (totalRackWidth - 20) / 2;
             var iscsiBoxH = 30;
-            var iscsiX1 = padX;
-            var iscsiX2 = padX + iscsiBoxW + 20;
+            var iscsiX1 = padX + disaggOffsetX;
+            var iscsiX2 = padX + disaggOffsetX + iscsiBoxW + 20;
             var portLabel = storageType === 'iscsi_6nic' ? 'Ports 33-48, VLAN 500' : 'Ports 17-32 (shared)';
             var port2Label = storageType === 'iscsi_6nic' ? 'Ports 33-48, VLAN 600' : 'Ports 17-32 (shared)';
             parts.push('<rect x="' + iscsiX1 + '" y="' + sanY + '" width="' + iscsiBoxW + '" height="' + iscsiBoxH + '" rx="4" fill="' + DC.ISCSI_ARRAY + '"/>');
@@ -517,7 +532,7 @@
             parts.push('<text x="' + (iscsiX2 + iscsiBoxW / 2) + '" y="' + (sanY + 24) + '" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.5)">' + esc(port2Label) + '</text>');
 
             for (var ir = 0; ir < rackCount; ir++) {
-                var irx = padX + ir * (outerRackW + rackGap) + outerRackW / 2;
+                var irx = padX + disaggOffsetX + ir * (outerRackW + rackGap) + outerRackW / 2;
                 var iscsiTopY = racksY + outerRackH;
                 parts.push('<line x1="' + irx + '" y1="' + iscsiTopY + '" x2="' + (iscsiX1 + iscsiBoxW / 2) + '" y2="' + sanY + '" stroke="#fdba74" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.25"/>');
                 parts.push('<line x1="' + irx + '" y1="' + iscsiTopY + '" x2="' + (iscsiX2 + iscsiBoxW / 2) + '" y2="' + sanY + '" stroke="#fdba74" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.25"/>');
