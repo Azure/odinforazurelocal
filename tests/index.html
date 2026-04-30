@@ -5252,12 +5252,13 @@
         // --- DISK_SIZE_OPTIONS_TB constant ---
         testSuite('DISK_SIZE_OPTIONS_TB constant', 'sizer.js', [
             assert(Array.isArray(DISK_SIZE_OPTIONS_TB), 'Is an array', true, Array.isArray(DISK_SIZE_OPTIONS_TB)),
-            assert(DISK_SIZE_OPTIONS_TB.length === 5, 'Has 5 standard sizes', 5, DISK_SIZE_OPTIONS_TB.length),
+            assert(DISK_SIZE_OPTIONS_TB.length === 6, 'Has 6 standard sizes', 6, DISK_SIZE_OPTIONS_TB.length),
             assert(DISK_SIZE_OPTIONS_TB[0] === 0.96, 'First size: 0.96 TB', 0.96, DISK_SIZE_OPTIONS_TB[0]),
             assert(DISK_SIZE_OPTIONS_TB[1] === 1.92, 'Second size: 1.92 TB', 1.92, DISK_SIZE_OPTIONS_TB[1]),
             assert(DISK_SIZE_OPTIONS_TB[2] === 3.84, 'Third size: 3.84 TB', 3.84, DISK_SIZE_OPTIONS_TB[2]),
-            assert(DISK_SIZE_OPTIONS_TB[3] === 7.68, 'Fourth size: 7.68 TB', 7.68, DISK_SIZE_OPTIONS_TB[3]),
-            assert(DISK_SIZE_OPTIONS_TB[4] === 15.36, 'Fifth size: 15.36 TB', 15.36, DISK_SIZE_OPTIONS_TB[4]),
+            assert(DISK_SIZE_OPTIONS_TB[3] === 5.68, 'Fourth size: 5.68 TB', 5.68, DISK_SIZE_OPTIONS_TB[3]),
+            assert(DISK_SIZE_OPTIONS_TB[4] === 7.68, 'Fifth size: 7.68 TB', 7.68, DISK_SIZE_OPTIONS_TB[4]),
+            assert(DISK_SIZE_OPTIONS_TB[5] === 15.36, 'Sixth size: 15.36 TB', 15.36, DISK_SIZE_OPTIONS_TB[5]),
             assert(DISK_SIZE_OPTIONS_TB.every((v, i, a) => i === 0 || v > a[i - 1]), 'Sizes are in ascending order', true,
                 DISK_SIZE_OPTIONS_TB.every((v, i, a) => i === 0 || v > a[i - 1]))
         ]);
@@ -8574,6 +8575,44 @@
                 'ASEPRO2 / Xeon Gold 6209U JSON → memoryGB = 256 (DIMM-snapped)',
                 256, window._pendingClusterImport && window._pendingClusterImport.memoryGB));
 
+            // Case G (#207 follow-up): AMD Ryzen lab VM with 80 GB memory (non-standard DIMM total).
+            // The parser should preserve the raw 80 GB value and flag memoryIsCustom = true so
+            // applyClusterJSONImport injects a custom option instead of silently rounding to 64.
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'microsoft.hybridcompute/machines',
+                name: 'azl',
+                properties: {
+                    displayName: 'azl',
+                    detectedProperties: {
+                        manufacturer: 'Microsoft Corporation', model: 'Virtual Machine',
+                        coreCount: '12', logicalCoreCount: '24', processorCount: '1',
+                        processorNames: 'AMD Ryzen 9 5950X 16-Core Processor',
+                        totalPhysicalMemoryInBytes: '85899345920',
+                        totalPhysicalMemoryInGigabytes: '80'
+                    },
+                    hardwareProfile: {
+                        totalPhysicalMemoryInBytes: 85899345920,
+                        numberOfCpuSockets: 1,
+                        processors: [{ name: 'AMD Ryzen 9 5950X 16-Core Processor', numberOfCores: 12 }]
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.memoryGB === 80,
+                '80 GB lab VM JSON → memoryGB = 80 (raw value preserved, not rounded to 64)',
+                80, window._pendingClusterImport && window._pendingClusterImport.memoryGB));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.memoryIsCustom === true,
+                '80 GB lab VM JSON → memoryIsCustom = true',
+                true, window._pendingClusterImport && window._pendingClusterImport.memoryIsCustom));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.cpuManufacturer === 'amd',
+                'AMD Ryzen processorName → cpuManufacturer = "amd"',
+                'amd', window._pendingClusterImport && window._pendingClusterImport.cpuManufacturer));
+
             cleanup();
             return results;
         })());
@@ -8591,8 +8630,14 @@
                     'cpu-generation': { tag: 'select', options: [], value: '' },
                     'cpu-cores': { tag: 'select', options: ['16', '32', '64'], value: '32' },
                     'cpu-sockets': { tag: 'select', options: ['1', '2'], value: '2' },
-                    'node-memory': { tag: 'input', type: 'number', value: '512' },
+                    'node-memory': { tag: 'select', options: ['64', '128', '192', '256', '384', '512', '768', '1024'], value: '512' },
                     'resiliency': { tag: 'select', options: ['2way', '3way', '4way', 'simple', 'external'], value: '2way' },
+                    'capacity-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16', '24'], value: '4' },
+                    'capacity-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: '3.84' },
+                    'tiered-capacity-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16'], value: '4' },
+                    'tiered-capacity-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: '3.84' },
+                    'cluster-import-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16', '24'], value: opts.diskCount ? String(opts.diskCount) : '4' },
+                    'cluster-import-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: opts.diskSizeTB ? String(opts.diskSizeTB) : '3.84' },
                     'post-import-summary': { tag: 'div' },
                     'post-import-overlay': { tag: 'div' },
                     'import-modal-overlay': { tag: 'div' }
@@ -8627,7 +8672,8 @@
 
                 window._pendingClusterImport = {
                     clusterName: 'Test', nodeCount: opts.nodeCount, coresPerSocket: 16, sockets: 2,
-                    memoryGB: 512, cpuManufacturer: 'intel', cpuGeneration: null,
+                    memoryGB: opts.memoryGB || 512, memoryIsCustom: !!opts.memoryIsCustom,
+                    cpuManufacturer: 'intel', cpuGeneration: null,
                     genMatchConfidence: 'none', processorName: 'Intel Test', model: 'PE R760'
                 };
             }
@@ -8636,6 +8682,9 @@
                     'cluster-node-count-input': 1, 'cluster-type': 1, 'node-count': 1,
                     'cpu-manufacturer': 1, 'cpu-generation': 1, 'cpu-cores': 1, 'cpu-sockets': 1,
                     'node-memory': 1, 'resiliency': 1,
+                    'capacity-disk-count': 1, 'capacity-disk-size': 1,
+                    'tiered-capacity-disk-count': 1, 'tiered-capacity-disk-size': 1,
+                    'cluster-import-disk-count': 1, 'cluster-import-disk-size': 1,
                     'post-import-summary': 1, 'post-import-overlay': 1, 'import-modal-overlay': 1
                 }).forEach(function (id) {
                     var el = document.getElementById(id);
@@ -8689,6 +8738,41 @@
                 document.getElementById('resiliency').value === '3way',
                 '3 nodes (Hyperconverged) → resiliency auto-upgrades to "3way" (boundary case)',
                 '3way', document.getElementById('resiliency').value));
+            cleanupApplyStub();
+
+            // 80 GB imported memory (non-DIMM) → custom option injected, value preserved
+            makeApplyStub({ nodeCount: 2, chosenDeployType: 'standard', memoryGB: 80, memoryIsCustom: true });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            var memEl = document.getElementById('node-memory');
+            results.push(assert(
+                memEl.value === '80',
+                '80 GB imported memory → node-memory.value = "80" (was silently rounded to 64 before fix)',
+                '80', memEl.value));
+            results.push(assert(
+                Array.from(memEl.options).some(function (o) { return o.value === '80'; }),
+                '80 GB imported → custom option "80 GB (imported)" injected into node-memory dropdown',
+                true, Array.from(memEl.options).some(function (o) { return o.value === '80'; })));
+            cleanupApplyStub();
+
+            // S2D disk count + size from preview → applied to both single-tier and tiered selectors
+            makeApplyStub({ nodeCount: 4, chosenDeployType: 'standard', diskCount: 6, diskSizeTB: 5.68 });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('capacity-disk-count').value === '6',
+                'S2D disk count "6" from preview → capacity-disk-count = 6',
+                '6', document.getElementById('capacity-disk-count').value));
+            results.push(assert(
+                document.getElementById('tiered-capacity-disk-count').value === '6',
+                'S2D disk count "6" from preview → tiered-capacity-disk-count = 6 (mirrored)',
+                '6', document.getElementById('tiered-capacity-disk-count').value));
+            results.push(assert(
+                Math.abs(parseFloat(document.getElementById('capacity-disk-size').value) - 5.68) < 0.001,
+                'S2D disk size "5.68 TB" from preview → capacity-disk-size = 5.68',
+                5.68, parseFloat(document.getElementById('capacity-disk-size').value)));
+            results.push(assert(
+                Math.abs(parseFloat(document.getElementById('tiered-capacity-disk-size').value) - 5.68) < 0.001,
+                'S2D disk size "5.68 TB" from preview → tiered-capacity-disk-size = 5.68 (mirrored)',
+                5.68, parseFloat(document.getElementById('tiered-capacity-disk-size').value)));
             cleanupApplyStub();
 
             return results;

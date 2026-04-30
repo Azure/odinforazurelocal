@@ -1284,7 +1284,7 @@ const MAX_CACHE_DISK_COUNT = 8;
 const MAX_TIERED_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity = 24 total (hybrid & mixed-flash)
 
 // Standard capacity disk sizes (TB) for auto-scaling — stepped in order
-const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
+const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 5.68, 7.68, 15.36];
 
 // S2D resiliency repair: reserve 1 capacity disk per node (up to 4 max) from the storage pool
 const S2D_REPAIR_MAX_RESERVED_DISKS = 4;
@@ -6558,6 +6558,10 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     var snappedMemory = dimmOptions.reduce(function(prev, curr) {
         return Math.abs(curr - memoryGiB) < Math.abs(prev - memoryGiB) ? curr : prev;
     });
+    // Preserve the actual imported memory value so we can inject a custom
+    // option in the node-memory dropdown when the JSON value is not a standard
+    // DIMM total (e.g. an 80 GB lab VM). Fixes silent rounding from 80 → 64 GB.
+    var memoryIsCustom = (memoryGiB > 0 && memoryGiB !== snappedMemory);
 
     // Sanity-check the socket count from JSON. Some Azure Local machine JSON
     // payloads expose `numberOfCpuSockets` correctly (use as-is); when it is
@@ -6605,9 +6609,32 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="rack-aware" onchange="validateClusterImportSelection()"> Rack-Aware Cluster</label>'
         + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(auto-switches to <strong>Single Node</strong> if you set machines = 1)</span>'
         + '</span>';
+    // Storage (S2D capacity disks per node) — not in the JSON, must be supplied by the user.
+    previewHTML += '<span style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
+        + '<span>S2D capacity disks per machine:</span>'
+        + '<select id="cluster-import-disk-count" style="background: var(--card-bg); border: 1px solid var(--accent-green, #22c55e); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600;">'
+        +   '<option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>'
+        +   '<option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>'
+        +   '<option value="10">10</option><option value="12">12</option><option value="16">16</option><option value="24">24</option>'
+        + '</select>'
+        + '<span>Capacity per disk:</span>'
+        + '<select id="cluster-import-disk-size" style="background: var(--card-bg); border: 1px solid var(--accent-green, #22c55e); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600;">'
+        +   '<option value="0.96">960 GB (0.96 TB)</option>'
+        +   '<option value="1.92">1.92 TB</option>'
+        +   '<option value="3.84" selected>3.84 TB</option>'
+        +   '<option value="5.68">5.68 TB</option>'
+        +   '<option value="7.68">7.68 TB</option>'
+        +   '<option value="15.36">15.36 TB</option>'
+        + '</select>'
+        + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(not in the JSON — supply for accurate sizing)</span>'
+        + '</span>';
     previewHTML += '<span style="grid-column: 1 / -1;" id="cluster-import-validation"></span>';
     previewHTML += '<span>Cores/Machine: <strong>' + coreCount + '</strong> (' + coresPerSocket + ' × ' + sockets + ' socket' + (sockets > 1 ? 's' : '') + ')</span>';
-    previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> → ' + snappedMemory + ' GB (DIMM-aligned)</span>';
+    if (memoryIsCustom) {
+        previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> <em style="color: var(--warning);">(custom — not a standard DIMM total; will be added as a custom option in the dropdown)</em></span>';
+    } else {
+        previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> (DIMM-aligned)</span>';
+    }
     previewHTML += '<span>Model: <strong>' + escapeHtml(model) + '</strong></span>';
     previewHTML += '<span>Manufacturer: <strong>' + escapeHtml(manufacturer) + '</strong></span>';
     if (processorName) {
@@ -6635,12 +6662,14 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     validateClusterImportSelection();
 
     // Store parsed data for apply
+    // Store parsed data for apply
     window._pendingClusterImport = {
         clusterName: clusterName,
         nodeCount: nodeCount,
         coresPerSocket: coresPerSocket,
         sockets: sockets,
-        memoryGB: snappedMemory,
+        memoryGB: memoryGiB > 0 ? memoryGiB : snappedMemory,
+        memoryIsCustom: memoryIsCustom,
         cpuManufacturer: cpuMfr,
         cpuGeneration: bestGen ? bestGen.id : null,
         genMatchConfidence: genMatchConfidence,
@@ -6706,6 +6735,17 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // and force Single Node when nodeCount === 1 regardless of the radio selection.
     var deployTypeRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
     var chosenDeployType = deployTypeRadio ? deployTypeRadio.value : 'standard';
+
+    // Read the S2D capacity-disk choices supplied in the preview banner BEFORE
+    // the modal closes. The Azure Local machine JSON does not enumerate S2D
+    // capacity disks (they only appear after deployment), so the user supplies
+    // them here for accurate sizing.
+    var diskCountSel = document.getElementById('cluster-import-disk-count');
+    var diskSizeSel = document.getElementById('cluster-import-disk-size');
+    var chosenDiskCount = diskCountSel ? parseInt(diskCountSel.value, 10) : NaN;
+    var chosenDiskSizeTB = diskSizeSel ? parseFloat(diskSizeSel.value) : NaN;
+    if (isNaN(chosenDiskCount) || chosenDiskCount < 1) chosenDiskCount = null;
+    if (isNaN(chosenDiskSizeTB) || chosenDiskSizeTB <= 0) chosenDiskSizeTB = null;
 
     // Re-check the deployment-type / node-count combination as a defense-in-depth
     // guard: the button is disabled when invalid, but a stale click or DOM
@@ -6773,7 +6813,9 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     if (cpuMfrEl) cpuMfrEl.value = cfg.cpuManufacturer;
 
     // Trigger generation dropdown population
-    if (typeof onCpuManufacturerChange === 'function') onCpuManufacturerChange();
+    if (typeof onCpuManufacturerChange === 'function') {
+        try { onCpuManufacturerChange(); } catch (e) { console.warn('onCpuManufacturerChange threw during import:', e); }
+    }
 
     // Select the matched generation or inject imported processor name
     var genEl = document.getElementById('cpu-generation');
@@ -6786,11 +6828,13 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
         genEl.value = importedGenOption.value;
         // Trigger core options if we have a valid generation
         if (cfg.cpuGeneration && typeof onCpuGenerationChange === 'function') {
-            onCpuGenerationChange();
+            try { onCpuGenerationChange(); } catch (e) { console.warn('onCpuGenerationChange threw during import:', e); }
         }
     } else if (cfg.cpuGeneration && genEl) {
         genEl.value = cfg.cpuGeneration;
-        if (typeof onCpuGenerationChange === 'function') onCpuGenerationChange();
+        if (typeof onCpuGenerationChange === 'function') {
+            try { onCpuGenerationChange(); } catch (e) { console.warn('onCpuGenerationChange threw during import:', e); }
+        }
     }
     markManualSet('cpu-manufacturer');
     markManualSet('cpu-generation');
@@ -6831,8 +6875,58 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     markManualSet('cpu-sockets');
 
     var memEl = document.getElementById('node-memory');
-    if (memEl) memEl.value = String(cfg.memoryGB);
+    if (memEl) {
+        // If the imported memory is a non-standard DIMM total (e.g. 80 GB lab VM),
+        // inject a custom option so the actual value is preserved instead of being
+        // silently rounded to the nearest standard DIMM size. Mirrors the cpu-cores
+        // pattern above. Bug #207 follow-up.
+        var memOptions = Array.from(memEl.options).map(function (o) { return parseInt(o.value, 10); });
+        if (cfg.memoryGB && memOptions.indexOf(cfg.memoryGB) === -1) {
+            var importedMemOption = document.createElement('option');
+            importedMemOption.value = String(cfg.memoryGB);
+            importedMemOption.textContent = cfg.memoryGB + ' GB (imported)';
+            var memInserted = false;
+            for (var mi = 0; mi < memEl.options.length; mi++) {
+                if (parseInt(memEl.options[mi].value, 10) > cfg.memoryGB) {
+                    memEl.insertBefore(importedMemOption, memEl.options[mi]);
+                    memInserted = true;
+                    break;
+                }
+            }
+            if (!memInserted) memEl.appendChild(importedMemOption);
+        }
+        memEl.value = String(cfg.memoryGB);
+    }
     markManualSet('node-memory');
+
+    // Apply S2D capacity-disk choices supplied in the import preview to BOTH
+    // the single-tier (capacity-disk-*) and tiered (tiered-capacity-disk-*)
+    // selectors so the values are correct regardless of which storage
+    // architecture the user later picks. Issue #207 follow-up.
+    if (chosenDiskCount !== null) {
+        ['capacity-disk-count', 'tiered-capacity-disk-count'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var avail = Array.from(el.options).map(function (o) { return parseInt(o.value, 10); });
+            if (avail.indexOf(chosenDiskCount) !== -1) {
+                el.value = String(chosenDiskCount);
+                markManualSet(id);
+            }
+        });
+    }
+    if (chosenDiskSizeTB !== null) {
+        ['capacity-disk-size', 'tiered-capacity-disk-size'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var avail = Array.from(el.options).map(function (o) { return parseFloat(o.value); });
+            // Floating-point compare — match within 0.001 TB.
+            var found = avail.some(function (v) { return Math.abs(v - chosenDiskSizeTB) < 0.001; });
+            if (found) {
+                el.value = String(chosenDiskSizeTB);
+                markManualSet(id);
+            }
+        });
+    }
 
     calculateRequirements({ skipAutoNodeRecommend: true });
 
@@ -6848,9 +6942,13 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
                 ? ' Storage resiliency set to <strong>Three-way Mirror</strong>.'
                 : ' Storage resiliency set to <strong>Two-way Mirror</strong>.';
         }
+        var diskLabel = '';
+        if (chosenDiskCount !== null && chosenDiskSizeTB !== null) {
+            diskLabel = ' S2D capacity: <strong>' + chosenDiskCount + ' × ' + chosenDiskSizeTB + ' TB</strong> per machine.';
+        }
         summary.innerHTML = 'Imported <strong>' + actualNodeCount + ' machine' + (actualNodeCount !== 1 ? 's' : '') + '</strong> from <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
             + ' — ' + cfg.coresPerSocket + ' cores × ' + cfg.sockets + ' socket' + (cfg.sockets > 1 ? 's' : '') + ', ' + cfg.memoryGB + ' GB memory per machine.'
-            + '<br>Deployment type: <strong>' + deployTypeLabel + '</strong>.' + resiliencyLabel
+            + '<br>Deployment type: <strong>' + deployTypeLabel + '</strong>.' + resiliencyLabel + diskLabel
             + '<br><br>To complete your sizing, configure the items below to match your cluster:';
     }
     var postOverlay = document.getElementById('post-import-overlay');
