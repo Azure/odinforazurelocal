@@ -6710,7 +6710,6 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     validateClusterImportSelection();
 
     // Store parsed data for apply
-    // Store parsed data for apply
     window._pendingClusterImport = {
         clusterName: clusterName,
         nodeCount: nodeCount,

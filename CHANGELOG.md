@@ -55,6 +55,7 @@ Security and code-quality release. No end-user feature changes; this release tig
   - `page-break-inside: avoid` → `break-inside: avoid` in `sizer/sizer.css` (×2).
 - **Silent `catch (e) {}` blocks** in `switch-config/switch-config.js` and `report/report.js` replaced with either `console.warn(...)` or an inline comment documenting why the error is safe to swallow.
 - **`js/theme.js`** — converted two legacy `var logoBase` declarations to `const`.
+- **CodeQL switched from GitHub's Default setup to the advanced workflow** at `.github/workflows/codeql.yml` (Default setup blocked the workflow's SARIF upload). The workflow's job is named `CodeQL` so the existing `CodeQL` branch-protection check matches without rule edits.
 
 ### Removed
 
