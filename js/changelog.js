@@ -66,6 +66,9 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Deployment-type prompt added to the Parse &amp; Preview screen</strong> — choose between Hyperconverged and Rack-Aware Cluster before applying. Single Node still auto-applies when machines = 1.</li>
                         <li><strong>Rack-Aware Cluster machine-count validation</strong>: Rack-Aware only supports 2, 4, 6, or 8 machines. The Load button is disabled with an inline error until the count is valid.</li>
                         <li><strong>"Apply Configuration" renamed to "Load Cluster Configuration"</strong> in the import modal.</li>
+                        <li><strong>Memory dropdown now preserves non-standard DIMM totals</strong> via a custom option (mirrors how CPU cores work). An imported lab VM with 80 GB no longer silently rounds to 64 GB — the dropdown gains an <em>80 GB (imported)</em> entry and the value is honoured by the sizing math.</li>
+                        <li><strong>S2D capacity-disk count and size are now captured directly in the import preview</strong>. Azure Local JSON does not expose S2D data disks, so the preview now offers Disk Count and Disk Size selects (default 4 &times; 3.84 TB) and applies them to both the single-tier and tiered capacity-disk selectors when the cluster is loaded.</li>
+                        <li><strong>5.68 TB SSD added</strong> to all capacity-disk dropdowns to match a customer-reported drive size.</li>
                     </ul>
                 </div>
 
