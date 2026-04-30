@@ -15,7 +15,10 @@ const path = require('path');
 test.use({ launchOptions: { slowMo: 0 } });
 
 test('generate disaggregated FC SAN 64-node West Europe deck', async ({ page, context }) => {
-    page.on('dialog', (d) => { d.accept().catch(() => {}); });
+    page.on('dialog', (d) => {
+        // Best-effort auto-accept: dialog may already be gone during teardown/navigation.
+        d.accept().catch(() => { /* ignore: dialog already dismissed */ });
+    });
 
     await page.goto('http://localhost:5500/');
     await page.waitForFunction(() => typeof window.showTemplates === 'function' && typeof window.loadTemplate === 'function');
@@ -26,9 +29,11 @@ test('generate disaggregated FC SAN 64-node West Europe deck', async ({ page, co
         // Populate window.configTemplates without showing the modal UI.
         window.showTemplates();
         // The modal overlay is appended to body; remove it immediately.
-        const overlays = document.querySelectorAll('div');
+        // Scope to fixed-position elements with a z-index containing the template name,
+        // so we don't iterate every <div> in the document.
+        const overlays = document.querySelectorAll('div[style*="position: fixed"][style*="z-index"]');
         overlays.forEach((el) => {
-            if (el.style && el.style.position === 'fixed' && el.style.zIndex && el.innerHTML.indexOf('64-Node Disaggregated') !== -1) {
+            if (el.innerHTML.indexOf('64-Node Disaggregated') !== -1) {
                 el.remove();
             }
         });
@@ -72,7 +77,13 @@ test('generate disaggregated FC SAN 64-node West Europe deck', async ({ page, co
 
     const reportPage = await context.newPage();
     await reportPage.addInitScript((p) => {
-        try { localStorage.setItem('azloc_report_payload', JSON.stringify(p)); } catch (e) {}
+        try {
+            localStorage.setItem('azloc_report_payload', JSON.stringify(p));
+        } catch (e) {
+            // localStorage may be unavailable (quota / security restrictions); demo can still continue.
+            // eslint-disable-next-line no-console
+            console.warn('Failed to persist azloc_report_payload to localStorage:', e);
+        }
     }, payload);
     await reportPage.goto('http://localhost:5500/report/report.html');
     await reportPage.waitForLoadState('domcontentloaded');
