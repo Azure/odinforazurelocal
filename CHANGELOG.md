@@ -27,6 +27,7 @@ Security and code-quality release. No end-user feature changes; this release tig
 - **`onCpuManufacturerChange()` and `onCpuGenerationChange()` calls** in `applyClusterJSONImport()` now wrapped in `try/catch` (matching the existing pattern for `onClusterTypeChange` and `onResiliencyChange`) so a transient CPU-dropdown population error during import no longer aborts the whole apply path before memory and disks are set.
 - **Re-parse preserves user-modified preview selections.** If the import preview is already rendered and the user has changed the machine count, deployment-type radio, or S2D disk count / size, `parseAndPreviewClusterJSON()` now captures those values before rebuilding the preview HTML and restores them afterwards. Accidental re-clicks of *Parse & Preview* no longer wipe non-default selections.
 - **30 new regression tests** added under `tests/index.html` ("Issue #207") covering all of the above plus boundary conditions (1, 2, 3, 4, 5, 8 nodes; Hyperconverged vs Rack-Aware; valid / invalid `numberOfCpuSockets`; ASEPRO2-shaped JSON; 80 GB lab-VM memory; custom memory option injection; S2D disk-count and disk-size apply path including 5.68 TB).
+- **JSON import → Configure in Designer integration test** added (`tests/index.html`, suite *"JSON import → Configure in Designer handoff (#207 integration)"*) — verifies that after `applyClusterJSONImport()` populates the Sizer DOM, the values that `selectRegionAndConfigure()` reads (cluster-type, node-count, `mapSizerToDesignerScale()` output) match the imported JSON for 4-node Hyperconverged, 6-node Rack-Aware, and 1-node single-node cases, plus that imported memory and S2D disk values reach the DOM fields the Designer payload will read.
 
 ### Added
 
@@ -38,6 +39,11 @@ Security and code-quality release. No end-user feature changes; this release tig
   - `vendor/README.md` documenting versions, licenses, and source URLs.
 - **`.stylelintrc.json`** — minimal CSS lint config with `custom-property-no-missing-var-function` and `color-no-invalid-hex` enabled to catch the bug class that surfaced in Copilot AI findings (undefined `--nav-bg`, `--disclaimer-bg`, `--disclaimer-border`).
 - **`.github/workflows/codeql.yml`** — CodeQL security and quality scanning, runs on PR + weekly.
+- **Anonymous usage counters on the ToR Switch Configuration page**:
+  - `analytics/formCompletions/switchConfigGenerated` — increments when the **Generate Switch Configurations** button successfully renders output.
+  - `analytics/formCompletions/qosAuditAnalyzed` — increments when the **Analyze QoS Configuration** button successfully renders audit results.
+  - `analytics/pageViews` is also now tracked when the page loads (matches Designer / Sizer behaviour).
+  - All counters are increment-only via Firebase server-side `increment(1)`; no switch-config content, IPs, hostnames, or pasted running-config text is ever transmitted.
 - **`scripts/smoke-test-pptx.js`** — Puppeteer-driven smoke test that loads `report/report.html` with a seeded payload, intercepts the generated Blob, and asserts ZIP magic + size. Wired into CI as the `pptx-smoke` job.
 - **`docs/ESLINT_CONFIG_NOTES.md`** — documents the `allowEmptyCatch: true` convention (every empty catch must include an inline comment explaining why) and the rationale for the legacy-files override block.
 - **`npm audit --audit-level=high`** step in `.github/workflows/test.yml` — high-severity advisories now block CI.

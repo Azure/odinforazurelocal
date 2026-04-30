@@ -8,6 +8,9 @@
     <meta name="referrer" content="no-referrer">
     <link rel="icon" type="image/png" href="../images/odin-logo.png">
     <title>ToR Switch Configuration Generator &amp; Validator</title>
+    <!-- Firebase SDK (anonymous page-view + button-click counters; see js/analytics.js) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="switch-config.css">
 </head>
@@ -726,6 +729,7 @@
     </div>
 
     <!-- Scripts (order matters: models → builder → templates → qos-audit → main) -->
+    <script src="../js/analytics.js"></script>
     <script src="models.js"></script>
     <script src="builder.js"></script>
     <script src="templates/cisco-nxos.js"></script>

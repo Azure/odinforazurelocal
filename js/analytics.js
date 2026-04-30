@@ -28,6 +28,16 @@
 //           ".read": false,
 //           ".write": true,
 //           ".validate": "newData.isNumber() && newData.val() >= data.val()"
+//         },
+//         "switchConfigGenerated": {
+//           ".read": false,
+//           ".write": true,
+//           ".validate": "newData.isNumber() && newData.val() >= data.val()"
+//         },
+//         "qosAuditAnalyzed": {
+//           ".read": false,
+//           ".write": true,
+//           ".validate": "newData.isNumber() && newData.val() >= data.val()"
 //         }
 //       }
 //     }
@@ -122,14 +132,15 @@ function trackPageView() {
 
 /**
  * Track form completion events
- * @param {string} eventType - Event type: 'designDocument' or 'armDeployment'
+ * @param {string} eventType - Event type: 'designDocument', 'armDeployment', 'sizerCalculation',
+ *                             'switchConfigGenerated', or 'qosAuditAnalyzed'
  */
 function trackFormCompletion(eventType) {
     if (!analytics.enabled || !analytics.database) {
         return;
     }
 
-    const validEvents = ['designDocument', 'armDeployment', 'sizerCalculation'];
+    const validEvents = ['designDocument', 'armDeployment', 'sizerCalculation', 'switchConfigGenerated', 'qosAuditAnalyzed'];
     if (!validEvents.includes(eventType)) {
         console.warn('Analytics: Invalid event type:', eventType);
         return;

@@ -4,12 +4,20 @@
  * Reads Designer state from localStorage, populates form fields,
  * orchestrates config generation, and renders output.
  */
-/* global window, document, SwitchConfigBuilder, CiscoNxosRenderer, DellOs10Renderer, getTorModels, getBmcModels, SWITCH_MODELS */
+/* global window, document, SwitchConfigBuilder, CiscoNxosRenderer, DellOs10Renderer, getTorModels, getBmcModels, SWITCH_MODELS, initializeAnalytics, trackPageView, trackFormCompletion */
 (function () {
     'use strict';
 
     var STORAGE_KEY = 'odinDesignerToSwitchConfig';
     var designerState = null;
+
+    // Initialize analytics + record page view (mirrors index.html / sizer.js bootstrap).
+    if (typeof initializeAnalytics === 'function') {
+        initializeAnalytics();
+    }
+    if (typeof trackPageView === 'function') {
+        trackPageView();
+    }
 
     // ── Initialization ───────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
@@ -958,6 +966,12 @@
         }
 
         renderOutput(configs);
+
+        // Anonymous usage counter — fire only on a successful generation
+        // (after validation + renderOutput). Increments analytics/formCompletions/switchConfigGenerated.
+        if (typeof trackFormCompletion === 'function') {
+            trackFormCompletion('switchConfigGenerated');
+        }
     };
 
     // ── Render tabbed output ─────────────────────────────────────────

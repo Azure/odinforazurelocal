@@ -8963,6 +8963,166 @@
             return results;
         })());
 
+        // Integration test for the full JSON-import → Configure in Designer chain.
+        // Verifies that after applyClusterJSONImport populates the Sizer DOM, the
+        // values that selectRegionAndConfigure() will read (via mapSizerToDesignerScale,
+        // node-count, cluster-type) match what was in the imported JSON. This is the
+        // critical handoff that converts an imported Azure Local JSON into a Designer-
+        // bound payload — failure here would silently feed wrong scale/node values to
+        // the Designer when the user clicks "Configure in Designer".
+        testSuite('JSON import → Configure in Designer handoff (#207 integration)', 'sizer.js', (() => {
+            var results = [];
+
+            function makeChainStub(opts) {
+                var stubs = {
+                    'cluster-node-count-input': { tag: 'input', type: 'number', value: String(opts.nodeCount) },
+                    'cluster-type': { tag: 'select', options: ['single', 'standard', 'low-capacity', 'rack-aware', 'disaggregated', 'aldo-mgmt'], value: 'standard' },
+                    'node-count': { tag: 'input', type: 'number', value: '2' },
+                    'cpu-manufacturer': { tag: 'select', options: ['intel', 'amd'], value: 'intel' },
+                    'cpu-generation': { tag: 'select', options: [], value: '' },
+                    'cpu-cores': { tag: 'select', options: ['16', '32', '64'], value: '32' },
+                    'cpu-sockets': { tag: 'select', options: ['1', '2'], value: '2' },
+                    'node-memory': { tag: 'select', options: ['64', '128', '192', '256', '384', '512', '768', '1024'], value: '512' },
+                    'resiliency': { tag: 'select', options: ['2way', '3way', '4way', 'simple', 'external'], value: '2way' },
+                    'capacity-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16', '24'], value: '4' },
+                    'capacity-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: '3.84' },
+                    'tiered-capacity-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16'], value: '4' },
+                    'tiered-capacity-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: '3.84' },
+                    'cluster-import-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16', '24'], value: opts.diskCount ? String(opts.diskCount) : '4' },
+                    'cluster-import-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: opts.diskSizeTB ? String(opts.diskSizeTB) : '3.84' },
+                    'post-import-summary': { tag: 'div' },
+                    'post-import-overlay': { tag: 'div' },
+                    'import-modal-overlay': { tag: 'div' }
+                };
+                Object.keys(stubs).forEach(function (id) {
+                    var spec = stubs[id];
+                    var el = document.createElement(spec.tag);
+                    el.id = id;
+                    if (spec.type) el.type = spec.type;
+                    if (spec.options) {
+                        spec.options.forEach(function (v) {
+                            var o = document.createElement('option');
+                            o.value = v; o.text = v;
+                            el.appendChild(o);
+                        });
+                    }
+                    if (spec.value !== undefined) el.value = spec.value;
+                    el.style.display = 'none';
+                    document.body.appendChild(el);
+                });
+                ['standard', 'rack-aware'].forEach(function (v) {
+                    var r = document.createElement('input');
+                    r.type = 'radio';
+                    r.name = 'cluster-import-deploy-type';
+                    r.value = v;
+                    if (v === opts.chosenDeployType) r.checked = true;
+                    r.style.display = 'none';
+                    document.body.appendChild(r);
+                });
+                window._pendingClusterImport = {
+                    clusterName: 'TestChain', nodeCount: opts.nodeCount, coresPerSocket: 16, sockets: 2,
+                    memoryGB: opts.memoryGB || 512, memoryIsCustom: !!opts.memoryIsCustom,
+                    cpuManufacturer: 'intel', cpuGeneration: null,
+                    genMatchConfidence: 'none', processorName: 'Intel Test', model: 'PE R760'
+                };
+            }
+            function cleanupChainStub() {
+                ['cluster-node-count-input', 'cluster-type', 'node-count',
+                    'cpu-manufacturer', 'cpu-generation', 'cpu-cores', 'cpu-sockets',
+                    'node-memory', 'resiliency',
+                    'capacity-disk-count', 'capacity-disk-size',
+                    'tiered-capacity-disk-count', 'tiered-capacity-disk-size',
+                    'cluster-import-disk-count', 'cluster-import-disk-size',
+                    'post-import-summary', 'post-import-overlay', 'import-modal-overlay'
+                ].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                document.querySelectorAll('input[name="cluster-import-deploy-type"]').forEach(function (r) {
+                    if (r.parentNode) r.parentNode.removeChild(r);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            // Case A: 4-node Hyperconverged JSON → Designer expects scale='medium', nodes=4
+            makeChainStub({ nodeCount: 4, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* requirement calc may throw on stubs */ }
+            var clusterTypeA = document.getElementById('cluster-type').value;
+            var nodeCountA = document.getElementById('node-count').value;
+            results.push(assert(
+                clusterTypeA === 'standard',
+                'Imported 4-node Hyperconverged JSON → cluster-type DOM = "standard" (Designer-readable)',
+                'standard', clusterTypeA));
+            results.push(assert(
+                nodeCountA === '4',
+                'Imported 4-node JSON → node-count DOM = "4" (handed off to Designer)',
+                '4', nodeCountA));
+            results.push(assert(
+                mapSizerToDesignerScale(clusterTypeA) === 'medium',
+                'mapSizerToDesignerScale("standard") → "medium" — what configureInDesigner sends as payload.scale',
+                'medium', mapSizerToDesignerScale(clusterTypeA)));
+            cleanupChainStub();
+
+            // Case B: 6-node Rack-Aware JSON → Designer expects scale='rack_aware', nodes=6
+            makeChainStub({ nodeCount: 6, chosenDeployType: 'rack-aware' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            var clusterTypeB = document.getElementById('cluster-type').value;
+            var nodeCountB = document.getElementById('node-count').value;
+            results.push(assert(
+                clusterTypeB === 'rack-aware',
+                'Imported 6-node Rack-Aware JSON → cluster-type DOM = "rack-aware"',
+                'rack-aware', clusterTypeB));
+            results.push(assert(
+                nodeCountB === '6',
+                'Imported 6-node JSON → node-count DOM = "6"',
+                '6', nodeCountB));
+            results.push(assert(
+                mapSizerToDesignerScale(clusterTypeB) === 'rack_aware',
+                'mapSizerToDesignerScale("rack-aware") → "rack_aware" — Designer payload.scale',
+                'rack_aware', mapSizerToDesignerScale(clusterTypeB)));
+            cleanupChainStub();
+
+            // Case C: 1-node JSON → cluster-type forced to 'single' (1 node is invalid for HCI/Rack-Aware)
+            // and mapSizerToDesignerScale('single') still produces a Designer-valid scale.
+            makeChainStub({ nodeCount: 1, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            var clusterTypeC = document.getElementById('cluster-type').value;
+            var nodeCountC = document.getElementById('node-count').value;
+            results.push(assert(
+                clusterTypeC === 'single',
+                '1-node JSON → cluster-type forced to "single" before Designer handoff',
+                'single', clusterTypeC));
+            results.push(assert(
+                nodeCountC === '1',
+                '1-node JSON → node-count DOM = "1"',
+                '1', nodeCountC));
+            results.push(assert(
+                mapSizerToDesignerScale(clusterTypeC) === 'medium',
+                'mapSizerToDesignerScale("single") → "medium" — Designer-valid scale for 1-node handoff',
+                'medium', mapSizerToDesignerScale(clusterTypeC)));
+            cleanupChainStub();
+
+            // Case D: Imported memory + S2D disk values from preview must be visible in
+            // the DOM that selectRegionAndConfigure reads via getHardwareConfig.
+            makeChainStub({ nodeCount: 4, chosenDeployType: 'standard', memoryGB: 80, memoryIsCustom: true, diskCount: 6, diskSizeTB: 5.68 });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('node-memory').value === '80',
+                'Imported 80 GB memory + S2D disks → node-memory DOM = "80" (custom option, what Designer payload.sizerHardware.memory.perNodeGB reads)',
+                '80', document.getElementById('node-memory').value));
+            results.push(assert(
+                document.getElementById('capacity-disk-count').value === '6',
+                'Imported 6× disk count → capacity-disk-count DOM = "6" (Designer payload.sizerHardware.storage)',
+                '6', document.getElementById('capacity-disk-count').value));
+            results.push(assert(
+                Math.abs(parseFloat(document.getElementById('capacity-disk-size').value) - 5.68) < 0.001,
+                'Imported 5.68 TB disk → capacity-disk-size DOM = 5.68 (Designer payload.sizerHardware.storage)',
+                5.68, parseFloat(document.getElementById('capacity-disk-size').value)));
+            cleanupChainStub();
+
+            return results;
+        })());
+
         // ========================================================================
         // FINAL SUMMARY
         // ========================================================================

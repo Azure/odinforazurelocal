@@ -21,7 +21,7 @@
  *   - Interface-level QoS service-policy on storage trunks
  *   - VLAN trunking on host interfaces
  */
-/* global window */
+/* global window, trackFormCompletion */
 (function () {
     'use strict';
 
@@ -880,6 +880,12 @@
         resultsDiv.innerHTML = renderResults(checks, platform, profileKey);
         resultsDiv.style.display = 'block';
         resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Anonymous usage counter — fire only on a successful audit
+        // (after validation + render). Increments analytics/formCompletions/qosAuditAnalyzed.
+        if (typeof trackFormCompletion === 'function') {
+            trackFormCompletion('qosAuditAnalyzed');
+        }
     };
 
     // Inspect Designer handoff to pick a matching profile. Safe defaults if
