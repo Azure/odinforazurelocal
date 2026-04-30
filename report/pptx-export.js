@@ -1030,18 +1030,6 @@
         };
     }
 
-    // Find the rendered "Outbound, Arc, Proxy & Private Endpoints" section
-    // block in the report DOM. Returns the .summary-section element or null.
-    function findOutboundSection() {
-        var titles = $$('#report-summary .summary-section-title, #report-rationale .summary-section-title');
-        for (var i = 0; i < titles.length; i++) {
-            if (/Outbound,\s*Arc,\s*Proxy/i.test(titles[i].textContent || '')) {
-                return titles[i].closest('.summary-section');
-            }
-        }
-        return null;
-    }
-
     // Proxy slide: outbound mode + arc + proxy state + the rendered minimum
     // bypass string + planning notes pulled from the rendered Outbound section
     // so the slide stays in sync with what the user sees.
