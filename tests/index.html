@@ -130,6 +130,7 @@
     <script src="../switch-config/templates/cisco-nxos.js"></script>
     <script src="../switch-config/templates/dell-os10.js"></script>
     <script src="../switch-config/qos-audit.js"></script>
+    <script src="../switch-config/switch-config.js"></script>
     <script>
         // ========================================================================
         // TEST FRAMEWORK
@@ -7826,6 +7827,89 @@
             results.push(assert(naChecks.length === 0, 'No N/A statuses under default (HCI switched) profile', 0, naChecks.length));
             return results;
         })());
+
+        // ========================================================================
+        // SWITCH-CONFIG QUICK START — synthetic Designer state
+        // When a user opens the ToR Switch tab without first completing the
+        // Designer wizard, switch-config.js exposes window.__buildQuickStartState
+        // to synthesize a minimal Designer-style state from the picker's
+        // Deployment Type + Rack Scale values. These tests lock in the shape
+        // produced for each of the 5 canonical profiles so populateFromDesigner()
+        // downstream sees the right architecture/storage/intent fields.
+        // ========================================================================
+        sectionHeader('🚀 Switch Config Quick Start — Synthetic State');
+
+        testSuite('__buildQuickStartState exposed', 'switch-config.js', [
+            assert(typeof window.__buildQuickStartState === 'function',
+                'window.__buildQuickStartState is a function', true,
+                typeof window.__buildQuickStartState === 'function')
+        ]);
+
+        testSuite('Quick Start: hci_converged single rack', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('hci_converged', 'single');
+            r.push(assert(s.architecture === 'hyperconverged', 'architecture=hyperconverged', 'hyperconverged', s.architecture));
+            r.push(assert(s.intent === 'all_traffic', 'intent=all_traffic (single converged intent)', 'all_traffic', s.intent));
+            r.push(assert(s.storage === 'switched', 'storage=switched', 'switched', s.storage));
+            r.push(assert(s.scale === 'single', 'scale=single', 'single', s.scale));
+            r.push(assert(s.nodes === 4, 'nodes=4 default', 4, s.nodes));
+            r.push(assert(s.quickStartProfile === 'hci_converged', 'quickStartProfile marker set', 'hci_converged', s.quickStartProfile));
+            return r;
+        })());
+
+        testSuite('Quick Start: hci_switched single rack', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('hci_switched', 'single');
+            r.push(assert(s.architecture === 'hyperconverged', 'architecture=hyperconverged', 'hyperconverged', s.architecture));
+            r.push(assert(s.intent === 'compute_management', 'intent=compute_management (storage on its own intent)', 'compute_management', s.intent));
+            r.push(assert(s.storage === 'switched', 'storage=switched', 'switched', s.storage));
+            return r;
+        })());
+
+        testSuite('Quick Start: hci_switchless single rack', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('hci_switchless', 'single');
+            r.push(assert(s.architecture === 'hyperconverged', 'architecture=hyperconverged', 'hyperconverged', s.architecture));
+            r.push(assert(s.storage === 'switchless', 'storage=switchless', 'switchless', s.storage));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_fc single rack', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('disagg_fc', 'single');
+            r.push(assert(s.architecture === 'disaggregated', 'architecture=disaggregated', 'disaggregated', s.architecture));
+            r.push(assert(s.disaggStorageType === 'fc_san', 'disaggStorageType=fc_san', 'fc_san', s.disaggStorageType));
+            r.push(assert(s.disaggRackCount === 1, 'disaggRackCount=1 for single rack', 1, s.disaggRackCount));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_iscsi rack-aware', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('disagg_iscsi', 'rack_aware');
+            r.push(assert(s.architecture === 'disaggregated', 'architecture=disaggregated', 'disaggregated', s.architecture));
+            r.push(assert(s.disaggStorageType === 'iscsi_4nic', 'disaggStorageType=iscsi_4nic', 'iscsi_4nic', s.disaggStorageType));
+            r.push(assert(s.scale === 'rack-aware', 'scale=rack-aware', 'rack-aware', s.scale));
+            r.push(assert(s.nodes === 8, 'nodes=8 for rack-aware default', 8, s.nodes));
+            r.push(assert(s.disaggRackCount === 2, 'disaggRackCount=2 for rack-aware', 2, s.disaggRackCount));
+            return r;
+        })());
+
+        testSuite('Quick Start: unknown profile falls back to hci_switched defaults', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('unknown_profile', 'single');
+            r.push(assert(s.architecture === 'hyperconverged', 'fallback architecture', 'hyperconverged', s.architecture));
+            r.push(assert(s.storage === 'switched', 'fallback storage', 'switched', s.storage));
+            return r;
+        })());
+
+        testSuite('Quick Start: applyQuickStart + exitQuickStart helpers exposed', 'switch-config.js', [
+            assert(typeof window.applyQuickStart === 'function',
+                'window.applyQuickStart is a function', true,
+                typeof window.applyQuickStart === 'function'),
+            assert(typeof window.exitQuickStart === 'function',
+                'window.exitQuickStart is a function', true,
+                typeof window.exitQuickStart === 'function')
+        ]);
 
         // ========================================================================
         // SESSION RESUME — STATE RESTORATION TESTS

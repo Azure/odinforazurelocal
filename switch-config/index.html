@@ -45,15 +45,65 @@
             <div id="page-statistics" data-stats-bar></div>
         </header>
 
-        <!-- No Data State (shown when no Designer data) -->
-        <div id="sc-no-data" class="sc-no-data" style="display: none;">
-            <h3>No Designer Data Found</h3>
-            <p>Use the ODIN Designer wizard to configure your deployment, then transfer to this page.<br>
-               <a href="../">← Go to Designer</a></p>
+        <!-- Quick Start panel (shown when no Designer data has been transferred) -->
+        <div id="sc-quick-start" class="sc-quick-start" style="display: none;">
+            <div class="sc-quick-start-card">
+                <h3 style="margin: 0 0 0.4rem 0;">Quick Start <span style="font-size:0.75rem;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-left:0.5rem;">no Designer data</span></h3>
+                <p style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.92rem;">
+                    No deployment data was found from the <a href="../">ODIN Designer</a>. Pick a <strong>Deployment Type</strong> below to load sensible defaults — you can then edit every field before generating switch configs.
+                    For a fully-tailored config (correct VLAN IDs, tenant networks, rack-aware topology), <a href="../">complete the Designer wizard</a> first and use its <em>Generate Switch Config</em> action.
+                </p>
+
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.5rem;">
+                    <span style="display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:50%; background:var(--accent-blue); color:#fff; font-weight:700; font-size:0.9rem;">1</span>
+                    <label for="sc-quick-start-profile" style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Deployment Type <span style="color: #ef4444;">*</span>
+                    </label>
+                </div>
+                <select id="sc-quick-start-profile" style="width:100%; padding:0.7rem 0.8rem; background:var(--card-bg); border:2px solid var(--accent-blue); color:var(--text-primary); border-radius:6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; margin-bottom: 1rem;">
+                    <option value="hci_converged">Hyperconverged — All Traffic Converged (single intent, no separate storage VLAN)</option>
+                    <option value="hci_switched" selected>Hyperconverged — Storage Switched (RoCE/RDMA storage VLANs on ToR)</option>
+                    <option value="hci_switchless">Hyperconverged — Storage Switchless (storage NICs back-to-back, no storage VLANs on ToR)</option>
+                    <option value="disagg_fc">Disaggregated — Fibre Channel SAN (storage on FC fabric, leaf-only ToR scope)</option>
+                    <option value="disagg_iscsi">Disaggregated — iSCSI (storage on dedicated iSCSI VLANs)</option>
+                </select>
+
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.5rem;">
+                    <span style="display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:50%; background:var(--accent-blue); color:#fff; font-weight:700; font-size:0.9rem;">2</span>
+                    <label style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0;">Rack Scale</label>
+                </div>
+                <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom: 1rem;">
+                    <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
+                        <input type="radio" name="sc-quick-start-scale" value="single" checked> Single Rack (2 ToR switches)
+                    </label>
+                    <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
+                        <input type="radio" name="sc-quick-start-scale" value="rack_aware"> Rack-Aware (2 racks, 4 ToR switches)
+                    </label>
+                </div>
+
+                <button type="button" id="sc-quick-start-btn" class="sc-generate-btn" onclick="window.applyQuickStart()" style="background: linear-gradient(135deg, var(--accent-blue), #6366f1);">
+                    ▶ Use These Defaults
+                </button>
+
+                <p style="margin: 1rem 0 0 0; color: var(--text-secondary); font-size: 0.82rem;">
+                    💡 The <abbr title="Quality of Service">QoS</abbr> Validator below works independently and does <strong>not</strong> require Designer data — paste a switch <code>show running-config</code> output to audit it against Azure Local <abbr title="Quality of Service">QoS</abbr> requirements.
+                </p>
+            </div>
         </div>
 
         <!-- Main content (hidden until data available) -->
         <div id="sc-main" style="display: none;">
+
+            <!-- Quick-start banner (shown only when defaults were synthesized via Quick Start, not from Designer) -->
+            <div id="sc-quick-start-banner" class="sc-info-banner" style="background: rgba(99, 102, 241, 0.10); border: 1px solid rgba(99, 102, 241, 0.35); display: none;">
+                <span class="sc-icon">⚡</span>
+                <span>
+                    <strong>Quick Start mode</strong> &mdash; defaults were loaded for the selected deployment type.
+                    These VLAN IDs, IPs, and hostnames are illustrative only and <strong>must</strong> be edited to match your actual network plan before applying.
+                    For a tailored config, <a href="../" style="color: var(--accent-blue); text-decoration: underline;">complete the Designer wizard</a> instead.
+                    <button type="button" onclick="window.exitQuickStart && window.exitQuickStart();" style="margin-left:0.6rem; padding:0.2rem 0.55rem; background:transparent; border:1px solid rgba(99,102,241,0.5); color:var(--text-primary); border-radius:4px; font-size:0.78rem; cursor:pointer;">Change Deployment Type</button>
+                </span>
+            </div>
 
             <!-- Deployment Info Banner -->
             <div id="sc-deployment-banner" class="sc-info-banner">

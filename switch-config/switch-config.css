@@ -397,6 +397,29 @@ body {
     text-decoration: none;
 }
 
+/* ── Quick Start panel (no Designer data) ─────────────────────────── */
+.sc-quick-start {
+    margin: 1rem 0 1.5rem;
+}
+
+.sc-quick-start-card {
+    padding: 1.25rem 1.4rem;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.10), rgba(99, 102, 241, 0.08));
+    border: 2px solid var(--accent-blue);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.sc-quick-start-card h3 {
+    color: var(--text-primary);
+    font-size: 1.15rem;
+}
+
+.sc-quick-start-card a {
+    color: var(--accent-blue);
+    text-decoration: underline;
+}
+
 /* ── Section divider ──────────────────────────────────────────────── */
 .sc-section-divider {
     border: none;

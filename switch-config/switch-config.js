@@ -21,13 +21,21 @@
 
     // ── Initialization ───────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
+        // The test harness (tests/index.html) loads this script to exercise
+        // pure helpers (e.g. buildQuickStartState) but doesn't render the
+        // generator form — bail out if the form's anchor element is absent.
+        if (!document.getElementById('sc-tor-model')) return;
         loadDesignerData();
         populateModelDropdowns();
+        // Pre-select the Quick Start dropdown to match any existing Designer
+        // state, so it's ready if the user later opens it via "Change
+        // Deployment Type" or arrives with partial data.
+        preselectQuickStartFromDesigner();
         if (designerState) {
             populateFromDesigner();
             document.getElementById('sc-main').style.display = 'block';
         } else {
-            document.getElementById('sc-no-data').style.display = 'block';
+            document.getElementById('sc-quick-start').style.display = 'block';
         }
 
         // First-visit walkthrough (mirrors Sizer onboarding pattern)
@@ -270,6 +278,152 @@
         if (intent === 'all_traffic' || intent === 'all traffic') return 'fully_converged';
         return 'fully_converged';
     }
+
+    // ── Quick Start (no Designer data) ───────────────────────────────
+    // When a user opens the ToR Switch tab without first completing the
+    // Designer wizard, the Quick Start picker lets them pick a deployment
+    // scenario + rack scale and load illustrative defaults. The picker
+    // mirrors the QoS Validator's Deployment Type dropdown so the same
+    // five canonical scenarios are available end-to-end.
+
+    /**
+     * Map a Quick Start profile + scale to a synthetic Designer state
+     * that populateFromDesigner() can consume. Numeric defaults
+     * (4 nodes for single-rack, 8 nodes for rack-aware) are illustrative
+     * and editable via every form field downstream.
+     */
+    function buildQuickStartState(profile, scale) {
+        var rackAware = scale === 'rack_aware' || scale === 'rack-aware';
+        var nodes = rackAware ? 8 : 4;
+        var s = {
+            scenario: 'quickstart',
+            nodes: nodes,
+            scale: rackAware ? 'rack-aware' : 'single',
+            // marker so other code paths can detect Quick Start mode
+            quickStartProfile: profile
+        };
+        switch (profile) {
+            case 'hci_converged':
+                s.architecture = 'hyperconverged';
+                s.intent = 'all_traffic';
+                s.storage = 'switched';
+                break;
+            case 'hci_switched':
+                s.architecture = 'hyperconverged';
+                s.intent = 'compute_management';
+                s.storage = 'switched';
+                break;
+            case 'hci_switchless':
+                s.architecture = 'hyperconverged';
+                s.intent = 'compute_management';
+                s.storage = 'switchless';
+                break;
+            case 'disagg_fc':
+                s.architecture = 'disaggregated';
+                s.disaggStorageType = 'fc_san';
+                s.storage = 'switched';
+                s.disaggRackCount = rackAware ? 2 : 1;
+                break;
+            case 'disagg_iscsi':
+                s.architecture = 'disaggregated';
+                s.disaggStorageType = 'iscsi_4nic';
+                s.storage = 'switched';
+                s.disaggRackCount = rackAware ? 2 : 1;
+                break;
+            default:
+                s.architecture = 'hyperconverged';
+                s.intent = 'compute_management';
+                s.storage = 'switched';
+        }
+        return s;
+    }
+
+    /**
+     * Pre-select the Quick Start dropdown + rack-scale radio to match the
+     * existing Designer state (if any). Called on load and after exitQuickStart.
+     */
+    function preselectQuickStartFromDesigner() {
+        var profileSelect = document.getElementById('sc-quick-start-profile');
+        if (!profileSelect) return;
+        if (!designerState) return;
+        var ds = designerState;
+        var profile = 'hci_switched';
+        if (ds.architecture === 'disaggregated') {
+            if (ds.disaggStorageType === 'fc_san') profile = 'disagg_fc';
+            else if (ds.disaggStorageType === 'iscsi_4nic' || ds.disaggStorageType === 'iscsi_6nic') profile = 'disagg_iscsi';
+            else profile = 'disagg_fc';
+        } else if ((ds.storage || '').toLowerCase() === 'switchless') {
+            profile = 'hci_switchless';
+        } else if ((ds.intent || '').toLowerCase() === 'all_traffic' || (ds.intent || '').toLowerCase() === 'all traffic') {
+            profile = 'hci_converged';
+        }
+        profileSelect.value = profile;
+
+        var scale = (ds.scale === 'rack-aware' || ds.scale === 'rack_aware') ? 'rack_aware' : 'single';
+        var radios = document.getElementsByName('sc-quick-start-scale');
+        for (var i = 0; i < radios.length; i++) {
+            radios[i].checked = (radios[i].value === scale);
+        }
+    }
+
+    /**
+     * Apply the Quick Start picker's current values: synthesize a Designer
+     * state, populate the form, hide the picker, show the main panel +
+     * "Quick Start mode" banner.
+     */
+    function applyQuickStart() {
+        var profileSelect = document.getElementById('sc-quick-start-profile');
+        if (!profileSelect) return;
+        var profile = profileSelect.value || 'hci_switched';
+        var scale = 'single';
+        var radios = document.getElementsByName('sc-quick-start-scale');
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].checked) { scale = radios[i].value; break; }
+        }
+        designerState = buildQuickStartState(profile, scale);
+        populateFromDesigner();
+        var qs = document.getElementById('sc-quick-start');
+        if (qs) qs.style.display = 'none';
+        var main = document.getElementById('sc-main');
+        if (main) main.style.display = 'block';
+        var banner = document.getElementById('sc-quick-start-banner');
+        if (banner) banner.style.display = 'flex';
+        // Track adoption so we know how many users land here without Designer
+        try {
+            if (typeof window.trackFormCompletion === 'function') {
+                window.trackFormCompletion('switch_config_quick_start', { profile: profile, scale: scale });
+            }
+        } catch (e) {
+            // analytics is optional
+        }
+    }
+
+    /**
+     * Return to the Quick Start picker (used by the "Change Deployment Type"
+     * button on the in-form banner). Hides the main panel and re-shows the
+     * picker with current values preserved so users can switch profile.
+     */
+    function exitQuickStart() {
+        var main = document.getElementById('sc-main');
+        if (main) main.style.display = 'none';
+        var banner = document.getElementById('sc-quick-start-banner');
+        if (banner) banner.style.display = 'none';
+        var qs = document.getElementById('sc-quick-start');
+        if (qs) qs.style.display = 'block';
+        // Keep the dropdown matched to whatever profile is currently active
+        // (either synthetic Quick Start or genuine Designer state)
+        preselectQuickStartFromDesigner();
+        // Scroll the picker into view so it's not hidden behind the nav
+        if (qs && typeof qs.scrollIntoView === 'function') {
+            qs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // Expose to inline onclick handlers in switch-config/index.html
+    window.applyQuickStart = applyQuickStart;
+    window.exitQuickStart = exitQuickStart;
+    // Exposed for unit tests
+    window.__buildQuickStartState = buildQuickStartState;
 
     /**
      * Flatten disaggregated tenant networks into a simple array of VLAN objects.
