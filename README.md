@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.20.08 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.20.09 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -43,12 +43,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.20.08 - Latest Release
-- **Disaggregated Host Networking — iSCSI 4-NIC physical shared paths**: NIC3/NIC4 now render as standalone physical adapters. NIC3 carries Cluster A + iSCSI Path A, and NIC4 carries Cluster B + iSCSI Path B, using the same VLAN/subnet/source IP with no SET, no vSwitch, and no host vNICs. Applies to both the wizard preview (`js/disaggregated.js`) and the configuration report's 2-node host-networking diagram (`report/report.js`).
-- **Disaggregated Host Networking — 6-NIC + Backup correction**: `ClusterBackupSwitch` remains only for Cluster/Backup on NIC3/NIC4; dedicated iSCSI remains on NIC5/NIC6 and is no longer treated as sharing cluster ports.
-- **Disaggregated Overrides — shared vs dedicated iSCSI**: 4-NIC iSCSI now derives from the Cluster A/B VLAN/subnet inputs. Separate iSCSI Network A/B override cards are shown only for **iscsi_6nic**, including 6-NIC + Backup.
-- **Disaggregated Overrides — iSCSI defaults**: Dedicated iSCSI A/B defaults are now VLAN `300` / `400` with subnets `10.30.30.0/24` / `10.40.40.0/24`.
-- **Disaggregated vNIC labels — readability**: 3-line vNIC labels remain for layouts that genuinely have host vNICs, such as Management + Compute and 6-NIC + Backup Cluster vNICs.
+### 🎉 Version 0.20.09 - Latest Release
+- **Configuration Report — PowerPoint Export**: New **📊 Download PowerPoint** button on the Configuration Report page generates a fully styled `.pptx` deck of the current design. Template-driven (the look comes from `report/template/OdinPPTTemplate.potx`); slides cover Deployment Scenario & Scale, Physical Network, Rack Configuration, Leaf & Spine, AKS Reachability, Host Networking, Outbound Connectivity, Proxy, Security, Private Endpoints, Infrastructure Network, and a closing slide with links. Includes Microsoft Learn reference hyperlinks per network pattern, ✓/✗ run coloring on the Security slide, callout banners (e.g. Arc Private Link unsupported on Azure Local), and a footer subnet-utilisation visual on the Infrastructure Network slide. Generation is fully client-side — no telemetry, no backend.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -354,7 +350,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.20.08  
+**Version**: 0.20.09  
 **Last Updated**: April 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -369,6 +365,13 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.20.x Series (April 2026)
+
+#### 0.20.09 - Configuration Report: PowerPoint Export
+- **📊 Download PowerPoint button** on the Configuration Report page generates a styled `.pptx` deck (template-driven via `report/template/OdinPPTTemplate.potx`).
+- **Slide coverage**: Deployment Scenario & Scale, Physical Network, Rack Configuration, Leaf & Spine Architecture, AKS Reachability & Routing Hops, Host Networking & Intents, Outbound Connectivity, Proxy, Security Configuration, Private Endpoints, Infrastructure Network — with a hero cover and closing slide.
+- **Microsoft Learn reference hyperlinks** per network pattern (FC no-backup / FC with backup / single-node / 2-node switchless / 3-node switchless / 4+ switchless / 2-node switched / 3+ switched), plus dedicated links for Private Endpoints and Arc Gateway.
+- **Visual extras**: ✓/✗ run coloring on the Security slide, red callout banner where Arc Private Link is unsupported, footer subnet-utilisation raster on Infrastructure Network, rack diagram on Physical Network.
+- **Client-side only**: PPTX is generated in the browser via vendored JSZip — no telemetry, no backend, works offline.
 
 #### 0.20.08 - Disaggregated: iSCSI 4-NIC physical paths
 - **iSCSI 4-NIC physical shared paths** in host-networking diagrams (wizard preview + report 2-node view): NIC3/NIC4 stay standalone physical adapters carrying Cluster A/B and iSCSI Path A/B with no SET, no vSwitch, and no host vNICs.
