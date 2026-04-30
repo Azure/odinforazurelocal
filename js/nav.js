@@ -34,13 +34,6 @@
             badge: null
         },
         {
-            id: 'knowledge',
-            label: 'Knowledge',
-            svg: svgKnowledge,
-            href: (base || './') + '?tab=knowledge',
-            badge: null
-        },
-        {
             id: 'sizer',
             label: 'Sizer',
             svg: svgSizer,
@@ -52,6 +45,13 @@
             label: 'ToR Switch',
             svg: svgSwitch,
             href: base + 'switch-config/',
+            badge: null
+        },
+        {
+            id: 'knowledge',
+            label: 'Knowledge',
+            svg: svgKnowledge,
+            href: (base || './') + '?tab=knowledge',
             badge: null
         }
     ];

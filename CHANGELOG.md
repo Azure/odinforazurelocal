@@ -33,6 +33,7 @@ Security and code-quality release. No end-user feature changes; this release tig
 
 - **Stat tiles on the ToR Switch page now show real counts.** The page rendered the six-tile bar but every value stayed at `—` because `js/utils.js` (which defines `formatNumber()`) was not loaded; `fetchAndDisplayStats()` threw a silent `ReferenceError` before populating any tile. `switch-config/index.html` now loads `../js/utils.js` alongside `../js/analytics.js` and `../js/stats-bar.js`.
 - **Header layout aligned with Designer and Sizer.** The ToR Switch page previously had a plain `<h1>` with no logo, version, or What's New link. Restructured to use the shared `header-title-wrapper` / `header-logo-wrapper` / `header-version` markup plus the `whats-new-link` button (powered by `js/changelog.js`, now also loaded on this page). Title text follows the established convention: **ODIN ToR Switch for Azure Local**. The same disclaimer banner that appears on Designer and Sizer is now rendered above the header on this page too.
+- **Tab navigation order changed to `Designer | Sizer | ToR Switch | Knowledge`** (`js/nav.js`). Knowledge moves to the end of the tab strip on every page so the three "doing" tabs (Designer, Sizer, ToR Switch) sit together first, with the reference / docs tab last. No CSS changes were needed — only the `tabs` array order in `nav.js`.
 
 ### Added
 
