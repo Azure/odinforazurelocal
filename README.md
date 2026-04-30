@@ -56,9 +56,6 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Code-quality cleanup**: replaced two silent `catch (e) {}` blocks with `console.warn` (`switch-config/switch-config.js`) and explanatory comments (`report/report.js`); replaced deprecated CSS keywords (`word-break: break-word`, `page-break-inside: avoid`) with their modern equivalents; removed the unreferenced `docs/outbound-connectivity/styles_backup.css`.
 - **ESLint convention documented** in `docs/ESLINT_CONFIG_NOTES.md`: every empty `catch` must include an inline comment explaining why the error is safe to swallow.
 
-#### 🎉 Version 0.20.09
-- **Configuration Report — PowerPoint Export**: New **📊 Download PowerPoint** button on the Configuration Report page generates a fully styled `.pptx` deck of the current design. Template-driven (the look comes from `report/template/OdinPPTTemplate.potx`); slides cover Deployment Scenario & Scale, Physical Network, Rack Configuration, Leaf & Spine, AKS Reachability, Host Networking, Outbound Connectivity, Proxy, Security, Private Endpoints, Infrastructure Network, and a closing slide with links. Includes Microsoft Learn reference hyperlinks per network pattern, ✓/✗ run coloring on the Security slide, callout banners (e.g. Arc Private Link unsupported on Azure Local), and a footer subnet-utilisation visual on the Infrastructure Network slide. Generation is fully client-side — no telemetry, no backend.
-
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
 ---
@@ -395,6 +392,16 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.20.x Series (April 2026)
+
+#### 0.20.10 - Security & Code-Quality Release
+- **No end-user feature changes.** Tightens the build, dependency, and CI surface so future work is safer to land.
+- **All third-party JS libraries vendored locally** (`vendor/html2canvas-1.4.1.min.js`, `vendor/jspdf-4.2.1.umd.min.js`, `vendor/three-0.128.0.min.js`, `vendor/three-OrbitControls-0.128.0.js`). Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from `cdn.jsdelivr.net`. Firebase analytics (loaded from `gstatic.com`) is unchanged.
+- **CSS lint added to CI** (`stylelint` with `custom-property-no-missing-var-function` and `color-no-invalid-hex`).
+- **CodeQL security scanning** workflow added (`.github/workflows/codeql.yml`) — runs `security-and-quality` queries on every PR and weekly.
+- **`npm audit --audit-level=high`** added as a CI gate. `basic-ftp` override bumped to `>=5.3.1` to clear advisory `GHSA-rp42-5vxx-qpwr`.
+- **PPTX export smoke test** added (`scripts/smoke-test-pptx.js`) — verifies the PowerPoint export produces a valid OOXML file end-to-end.
+- **Code-quality cleanup**: silent `catch (e) {}` blocks documented or replaced with `console.warn`; deprecated CSS keywords (`word-break: break-word`, `page-break-inside: avoid`) replaced with modern equivalents; unreferenced `docs/outbound-connectivity/styles_backup.css` removed.
+- **ESLint convention documented** in `docs/ESLINT_CONFIG_NOTES.md`.
 
 #### 0.20.09 - Configuration Report: PowerPoint Export
 - **📊 Download PowerPoint button** on the Configuration Report page generates a styled `.pptx` deck (template-driven via `report/template/OdinPPTTemplate.potx`).
