@@ -2816,8 +2816,8 @@ header .header-description {
 }
 
 .stats-container {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
     justify-content: center;
     gap: 8px 24px;
     padding: 10px 20px;
@@ -2851,10 +2851,9 @@ header .header-description {
     background: rgba(255, 255, 255, 0.1);
 }
 
-/* Stats bar mobile - 2x2 grid (must be after base .stats-container) */
+/* Stats bar mobile - 2-column grid (6 tiles wrap to 2×3; must be after base .stats-container) */
 @media (max-width: 768px) {
     .stats-container {
-        display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px 16px;
         padding: 10px 16px;
