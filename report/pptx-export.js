@@ -71,6 +71,15 @@
             customExtract: extractSizerWorkloads
         },
         {
+            // Sizer-only slide: power consumption, heat output and rack-space
+            // estimate. Skipped automatically when no `sizerHardware.power`
+            // data is present (i.e. the report wasn't started from the Sizer
+            // or the panel hasn't computed yet).
+            title: 'Power, Heat & Rack Space',
+            match: [],
+            customExtract: extractSizerPower
+        },
+        {
             title: 'Leaf & Spine Architecture',
             // The disaggregated report renders the leaf-spine fabric requirements
             // as a multi-row category table (no .summary-row pairs), so we use
@@ -1435,6 +1444,70 @@
         return {
             bullets: bullets,
             sources: ['Workloads (from Sizer)']
+        };
+    }
+
+    // Power, Heat & Rack Space slide (Sizer only).
+    // Returns null when no power data is present so the slide auto-skips
+    // for non-Sizer reports.
+    function extractSizerPower() {
+        var s = (typeof window.__odinGetReportState === 'function')
+            ? window.__odinGetReportState() : null;
+        var pw = s && s.sizerHardware && s.sizerHardware.power;
+        if (!pw) return null;
+
+        var bullets = [];
+        var nodeCount = (s.sizerHardware && s.sizerHardware.nodeCount) || 0;
+        bullets.push({
+            text: 'Per-node power: ' + (pw.perNodeW || 0).toLocaleString() + ' W',
+            lvl: 1
+        });
+        bullets.push({
+            text: 'Total instance power: ' + (pw.totalW || 0).toLocaleString() + ' W'
+                + (nodeCount ? ' (' + nodeCount + ' nodes)' : ''),
+            lvl: 1
+        });
+        bullets.push({
+            text: 'Heat output: ' + (pw.totalBtu || 0).toLocaleString() + ' BTU/hr',
+            lvl: 1
+        });
+        if (pw.rackUnits) {
+            bullets.push({
+                text: 'Rack space: ' + pw.rackUnits + 'U',
+                lvl: 1
+            });
+        }
+        if (pw.infraPowerW) {
+            bullets.push({
+                text: 'Network infrastructure power: ' + pw.infraPowerW.toLocaleString() + ' W'
+                    + (pw.infraPowerNote ? ' (' + pw.infraPowerNote + ')' : ''),
+                lvl: 1
+            });
+        }
+        if (pw.components) {
+            var c = pw.components;
+            bullets.push({ text: 'Per-node component breakdown', lvl: 1 });
+            bullets.push({ text: 'CPU: ' + (c.cpuW || 0) + ' W', lvl: 2 });
+            bullets.push({ text: 'Memory: ' + (c.memoryW || 0) + ' W', lvl: 2 });
+            var disksW = (c.dataDisksW || 0) + (c.bootDisksW || 0);
+            bullets.push({ text: 'Disks (data + boot): ' + disksW + ' W', lvl: 2 });
+            if (c.gpuW > 0) bullets.push({ text: 'GPU: ' + c.gpuW + ' W', lvl: 2 });
+            bullets.push({ text: 'Base overhead (fans, NICs, BMC): ' + (c.baseOverheadW || 0) + ' W', lvl: 2 });
+            if (c.psuEfficiency) {
+                bullets.push({
+                    text: 'PSU efficiency: ~' + Math.round(c.psuEfficiency * 100) + '% (80 Plus Titanium @ ~50% load)',
+                    lvl: 2
+                });
+            }
+        }
+        bullets.push({
+            text: 'Estimates only — consult OEM hardware partner for accurate power and rack planning.',
+            lvl: 1
+        });
+
+        return {
+            bullets: bullets,
+            sources: ['Power, Heat & Rack Space (from Sizer)']
         };
     }
 

@@ -8180,6 +8180,33 @@
             }
         }
 
+        // Power, Heat & Rack Space (from Sizer) — only present when imported
+        // from the Sizer with a populated power estimate.
+        var sizerPowerRows = '';
+        if (s.sizerHardware && s.sizerHardware.power) {
+            var pw = s.sizerHardware.power;
+            sizerPowerRows += row('Per-Node Power (est.)', (pw.perNodeW || 0).toLocaleString() + ' Watts');
+            sizerPowerRows += row('Total Instance Power (est.)', (pw.totalW || 0).toLocaleString() + ' Watts');
+            sizerPowerRows += row('Heat Output (est.)', (pw.totalBtu || 0).toLocaleString() + ' BTU/hr');
+            if (pw.rackUnits) {
+                sizerPowerRows += row('Rack Units (est.)', pw.rackUnits + 'U');
+            }
+            if (pw.infraPowerW) {
+                sizerPowerRows += row('Network Infrastructure Power', (pw.infraPowerW || 0).toLocaleString() + ' W'
+                    + (pw.infraPowerNote ? ' <span style="font-size: 0.85em; opacity: 0.75;">(' + escapeHtml(pw.infraPowerNote) + ')</span>' : ''));
+            }
+            if (pw.components) {
+                var c = pw.components;
+                var perNodeBreakdown = 'CPU ' + (c.cpuW || 0) + 'W'
+                    + ' + Memory ' + (c.memoryW || 0) + 'W'
+                    + ' + Disks ' + ((c.dataDisksW || 0) + (c.bootDisksW || 0)) + 'W'
+                    + (c.gpuW > 0 ? ' + GPU ' + c.gpuW + 'W' : '')
+                    + ' + Base ' + (c.baseOverheadW || 0) + 'W'
+                    + (c.psuEfficiency ? ' (PSU ' + Math.round(c.psuEfficiency * 100) + '% eff.)' : '');
+                sizerPowerRows += row('Per-Node Breakdown', perNodeBreakdown);
+            }
+        }
+
         // Sizer Workloads (individual workload details from Sizer)
         var sizerWorkloadsRows = '';
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
@@ -8308,6 +8335,7 @@
         return section('Scenario & Scale', 'summary-section-title--infra', scenarioScaleRows, 'scenario-scale')
             + section('Hardware Configuration (from Sizer)', 'summary-section-title--infra', sizerHardwareRows, 'sizer-hardware')
             + section('Workloads (from Sizer)', 'summary-section-title--infra', sizerWorkloadsRows, 'sizer-workloads')
+            + section('Power, Heat & Rack Space (from Sizer)', 'summary-section-title--infra', sizerPowerRows, 'sizer-power')
             + section('Host Networking', 'summary-section-title--net', hostNetworkingRows, 'host-networking')
             + vnicConfigSection
             + sectionWithExtra('AKS Arc Network Requirements', 'summary-section-title--net', aksNetworkRows, '', 'aks-network')

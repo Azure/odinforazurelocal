@@ -1372,6 +1372,12 @@ let _designerPortCount = 4;
 // 2 matches the Designer's default 2-spine Clos fabric.
 let _designerSpineCount = 2;
 
+// Last computed power / heat / rack-space estimate from updatePowerRackEstimates().
+// Populated each time the panel renders so the Sizer→Designer handoff
+// (selectRegionAndConfigure) and JSON export can attach the numeric values
+// to the payload without re-deriving them or scraping the DOM.
+let _lastPowerEstimate = null;
+
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
 let _diskSizeUserSet = false;
@@ -4848,6 +4854,30 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
     document.getElementById('rack-units').innerHTML = rackUnitLabel;
 
+    // Capture the computed numbers so they can flow into the Sizer→Designer
+    // handoff payload (and from there into report.html and the PPT export)
+    // without re-deriving from the DOM.
+    _lastPowerEstimate = {
+        perNodeW: perNodeW,
+        totalW: totalW,
+        totalBtu: totalBtu,
+        rackUnits: rackUnits,
+        nodeCount: nodeCount,
+        infraPowerW: infraPowerW,
+        infraPowerNote: infraPowerNote || null,
+        clusterType: clusterType,
+        // Component breakdown for the report's "Power calculations" expander.
+        components: {
+            cpuW: cpuPowerW,
+            memoryW: memPowerW,
+            dataDisksW: diskPowerW,
+            bootDisksW: osDiskPowerW,
+            gpuW: gpuPowerW,
+            baseOverheadW: baseOverheadW,
+            psuEfficiency: psuEfficiency
+        }
+    };
+
     // Update rack units label
     var rackUnitsLabelEl = document.getElementById('rack-units-label');
     if (rackUnitsLabelEl) {
@@ -6078,7 +6108,20 @@ function selectRegionAndConfigure(region, cloud) {
                 totalVcpus: parseInt(document.getElementById('total-vcpus').textContent) || 0,
                 totalMemoryGB: parseInt(document.getElementById('total-memory').textContent) || 0,
                 totalStorageTB: parseFloat(document.getElementById('total-storage').textContent) || 0
-            }
+            },
+            // Power, heat & rack-space estimate captured from the Sizer's
+            // "Estimated Power, Heat & Rack Space per Instance" panel. These
+            // surface on the Designer's report and as a dedicated Power & Heat
+            // PPT slide. May be null if calculateRequirements() has not yet run.
+            power: _lastPowerEstimate ? {
+                perNodeW: _lastPowerEstimate.perNodeW,
+                totalW: _lastPowerEstimate.totalW,
+                totalBtu: _lastPowerEstimate.totalBtu,
+                rackUnits: _lastPowerEstimate.rackUnits,
+                infraPowerW: _lastPowerEstimate.infraPowerW,
+                infraPowerNote: _lastPowerEstimate.infraPowerNote,
+                components: _lastPowerEstimate.components
+            } : null
         },
         // Individual workload details (transparent pass-through to Report)
         sizerWorkloads: workloads.map(function(w) {

@@ -190,10 +190,15 @@
         var svgH = titleH + coreH + coreGap + outerRackH + bottomPad + legendH + 10;
 
         var parts = [];
-        // viewBox + style="max-width:100%; height:auto" keeps the aspect ratio while
-        // allowing the diagram to scale down into narrow report cards (e.g. when
-        // rackCount > 5 the natural width exceeds typical container width).
-        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="max-width: 100%; height: auto; display: block; font-family: \'Segoe UI\', sans-serif;">');
+        // viewBox + style keeps the aspect ratio while letting the diagram
+        // shrink into narrow report cards. The explicit `max-width: <svgW>px`
+        // is critical: without it, a tall+narrow diagram (e.g. a single rack
+        // with 16 nodes) inherits the parent container's full width via the
+        // browser default `width: 100%`, and grows to many times its natural
+        // size — the title, core switch and node tiles end up gigantic. Capping
+        // max-width at the intrinsic SVG width prevents upward scaling, while
+        // `width: 100%` still allows downward scaling on small screens.
+        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="width: 100%; max-width: ' + svgW + 'px; height: auto; display: block; margin: 0 auto; font-family: \'Segoe UI\', sans-serif;">');
 
         // Background
         parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="' + C.BACKGROUND + '" rx="6"/>');
@@ -355,7 +360,7 @@
         var parts = [];
         // Responsive: viewBox scales to container width. Wide disaggregated
         // layouts (rackCount > ~5) would otherwise overflow the report column.
-        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="max-width: 100%; height: auto; display: block;" font-family="Segoe UI, sans-serif">');
+        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="width: 100%; max-width: ' + svgW + 'px; height: auto; display: block; margin: 0 auto;" font-family="Segoe UI, sans-serif">');
         parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="' + C.BACKGROUND + '"/>');
 
         // Title
