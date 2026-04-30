@@ -10,6 +10,16 @@
     window.openDiagramZoom = openDiagramZoom;
     window.togglePrintFriendly = togglePrintFriendly;
 
+    // Internals exposed for pptx-export.js (kept under __odin* prefix to mark as internal).
+    window.__odinGetReportState = function () { return CURRENT_REPORT_STATE; };
+    window.__odinSvgElementToPng = function (svgEl, opts) { return svgElementToPngDataUrl(svgEl, opts); };
+    // Expose the private-endpoint reference data and the proxy-bypass helpers
+    // so external callers (e.g., the PPTX exporter) can mirror what the
+    // rendered report shows without scraping the DOM. Bound at module init
+    // below once these symbols are defined.
+    window.__odinGetPrivateEndpointInfo = function () { return null; };
+    window.__odinBuildProxyBypassList = function () { return []; };
+
     var CURRENT_REPORT_STATE = null;
 
     // Firewall allow-list endpoint URLs per region (consolidated lists from GitHub)
@@ -484,6 +494,45 @@
             return ip;
         }
     }
+
+    // Bind exporter helpers now that PRIVATE_ENDPOINT_INFO and
+    // convertCidrToWildcard are in scope. Mirrors the bypass-list logic in
+    // the rendered Outbound section so the PPTX exporter can produce the
+    // same content without scraping the DOM.
+    window.__odinGetPrivateEndpointInfo = function () { return PRIVATE_ENDPOINT_INFO; };
+    window.__odinBuildProxyBypassList = function (s) {
+        if (!s || s.proxy !== 'proxy') return [];
+        var items = [];
+        items.push('localhost');
+        items.push('127.0.0.1');
+        if (s.nodeSettings && s.nodeSettings.length) {
+            s.nodeSettings.forEach(function (node) {
+                if (node && node.name) items.push(node.name);
+            });
+            s.nodeSettings.forEach(function (node) {
+                if (node && node.ipCidr) {
+                    var ip = node.ipCidr.split('/')[0];
+                    if (ip) items.push(ip);
+                }
+            });
+        }
+        if (s.adDomain) items.push('*.' + s.adDomain);
+        if (s.infraCidr) {
+            var w = convertCidrToWildcard(s.infraCidr);
+            if (w) items.push(w);
+        }
+        if (s.privateEndpoints === 'pe_enabled' && s.privateEndpointsList) {
+            s.privateEndpointsList.forEach(function (key) {
+                var info = PRIVATE_ENDPOINT_INFO[key];
+                if (info && info.proxyBypass) {
+                    info.proxyBypass.forEach(function (b) {
+                        if (items.indexOf(b) === -1) items.push(b);
+                    });
+                }
+            });
+        }
+        return items;
+    };
 
     // Get storage subnet CIDR for diagram legends.
     // Uses custom subnets when Storage Auto IP is disabled, otherwise returns default examples.

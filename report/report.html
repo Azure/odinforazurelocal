@@ -214,6 +214,39 @@
             border-color: var(--accent-blue);
         }
 
+        .header-action-group {
+            display: inline-flex;
+            align-items: stretch;
+            gap: 0;
+        }
+
+        .header-action-group .header-action-btn {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            border-right: none;
+        }
+
+        .header-action-group .header-action-select {
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+            border-top-right-radius: 6px;
+            border-bottom-right-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .header-action-group .header-action-select:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            border-color: var(--accent-blue);
+        }
+
         body {
             padding-top: 56px;
         }
@@ -337,6 +370,10 @@
                 <button type="button" class="header-action-btn" onclick="downloadReportMarkdown()">
                     📝 Download Markdown
                 </button>
+                <button type="button" id="pptx-export-btn" class="header-action-btn"
+                    onclick="downloadReportPptx()">
+                    📊 Download PowerPoint
+                </button>
                 <button type="button" class="header-action-btn" onclick="exportReportPDF()">
                     💾 Save as PDF
                 </button>
@@ -401,6 +438,9 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
     <script src="rack-svg.js"></script>
     <script src="report.js"></script>
+    <!-- PowerPoint export (vendored PptxGenJS provides JSZip; slide builder uses .potx template) -->
+    <script src="vendor/pptxgen.bundle.js"></script>
+    <script src="pptx-export.js"></script>
     <script>
         // Apply saved theme on load
         (function() {
