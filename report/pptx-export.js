@@ -1244,14 +1244,6 @@
         // Region label: prefer the rendered Scenario block which already
         // resolves the region key to a friendly name.
         var regionLabel = s.localInstanceRegion || '\u2014';
-        if (typeof window.__odinGetReportState === 'function') {
-            try {
-                var rb = document.querySelector('#report-summary .summary-section');
-                // Best-effort: leave as the state value; the renderer also
-                // ships a friendly label which we cannot easily reach here
-                // without a helper. State value is acceptable as-is.
-            } catch (e) { /* noop */ }
-        }
         var cloudLabel = (s.azureCloud || 'commercial').toLowerCase() === 'usgov'
             ? 'Azure US Government' : 'Azure Commercial';
 
