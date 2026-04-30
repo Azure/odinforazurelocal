@@ -8532,6 +8532,48 @@
                 'hwProfile-only: numberOfCores=18 (per-socket) → coresPerSocket = 18',
                 18, window._pendingClusterImport && window._pendingClusterImport.coresPerSocket));
 
+            // Case F (#207 follow-up): Real-world ASEPRO2 / Intel Xeon Gold 6209U JSON
+            // shape supplied by the issue reporter — single-socket machine. The "U" SKU is
+            // a Uniprocessor part (1 socket only), 20 physical cores, 40 logical cores.
+            // Both code paths (detectedProperties.processorCount = "1" and
+            // hardwareProfile.numberOfCpuSockets = 1) agree, so the parser must NOT
+            // promote it to 2 sockets via any heuristic.
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'microsoft.hybridcompute/machines',
+                name: 'AZ-Node1',
+                location: 'southcentralus',
+                properties: {
+                    displayName: 'AZ-Node1',
+                    detectedProperties: {
+                        manufacturer: 'Microsoft', model: 'ASEPRO2',
+                        coreCount: '20', logicalCoreCount: '40', processorCount: '1',
+                        processorNames: 'Intel(R) Xeon(R) Gold 6209U CPU @ 2.10GHz',
+                        totalPhysicalMemoryInBytes: '274877906944',
+                        totalPhysicalMemoryInGigabytes: '256'
+                    },
+                    hardwareProfile: {
+                        totalPhysicalMemoryInBytes: 274877906944,
+                        numberOfCpuSockets: 1,
+                        processors: [{ name: 'Intel(R) Xeon(R) Gold 6209U CPU @ 2.10GHz', numberOfCores: 20 }]
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 1,
+                'ASEPRO2 / Xeon Gold 6209U JSON → sockets = 1 (uniprocessor SKU)',
+                1, window._pendingClusterImport && window._pendingClusterImport.sockets));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.coresPerSocket === 20,
+                'ASEPRO2 / Xeon Gold 6209U JSON → coresPerSocket = 20',
+                20, window._pendingClusterImport && window._pendingClusterImport.coresPerSocket));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.memoryGB === 256,
+                'ASEPRO2 / Xeon Gold 6209U JSON → memoryGB = 256 (DIMM-snapped)',
+                256, window._pendingClusterImport && window._pendingClusterImport.memoryGB));
+
             cleanup();
             return results;
         })());
