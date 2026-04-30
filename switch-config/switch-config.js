@@ -29,6 +29,16 @@
         } else {
             document.getElementById('sc-no-data').style.display = 'block';
         }
+
+        // First-visit walkthrough (mirrors Sizer onboarding pattern)
+        try {
+            if (typeof window.showSwitchOnboarding === 'function'
+                && !localStorage.getItem('odin_switch_onboarding_v0_20_67')) {
+                window.showSwitchOnboarding();
+            }
+        } catch (e) {
+            // localStorage may be blocked in some browsers; fail silently
+        }
     });
 
     // ── Load Designer state from localStorage ────────────────────────
@@ -1155,3 +1165,139 @@ function updateAddComputeBtn() {
     }
     btn.disabled = allVisible;
 }
+
+// ============================================
+// ONBOARDING WALKTHROUGH (ToR Switch page)
+// ============================================
+// Mirrors the Sizer onboarding pattern (sizer/sizer.js). Uses the shared
+// `.onboarding-overlay` / `.onboarding-card` styles in css/style.css, which
+// the ToR Switch page already loads. First-visit auto-trigger is gated on
+// the localStorage key below; the nav-bar Help button calls
+// showSwitchOnboarding() on demand and is wired up in js/nav.js.
+/* global showSwitchOnboarding */
+var SWITCH_ONBOARDING_KEY = 'odin_switch_onboarding_v0_20_67';
+
+var switchOnboardingSteps = [
+    {
+        icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        isImage: true,
+        title: 'Welcome to the ODIN ToR Switch tool',
+        description: 'Generate example Top-of-Rack, BMC, and border switch configurations from your Designer state, or audit an existing running-config against Azure Local QoS requirements.',
+        features: [
+            { icon: '🔧', title: 'Config Generator', text: 'Renders ToR1–ToR4, BMC, and border switch configs in Cisco NX-OS or Dell OS10 from a structured JSON model' },
+            { icon: '🛡️', title: 'QoS Validator', text: 'Paste a <code>show running-config</code> to score it against PFC, ETS, ECN, MTU 9216, and per-port settings' },
+            { icon: '🏗️', title: 'Designer Integration', text: 'Auto-loads from your Designer wizard if you arrived via the “Generate / Validate ToR Switch Configuration” button' },
+            { icon: '📋', title: 'Multi-Rack Support', text: 'Up to 8 racks / 16 ToRs for disaggregated leaf-spine designs, with per-rack BGP ASN, loopbacks, SVIs, and iBGP peering' }
+        ]
+    },
+    {
+        icon: '🔧',
+        title: 'Generate Switch Configurations',
+        description: 'Configure your ToR / BMC switches and infrastructure tokens, then click Generate to render platform-specific configs in tabs.',
+        features: [
+            { icon: '1️⃣', title: 'Switch Selection', text: 'Pick ToR and BMC models — Cisco Nexus 9000 family or Dell OS10. The model determines which renderer is used' },
+            { icon: '2️⃣', title: 'Infrastructure Tokens', text: 'Timezone (with DST), NTP, syslog, TACACS+, SNMP, management VLAN, default gateway — all replaceable values in the rendered config' },
+            { icon: '3️⃣', title: 'Per-Rack BGP / SVI', text: 'For rack-aware deployments: loopbacks, BGP ASN (auto-incremented from 64789), SVIs, P2P links to spine, and iBGP peering — all per rack' },
+            { icon: '4️⃣', title: 'Generate &amp; Export', text: 'Click Generate Switch Configurations to render all configs in tabs. Each tab has Copy / Download / Export JSON buttons' }
+        ]
+    },
+    {
+        icon: '🛡️',
+        title: 'Validate an existing switch config',
+        description: 'Already have a running-config? Paste it into the QoS Validator to score it against Azure Local requirements.',
+        features: [
+            { icon: '📋', title: 'Paste &amp; Analyze', text: 'Paste <code>show running-config</code> (Cisco) or <code>show running-configuration</code> (Dell OS10) — entirely client-side, nothing leaves your browser' },
+            { icon: '🎯', title: 'Deployment Profiles', text: 'Auto-detect from Designer, Switched HCI, Switchless HCI (storage N/A), Disaggregated FC SAN, or Disaggregated iSCSI — pick the right ruleset' },
+            { icon: '✅', title: 'Pass / Warn / Fail / N/A', text: 'Each check shows what passed, what to fix, and what doesn’t apply for your deployment type' },
+            { icon: '🔒', title: 'Privacy', text: 'All processing is local in your browser. No telemetry on the pasted config — only an anonymous “QoS Audit completed” counter increments' }
+        ]
+    }
+];
+
+var currentSwitchOnboardingStep = 0;
+
+window.showSwitchOnboarding = function () {
+    currentSwitchOnboardingStep = 0;
+    renderSwitchOnboardingStep();
+};
+
+function renderSwitchOnboardingStep() {
+    var step = switchOnboardingSteps[currentSwitchOnboardingStep];
+
+    var existing = document.querySelectorAll('.onboarding-overlay');
+    for (var x = 0; x < existing.length; x++) { existing[x].remove(); }
+
+    var overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+
+    var featuresHtml = '';
+    for (var f = 0; f < step.features.length; f++) {
+        var feat = step.features[f];
+        featuresHtml += '<div class="onboarding-feature">'
+            + '<span class="onboarding-feature-icon">' + feat.icon + '</span>'
+            + '<div class="onboarding-feature-text">'
+            + '<strong>' + feat.title + '</strong>'
+            + feat.text
+            + '</div>'
+            + '</div>';
+    }
+
+    var dotsHtml = '';
+    for (var d = 0; d < switchOnboardingSteps.length; d++) {
+        dotsHtml += '<div class="onboarding-dot' + (d === currentSwitchOnboardingStep ? ' active' : '') + '"></div>';
+    }
+
+    var nextLabel = (currentSwitchOnboardingStep === switchOnboardingSteps.length - 1) ? 'Get Started' : 'Next';
+
+    overlay.innerHTML = '<div class="onboarding-card">'
+        + '<div class="onboarding-icon' + (step.isImage ? ' onboarding-icon-image' : '') + '">' + step.icon + '</div>'
+        + '<h2 class="onboarding-title">' + step.title + '</h2>'
+        + '<p class="onboarding-description">' + step.description + '</p>'
+        + '<div class="onboarding-features">' + featuresHtml + '</div>'
+        + '<div class="onboarding-progress">' + dotsHtml + '</div>'
+        + '<div class="onboarding-buttons">'
+        + '<button class="onboarding-btn onboarding-btn-secondary" data-action="skip">Skip</button>'
+        + '<button class="onboarding-btn onboarding-btn-primary" data-action="next">' + nextLabel + '</button>'
+        + '</div>'
+        + '</div>';
+
+    overlay.querySelector('[data-action="skip"]').addEventListener('click', skipSwitchOnboarding);
+    overlay.querySelector('[data-action="next"]').addEventListener('click', function () {
+        if (currentSwitchOnboardingStep === switchOnboardingSteps.length - 1) {
+            finishSwitchOnboarding();
+        } else {
+            nextSwitchOnboardingStep();
+        }
+    });
+
+    document.body.appendChild(overlay);
+}
+
+function nextSwitchOnboardingStep() {
+    currentSwitchOnboardingStep++;
+    if (currentSwitchOnboardingStep < switchOnboardingSteps.length) {
+        renderSwitchOnboardingStep();
+    } else {
+        finishSwitchOnboarding();
+    }
+}
+
+function skipSwitchOnboarding() {
+    try { localStorage.setItem(SWITCH_ONBOARDING_KEY, 'true'); } catch (e) { /* ignore */ }
+    var els = document.querySelectorAll('.onboarding-overlay');
+    for (var i = 0; i < els.length; i++) { els[i].remove(); }
+}
+
+function finishSwitchOnboarding() {
+    try { localStorage.setItem(SWITCH_ONBOARDING_KEY, 'true'); } catch (e) { /* ignore */ }
+    var els = document.querySelectorAll('.onboarding-overlay');
+    for (var i = 0; i < els.length; i++) { els[i].remove(); }
+}
+
+// Close onboarding overlay on Escape key
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        var els = document.querySelectorAll('.onboarding-overlay');
+        if (els.length > 0) { skipSwitchOnboarding(); }
+    }
+});
