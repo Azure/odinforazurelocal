@@ -7902,13 +7902,10 @@
             return r;
         })());
 
-        testSuite('Quick Start: applyQuickStart + exitQuickStart helpers exposed', 'switch-config.js', [
+        testSuite('Quick Start: applyQuickStart helper exposed', 'switch-config.js', [
             assert(typeof window.applyQuickStart === 'function',
                 'window.applyQuickStart is a function', true,
-                typeof window.applyQuickStart === 'function'),
-            assert(typeof window.exitQuickStart === 'function',
-                'window.exitQuickStart is a function', true,
-                typeof window.exitQuickStart === 'function')
+                typeof window.applyQuickStart === 'function')
         ]);
 
         // ========================================================================

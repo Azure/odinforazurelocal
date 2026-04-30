@@ -27,16 +27,19 @@
         if (!document.getElementById('sc-tor-model')) return;
         loadDesignerData();
         populateModelDropdowns();
-        // Pre-select the Quick Start dropdown to match any existing Designer
-        // state, so it's ready if the user later opens it via "Change
-        // Deployment Type" or arrives with partial data.
+        // The Deployment Type picker is ALWAYS visible at the top of the page,
+        // regardless of whether Designer data is present. Pre-select its
+        // controls to reflect the current state so the user can see at a glance
+        // which scenario the form below is using, and change it without leaving
+        // the page.
         preselectQuickStartFromDesigner();
+        updateQuickStartHeading();
         if (designerState) {
             populateFromDesigner();
             document.getElementById('sc-main').style.display = 'block';
-        } else {
-            document.getElementById('sc-quick-start').style.display = 'block';
         }
+        // (No-Designer-data case: the picker alone is shown — clicking
+        //  "Use These Defaults" reveals the rest of the form.)
 
         // First-visit walkthrough (mirrors Sizer onboarding pattern)
         try {
@@ -367,9 +370,11 @@
     }
 
     /**
-     * Apply the Quick Start picker's current values: synthesize a Designer
-     * state, populate the form, hide the picker, show the main panel +
-     * "Quick Start mode" banner.
+     * Apply the Deployment Type picker's current values: synthesize a Designer
+     * state, populate the form, and reveal the main panel. Safe to call when
+     * the form is already populated (e.g. when the user changes the picker
+     * after arriving from the Designer) — replaces the current state with the
+     * synthesized one and updates the heading copy accordingly.
      */
     function applyQuickStart() {
         var profileSelect = document.getElementById('sc-quick-start-profile');
@@ -382,12 +387,16 @@
         }
         designerState = buildQuickStartState(profile, scale);
         populateFromDesigner();
-        var qs = document.getElementById('sc-quick-start');
-        if (qs) qs.style.display = 'none';
         var main = document.getElementById('sc-main');
         if (main) main.style.display = 'block';
-        var banner = document.getElementById('sc-quick-start-banner');
-        if (banner) banner.style.display = 'flex';
+        // Update the picker heading to reflect that the form is now driven by
+        // these defaults (not by Designer state).
+        updateQuickStartHeading();
+        // Smooth-scroll the form into view so the user can see the change took
+        // effect, without losing the picker at the top of the page.
+        if (main && typeof main.scrollIntoView === 'function') {
+            main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
         // Note: no trackFormCompletion() call here. Quick Start is a UI mode
         // toggle, not a completion event — the existing generateConfigs() /
         // runQosAudit() flows already increment switchConfigGenerated /
@@ -396,29 +405,51 @@
     }
 
     /**
-     * Return to the Quick Start picker (used by the "Change Deployment Type"
-     * button on the in-form banner). Hides the main panel and re-shows the
-     * picker with current values preserved so users can switch profile.
+     * Update the picker heading, intro paragraph, and apply-button label to
+     * reflect whether the form is currently driven by genuine Designer data
+     * (transferred via the "Generate ToR Switch Configuration" action) or by
+     * synthesized Quick Start defaults — or whether nothing has been loaded
+     * yet. Keeps the user oriented as they switch back and forth.
      */
-    function exitQuickStart() {
-        var main = document.getElementById('sc-main');
-        if (main) main.style.display = 'none';
-        var banner = document.getElementById('sc-quick-start-banner');
-        if (banner) banner.style.display = 'none';
-        var qs = document.getElementById('sc-quick-start');
-        if (qs) qs.style.display = 'block';
-        // Keep the dropdown matched to whatever profile is currently active
-        // (either synthetic Quick Start or genuine Designer state)
-        preselectQuickStartFromDesigner();
-        // Scroll the picker into view so it's not hidden behind the nav
-        if (qs && typeof qs.scrollIntoView === 'function') {
-            qs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    function updateQuickStartHeading() {
+        var badge = document.getElementById('sc-quick-start-mode-badge');
+        var intro = document.getElementById('sc-quick-start-intro');
+        var btn = document.getElementById('sc-quick-start-btn');
+        if (!badge || !intro || !btn) return;
+
+        var isQuickStart = designerState && designerState.scenario === 'quickstart';
+        var isDesigner = designerState && !isQuickStart;
+
+        if (isDesigner) {
+            badge.textContent = 'loaded from Designer';
+            intro.innerHTML = 'The form below is using values transferred from the <a href="../">ODIN Designer</a>. ' +
+                'You can change the deployment scenario at any time — switching the picker and clicking <strong>Apply</strong> ' +
+                'will replace the form with sensible defaults for the new profile (your hardware-model and per-rack picks below ' +
+                'will reset).';
+            btn.innerHTML = '\u21BB Apply';
+            btn.title = 'Replace the form with defaults for the selected deployment type';
+        } else if (isQuickStart) {
+            badge.textContent = 'using picker defaults';
+            intro.innerHTML = 'The form below is using illustrative defaults for the selected deployment type — ' +
+                'every VLAN ID, IP, and hostname must be edited to match your actual network plan before applying. ' +
+                'For a fully-tailored config, <a href="../">complete the Designer wizard</a> first and use its ' +
+                '<em>Generate Switch Config</em> action.';
+            btn.innerHTML = '\u21BB Apply';
+            btn.title = 'Replace the form with defaults for the selected deployment type';
+        } else {
+            badge.textContent = 'no Designer data';
+            intro.innerHTML = 'No deployment data was found from the <a href="../">ODIN Designer</a>. ' +
+                'Pick a <strong>Deployment Type</strong> below to load sensible defaults — you can then edit every field ' +
+                'before generating switch configs. For a fully-tailored config (correct VLAN IDs, tenant networks, ' +
+                'rack-aware topology), <a href="../">complete the Designer wizard</a> first and use its ' +
+                '<em>Generate Switch Config</em> action.';
+            btn.innerHTML = '\u25B6 Use These Defaults';
+            btn.title = 'Load defaults for the selected deployment type and reveal the form';
         }
     }
 
     // Expose to inline onclick handlers in switch-config/index.html
     window.applyQuickStart = applyQuickStart;
-    window.exitQuickStart = exitQuickStart;
     // Exposed for unit tests
     window.__buildQuickStartState = buildQuickStartState;
 
