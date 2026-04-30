@@ -8617,6 +8617,87 @@
             return results;
         })());
 
+        testSuite('parseAndPreviewClusterJSON: re-parse preserves user-modified preview selections (#207)', 'sizer.js', (() => {
+            var results = [];
+
+            function makeStub2() {
+                var ids = ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'];
+                ids.forEach(function (id) {
+                    if (!document.getElementById(id)) {
+                        var el = document.createElement(id === 'cluster-json-input' ? 'textarea' : 'div');
+                        el.id = id;
+                        el.style.display = 'none';
+                        document.body.appendChild(el);
+                    }
+                });
+            }
+            function cleanup2() {
+                ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            // Step 1: build a valid JSON and parse once → preview is rendered with default selections.
+            makeStub2();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-01',
+                properties: {
+                    displayName: 'Reparse Test',
+                    hardwareProfile: {
+                        numberOfCpuSockets: 2,
+                        totalPhysicalMemoryInBytes: 512 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Gold 6354', numberOfCores: 36 }]
+                    },
+                    detectedProperties: { manufacturer: 'Dell', model: 'PE R760', processorCount: '2', coreCount: '36' }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* preview formatting may throw on light stubs */ }
+
+            // Step 2: simulate the user changing every preview-time control to a non-default value.
+            var nodeInput = document.getElementById('cluster-node-count-input');
+            if (nodeInput) nodeInput.value = '6';
+            var rackRadio = document.querySelector('input[name="cluster-import-deploy-type"][value="rack-aware"]');
+            if (rackRadio) rackRadio.checked = true;
+            var diskCountSel = document.getElementById('cluster-import-disk-count');
+            if (diskCountSel) diskCountSel.value = '8';
+            var diskSizeSel = document.getElementById('cluster-import-disk-size');
+            if (diskSizeSel) diskSizeSel.value = '7.68';
+
+            // Step 3: re-click Parse & Preview (e.g. the user clicked it by mistake).
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            // The preview is rebuilt, but the user's customised selections must be carried over.
+            var nodeInput2 = document.getElementById('cluster-node-count-input');
+            results.push(assert(
+                nodeInput2 && nodeInput2.value === '6',
+                're-parse preserves machine count (6) instead of resetting to default (2)',
+                '6', nodeInput2 && nodeInput2.value));
+
+            var checkedRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+            results.push(assert(
+                checkedRadio && checkedRadio.value === 'rack-aware',
+                're-parse preserves Rack-Aware deployment type instead of resetting to Hyperconverged',
+                'rack-aware', checkedRadio && checkedRadio.value));
+
+            var diskCountSel2 = document.getElementById('cluster-import-disk-count');
+            results.push(assert(
+                diskCountSel2 && diskCountSel2.value === '8',
+                're-parse preserves S2D disk count (8) instead of resetting to default (4)',
+                '8', diskCountSel2 && diskCountSel2.value));
+
+            var diskSizeSel2 = document.getElementById('cluster-import-disk-size');
+            results.push(assert(
+                diskSizeSel2 && diskSizeSel2.value === '7.68',
+                're-parse preserves S2D disk size (7.68 TB) instead of resetting to default (3.84 TB)',
+                '7.68', diskSizeSel2 && diskSizeSel2.value));
+
+            cleanup2();
+            return results;
+        })());
+
         testSuite('applyClusterJSONImport: deployment type, single-node, resiliency (#207)', 'sizer.js', (() => {
             var results = [];
 

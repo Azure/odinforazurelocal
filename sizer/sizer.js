@@ -6452,6 +6452,26 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     var applyBtn = document.getElementById('cluster-import-apply-btn');
     if (!textarea) return;
 
+    // Issue #207 follow-up: if the user has already clicked Parse & Preview
+    // once and then customised the in-preview controls (machine count,
+    // deployment type, S2D disk count / size), preserve those choices across
+    // a re-click of Parse & Preview so accidental re-parsing does not silently
+    // reset their selections to the defaults.
+    var previouslyVisible = previewDiv && previewDiv.style.display !== 'none' && previewDiv.innerHTML.trim() !== '';
+    var preservedSelections = null;
+    if (previouslyVisible) {
+        var prevNodeInput = document.getElementById('cluster-node-count-input');
+        var prevDeployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+        var prevDiskCountSel = document.getElementById('cluster-import-disk-count');
+        var prevDiskSizeSel = document.getElementById('cluster-import-disk-size');
+        preservedSelections = {
+            nodeCount: prevNodeInput ? prevNodeInput.value : null,
+            deployType: prevDeployRadio ? prevDeployRadio.value : null,
+            diskCount: prevDiskCountSel ? prevDiskCountSel.value : null,
+            diskSize: prevDiskSizeSel ? prevDiskSizeSel.value : null
+        };
+    }
+
     errDiv.style.display = 'none';
     previewDiv.style.display = 'none';
     applyBtn.style.display = 'none';
@@ -6655,6 +6675,34 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     previewDiv.innerHTML = previewHTML;
     previewDiv.style.display = '';
     applyBtn.style.display = '';
+
+    // Issue #207 follow-up: restore any user-modified selections that were
+    // captured at the top of this function so an accidental re-click of
+    // Parse & Preview does not silently reset the user's choices.
+    if (preservedSelections) {
+        var restNodeInput = document.getElementById('cluster-node-count-input');
+        if (restNodeInput && preservedSelections.nodeCount !== null && preservedSelections.nodeCount !== '') {
+            restNodeInput.value = preservedSelections.nodeCount;
+        }
+        if (preservedSelections.deployType) {
+            var restRadio = document.querySelector('input[name="cluster-import-deploy-type"][value="' + preservedSelections.deployType + '"]');
+            if (restRadio) restRadio.checked = true;
+        }
+        var restDiskCountSel = document.getElementById('cluster-import-disk-count');
+        if (restDiskCountSel && preservedSelections.diskCount) {
+            var dcOpts = Array.prototype.map.call(restDiskCountSel.options, function (o) { return o.value; });
+            if (dcOpts.indexOf(preservedSelections.diskCount) !== -1) {
+                restDiskCountSel.value = preservedSelections.diskCount;
+            }
+        }
+        var restDiskSizeSel = document.getElementById('cluster-import-disk-size');
+        if (restDiskSizeSel && preservedSelections.diskSize) {
+            var dsOpts = Array.prototype.map.call(restDiskSizeSel.options, function (o) { return o.value; });
+            if (dsOpts.indexOf(preservedSelections.diskSize) !== -1) {
+                restDiskSizeSel.value = preservedSelections.diskSize;
+            }
+        }
+    }
 
     // Run an initial validation pass so the Load button reflects the default
     // selection (Hyperconverged + 2 machines = always valid, but this also
