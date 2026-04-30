@@ -1937,6 +1937,9 @@
                     // Sizer hardware (hidden, imported from Sizer tool)
                     'sizerHardware',
                     'sizerWorkloads',
+                    // Disconnected (ALDO) — cluster role + Autonomous Cloud FQDN
+                    'clusterRole',
+                    'autonomousCloudFqdn',
                     // Disaggregated architecture state
                     'architecture',
                     'disaggStorageType',
@@ -2015,6 +2018,7 @@
                     'sdnEnabled', 'sdnFeatures', 'sdnManagement', 'securityConfiguration',
                     'securitySettings', 'rdmaGuardMessage', 'privateEndpoints', 'privateEndpointsList',
                     'sizerHardware', 'sizerWorkloads',
+                    'clusterRole', 'autonomousCloudFqdn',
                     'architecture', 'disaggStorageType', 'disaggBackupEnabled', 'disaggPortCount', 'disaggRackCount',
                     'disaggNodesPerRack', 'disaggSpineCount', 'disaggVlans', 'disaggVnis',
                     'disaggVrfName', 'disaggVrfMode', 'disaggSubnets', 'disaggIscsiTargets', 'disaggQosCustomized',
@@ -2073,6 +2077,10 @@
                 state.disaggBackupEnabled = true;
                 state.intentOverrides = { mgmt: { rdma: true } };
                 state.privateEndpointsList = ['keyvault', 'storage'];
+                // ALDO disconnected fields — these were silently missing from
+                // the original factory and would survive a Start Over.
+                state.clusterRole = 'management';
+                state.autonomousCloudFqdn = 'cloud.contoso.local';
                 // User preferences should survive a Start Over.
                 state.theme = 'light';
                 state.fontSize = 'large';
@@ -2107,7 +2115,9 @@
                     ['disaggStorageType', state.disaggStorageType, null],
                     ['disaggRackCount', state.disaggRackCount, null],
                     ['disaggNodesPerRack', state.disaggNodesPerRack, null],
-                    ['disaggBackupEnabled', state.disaggBackupEnabled, false]
+                    ['disaggBackupEnabled', state.disaggBackupEnabled, false],
+                    ['clusterRole', state.clusterRole, null],
+                    ['autonomousCloudFqdn', state.autonomousCloudFqdn, null]
                 ];
                 const failed = checks.filter(function (c) { return c[1] !== c[2]; });
                 return assert(
@@ -7945,6 +7955,7 @@
                 'sizerHardware', 'sizerWorkloads',
                 // Disconnected
                 'fqdnConfirmed', 'storagePoolConfiguration',
+                'clusterRole', 'autonomousCloudFqdn',
                 // Disaggregated SAN LUN IDs (Step 16)
                 'infraVolLunId', 'infraPerfLunId'
             ];

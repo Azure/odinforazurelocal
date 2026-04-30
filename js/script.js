@@ -296,6 +296,13 @@ function getInitialWizardState() {
     privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
     sizerHardware: null, // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
     sizerWorkloads: null, // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
+    // Disconnected (ALDO) deployment role + paired Autonomous-Cloud FQDN.
+    // clusterRole: 'management' | 'workload' | null — selected on the Disconnected
+    // Operations step when scenario === 'disconnected'.
+    // autonomousCloudFqdn: string | null — the air-gapped cloud FQDN entered on
+    // the same step (and pre-populated from a Sizer ALDO handoff).
+    clusterRole: null,
+    autonomousCloudFqdn: null,
     // Disaggregated architecture state
     disaggStorageType: null, // 'fc_san' | 'iscsi_4nic' | 'iscsi_6nic'
     disaggBackupEnabled: false,
