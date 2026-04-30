@@ -53,11 +53,38 @@
     });
 
     // ── Load Designer state from localStorage ────────────────────────
+    // Only consume the payload when the page was opened via the Designer's
+    // "Generate ToR Switch Configuration" action (which appends
+    // ?from=designer to the URL). Without that signal, the localStorage key
+    // is stale data left over from a previous session — ignoring it
+    // prevents the picker from misleadingly claiming "loaded from Designer"
+    // when the user hasn't actually transferred anything this visit. The
+    // payload is removed after consumption so a refresh of this same tab
+    // doesn't re-apply old data.
     function loadDesignerData() {
         try {
+            var fromDesigner = false;
+            try {
+                var params = new URLSearchParams(window.location.search);
+                fromDesigner = params.get('from') === 'designer';
+            } catch (paramErr) {
+                fromDesigner = false;
+            }
+            if (!fromDesigner) {
+                return;
+            }
             var raw = localStorage.getItem(STORAGE_KEY);
             if (!raw) return;
             designerState = JSON.parse(raw);
+            // Consume-once: clear the key so a manual refresh of this tab
+            // (which drops the ?from=designer query when bookmarked, etc.)
+            // doesn't resurrect stale data, and so future visits to
+            // /switch-config/ without a fresh transfer start clean.
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch (clearErr) {
+                // localStorage may be blocked; fail silently
+            }
         } catch (e) {
             console.warn('Failed to load switch-config payload:', e);
         }
@@ -452,6 +479,11 @@
     window.applyQuickStart = applyQuickStart;
     // Exposed for unit tests
     window.__buildQuickStartState = buildQuickStartState;
+    // Exposed so the global addComputeVlan() helper (declared outside this
+    // IIFE) can read the live in-memory state. We can no longer rely on
+    // localStorage there because loadDesignerData() consumes-and-clears the
+    // payload on first load (see the comment on loadDesignerData above).
+    window.__getSwitchConfigDesignerState = function () { return designerState; };
 
     /**
      * Flatten disaggregated tenant networks into a simple array of VLAN objects.
@@ -1298,14 +1330,14 @@ window.addComputeVlan = function () {
         var block = document.getElementById('sc-compute-vlan-' + i);
         if (block && block.style.display === 'none') {
             block.style.display = '';
-            // Auto-populate SVI defaults for rack-aware deployments
-            var dsRaw = null;
-            try {
-                dsRaw = JSON.parse(localStorage.getItem('odinDesignerToSwitchConfig'));
-            } catch (e) {
-                console.warn('Failed to parse odinDesignerToSwitchConfig from localStorage; falling back to defaults:', e);
-            }
-            var ra = dsRaw && (dsRaw.scale === 'rack-aware' || dsRaw.scale === 'rack_aware');
+            // Auto-populate SVI defaults for rack-aware deployments. The
+            // rack-aware flag now comes from the in-memory designerState
+            // (Designer transfer or Quick Start defaults) — not from
+            // localStorage, which loadDesignerData() consumes-and-clears.
+            var ds = (typeof window.__getSwitchConfigDesignerState === 'function')
+                ? window.__getSwitchConfigDesignerState()
+                : null;
+            var ra = ds && (ds.scale === 'rack-aware' || ds.scale === 'rack_aware');
             var gwField = document.getElementById('sc-compute-vlan' + i + '-gw');
             if (gwField && gwField.value) {
                 var parts = gwField.value.split('.');
