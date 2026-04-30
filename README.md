@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.20.09 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.20.10 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,7 +46,17 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.20.09 - Latest Release
+### 🎉 Version 0.20.10 - Latest Release
+- **Security & code-quality release**: This release contains no end-user feature changes. It tightens the build, dependency, and CI surface so future work is safer to land.
+- **All third-party JS libraries vendored locally** (`vendor/html2canvas-1.4.1.min.js`, `vendor/jspdf-4.2.1.umd.min.js`, `vendor/three-0.128.0.min.js`, `vendor/three-OrbitControls-0.128.0.js`). The Designer, Sizer, and Configuration Report pages no longer fetch any runtime JavaScript from `cdn.jsdelivr.net`. Firebase analytics (loaded from `gstatic.com`) is unchanged. Offline / air-gapped users no longer need an internet round-trip for the rack 3D viewer or PDF export.
+- **CSS lint added to CI** (`stylelint` with `custom-property-no-missing-var-function` and `color-no-invalid-hex`). Catches the bug class that surfaced earlier this cycle (undefined CSS custom properties).
+- **CodeQL security scanning** workflow added (`.github/workflows/codeql.yml`) — runs `security-and-quality` queries on every PR and weekly.
+- **`npm audit --audit-level=high`** added as a CI gate so new high-severity advisories block merges. `basic-ftp` override bumped to `>=5.3.1` to clear advisory `GHSA-rp42-5vxx-qpwr`. `npm audit` is currently clean.
+- **PPTX export smoke test** added (`scripts/smoke-test-pptx.js`) — runs in CI to verify the PowerPoint export produces a valid ZIP / OOXML file end-to-end.
+- **Code-quality cleanup**: replaced two silent `catch (e) {}` blocks with `console.warn` (`switch-config/switch-config.js`) and explanatory comments (`report/report.js`); replaced deprecated CSS keywords (`word-break: break-word`, `page-break-inside: avoid`) with their modern equivalents; removed the unreferenced `docs/outbound-connectivity/styles_backup.css`.
+- **ESLint convention documented** in `docs/ESLINT_CONFIG_NOTES.md`: every empty `catch` must include an inline comment explaining why the error is safe to swallow.
+
+#### 🎉 Version 0.20.09
 - **Configuration Report — PowerPoint Export**: New **📊 Download PowerPoint** button on the Configuration Report page generates a fully styled `.pptx` deck of the current design. Template-driven (the look comes from `report/template/OdinPPTTemplate.potx`); slides cover Deployment Scenario & Scale, Physical Network, Rack Configuration, Leaf & Spine, AKS Reachability, Host Networking, Outbound Connectivity, Proxy, Security, Private Endpoints, Infrastructure Network, and a closing slide with links. Includes Microsoft Learn reference hyperlinks per network pattern, ✓/✗ run coloring on the Security slide, callout banners (e.g. Arc Private Link unsupported on Azure Local), and a footer subnet-utilisation visual on the Infrastructure Network slide. Generation is fully client-side — no telemetry, no backend.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
@@ -370,7 +380,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.20.09  
+**Version**: 0.20.10  
 **Last Updated**: April 2026  
 **Compatibility**: Azure Local 2506+
 

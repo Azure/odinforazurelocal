@@ -53,7 +53,25 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.09</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.10</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">April 30, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛡️ Security &amp; Code-Quality Release</h4>
+                    <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">No end-user feature changes. Tightens the build, dependency, and CI surface.</p>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>All third-party JS vendored locally</strong> (<code>html2canvas</code>, <code>jsPDF</code>, <code>three.js</code>, <code>OrbitControls</code>) — Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from <code>cdn.jsdelivr.net</code>. Better for offline / air-gapped use.</li>
+                        <li><strong>CSS lint added to CI</strong> (<code>stylelint</code>) — catches undefined CSS custom properties and invalid hex values.</li>
+                        <li><strong>CodeQL security scanning</strong> enabled — runs on every PR and weekly.</li>
+                        <li><strong><code>npm audit</code> CI gate</strong> — high-severity advisories now block merges. <code>basic-ftp</code> override bumped to <code>&gt;=5.3.1</code> (clears <code>GHSA-rp42-5vxx-qpwr</code>).</li>
+                        <li><strong>PPTX export smoke test</strong> in CI — verifies the PowerPoint export produces a valid file end-to-end.</li>
+                        <li><strong>Code-quality cleanup</strong>: silent <code>catch</code> blocks documented or replaced with <code>console.warn</code>; deprecated CSS keywords (<code>word-break: break-word</code>, <code>page-break-inside</code>) replaced with modern equivalents; unreferenced <code>styles_backup.css</code> removed.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.08); border-left: 4px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.20.09</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">April 30, 2026</div>
                 </div>
 

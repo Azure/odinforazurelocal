@@ -506,7 +506,7 @@ body {
 .qa-mono {
     font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
     font-size: 0.8rem;
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .qa-row-pass { }

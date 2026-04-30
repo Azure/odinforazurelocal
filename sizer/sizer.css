@@ -403,7 +403,7 @@ header .header-description {
         background: white !important;
         border: 1px solid #d1d5db !important;
         color: #111 !important;
-        page-break-inside: avoid;
+        break-inside: avoid;
     }
 
     .config-section h2,
@@ -438,7 +438,7 @@ header .header-description {
         background: #f9fafb !important;
         border: 1px solid #d1d5db !important;
         color: #111 !important;
-        page-break-inside: avoid;
+        break-inside: avoid;
     }
 
     .workload-card-title,

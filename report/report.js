@@ -961,7 +961,7 @@
                     }
                 };
                 img.onerror = function () {
-                    try { URL.revokeObjectURL(svgUrl); } catch (eRevoke) { }
+                    try { URL.revokeObjectURL(svgUrl); } catch (eRevoke) { /* URL already revoked or never minted */ }
                     resolve(null);
                 };
 

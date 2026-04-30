@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.20.10] - 2026-04-30
+
+Security and code-quality release. No end-user feature changes; this release tightens the build, dependency, and CI surface so future work is safer to land.
+
+### Added
+
+- **`vendor/` folder** with locally-hosted copies of all third-party runtime JS:
+  - `vendor/html2canvas-1.4.1.min.js` (MIT)
+  - `vendor/jspdf-4.2.1.umd.min.js` (MIT)
+  - `vendor/three-0.128.0.min.js` (MIT)
+  - `vendor/three-OrbitControls-0.128.0.js` (MIT)
+  - `vendor/README.md` documenting versions, licenses, and source URLs.
+- **`.stylelintrc.json`** — minimal CSS lint config with `custom-property-no-missing-var-function` and `color-no-invalid-hex` enabled to catch the bug class that surfaced in Copilot AI findings (undefined `--nav-bg`, `--disclaimer-bg`, `--disclaimer-border`).
+- **`.github/workflows/codeql.yml`** — CodeQL security and quality scanning, runs on PR + weekly.
+- **`scripts/smoke-test-pptx.js`** — Puppeteer-driven smoke test that loads `report/report.html` with a seeded payload, intercepts the generated Blob, and asserts ZIP magic + size. Wired into CI as the `pptx-smoke` job.
+- **`docs/ESLINT_CONFIG_NOTES.md`** — documents the `allowEmptyCatch: true` convention (every empty catch must include an inline comment explaining why) and the rationale for the legacy-files override block.
+- **`npm audit --audit-level=high`** step in `.github/workflows/test.yml` — high-severity advisories now block CI.
+- **`stylelint`** step in `.github/workflows/test.yml`.
+
+### Changed
+
+- **3 HTML pages migrated off `cdn.jsdelivr.net`**:
+  - `index.html` — html2canvas, jsPDF.
+  - `sizer/index.html` — three.js, OrbitControls, html2canvas, jsPDF.
+  - `report/report.html` — html2canvas, jsPDF.
+- **`basic-ftp` override bumped** from `>=5.2.2` to `>=5.3.1` to clear advisory `GHSA-rp42-5vxx-qpwr`. `npm audit` is currently clean.
+- **Deprecated CSS keywords replaced** with modern equivalents:
+  - `word-break: break-word` → `overflow-wrap: anywhere` in `css/style.css` (`.summary-value`) and `switch-config/switch-config.css` (`.qa-mono`).
+  - `page-break-inside: avoid` → `break-inside: avoid` in `sizer/sizer.css` (×2).
+- **Silent `catch (e) {}` blocks** in `switch-config/switch-config.js` and `report/report.js` replaced with either `console.warn(...)` or an inline comment documenting why the error is safe to swallow.
+- **`js/theme.js`** — converted two legacy `var logoBase` declarations to `const`.
+
+### Removed
+
+- **`docs/outbound-connectivity/styles_backup.css`** — unreferenced anywhere; deleted.
+
+### Security
+
+- All Copilot AI findings from the previous review have been addressed (vendoring, CSS variable definitions, demo-spec selectors).
+- CodeQL `security-and-quality` queries now run automatically.
+
+---
+
 ## [0.20.09] - 2026-04-30
 
 ### Added

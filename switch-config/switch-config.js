@@ -1094,7 +1094,11 @@ window.addComputeVlan = function () {
             block.style.display = '';
             // Auto-populate SVI defaults for rack-aware deployments
             var dsRaw = null;
-            try { dsRaw = JSON.parse(localStorage.getItem('odinDesignerToSwitchConfig')); } catch (e) { /* ignore */ }
+            try {
+                dsRaw = JSON.parse(localStorage.getItem('odinDesignerToSwitchConfig'));
+            } catch (e) {
+                console.warn('Failed to parse odinDesignerToSwitchConfig from localStorage; falling back to defaults:', e);
+            }
             var ra = dsRaw && (dsRaw.scale === 'rack-aware' || dsRaw.scale === 'rack_aware');
             var gwField = document.getElementById('sc-compute-vlan' + i + '-gw');
             if (gwField && gwField.value) {

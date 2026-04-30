@@ -1124,7 +1124,7 @@ header .header-description {
 .summary-value {
     color: var(--text-primary);
     min-width: 0;
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .summary-value.mono {

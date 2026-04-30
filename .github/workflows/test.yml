@@ -111,3 +111,79 @@ jobs:
       
       - name: Validate HTML files
         run: npx html-validate index.html arm/arm.html report/report.html sizer/index.html --formatter stylish
+
+  stylelint:
+    name: CSS Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install stylelint
+        run: |
+          for i in 1 2 3 4 5; do
+            npm install stylelint stylelint-config-standard && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+
+      - name: Run stylelint on CSS files
+        run: npx stylelint "**/*.css"
+
+  pptx-smoke:
+    name: PPTX Export Smoke Test
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3 4 5; do
+            npm install && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+
+      - name: Run PPTX smoke test
+        run: node scripts/smoke-test-pptx.js
+
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3 4 5; do
+            npm install && break
+            echo "Attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+
+      - name: Run npm audit (high severity blocks build)
+        run: npm audit --audit-level=high

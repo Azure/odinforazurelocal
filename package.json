@@ -3,18 +3,24 @@
     "demo:sizer": "playwright test --config=tools/playwright.config.js demos/sizer-walkthrough.spec.js",
     "demo:full": "playwright test --config=tools/playwright.config.js demos/odin-full-walkthrough.spec.js",
     "demo:convert": "node tools/scripts/convert-to-mp4.js",
-    "demo:full:mobile": "node tools/scripts/convert-to-mp4-mobile.js"
+    "demo:full:mobile": "node tools/scripts/convert-to-mp4-mobile.js",
+    "lint:js": "eslint \"js/*.js\" \"arm/*.js\" \"report/*.js\" \"sizer/*.js\" \"switch-config/**/*.js\" \"docs/outbound-connectivity/*.js\"",
+    "lint:css": "stylelint \"**/*.css\"",
+    "lint:html": "html-validate \"**/*.html\"",
+    "test": "node scripts/run-tests.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "eslint": "^8.57.1",
-    "puppeteer": "^24.37.1"
+    "puppeteer": "^24.37.1",
+    "stylelint": "^17.9.1",
+    "stylelint-config-standard": "^40.0.0"
   },
   "dependencies": {
     "html-validate": "^10.7.0"
   },
-  "//": "basic-ftp override: NEVER downgrade below 5.2.2 (security vulnerability in <=5.2.1, see Dependabot PR #198)",
+  "//": "basic-ftp override: NEVER downgrade below 5.3.1 (DoS in Client.list() affects <=5.2.2, GHSA-rp42-5vxx-qpwr)",
   "overrides": {
-    "basic-ftp": ">=5.2.2"
+    "basic-ftp": ">=5.3.1"
   }
 }
