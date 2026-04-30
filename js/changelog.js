@@ -58,7 +58,19 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛡️ Security &amp; Code-Quality Release</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">� Sizer — JSON Import fixes (#207)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>CPU socket and core counts are now reconciled correctly</strong> when importing an Azure Local Machine JSON. The 1 vs 2 socket value from <code>numberOfCpuSockets</code> / <code>processorCount</code> is no longer overridden by an internal heuristic, and a 2&times;10 = 20-core machine no longer shows up as <em>20 &times; 1 socket</em>.</li>
+                        <li><strong>Setting machines = 1 in the import preview now forces Deployment Type to <em>Single Node</em></strong> (Hyperconverged is not a valid 1-node configuration).</li>
+                        <li><strong>Storage Resiliency now matches the imported cluster size</strong>: 2 nodes → Two-way Mirror, 3+ nodes → Three-way Mirror. Previously it always defaulted to Two-way Mirror.</li>
+                        <li><strong>Deployment-type prompt added to the Parse &amp; Preview screen</strong> — choose between Hyperconverged and Rack-Aware Cluster before applying. Single Node still auto-applies when machines = 1.</li>
+                        <li><strong>Rack-Aware Cluster machine-count validation</strong>: Rack-Aware only supports 2, 4, 6, or 8 machines. The Load button is disabled with an inline error until the count is valid.</li>
+                        <li><strong>"Apply Configuration" renamed to "Load Cluster Configuration"</strong> in the import modal.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">�🛡️ Security &amp; Code-Quality Release</h4>
                     <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">No end-user feature changes. Tightens the build, dependency, and CI surface.</p>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>All third-party JS vendored locally</strong> (<code>html2canvas</code>, <code>jsPDF</code>, <code>three.js</code>, <code>OrbitControls</code>) — Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from <code>cdn.jsdelivr.net</code>. Better for offline / air-gapped use.</li>

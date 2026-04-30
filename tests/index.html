@@ -8374,6 +8374,389 @@
         })());
 
         // ========================================================================
+        // REGRESSION TESTS — Issue #207: Sizer JSON Import bugs
+        // ========================================================================
+        sectionHeader('🐛 Regression Tests - Issue #207: Sizer JSON Import (Azure Local Machine)');
+
+        testSuite('parseAndPreviewClusterJSON: respects numberOfCpuSockets from JSON (#207)', 'sizer.js', (() => {
+            var results = [];
+
+            // Build the minimal DOM the parser reads from / writes to.
+            function makeStub() {
+                var ids = ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'];
+                ids.forEach(function (id) {
+                    if (!document.getElementById(id)) {
+                        var el = document.createElement(id === 'cluster-json-input' ? 'textarea' : 'div');
+                        el.id = id;
+                        el.style.display = 'none';
+                        document.body.appendChild(el);
+                    }
+                });
+            }
+            function cleanup() {
+                ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            // Case A: hwProfile with numberOfCpuSockets: 2 → sockets must be 2 (NOT overridden by core-count heuristic)
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-01',
+                properties: {
+                    displayName: 'Test Cluster',
+                    hardwareProfile: {
+                        numberOfCpuSockets: 2,
+                        totalPhysicalMemoryInBytes: 512 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Gold 6354', numberOfCores: 36 }]
+                    },
+                    detectedProperties: { manufacturer: 'Dell', model: 'PE R760', processorCount: '2', coreCount: '36' }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* DOM-light stubs may throw on missing preview formatting */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 2,
+                'numberOfCpuSockets: 2 → sockets = 2 (was incorrectly forced to 1 before fix)',
+                2, window._pendingClusterImport && window._pendingClusterImport.sockets));
+
+            // Case B: detectedProperties.processorCount: "2" with no hwProfile → still 2
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-02',
+                properties: {
+                    displayName: 'Test Cluster B',
+                    detectedProperties: {
+                        manufacturer: 'Dell', model: 'PE R760',
+                        processorCount: '2', coreCount: '32',
+                        processorNames: 'Intel Xeon Silver 4314',
+                        totalPhysicalMemoryInGigabytes: '256'
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 2,
+                'detectedProperties.processorCount: "2" → sockets = 2',
+                2, window._pendingClusterImport && window._pendingClusterImport.sockets));
+
+            // Case C: invalid sockets (0) — heuristic fallback kicks in
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-03',
+                properties: {
+                    hardwareProfile: {
+                        numberOfCpuSockets: 0, // invalid
+                        totalPhysicalMemoryInBytes: 256 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Silver 4314', numberOfCores: 16 }]
+                    },
+                    detectedProperties: { manufacturer: 'Dell', model: 'PE R760' }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 1,
+                'numberOfCpuSockets: 0 (invalid) + 16 cores → heuristic fallback to 1',
+                1, window._pendingClusterImport && window._pendingClusterImport.sockets));
+
+            // Case D (#207 follow-up): hwProfile.processors[0].numberOfCores is per-socket,
+            // hwProfile.numberOfCpuSockets is missing, but detectedProperties has the full
+            // story (coreCount=20 total, processorCount=2 sockets). Real-world ASEPRO2 case.
+            // Expected: sockets=2, coresPerSocket=10, total displayed cores=20 — NOT "20×1".
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'AZ-Node1',
+                properties: {
+                    displayName: 'AZ-Node1',
+                    hardwareProfile: {
+                        // numberOfCpuSockets intentionally missing — reproduces ASEPRO2
+                        totalPhysicalMemoryInBytes: 256 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel(R) Xeon(R) Gold 6209U CPU @ 2.10GHz', numberOfCores: 10 }]
+                    },
+                    detectedProperties: {
+                        manufacturer: 'Microsoft', model: 'ASEPRO2',
+                        coreCount: '20', logicalCoreCount: '40', processorCount: '2',
+                        processorNames: 'Intel(R) Xeon(R) Gold 6209U CPU @ 2.10GHz'
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 2,
+                'detected.processorCount=2 + missing hwProfile.numberOfCpuSockets → sockets = 2',
+                2, window._pendingClusterImport && window._pendingClusterImport.sockets));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.coresPerSocket === 10,
+                'detected.coreCount=20 + 2 sockets → coresPerSocket = 10 (was 20 before fix)',
+                10, window._pendingClusterImport && window._pendingClusterImport.coresPerSocket));
+            results.push(assert(
+                window._pendingClusterImport
+                    && (window._pendingClusterImport.coresPerSocket * window._pendingClusterImport.sockets) === 20,
+                'Total cores = coresPerSocket × sockets = 20 (matches detected.coreCount)',
+                20, window._pendingClusterImport
+                    ? window._pendingClusterImport.coresPerSocket * window._pendingClusterImport.sockets
+                    : null));
+
+            // Case E (#207 follow-up): detectedProperties absent, hwProfile present with
+            // both numberOfCpuSockets and processors[0].numberOfCores (per-socket).
+            // Total cores must be derived as perSocket × sockets.
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-hwonly',
+                properties: {
+                    hardwareProfile: {
+                        numberOfCpuSockets: 2,
+                        totalPhysicalMemoryInBytes: 384 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Gold 6354', numberOfCores: 18 }]
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 2,
+                'hwProfile-only: numberOfCpuSockets=2 → sockets = 2',
+                2, window._pendingClusterImport && window._pendingClusterImport.sockets));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.coresPerSocket === 18,
+                'hwProfile-only: numberOfCores=18 (per-socket) → coresPerSocket = 18',
+                18, window._pendingClusterImport && window._pendingClusterImport.coresPerSocket));
+
+            cleanup();
+            return results;
+        })());
+
+        testSuite('applyClusterJSONImport: deployment type, single-node, resiliency (#207)', 'sizer.js', (() => {
+            var results = [];
+
+            // Stub all DOM elements applyClusterJSONImport reads/writes.
+            function makeApplyStub(opts) {
+                var stubs = {
+                    'cluster-node-count-input': { tag: 'input', type: 'number', value: String(opts.nodeCount) },
+                    'cluster-type': { tag: 'select', options: ['single', 'standard', 'low-capacity', 'rack-aware', 'disaggregated', 'aldo-mgmt'], value: 'standard' },
+                    'node-count': { tag: 'input', type: 'number', value: '2' },
+                    'cpu-manufacturer': { tag: 'select', options: ['intel', 'amd'], value: 'intel' },
+                    'cpu-generation': { tag: 'select', options: [], value: '' },
+                    'cpu-cores': { tag: 'select', options: ['16', '32', '64'], value: '32' },
+                    'cpu-sockets': { tag: 'select', options: ['1', '2'], value: '2' },
+                    'node-memory': { tag: 'input', type: 'number', value: '512' },
+                    'resiliency': { tag: 'select', options: ['2way', '3way', '4way', 'simple', 'external'], value: '2way' },
+                    'post-import-summary': { tag: 'div' },
+                    'post-import-overlay': { tag: 'div' },
+                    'import-modal-overlay': { tag: 'div' }
+                };
+                Object.keys(stubs).forEach(function (id) {
+                    var spec = stubs[id];
+                    var el = document.createElement(spec.tag);
+                    el.id = id;
+                    if (spec.type) el.type = spec.type;
+                    if (spec.options) {
+                        spec.options.forEach(function (v) {
+                            var o = document.createElement('option');
+                            o.value = v; o.text = v;
+                            el.appendChild(o);
+                        });
+                    }
+                    if (spec.value !== undefined) el.value = spec.value;
+                    el.style.display = 'none';
+                    document.body.appendChild(el);
+                });
+
+                // Insert deployment-type radios (parseAndPreviewClusterJSON would normally render them).
+                ['standard', 'rack-aware'].forEach(function (v) {
+                    var r = document.createElement('input');
+                    r.type = 'radio';
+                    r.name = 'cluster-import-deploy-type';
+                    r.value = v;
+                    if (v === opts.chosenDeployType) r.checked = true;
+                    r.style.display = 'none';
+                    document.body.appendChild(r);
+                });
+
+                window._pendingClusterImport = {
+                    clusterName: 'Test', nodeCount: opts.nodeCount, coresPerSocket: 16, sockets: 2,
+                    memoryGB: 512, cpuManufacturer: 'intel', cpuGeneration: null,
+                    genMatchConfidence: 'none', processorName: 'Intel Test', model: 'PE R760'
+                };
+            }
+            function cleanupApplyStub() {
+                Object.keys({
+                    'cluster-node-count-input': 1, 'cluster-type': 1, 'node-count': 1,
+                    'cpu-manufacturer': 1, 'cpu-generation': 1, 'cpu-cores': 1, 'cpu-sockets': 1,
+                    'node-memory': 1, 'resiliency': 1,
+                    'post-import-summary': 1, 'post-import-overlay': 1, 'import-modal-overlay': 1
+                }).forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                document.querySelectorAll('input[name="cluster-import-deploy-type"]').forEach(function (r) {
+                    if (r.parentNode) r.parentNode.removeChild(r);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            // 1 node + Hyperconverged radio → cluster-type forced to 'single'
+            makeApplyStub({ nodeCount: 1, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* calculateRequirements may throw on stubs */ }
+            results.push(assert(
+                document.getElementById('cluster-type').value === 'single',
+                '1 node → cluster-type = "single" (overrides Hyperconverged radio)',
+                'single', document.getElementById('cluster-type').value));
+            cleanupApplyStub();
+
+            // 4 nodes + Hyperconverged radio → cluster-type 'standard', resiliency '3way'
+            makeApplyStub({ nodeCount: 4, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('cluster-type').value === 'standard',
+                '4 nodes + Hyperconverged radio → cluster-type = "standard"',
+                'standard', document.getElementById('cluster-type').value));
+            results.push(assert(
+                document.getElementById('resiliency').value === '3way',
+                '4 nodes → resiliency auto-set to "3way" (Three-way Mirror)',
+                '3way', document.getElementById('resiliency').value));
+            cleanupApplyStub();
+
+            // 2 nodes + Rack-Aware radio → cluster-type 'rack-aware', resiliency '2way'
+            makeApplyStub({ nodeCount: 2, chosenDeployType: 'rack-aware' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('cluster-type').value === 'rack-aware',
+                '2 nodes + Rack-Aware radio → cluster-type = "rack-aware"',
+                'rack-aware', document.getElementById('cluster-type').value));
+            results.push(assert(
+                document.getElementById('resiliency').value === '2way',
+                '2 nodes → resiliency stays "2way" (Two-way Mirror)',
+                '2way', document.getElementById('resiliency').value));
+            cleanupApplyStub();
+
+            // 3 nodes + Hyperconverged radio → resiliency '3way' (boundary case for the >=3 rule)
+            makeApplyStub({ nodeCount: 3, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('resiliency').value === '3way',
+                '3 nodes (Hyperconverged) → resiliency auto-upgrades to "3way" (boundary case)',
+                '3way', document.getElementById('resiliency').value));
+            cleanupApplyStub();
+
+            return results;
+        })());
+
+        testSuite('validateClusterImportSelection: Rack-Aware only allows 2/4/6/8 nodes (#207)', 'sizer.js', (() => {
+            var results = [];
+
+            function makeValidationStub(opts) {
+                // node-count input
+                var n = document.createElement('input');
+                n.type = 'number'; n.id = 'cluster-node-count-input';
+                n.value = String(opts.nodeCount);
+                n.style.display = 'none';
+                document.body.appendChild(n);
+
+                // apply button (start enabled)
+                var b = document.createElement('button');
+                b.id = 'cluster-import-apply-btn';
+                b.disabled = false;
+                b.style.display = 'none';
+                document.body.appendChild(b);
+
+                // validation message slot
+                var m = document.createElement('span');
+                m.id = 'cluster-import-validation';
+                m.style.display = 'none';
+                document.body.appendChild(m);
+
+                // deployment-type radios
+                ['standard', 'rack-aware'].forEach(function (v) {
+                    var r = document.createElement('input');
+                    r.type = 'radio'; r.name = 'cluster-import-deploy-type'; r.value = v;
+                    if (v === opts.deployType) r.checked = true;
+                    r.style.display = 'none';
+                    document.body.appendChild(r);
+                });
+            }
+            function cleanupValidationStub() {
+                ['cluster-node-count-input', 'cluster-import-apply-btn', 'cluster-import-validation'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                document.querySelectorAll('input[name="cluster-import-deploy-type"]').forEach(function (r) {
+                    if (r.parentNode) r.parentNode.removeChild(r);
+                });
+            }
+
+            // Hyperconverged + 3 nodes → valid (button enabled)
+            makeValidationStub({ deployType: 'standard', nodeCount: 3 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Hyperconverged + 3 machines → button enabled',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Rack-Aware + 3 nodes → invalid (button disabled, error shown)
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 3 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === true,
+                'Rack-Aware + 3 machines → button DISABLED',
+                true, document.getElementById('cluster-import-apply-btn').disabled));
+            results.push(assert(
+                /Rack-Aware Cluster only supports 2, 4, 6, or 8 machines/.test(document.getElementById('cluster-import-validation').innerHTML),
+                'Rack-Aware + 3 → inline error message displayed',
+                true, /Rack-Aware Cluster only supports 2, 4, 6, or 8 machines/.test(document.getElementById('cluster-import-validation').innerHTML)));
+            cleanupValidationStub();
+
+            // Rack-Aware + 4 nodes → valid
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 4 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Rack-Aware + 4 machines → button enabled',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Rack-Aware + 8 nodes → valid (boundary)
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 8 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Rack-Aware + 8 machines → button enabled (boundary)',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Rack-Aware + 5 nodes → invalid
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 5 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === true,
+                'Rack-Aware + 5 machines → button DISABLED (odd count)',
+                true, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Rack-Aware + 1 node → still valid here, because 1 node is auto-promoted to Single Node by applyClusterJSONImport
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 1 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Rack-Aware + 1 machine → button enabled (auto-promoted to Single Node on apply)',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            return results;
+        })());
+
+        // ========================================================================
         // FINAL SUMMARY
         // ========================================================================
         updateTestSummary();

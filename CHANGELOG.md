@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Security and code-quality release. No end-user feature changes; this release tightens the build, dependency, and CI surface so future work is safer to land.
 
+### Fixed (#207 — Sizer: JSON Import of Azure Local Machine)
+
+- **CPU socket count from imported JSON is now respected.** The previous heuristic in `parseAndPreviewClusterJSON()` (`var sockets = coreCount > 64 ? 2 : 1;`) unconditionally overrode the value extracted from `hwProfile.numberOfCpuSockets` / `detectedProperties.processorCount`, so a machine reporting 2 sockets always showed up as 1 socket in the Sizer. The heuristic now only fires when the JSON value is missing or invalid.
+- **Total core count is now reconciled correctly across the two source paths.** `hardwareProfile.processors[i].numberOfCores` is *per-socket*, while `detectedProperties.coreCount` is *total cores*; the original code mixed these and produced `20 × 1 socket` for ASEPRO2 machines (which expose `processors[0].numberOfCores: 20` per-socket but omit `numberOfCpuSockets`). The parser now prefers `detectedProperties` (unambiguous total + sockets) and only falls back to multiplying per-socket cores by the resolved socket count.
+- **1-node imports now correctly set Deployment Type to Single Node**, not Hyperconverged (which is invalid for 1 node).
+- **Storage Resiliency now auto-matches the imported node count**: 2 nodes → Two-way Mirror, 3+ nodes → Three-way Mirror. Previously the import always left the default `2way` value even for 4-node clusters.
+- **Deployment-type prompt added to the Parse & Preview screen**: users can choose between Hyperconverged and Rack-Aware Cluster before applying the import. Single Node is auto-applied when machines = 1 regardless of the radio selection.
+- **Rack-Aware Cluster machine-count validation added to the import preview.** Rack-Aware Cluster only supports 2, 4, 6, or 8 machines; the Load Cluster Configuration button is disabled and an inline error is shown until the count is valid (or the user picks Hyperconverged).
+- **"Apply Configuration" renamed to "Load Cluster Configuration"** in the import modal — the button now describes what it actually does (load the parsed Azure Local Machine JSON into the Sizer).
+- **Apply order reworked** so `node-count` is set before `cluster-type`, ensuring `updateResiliencyOptions()` sees the correct node count and produces the right `<option>` set before the resiliency value is assigned.
+- **21 new regression tests** added under `tests/index.html` ("Issue #207") covering all four bugs, the new Rack-Aware validation, the per-socket vs total cores reconciliation, and boundary conditions (1, 2, 3, 4, 5, 8 nodes; Hyperconverged vs Rack-Aware; valid / invalid `numberOfCpuSockets`; ASEPRO2-shaped JSON).
+
 ### Added
 
 - **`vendor/` folder** with locally-hosted copies of all third-party runtime JS:

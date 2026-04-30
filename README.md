@@ -47,7 +47,19 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 
 ### 🎉 Version 0.20.10 - Latest Release
-- **Security & code-quality release**: This release contains no end-user feature changes. It tightens the build, dependency, and CI surface so future work is safer to land.
+
+**Sizer — JSON Import fixes (#207)**
+- **CPU socket count is now respected when importing an Azure Local machine JSON.** Previously the sockets dropdown would always show **1 socket** even when the machine JSON reported `"numberOfCpuSockets": 2` or `"processorCount": "2"` — a heuristic was unconditionally overriding the imported value. The heuristic now only fires when the JSON value is missing or invalid.
+- **Total core count is now reconciled correctly** between `hardwareProfile.processors[].numberOfCores` (per-socket) and `detectedProperties.coreCount` (total). Real-world payloads that omit `hwProfile.numberOfCpuSockets` (e.g. ASEPRO2 machines) used to show 20 physical cores as `20 × 1 socket` instead of `10 × 2 sockets`. The parser now prefers `detectedProperties` when present and only falls back to multiplying per-socket cores by the socket count when it must.
+- **Single-node clusters are detected automatically.** When you set the machines count to `1` in the import preview, the Deployment Type is now forced to **Single Node** (Hyperconverged is not a valid 1-node configuration).
+- **Storage Resiliency now matches the cluster size.** Importing a 3-, 4-, or 16-node cluster now auto-selects **Three-way Mirror**; 2-node clusters keep **Two-way Mirror**. Previously the import always left the default `Two-way Mirror` value.
+- **New deployment-type prompt before applying the import.** The Parse & Preview screen now asks whether the cluster is **Hyperconverged** or **Rack-Aware Cluster**, so the Sizer initialises with the correct topology (Single Node still auto-applies if you set machines = 1).
+- **Rack-Aware Cluster machine-count validation.** Rack-Aware Cluster only supports **2, 4, 6, or 8 machines**. The import preview now shows an inline error and disables the Load button until the count is valid (or the user switches back to Hyperconverged).
+- **"Apply Configuration" renamed to "Load Cluster Configuration"** to better describe what the button does — it loads the parsed Azure Local Machine JSON into the Sizer's running configuration.
+- **Test coverage added**: 21 new regression tests under `tests/index.html` ("Issue #207") cover all four bugs, the new Rack-Aware validation, the per-socket vs total cores reconciliation, and boundary conditions (1, 2, 3, 4, 5, 8 nodes; Hyperconverged vs Rack-Aware; valid/invalid `numberOfCpuSockets`; ASEPRO2-shaped JSON).
+
+**Security & code-quality release**
+- **No end-user feature changes** in this section — it tightens the build, dependency, and CI surface so future work is safer to land.
 - **All third-party JS libraries vendored locally** (`vendor/html2canvas-1.4.1.min.js`, `vendor/jspdf-4.2.1.umd.min.js`, `vendor/three-0.128.0.min.js`, `vendor/three-OrbitControls-0.128.0.js`). The Designer, Sizer, and Configuration Report pages no longer fetch any runtime JavaScript from `cdn.jsdelivr.net`. Firebase analytics (loaded from `gstatic.com`) is unchanged. Offline / air-gapped users no longer need an internet round-trip for the rack 3D viewer or PDF export.
 - **CSS lint added to CI** (`stylelint` with `custom-property-no-missing-var-function` and `color-no-invalid-hex`). Catches the bug class that surfaced earlier this cycle (undefined CSS custom properties).
 - **CodeQL security scanning** workflow added (`.github/workflows/codeql.yml`) — runs `security-and-quality` queries on every PR and weekly.
@@ -394,7 +406,8 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 ### 🎉 Version 0.20.x Series (April 2026)
 
 #### 0.20.10 - Security & Code-Quality Release
-- **No end-user feature changes.** Tightens the build, dependency, and CI surface so future work is safer to land.
+- **Sizer JSON Import fixes (#207)**: CPU sockets now respected from machine JSON (was always forced to 1); 1-node imports now auto-switch the Deployment Type to **Single Node**; resiliency auto-upgrades to **Three-way Mirror** for 3+ node imports; new Hyperconverged vs Rack-Aware prompt before applying. 9 new regression tests cover all four bugs and boundary conditions.
+- **No other end-user feature changes.** Tightens the build, dependency, and CI surface so future work is safer to land.
 - **All third-party JS libraries vendored locally** (`vendor/html2canvas-1.4.1.min.js`, `vendor/jspdf-4.2.1.umd.min.js`, `vendor/three-0.128.0.min.js`, `vendor/three-OrbitControls-0.128.0.js`). Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from `cdn.jsdelivr.net`. Firebase analytics (loaded from `gstatic.com`) is unchanged.
 - **CSS lint added to CI** (`stylelint` with `custom-property-no-missing-var-function` and `color-no-invalid-hex`).
 - **CodeQL security scanning** workflow added (`.github/workflows/codeql.yml`) — runs `security-and-quality` queries on every PR and weekly.

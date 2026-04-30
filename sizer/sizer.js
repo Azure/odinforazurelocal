@@ -6494,15 +6494,42 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     manufacturer = (detected && detected.manufacturer) || 'Unknown';
     model = (detected && detected.model) || 'Unknown';
 
-    if (hwProfile && hwProfile.processors && hwProfile.processors.length > 0) {
-        var proc = hwProfile.processors[0];
-        coreCount = proc.numberOfCores || 0;
-        processorName = proc.name || '';
-        sockets = hwProfile.numberOfCpuSockets || 1;
-    } else if (detected) {
-        coreCount = parseInt(detected.coreCount, 10) || 0;
-        processorName = detected.processorNames || '';
-        sockets = parseInt(detected.processorCount, 10) || 1;
+    // Extract sockets, total cores, and processor name from the JSON.
+    //
+    // Bug #207 follow-up: the two source paths in Azure Local machine JSON have
+    // DIFFERENT semantics for "core count":
+    //   • detectedProperties.coreCount      — TOTAL physical cores across all sockets
+    //   • detectedProperties.processorCount — number of CPU sockets
+    //   • hardwareProfile.processors[i].numberOfCores — cores PER SOCKET
+    //   • hardwareProfile.numberOfCpuSockets          — number of CPU sockets
+    //
+    // Real-world payloads (e.g. ASEPRO2 / Intel Xeon Gold 6209U) sometimes omit
+    // `hwProfile.numberOfCpuSockets`, so the previous code hit `sockets = 1` and
+    // then mis-treated `proc.numberOfCores` (per-socket = 20) as if it were total
+    // cores, producing "20 cores (20 × 1 socket)" for a real 2 × 10 = 20 cores
+    // machine. We now prefer `detected` (which is unambiguous) and fall back to
+    // hwProfile only when `detected` is missing or invalid.
+    var procFromHw = (hwProfile && hwProfile.processors && hwProfile.processors[0]) || null;
+    processorName = (detected && detected.processorNames) || (procFromHw && procFromHw.name) || '';
+
+    // Sockets: prefer detected.processorCount, fall back to hwProfile.numberOfCpuSockets
+    var detectedSockets = detected ? parseInt(detected.processorCount, 10) : NaN;
+    if (!isNaN(detectedSockets) && detectedSockets >= 1 && detectedSockets <= 8) {
+        sockets = detectedSockets;
+    } else if (hwProfile && hwProfile.numberOfCpuSockets >= 1 && hwProfile.numberOfCpuSockets <= 8) {
+        sockets = hwProfile.numberOfCpuSockets;
+    } else {
+        sockets = 0; // unknown — heuristic below
+    }
+
+    // Total core count: prefer detected.coreCount (already total). Otherwise
+    // derive from hwProfile.processors[0].numberOfCores × sockets.
+    var detectedCores = detected ? parseInt(detected.coreCount, 10) : NaN;
+    if (!isNaN(detectedCores) && detectedCores > 0) {
+        coreCount = detectedCores;
+    } else if (procFromHw && procFromHw.numberOfCores > 0) {
+        // numberOfCores is per-socket; multiply by sockets when known.
+        coreCount = procFromHw.numberOfCores * (sockets > 0 ? sockets : 1);
     } else {
         errDiv.textContent = 'No hardware profile found in the machine JSON.';
         errDiv.style.display = '';
@@ -6532,9 +6559,14 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         return Math.abs(curr - memoryGiB) < Math.abs(prev - memoryGiB) ? curr : prev;
     });
 
-    // Determine sockets (1 or 2) — heuristic: if cores > max single-socket for gen, must be 2
-    var sockets = coreCount > 64 ? 2 : 1;
-    var coresPerSocket = Math.round(coreCount / sockets);
+    // Sanity-check the socket count from JSON. Some Azure Local machine JSON
+    // payloads expose `numberOfCpuSockets` correctly (use as-is); when it is
+    // missing or obviously wrong we fall back to a heuristic based on core count.
+    // Bug #207 fix: do NOT unconditionally override the imported sockets value.
+    if (!sockets || sockets < 1 || sockets > 8) {
+        sockets = coreCount > 64 ? 2 : 1;
+    }
+    coresPerSocket = sockets > 0 ? Math.round(coreCount / sockets) : coreCount;
 
     // Find best matching CPU generation
     var bestGen = null;
@@ -6566,7 +6598,14 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // Build preview
     var previewHTML = '<strong style="color: var(--accent-purple);">Detected Machine: ' + escapeHtml(clusterName) + '</strong><br>';
     previewHTML += '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 12px;">';
-    previewHTML += '<span style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">How many machines in this instance? <input type="number" id="cluster-node-count-input" value="2" min="1" max="16" style="width: 56px; background: var(--card-bg); border: 2px solid var(--accent-purple); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-weight: 700; text-align: center;"></span>';
+    previewHTML += '<span style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">How many machines in this instance? <input type="number" id="cluster-node-count-input" value="2" min="1" max="16" oninput="validateClusterImportSelection()" style="width: 56px; background: var(--card-bg); border: 2px solid var(--accent-purple); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-weight: 700; text-align: center;"></span>';
+    previewHTML += '<span style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
+        + '<span>Deployment type:</span>'
+        + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="standard" checked onchange="validateClusterImportSelection()"> Hyperconverged</label>'
+        + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="rack-aware" onchange="validateClusterImportSelection()"> Rack-Aware Cluster</label>'
+        + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(auto-switches to <strong>Single Node</strong> if you set machines = 1)</span>'
+        + '</span>';
+    previewHTML += '<span style="grid-column: 1 / -1;" id="cluster-import-validation"></span>';
     previewHTML += '<span>Cores/Machine: <strong>' + coreCount + '</strong> (' + coresPerSocket + ' × ' + sockets + ' socket' + (sockets > 1 ? 's' : '') + ')</span>';
     previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> → ' + snappedMemory + ' GB (DIMM-aligned)</span>';
     previewHTML += '<span>Model: <strong>' + escapeHtml(model) + '</strong></span>';
@@ -6590,6 +6629,11 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     previewDiv.style.display = '';
     applyBtn.style.display = '';
 
+    // Run an initial validation pass so the Load button reflects the default
+    // selection (Hyperconverged + 2 machines = always valid, but this also
+    // resets any stale error / disabled state from a previous preview).
+    validateClusterImportSelection();
+
     // Store parsed data for apply
     window._pendingClusterImport = {
         clusterName: clusterName,
@@ -6605,9 +6649,76 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     };
 }
 
+// Validate the deployment-type + node-count combination chosen in the cluster
+// JSON import preview. Disables the "Load Cluster Configuration" button and
+// shows an inline error when Rack-Aware Cluster is selected with anything other
+// than 2/4/6/8 machines (the only supported counts for that deployment type).
+// Bug #207 follow-up.
+function validateClusterImportSelection() { // eslint-disable-line no-unused-vars
+    var nodeInput = document.getElementById('cluster-node-count-input');
+    var applyBtn = document.getElementById('cluster-import-apply-btn');
+    var msgEl = document.getElementById('cluster-import-validation');
+    if (!nodeInput || !applyBtn) return;
+
+    var nodeCount = parseInt(nodeInput.value, 10);
+    var deployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+    var deployType = deployRadio ? deployRadio.value : 'standard';
+
+    var errors = [];
+    if (isNaN(nodeCount) || nodeCount < 1 || nodeCount > 16) {
+        errors.push('Number of machines must be between 1 and 16.');
+    } else if (deployType === 'rack-aware' && nodeCount !== 1) {
+        // 1 node is auto-switched to Single Node, so it is allowed at this
+        // stage; we only block the radio's actual rack-aware case (2/4/6/8).
+        var validRackAware = [2, 4, 6, 8];
+        if (validRackAware.indexOf(nodeCount) === -1) {
+            errors.push('Rack-Aware Cluster only supports 2, 4, 6, or 8 machines. Adjust the count or choose Hyperconverged.');
+        }
+    }
+
+    if (errors.length === 0) {
+        applyBtn.disabled = false;
+        applyBtn.style.opacity = '';
+        applyBtn.style.cursor = '';
+        applyBtn.title = '';
+        if (msgEl) {
+            msgEl.innerHTML = '';
+            msgEl.style.display = 'none';
+        }
+    } else {
+        applyBtn.disabled = true;
+        applyBtn.style.opacity = '0.55';
+        applyBtn.style.cursor = 'not-allowed';
+        applyBtn.title = errors.join(' ');
+        if (msgEl) {
+            msgEl.innerHTML = '<span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; color: var(--danger); font-size: 12px;">⚠️ ' + escapeHtml(errors.join(' ')) + '</span>';
+            msgEl.style.display = '';
+        }
+    }
+}
+
 function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     var cfg = window._pendingClusterImport;
     if (!cfg) return;
+
+    // Read the deployment-type radio BEFORE the modal closes.
+    // Bug #207 fix: respect the user's choice between Hyperconverged and Rack-Aware,
+    // and force Single Node when nodeCount === 1 regardless of the radio selection.
+    var deployTypeRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+    var chosenDeployType = deployTypeRadio ? deployTypeRadio.value : 'standard';
+
+    // Re-check the deployment-type / node-count combination as a defense-in-depth
+    // guard: the button is disabled when invalid, but a stale click or DOM
+    // manipulation could still reach this code path.
+    var preNodeInput = document.getElementById('cluster-node-count-input');
+    var preNodeCount = preNodeInput ? parseInt(preNodeInput.value, 10) : NaN;
+    if (chosenDeployType === 'rack-aware' && preNodeCount !== 1
+        && [2, 4, 6, 8].indexOf(preNodeCount) === -1) {
+        if (typeof showToast === 'function') {
+            showToast('Rack-Aware Cluster only supports 2, 4, 6, or 8 machines. Adjust the count or choose Hyperconverged.', 'error');
+        }
+        return;
+    }
 
     closeImportModal();
 
@@ -6616,10 +6727,47 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     var actualNodeCount = nodeCountInput ? (parseInt(nodeCountInput.value, 10) || 2) : cfg.nodeCount;
     if (actualNodeCount < 1) actualNodeCount = 1;
     if (actualNodeCount > 16) actualNodeCount = 16;
+
+    // Bug #207 fix: a 1-node cluster MUST be Single Node, not Hyperconverged.
+    var resolvedClusterType = (actualNodeCount === 1) ? 'single' : chosenDeployType;
+
+    // Set node-count BEFORE cluster-type so that onClusterTypeChange() →
+    // updateResiliencyOptions() sees the correct node count and produces the
+    // right set of <option> entries (otherwise the resiliency select can be
+    // populated for the old node count and silently reject our chosen value).
     var nodeCountEl = document.getElementById('node-count');
     if (nodeCountEl) nodeCountEl.value = String(actualNodeCount);
     _nodeCountUserSet = true;
     markManualSet('node-count');
+
+    var clusterTypeEl = document.getElementById('cluster-type');
+    if (clusterTypeEl) {
+        clusterTypeEl.value = resolvedClusterType;
+        if (typeof onClusterTypeChange === 'function') {
+            try { onClusterTypeChange(); } catch (e) { console.warn('onClusterTypeChange threw during import:', e); }
+        }
+        markManualSet('cluster-type');
+    }
+
+    // Bug #207 fix: pick the correct storage resiliency for the chosen node count.
+    // Two-way mirror is only valid for 2-node clusters; 3+ nodes should default
+    // to Three-way mirror. Single-node has no mirror choice (handled by the
+    // cluster type itself), but we still default it sensibly.
+    var resiliencyEl = document.getElementById('resiliency');
+    if (resiliencyEl && resolvedClusterType !== 'disaggregated') {
+        var desiredResiliency = (actualNodeCount >= 3) ? '3way' : '2way';
+        // Only assign if the option actually exists in the select (the cluster
+        // type may have already constrained the available options, e.g.
+        // rack-aware 4+ → only "4way").
+        var available = Array.prototype.map.call(resiliencyEl.options, function (o) { return o.value; });
+        if (available.indexOf(desiredResiliency) !== -1 && resiliencyEl.value !== desiredResiliency) {
+            resiliencyEl.value = desiredResiliency;
+            if (typeof onResiliencyChange === 'function') {
+                try { onResiliencyChange(); } catch (e) { console.warn('onResiliencyChange threw during import:', e); }
+            }
+        }
+        markManualSet('resiliency');
+    }
 
     var cpuMfrEl = document.getElementById('cpu-manufacturer');
     if (cpuMfrEl) cpuMfrEl.value = cfg.cpuManufacturer;
@@ -6691,8 +6839,18 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // Show post-import instructions
     var summary = document.getElementById('post-import-summary');
     if (summary) {
-        summary.innerHTML = 'Imported <strong>' + actualNodeCount + ' machines</strong> from <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
+        var deployTypeLabel = resolvedClusterType === 'single' ? 'Single Node'
+            : resolvedClusterType === 'rack-aware' ? 'Rack-Aware Cluster'
+                : 'Hyperconverged';
+        var resiliencyLabel = '';
+        if (resolvedClusterType !== 'single' && resolvedClusterType !== 'disaggregated') {
+            resiliencyLabel = (actualNodeCount >= 3)
+                ? ' Storage resiliency set to <strong>Three-way Mirror</strong>.'
+                : ' Storage resiliency set to <strong>Two-way Mirror</strong>.';
+        }
+        summary.innerHTML = 'Imported <strong>' + actualNodeCount + ' machine' + (actualNodeCount !== 1 ? 's' : '') + '</strong> from <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
             + ' — ' + cfg.coresPerSocket + ' cores × ' + cfg.sockets + ' socket' + (cfg.sockets > 1 ? 's' : '') + ', ' + cfg.memoryGB + ' GB memory per machine.'
+            + '<br>Deployment type: <strong>' + deployTypeLabel + '</strong>.' + resiliencyLabel
             + '<br><br>To complete your sizing, configure the items below to match your cluster:';
     }
     var postOverlay = document.getElementById('post-import-overlay');
