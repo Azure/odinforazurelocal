@@ -53,7 +53,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.10</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.67</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">April 30, 2026</div>
                 </div>
 
@@ -83,7 +83,9 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong>Anonymous usage counters added to the ToR Switch Configuration page</strong> — Firebase counters increment when <em>Generate Switch Configurations</em> or <em>Analyze QoS Configuration</em> complete successfully (and on page view). No switch-config content, IPs, hostnames, or pasted running-config text is transmitted.</li>
                         <li><strong>Two new stat tiles</strong> on the page-statistics bar (Designer, Sizer, and the new bar on the ToR Switch Configuration page) — <em>ToR Switch Configs</em> and <em>ToR Switch QoS Audits</em> — surface the new counters next to the existing Visitors / Designs / Sizes / ARM Deployments tiles. Six tiles are arranged 3+3 on desktop and 2×3 on mobile.</li>
                         <li><strong>Shared <code>js/stats-bar.js</code> component</strong> renders the six-tile counter strip from a single source on every page that needs it; replaces three drifted hand-maintained copies of the same markup.</li>
-                        <li><strong>ToR Switch tab added to the shared top nav</strong> — the Designer, Sizer, and ToR Switch Configuration pages now show a consistent <code>Designer | Knowledge | Sizer | ToR Switch</code> tab bar.</li>
+                        <li><strong>ToR Switch tab added to the shared top nav</strong> — the Designer, Sizer, and ToR Switch Configuration pages now show a consistent <code>Designer | Sizer | ToR Switch | Knowledge</code> tab bar (the three &quot;doing&quot; tabs sit together first, with the reference / docs tab last).</li>
+                        <li><strong>ToR Switch Configuration page — header layout matches Designer and Sizer</strong> (ODIN logo, version, <em>What&apos;s New</em> link, disclaimer banner above the header).</li>
+                        <li><strong>ToR Switch Configuration page — stat tiles now show real counts.</strong> The six-tile bar previously stayed at <code>&mdash;</code> because <code>js/utils.js</code> (which defines <code>formatNumber()</code>) wasn&apos;t loaded; <code>fetchAndDisplayStats()</code> threw a silent <code>ReferenceError</code> before populating any tile.</li>
                         <li><strong><code>npm audit</code> CI gate</strong> — high-severity advisories now block merges. <code>basic-ftp</code> override bumped to <code>&gt;=5.3.1</code> (clears <code>GHSA-rp42-5vxx-qpwr</code>).</li>
                         <li><strong>PPTX export smoke test</strong> in CI — verifies the PowerPoint export produces a valid file end-to-end.</li>
                         <li><strong>Code-quality cleanup</strong>: silent <code>catch</code> blocks documented or replaced with <code>console.warn</code>; deprecated CSS keywords (<code>word-break: break-word</code>, <code>page-break-inside</code>) replaced with modern equivalents; unreferenced <code>styles_backup.css</code> removed.</li>

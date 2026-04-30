@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.20.10 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.20.67 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,7 +46,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.20.10 - Latest Release
+### 🎉 Version 0.20.67 - Latest Release
 
 **Sizer — JSON Import fixes (#207)**
 - **CPU socket count is now respected when importing an Azure Local machine JSON.** Previously the sockets dropdown would always show **1 socket** even when the machine JSON reported `"numberOfCpuSockets": 2` or `"processorCount": "2"` — a heuristic was unconditionally overriding the imported value. The heuristic now only fires when the JSON value is missing or invalid.
@@ -74,7 +74,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Anonymous usage counters added to the ToR Switch Configuration page** — Firebase counters (`switchConfigGenerated`, `qosAuditAnalyzed`, `pageViews`) increment when **Generate Switch Configurations** or **Analyze QoS Configuration** complete successfully, and on page view. Increment-only via Firebase server-side `increment(1)`; no switch-config content, IPs, hostnames, or pasted running-config text is ever transmitted.
 - **Two new stat tiles** — **ToR Switch Configs** and **ToR Switch QoS Audits** — surface the new counters next to the existing Visitors / Designs / Sizes / ARM Deployments tiles on the Designer, Sizer, and (now) ToR Switch Configuration pages. Six tiles are arranged 3+3 on desktop and 2×3 on mobile.
 - **Shared `js/stats-bar.js` component** renders the six-tile counter strip from a single source on every page that needs it; eliminates three drifted hand-maintained copies of the same markup.
-- **ToR Switch tab added to the shared top nav** (`js/nav.js`). The Designer, Sizer, and ToR Switch Configuration pages now show a consistent `Designer | Knowledge | Sizer | ToR Switch` tab bar; the old one-off `page-header-bar` on the switch-config page has been removed.
+- **ToR Switch tab added to the shared top nav** (`js/nav.js`). The Designer, Sizer, and ToR Switch Configuration pages now show a consistent `Designer | Sizer | ToR Switch | Knowledge` tab bar — the three "doing" tabs sit together first, with the reference / docs tab last. The old one-off `page-header-bar` on the switch-config page has been removed.
+- **ToR Switch Configuration page — header layout matches Designer and Sizer.** The page now uses the same `header-title-wrapper` / `header-logo-wrapper` / `header-version` markup as the Designer and Sizer, including the ODIN logo, version label, and What's New link. The same disclaimer banner is rendered above the header.
+- **ToR Switch Configuration page — stat tiles now show real counts.** The page rendered the six-tile bar but every value stayed at `—` because `js/utils.js` (which defines `formatNumber()`) was not loaded; `fetchAndDisplayStats()` threw a silent `ReferenceError` before populating any tile. The page now loads `../js/utils.js` alongside `../js/analytics.js` and `../js/stats-bar.js`, so all six counters populate correctly.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -397,7 +399,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.20.10  
+**Version**: 0.20.67  
 **Last Updated**: April 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -413,7 +415,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.20.x Series (April 2026)
 
-#### 0.20.10 - Security & Code-Quality Release
+#### 0.20.67 - Security & Code-Quality Release
 - **Sizer JSON Import fixes (#207)**: CPU sockets now respected from machine JSON (was always forced to 1); per-socket vs total cores reconciled correctly (a 2&times;10 = 20-core ASEPRO2 machine no longer shows up as 20 &times; 1 socket); 1-node imports auto-switch Deployment Type to **Single Node**; resiliency auto-upgrades to **Three-way Mirror** for 3+ node imports; new Hyperconverged vs Rack-Aware prompt with machine-count validation; "Apply Configuration" renamed to "Load Cluster Configuration"; memory dropdown preserves non-standard DIMM totals via a custom option (e.g. 80 GB); S2D capacity-disk count and size captured in the import preview and applied to both single-tier and tiered selectors; 5.68 TB SSD added to all capacity-disk dropdowns; re-clicking *Parse & Preview* no longer resets in-preview selections. 30 new regression tests cover all of the above.
 - **No other end-user feature changes.** Tightens the build, dependency, and CI surface so future work is safer to land.
 - **All third-party JS libraries vendored locally** (`vendor/html2canvas-1.4.1.min.js`, `vendor/jspdf-4.2.1.umd.min.js`, `vendor/three-0.128.0.min.js`, `vendor/three-OrbitControls-0.128.0.js`). Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from `cdn.jsdelivr.net`. Firebase analytics (loaded from `gstatic.com`) is unchanged.
@@ -423,6 +425,8 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **PPTX export smoke test** added (`scripts/smoke-test-pptx.js`) — verifies the PowerPoint export produces a valid OOXML file end-to-end.
 - **Code-quality cleanup**: silent `catch (e) {}` blocks documented or replaced with `console.warn`; deprecated CSS keywords (`word-break: break-word`, `page-break-inside: avoid`) replaced with modern equivalents; unreferenced `docs/outbound-connectivity/styles_backup.css` removed.
 - **ESLint convention documented** in `docs/ESLINT_CONFIG_NOTES.md`.
+- **Tab navigation reordered** to `Designer | Sizer | ToR Switch | Knowledge` so the three "doing" tabs sit together first, with the reference / docs tab last.
+- **ToR Switch page parity fixes**: stat tiles now populate (was missing `js/utils.js`), and the page header now matches Designer / Sizer (logo, version, What's New link, disclaimer banner).
 
 #### 0.20.09 - Configuration Report: PowerPoint Export
 - **📊 Download PowerPoint button** on the Configuration Report page generates a styled `.pptx` deck (template-driven via `report/template/OdinPPTTemplate.potx`).

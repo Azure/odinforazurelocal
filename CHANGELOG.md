@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.20.10] - 2026-04-30
+## [0.20.67] - 2026-04-30
 
 Security and code-quality release. No end-user feature changes; this release tightens the build, dependency, and CI surface so future work is safer to land.
 
@@ -33,7 +33,6 @@ Security and code-quality release. No end-user feature changes; this release tig
 
 - **Stat tiles on the ToR Switch page now show real counts.** The page rendered the six-tile bar but every value stayed at `—` because `js/utils.js` (which defines `formatNumber()`) was not loaded; `fetchAndDisplayStats()` threw a silent `ReferenceError` before populating any tile. `switch-config/index.html` now loads `../js/utils.js` alongside `../js/analytics.js` and `../js/stats-bar.js`.
 - **Header layout aligned with Designer and Sizer.** The ToR Switch page previously had a plain `<h1>` with no logo, version, or What's New link. Restructured to use the shared `header-title-wrapper` / `header-logo-wrapper` / `header-version` markup plus the `whats-new-link` button (powered by `js/changelog.js`, now also loaded on this page). Title text follows the established convention: **ODIN ToR Switch for Azure Local**. The same disclaimer banner that appears on Designer and Sizer is now rendered above the header on this page too.
-- **Tab navigation order changed to `Designer | Sizer | ToR Switch | Knowledge`** (`js/nav.js`). Knowledge moves to the end of the tab strip on every page so the three "doing" tabs (Designer, Sizer, ToR Switch) sit together first, with the reference / docs tab last. No CSS changes were needed — only the `tabs` array order in `nav.js`.
 
 ### Added
 
@@ -52,7 +51,7 @@ Security and code-quality release. No end-user feature changes; this release tig
   - All counters are increment-only via Firebase server-side `increment(1)`; no switch-config content, IPs, hostnames, or pasted running-config text is ever transmitted.
 - **Two new stat tiles on the page-statistics bar** (Designer, Sizer, and the new bar on the ToR Switch Configuration page): **ToR Switch Configs** and **ToR Switch QoS Audits**, surfacing the two new counters next to the existing Visitors / Designs Generated / Sizes Calculated / ARM Deployments tiles. The bar now uses a 3-column grid on desktop (3+3 layout) and a 2-column grid on mobile (2×3 layout), giving a deterministic two-row stack at all viewport widths.
 - **Shared `js/stats-bar.js` component** — the six-tile counter strip is now rendered from a single source by injecting markup into a `<div id="page-statistics" data-stats-bar></div>` placeholder. Replaces three near-identical hand-maintained copies in `index.html`, `sizer/index.html`, and `switch-config/index.html` that had drifted from one another. Single source of truth for tile labels, icons, and order.
-- **ToR Switch tab added to the shared top navigation** (`js/nav.js`). The Designer, Sizer, and ToR Switch Configuration pages now show a consistent `Designer | Knowledge | Sizer | ToR Switch` tab bar. The ToR Switch Configuration page previously had its own one-off `page-header-bar` with just an ODIN logo and a static title; that header is replaced by the shared `<nav class="odin-tab-nav">` block (and the dead `.page-header-bar` family of CSS rules in `switch-config.css` has been removed).
+- **ToR Switch tab added to the shared top navigation** (`js/nav.js`). The Designer, Sizer, and ToR Switch Configuration pages now show a consistent `Designer | Sizer | ToR Switch | Knowledge` tab bar — the three "doing" tabs sit together first, with the reference / docs tab last. The ToR Switch Configuration page previously had its own one-off `page-header-bar` with just an ODIN logo and a static title; that header is replaced by the shared `<nav class="odin-tab-nav">` block (and the dead `.page-header-bar` family of CSS rules in `switch-config.css` has been removed).
 - **`scripts/smoke-test-pptx.js`** — Puppeteer-driven smoke test that loads `report/report.html` with a seeded payload, intercepts the generated Blob, and asserts ZIP magic + size. Wired into CI as the `pptx-smoke` job.
 - **`docs/ESLINT_CONFIG_NOTES.md`** — documents the `allowEmptyCatch: true` convention (every empty catch must include an inline comment explaining why) and the rationale for the legacy-files override block.
 - **`npm audit --audit-level=high`** step in `.github/workflows/test.yml` — high-severity advisories now block CI.
