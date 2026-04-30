@@ -2817,7 +2817,9 @@ header .header-description {
 
 .stats-container {
     display: flex;
-    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 24px;
     padding: 10px 20px;
     background: rgba(59, 130, 246, 0.1);
     border: 1px solid rgba(59, 130, 246, 0.3);

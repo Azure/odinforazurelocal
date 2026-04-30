@@ -71,6 +71,8 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **PPTX export smoke test** added (`scripts/smoke-test-pptx.js`) — runs in CI to verify the PowerPoint export produces a valid ZIP / OOXML file end-to-end.
 - **Code-quality cleanup**: replaced two silent `catch (e) {}` blocks with `console.warn` (`switch-config/switch-config.js`) and explanatory comments (`report/report.js`); replaced deprecated CSS keywords (`word-break: break-word`, `page-break-inside: avoid`) with their modern equivalents; removed the unreferenced `docs/outbound-connectivity/styles_backup.css`.
 - **ESLint convention documented** in `docs/ESLINT_CONFIG_NOTES.md`: every empty `catch` must include an inline comment explaining why the error is safe to swallow.
+- **Anonymous usage counters added to the ToR Switch Configuration page** — Firebase counters (`switchConfigGenerated`, `qosAuditAnalyzed`, `pageViews`) increment when **Generate Switch Configurations** or **Analyze QoS Configuration** complete successfully, and on page view. Increment-only via Firebase server-side `increment(1)`; no switch-config content, IPs, hostnames, or pasted running-config text is ever transmitted.
+- **Two new stat tiles** — **Switch Configs** and **QoS Audits** — surface the new counters next to the existing Visitors / Designs / Sizes / ARM Deployments tiles on the Designer, Sizer, and (now) ToR Switch Configuration pages. The bar wraps onto a second row on common laptop widths so all six counters fit without crowding.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 

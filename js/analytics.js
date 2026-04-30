@@ -205,6 +205,20 @@ function fetchAndDisplayStats() {
                     sizerCalcsEl.textContent = formatNumber(formCompletions.sizerCalculation || 0);
                 }
 
+                // Update switch configurations generated
+                const switchConfigsEl = document.getElementById('stat-switch-configs');
+                if (switchConfigsEl) {
+                    const formCompletions = data.formCompletions || {};
+                    switchConfigsEl.textContent = formatNumber(formCompletions.switchConfigGenerated || 0);
+                }
+
+                // Update QoS audits analyzed
+                const qosAuditsEl = document.getElementById('stat-qos-audits');
+                if (qosAuditsEl) {
+                    const formCompletions = data.formCompletions || {};
+                    qosAuditsEl.textContent = formatNumber(formCompletions.qosAuditAnalyzed || 0);
+                }
+
                 console.log('Analytics: Stats displayed');
             })
             .catch((error) => {

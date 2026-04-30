@@ -44,6 +44,7 @@ Security and code-quality release. No end-user feature changes; this release tig
   - `analytics/formCompletions/qosAuditAnalyzed` — increments when the **Analyze QoS Configuration** button successfully renders audit results.
   - `analytics/pageViews` is also now tracked when the page loads (matches Designer / Sizer behaviour).
   - All counters are increment-only via Firebase server-side `increment(1)`; no switch-config content, IPs, hostnames, or pasted running-config text is ever transmitted.
+- **Two new stat tiles on the page-statistics bar** (Designer, Sizer, and the new bar on the ToR Switch Configuration page): **Switch Configs** and **QoS Audits**, surfacing the two new counters next to the existing Visitors / Designs Generated / Sizes Calculated / ARM Deployments tiles. The bar now uses `flex-wrap: wrap` with center alignment so it gracefully splits across two rows on common laptop widths (≤1440px) and stays a 2-column grid on mobile.
 - **`scripts/smoke-test-pptx.js`** — Puppeteer-driven smoke test that loads `report/report.html` with a seeded payload, intercepts the generated Blob, and asserts ZIP magic + size. Wired into CI as the `pptx-smoke` job.
 - **`docs/ESLINT_CONFIG_NOTES.md`** — documents the `allowEmptyCatch: true` convention (every empty catch must include an inline comment explaining why) and the rationale for the legacy-files override block.
 - **`npm audit --audit-level=high`** step in `.github/workflows/test.yml` — high-severity advisories now block CI.
