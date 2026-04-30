@@ -4735,33 +4735,10 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     const section = document.getElementById('power-rack-section');
     if (!section) return;
 
-    if (workloads.length === 0) {
-        section.style.display = 'none';
-        // Still show 3D rack visualization with default config
-        if (typeof renderRack3D === 'function') {
-            var isTieredEmpty = _isTieredStorage();
-            var emptyDiskCount;
-            if (isTieredEmpty) {
-                emptyDiskCount = (parseInt(document.getElementById('cache-disk-count').value, 10) || 2)
-                               + (parseInt(document.getElementById('tiered-capacity-disk-count').value, 10) || 4);
-            } else {
-                emptyDiskCount = parseInt(document.getElementById('capacity-disk-count').value, 10) || 4;
-            }
-            renderRack3D({
-                clusterType: document.getElementById('cluster-type').value || 'standard',
-                nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
-                disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
-                disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
-                spineCount: _designerSpineCount || 2,
-                hasGpu: false,
-                gpuModel: '',
-                perNodeWatts: 0,
-                diskCount: emptyDiskCount,
-                portCount: _designerPortCount || 4
-            });
-        }
-        return;
-    }
+    // Power & rack estimates are derived purely from hardware config + node count,
+    // so we always show the section — even before any workload is added — to give
+    // users an immediate read on the data-centre footprint of their hardware
+    // selection. (3D rack visualization at the bottom likewise uses hwConfig.)
 
     // CPU power: Scale TDP by selected core count relative to max cores for the generation.
     // Lower core-count SKUs have proportionally lower TDP, but there is a base power floor
