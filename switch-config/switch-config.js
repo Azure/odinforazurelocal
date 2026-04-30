@@ -388,14 +388,11 @@
         if (main) main.style.display = 'block';
         var banner = document.getElementById('sc-quick-start-banner');
         if (banner) banner.style.display = 'flex';
-        // Track adoption so we know how many users land here without Designer
-        try {
-            if (typeof window.trackFormCompletion === 'function') {
-                window.trackFormCompletion('switch_config_quick_start', { profile: profile, scale: scale });
-            }
-        } catch (e) {
-            // analytics is optional
-        }
+        // Note: no trackFormCompletion() call here. Quick Start is a UI mode
+        // toggle, not a completion event — the existing generateConfigs() /
+        // runQosAudit() flows already increment switchConfigGenerated /
+        // qosAuditAnalyzed when the user actually finishes a generation. Page
+        // views are tracked separately via trackPageView() in DOMContentLoaded.
     }
 
     /**

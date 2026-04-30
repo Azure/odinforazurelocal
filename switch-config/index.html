@@ -61,11 +61,15 @@
                     </label>
                 </div>
                 <select id="sc-quick-start-profile" style="width:100%; padding:0.7rem 0.8rem; background:var(--card-bg); border:2px solid var(--accent-blue); color:var(--text-primary); border-radius:6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; margin-bottom: 1rem;">
-                    <option value="hci_converged">Hyperconverged — All Traffic Converged (single intent, no separate storage VLAN)</option>
-                    <option value="hci_switched" selected>Hyperconverged — Storage Switched (RoCE/RDMA storage VLANs on ToR)</option>
-                    <option value="hci_switchless">Hyperconverged — Storage Switchless (storage NICs back-to-back, no storage VLANs on ToR)</option>
-                    <option value="disagg_fc">Disaggregated — Fibre Channel SAN (storage on FC fabric, leaf-only ToR scope)</option>
-                    <option value="disagg_iscsi">Disaggregated — iSCSI (storage on dedicated iSCSI VLANs)</option>
+                    <optgroup label="Hyperconverged">
+                        <option value="hci_converged">All Traffic Converged (single intent, no separate storage VLAN)</option>
+                        <option value="hci_switched" selected>Storage Switched (RoCE/RDMA storage VLANs on ToR)</option>
+                        <option value="hci_switchless">Storage Switchless (storage NICs back-to-back, no storage VLANs on ToR)</option>
+                    </optgroup>
+                    <optgroup label="Disaggregated">
+                        <option value="disagg_fc">Fibre Channel SAN (storage on FC fabric, leaf-only ToR scope)</option>
+                        <option value="disagg_iscsi">iSCSI (storage on dedicated iSCSI VLANs)</option>
+                    </optgroup>
                 </select>
 
                 <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.5rem;">
