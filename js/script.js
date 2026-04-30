@@ -211,7 +211,15 @@ document.addEventListener('DOMContentLoaded', function() {
 // NOTE: Firebase Analytics Module has been moved to js/analytics.js
 // ============================================================================
 
-const state = {
+// Returns a fresh defaults object for the entire Designer wizard. Used both
+// to seed `state` on page load and to fully reset state in `resetAll()` —
+// keep this as the SINGLE source of truth for default values so adding a
+// new state field doesn't silently bypass Start Over (the previous bug:
+// sizerHardware / sizerWorkloads / architecture / all disagg* fields were
+// missing from resetAll's hand-maintained property list and survived a
+// "Start Over" click).
+function getInitialWizardState() {
+    return {
     scenario: null,
     architecture: null, // 'hyperconverged' | 'disaggregated' — selected in Step 1b
     region: null,
@@ -288,6 +296,13 @@ const state = {
     privateEndpointsList: [], // Array of selected PE services: 'keyvault', 'storage', 'acr', 'asr', 'backup', 'sql', 'defender'
     sizerHardware: null, // Hidden: hardware config imported from Sizer (CPU, memory, disks, workload summary)
     sizerWorkloads: null, // Hidden: individual workload details imported from Sizer (VM, AKS, AVD)
+    // Disconnected (ALDO) deployment role + paired Autonomous-Cloud FQDN.
+    // clusterRole: 'management' | 'workload' | null — selected on the Disconnected
+    // Operations step when scenario === 'disconnected'.
+    // autonomousCloudFqdn: string | null — the air-gapped cloud FQDN entered on
+    // the same step (and pre-populated from a Sizer ALDO handoff).
+    clusterRole: null,
+    autonomousCloudFqdn: null,
     // Disaggregated architecture state
     disaggStorageType: null, // 'fc_san' | 'iscsi_4nic' | 'iscsi_6nic'
     disaggBackupEnabled: false,
@@ -353,7 +368,10 @@ const state = {
     disaggIscsiSubnet1: null,   // iSCSI NIC1 subnet (VLAN 500)
     disaggIscsiSubnet2: null,   // iSCSI NIC2 subnet (VLAN 600)
     disaggBackupSubnet: null    // Backup subnet (VLAN 800)
-};
+    };
+}
+
+const state = getInitialWizardState();
 
 // Auto-save state to localStorage
 function saveStateToLocalStorage() {
@@ -8013,72 +8031,22 @@ function applyInfraVlanVisibility() {
 }
 
 function resetAll() {
-    // Reset all state properties to initial values
-    state.scenario = null;
-    state.region = null;
-    state.localInstanceRegion = null;
-    state.scale = null;
-    state.nodes = null;
-    state.witnessType = null;
-    state.ports = null;
-    state.storage = null;
-    state.torSwitchCount = null;
-    state.switchlessLinkMode = null;
-    state.storagePoolConfiguration = null;
-    state.infraVolLunId = null;
-    state.infraPerfLunId = null;
-    state.rackAwareZones = null;
-    state.rackAwareZonesConfirmed = false;
-    state.rackAwareZoneSwapSelection = null;
-    state.rackAwareTorsPerRoom = null;
-    state.rackAwareTorArchitecture = null;
-    state.intent = null;
-    state.customIntentConfirmed = false;
-    state.outbound = null;
-    state.arc = null;
-    state.proxy = null;
-    state.ip = null;
-    state.infra = null;
-    state.infraCidr = null;
-    state.infraCidrAuto = true;
-    state.infraGateway = null;
-    state.infraGatewayManual = false;
-    state.nodeSettings = [];
-    state.infraVlan = null;
-    state.infraVlanId = null;
-    state.storageAutoIp = null;
-    state.customStorageSubnets = [];
-    state.customStorageSubnetsConfirmed = false;
-    state.activeDirectory = null;
-    state.adDomain = null;
-    state.adOuPath = null;
-    state.adfsServerName = null;
-    state.dnsServers = [];
-    state.localDnsZone = null;
-    state.dnsServiceExisting = null;
-    state.sdnEnabled = null;
-    state.sdnFeatures = [];
-    state.sdnManagement = null;
-    state.intentOverrides = {};
-    state.customIntents = {};
-    state.adapterMapping = {};
-    state.adapterMappingConfirmed = false;
-    state.adapterMappingSelection = null;
-    state.overridesConfirmed = false;
-    state.securityConfiguration = null;
-    state.securitySettings = {
-        driftControlEnforced: true,
-        bitlockerBootVolume: true,
-        bitlockerDataVolumes: true,
-        wdacEnforced: true,
-        credentialGuardEnforced: true,
-        smbSigningEnforced: true,
-        smbClusterEncryption: true
-    };
-    state.rdmaGuardMessage = null;
-    state.privateEndpoints = null;
-    state.privateEndpointsList = [];
-    state.portConfig = [];
+    // Reset every state field to its default in one shot via the factory
+    // (single source of truth). Preserves only user-preference fields
+    // (theme, fontSize) so a Start Over doesn't flip the user's UI back to
+    // dark / medium against their will.
+    const preservedTheme = state.theme;
+    const preservedFontSize = state.fontSize;
+    const fresh = getInitialWizardState();
+    // Drop any keys that aren't in the canonical defaults (e.g. legacy keys
+    // from older saved state that have since been removed). This prevents
+    // "leftover" data from surviving a reset.
+    Object.keys(state).forEach(function (k) {
+        if (!Object.prototype.hasOwnProperty.call(fresh, k)) delete state[k];
+    });
+    Object.assign(state, fresh);
+    state.theme = preservedTheme;
+    state.fontSize = preservedFontSize;
 
     // Clear input fields
     const cidrInput = document.getElementById('infra-cidr');

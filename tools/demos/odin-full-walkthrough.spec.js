@@ -192,24 +192,24 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
     await annotate(page, 'ODIN Designer - deployment wizard & validated architectures');
     await page.waitForTimeout(250);
 
-    // -- 8. Open the template picker and load 8-Node Rack Aware --
-    await annotate(page, 'Load example template - 8-Node Rack Aware');
+    // -- 8. Open the template picker and load 64-Node Disaggregated --
+    await annotate(page, 'Load example template - 64-Node Disaggregated');
     await page.getByRole('button', { name: /Load Example Configuration Template/i }).first().click();
     await page.waitForTimeout(350);
     await page.evaluate(() => {
         const cards = Array.from(document.querySelectorAll('div[onclick^="loadTemplate"]'));
-        const card = cards.find((el) => /8-Node Rack Aware/i.test(el.textContent || ''));
+        const card = cards.find((el) => /64-Node Disaggregated/i.test(el.textContent || ''));
         if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
     });
     await page.waitForTimeout(500);
     // @ts-ignore - loadTemplate is a global defined in js/script.js
     await page.evaluate(() => {
         const cards = Array.from(document.querySelectorAll('div[onclick^="loadTemplate"]'));
-        const card = cards.find((el) => /8-Node Rack Aware/i.test(el.textContent || ''));
-        if (!card) throw new Error('Template "8-Node Rack Aware" not found');
+        const card = cards.find((el) => /64-Node Disaggregated/i.test(el.textContent || ''));
+        if (!card) throw new Error('Template "64-Node Disaggregated" not found');
         const onclick = card.getAttribute('onclick') || '';
         const match = onclick.match(/loadTemplate\((\d+)\)/);
-        if (!match) throw new Error('Unable to determine template index for "8-Node Rack Aware"');
+        if (!match) throw new Error('Unable to determine template index for "64-Node Disaggregated"');
         const index = Number(match[1]);
         window.loadTemplate(index);
     });

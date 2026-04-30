@@ -56,11 +56,28 @@
             customExtract: extractPhysicalTopology
         },
         {
-            title: 'Rack Configuration',
+            title: 'Node Configuration',
             match: [
                 'Rack Aware TOR Architecture',
                 'Hardware Configuration'
             ]
+        },
+        {
+            // Sizer-only slide: per-workload breakdown (VM / AKS / AVD).
+            // Skipped automatically when no `sizerWorkloads` data is present
+            // (i.e. the report wasn't started from the Sizer).
+            title: 'Workloads',
+            match: [],
+            customExtract: extractSizerWorkloads
+        },
+        {
+            // Sizer-only slide: power consumption, heat output and rack-space
+            // estimate. Skipped automatically when no `sizerHardware.power`
+            // data is present (i.e. the report wasn't started from the Sizer
+            // or the panel hasn't computed yet).
+            title: 'Power, Heat & Rack Space',
+            match: [],
+            customExtract: extractSizerPower
         },
         {
             title: 'Leaf & Spine Architecture',
@@ -1353,6 +1370,145 @@
             default:
                 return '';
         }
+    }
+
+    // Sizer Workloads slide: per-workload breakdown (VM / AKS / AVD) when
+    // the report was started from the Sizer. Returns null when no Sizer
+    // workload data is present, which makes the slide auto-skip.
+    function extractSizerWorkloads() {
+        var s = (typeof window.__odinGetReportState === 'function')
+            ? window.__odinGetReportState() : null;
+        if (!s || !Array.isArray(s.sizerWorkloads) || s.sizerWorkloads.length === 0) {
+            return null;
+        }
+
+        var typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop' };
+        var avdProfileLabels = { light: 'Light', medium: 'Medium', heavy: 'Heavy', power: 'Power', custom: 'Custom' };
+
+        function fmtStorage(gb) {
+            var n = Number(gb) || 0;
+            return n >= 1024 ? (n / 1024).toFixed(1) + ' TB' : n + ' GB';
+        }
+
+        var bullets = [];
+
+        // Cluster-wide totals (matches the "Hardware Configuration (from Sizer)"
+        // workloadSummary block already shown on the Node Configuration slide).
+        var ws = s.sizerHardware && s.sizerHardware.workloadSummary;
+        if (ws) {
+            var totalLine = (ws.count || s.sizerWorkloads.length) + ' workloads'
+                + ' \u00b7 ' + (ws.totalVcpus || 0) + ' vCPUs'
+                + ' \u00b7 ' + (ws.totalMemoryGB || 0) + ' GB memory'
+                + ' \u00b7 ' + (ws.totalStorageTB != null ? ws.totalStorageTB + ' TB' : fmtStorage((ws.totalStorageGB || 0)))
+                + ' storage';
+            bullets.push({ text: 'Total: ' + totalLine, lvl: 1 });
+        }
+
+        // One headline + one subtotal bullet per workload.
+        for (var i = 0; i < s.sizerWorkloads.length; i++) {
+            var wl = s.sizerWorkloads[i];
+            var name = wl.name || typeLabels[wl.type] || wl.type;
+            var typeLabel = typeLabels[wl.type] || wl.type;
+            var headline;
+            if (wl.type === 'vm') {
+                headline = (wl.count || 0) + ' VMs \u00d7 '
+                    + (wl.vcpusPerVm || 0) + ' vCPU / '
+                    + (wl.memoryPerVmGB || 0) + ' GB / '
+                    + (wl.storagePerVmGB || 0) + ' GB';
+            } else if (wl.type === 'aks') {
+                headline = (wl.clusterCount || 0) + ' clusters \u00b7 CP '
+                    + (wl.controlPlaneNodes || 0) + '\u00d7' + (wl.controlPlaneVcpus || 0) + 'vCPU/' + (wl.controlPlaneMemory || 0) + 'GB'
+                    + ' \u00b7 Workers '
+                    + (wl.workerNodes || 0) + '\u00d7' + (wl.workerVcpus || 0) + 'vCPU/' + (wl.workerMemory || 0) + 'GB/' + (wl.workerStorage || 0) + 'GB';
+            } else if (wl.type === 'avd') {
+                var profile = avdProfileLabels[wl.profile] || wl.profile || '\u2014';
+                var session = wl.sessionType === 'single' ? 'Single-session' : 'Multi-session';
+                headline = (wl.userCount || 0) + ' users \u00b7 ' + profile + ' \u00b7 ' + session;
+                if (wl.sessionType !== 'single') headline += ' (' + (wl.concurrency || 100) + '%)';
+                if (wl.fslogix) headline += ' \u00b7 FSLogix ' + (wl.fslogixSize || 30) + ' GB';
+                if (wl.profile === 'custom') {
+                    headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
+                }
+            } else {
+                headline = '\u2014';
+            }
+            bullets.push({ text: name + ' (' + typeLabel + ') \u2014 ' + headline, lvl: 1 });
+            bullets.push({
+                text: 'Subtotal: ' + (wl.totalVcpus || 0) + ' vCPUs \u00b7 '
+                    + (wl.totalMemoryGB || 0) + ' GB memory \u00b7 '
+                    + fmtStorage(wl.totalStorageGB) + ' storage',
+                lvl: 2
+            });
+        }
+
+        return {
+            bullets: bullets,
+            sources: ['Workloads (from Sizer)']
+        };
+    }
+
+    // Power, Heat & Rack Space slide (Sizer only).
+    // Returns null when no power data is present so the slide auto-skips
+    // for non-Sizer reports.
+    function extractSizerPower() {
+        var s = (typeof window.__odinGetReportState === 'function')
+            ? window.__odinGetReportState() : null;
+        var pw = s && s.sizerHardware && s.sizerHardware.power;
+        if (!pw) return null;
+
+        var bullets = [];
+        var nodeCount = (s.sizerHardware && s.sizerHardware.nodeCount) || 0;
+        bullets.push({
+            text: 'Per-node power: ' + (pw.perNodeW || 0).toLocaleString() + ' W',
+            lvl: 1
+        });
+        bullets.push({
+            text: 'Total instance power: ' + (pw.totalW || 0).toLocaleString() + ' W'
+                + (nodeCount ? ' (' + nodeCount + ' nodes)' : ''),
+            lvl: 1
+        });
+        bullets.push({
+            text: 'Heat output: ' + (pw.totalBtu || 0).toLocaleString() + ' BTU/hr',
+            lvl: 1
+        });
+        if (pw.rackUnits) {
+            bullets.push({
+                text: 'Rack space: ' + pw.rackUnits + 'U',
+                lvl: 1
+            });
+        }
+        if (pw.infraPowerW) {
+            bullets.push({
+                text: 'Network infrastructure power: ' + pw.infraPowerW.toLocaleString() + ' W'
+                    + (pw.infraPowerNote ? ' (' + pw.infraPowerNote + ')' : ''),
+                lvl: 1
+            });
+        }
+        if (pw.components) {
+            var c = pw.components;
+            bullets.push({ text: 'Per-node component breakdown', lvl: 1 });
+            bullets.push({ text: 'CPU: ' + (c.cpuW || 0) + ' W', lvl: 2 });
+            bullets.push({ text: 'Memory: ' + (c.memoryW || 0) + ' W', lvl: 2 });
+            var disksW = (c.dataDisksW || 0) + (c.bootDisksW || 0);
+            bullets.push({ text: 'Disks (data + boot): ' + disksW + ' W', lvl: 2 });
+            if (c.gpuW > 0) bullets.push({ text: 'GPU: ' + c.gpuW + ' W', lvl: 2 });
+            bullets.push({ text: 'Base overhead (fans, NICs, BMC): ' + (c.baseOverheadW || 0) + ' W', lvl: 2 });
+            if (c.psuEfficiency) {
+                bullets.push({
+                    text: 'PSU efficiency: ~' + Math.round(c.psuEfficiency * 100) + '% (80 Plus Titanium @ ~50% load)',
+                    lvl: 2
+                });
+            }
+        }
+        bullets.push({
+            text: 'Estimates only — consult OEM hardware partner for accurate power and rack planning.',
+            lvl: 1
+        });
+
+        return {
+            bullets: bullets,
+            sources: ['Power, Heat & Rack Space (from Sizer)']
+        };
     }
 
     // Security Configuration slide: always show all 7 security settings with

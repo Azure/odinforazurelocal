@@ -4,42 +4,58 @@
 // Usage tracking for page views and form completions.
 // To enable analytics, replace the placeholder values with your Firebase config.
 //
-// Firebase Realtime Database Rules (recommended):
+// Firebase Realtime Database Rules (live, as deployed in Firebase Console):
 // {
 //   "rules": {
 //     "analytics": {
+//       ".read": true,
 //       "pageViews": {
-//         ".read": false,
 //         ".write": true,
-//         ".validate": "newData.isNumber() && newData.val() >= data.val()"
+//         ".validate": "newData.isNumber()"
 //       },
 //       "formCompletions": {
 //         "designDocument": {
-//           ".read": false,
 //           ".write": true,
-//           ".validate": "newData.isNumber() && newData.val() >= data.val()"
+//           ".validate": "newData.isNumber()"
 //         },
 //         "armDeployment": {
-//           ".read": false,
 //           ".write": true,
-//           ".validate": "newData.isNumber() && newData.val() >= data.val()"
+//           ".validate": "newData.isNumber()"
 //         },
 //         "sizerCalculation": {
-//           ".read": false,
 //           ".write": true,
-//           ".validate": "newData.isNumber() && newData.val() >= data.val()"
+//           ".validate": "newData.isNumber()"
+//         },
+//         "switchConfigGenerated": {
+//           ".write": true,
+//           ".validate": "newData.isNumber()"
+//         },
+//         "qosAuditAnalyzed": {
+//           ".write": true,
+//           ".validate": "newData.isNumber()"
 //         }
 //       }
-//     }
+//     },
+//     ".read": false,
+//     ".write": false
 //   }
 // }
+//
+// Notes:
+// - `analytics/.read: true` is required for fetchAndDisplayStats() to read counter
+//   values back into the page-statistics bar via .once('value').
+// - Counters are incremented client-side via firebase.database.ServerValue.increment(1).
+//   The validate rule only enforces that the new value is numeric; the server-side
+//   atomic increment prevents lost updates under concurrency.
+// - All other paths (root .read / .write: false) are denied by default.
 // ============================================================================
 
 const FIREBASE_CONFIG = {
     // Replace with your Firebase project configuration
     // Get these values from: Firebase Console > Project Settings > General > Your apps > Config
     // NOTE: This is intentionally a public client-side API key with no sensitive write access.
-    // Firebase security rules (above) restrict operations to increment-only counters.
+    // Firebase security rules (above) restrict operations to numeric writes on the analytics
+    // counter paths only; root reads/writes are denied.
     apiKey: 'AIzaSyDBMPWx1F7G6T-KMEkkfhLNbl145mU9m-Q',
     authDomain: 'odin-analytics-7881f.firebaseapp.com',
     databaseURL: 'https://odin-analytics-7881f-default-rtdb.firebaseio.com',
@@ -122,14 +138,15 @@ function trackPageView() {
 
 /**
  * Track form completion events
- * @param {string} eventType - Event type: 'designDocument' or 'armDeployment'
+ * @param {string} eventType - Event type: 'designDocument', 'armDeployment', 'sizerCalculation',
+ *                             'switchConfigGenerated', or 'qosAuditAnalyzed'
  */
 function trackFormCompletion(eventType) {
     if (!analytics.enabled || !analytics.database) {
         return;
     }
 
-    const validEvents = ['designDocument', 'armDeployment', 'sizerCalculation'];
+    const validEvents = ['designDocument', 'armDeployment', 'sizerCalculation', 'switchConfigGenerated', 'qosAuditAnalyzed'];
     if (!validEvents.includes(eventType)) {
         console.warn('Analytics: Invalid event type:', eventType);
         return;
@@ -192,6 +209,20 @@ function fetchAndDisplayStats() {
                 if (sizerCalcsEl) {
                     const formCompletions = data.formCompletions || {};
                     sizerCalcsEl.textContent = formatNumber(formCompletions.sizerCalculation || 0);
+                }
+
+                // Update switch configurations generated
+                const switchConfigsEl = document.getElementById('stat-switch-configs');
+                if (switchConfigsEl) {
+                    const formCompletions = data.formCompletions || {};
+                    switchConfigsEl.textContent = formatNumber(formCompletions.switchConfigGenerated || 0);
+                }
+
+                // Update QoS audits analyzed
+                const qosAuditsEl = document.getElementById('stat-qos-audits');
+                if (qosAuditsEl) {
+                    const formCompletions = data.formCompletions || {};
+                    qosAuditsEl.textContent = formatNumber(formCompletions.qosAuditAnalyzed || 0);
                 }
 
                 console.log('Analytics: Stats displayed');

@@ -53,7 +53,55 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.09</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.67</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">April 30, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🐛 Sizer — JSON Import fixes (#207)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>CPU socket and core counts are now reconciled correctly</strong> when importing an Azure Local Machine JSON. The 1 vs 2 socket value from <code>numberOfCpuSockets</code> / <code>processorCount</code> is no longer overridden by an internal heuristic, and a 2&times;10 = 20-core machine no longer shows up as <em>20 &times; 1 socket</em>.</li>
+                        <li><strong>Setting machines = 1 in the import preview now forces Deployment Type to <em>Single Node</em></strong> (Hyperconverged is not a valid 1-node configuration).</li>
+                        <li><strong>Storage Resiliency now matches the imported cluster size</strong>: 2 nodes → Two-way Mirror, 3+ nodes → Three-way Mirror. Previously it always defaulted to Two-way Mirror.</li>
+                        <li><strong>Deployment-type prompt added to the Parse &amp; Preview screen</strong> — choose between Hyperconverged and Rack-Aware Cluster before applying. Single Node still auto-applies when machines = 1.</li>
+                        <li><strong>Rack-Aware Cluster machine-count validation</strong>: Rack-Aware only supports 2, 4, 6, or 8 machines. The Load button is disabled with an inline error until the count is valid.</li>
+                        <li><strong>"Apply Configuration" renamed to "Load Cluster Configuration"</strong> in the import modal.</li>
+                        <li><strong>Memory dropdown now preserves non-standard DIMM totals</strong> via a custom option (mirrors how CPU cores work). An imported lab VM with 80 GB no longer silently rounds to 64 GB — the dropdown gains an <em>80 GB (imported)</em> entry and the value is honoured by the sizing math.</li>
+                        <li><strong>S2D capacity-disk count and size are now captured directly in the import preview</strong>. Azure Local JSON does not expose S2D data disks, so the preview now offers Disk Count and Disk Size selects (default 4 &times; 3.84 TB) and applies them to both the single-tier and tiered capacity-disk selectors when the cluster is loaded.</li>
+                        <li><strong>5.68 TB SSD added</strong> to all capacity-disk dropdowns to match a customer-reported drive size.</li>
+                        <li><strong>Re-clicking <em>Parse &amp; Preview</em> no longer resets your in-preview selections</strong> (machine count, deployment type, S2D disk count / size). Accidental re-clicks now preserve any non-default values instead of snapping them back to defaults.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛡️ Security &amp; Code-Quality Release</h4>
+                    <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">No end-user feature changes. Tightens the build, dependency, and CI surface.</p>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>All third-party JS vendored locally</strong> (<code>html2canvas</code>, <code>jsPDF</code>, <code>three.js</code>, <code>OrbitControls</code>) — Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from <code>cdn.jsdelivr.net</code>. Better for offline / air-gapped use.</li>
+                        <li><strong>CSS lint added to CI</strong> (<code>stylelint</code>) — catches undefined CSS custom properties and invalid hex values.</li>
+                        <li><strong>CodeQL security scanning</strong> enabled — runs on every PR and weekly.</li>
+                        <li><strong>Anonymous usage counters added to the ToR Switch Configuration page</strong> — Firebase counters increment when <em>Generate Switch Configurations</em> or <em>Analyze QoS Configuration</em> complete successfully (and on page view). No switch-config content, IPs, hostnames, or pasted running-config text is transmitted.</li>
+                        <li><strong>Two new stat tiles</strong> on the page-statistics bar (Designer, Sizer, and the new bar on the ToR Switch Configuration page) — <em>ToR Switch Configs</em> and <em>ToR Switch QoS Audits</em> — surface the new counters next to the existing Visitors / Designs / Sizes / ARM Deployments tiles. Six tiles are arranged 3+3 on desktop and 2×3 on mobile.</li>
+                        <li><strong>Shared <code>js/stats-bar.js</code> component</strong> renders the six-tile counter strip from a single source on every page that needs it; replaces three drifted hand-maintained copies of the same markup.</li>
+                        <li><strong>ToR Switch tab added to the shared top nav</strong> — the Designer, Sizer, and ToR Switch Configuration pages now show a consistent <code>Designer | Sizer | ToR Switch | Knowledge</code> tab bar (the three &quot;doing&quot; tabs sit together first, with the reference / docs tab last).</li>
+                        <li><strong>ToR Switch Configuration page — header layout matches Designer and Sizer</strong> (ODIN logo, version, <em>What&apos;s New</em> link, disclaimer banner above the header).</li>
+                        <li><strong>ToR Switch Configuration page — stat tiles now show real counts.</strong> The six-tile bar previously stayed at <code>&mdash;</code> because <code>js/utils.js</code> (which defines <code>formatNumber()</code>) wasn&apos;t loaded; <code>fetchAndDisplayStats()</code> threw a silent <code>ReferenceError</code> before populating any tile.</li>
+                        <li><strong>First-visit walkthrough + Help button on the ToR Switch page</strong> — a 3-step <em>Welcome / Generator / QoS Validator</em> overlay appears once on first visit, gated by a <code>localStorage</code> key, and the shared nav-bar <strong>Help (?)</strong> button now re-launches the same overlay on demand. Mirrors the Sizer onboarding pattern.</li>
+                        <li><strong>New “Workloads” slide in the PowerPoint export</strong> of the Configuration Report. When the report was started from the Sizer, the generated PPTX now includes a dedicated <em>Workloads</em> slide right after <em>Node Configuration</em>, with one bullet per VM / AKS Arc / AVD workload plus a <em>Subtotal</em> sub-bullet (vCPUs · memory · storage). The slide is automatically skipped for non-Sizer reports.</li>
+                        <li><strong>PowerPoint slide “Rack Configuration” renamed to “Node Configuration”</strong> — the slide content is per-node hardware (CPU, memory, disks, resiliency, cluster type), so the new title describes what it actually shows.</li>
+                        <li><strong>Designer “Start Over” now fully resets state.</strong> Previously the reset missed Sizer-imported workloads, the architecture choice, and the entire disaggregated config block, so they leaked across resets. Defaults are now driven from a single source-of-truth factory; theme and font-size preferences are still preserved.</li>
+                        <li><strong>ToR Switch page now has a Quick Start picker.</strong> Opening the page without first using the Designer used to show only a "No Designer Data Found" stub. There's now a prominent <em>Deployment Type</em> dropdown (the same five canonical scenarios as the QoS Validator: HCI All-Traffic Converged, HCI Storage Switched, HCI Storage Switchless, Disaggregated FC SAN, Disaggregated iSCSI) plus a <em>Single Rack / Rack-Aware</em> toggle. Click <strong>Use These Defaults</strong> and the full generator opens with sensible illustrative VLAN IDs, IPs, and hostnames pre-filled — every field stays editable. A banner with a <em>Change Deployment Type</em> button lets you swap profiles at any time. When you arrive from the Designer instead, the dropdown auto-pre-selects to match.</li>
+                        <li><strong>Sizer Power, Heat &amp; Rack-Space panel is now always visible</strong> — previously hidden until the first workload was added, even though the figures only depend on the selected hardware and node count. The 3D rack visualization renders with real values from the moment you open the Sizer.</li>
+                        <li><strong>Sizer Power &amp; Heat estimates now appear in the Designer report and PowerPoint export.</strong> When you Configure in Designer from the Sizer, the computed per-node Watts, total Watts, BTU/hr, rack U, and component breakdown are carried through to a new “Power, Heat &amp; Rack Space (from Sizer)” section in <code>report.html</code> and to a dedicated PPT slide of the same name.</li>
+                        <li><strong>Fixed: single-rack hyperconverged rack diagram in the report no longer renders gigantic.</strong> A tall+narrow rack (e.g. 1 rack × 16 nodes) was being stretched to fill the report card; the SVG now caps upward scaling at its natural intrinsic width.</li>
+                        <li><strong><code>npm audit</code> CI gate</strong> — high-severity advisories now block merges. <code>basic-ftp</code> override bumped to <code>&gt;=5.3.1</code> (clears <code>GHSA-rp42-5vxx-qpwr</code>).</li>
+                        <li><strong>PPTX export smoke test</strong> in CI — verifies the PowerPoint export produces a valid file end-to-end.</li>
+                        <li><strong>Code-quality cleanup</strong>: silent <code>catch</code> blocks documented or replaced with <code>console.warn</code>; deprecated CSS keywords (<code>word-break: break-word</code>, <code>page-break-inside</code>) replaced with modern equivalents; unreferenced <code>styles_backup.css</code> removed.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.08); border-left: 4px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.20.09</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">April 30, 2026</div>
                 </div>
 

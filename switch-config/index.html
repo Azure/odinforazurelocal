@@ -8,6 +8,9 @@
     <meta name="referrer" content="no-referrer">
     <link rel="icon" type="image/png" href="../images/odin-logo.png">
     <title>ToR Switch Configuration Generator &amp; Validator</title>
+    <!-- Firebase SDK (anonymous page-view + button-click counters; see js/analytics.js) -->
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="switch-config.css">
 </head>
@@ -15,38 +18,118 @@
 <body>
     <div class="background-globes"></div>
 
-    <div class="page-header-bar">
-        <div class="page-header-container">
-            <a href="../" class="page-header-logo">
-                <img src="../images/odin-logo.png" alt="ODIN Logo">
-                <span>ODIN</span>
-            </a>
-            <span class="page-header-title"><abbr title="Top of Rack">ToR</abbr> Switch Configuration</span>
-        </div>
-    </div>
+    <nav class="odin-tab-nav" id="odin-nav" data-active="switch" data-base="../" aria-label="Main navigation"></nav>
+    <script src="../js/nav.js"></script>
 
     <main class="container">
+        <div class="disclaimer-wrapper">
+            <div class="disclaimer-banner">
+                <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
+            </div>
+        </div>
+
         <header>
-            <h1><abbr title="Top of Rack">ToR</abbr> Switch Configuration Generator &amp; Validator</h1>
-            <p>Generate example <abbr title="Top of Rack">ToR</abbr>, <abbr title="Baseboard Management Controller">BMC</abbr>, and border switch configurations based on your Azure Local deployment design.</p>
-            <p style="font-size:0.85rem;color:#aaa;margin-top:0.5rem;">🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.</p>
+            <div class="header-title-wrapper">
+                <h1 class="header-title">ODIN <abbr title="Top of Rack">ToR</abbr> Switch for Azure Local</h1>
+                <div class="header-logo-wrapper">
+                    <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
+                    <div class="header-version">
+                        Version 0.20.67 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                    </div>
+                </div>
+            </div>
+            <p class="header-description">Generate example <abbr title="Top of Rack">ToR</abbr>, <abbr title="Baseboard Management Controller">BMC</abbr>, and border switch configurations based on your Azure Local deployment design.</p>
+            <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:0.5rem;">🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.</p>
+
+            <!-- Page Statistics (rendered by js/stats-bar.js) -->
+            <div id="page-statistics" data-stats-bar></div>
         </header>
 
-        <!-- No Data State (shown when no Designer data) -->
-        <div id="sc-no-data" class="sc-no-data" style="display: none;">
-            <h3>No Designer Data Found</h3>
-            <p>Use the ODIN Designer wizard to configure your deployment, then transfer to this page.<br>
-               <a href="../">← Go to Designer</a></p>
+        <!-- Deployment Type picker — ALWAYS visible at the top of the page so a user can
+             change the deployment scenario at any time, regardless of whether they arrived
+             from the Designer with cached state or directly via the nav tab. The card
+             header, intro copy, and apply-button label are switched between
+             "no Designer data" and "loaded from Designer" modes by switch-config.js. -->
+        <div id="sc-quick-start" class="sc-quick-start">
+            <div class="sc-quick-start-card">
+                <h3 id="sc-quick-start-heading" style="margin: 0 0 0.4rem 0;">
+                    Deployment Type
+                    <span id="sc-quick-start-mode-badge" style="font-size:0.75rem;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;margin-left:0.5rem;">no Designer data</span>
+                </h3>
+                <p id="sc-quick-start-intro" style="margin: 0 0 1rem 0; color: var(--text-secondary); font-size: 0.92rem;">
+                    No deployment data was found from the <a href="../">ODIN Designer</a>. Pick a <strong>Deployment Type</strong> below to load sensible defaults — you can then edit every field before generating switch configs.
+                    For a fully-tailored config (correct VLAN IDs, tenant networks, rack-aware topology), <a href="../">complete the Designer wizard</a> first and use its <em>Generate Switch Config</em> action.
+                </p>
+
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.5rem;">
+                    <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:50%; background:var(--accent-blue); color:#fff; font-weight:700; font-size:0.9rem;">1</span>
+                    <label for="sc-quick-start-profile" style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        Deployment Type <span style="color: #ef4444;" aria-hidden="true">*</span>
+                    </label>
+                </div>
+                <select id="sc-quick-start-profile" onchange="window.updateQuickStartScaleControls && window.updateQuickStartScaleControls()" style="width:100%; padding:0.7rem 0.8rem; background:var(--card-bg); border:2px solid var(--accent-blue); color:var(--text-primary); border-radius:6px; font-size: 0.95rem; font-weight: 500; cursor: pointer; margin-bottom: 1rem;">
+                    <optgroup label="Hyperconverged">
+                        <option value="hci_converged">All Traffic Converged (single intent, no separate storage VLAN)</option>
+                        <option value="hci_switched" selected>Storage Switched (RoCE/RDMA storage VLANs on ToR)</option>
+                        <option value="hci_switchless">Storage Switchless (storage NICs back-to-back, no storage VLANs on ToR)</option>
+                    </optgroup>
+                    <optgroup label="Disaggregated">
+                        <option value="disagg_fc">Fibre Channel SAN (storage on FC fabric, leaf-only ToR scope)</option>
+                        <option value="disagg_iscsi">iSCSI (storage on dedicated iSCSI VLANs)</option>
+                    </optgroup>
+                </select>
+
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.5rem;">
+                    <span aria-hidden="true" style="display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:50%; background:var(--accent-blue); color:#fff; font-weight:700; font-size:0.9rem;">2</span>
+                    <label id="sc-quick-start-scale-label" style="font-size: 1.05rem; font-weight: 600; color: var(--text-primary); margin: 0;">Rack Scale</label>
+                </div>
+                <!--
+                    Two scale controls — only one is shown at a time, switched
+                    by the deployment-type select above (see updateQuickStartScaleControls()
+                    in switch-config.js).
+                      • HCI scenarios: "Single Rack / Rack-Aware" radio (2 ToRs vs 4 ToRs).
+                      • Disaggregated scenarios (FC SAN, iSCSI): a numeric input
+                        for 1–8 racks, since disaggregated supports up to 8
+                        racks of leaf pairs converging on a spine pair.
+                -->
+                <div id="sc-quick-start-scale-radio" role="radiogroup" aria-label="Rack Scale" style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom: 1rem;">
+                    <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
+                        <input type="radio" name="sc-quick-start-scale" value="single" checked> Single Rack (2 ToR switches)
+                    </label>
+                    <!-- Rack-Aware option is hidden when Storage Switchless is
+                         selected (Storage Switchless does not support rack-
+                         aware clusters — the storage NICs are wired directly
+                         between nodes within a single rack). -->
+                    <label id="sc-quick-start-scale-rack-aware-label" style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
+                        <input type="radio" name="sc-quick-start-scale" value="rack_aware"> Rack-Aware (2 racks, 4 ToR switches)
+                    </label>
+                </div>
+                <div id="sc-quick-start-scale-disagg" style="display:none; margin-bottom: 1rem;">
+                    <label for="sc-quick-start-rack-count" style="display:block; font-size:0.85rem; color:var(--text-secondary); margin-bottom: 0.35rem;">
+                        Number of Racks (1–8) — each rack is one leaf pair (2 ToR switches per rack)
+                    </label>
+                    <input type="number" id="sc-quick-start-rack-count" min="1" max="8" step="1" value="1"
+                           style="width: 8rem; padding:0.5rem 0.7rem; background:var(--card-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:6px; font-size: 0.95rem;">
+                </div>
+
+                <button type="button" id="sc-quick-start-btn" class="sc-generate-btn" onclick="window.applyQuickStart()" style="background: linear-gradient(135deg, var(--accent-blue), #6366f1);">
+                    ▶ Use These Defaults
+                </button>
+
+                <p id="sc-quick-start-footer-note" style="margin: 1rem 0 0 0; color: var(--text-secondary); font-size: 0.82rem;">
+                    💡 The <abbr title="Quality of Service">QoS</abbr> Validator below works independently and does <strong>not</strong> require Designer data — paste a switch <code>show running-config</code> output to audit it against Azure Local <abbr title="Quality of Service">QoS</abbr> requirements.
+                </p>
+            </div>
         </div>
 
         <!-- Main content (hidden until data available) -->
         <div id="sc-main" style="display: none;">
 
-            <!-- Deployment Info Banner -->
-            <div id="sc-deployment-banner" class="sc-info-banner">
-                <span class="sc-icon">ℹ️</span>
-                <span id="sc-deployment-text">Loading deployment details...</span>
-            </div>
+            <!-- (Deployment-info banner removed — the always-visible Deployment
+                 Type picker at the top of the page already shows the active
+                 scenario via its heading badge and intro paragraph, so this
+                 in-form banner was redundant and could disagree with the
+                 picker after Quick Start defaults were applied.) -->
 
             <!-- Disaggregated leaf-scope banner (shown only when Designer architecture is disaggregated) -->
             <div id="sc-disagg-scope-banner" class="sc-info-banner" style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.35); display: none;">
@@ -726,6 +809,10 @@
     </div>
 
     <!-- Scripts (order matters: models → builder → templates → qos-audit → main) -->
+    <script src="../js/utils.js"></script>
+    <script src="../js/changelog.js"></script>
+    <script src="../js/analytics.js"></script>
+    <script src="../js/stats-bar.js"></script>
     <script src="models.js"></script>
     <script src="builder.js"></script>
     <script src="templates/cisco-nxos.js"></script>

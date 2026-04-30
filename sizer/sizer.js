@@ -1284,7 +1284,7 @@ const MAX_CACHE_DISK_COUNT = 8;
 const MAX_TIERED_CAPACITY_DISK_COUNT = 16; // 2U chassis: 8 cache + 16 capacity = 24 total (hybrid & mixed-flash)
 
 // Standard capacity disk sizes (TB) for auto-scaling — stepped in order
-const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 7.68, 15.36];
+const DISK_SIZE_OPTIONS_TB = [0.96, 1.92, 3.84, 5.68, 7.68, 15.36];
 
 // S2D resiliency repair: reserve 1 capacity disk per node (up to 4 max) from the storage pool
 const S2D_REPAIR_MAX_RESERVED_DISKS = 4;
@@ -1371,6 +1371,12 @@ let _designerPortCount = 4;
 // or 4) through import, save/resume, and export back to the Designer. Default
 // 2 matches the Designer's default 2-spine Clos fabric.
 let _designerSpineCount = 2;
+
+// Last computed power / heat / rack-space estimate from updatePowerRackEstimates().
+// Populated each time the panel renders so the Sizer→Designer handoff
+// (selectRegionAndConfigure) and JSON export can attach the numeric values
+// to the payload without re-deriving them or scraping the DOM.
+let _lastPowerEstimate = null;
 
 // Track whether the user manually set disk size or disk count (independently)
 // Only the specific field the user touched is locked; the other remains auto-scalable.
@@ -4735,33 +4741,10 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     const section = document.getElementById('power-rack-section');
     if (!section) return;
 
-    if (workloads.length === 0) {
-        section.style.display = 'none';
-        // Still show 3D rack visualization with default config
-        if (typeof renderRack3D === 'function') {
-            var isTieredEmpty = _isTieredStorage();
-            var emptyDiskCount;
-            if (isTieredEmpty) {
-                emptyDiskCount = (parseInt(document.getElementById('cache-disk-count').value, 10) || 2)
-                               + (parseInt(document.getElementById('tiered-capacity-disk-count').value, 10) || 4);
-            } else {
-                emptyDiskCount = parseInt(document.getElementById('capacity-disk-count').value, 10) || 4;
-            }
-            renderRack3D({
-                clusterType: document.getElementById('cluster-type').value || 'standard',
-                nodeCount: parseInt(document.getElementById('node-count').value, 10) || 2,
-                disaggRackCount: parseInt((document.getElementById('disagg-rack-count') || {}).value, 10) || 2,
-                disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || 'fc_san',
-                spineCount: _designerSpineCount || 2,
-                hasGpu: false,
-                gpuModel: '',
-                perNodeWatts: 0,
-                diskCount: emptyDiskCount,
-                portCount: _designerPortCount || 4
-            });
-        }
-        return;
-    }
+    // Power & rack estimates are derived purely from hardware config + node count,
+    // so we always show the section — even before any workload is added — to give
+    // users an immediate read on the data-centre footprint of their hardware
+    // selection. (3D rack visualization at the bottom likewise uses hwConfig.)
 
     // CPU power: Scale TDP by selected core count relative to max cores for the generation.
     // Lower core-count SKUs have proportionally lower TDP, but there is a base power floor
@@ -4870,6 +4853,30 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     document.getElementById('power-total').textContent = totalW.toLocaleString() + ' Watts';
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
     document.getElementById('rack-units').innerHTML = rackUnitLabel;
+
+    // Capture the computed numbers so they can flow into the Sizer→Designer
+    // handoff payload (and from there into report.html and the PPT export)
+    // without re-deriving from the DOM.
+    _lastPowerEstimate = {
+        perNodeW: perNodeW,
+        totalW: totalW,
+        totalBtu: totalBtu,
+        rackUnits: rackUnits,
+        nodeCount: nodeCount,
+        infraPowerW: infraPowerW,
+        infraPowerNote: infraPowerNote || null,
+        clusterType: clusterType,
+        // Component breakdown for the report's "Power calculations" expander.
+        components: {
+            cpuW: cpuPowerW,
+            memoryW: memPowerW,
+            dataDisksW: diskPowerW,
+            bootDisksW: osDiskPowerW,
+            gpuW: gpuPowerW,
+            baseOverheadW: baseOverheadW,
+            psuEfficiency: psuEfficiency
+        }
+    };
 
     // Update rack units label
     var rackUnitsLabelEl = document.getElementById('rack-units-label');
@@ -6101,7 +6108,20 @@ function selectRegionAndConfigure(region, cloud) {
                 totalVcpus: parseInt(document.getElementById('total-vcpus').textContent) || 0,
                 totalMemoryGB: parseInt(document.getElementById('total-memory').textContent) || 0,
                 totalStorageTB: parseFloat(document.getElementById('total-storage').textContent) || 0
-            }
+            },
+            // Power, heat & rack-space estimate captured from the Sizer's
+            // "Estimated Power, Heat & Rack Space per Instance" panel. These
+            // surface on the Designer's report and as a dedicated Power & Heat
+            // PPT slide. May be null if calculateRequirements() has not yet run.
+            power: _lastPowerEstimate ? {
+                perNodeW: _lastPowerEstimate.perNodeW,
+                totalW: _lastPowerEstimate.totalW,
+                totalBtu: _lastPowerEstimate.totalBtu,
+                rackUnits: _lastPowerEstimate.rackUnits,
+                infraPowerW: _lastPowerEstimate.infraPowerW,
+                infraPowerNote: _lastPowerEstimate.infraPowerNote,
+                components: _lastPowerEstimate.components
+            } : null
         },
         // Individual workload details (transparent pass-through to Report)
         sizerWorkloads: workloads.map(function(w) {
@@ -6452,6 +6472,26 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     var applyBtn = document.getElementById('cluster-import-apply-btn');
     if (!textarea) return;
 
+    // Issue #207 follow-up: if the user has already clicked Parse & Preview
+    // once and then customised the in-preview controls (machine count,
+    // deployment type, S2D disk count / size), preserve those choices across
+    // a re-click of Parse & Preview so accidental re-parsing does not silently
+    // reset their selections to the defaults.
+    var previouslyVisible = previewDiv && previewDiv.style.display !== 'none' && previewDiv.innerHTML.trim() !== '';
+    var preservedSelections = null;
+    if (previouslyVisible) {
+        var prevNodeInput = document.getElementById('cluster-node-count-input');
+        var prevDeployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+        var prevDiskCountSel = document.getElementById('cluster-import-disk-count');
+        var prevDiskSizeSel = document.getElementById('cluster-import-disk-size');
+        preservedSelections = {
+            nodeCount: prevNodeInput ? prevNodeInput.value : null,
+            deployType: prevDeployRadio ? prevDeployRadio.value : null,
+            diskCount: prevDiskCountSel ? prevDiskCountSel.value : null,
+            diskSize: prevDiskSizeSel ? prevDiskSizeSel.value : null
+        };
+    }
+
     errDiv.style.display = 'none';
     previewDiv.style.display = 'none';
     applyBtn.style.display = 'none';
@@ -6494,15 +6534,42 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     manufacturer = (detected && detected.manufacturer) || 'Unknown';
     model = (detected && detected.model) || 'Unknown';
 
-    if (hwProfile && hwProfile.processors && hwProfile.processors.length > 0) {
-        var proc = hwProfile.processors[0];
-        coreCount = proc.numberOfCores || 0;
-        processorName = proc.name || '';
-        sockets = hwProfile.numberOfCpuSockets || 1;
-    } else if (detected) {
-        coreCount = parseInt(detected.coreCount, 10) || 0;
-        processorName = detected.processorNames || '';
-        sockets = parseInt(detected.processorCount, 10) || 1;
+    // Extract sockets, total cores, and processor name from the JSON.
+    //
+    // Bug #207 follow-up: the two source paths in Azure Local machine JSON have
+    // DIFFERENT semantics for "core count":
+    //   • detectedProperties.coreCount      — TOTAL physical cores across all sockets
+    //   • detectedProperties.processorCount — number of CPU sockets
+    //   • hardwareProfile.processors[i].numberOfCores — cores PER SOCKET
+    //   • hardwareProfile.numberOfCpuSockets          — number of CPU sockets
+    //
+    // Real-world payloads (e.g. ASEPRO2 / Intel Xeon Gold 6209U) sometimes omit
+    // `hwProfile.numberOfCpuSockets`, so the previous code hit `sockets = 1` and
+    // then mis-treated `proc.numberOfCores` (per-socket = 20) as if it were total
+    // cores, producing "20 cores (20 × 1 socket)" for a real 2 × 10 = 20 cores
+    // machine. We now prefer `detected` (which is unambiguous) and fall back to
+    // hwProfile only when `detected` is missing or invalid.
+    var procFromHw = (hwProfile && hwProfile.processors && hwProfile.processors[0]) || null;
+    processorName = (detected && detected.processorNames) || (procFromHw && procFromHw.name) || '';
+
+    // Sockets: prefer detected.processorCount, fall back to hwProfile.numberOfCpuSockets
+    var detectedSockets = detected ? parseInt(detected.processorCount, 10) : NaN;
+    if (!isNaN(detectedSockets) && detectedSockets >= 1 && detectedSockets <= 8) {
+        sockets = detectedSockets;
+    } else if (hwProfile && hwProfile.numberOfCpuSockets >= 1 && hwProfile.numberOfCpuSockets <= 8) {
+        sockets = hwProfile.numberOfCpuSockets;
+    } else {
+        sockets = 0; // unknown — heuristic below
+    }
+
+    // Total core count: prefer detected.coreCount (already total). Otherwise
+    // derive from hwProfile.processors[0].numberOfCores × sockets.
+    var detectedCores = detected ? parseInt(detected.coreCount, 10) : NaN;
+    if (!isNaN(detectedCores) && detectedCores > 0) {
+        coreCount = detectedCores;
+    } else if (procFromHw && procFromHw.numberOfCores > 0) {
+        // numberOfCores is per-socket; multiply by sockets when known.
+        coreCount = procFromHw.numberOfCores * (sockets > 0 ? sockets : 1);
     } else {
         errDiv.textContent = 'No hardware profile found in the machine JSON.';
         errDiv.style.display = '';
@@ -6531,10 +6598,19 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     var snappedMemory = dimmOptions.reduce(function(prev, curr) {
         return Math.abs(curr - memoryGiB) < Math.abs(prev - memoryGiB) ? curr : prev;
     });
+    // Preserve the actual imported memory value so we can inject a custom
+    // option in the node-memory dropdown when the JSON value is not a standard
+    // DIMM total (e.g. an 80 GB lab VM). Fixes silent rounding from 80 → 64 GB.
+    var memoryIsCustom = (memoryGiB > 0 && memoryGiB !== snappedMemory);
 
-    // Determine sockets (1 or 2) — heuristic: if cores > max single-socket for gen, must be 2
-    var sockets = coreCount > 64 ? 2 : 1;
-    var coresPerSocket = Math.round(coreCount / sockets);
+    // Sanity-check the socket count from JSON. Some Azure Local machine JSON
+    // payloads expose `numberOfCpuSockets` correctly (use as-is); when it is
+    // missing or obviously wrong we fall back to a heuristic based on core count.
+    // Bug #207 fix: do NOT unconditionally override the imported sockets value.
+    if (!sockets || sockets < 1 || sockets > 8) {
+        sockets = coreCount > 64 ? 2 : 1;
+    }
+    coresPerSocket = sockets > 0 ? Math.round(coreCount / sockets) : coreCount;
 
     // Find best matching CPU generation
     var bestGen = null;
@@ -6566,9 +6642,39 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     // Build preview
     var previewHTML = '<strong style="color: var(--accent-purple);">Detected Machine: ' + escapeHtml(clusterName) + '</strong><br>';
     previewHTML += '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 12px;">';
-    previewHTML += '<span style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">How many machines in this instance? <input type="number" id="cluster-node-count-input" value="2" min="1" max="16" style="width: 56px; background: var(--card-bg); border: 2px solid var(--accent-purple); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-weight: 700; text-align: center;"></span>';
+    previewHTML += '<span style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">How many machines in this instance? <input type="number" id="cluster-node-count-input" value="2" min="1" max="16" oninput="validateClusterImportSelection()" style="width: 56px; background: var(--card-bg); border: 2px solid var(--accent-purple); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-weight: 700; text-align: center;"></span>';
+    previewHTML += '<span style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
+        + '<span>Deployment type:</span>'
+        + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="standard" checked onchange="validateClusterImportSelection()"> Hyperconverged</label>'
+        + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="rack-aware" onchange="validateClusterImportSelection()"> Rack-Aware Cluster</label>'
+        + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(auto-switches to <strong>Single Node</strong> if you set machines = 1)</span>'
+        + '</span>';
+    // Storage (S2D capacity disks per node) — not in the JSON, must be supplied by the user.
+    previewHTML += '<span style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
+        + '<span>S2D capacity disks per machine:</span>'
+        + '<select id="cluster-import-disk-count" style="background: var(--card-bg); border: 1px solid var(--accent-green, #22c55e); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600;">'
+        +   '<option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>'
+        +   '<option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>'
+        +   '<option value="10">10</option><option value="12">12</option><option value="16">16</option><option value="24">24</option>'
+        + '</select>'
+        + '<span>Capacity per disk:</span>'
+        + '<select id="cluster-import-disk-size" style="background: var(--card-bg); border: 1px solid var(--accent-green, #22c55e); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600;">'
+        +   '<option value="0.96">960 GB (0.96 TB)</option>'
+        +   '<option value="1.92">1.92 TB</option>'
+        +   '<option value="3.84" selected>3.84 TB</option>'
+        +   '<option value="5.68">5.68 TB</option>'
+        +   '<option value="7.68">7.68 TB</option>'
+        +   '<option value="15.36">15.36 TB</option>'
+        + '</select>'
+        + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(not in the JSON — supply for accurate sizing)</span>'
+        + '</span>';
+    previewHTML += '<span style="grid-column: 1 / -1;" id="cluster-import-validation"></span>';
     previewHTML += '<span>Cores/Machine: <strong>' + coreCount + '</strong> (' + coresPerSocket + ' × ' + sockets + ' socket' + (sockets > 1 ? 's' : '') + ')</span>';
-    previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> → ' + snappedMemory + ' GB (DIMM-aligned)</span>';
+    if (memoryIsCustom) {
+        previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> <em style="color: var(--warning);">(custom — not a standard DIMM total; will be added as a custom option in the dropdown)</em></span>';
+    } else {
+        previewHTML += '<span>Memory/Machine: <strong>' + memoryGiB + ' GB</strong> (DIMM-aligned)</span>';
+    }
     previewHTML += '<span>Model: <strong>' + escapeHtml(model) + '</strong></span>';
     previewHTML += '<span>Manufacturer: <strong>' + escapeHtml(manufacturer) + '</strong></span>';
     if (processorName) {
@@ -6590,13 +6696,47 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     previewDiv.style.display = '';
     applyBtn.style.display = '';
 
+    // Issue #207 follow-up: restore any user-modified selections that were
+    // captured at the top of this function so an accidental re-click of
+    // Parse & Preview does not silently reset the user's choices.
+    if (preservedSelections) {
+        var restNodeInput = document.getElementById('cluster-node-count-input');
+        if (restNodeInput && preservedSelections.nodeCount !== null && preservedSelections.nodeCount !== '') {
+            restNodeInput.value = preservedSelections.nodeCount;
+        }
+        if (preservedSelections.deployType) {
+            var restRadio = document.querySelector('input[name="cluster-import-deploy-type"][value="' + preservedSelections.deployType + '"]');
+            if (restRadio) restRadio.checked = true;
+        }
+        var restDiskCountSel = document.getElementById('cluster-import-disk-count');
+        if (restDiskCountSel && preservedSelections.diskCount) {
+            var dcOpts = Array.prototype.map.call(restDiskCountSel.options, function (o) { return o.value; });
+            if (dcOpts.indexOf(preservedSelections.diskCount) !== -1) {
+                restDiskCountSel.value = preservedSelections.diskCount;
+            }
+        }
+        var restDiskSizeSel = document.getElementById('cluster-import-disk-size');
+        if (restDiskSizeSel && preservedSelections.diskSize) {
+            var dsOpts = Array.prototype.map.call(restDiskSizeSel.options, function (o) { return o.value; });
+            if (dsOpts.indexOf(preservedSelections.diskSize) !== -1) {
+                restDiskSizeSel.value = preservedSelections.diskSize;
+            }
+        }
+    }
+
+    // Run an initial validation pass so the Load button reflects the default
+    // selection (Hyperconverged + 2 machines = always valid, but this also
+    // resets any stale error / disabled state from a previous preview).
+    validateClusterImportSelection();
+
     // Store parsed data for apply
     window._pendingClusterImport = {
         clusterName: clusterName,
         nodeCount: nodeCount,
         coresPerSocket: coresPerSocket,
         sockets: sockets,
-        memoryGB: snappedMemory,
+        memoryGB: memoryGiB > 0 ? memoryGiB : snappedMemory,
+        memoryIsCustom: memoryIsCustom,
         cpuManufacturer: cpuMfr,
         cpuGeneration: bestGen ? bestGen.id : null,
         genMatchConfidence: genMatchConfidence,
@@ -6605,9 +6745,87 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     };
 }
 
+// Validate the deployment-type + node-count combination chosen in the cluster
+// JSON import preview. Disables the "Load Cluster Configuration" button and
+// shows an inline error when Rack-Aware Cluster is selected with anything other
+// than 2/4/6/8 machines (the only supported counts for that deployment type).
+// Bug #207 follow-up.
+function validateClusterImportSelection() { // eslint-disable-line no-unused-vars
+    var nodeInput = document.getElementById('cluster-node-count-input');
+    var applyBtn = document.getElementById('cluster-import-apply-btn');
+    var msgEl = document.getElementById('cluster-import-validation');
+    if (!nodeInput || !applyBtn) return;
+
+    var nodeCount = parseInt(nodeInput.value, 10);
+    var deployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+    var deployType = deployRadio ? deployRadio.value : 'standard';
+
+    var errors = [];
+    if (isNaN(nodeCount) || nodeCount < 1 || nodeCount > 16) {
+        errors.push('Number of machines must be between 1 and 16.');
+    } else if (deployType === 'rack-aware' && nodeCount !== 1) {
+        // 1 node is auto-switched to Single Node, so it is allowed at this
+        // stage; we only block the radio's actual rack-aware case (2/4/6/8).
+        var validRackAware = [2, 4, 6, 8];
+        if (validRackAware.indexOf(nodeCount) === -1) {
+            errors.push('Rack-Aware Cluster only supports 2, 4, 6, or 8 machines. Adjust the count or choose Hyperconverged.');
+        }
+    }
+
+    if (errors.length === 0) {
+        applyBtn.disabled = false;
+        applyBtn.style.opacity = '';
+        applyBtn.style.cursor = '';
+        applyBtn.title = '';
+        if (msgEl) {
+            msgEl.innerHTML = '';
+            msgEl.style.display = 'none';
+        }
+    } else {
+        applyBtn.disabled = true;
+        applyBtn.style.opacity = '0.55';
+        applyBtn.style.cursor = 'not-allowed';
+        applyBtn.title = errors.join(' ');
+        if (msgEl) {
+            msgEl.innerHTML = '<span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; color: var(--danger); font-size: 12px;">⚠️ ' + escapeHtml(errors.join(' ')) + '</span>';
+            msgEl.style.display = '';
+        }
+    }
+}
+
 function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     var cfg = window._pendingClusterImport;
     if (!cfg) return;
+
+    // Read the deployment-type radio BEFORE the modal closes.
+    // Bug #207 fix: respect the user's choice between Hyperconverged and Rack-Aware,
+    // and force Single Node when nodeCount === 1 regardless of the radio selection.
+    var deployTypeRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+    var chosenDeployType = deployTypeRadio ? deployTypeRadio.value : 'standard';
+
+    // Read the S2D capacity-disk choices supplied in the preview banner BEFORE
+    // the modal closes. The Azure Local machine JSON does not enumerate S2D
+    // capacity disks (they only appear after deployment), so the user supplies
+    // them here for accurate sizing.
+    var diskCountSel = document.getElementById('cluster-import-disk-count');
+    var diskSizeSel = document.getElementById('cluster-import-disk-size');
+    var chosenDiskCount = diskCountSel ? parseInt(diskCountSel.value, 10) : NaN;
+    var chosenDiskSizeTB = diskSizeSel ? parseFloat(diskSizeSel.value) : NaN;
+    if (isNaN(chosenDiskCount) || chosenDiskCount < 1) chosenDiskCount = null;
+    if (isNaN(chosenDiskSizeTB) || chosenDiskSizeTB <= 0) chosenDiskSizeTB = null;
+
+    // Re-check the deployment-type / node-count combination as a defense-in-depth
+    // guard: the button is disabled when invalid, but a stale click or DOM
+    // manipulation could still reach this code path.
+    var preNodeInput = document.getElementById('cluster-node-count-input');
+    var preNodeCount = preNodeInput ? parseInt(preNodeInput.value, 10) : NaN;
+    if (chosenDeployType === 'rack-aware' && preNodeCount !== 1
+        && [2, 4, 6, 8].indexOf(preNodeCount) === -1) {
+        if (typeof showToast === 'function') {
+            showToast('Rack-Aware Cluster only supports 2, 4, 6, or 8 machines. Adjust the count or choose Hyperconverged.', 'error');
+        }
+        return;
+    }
 
     closeImportModal();
 
@@ -6616,16 +6834,55 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     var actualNodeCount = nodeCountInput ? (parseInt(nodeCountInput.value, 10) || 2) : cfg.nodeCount;
     if (actualNodeCount < 1) actualNodeCount = 1;
     if (actualNodeCount > 16) actualNodeCount = 16;
+
+    // Bug #207 fix: a 1-node cluster MUST be Single Node, not Hyperconverged.
+    var resolvedClusterType = (actualNodeCount === 1) ? 'single' : chosenDeployType;
+
+    // Set node-count BEFORE cluster-type so that onClusterTypeChange() →
+    // updateResiliencyOptions() sees the correct node count and produces the
+    // right set of <option> entries (otherwise the resiliency select can be
+    // populated for the old node count and silently reject our chosen value).
     var nodeCountEl = document.getElementById('node-count');
     if (nodeCountEl) nodeCountEl.value = String(actualNodeCount);
     _nodeCountUserSet = true;
     markManualSet('node-count');
 
+    var clusterTypeEl = document.getElementById('cluster-type');
+    if (clusterTypeEl) {
+        clusterTypeEl.value = resolvedClusterType;
+        if (typeof onClusterTypeChange === 'function') {
+            try { onClusterTypeChange(); } catch (e) { console.warn('onClusterTypeChange threw during import:', e); }
+        }
+        markManualSet('cluster-type');
+    }
+
+    // Bug #207 fix: pick the correct storage resiliency for the chosen node count.
+    // Two-way mirror is only valid for 2-node clusters; 3+ nodes should default
+    // to Three-way mirror. Single-node has no mirror choice (handled by the
+    // cluster type itself), but we still default it sensibly.
+    var resiliencyEl = document.getElementById('resiliency');
+    if (resiliencyEl && resolvedClusterType !== 'disaggregated') {
+        var desiredResiliency = (actualNodeCount >= 3) ? '3way' : '2way';
+        // Only assign if the option actually exists in the select (the cluster
+        // type may have already constrained the available options, e.g.
+        // rack-aware 4+ → only "4way").
+        var available = Array.prototype.map.call(resiliencyEl.options, function (o) { return o.value; });
+        if (available.indexOf(desiredResiliency) !== -1 && resiliencyEl.value !== desiredResiliency) {
+            resiliencyEl.value = desiredResiliency;
+            if (typeof onResiliencyChange === 'function') {
+                try { onResiliencyChange(); } catch (e) { console.warn('onResiliencyChange threw during import:', e); }
+            }
+        }
+        markManualSet('resiliency');
+    }
+
     var cpuMfrEl = document.getElementById('cpu-manufacturer');
     if (cpuMfrEl) cpuMfrEl.value = cfg.cpuManufacturer;
 
     // Trigger generation dropdown population
-    if (typeof onCpuManufacturerChange === 'function') onCpuManufacturerChange();
+    if (typeof onCpuManufacturerChange === 'function') {
+        try { onCpuManufacturerChange(); } catch (e) { console.warn('onCpuManufacturerChange threw during import:', e); }
+    }
 
     // Select the matched generation or inject imported processor name
     var genEl = document.getElementById('cpu-generation');
@@ -6638,11 +6895,13 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
         genEl.value = importedGenOption.value;
         // Trigger core options if we have a valid generation
         if (cfg.cpuGeneration && typeof onCpuGenerationChange === 'function') {
-            onCpuGenerationChange();
+            try { onCpuGenerationChange(); } catch (e) { console.warn('onCpuGenerationChange threw during import:', e); }
         }
     } else if (cfg.cpuGeneration && genEl) {
         genEl.value = cfg.cpuGeneration;
-        if (typeof onCpuGenerationChange === 'function') onCpuGenerationChange();
+        if (typeof onCpuGenerationChange === 'function') {
+            try { onCpuGenerationChange(); } catch (e) { console.warn('onCpuGenerationChange threw during import:', e); }
+        }
     }
     markManualSet('cpu-manufacturer');
     markManualSet('cpu-generation');
@@ -6683,16 +6942,80 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     markManualSet('cpu-sockets');
 
     var memEl = document.getElementById('node-memory');
-    if (memEl) memEl.value = String(cfg.memoryGB);
+    if (memEl) {
+        // If the imported memory is a non-standard DIMM total (e.g. 80 GB lab VM),
+        // inject a custom option so the actual value is preserved instead of being
+        // silently rounded to the nearest standard DIMM size. Mirrors the cpu-cores
+        // pattern above. Bug #207 follow-up.
+        var memOptions = Array.from(memEl.options).map(function (o) { return parseInt(o.value, 10); });
+        if (cfg.memoryGB && memOptions.indexOf(cfg.memoryGB) === -1) {
+            var importedMemOption = document.createElement('option');
+            importedMemOption.value = String(cfg.memoryGB);
+            importedMemOption.textContent = cfg.memoryGB + ' GB (imported)';
+            var memInserted = false;
+            for (var mi = 0; mi < memEl.options.length; mi++) {
+                if (parseInt(memEl.options[mi].value, 10) > cfg.memoryGB) {
+                    memEl.insertBefore(importedMemOption, memEl.options[mi]);
+                    memInserted = true;
+                    break;
+                }
+            }
+            if (!memInserted) memEl.appendChild(importedMemOption);
+        }
+        memEl.value = String(cfg.memoryGB);
+    }
     markManualSet('node-memory');
+
+    // Apply S2D capacity-disk choices supplied in the import preview to BOTH
+    // the single-tier (capacity-disk-*) and tiered (tiered-capacity-disk-*)
+    // selectors so the values are correct regardless of which storage
+    // architecture the user later picks. Issue #207 follow-up.
+    if (chosenDiskCount !== null) {
+        ['capacity-disk-count', 'tiered-capacity-disk-count'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var avail = Array.from(el.options).map(function (o) { return parseInt(o.value, 10); });
+            if (avail.indexOf(chosenDiskCount) !== -1) {
+                el.value = String(chosenDiskCount);
+                markManualSet(id);
+            }
+        });
+    }
+    if (chosenDiskSizeTB !== null) {
+        ['capacity-disk-size', 'tiered-capacity-disk-size'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            var avail = Array.from(el.options).map(function (o) { return parseFloat(o.value); });
+            // Floating-point compare — match within 0.001 TB.
+            var found = avail.some(function (v) { return Math.abs(v - chosenDiskSizeTB) < 0.001; });
+            if (found) {
+                el.value = String(chosenDiskSizeTB);
+                markManualSet(id);
+            }
+        });
+    }
 
     calculateRequirements({ skipAutoNodeRecommend: true });
 
     // Show post-import instructions
     var summary = document.getElementById('post-import-summary');
     if (summary) {
-        summary.innerHTML = 'Imported <strong>' + actualNodeCount + ' machines</strong> from <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
+        var deployTypeLabel = resolvedClusterType === 'single' ? 'Single Node'
+            : resolvedClusterType === 'rack-aware' ? 'Rack-Aware Cluster'
+                : 'Hyperconverged';
+        var resiliencyLabel = '';
+        if (resolvedClusterType !== 'single' && resolvedClusterType !== 'disaggregated') {
+            resiliencyLabel = (actualNodeCount >= 3)
+                ? ' Storage resiliency set to <strong>Three-way Mirror</strong>.'
+                : ' Storage resiliency set to <strong>Two-way Mirror</strong>.';
+        }
+        var diskLabel = '';
+        if (chosenDiskCount !== null && chosenDiskSizeTB !== null) {
+            diskLabel = ' S2D capacity: <strong>' + chosenDiskCount + ' × ' + chosenDiskSizeTB + ' TB</strong> per machine.';
+        }
+        summary.innerHTML = 'Imported <strong>' + actualNodeCount + ' machine' + (actualNodeCount !== 1 ? 's' : '') + '</strong> from <strong>"' + escapeHtml(cfg.clusterName) + '"</strong>'
             + ' — ' + cfg.coresPerSocket + ' cores × ' + cfg.sockets + ' socket' + (cfg.sockets > 1 ? 's' : '') + ', ' + cfg.memoryGB + ' GB memory per machine.'
+            + '<br>Deployment type: <strong>' + deployTypeLabel + '</strong>.' + resiliencyLabel + diskLabel
             + '<br><br>To complete your sizing, configure the items below to match your cluster:';
     }
     var postOverlay = document.getElementById('post-import-overlay');

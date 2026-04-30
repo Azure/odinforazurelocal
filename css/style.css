@@ -2,6 +2,7 @@
     --bg-dark: #000000;
     --card-bg: #111111;
     --card-bg-transparent: rgba(17, 17, 17, 0.95);
+    --nav-bg: rgba(17, 17, 17, 0.95);
     --text-primary: #ffffff;
     --text-secondary: #a1a1aa;
     --accent-blue: #0078d4;
@@ -10,6 +11,8 @@
     --glass-border: rgba(255, 255, 255, 0.1);
     --subtle-bg: rgba(255, 255, 255, 0.03);
     --subtle-bg-hover: rgba(255, 255, 255, 0.06);
+    --disclaimer-bg: rgba(255, 193, 7, 0.15);
+    --disclaimer-border: rgba(255, 193, 7, 0.4);
     --nav-height: 56px;
 }
 
@@ -1121,7 +1124,7 @@ header .header-description {
 .summary-value {
     color: var(--text-primary);
     min-width: 0;
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .summary-value.mono {
@@ -2788,8 +2791,8 @@ header .header-description {
     font-size: 12px;
     color: var(--text-primary);
     padding: 12px;
-    background: var(--disclaimer-bg, rgba(255, 193, 7, 0.15));
-    border: 1px solid var(--disclaimer-border, rgba(255, 193, 7, 0.4));
+    background: var(--disclaimer-bg);
+    border: 1px solid var(--disclaimer-border);
     border-radius: 8px;
 }
 
@@ -2813,8 +2816,10 @@ header .header-description {
 }
 
 .stats-container {
-    display: flex;
-    gap: 24px;
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: center;
+    gap: 8px 24px;
     padding: 10px 20px;
     background: rgba(59, 130, 246, 0.1);
     border: 1px solid rgba(59, 130, 246, 0.3);
@@ -2846,10 +2851,9 @@ header .header-description {
     background: rgba(255, 255, 255, 0.1);
 }
 
-/* Stats bar mobile - 2x2 grid (must be after base .stats-container) */
+/* Stats bar mobile - 2-column grid (6 tiles wrap to 2×3; must be after base .stats-container) */
 @media (max-width: 768px) {
     .stats-container {
-        display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px 16px;
         padding: 10px 16px;

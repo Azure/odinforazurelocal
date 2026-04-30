@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.20.09 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.20.67 - Available here: https://aka.ms/ODIN-for-AzureLocal
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -12,12 +12,15 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 - [Features](#features)
 - [Getting Started](#getting-started)
-- [Prerequisites](#prerequisites)
+- [Prerequisites Checklist](#prerequisites-checklist)
 - [Usage Guide](#usage-guide)
 - [Configuration Options](#configuration-options)
 - [Export Formats](#export-formats)
 - [Browser Compatibility](#browser-compatibility)
 - [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
+- [Security Considerations](#security-considerations)
+- [Additional Resources](#additional-resources)
 - [Report an Issue and Contributing](#report-an-issue-and-contributing)
 - [License](#license)
 - [Appendix A - Version History](#appendix-a---version-history)
@@ -43,8 +46,38 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.20.09 - Latest Release
-- **Configuration Report — PowerPoint Export**: New **📊 Download PowerPoint** button on the Configuration Report page generates a fully styled `.pptx` deck of the current design. Template-driven (the look comes from `report/template/OdinPPTTemplate.potx`); slides cover Deployment Scenario & Scale, Physical Network, Rack Configuration, Leaf & Spine, AKS Reachability, Host Networking, Outbound Connectivity, Proxy, Security, Private Endpoints, Infrastructure Network, and a closing slide with links. Includes Microsoft Learn reference hyperlinks per network pattern, ✓/✗ run coloring on the Security slide, callout banners (e.g. Arc Private Link unsupported on Azure Local), and a footer subnet-utilisation visual on the Infrastructure Network slide. Generation is fully client-side — no telemetry, no backend.
+### 🎉 Version 0.20.67 - Latest Release
+
+**Sizer — JSON Import fixes (#207)**
+- **CPU socket count is now respected when importing an Azure Local machine JSON.** Previously the sockets dropdown would always show **1 socket** even when the machine JSON reported `"numberOfCpuSockets": 2` or `"processorCount": "2"` — a heuristic was unconditionally overriding the imported value. The heuristic now only fires when the JSON value is missing or invalid.
+- **Total core count is now reconciled correctly** between `hardwareProfile.processors[].numberOfCores` (per-socket) and `detectedProperties.coreCount` (total). Real-world payloads that omit `hwProfile.numberOfCpuSockets` (e.g. ASEPRO2 machines) used to show 20 physical cores as `20 × 1 socket` instead of `10 × 2 sockets`. The parser now prefers `detectedProperties` when present and only falls back to multiplying per-socket cores by the socket count when it must.
+- **Single-node clusters are detected automatically.** When you set the machines count to `1` in the import preview, the Deployment Type is now forced to **Single Node** (Hyperconverged is not a valid 1-node configuration).
+- **Storage Resiliency now matches the cluster size.** Importing a 3-, 4-, or 16-node cluster now auto-selects **Three-way Mirror**; 2-node clusters keep **Two-way Mirror**. Previously the import always left the default `Two-way Mirror` value.
+- **New deployment-type prompt before applying the import.** The Parse & Preview screen now asks whether the cluster is **Hyperconverged** or **Rack-Aware Cluster**, so the Sizer initialises with the correct topology (Single Node still auto-applies if you set machines = 1).
+- **Rack-Aware Cluster machine-count validation.** Rack-Aware Cluster only supports **2, 4, 6, or 8 machines**. The import preview now shows an inline error and disables the Load button until the count is valid (or the user switches back to Hyperconverged).
+- **"Apply Configuration" renamed to "Load Cluster Configuration"** to better describe what the button does — it loads the parsed Azure Local Machine JSON into the Sizer's running configuration.
+- **Memory dropdown now preserves non-standard DIMM totals** via a custom option (mirrors how CPU cores work). An imported lab-VM with 80 GB no longer silently rounds to 64 GB — the dropdown gains an `80 GB (imported)` entry and the value is honoured by the sizing math.
+- **S2D capacity-disk count and size are now captured directly in the import preview.** Azure Local JSON does not expose the cluster's S2D data disks, so the preview now asks for them up-front (defaults: 4 × 3.84 TB) and applies them to both the single-tier and tiered capacity-disk selectors when the cluster is loaded — accurate sizing on first calculation rather than after manual fix-up.
+- **5.68 TB SSD added to all capacity-disk dropdowns** to match a customer-reported drive size sitting between the existing 3.84 TB and 7.68 TB options.
+- **Re-clicking *Parse & Preview* no longer resets your in-preview selections.** If you have already parsed the JSON once and customised the machine count, deployment type (Hyperconverged / Rack-Aware), or S2D disk count / size, an accidental re-click of the button now preserves those values instead of silently snapping them back to the defaults.
+- **Test coverage added**: 30 new regression tests under `tests/index.html` ("Issue #207") cover all of the above plus boundary conditions (1, 2, 3, 4, 5, 8 nodes; Hyperconverged vs Rack-Aware; valid/invalid `numberOfCpuSockets`; ASEPRO2-shaped JSON; 80 GB lab-VM memory; custom memory option injection; S2D disk-count and disk-size apply path including 5.68 TB). An additional integration test ("JSON import → Configure in Designer handoff") verifies that values from imported JSON correctly flow through the Sizer DOM into the Designer payload.
+
+**Security & code-quality release**
+- **No end-user feature changes** in this section — it tightens the build, dependency, and CI surface so future work is safer to land.
+- **All third-party JS libraries vendored locally** (`vendor/html2canvas-1.4.1.min.js`, `vendor/jspdf-4.2.1.umd.min.js`, `vendor/three-0.128.0.min.js`, `vendor/three-OrbitControls-0.128.0.js`). The Designer, Sizer, and Configuration Report pages no longer fetch any runtime JavaScript from `cdn.jsdelivr.net`. Firebase analytics (loaded from `gstatic.com`) is unchanged. Offline / air-gapped users no longer need an internet round-trip for the rack 3D viewer or PDF export.
+- **CSS lint added to CI** (`stylelint` with `custom-property-no-missing-var-function` and `color-no-invalid-hex`). Catches the bug class that surfaced earlier this cycle (undefined CSS custom properties).
+- **CodeQL security scanning** workflow added (`.github/workflows/codeql.yml`) — runs `security-and-quality` queries on every PR and weekly.
+- **`npm audit --audit-level=high`** added as a CI gate so new high-severity advisories block merges. `basic-ftp` override bumped to `>=5.3.1` to clear advisory `GHSA-rp42-5vxx-qpwr`. `npm audit` is currently clean.
+- **PPTX export smoke test** added (`scripts/smoke-test-pptx.js`) — runs in CI to verify the PowerPoint export produces a valid ZIP / OOXML file end-to-end.
+- **Code-quality cleanup**: replaced two silent `catch (e) {}` blocks with `console.warn` (`switch-config/switch-config.js`) and explanatory comments (`report/report.js`); replaced deprecated CSS keywords (`word-break: break-word`, `page-break-inside: avoid`) with their modern equivalents; removed the unreferenced `docs/outbound-connectivity/styles_backup.css`.
+- **ESLint convention documented** in `docs/ESLINT_CONFIG_NOTES.md`: every empty `catch` must include an inline comment explaining why the error is safe to swallow.
+- **Anonymous usage counters added to the ToR Switch Configuration page** — Firebase counters (`switchConfigGenerated`, `qosAuditAnalyzed`, `pageViews`) increment when **Generate Switch Configurations** or **Analyze QoS Configuration** complete successfully, and on page view. Increment-only via Firebase server-side `increment(1)`; no switch-config content, IPs, hostnames, or pasted running-config text is ever transmitted.
+- **Two new stat tiles** — **ToR Switch Configs** and **ToR Switch QoS Audits** — surface the new counters next to the existing Visitors / Designs / Sizes / ARM Deployments tiles on the Designer, Sizer, and (now) ToR Switch Configuration pages. Six tiles are arranged 3+3 on desktop and 2×3 on mobile.
+- **Shared `js/stats-bar.js` component** renders the six-tile counter strip from a single source on every page that needs it; eliminates three drifted hand-maintained copies of the same markup.
+- **ToR Switch tab added to the shared top nav** (`js/nav.js`). The Designer, Sizer, and ToR Switch Configuration pages now show a consistent `Designer | Sizer | ToR Switch | Knowledge` tab bar — the three "doing" tabs sit together first, with the reference / docs tab last. The old one-off `page-header-bar` on the switch-config page has been removed.
+- **ToR Switch Configuration page — header layout matches Designer and Sizer.** The page now uses the same `header-title-wrapper` / `header-logo-wrapper` / `header-version` markup as the Designer and Sizer, including the ODIN logo, version label, and What's New link. The same disclaimer banner is rendered above the header.
+- **ToR Switch Configuration page — stat tiles now show real counts.** The page rendered the six-tile bar but every value stayed at `—` because `js/utils.js` (which defines `formatNumber()`) was not loaded; `fetchAndDisplayStats()` threw a silent `ReferenceError` before populating any tile. The page now loads `../js/utils.js` alongside `../js/analytics.js` and `../js/stats-bar.js`, so all six counters populate correctly.
+- **ToR Switch page now has a Quick Start picker.** Opening the ToR Switch Configuration page without first using the Designer used to show only a "No Designer Data Found" stub — the entire generator was inaccessible. The page now shows a prominent **Quick Start** panel with a *Deployment Type* dropdown (the same five canonical scenarios as the QoS Validator: HCI All-Traffic Converged, HCI Storage Switched, HCI Storage Switchless, Disaggregated FC SAN, Disaggregated iSCSI) plus a *Single Rack / Rack-Aware* toggle. Click **Use These Defaults** and the full generator opens with sensible illustrative VLAN IDs, IPs, and hostnames pre-filled — every field stays editable, and a banner with a **Change Deployment Type** button lets you swap profiles without losing your hardware-model picks. When you arrive from the Designer instead, the dropdown auto-pre-selects to match so the picker is in sync if you ever reopen it.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -167,22 +200,32 @@ The wizard follows a sequential flow:
 | **Disconnected** | Air-gapped operation with local management | Isolated / security-sensitive environments |
 | **Microsoft 365 Local** | Microsoft 365 workloads with minimum 9 nodes | Microsoft 365 on-premises deployments |
 
-### Network Intents
+### Network Intents (Hyperconverged)
 
 | Intent | Description | Adapters |
 |--------|-------------|----------|
-| **Compute + Management** | Shared network for VMs and management | 2 adapters (redundant) |
-| **Compute + Storage** | Combined compute and storage traffic | 4+ adapters |
-| **All Traffic** | Single intent for all network types | 2 adapters |
-| **Custom** | User-defined adapter mapping | Flexible |
-| **Disaggregated** | External SAN storage (Fibre Channel / iSCSI) with Clos leaf-spine fabric | Up to 6 adapters |
+| **All Traffic** | Single intent for management, compute, and storage | 2 adapters |
+| **Compute + Management** | Shared network for VMs and management, dedicated storage | 4+ adapters |
+| **Compute + Storage** | Combined compute and storage traffic, dedicated management | 4+ adapters |
+| **Custom** | User-defined adapter-to-intent mapping | Flexible (2–8 adapters) |
+
+Disaggregated deployments use a separate intent model with external SAN storage (Fibre Channel or iSCSI) and a Clos leaf-spine fabric — see the **Disaggregated Architecture Wizard** for details.
 
 ### Storage Connectivity
 
 | Type | Description | Requirements |
 |------|-------------|--------------|
-| **Switched** | Traditional ToR switch-based | ToR switches, suitable for any scale |
-| **Switchless** | Direct node-to-node connections | 2-4 nodes, no storage switches |
+| **Switched** | Traditional ToR switch-based storage networking | ToR switches, any supported scale |
+| **Switchless** | Direct node-to-node storage connections | 2–4 nodes, no storage switches |
+
+### Companion Tools
+
+| Tool | Purpose |
+|------|---------|
+| **ODIN Sizer** | Workload-driven hardware sizing (VM, AKS Arc, AVD) — calculates CPU, memory, storage, GPU, power, and rack-space requirements with a 3D rack visualization. Transfers cluster type and node count into the Designer. |
+| **Switch Config Generator** | Generates example ToR / BMC / border switch configurations for Cisco NX-OS and Dell OS10, with rack-aware support and infrastructure token replacement. |
+| **QoS Validator** | Validates a pasted `show running-config` (Cisco) or `show running-configuration` (Dell OS10) against Azure Local QoS requirements (PFC, ETS, ECN, MTU 9216, system QoS policy, interface-level PFC/trunking). |
+| **Knowledge Tab** | Embedded outbound connectivity architecture guide and AzLoFlows interactive flow-diagram builder. |
 
 ---
 
@@ -200,11 +243,15 @@ The wizard follows a sequential flow:
 - Includes timestamp and metadata
 - Can be re-imported to restore session
 
-### Reports
-- Comprehensive configuration reports
-- Download as Word (DOCX-compatible), Markdown, or PDF
-- Includes decision rationale and network diagrams
-- Print-friendly formatting
+### Configuration Report
+- Comprehensive configuration report covering deployment scenario, network, intents, IP plan, identity, security, and SDN options
+- Download as **Word** (DOCX-compatible), **Markdown** (with embedded diagrams), or **PowerPoint** (template-driven `.pptx` deck)
+- Includes decision rationale, network diagrams (SVG / Mermaid / draw.io), and a 2D rack diagram
+- Print-friendly formatting (browser "Save as PDF" supported)
+
+### Sizer Report
+- **Save as PDF** and **Download Word** for sized hardware results
+- Includes per-workload breakdown, hardware configuration, capacity bars, and power / heat / rack-space estimates
 
 ---
 
@@ -257,10 +304,13 @@ Enable detailed logging in browser console:
 3. Look for errors or warnings
 4. Check localStorage: `localStorage.getItem('azureLocalWizardState')`
 
-### Report an Issue and Contributing:
-- Report bugs or request new features using GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
-- Include browser version, OS, screenshot if possible, and steps to reproduce the issue.
-- Provide exported config (sanitized) if required to recreate the problem.
+---
+
+## Report an Issue and Contributing
+
+- Report bugs or request new features via GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
+- Include browser version, OS, screenshot if possible, and steps to reproduce the issue
+- Provide exported config (sanitized) if required to recreate the problem
 
 For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -350,7 +400,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.20.09  
+**Version**: 0.20.67  
 **Last Updated**: April 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -365,6 +415,26 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### 🎉 Version 0.20.x Series (April 2026)
+
+#### 0.20.67 - Security & Code-Quality Release
+- **Sizer JSON Import fixes (#207)**: CPU sockets now respected from machine JSON (was always forced to 1); per-socket vs total cores reconciled correctly (a 2&times;10 = 20-core ASEPRO2 machine no longer shows up as 20 &times; 1 socket); 1-node imports auto-switch Deployment Type to **Single Node**; resiliency auto-upgrades to **Three-way Mirror** for 3+ node imports; new Hyperconverged vs Rack-Aware prompt with machine-count validation; "Apply Configuration" renamed to "Load Cluster Configuration"; memory dropdown preserves non-standard DIMM totals via a custom option (e.g. 80 GB); S2D capacity-disk count and size captured in the import preview and applied to both single-tier and tiered selectors; 5.68 TB SSD added to all capacity-disk dropdowns; re-clicking *Parse & Preview* no longer resets in-preview selections. 30 new regression tests cover all of the above.
+- **No other end-user feature changes.** Tightens the build, dependency, and CI surface so future work is safer to land.
+- **All third-party JS libraries vendored locally** (`vendor/html2canvas-1.4.1.min.js`, `vendor/jspdf-4.2.1.umd.min.js`, `vendor/three-0.128.0.min.js`, `vendor/three-OrbitControls-0.128.0.js`). Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from `cdn.jsdelivr.net`. Firebase analytics (loaded from `gstatic.com`) is unchanged.
+- **CSS lint added to CI** (`stylelint` with `custom-property-no-missing-var-function` and `color-no-invalid-hex`).
+- **CodeQL security scanning** workflow added (`.github/workflows/codeql.yml`) — runs `security-and-quality` queries on every PR and weekly.
+- **`npm audit --audit-level=high`** added as a CI gate. `basic-ftp` override bumped to `>=5.3.1` to clear advisory `GHSA-rp42-5vxx-qpwr`.
+- **PPTX export smoke test** added (`scripts/smoke-test-pptx.js`) — verifies the PowerPoint export produces a valid OOXML file end-to-end.
+- **Code-quality cleanup**: silent `catch (e) {}` blocks documented or replaced with `console.warn`; deprecated CSS keywords (`word-break: break-word`, `page-break-inside: avoid`) replaced with modern equivalents; unreferenced `docs/outbound-connectivity/styles_backup.css` removed.
+- **ESLint convention documented** in `docs/ESLINT_CONFIG_NOTES.md`.
+- **Tab navigation reordered** to `Designer | Sizer | ToR Switch | Knowledge` so the three "doing" tabs sit together first, with the reference / docs tab last.
+- **ToR Switch page parity fixes**: stat tiles now populate (was missing `js/utils.js`), and the page header now matches Designer / Sizer (logo, version, What's New link, disclaimer banner).
+- **First-visit walkthrough + Help button on the ToR Switch page**: a 3-step Welcome / Generator / QoS Validator overlay appears once on first visit (gated by `localStorage`), and the shared nav-bar Help (?) button now re-launches the same overlay on demand from the ToR Switch tab.
+- **New "Workloads" slide in the PowerPoint export** of the Configuration Report: when the report was started from the Sizer, the generated PPTX now includes a dedicated Workloads slide (right after Node Configuration) with one bullet per VM / AKS Arc / AVD workload plus a Subtotal sub-bullet. The slide is automatically skipped for non-Sizer reports.
+- **PowerPoint slide "Rack Configuration" renamed to "Node Configuration"** — the slide content is per-node hardware (CPU, memory, disks, resiliency, cluster type), so the new title describes what it actually shows.
+- **Designer “Start Over” now fully resets state.** Previously the reset missed `sizerHardware` / `sizerWorkloads` (so Sizer-imported workloads carried over), `architecture`, and all disaggregated fields. Defaults are now driven from a single source-of-truth factory so adding new state can’t silently bypass Start Over. Theme and font-size preferences are still preserved across a reset.
+- **Sizer "Estimated Power, Heat & Rack Space per Instance" panel is now always visible** — previously it was hidden until the first workload was added, even though the figures only depend on the selected hardware and node count. Power, BTU/hr, and rack-unit estimates (plus the 3D rack visualization) now render with real values from the moment you open the Sizer, so you can compare the data-centre footprint of different hardware choices before any workload is defined.
+- **Sizer Power & Heat estimates now flow into the Designer report and PowerPoint export.** When you click **Configure in Designer** from the Sizer, the computed power numbers (per-node Watts, total Watts, BTU/hr, rack U, network infrastructure power, per-node component breakdown) are now carried through to `report.html` as a new **Power, Heat & Rack Space (from Sizer)** section and to a dedicated PPT slide of the same name.
+- **Single-rack hyperconverged rack diagram in the Designer report no longer renders gigantic.** A tall+narrow rack (e.g. 1 rack × 16 nodes) was being stretched to fill the parent card by default browser SVG sizing, making the title and node tiles many times their natural size. The diagram now caps its upward scaling at the natural intrinsic SVG width while still shrinking on narrow viewports.
 
 #### 0.20.09 - Configuration Report: PowerPoint Export
 - **📊 Download PowerPoint button** on the Configuration Report page generates a styled `.pptx` deck (template-driven via `report/template/OdinPPTTemplate.potx`).

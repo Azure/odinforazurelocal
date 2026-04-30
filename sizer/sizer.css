@@ -265,8 +265,10 @@ header .header-description {
 }
 
 .stats-container {
-    display: flex;
-    gap: 24px;
+    display: grid;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: center;
+    gap: 8px 24px;
     padding: 10px 20px;
     background: rgba(59, 130, 246, 0.1);
     border: 1px solid rgba(59, 130, 246, 0.3);
@@ -403,7 +405,7 @@ header .header-description {
         background: white !important;
         border: 1px solid #d1d5db !important;
         color: #111 !important;
-        page-break-inside: avoid;
+        break-inside: avoid;
     }
 
     .config-section h2,
@@ -438,7 +440,7 @@ header .header-description {
         background: #f9fafb !important;
         border: 1px solid #d1d5db !important;
         color: #111 !important;
-        page-break-inside: avoid;
+        break-inside: avoid;
     }
 
     .workload-card-title,
@@ -1570,7 +1572,6 @@ header .header-description {
     }
 
     .stats-container {
-        display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px 16px;
         padding: 10px 16px;

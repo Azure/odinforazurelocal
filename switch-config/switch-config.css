@@ -9,8 +9,8 @@ abbr[title] {
     cursor: help;
 }
 
-/* ── Page header bar ──────────────────────────────────────────────── */
-.page-header-bar {
+/* ── Top tab nav (rendered by js/nav.js, see also matching rules in sizer.css and the inline block in index.html) ── */
+.odin-tab-nav {
     position: fixed;
     top: 0;
     left: 0;
@@ -21,49 +21,109 @@ abbr[title] {
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--glass-border);
     padding: 0 24px;
-    height: 56px;
-    display: flex;
-    align-items: center;
 }
 
-.page-header-container {
+.odin-tab-container {
     max-width: 1400px;
     margin: 0 auto;
-    width: 100%;
     display: flex;
     align-items: center;
     gap: 8px;
+    height: 56px;
 }
 
-.page-header-logo {
+.odin-tab-logo {
     display: flex;
     align-items: center;
     gap: 10px;
-    text-decoration: none;
     padding-right: 24px;
     border-right: 1px solid var(--glass-border);
     margin-right: 16px;
+    text-decoration: none;
 }
 
-.page-header-logo img {
+.odin-tab-logo img {
     width: 32px;
     height: 32px;
 }
 
-.page-header-logo span {
+.odin-tab-logo span {
     font-weight: 600;
     font-size: 16px;
     color: var(--text-primary);
 }
 
-.page-header-logo:hover span {
+.odin-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    position: relative;
+    text-decoration: none;
+}
+
+.odin-tab-btn:hover {
+    background: var(--nav-hover-bg, rgba(255, 255, 255, 0.05));
+    color: var(--text-primary);
+}
+
+.odin-tab-btn.active {
+    background: var(--nav-active-bg, rgba(0, 120, 212, 0.15));
     color: var(--accent-blue);
 }
 
-.page-header-title {
+.odin-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 3px;
+    background: var(--accent-blue);
+    border-radius: 3px 3px 0 0;
+}
+
+.odin-tab-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.nav-theme-toggle {
+    padding: 6px 12px;
+    background: var(--subtle-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: 6px;
+    cursor: pointer;
     font-size: 14px;
-    font-weight: 500;
-    color: var(--text-secondary);
+    margin-left: auto;
+    transition: all 0.2s;
+}
+
+.nav-theme-toggle:hover {
+    background: var(--subtle-bg-hover);
+}
+
+.nav-help-btn {
+    margin-left: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nav-help-btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
 }
 
 body {
@@ -337,6 +397,29 @@ body {
     text-decoration: none;
 }
 
+/* ── Quick Start panel (no Designer data) ─────────────────────────── */
+.sc-quick-start {
+    margin: 1rem 0 1.5rem;
+}
+
+.sc-quick-start-card {
+    padding: 1.25rem 1.4rem;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.10), rgba(99, 102, 241, 0.08));
+    border: 2px solid var(--accent-blue);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.sc-quick-start-card h3 {
+    color: var(--text-primary);
+    font-size: 1.15rem;
+}
+
+.sc-quick-start-card a {
+    color: var(--accent-blue);
+    text-decoration: underline;
+}
+
 /* ── Section divider ──────────────────────────────────────────────── */
 .sc-section-divider {
     border: none;
@@ -387,8 +470,33 @@ body {
         font-size: 0.75rem;
     }
 
-    .page-header-bar {
-        padding: 0 12px;
+    .odin-tab-nav {
+        padding: 0 8px;
+    }
+
+    .odin-tab-container {
+        gap: 4px;
+    }
+
+    .odin-tab-logo {
+        padding-right: 8px;
+        margin-right: 4px;
+        gap: 6px;
+    }
+
+    .odin-tab-logo span {
+        display: none;
+    }
+
+    .odin-tab-btn {
+        padding: 8px 10px;
+        font-size: 0;
+        gap: 0;
+    }
+
+    .odin-tab-btn svg {
+        width: 20px;
+        height: 20px;
     }
 }
 
@@ -506,7 +614,7 @@ body {
 .qa-mono {
     font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
     font-size: 0.8rem;
-    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .qa-row-pass { }

@@ -29,10 +29,15 @@ exclude:
   # Historical / archived markdown documentation (not linked from the site)
   - docs/archive/
 
+  # Internal developer reference (not user-facing)
+  - docs/ESLINT_CONFIG_NOTES.md
+
   # Dev config & package manifests
   - node_modules/
   - package.json
   - package-lock.json
   - .eslintrc.json
   - .htmlvalidate.json
+  - .stylelintrc.json
+  - .stylelintignore
   - CONTRIBUTING.md

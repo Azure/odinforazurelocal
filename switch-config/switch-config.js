@@ -4,31 +4,91 @@
  * Reads Designer state from localStorage, populates form fields,
  * orchestrates config generation, and renders output.
  */
-/* global window, document, SwitchConfigBuilder, CiscoNxosRenderer, DellOs10Renderer, getTorModels, getBmcModels, SWITCH_MODELS */
+/* global window, document, SwitchConfigBuilder, CiscoNxosRenderer, DellOs10Renderer, getTorModels, getBmcModels, SWITCH_MODELS, initializeAnalytics, trackPageView, trackFormCompletion */
 (function () {
     'use strict';
 
     var STORAGE_KEY = 'odinDesignerToSwitchConfig';
     var designerState = null;
 
+    // Initialize analytics + record page view (mirrors index.html / sizer.js bootstrap).
+    if (typeof initializeAnalytics === 'function') {
+        initializeAnalytics();
+    }
+    if (typeof trackPageView === 'function') {
+        trackPageView();
+    }
+
     // ── Initialization ───────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', function () {
+        // The test harness (tests/index.html) loads this script to exercise
+        // pure helpers (e.g. buildQuickStartState) but doesn't render the
+        // generator form — bail out if the form's anchor element is absent.
+        if (!document.getElementById('sc-tor-model')) return;
         loadDesignerData();
         populateModelDropdowns();
+        // The Deployment Type picker is ALWAYS visible at the top of the page,
+        // regardless of whether Designer data is present. Pre-select its
+        // controls to reflect the current state so the user can see at a glance
+        // which scenario the form below is using, and change it without leaving
+        // the page.
+        preselectQuickStartFromDesigner();
+        // Make sure the right scale control is visible for the current
+        // dropdown value even when no Designer data is present (the default
+        // selection is hci_switched, which uses the radio).
+        updateQuickStartScaleControls();
+        updateQuickStartHeading();
         if (designerState) {
             populateFromDesigner();
             document.getElementById('sc-main').style.display = 'block';
-        } else {
-            document.getElementById('sc-no-data').style.display = 'block';
+        }
+        // (No-Designer-data case: the picker alone is shown — clicking
+        //  "Use These Defaults" reveals the rest of the form.)
+
+        // First-visit walkthrough (mirrors Sizer onboarding pattern)
+        try {
+            if (typeof window.showSwitchOnboarding === 'function'
+                && !localStorage.getItem('odin_switch_onboarding_v0_20_67')) {
+                window.showSwitchOnboarding();
+            }
+        } catch (e) {
+            // localStorage may be blocked in some browsers; fail silently
         }
     });
 
     // ── Load Designer state from localStorage ────────────────────────
+    // Only consume the payload when the page was opened via the Designer's
+    // "Generate ToR Switch Configuration" action (which appends
+    // ?from=designer to the URL). Without that signal, the localStorage key
+    // is stale data left over from a previous session — ignoring it
+    // prevents the picker from misleadingly claiming "loaded from Designer"
+    // when the user hasn't actually transferred anything this visit. The
+    // payload is removed after consumption so a refresh of this same tab
+    // doesn't re-apply old data.
     function loadDesignerData() {
         try {
+            var fromDesigner = false;
+            try {
+                var params = new URLSearchParams(window.location.search);
+                fromDesigner = params.get('from') === 'designer';
+            } catch (paramErr) {
+                fromDesigner = false;
+            }
+            if (!fromDesigner) {
+                return;
+            }
             var raw = localStorage.getItem(STORAGE_KEY);
             if (!raw) return;
             designerState = JSON.parse(raw);
+            // Consume-once: clear the key so a manual refresh of this tab
+            // (which drops the ?from=designer query when bookmarked, etc.)
+            // doesn't resurrect stale data, and so future visits to
+            // /switch-config/ without a fresh transfer start clean.
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch (clearErr) {
+                // localStorage may be blocked; fail silently
+            }
         } catch (e) {
             console.warn('Failed to load switch-config payload:', e);
         }
@@ -60,35 +120,15 @@
     function populateFromDesigner() {
         if (!designerState) return;
         var ds = designerState;
-
-        // Deployment info banner — only show if we have meaningful data
-        var banner = document.getElementById('sc-deployment-banner');
-        if (ds.scenario && ds.nodes) {
-            var pattern = resolveDeploymentPattern(ds);
-            var patternLabel = {
-                fully_converged: 'Fully Converged (HyperConverged)',
-                switched: 'Storage Switched',
-                switchless: 'Storage Switchless'
-            };
-            var bannerText = '';
-            if (ds.architecture === 'disaggregated') {
-                var stLabel = { fc_san: 'FC SAN', iscsi_4nic: 'iSCSI 4-NIC', iscsi_6nic: 'iSCSI 6-NIC' };
-                bannerText = 'Disaggregated Storage (' + (stLabel[ds.disaggStorageType] || 'FC SAN') + ')' +
-                    ' \u00B7 ' + (ds.nodes || '?') + ' nodes';
-            } else {
-                bannerText = (patternLabel[pattern] || pattern) +
-                    ' \u00B7 ' + (ds.nodes || '?') + ' nodes' +
-                    (ds.scale === 'rack_aware' || ds.scale === 'rack-aware' ? ' \u00B7 Rack-Aware Cluster (2 racks)' : ' \u00B7 Single Rack');
-            }
-            var textEl = document.getElementById('sc-deployment-text');
-            if (textEl) textEl.innerHTML = bannerText + ' \u00B7 or use the <a href="#sc-qos-audit-section" style="color: var(--accent-blue); text-decoration: underline;">QoS Validator</a> to analyze an existing switch config.';
-        } else {
-            // Partial data — update the deployment banner with helpful guidance
-            if (banner) {
-                var textEl = document.getElementById('sc-deployment-text');
-                if (textEl) textEl.innerHTML = 'Designer data is partial \u2014 configure switch settings below, or use the <a href="#sc-qos-audit-section" style="color: var(--accent-blue); text-decoration: underline;">QoS Validator</a> to analyze an existing switch config.';
-            }
-        }
+        // Deployment pattern (switched / switchless / fully_converged) is
+        // still needed downstream to relabel the storage-VLAN section. (The
+        // in-form deployment-info banner that previously consumed this was
+        // removed — the always-visible Deployment Type picker at the top of
+        // the page now communicates the active scenario via its heading
+        // badge and intro copy, so duplicating the same info here would
+        // risk a stale or contradictory message after Quick Start defaults
+        // were applied.)
+        var pattern = resolveDeploymentPattern(ds);
 
         // Leaf-only scope banner for disaggregated deployments. The external SAN
         // fabric (FC zoning, iSCSI targets) and the EVPN spine/underlay are out
@@ -155,6 +195,15 @@
         // For disaggregated clusters, use tenant network VLANs from Designer
         var isDisaggregated = ds.architecture === 'disaggregated';
         var tenantVlans = isDisaggregated && ds.disaggTenantNetworks ? flattenTenantVlans(ds.disaggTenantNetworks) : [];
+        // Re-running this function (e.g. when the user changes the
+        // Deployment Type picker and clicks Apply) must not leak the
+        // optional compute VLAN 2 / 3 blocks shown by a previous
+        // disaggregated-with-multiple-tenants run. Hide them up-front; the
+        // tenant loop below re-shows the ones it populates.
+        for (var hi = 2; hi <= 3; hi++) {
+            var hideBlock = document.getElementById('sc-compute-vlan-' + hi);
+            if (hideBlock) hideBlock.style.display = 'none';
+        }
         if (tenantVlans.length > 0) {
             // Populate compute VLAN slots from disaggregated tenant networks (up to 3)
             for (var tv = 0; tv < Math.min(tenantVlans.length, 3); tv++) {
@@ -176,6 +225,25 @@
 
         // Storage VLANs — for disaggregated, use cluster VLANs from Designer
         // and relabel the section as "Cluster Networks" using Designer-supplied names.
+        // Reset the section to its default state first so re-running this
+        // function (e.g. when the user changes the Deployment Type picker
+        // and clicks Apply) doesn't leave stale visibility / labels from the
+        // previous scenario:
+        //   - switchless previously set display:none → must be re-shown
+        //   - disaggregated previously set the title to "Cluster Networks"
+        //     and the per-VLAN labels to Designer-supplied cluster names →
+        //     must be reset to the static defaults from index.html.
+        var storageSection = document.getElementById('sc-storage-section');
+        if (storageSection) storageSection.style.display = '';
+        var storageTitleEl = document.getElementById('sc-storage-section-title');
+        if (storageTitleEl) storageTitleEl.textContent = 'Storage Networks';
+        var storageLbl1Default = 'Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 1 (<abbr title="Top of Rack">ToR</abbr>1)';
+        var storageLbl2Default = 'Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 2 (<abbr title="Top of Rack">ToR</abbr>2)';
+        var storageLbl1El = document.getElementById('sc-storage1-vlan-label');
+        if (storageLbl1El) storageLbl1El.innerHTML = storageLbl1Default;
+        var storageLbl2El = document.getElementById('sc-storage2-vlan-label');
+        if (storageLbl2El) storageLbl2El.innerHTML = storageLbl2Default;
+
         if (isDisaggregated && ds.disaggVlans) {
             if (ds.disaggVlans.cluster1) setVal('sc-storage1-vlan', String(ds.disaggVlans.cluster1));
             if (ds.disaggVlans.cluster2) setVal('sc-storage2-vlan', String(ds.disaggVlans.cluster2));
@@ -189,7 +257,7 @@
             var lbl2 = document.getElementById('sc-storage2-vlan-label');
             if (lbl2) lbl2.innerHTML = escapeAttr(cName2) + ' \u2014 <abbr title="Virtual Local Area Network">VLAN</abbr> (<abbr title="Top of Rack">ToR</abbr>2)';
         } else if (pattern === 'switchless') {
-            document.getElementById('sc-storage-section').style.display = 'none';
+            if (storageSection) storageSection.style.display = 'none';
         } else {
             var storageVlans = extractStorageVlans(ds);
             if (storageVlans[0]) setVal('sc-storage1-vlan', storageVlans[0]);
@@ -244,6 +312,9 @@
         }
     }
 
+    // Map a designer state to one of the three HCI deployment patterns
+    // (switched / switchless / fully_converged). Used by populateFromDesigner()
+    // to decide how to label and populate the storage-VLAN section.
     function resolveDeploymentPattern(ds) {
         var storage = (ds.storage || '').toLowerCase();
         var intent = (ds.intent || '').toLowerCase();
@@ -252,6 +323,283 @@
         if (intent === 'all_traffic' || intent === 'all traffic') return 'fully_converged';
         return 'fully_converged';
     }
+
+    // ── Quick Start (no Designer data) ───────────────────────────────
+    // When a user opens the ToR Switch tab without first completing the
+    // Designer wizard, the Quick Start picker lets them pick a deployment
+    // scenario + rack scale and load illustrative defaults. The picker
+    // mirrors the QoS Validator's Deployment Type dropdown so the same
+    // five canonical scenarios are available end-to-end.
+
+    /**
+     * Map a Quick Start profile + scale (+ optional disagg rack count) to a
+     * synthetic Designer state that populateFromDesigner() can consume.
+     * Numeric defaults (4 nodes for HCI single-rack, 8 for HCI rack-aware,
+     * 2 nodes per disagg rack) are illustrative and editable via every form
+     * field downstream.
+     *
+     * @param {string} profile  One of hci_converged | hci_switched |
+     *                          hci_switchless | disagg_fc | disagg_iscsi.
+     * @param {string} scale    'single' | 'rack_aware' (HCI scale toggle).
+     * @param {number} [disaggRackCount] Explicit rack count (1–8) for
+     *                          disaggregated profiles. When omitted, the
+     *                          legacy mapping (single → 1, rack_aware → 2)
+     *                          is used. The HCI scale toggle is unaffected.
+     */
+    function buildQuickStartState(profile, scale, disaggRackCount) {
+        var rackAware = scale === 'rack_aware' || scale === 'rack-aware';
+        var nodes = rackAware ? 8 : 4;
+        var s = {
+            scenario: 'quickstart',
+            nodes: nodes,
+            scale: rackAware ? 'rack-aware' : 'single',
+            // marker so other code paths can detect Quick Start mode
+            quickStartProfile: profile
+        };
+        // Disaggregated rack count: explicit value (1–8) takes precedence;
+        // otherwise fall back to the HCI-style scale (single=1, rack_aware=2)
+        // for backwards compatibility with older callers.
+        var dRacks = parseInt(disaggRackCount, 10);
+        if (!(dRacks >= 1 && dRacks <= 8)) {
+            dRacks = rackAware ? 2 : 1;
+        }
+        switch (profile) {
+            case 'hci_converged':
+                s.architecture = 'hyperconverged';
+                s.intent = 'all_traffic';
+                s.storage = 'switched';
+                break;
+            case 'hci_switched':
+                s.architecture = 'hyperconverged';
+                s.intent = 'compute_management';
+                s.storage = 'switched';
+                break;
+            case 'hci_switchless':
+                s.architecture = 'hyperconverged';
+                s.intent = 'compute_management';
+                s.storage = 'switchless';
+                // Storage Switchless does not support rack-aware clusters
+                // (storage NICs are wired directly between nodes within a
+                // single rack). Force scale + node count back to single-
+                // rack defaults regardless of what the caller passed.
+                s.scale = 'single';
+                s.nodes = 4;
+                break;
+            case 'disagg_fc':
+                s.architecture = 'disaggregated';
+                s.disaggStorageType = 'fc_san';
+                s.storage = 'switched';
+                s.disaggRackCount = dRacks;
+                // Override node count: 2 nodes per rack is the typical disagg
+                // density baseline (one leaf pair per rack hosting two compute
+                // nodes). Editable downstream.
+                s.nodes = dRacks * 2;
+                s.scale = dRacks > 1 ? 'rack-aware' : 'single';
+                break;
+            case 'disagg_iscsi':
+                s.architecture = 'disaggregated';
+                s.disaggStorageType = 'iscsi_4nic';
+                s.storage = 'switched';
+                s.disaggRackCount = dRacks;
+                s.nodes = dRacks * 2;
+                s.scale = dRacks > 1 ? 'rack-aware' : 'single';
+                break;
+            default:
+                s.architecture = 'hyperconverged';
+                s.intent = 'compute_management';
+                s.storage = 'switched';
+        }
+        return s;
+    }
+
+    /**
+     * Pre-select the Quick Start dropdown + rack-scale radio to match the
+     * existing Designer state (if any). Called on load and after exitQuickStart.
+     */
+    function preselectQuickStartFromDesigner() {
+        var profileSelect = document.getElementById('sc-quick-start-profile');
+        if (!profileSelect) return;
+        if (!designerState) return;
+        var ds = designerState;
+        var profile = 'hci_switched';
+        if (ds.architecture === 'disaggregated') {
+            if (ds.disaggStorageType === 'fc_san') profile = 'disagg_fc';
+            else if (ds.disaggStorageType === 'iscsi_4nic' || ds.disaggStorageType === 'iscsi_6nic') profile = 'disagg_iscsi';
+            else profile = 'disagg_fc';
+        } else if ((ds.storage || '').toLowerCase() === 'switchless') {
+            profile = 'hci_switchless';
+        } else if ((ds.intent || '').toLowerCase() === 'all_traffic' || (ds.intent || '').toLowerCase() === 'all traffic') {
+            profile = 'hci_converged';
+        }
+        profileSelect.value = profile;
+
+        var scale = (ds.scale === 'rack-aware' || ds.scale === 'rack_aware') ? 'rack_aware' : 'single';
+        var radios = document.getElementsByName('sc-quick-start-scale');
+        for (var i = 0; i < radios.length; i++) {
+            radios[i].checked = (radios[i].value === scale);
+        }
+        // For disagg, also seed the rack-count number input so the picker
+        // reflects what was loaded (1–8 for FC SAN / iSCSI).
+        var rackCountInput = document.getElementById('sc-quick-start-rack-count');
+        if (rackCountInput && ds.disaggRackCount) {
+            var rc = parseInt(ds.disaggRackCount, 10);
+            if (rc >= 1 && rc <= 8) rackCountInput.value = String(rc);
+        }
+        // Show the right scale control for this profile.
+        updateQuickStartScaleControls();
+    }
+
+    /**
+     * Toggle which "scale" control is visible based on the current
+     * Deployment Type selection. Disaggregated scenarios (FC SAN, iSCSI)
+     * support 1–8 racks (one leaf pair per rack); HCI scenarios remain a
+     * binary single-rack / rack-aware toggle, except that **Storage
+     * Switchless** does not support rack-aware (storage NICs are wired
+     * directly between nodes within a single rack), so the Rack-Aware
+     * option is hidden in that mode and the selection is forced back to
+     * Single Rack if it was previously checked.
+     */
+    function updateQuickStartScaleControls() {
+        var profileSelect = document.getElementById('sc-quick-start-profile');
+        var radioWrap = document.getElementById('sc-quick-start-scale-radio');
+        var disaggWrap = document.getElementById('sc-quick-start-scale-disagg');
+        if (!profileSelect || !radioWrap || !disaggWrap) return;
+        var profile = profileSelect.value || '';
+        var isDisagg = profile.indexOf('disagg_') === 0;
+        var isSwitchless = profile === 'hci_switchless';
+        radioWrap.style.display = isDisagg ? 'none' : 'flex';
+        disaggWrap.style.display = isDisagg ? 'block' : 'none';
+
+        // Hide the Rack-Aware radio for Storage Switchless and force the
+        // selection back to Single Rack if needed.
+        var raLabel = document.getElementById('sc-quick-start-scale-rack-aware-label');
+        if (raLabel) {
+            raLabel.style.display = isSwitchless ? 'none' : 'flex';
+        }
+        if (isSwitchless) {
+            var radios = document.getElementsByName('sc-quick-start-scale');
+            var sawCheckedRackAware = false;
+            for (var i = 0; i < radios.length; i++) {
+                if (radios[i].value === 'rack_aware' && radios[i].checked) {
+                    sawCheckedRackAware = true;
+                    radios[i].checked = false;
+                }
+            }
+            if (sawCheckedRackAware) {
+                for (var j = 0; j < radios.length; j++) {
+                    if (radios[j].value === 'single') { radios[j].checked = true; break; }
+                }
+            }
+        }
+    }
+    // Expose so the inline onchange handler in index.html can call it.
+    window.updateQuickStartScaleControls = updateQuickStartScaleControls;
+
+    /**
+     * Apply the Deployment Type picker's current values: synthesize a Designer
+     * state, populate the form, and reveal the main panel. Safe to call when
+     * the form is already populated (e.g. when the user changes the picker
+     * after arriving from the Designer) — replaces the current state with the
+     * synthesized one and updates the heading copy accordingly.
+     */
+    function applyQuickStart() {
+        var profileSelect = document.getElementById('sc-quick-start-profile');
+        if (!profileSelect) return;
+        var profile = profileSelect.value || 'hci_switched';
+        var scale = 'single';
+        var radios = document.getElementsByName('sc-quick-start-scale');
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].checked) { scale = radios[i].value; break; }
+        }
+        // For disaggregated profiles, the rack-count number input replaces
+        // the binary scale toggle (the radio is hidden in that mode and may
+        // still hold its previous value, which we ignore).
+        var disaggRackCount;
+        if (profile.indexOf('disagg_') === 0) {
+            var rcInput = document.getElementById('sc-quick-start-rack-count');
+            if (rcInput) {
+                var rc = parseInt(rcInput.value, 10);
+                if (rc >= 1 && rc <= 8) {
+                    disaggRackCount = rc;
+                    // Mirror the rack count back into the scale concept so
+                    // downstream code that switches on ds.scale still works:
+                    // 1 rack → single, 2+ racks → rack-aware.
+                    scale = rc > 1 ? 'rack_aware' : 'single';
+                }
+            }
+        }
+        designerState = buildQuickStartState(profile, scale, disaggRackCount);
+        populateFromDesigner();
+        var main = document.getElementById('sc-main');
+        if (main) main.style.display = 'block';
+        // Update the picker heading to reflect that the form is now driven by
+        // these defaults (not by Designer state).
+        updateQuickStartHeading();
+        // Smooth-scroll the form into view so the user can see the change took
+        // effect, without losing the picker at the top of the page.
+        if (main && typeof main.scrollIntoView === 'function') {
+            main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        // Note: no trackFormCompletion() call here. Quick Start is a UI mode
+        // toggle, not a completion event — the existing generateConfigs() /
+        // runQosAudit() flows already increment switchConfigGenerated /
+        // qosAuditAnalyzed when the user actually finishes a generation. Page
+        // views are tracked separately via trackPageView() in DOMContentLoaded.
+    }
+
+    /**
+     * Update the picker heading, intro paragraph, and apply-button label to
+     * reflect whether the form is currently driven by genuine Designer data
+     * (transferred via the "Generate ToR Switch Configuration" action) or by
+     * synthesized Quick Start defaults — or whether nothing has been loaded
+     * yet. Keeps the user oriented as they switch back and forth.
+     */
+    function updateQuickStartHeading() {
+        var badge = document.getElementById('sc-quick-start-mode-badge');
+        var intro = document.getElementById('sc-quick-start-intro');
+        var btn = document.getElementById('sc-quick-start-btn');
+        if (!badge || !intro || !btn) return;
+
+        var isQuickStart = designerState && designerState.scenario === 'quickstart';
+        var isDesigner = designerState && !isQuickStart;
+
+        if (isDesigner) {
+            badge.textContent = 'loaded from Designer';
+            intro.innerHTML = 'The form below is using values transferred from the <a href="../">ODIN Designer</a>. ' +
+                'You can change the deployment scenario at any time — switching the picker and clicking <strong>Apply</strong> ' +
+                'will replace the form with sensible defaults for the new profile (your hardware-model and per-rack picks below ' +
+                'will reset).';
+            btn.innerHTML = '\u21BB Apply';
+            btn.title = 'Replace the form with defaults for the selected deployment type';
+        } else if (isQuickStart) {
+            badge.textContent = 'using picker defaults';
+            intro.innerHTML = 'The form below is using illustrative defaults for the selected deployment type — ' +
+                'every VLAN ID, IP, and hostname must be edited to match your actual network plan before applying. ' +
+                'For a fully-tailored config, <a href="../">complete the Designer wizard</a> first and use its ' +
+                '<em>Generate Switch Config</em> action.';
+            btn.innerHTML = '\u21BB Apply';
+            btn.title = 'Replace the form with defaults for the selected deployment type';
+        } else {
+            badge.textContent = 'no Designer data';
+            intro.innerHTML = 'No deployment data was found from the <a href="../">ODIN Designer</a>. ' +
+                'Pick a <strong>Deployment Type</strong> below to load sensible defaults — you can then edit every field ' +
+                'before generating switch configs. For a fully-tailored config (correct VLAN IDs, tenant networks, ' +
+                'rack-aware topology), <a href="../">complete the Designer wizard</a> first and use its ' +
+                '<em>Generate Switch Config</em> action.';
+            btn.innerHTML = '\u25B6 Use These Defaults';
+            btn.title = 'Load defaults for the selected deployment type and reveal the form';
+        }
+    }
+
+    // Expose to inline onclick handlers in switch-config/index.html
+    window.applyQuickStart = applyQuickStart;
+    // Exposed for unit tests
+    window.__buildQuickStartState = buildQuickStartState;
+    // Exposed so the global addComputeVlan() helper (declared outside this
+    // IIFE) can read the live in-memory state. We can no longer rely on
+    // localStorage there because loadDesignerData() consumes-and-clears the
+    // payload on first load (see the comment on loadDesignerData above).
+    window.__getSwitchConfigDesignerState = function () { return designerState; };
 
     /**
      * Flatten disaggregated tenant networks into a simple array of VLAN objects.
@@ -958,6 +1306,12 @@
         }
 
         renderOutput(configs);
+
+        // Anonymous usage counter — fire only on a successful generation
+        // (after validation + renderOutput). Increments analytics/formCompletions/switchConfigGenerated.
+        if (typeof trackFormCompletion === 'function') {
+            trackFormCompletion('switchConfigGenerated');
+        }
     };
 
     // ── Render tabbed output ─────────────────────────────────────────
@@ -1092,10 +1446,14 @@ window.addComputeVlan = function () {
         var block = document.getElementById('sc-compute-vlan-' + i);
         if (block && block.style.display === 'none') {
             block.style.display = '';
-            // Auto-populate SVI defaults for rack-aware deployments
-            var dsRaw = null;
-            try { dsRaw = JSON.parse(localStorage.getItem('odinDesignerToSwitchConfig')); } catch (e) { /* ignore */ }
-            var ra = dsRaw && (dsRaw.scale === 'rack-aware' || dsRaw.scale === 'rack_aware');
+            // Auto-populate SVI defaults for rack-aware deployments. The
+            // rack-aware flag now comes from the in-memory designerState
+            // (Designer transfer or Quick Start defaults) — not from
+            // localStorage, which loadDesignerData() consumes-and-clears.
+            var ds = (typeof window.__getSwitchConfigDesignerState === 'function')
+                ? window.__getSwitchConfigDesignerState()
+                : null;
+            var ra = ds && (ds.scale === 'rack-aware' || ds.scale === 'rack_aware');
             var gwField = document.getElementById('sc-compute-vlan' + i + '-gw');
             if (gwField && gwField.value) {
                 var parts = gwField.value.split('.');
@@ -1137,3 +1495,139 @@ function updateAddComputeBtn() {
     }
     btn.disabled = allVisible;
 }
+
+// ============================================
+// ONBOARDING WALKTHROUGH (ToR Switch page)
+// ============================================
+// Mirrors the Sizer onboarding pattern (sizer/sizer.js). Uses the shared
+// `.onboarding-overlay` / `.onboarding-card` styles in css/style.css, which
+// the ToR Switch page already loads. First-visit auto-trigger is gated on
+// the localStorage key below; the nav-bar Help button calls
+// showSwitchOnboarding() on demand and is wired up in js/nav.js.
+/* global showSwitchOnboarding */
+var SWITCH_ONBOARDING_KEY = 'odin_switch_onboarding_v0_20_67';
+
+var switchOnboardingSteps = [
+    {
+        icon: '<img src="../images/odin-logo.png" alt="ODIN Logo" style="width: 100px; height: 100px; object-fit: contain;">',
+        isImage: true,
+        title: 'Welcome to the ODIN ToR Switch tool',
+        description: 'Generate example Top-of-Rack, BMC, and border switch configurations from your Designer state, or audit an existing running-config against Azure Local QoS requirements.',
+        features: [
+            { icon: '🔧', title: 'Config Generator', text: 'Renders ToR1–ToR4, BMC, and border switch configs in Cisco NX-OS or Dell OS10 from a structured JSON model' },
+            { icon: '🛡️', title: 'QoS Validator', text: 'Paste a <code>show running-config</code> to score it against PFC, ETS, ECN, MTU 9216, and per-port settings' },
+            { icon: '🏗️', title: 'Designer Integration', text: 'Auto-loads from your Designer wizard if you arrived via the “Generate / Validate ToR Switch Configuration” button' },
+            { icon: '📋', title: 'Multi-Rack Support', text: 'Up to 8 racks / 16 ToRs for disaggregated leaf-spine designs, with per-rack BGP ASN, loopbacks, SVIs, and iBGP peering' }
+        ]
+    },
+    {
+        icon: '🔧',
+        title: 'Generate Switch Configurations',
+        description: 'Configure your ToR / BMC switches and infrastructure tokens, then click Generate to render platform-specific configs in tabs.',
+        features: [
+            { icon: '1️⃣', title: 'Switch Selection', text: 'Pick ToR and BMC models — Cisco Nexus 9000 family or Dell OS10. The model determines which renderer is used' },
+            { icon: '2️⃣', title: 'Infrastructure Tokens', text: 'Timezone (with DST), NTP, syslog, TACACS+, SNMP, management VLAN, default gateway — all replaceable values in the rendered config' },
+            { icon: '3️⃣', title: 'Per-Rack BGP / SVI', text: 'For rack-aware deployments: loopbacks, BGP ASN (auto-incremented from 64789), SVIs, P2P links to spine, and iBGP peering — all per rack' },
+            { icon: '4️⃣', title: 'Generate &amp; Export', text: 'Click Generate Switch Configurations to render all configs in tabs. Each tab has Copy / Download / Export JSON buttons' }
+        ]
+    },
+    {
+        icon: '🛡️',
+        title: 'Validate an existing switch config',
+        description: 'Already have a running-config? Paste it into the QoS Validator to score it against Azure Local requirements.',
+        features: [
+            { icon: '📋', title: 'Paste &amp; Analyze', text: 'Paste <code>show running-config</code> (Cisco) or <code>show running-configuration</code> (Dell OS10) — entirely client-side, nothing leaves your browser' },
+            { icon: '🎯', title: 'Deployment Profiles', text: 'Auto-detect from Designer, Switched HCI, Switchless HCI (storage N/A), Disaggregated FC SAN, or Disaggregated iSCSI — pick the right ruleset' },
+            { icon: '✅', title: 'Pass / Warn / Fail / N/A', text: 'Each check shows what passed, what to fix, and what doesn’t apply for your deployment type' },
+            { icon: '🔒', title: 'Privacy', text: 'All processing is local in your browser. No telemetry on the pasted config — only an anonymous “QoS Audit completed” counter increments' }
+        ]
+    }
+];
+
+var currentSwitchOnboardingStep = 0;
+
+window.showSwitchOnboarding = function () {
+    currentSwitchOnboardingStep = 0;
+    renderSwitchOnboardingStep();
+};
+
+function renderSwitchOnboardingStep() {
+    var step = switchOnboardingSteps[currentSwitchOnboardingStep];
+
+    var existing = document.querySelectorAll('.onboarding-overlay');
+    for (var x = 0; x < existing.length; x++) { existing[x].remove(); }
+
+    var overlay = document.createElement('div');
+    overlay.className = 'onboarding-overlay';
+
+    var featuresHtml = '';
+    for (var f = 0; f < step.features.length; f++) {
+        var feat = step.features[f];
+        featuresHtml += '<div class="onboarding-feature">'
+            + '<span class="onboarding-feature-icon">' + feat.icon + '</span>'
+            + '<div class="onboarding-feature-text">'
+            + '<strong>' + feat.title + '</strong>'
+            + feat.text
+            + '</div>'
+            + '</div>';
+    }
+
+    var dotsHtml = '';
+    for (var d = 0; d < switchOnboardingSteps.length; d++) {
+        dotsHtml += '<div class="onboarding-dot' + (d === currentSwitchOnboardingStep ? ' active' : '') + '"></div>';
+    }
+
+    var nextLabel = (currentSwitchOnboardingStep === switchOnboardingSteps.length - 1) ? 'Get Started' : 'Next';
+
+    overlay.innerHTML = '<div class="onboarding-card">'
+        + '<div class="onboarding-icon' + (step.isImage ? ' onboarding-icon-image' : '') + '">' + step.icon + '</div>'
+        + '<h2 class="onboarding-title">' + step.title + '</h2>'
+        + '<p class="onboarding-description">' + step.description + '</p>'
+        + '<div class="onboarding-features">' + featuresHtml + '</div>'
+        + '<div class="onboarding-progress">' + dotsHtml + '</div>'
+        + '<div class="onboarding-buttons">'
+        + '<button class="onboarding-btn onboarding-btn-secondary" data-action="skip">Skip</button>'
+        + '<button class="onboarding-btn onboarding-btn-primary" data-action="next">' + nextLabel + '</button>'
+        + '</div>'
+        + '</div>';
+
+    overlay.querySelector('[data-action="skip"]').addEventListener('click', skipSwitchOnboarding);
+    overlay.querySelector('[data-action="next"]').addEventListener('click', function () {
+        if (currentSwitchOnboardingStep === switchOnboardingSteps.length - 1) {
+            finishSwitchOnboarding();
+        } else {
+            nextSwitchOnboardingStep();
+        }
+    });
+
+    document.body.appendChild(overlay);
+}
+
+function nextSwitchOnboardingStep() {
+    currentSwitchOnboardingStep++;
+    if (currentSwitchOnboardingStep < switchOnboardingSteps.length) {
+        renderSwitchOnboardingStep();
+    } else {
+        finishSwitchOnboarding();
+    }
+}
+
+function skipSwitchOnboarding() {
+    try { localStorage.setItem(SWITCH_ONBOARDING_KEY, 'true'); } catch (e) { /* ignore */ }
+    var els = document.querySelectorAll('.onboarding-overlay');
+    for (var i = 0; i < els.length; i++) { els[i].remove(); }
+}
+
+function finishSwitchOnboarding() {
+    try { localStorage.setItem(SWITCH_ONBOARDING_KEY, 'true'); } catch (e) { /* ignore */ }
+    var els = document.querySelectorAll('.onboarding-overlay');
+    for (var i = 0; i < els.length; i++) { els[i].remove(); }
+}
+
+// Close onboarding overlay on Escape key
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        var els = document.querySelectorAll('.onboarding-overlay');
+        if (els.length > 0) { skipSwitchOnboarding(); }
+    }
+});

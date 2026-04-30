@@ -130,6 +130,7 @@
     <script src="../switch-config/templates/cisco-nxos.js"></script>
     <script src="../switch-config/templates/dell-os10.js"></script>
     <script src="../switch-config/qos-audit.js"></script>
+    <script src="../switch-config/switch-config.js"></script>
     <script>
         // ========================================================================
         // TEST FRAMEWORK
@@ -1937,6 +1938,9 @@
                     // Sizer hardware (hidden, imported from Sizer tool)
                     'sizerHardware',
                     'sizerWorkloads',
+                    // Disconnected (ALDO) — cluster role + Autonomous Cloud FQDN
+                    'clusterRole',
+                    'autonomousCloudFqdn',
                     // Disaggregated architecture state
                     'architecture',
                     'disaggStorageType',
@@ -2015,6 +2019,7 @@
                     'sdnEnabled', 'sdnFeatures', 'sdnManagement', 'securityConfiguration',
                     'securitySettings', 'rdmaGuardMessage', 'privateEndpoints', 'privateEndpointsList',
                     'sizerHardware', 'sizerWorkloads',
+                    'clusterRole', 'autonomousCloudFqdn',
                     'architecture', 'disaggStorageType', 'disaggBackupEnabled', 'disaggPortCount', 'disaggRackCount',
                     'disaggNodesPerRack', 'disaggSpineCount', 'disaggVlans', 'disaggVnis',
                     'disaggVrfName', 'disaggVrfMode', 'disaggSubnets', 'disaggIscsiTargets', 'disaggQosCustomized',
@@ -2040,6 +2045,108 @@
                     'No stale entries in knownFields (remove fields no longer in state)',
                     '[]',
                     staleEntries.length > 0 ? 'STALE: ' + JSON.stringify(staleEntries) : '[]'
+                );
+            })()
+        ]);
+
+        // ========================================================================
+        // resetAll() / Start Over — full reset including Sizer + disaggregated state
+        // ========================================================================
+        // Regression: previously resetAll() had a hand-maintained property list
+        // that omitted sizerHardware, sizerWorkloads, architecture, fqdnConfirmed,
+        // portConfigConfirmed, and ALL disagg* fields, so a "Start Over" click
+        // left workload data + architecture + disaggregated config behind. The
+        // refactor moved defaults into getInitialWizardState() so resetAll()
+        // can never drift.
+        testSuite('resetAll(): Start Over fully clears state', 'script.js', [
+            (function () {
+                // Pollute every reset-tracked field with non-default values.
+                state.scenario = 'connected';
+                state.architecture = 'disaggregated';
+                state.scale = 'rack_aware';
+                state.nodes = '8';
+                state.fqdnConfirmed = true;
+                state.portConfigConfirmed = true;
+                state.sizerHardware = { cpu: { generation: 'Granite Rapids' }, workloadSummary: { count: 4 } };
+                state.sizerWorkloads = [
+                    { type: 'vm', name: 'DB VMs', count: 5, vcpusPerVm: 16 },
+                    { type: 'aks', name: 'Prod AKS', clusterCount: 2 }
+                ];
+                state.disaggStorageType = 'fc_san';
+                state.disaggRackCount = 4;
+                state.disaggNodesPerRack = 4;
+                state.disaggBackupEnabled = true;
+                state.intentOverrides = { mgmt: { rdma: true } };
+                state.privateEndpointsList = ['keyvault', 'storage'];
+                // ALDO disconnected fields — these were silently missing from
+                // the original factory and would survive a Start Over.
+                state.clusterRole = 'management';
+                state.autonomousCloudFqdn = 'cloud.contoso.local';
+                // User preferences should survive a Start Over.
+                state.theme = 'light';
+                state.fontSize = 'large';
+
+                // Use Object.assign to mimic what resetAll does to defaults
+                // (without exercising the DOM cleanup, which isn't loaded in the
+                // headless test harness). This validates the state-reset half
+                // of resetAll, which is where the regression lived.
+                const fresh = (typeof getInitialWizardState === 'function')
+                    ? getInitialWizardState() : null;
+                if (!fresh) return assert(false, 'getInitialWizardState() exposed', 'function', 'undefined');
+
+                const preservedTheme = state.theme;
+                const preservedFontSize = state.fontSize;
+                Object.keys(state).forEach(function (k) {
+                    if (!Object.prototype.hasOwnProperty.call(fresh, k)) delete state[k];
+                });
+                Object.assign(state, fresh);
+                state.theme = preservedTheme;
+                state.fontSize = preservedFontSize;
+
+                // Verify every previously-leaked field is back to its default.
+                const checks = [
+                    ['scenario', state.scenario, null],
+                    ['architecture', state.architecture, null],
+                    ['scale', state.scale, null],
+                    ['nodes', state.nodes, null],
+                    ['fqdnConfirmed', state.fqdnConfirmed, false],
+                    ['portConfigConfirmed', state.portConfigConfirmed, false],
+                    ['sizerHardware', state.sizerHardware, null],
+                    ['sizerWorkloads', state.sizerWorkloads, null],
+                    ['disaggStorageType', state.disaggStorageType, null],
+                    ['disaggRackCount', state.disaggRackCount, null],
+                    ['disaggNodesPerRack', state.disaggNodesPerRack, null],
+                    ['disaggBackupEnabled', state.disaggBackupEnabled, false],
+                    ['clusterRole', state.clusterRole, null],
+                    ['autonomousCloudFqdn', state.autonomousCloudFqdn, null]
+                ];
+                const failed = checks.filter(function (c) { return c[1] !== c[2]; });
+                return assert(
+                    failed.length === 0,
+                    'All previously-leaked fields cleared by resetAll',
+                    'all defaults',
+                    failed.length === 0 ? 'all defaults' : 'leaked: ' + JSON.stringify(failed.map(function (c) { return c[0] + '=' + JSON.stringify(c[1]); }))
+                );
+            })(),
+            (function () {
+                // intentOverrides + privateEndpointsList must be fresh empties,
+                // not the polluted references from above.
+                return assert(
+                    Object.keys(state.intentOverrides || {}).length === 0
+                        && Array.isArray(state.privateEndpointsList)
+                        && state.privateEndpointsList.length === 0,
+                    'Object/array fields reset to fresh empties',
+                    '{}, []',
+                    JSON.stringify(state.intentOverrides) + ', ' + JSON.stringify(state.privateEndpointsList)
+                );
+            })(),
+            (function () {
+                // Theme + fontSize must survive Start Over (user prefs).
+                return assert(
+                    state.theme === 'light' && state.fontSize === 'large',
+                    'theme + fontSize preserved across reset',
+                    'light, large',
+                    state.theme + ', ' + state.fontSize
                 );
             })()
         ]);
@@ -5252,12 +5359,13 @@
         // --- DISK_SIZE_OPTIONS_TB constant ---
         testSuite('DISK_SIZE_OPTIONS_TB constant', 'sizer.js', [
             assert(Array.isArray(DISK_SIZE_OPTIONS_TB), 'Is an array', true, Array.isArray(DISK_SIZE_OPTIONS_TB)),
-            assert(DISK_SIZE_OPTIONS_TB.length === 5, 'Has 5 standard sizes', 5, DISK_SIZE_OPTIONS_TB.length),
+            assert(DISK_SIZE_OPTIONS_TB.length === 6, 'Has 6 standard sizes', 6, DISK_SIZE_OPTIONS_TB.length),
             assert(DISK_SIZE_OPTIONS_TB[0] === 0.96, 'First size: 0.96 TB', 0.96, DISK_SIZE_OPTIONS_TB[0]),
             assert(DISK_SIZE_OPTIONS_TB[1] === 1.92, 'Second size: 1.92 TB', 1.92, DISK_SIZE_OPTIONS_TB[1]),
             assert(DISK_SIZE_OPTIONS_TB[2] === 3.84, 'Third size: 3.84 TB', 3.84, DISK_SIZE_OPTIONS_TB[2]),
-            assert(DISK_SIZE_OPTIONS_TB[3] === 7.68, 'Fourth size: 7.68 TB', 7.68, DISK_SIZE_OPTIONS_TB[3]),
-            assert(DISK_SIZE_OPTIONS_TB[4] === 15.36, 'Fifth size: 15.36 TB', 15.36, DISK_SIZE_OPTIONS_TB[4]),
+            assert(DISK_SIZE_OPTIONS_TB[3] === 5.68, 'Fourth size: 5.68 TB', 5.68, DISK_SIZE_OPTIONS_TB[3]),
+            assert(DISK_SIZE_OPTIONS_TB[4] === 7.68, 'Fifth size: 7.68 TB', 7.68, DISK_SIZE_OPTIONS_TB[4]),
+            assert(DISK_SIZE_OPTIONS_TB[5] === 15.36, 'Sixth size: 15.36 TB', 15.36, DISK_SIZE_OPTIONS_TB[5]),
             assert(DISK_SIZE_OPTIONS_TB.every((v, i, a) => i === 0 || v > a[i - 1]), 'Sizes are in ascending order', true,
                 DISK_SIZE_OPTIONS_TB.every((v, i, a) => i === 0 || v > a[i - 1]))
         ]);
@@ -7721,6 +7829,130 @@
         })());
 
         // ========================================================================
+        // SWITCH-CONFIG QUICK START — synthetic Designer state
+        // When a user opens the ToR Switch tab without first completing the
+        // Designer wizard, switch-config.js exposes window.__buildQuickStartState
+        // to synthesize a minimal Designer-style state from the picker's
+        // Deployment Type + Rack Scale values. These tests lock in the shape
+        // produced for each of the 5 canonical profiles so populateFromDesigner()
+        // downstream sees the right architecture/storage/intent fields.
+        // ========================================================================
+        sectionHeader('🚀 Switch Config Quick Start — Synthetic State');
+
+        testSuite('__buildQuickStartState exposed', 'switch-config.js', [
+            assert(typeof window.__buildQuickStartState === 'function',
+                'window.__buildQuickStartState is a function', true,
+                typeof window.__buildQuickStartState === 'function')
+        ]);
+
+        testSuite('Quick Start: hci_converged single rack', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('hci_converged', 'single');
+            r.push(assert(s.architecture === 'hyperconverged', 'architecture=hyperconverged', 'hyperconverged', s.architecture));
+            r.push(assert(s.intent === 'all_traffic', 'intent=all_traffic (single converged intent)', 'all_traffic', s.intent));
+            r.push(assert(s.storage === 'switched', 'storage=switched', 'switched', s.storage));
+            r.push(assert(s.scale === 'single', 'scale=single', 'single', s.scale));
+            r.push(assert(s.nodes === 4, 'nodes=4 default', 4, s.nodes));
+            r.push(assert(s.quickStartProfile === 'hci_converged', 'quickStartProfile marker set', 'hci_converged', s.quickStartProfile));
+            return r;
+        })());
+
+        testSuite('Quick Start: hci_switched single rack', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('hci_switched', 'single');
+            r.push(assert(s.architecture === 'hyperconverged', 'architecture=hyperconverged', 'hyperconverged', s.architecture));
+            r.push(assert(s.intent === 'compute_management', 'intent=compute_management (storage on its own intent)', 'compute_management', s.intent));
+            r.push(assert(s.storage === 'switched', 'storage=switched', 'switched', s.storage));
+            return r;
+        })());
+
+        testSuite('Quick Start: hci_switchless single rack', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('hci_switchless', 'single');
+            r.push(assert(s.architecture === 'hyperconverged', 'architecture=hyperconverged', 'hyperconverged', s.architecture));
+            r.push(assert(s.storage === 'switchless', 'storage=switchless', 'switchless', s.storage));
+            return r;
+        })());
+
+        testSuite('Quick Start: hci_switchless forces single-rack even when rack_aware is requested', 'switch-config.js', (() => {
+            // Storage Switchless does not support rack-aware clusters
+            // (storage NICs are back-to-back within a rack). The synthesized
+            // state must always be single-rack regardless of the second arg.
+            const r = [];
+            const s = window.__buildQuickStartState('hci_switchless', 'rack_aware');
+            r.push(assert(s.scale === 'single', 'scale forced to single', 'single', s.scale));
+            r.push(assert(s.nodes === 4, 'nodes reset to 4 (single-rack default)', 4, s.nodes));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_fc single rack', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('disagg_fc', 'single');
+            r.push(assert(s.architecture === 'disaggregated', 'architecture=disaggregated', 'disaggregated', s.architecture));
+            r.push(assert(s.disaggStorageType === 'fc_san', 'disaggStorageType=fc_san', 'fc_san', s.disaggStorageType));
+            r.push(assert(s.disaggRackCount === 1, 'disaggRackCount=1 for single rack', 1, s.disaggRackCount));
+            r.push(assert(s.nodes === 2, 'nodes=2 for 1 disagg rack (2 nodes per rack baseline)', 2, s.nodes));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_iscsi rack-aware', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('disagg_iscsi', 'rack_aware');
+            r.push(assert(s.architecture === 'disaggregated', 'architecture=disaggregated', 'disaggregated', s.architecture));
+            r.push(assert(s.disaggStorageType === 'iscsi_4nic', 'disaggStorageType=iscsi_4nic', 'iscsi_4nic', s.disaggStorageType));
+            r.push(assert(s.scale === 'rack-aware', 'scale=rack-aware', 'rack-aware', s.scale));
+            r.push(assert(s.nodes === 4, 'nodes=4 for rack-aware default (2 racks * 2 nodes)', 4, s.nodes));
+            r.push(assert(s.disaggRackCount === 2, 'disaggRackCount=2 for rack-aware default', 2, s.disaggRackCount));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_fc explicit rack count (4 racks)', 'switch-config.js', (() => {
+            // The Deployment Type picker allows the user to specify any
+            // number of disaggregated racks from 1 to 8. The third arg to
+            // buildQuickStartState() takes precedence over the scale toggle.
+            const r = [];
+            const s = window.__buildQuickStartState('disagg_fc', 'rack_aware', 4);
+            r.push(assert(s.disaggRackCount === 4, 'disaggRackCount=4 honoured', 4, s.disaggRackCount));
+            r.push(assert(s.nodes === 8, 'nodes=8 for 4 racks (2 per rack)', 8, s.nodes));
+            r.push(assert(s.scale === 'rack-aware', 'scale=rack-aware (>1 rack)', 'rack-aware', s.scale));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_iscsi 8 racks (max)', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('disagg_iscsi', 'rack_aware', 8);
+            r.push(assert(s.disaggRackCount === 8, 'disaggRackCount=8', 8, s.disaggRackCount));
+            r.push(assert(s.nodes === 16, 'nodes=16 for 8 racks', 16, s.nodes));
+            return r;
+        })());
+
+        testSuite('Quick Start: disagg_fc rejects out-of-range rack counts', 'switch-config.js', (() => {
+            // Out-of-range values fall back to the scale-toggle mapping.
+            const r = [];
+            const s0 = window.__buildQuickStartState('disagg_fc', 'single', 0);
+            r.push(assert(s0.disaggRackCount === 1, 'rack count 0 → fallback (1)', 1, s0.disaggRackCount));
+            const s9 = window.__buildQuickStartState('disagg_fc', 'rack_aware', 9);
+            r.push(assert(s9.disaggRackCount === 2, 'rack count 9 → fallback (2)', 2, s9.disaggRackCount));
+            const sNaN = window.__buildQuickStartState('disagg_fc', 'single', 'foo');
+            r.push(assert(sNaN.disaggRackCount === 1, 'rack count NaN → fallback (1)', 1, sNaN.disaggRackCount));
+            return r;
+        })());
+
+        testSuite('Quick Start: unknown profile falls back to hci_switched defaults', 'switch-config.js', (() => {
+            const r = [];
+            const s = window.__buildQuickStartState('unknown_profile', 'single');
+            r.push(assert(s.architecture === 'hyperconverged', 'fallback architecture', 'hyperconverged', s.architecture));
+            r.push(assert(s.storage === 'switched', 'fallback storage', 'switched', s.storage));
+            return r;
+        })());
+
+        testSuite('Quick Start: applyQuickStart helper exposed', 'switch-config.js', [
+            assert(typeof window.applyQuickStart === 'function',
+                'window.applyQuickStart is a function', true,
+                typeof window.applyQuickStart === 'function')
+        ]);
+
+        // ========================================================================
         // SESSION RESUME — STATE RESTORATION TESTS
         // Tests that the resume path correctly preserves disaggregated state keys
         // and that restoreDisaggregatedUI() exists and runs without errors.
@@ -7848,6 +8080,7 @@
                 'sizerHardware', 'sizerWorkloads',
                 // Disconnected
                 'fqdnConfirmed', 'storagePoolConfiguration',
+                'clusterRole', 'autonomousCloudFqdn',
                 // Disaggregated SAN LUN IDs (Step 16)
                 'infraVolLunId', 'infraPerfLunId'
             ];
@@ -8369,6 +8602,755 @@
 
             Object.keys(state).forEach(function(k) { delete state[k]; });
             Object.assign(state, origState);
+
+            return results;
+        })());
+
+        // ========================================================================
+        // REGRESSION TESTS — Issue #207: Sizer JSON Import bugs
+        // ========================================================================
+        sectionHeader('🐛 Regression Tests - Issue #207: Sizer JSON Import (Azure Local Machine)');
+
+        testSuite('parseAndPreviewClusterJSON: respects numberOfCpuSockets from JSON (#207)', 'sizer.js', (() => {
+            var results = [];
+
+            // Build the minimal DOM the parser reads from / writes to.
+            function makeStub() {
+                var ids = ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'];
+                ids.forEach(function (id) {
+                    if (!document.getElementById(id)) {
+                        var el = document.createElement(id === 'cluster-json-input' ? 'textarea' : 'div');
+                        el.id = id;
+                        el.style.display = 'none';
+                        document.body.appendChild(el);
+                    }
+                });
+            }
+            function cleanup() {
+                ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            // Case A: hwProfile with numberOfCpuSockets: 2 → sockets must be 2 (NOT overridden by core-count heuristic)
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-01',
+                properties: {
+                    displayName: 'Test Cluster',
+                    hardwareProfile: {
+                        numberOfCpuSockets: 2,
+                        totalPhysicalMemoryInBytes: 512 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Gold 6354', numberOfCores: 36 }]
+                    },
+                    detectedProperties: { manufacturer: 'Dell', model: 'PE R760', processorCount: '2', coreCount: '36' }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* DOM-light stubs may throw on missing preview formatting */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 2,
+                'numberOfCpuSockets: 2 → sockets = 2 (was incorrectly forced to 1 before fix)',
+                2, window._pendingClusterImport && window._pendingClusterImport.sockets));
+
+            // Case B: detectedProperties.processorCount: "2" with no hwProfile → still 2
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-02',
+                properties: {
+                    displayName: 'Test Cluster B',
+                    detectedProperties: {
+                        manufacturer: 'Dell', model: 'PE R760',
+                        processorCount: '2', coreCount: '32',
+                        processorNames: 'Intel Xeon Silver 4314',
+                        totalPhysicalMemoryInGigabytes: '256'
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 2,
+                'detectedProperties.processorCount: "2" → sockets = 2',
+                2, window._pendingClusterImport && window._pendingClusterImport.sockets));
+
+            // Case C: invalid sockets (0) — heuristic fallback kicks in
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-03',
+                properties: {
+                    hardwareProfile: {
+                        numberOfCpuSockets: 0, // invalid
+                        totalPhysicalMemoryInBytes: 256 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Silver 4314', numberOfCores: 16 }]
+                    },
+                    detectedProperties: { manufacturer: 'Dell', model: 'PE R760' }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 1,
+                'numberOfCpuSockets: 0 (invalid) + 16 cores → heuristic fallback to 1',
+                1, window._pendingClusterImport && window._pendingClusterImport.sockets));
+
+            // Case D (#207 follow-up): hwProfile.processors[0].numberOfCores is per-socket,
+            // hwProfile.numberOfCpuSockets is missing, but detectedProperties has the full
+            // story (coreCount=20 total, processorCount=2 sockets). Real-world ASEPRO2 case.
+            // Expected: sockets=2, coresPerSocket=10, total displayed cores=20 — NOT "20×1".
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'AZ-Node1',
+                properties: {
+                    displayName: 'AZ-Node1',
+                    hardwareProfile: {
+                        // numberOfCpuSockets intentionally missing — reproduces ASEPRO2
+                        totalPhysicalMemoryInBytes: 256 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel(R) Xeon(R) Gold 6209U CPU @ 2.10GHz', numberOfCores: 10 }]
+                    },
+                    detectedProperties: {
+                        manufacturer: 'Microsoft', model: 'ASEPRO2',
+                        coreCount: '20', logicalCoreCount: '40', processorCount: '2',
+                        processorNames: 'Intel(R) Xeon(R) Gold 6209U CPU @ 2.10GHz'
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 2,
+                'detected.processorCount=2 + missing hwProfile.numberOfCpuSockets → sockets = 2',
+                2, window._pendingClusterImport && window._pendingClusterImport.sockets));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.coresPerSocket === 10,
+                'detected.coreCount=20 + 2 sockets → coresPerSocket = 10 (was 20 before fix)',
+                10, window._pendingClusterImport && window._pendingClusterImport.coresPerSocket));
+            results.push(assert(
+                window._pendingClusterImport
+                    && (window._pendingClusterImport.coresPerSocket * window._pendingClusterImport.sockets) === 20,
+                'Total cores = coresPerSocket × sockets = 20 (matches detected.coreCount)',
+                20, window._pendingClusterImport
+                    ? window._pendingClusterImport.coresPerSocket * window._pendingClusterImport.sockets
+                    : null));
+
+            // Case E (#207 follow-up): detectedProperties absent, hwProfile present with
+            // both numberOfCpuSockets and processors[0].numberOfCores (per-socket).
+            // Total cores must be derived as perSocket × sockets.
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-hwonly',
+                properties: {
+                    hardwareProfile: {
+                        numberOfCpuSockets: 2,
+                        totalPhysicalMemoryInBytes: 384 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Gold 6354', numberOfCores: 18 }]
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 2,
+                'hwProfile-only: numberOfCpuSockets=2 → sockets = 2',
+                2, window._pendingClusterImport && window._pendingClusterImport.sockets));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.coresPerSocket === 18,
+                'hwProfile-only: numberOfCores=18 (per-socket) → coresPerSocket = 18',
+                18, window._pendingClusterImport && window._pendingClusterImport.coresPerSocket));
+
+            // Case F (#207 follow-up): Real-world ASEPRO2 / Intel Xeon Gold 6209U JSON
+            // shape supplied by the issue reporter — single-socket machine. The "U" SKU is
+            // a Uniprocessor part (1 socket only), 20 physical cores, 40 logical cores.
+            // Both code paths (detectedProperties.processorCount = "1" and
+            // hardwareProfile.numberOfCpuSockets = 1) agree, so the parser must NOT
+            // promote it to 2 sockets via any heuristic.
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'microsoft.hybridcompute/machines',
+                name: 'AZ-Node1',
+                location: 'southcentralus',
+                properties: {
+                    displayName: 'AZ-Node1',
+                    detectedProperties: {
+                        manufacturer: 'Microsoft', model: 'ASEPRO2',
+                        coreCount: '20', logicalCoreCount: '40', processorCount: '1',
+                        processorNames: 'Intel(R) Xeon(R) Gold 6209U CPU @ 2.10GHz',
+                        totalPhysicalMemoryInBytes: '274877906944',
+                        totalPhysicalMemoryInGigabytes: '256'
+                    },
+                    hardwareProfile: {
+                        totalPhysicalMemoryInBytes: 274877906944,
+                        numberOfCpuSockets: 1,
+                        processors: [{ name: 'Intel(R) Xeon(R) Gold 6209U CPU @ 2.10GHz', numberOfCores: 20 }]
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.sockets === 1,
+                'ASEPRO2 / Xeon Gold 6209U JSON → sockets = 1 (uniprocessor SKU)',
+                1, window._pendingClusterImport && window._pendingClusterImport.sockets));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.coresPerSocket === 20,
+                'ASEPRO2 / Xeon Gold 6209U JSON → coresPerSocket = 20',
+                20, window._pendingClusterImport && window._pendingClusterImport.coresPerSocket));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.memoryGB === 256,
+                'ASEPRO2 / Xeon Gold 6209U JSON → memoryGB = 256 (DIMM-snapped)',
+                256, window._pendingClusterImport && window._pendingClusterImport.memoryGB));
+
+            // Case G (#207 follow-up): AMD Ryzen lab VM with 80 GB memory (non-standard DIMM total).
+            // The parser should preserve the raw 80 GB value and flag memoryIsCustom = true so
+            // applyClusterJSONImport injects a custom option instead of silently rounding to 64.
+            makeStub();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'microsoft.hybridcompute/machines',
+                name: 'azl',
+                properties: {
+                    displayName: 'azl',
+                    detectedProperties: {
+                        manufacturer: 'Microsoft Corporation', model: 'Virtual Machine',
+                        coreCount: '12', logicalCoreCount: '24', processorCount: '1',
+                        processorNames: 'AMD Ryzen 9 5950X 16-Core Processor',
+                        totalPhysicalMemoryInBytes: '85899345920',
+                        totalPhysicalMemoryInGigabytes: '80'
+                    },
+                    hardwareProfile: {
+                        totalPhysicalMemoryInBytes: 85899345920,
+                        numberOfCpuSockets: 1,
+                        processors: [{ name: 'AMD Ryzen 9 5950X 16-Core Processor', numberOfCores: 12 }]
+                    }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.memoryGB === 80,
+                '80 GB lab VM JSON → memoryGB = 80 (raw value preserved, not rounded to 64)',
+                80, window._pendingClusterImport && window._pendingClusterImport.memoryGB));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.memoryIsCustom === true,
+                '80 GB lab VM JSON → memoryIsCustom = true',
+                true, window._pendingClusterImport && window._pendingClusterImport.memoryIsCustom));
+            results.push(assert(
+                window._pendingClusterImport && window._pendingClusterImport.cpuManufacturer === 'amd',
+                'AMD Ryzen processorName → cpuManufacturer = "amd"',
+                'amd', window._pendingClusterImport && window._pendingClusterImport.cpuManufacturer));
+
+            cleanup();
+            return results;
+        })());
+
+        testSuite('parseAndPreviewClusterJSON: re-parse preserves user-modified preview selections (#207)', 'sizer.js', (() => {
+            var results = [];
+
+            function makeStub2() {
+                var ids = ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'];
+                ids.forEach(function (id) {
+                    if (!document.getElementById(id)) {
+                        var el = document.createElement(id === 'cluster-json-input' ? 'textarea' : 'div');
+                        el.id = id;
+                        el.style.display = 'none';
+                        document.body.appendChild(el);
+                    }
+                });
+            }
+            function cleanup2() {
+                ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview', 'cluster-import-apply-btn'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            // Step 1: build a valid JSON and parse once → preview is rendered with default selections.
+            makeStub2();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-01',
+                properties: {
+                    displayName: 'Reparse Test',
+                    hardwareProfile: {
+                        numberOfCpuSockets: 2,
+                        totalPhysicalMemoryInBytes: 512 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Gold 6354', numberOfCores: 36 }]
+                    },
+                    detectedProperties: { manufacturer: 'Dell', model: 'PE R760', processorCount: '2', coreCount: '36' }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* preview formatting may throw on light stubs */ }
+
+            // Step 2: simulate the user changing every preview-time control to a non-default value.
+            var nodeInput = document.getElementById('cluster-node-count-input');
+            if (nodeInput) nodeInput.value = '6';
+            var rackRadio = document.querySelector('input[name="cluster-import-deploy-type"][value="rack-aware"]');
+            if (rackRadio) rackRadio.checked = true;
+            var diskCountSel = document.getElementById('cluster-import-disk-count');
+            if (diskCountSel) diskCountSel.value = '8';
+            var diskSizeSel = document.getElementById('cluster-import-disk-size');
+            if (diskSizeSel) diskSizeSel.value = '7.68';
+
+            // Step 3: re-click Parse & Preview (e.g. the user clicked it by mistake).
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* see above */ }
+
+            // The preview is rebuilt, but the user's customised selections must be carried over.
+            var nodeInput2 = document.getElementById('cluster-node-count-input');
+            results.push(assert(
+                nodeInput2 && nodeInput2.value === '6',
+                're-parse preserves machine count (6) instead of resetting to default (2)',
+                '6', nodeInput2 && nodeInput2.value));
+
+            var checkedRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
+            results.push(assert(
+                checkedRadio && checkedRadio.value === 'rack-aware',
+                're-parse preserves Rack-Aware deployment type instead of resetting to Hyperconverged',
+                'rack-aware', checkedRadio && checkedRadio.value));
+
+            var diskCountSel2 = document.getElementById('cluster-import-disk-count');
+            results.push(assert(
+                diskCountSel2 && diskCountSel2.value === '8',
+                're-parse preserves S2D disk count (8) instead of resetting to default (4)',
+                '8', diskCountSel2 && diskCountSel2.value));
+
+            var diskSizeSel2 = document.getElementById('cluster-import-disk-size');
+            results.push(assert(
+                diskSizeSel2 && diskSizeSel2.value === '7.68',
+                're-parse preserves S2D disk size (7.68 TB) instead of resetting to default (3.84 TB)',
+                '7.68', diskSizeSel2 && diskSizeSel2.value));
+
+            cleanup2();
+            return results;
+        })());
+
+        testSuite('applyClusterJSONImport: deployment type, single-node, resiliency (#207)', 'sizer.js', (() => {
+            var results = [];
+
+            // Stub all DOM elements applyClusterJSONImport reads/writes.
+            function makeApplyStub(opts) {
+                var stubs = {
+                    'cluster-node-count-input': { tag: 'input', type: 'number', value: String(opts.nodeCount) },
+                    'cluster-type': { tag: 'select', options: ['single', 'standard', 'low-capacity', 'rack-aware', 'disaggregated', 'aldo-mgmt'], value: 'standard' },
+                    'node-count': { tag: 'input', type: 'number', value: '2' },
+                    'cpu-manufacturer': { tag: 'select', options: ['intel', 'amd'], value: 'intel' },
+                    'cpu-generation': { tag: 'select', options: [], value: '' },
+                    'cpu-cores': { tag: 'select', options: ['16', '32', '64'], value: '32' },
+                    'cpu-sockets': { tag: 'select', options: ['1', '2'], value: '2' },
+                    'node-memory': { tag: 'select', options: ['64', '128', '192', '256', '384', '512', '768', '1024'], value: '512' },
+                    'resiliency': { tag: 'select', options: ['2way', '3way', '4way', 'simple', 'external'], value: '2way' },
+                    'capacity-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16', '24'], value: '4' },
+                    'capacity-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: '3.84' },
+                    'tiered-capacity-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16'], value: '4' },
+                    'tiered-capacity-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: '3.84' },
+                    'cluster-import-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16', '24'], value: opts.diskCount ? String(opts.diskCount) : '4' },
+                    'cluster-import-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: opts.diskSizeTB ? String(opts.diskSizeTB) : '3.84' },
+                    'post-import-summary': { tag: 'div' },
+                    'post-import-overlay': { tag: 'div' },
+                    'import-modal-overlay': { tag: 'div' }
+                };
+                Object.keys(stubs).forEach(function (id) {
+                    var spec = stubs[id];
+                    var el = document.createElement(spec.tag);
+                    el.id = id;
+                    if (spec.type) el.type = spec.type;
+                    if (spec.options) {
+                        spec.options.forEach(function (v) {
+                            var o = document.createElement('option');
+                            o.value = v; o.text = v;
+                            el.appendChild(o);
+                        });
+                    }
+                    if (spec.value !== undefined) el.value = spec.value;
+                    el.style.display = 'none';
+                    document.body.appendChild(el);
+                });
+
+                // Insert deployment-type radios (parseAndPreviewClusterJSON would normally render them).
+                ['standard', 'rack-aware'].forEach(function (v) {
+                    var r = document.createElement('input');
+                    r.type = 'radio';
+                    r.name = 'cluster-import-deploy-type';
+                    r.value = v;
+                    if (v === opts.chosenDeployType) r.checked = true;
+                    r.style.display = 'none';
+                    document.body.appendChild(r);
+                });
+
+                window._pendingClusterImport = {
+                    clusterName: 'Test', nodeCount: opts.nodeCount, coresPerSocket: 16, sockets: 2,
+                    memoryGB: opts.memoryGB || 512, memoryIsCustom: !!opts.memoryIsCustom,
+                    cpuManufacturer: 'intel', cpuGeneration: null,
+                    genMatchConfidence: 'none', processorName: 'Intel Test', model: 'PE R760'
+                };
+            }
+            function cleanupApplyStub() {
+                Object.keys({
+                    'cluster-node-count-input': 1, 'cluster-type': 1, 'node-count': 1,
+                    'cpu-manufacturer': 1, 'cpu-generation': 1, 'cpu-cores': 1, 'cpu-sockets': 1,
+                    'node-memory': 1, 'resiliency': 1,
+                    'capacity-disk-count': 1, 'capacity-disk-size': 1,
+                    'tiered-capacity-disk-count': 1, 'tiered-capacity-disk-size': 1,
+                    'cluster-import-disk-count': 1, 'cluster-import-disk-size': 1,
+                    'post-import-summary': 1, 'post-import-overlay': 1, 'import-modal-overlay': 1
+                }).forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                document.querySelectorAll('input[name="cluster-import-deploy-type"]').forEach(function (r) {
+                    if (r.parentNode) r.parentNode.removeChild(r);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            // 1 node + Hyperconverged radio → cluster-type forced to 'single'
+            makeApplyStub({ nodeCount: 1, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* calculateRequirements may throw on stubs */ }
+            results.push(assert(
+                document.getElementById('cluster-type').value === 'single',
+                '1 node → cluster-type = "single" (overrides Hyperconverged radio)',
+                'single', document.getElementById('cluster-type').value));
+            cleanupApplyStub();
+
+            // 4 nodes + Hyperconverged radio → cluster-type 'standard', resiliency '3way'
+            makeApplyStub({ nodeCount: 4, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('cluster-type').value === 'standard',
+                '4 nodes + Hyperconverged radio → cluster-type = "standard"',
+                'standard', document.getElementById('cluster-type').value));
+            results.push(assert(
+                document.getElementById('resiliency').value === '3way',
+                '4 nodes → resiliency auto-set to "3way" (Three-way Mirror)',
+                '3way', document.getElementById('resiliency').value));
+            cleanupApplyStub();
+
+            // 2 nodes + Rack-Aware radio → cluster-type 'rack-aware', resiliency '2way'
+            makeApplyStub({ nodeCount: 2, chosenDeployType: 'rack-aware' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('cluster-type').value === 'rack-aware',
+                '2 nodes + Rack-Aware radio → cluster-type = "rack-aware"',
+                'rack-aware', document.getElementById('cluster-type').value));
+            results.push(assert(
+                document.getElementById('resiliency').value === '2way',
+                '2 nodes → resiliency stays "2way" (Two-way Mirror)',
+                '2way', document.getElementById('resiliency').value));
+            cleanupApplyStub();
+
+            // 3 nodes + Hyperconverged radio → resiliency '3way' (boundary case for the >=3 rule)
+            makeApplyStub({ nodeCount: 3, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('resiliency').value === '3way',
+                '3 nodes (Hyperconverged) → resiliency auto-upgrades to "3way" (boundary case)',
+                '3way', document.getElementById('resiliency').value));
+            cleanupApplyStub();
+
+            // 80 GB imported memory (non-DIMM) → custom option injected, value preserved
+            makeApplyStub({ nodeCount: 2, chosenDeployType: 'standard', memoryGB: 80, memoryIsCustom: true });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            var memEl = document.getElementById('node-memory');
+            results.push(assert(
+                memEl.value === '80',
+                '80 GB imported memory → node-memory.value = "80" (was silently rounded to 64 before fix)',
+                '80', memEl.value));
+            results.push(assert(
+                Array.from(memEl.options).some(function (o) { return o.value === '80'; }),
+                '80 GB imported → custom option "80 GB (imported)" injected into node-memory dropdown',
+                true, Array.from(memEl.options).some(function (o) { return o.value === '80'; })));
+            cleanupApplyStub();
+
+            // S2D disk count + size from preview → applied to both single-tier and tiered selectors
+            makeApplyStub({ nodeCount: 4, chosenDeployType: 'standard', diskCount: 6, diskSizeTB: 5.68 });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('capacity-disk-count').value === '6',
+                'S2D disk count "6" from preview → capacity-disk-count = 6',
+                '6', document.getElementById('capacity-disk-count').value));
+            results.push(assert(
+                document.getElementById('tiered-capacity-disk-count').value === '6',
+                'S2D disk count "6" from preview → tiered-capacity-disk-count = 6 (mirrored)',
+                '6', document.getElementById('tiered-capacity-disk-count').value));
+            results.push(assert(
+                Math.abs(parseFloat(document.getElementById('capacity-disk-size').value) - 5.68) < 0.001,
+                'S2D disk size "5.68 TB" from preview → capacity-disk-size = 5.68',
+                5.68, parseFloat(document.getElementById('capacity-disk-size').value)));
+            results.push(assert(
+                Math.abs(parseFloat(document.getElementById('tiered-capacity-disk-size').value) - 5.68) < 0.001,
+                'S2D disk size "5.68 TB" from preview → tiered-capacity-disk-size = 5.68 (mirrored)',
+                5.68, parseFloat(document.getElementById('tiered-capacity-disk-size').value)));
+            cleanupApplyStub();
+
+            return results;
+        })());
+
+        testSuite('validateClusterImportSelection: Rack-Aware only allows 2/4/6/8 nodes (#207)', 'sizer.js', (() => {
+            var results = [];
+
+            function makeValidationStub(opts) {
+                // node-count input
+                var n = document.createElement('input');
+                n.type = 'number'; n.id = 'cluster-node-count-input';
+                n.value = String(opts.nodeCount);
+                n.style.display = 'none';
+                document.body.appendChild(n);
+
+                // apply button (start enabled)
+                var b = document.createElement('button');
+                b.id = 'cluster-import-apply-btn';
+                b.disabled = false;
+                b.style.display = 'none';
+                document.body.appendChild(b);
+
+                // validation message slot
+                var m = document.createElement('span');
+                m.id = 'cluster-import-validation';
+                m.style.display = 'none';
+                document.body.appendChild(m);
+
+                // deployment-type radios
+                ['standard', 'rack-aware'].forEach(function (v) {
+                    var r = document.createElement('input');
+                    r.type = 'radio'; r.name = 'cluster-import-deploy-type'; r.value = v;
+                    if (v === opts.deployType) r.checked = true;
+                    r.style.display = 'none';
+                    document.body.appendChild(r);
+                });
+            }
+            function cleanupValidationStub() {
+                ['cluster-node-count-input', 'cluster-import-apply-btn', 'cluster-import-validation'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                document.querySelectorAll('input[name="cluster-import-deploy-type"]').forEach(function (r) {
+                    if (r.parentNode) r.parentNode.removeChild(r);
+                });
+            }
+
+            // Hyperconverged + 3 nodes → valid (button enabled)
+            makeValidationStub({ deployType: 'standard', nodeCount: 3 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Hyperconverged + 3 machines → button enabled',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Rack-Aware + 3 nodes → invalid (button disabled, error shown)
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 3 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === true,
+                'Rack-Aware + 3 machines → button DISABLED',
+                true, document.getElementById('cluster-import-apply-btn').disabled));
+            results.push(assert(
+                /Rack-Aware Cluster only supports 2, 4, 6, or 8 machines/.test(document.getElementById('cluster-import-validation').innerHTML),
+                'Rack-Aware + 3 → inline error message displayed',
+                true, /Rack-Aware Cluster only supports 2, 4, 6, or 8 machines/.test(document.getElementById('cluster-import-validation').innerHTML)));
+            cleanupValidationStub();
+
+            // Rack-Aware + 4 nodes → valid
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 4 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Rack-Aware + 4 machines → button enabled',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Rack-Aware + 8 nodes → valid (boundary)
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 8 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Rack-Aware + 8 machines → button enabled (boundary)',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Rack-Aware + 5 nodes → invalid
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 5 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === true,
+                'Rack-Aware + 5 machines → button DISABLED (odd count)',
+                true, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Rack-Aware + 1 node → still valid here, because 1 node is auto-promoted to Single Node by applyClusterJSONImport
+            makeValidationStub({ deployType: 'rack-aware', nodeCount: 1 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Rack-Aware + 1 machine → button enabled (auto-promoted to Single Node on apply)',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            return results;
+        })());
+
+        // Integration test for the full JSON-import → Configure in Designer chain.
+        // Verifies that after applyClusterJSONImport populates the Sizer DOM, the
+        // values that selectRegionAndConfigure() will read (via mapSizerToDesignerScale,
+        // node-count, cluster-type) match what was in the imported JSON. This is the
+        // critical handoff that converts an imported Azure Local JSON into a Designer-
+        // bound payload — failure here would silently feed wrong scale/node values to
+        // the Designer when the user clicks "Configure in Designer".
+        testSuite('JSON import → Configure in Designer handoff (#207 integration)', 'sizer.js', (() => {
+            var results = [];
+
+            function makeChainStub(opts) {
+                var stubs = {
+                    'cluster-node-count-input': { tag: 'input', type: 'number', value: String(opts.nodeCount) },
+                    'cluster-type': { tag: 'select', options: ['single', 'standard', 'low-capacity', 'rack-aware', 'disaggregated', 'aldo-mgmt'], value: 'standard' },
+                    'node-count': { tag: 'input', type: 'number', value: '2' },
+                    'cpu-manufacturer': { tag: 'select', options: ['intel', 'amd'], value: 'intel' },
+                    'cpu-generation': { tag: 'select', options: [], value: '' },
+                    'cpu-cores': { tag: 'select', options: ['16', '32', '64'], value: '32' },
+                    'cpu-sockets': { tag: 'select', options: ['1', '2'], value: '2' },
+                    'node-memory': { tag: 'select', options: ['64', '128', '192', '256', '384', '512', '768', '1024'], value: '512' },
+                    'resiliency': { tag: 'select', options: ['2way', '3way', '4way', 'simple', 'external'], value: '2way' },
+                    'capacity-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16', '24'], value: '4' },
+                    'capacity-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: '3.84' },
+                    'tiered-capacity-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16'], value: '4' },
+                    'tiered-capacity-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: '3.84' },
+                    'cluster-import-disk-count': { tag: 'select', options: ['2', '3', '4', '5', '6', '8', '10', '12', '16', '24'], value: opts.diskCount ? String(opts.diskCount) : '4' },
+                    'cluster-import-disk-size': { tag: 'select', options: ['0.96', '1.92', '3.84', '5.68', '7.68', '15.36'], value: opts.diskSizeTB ? String(opts.diskSizeTB) : '3.84' },
+                    'post-import-summary': { tag: 'div' },
+                    'post-import-overlay': { tag: 'div' },
+                    'import-modal-overlay': { tag: 'div' }
+                };
+                Object.keys(stubs).forEach(function (id) {
+                    var spec = stubs[id];
+                    var el = document.createElement(spec.tag);
+                    el.id = id;
+                    if (spec.type) el.type = spec.type;
+                    if (spec.options) {
+                        spec.options.forEach(function (v) {
+                            var o = document.createElement('option');
+                            o.value = v; o.text = v;
+                            el.appendChild(o);
+                        });
+                    }
+                    if (spec.value !== undefined) el.value = spec.value;
+                    el.style.display = 'none';
+                    document.body.appendChild(el);
+                });
+                ['standard', 'rack-aware'].forEach(function (v) {
+                    var r = document.createElement('input');
+                    r.type = 'radio';
+                    r.name = 'cluster-import-deploy-type';
+                    r.value = v;
+                    if (v === opts.chosenDeployType) r.checked = true;
+                    r.style.display = 'none';
+                    document.body.appendChild(r);
+                });
+                window._pendingClusterImport = {
+                    clusterName: 'TestChain', nodeCount: opts.nodeCount, coresPerSocket: 16, sockets: 2,
+                    memoryGB: opts.memoryGB || 512, memoryIsCustom: !!opts.memoryIsCustom,
+                    cpuManufacturer: 'intel', cpuGeneration: null,
+                    genMatchConfidence: 'none', processorName: 'Intel Test', model: 'PE R760'
+                };
+            }
+            function cleanupChainStub() {
+                ['cluster-node-count-input', 'cluster-type', 'node-count',
+                    'cpu-manufacturer', 'cpu-generation', 'cpu-cores', 'cpu-sockets',
+                    'node-memory', 'resiliency',
+                    'capacity-disk-count', 'capacity-disk-size',
+                    'tiered-capacity-disk-count', 'tiered-capacity-disk-size',
+                    'cluster-import-disk-count', 'cluster-import-disk-size',
+                    'post-import-summary', 'post-import-overlay', 'import-modal-overlay'
+                ].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                document.querySelectorAll('input[name="cluster-import-deploy-type"]').forEach(function (r) {
+                    if (r.parentNode) r.parentNode.removeChild(r);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            // Case A: 4-node Hyperconverged JSON → Designer expects scale='medium', nodes=4
+            makeChainStub({ nodeCount: 4, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* requirement calc may throw on stubs */ }
+            var clusterTypeA = document.getElementById('cluster-type').value;
+            var nodeCountA = document.getElementById('node-count').value;
+            results.push(assert(
+                clusterTypeA === 'standard',
+                'Imported 4-node Hyperconverged JSON → cluster-type DOM = "standard" (Designer-readable)',
+                'standard', clusterTypeA));
+            results.push(assert(
+                nodeCountA === '4',
+                'Imported 4-node JSON → node-count DOM = "4" (handed off to Designer)',
+                '4', nodeCountA));
+            results.push(assert(
+                mapSizerToDesignerScale(clusterTypeA) === 'medium',
+                'mapSizerToDesignerScale("standard") → "medium" — what configureInDesigner sends as payload.scale',
+                'medium', mapSizerToDesignerScale(clusterTypeA)));
+            cleanupChainStub();
+
+            // Case B: 6-node Rack-Aware JSON → Designer expects scale='rack_aware', nodes=6
+            makeChainStub({ nodeCount: 6, chosenDeployType: 'rack-aware' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            var clusterTypeB = document.getElementById('cluster-type').value;
+            var nodeCountB = document.getElementById('node-count').value;
+            results.push(assert(
+                clusterTypeB === 'rack-aware',
+                'Imported 6-node Rack-Aware JSON → cluster-type DOM = "rack-aware"',
+                'rack-aware', clusterTypeB));
+            results.push(assert(
+                nodeCountB === '6',
+                'Imported 6-node JSON → node-count DOM = "6"',
+                '6', nodeCountB));
+            results.push(assert(
+                mapSizerToDesignerScale(clusterTypeB) === 'rack_aware',
+                'mapSizerToDesignerScale("rack-aware") → "rack_aware" — Designer payload.scale',
+                'rack_aware', mapSizerToDesignerScale(clusterTypeB)));
+            cleanupChainStub();
+
+            // Case C: 1-node JSON → cluster-type forced to 'single' (1 node is invalid for HCI/Rack-Aware)
+            // and mapSizerToDesignerScale('single') still produces a Designer-valid scale.
+            makeChainStub({ nodeCount: 1, chosenDeployType: 'standard' });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            var clusterTypeC = document.getElementById('cluster-type').value;
+            var nodeCountC = document.getElementById('node-count').value;
+            results.push(assert(
+                clusterTypeC === 'single',
+                '1-node JSON → cluster-type forced to "single" before Designer handoff',
+                'single', clusterTypeC));
+            results.push(assert(
+                nodeCountC === '1',
+                '1-node JSON → node-count DOM = "1"',
+                '1', nodeCountC));
+            results.push(assert(
+                mapSizerToDesignerScale(clusterTypeC) === 'medium',
+                'mapSizerToDesignerScale("single") → "medium" — Designer-valid scale for 1-node handoff',
+                'medium', mapSizerToDesignerScale(clusterTypeC)));
+            cleanupChainStub();
+
+            // Case D: Imported memory + S2D disk values from preview must be visible in
+            // the DOM that selectRegionAndConfigure reads via getHardwareConfig.
+            makeChainStub({ nodeCount: 4, chosenDeployType: 'standard', memoryGB: 80, memoryIsCustom: true, diskCount: 6, diskSizeTB: 5.68 });
+            try { applyClusterJSONImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('node-memory').value === '80',
+                'Imported 80 GB memory + S2D disks → node-memory DOM = "80" (custom option, what Designer payload.sizerHardware.memory.perNodeGB reads)',
+                '80', document.getElementById('node-memory').value));
+            results.push(assert(
+                document.getElementById('capacity-disk-count').value === '6',
+                'Imported 6× disk count → capacity-disk-count DOM = "6" (Designer payload.sizerHardware.storage)',
+                '6', document.getElementById('capacity-disk-count').value));
+            results.push(assert(
+                Math.abs(parseFloat(document.getElementById('capacity-disk-size').value) - 5.68) < 0.001,
+                'Imported 5.68 TB disk → capacity-disk-size DOM = 5.68 (Designer payload.sizerHardware.storage)',
+                5.68, parseFloat(document.getElementById('capacity-disk-size').value)));
+            cleanupChainStub();
 
             return results;
         })());

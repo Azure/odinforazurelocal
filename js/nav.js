@@ -5,7 +5,7 @@
  *   <nav id="odin-nav" data-active="designer" data-base=""></nav>
  *   <script src="js/nav.js"></script>
  *
- *   data-active : "designer" | "knowledge" | "sizer"  (which tab is highlighted)
+ *   data-active : "designer" | "knowledge" | "sizer" | "switch"  (which tab is highlighted)
  *   data-base   : relative path prefix to repo root, e.g. "" (root), "../" (sizer), "../../" (docs/outbound)
  */
 (function() {
@@ -23,6 +23,7 @@
     const svgDesigner  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>';
     const svgKnowledge = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
     const svgSizer     = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>';
+    const svgSwitch    = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>';
 
     const tabs = [
         {
@@ -33,17 +34,24 @@
             badge: null
         },
         {
-            id: 'knowledge',
-            label: 'Knowledge',
-            svg: svgKnowledge,
-            href: (base || './') + '?tab=knowledge',
-            badge: null
-        },
-        {
             id: 'sizer',
             label: 'Sizer',
             svg: svgSizer,
             href: base + 'sizer/',
+            badge: null
+        },
+        {
+            id: 'switch',
+            label: 'ToR Switch',
+            svg: svgSwitch,
+            href: base + 'switch-config/',
+            badge: null
+        },
+        {
+            id: 'knowledge',
+            label: 'Knowledge',
+            svg: svgKnowledge,
+            href: (base || './') + '?tab=knowledge',
             badge: null
         }
     ];
@@ -91,9 +99,11 @@
     // Feedback link — open in a full new browser tab (no features string = tab, not popup)
     html += '<a href="https://github.com/Azure/odinforazurelocal/issues" onclick="event.preventDefault(); window.open(this.href, \'_blank\');" class="nav-theme-toggle" title="Raise feedback or issue" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">\uD83D\uDCA1<span class="nav-feedback-text"> Feedback</span></a>';
 
-    // Help button — re-launch onboarding walkthrough (Designer + Knowledge flow diagrams, and Sizer)
-    if (active === 'designer' || active === 'sizer') {
-        const helpFn = active === 'sizer' ? 'showSizerOnboarding()' : 'showNavHelp()';
+    // Help button — re-launch onboarding walkthrough (Designer + Knowledge flow diagrams, Sizer, ToR Switch)
+    if (active === 'designer' || active === 'sizer' || active === 'switch') {
+        let helpFn = 'showNavHelp()';
+        if (active === 'sizer') helpFn = 'showSizerOnboarding()';
+        else if (active === 'switch') helpFn = 'showSwitchOnboarding()';
         html += '<button type="button" onclick="' + helpFn + '" class="nav-theme-toggle nav-help-btn" title="Show Getting Started guide">';
         html += '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2.5-3 4"/><circle cx="12" cy="18" r="0.5" fill="currentColor"/></svg>';
         html += '<span class="nav-help-text"> Help</span></button>';
