@@ -1,0 +1,7 @@
+# Vendored third-party libraries — not linted (upstream is responsible for code style)
+report/vendor/
+
+# Generated outputs / dependencies
+node_modules/
+test-results/
+tools/output/

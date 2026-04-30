@@ -53,7 +53,23 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
-                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.08</h4>
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.09</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">April 30, 2026</div>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Configuration Report — PowerPoint Export</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>New <em>📊 Download PowerPoint</em> button</strong> on the Configuration Report page generates a styled <code>.pptx</code> deck of the current design — template-driven via <code>report/template/OdinPPTTemplate.potx</code>.</li>
+                        <li><strong>Slide coverage:</strong> hero cover, Deployment Scenario &amp; Scale, Physical Network (with rack diagram), Rack Configuration, Leaf &amp; Spine Architecture, AKS Reachability &amp; Routing Hops, Host Networking &amp; Intents, Outbound Connectivity, Proxy, Security, Private Endpoints, Infrastructure Network, and a closing slide with links.</li>
+                        <li><strong>Microsoft Learn reference hyperlinks</strong> on each architecture slide — link target adapts to the configuration (FC no-backup / FC with backup / single-node / 2-node switchless / 3-node switchless dual-link / 4+ switchless / 2-node switched / 3+ switched). Dedicated links for Private Endpoints and Arc Gateway.</li>
+                        <li><strong>Visual extras:</strong> ✓/✗ colored runs on the Security slide, red callout banner where Arc Private Link is unsupported on Azure Local, footer subnet-utilisation visual on the Infrastructure Network slide.</li>
+                        <li><strong>Client-side only</strong> — generated in the browser via vendored JSZip. No telemetry, no backend, works offline.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(139, 92, 246, 0.08); border-left: 4px solid var(--accent-purple); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-purple);">Version 0.20.08</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">April 27, 2026</div>
                 </div>
 

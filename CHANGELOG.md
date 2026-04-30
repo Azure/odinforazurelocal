@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.20.08] - 2026-04-27
+## [0.20.09] - 2026-04-30
+
+### Added
+
+#### Configuration Report — PowerPoint Export
+- **New 📊 Download PowerPoint button** on the Configuration Report page generates a fully styled `.pptx` deck of the current design. Implementation lives in `report/pptx-export.js`; visual styling comes from `report/template/OdinPPTTemplate.potx`. The exporter loads the `.potx` with JSZip (vendored via `report/vendor/pptxgen.bundle.js`), strips the example slides, and injects custom OOXML for each section in `SECTION_PLAN`.
+- **Slide coverage**: Hero cover, Deployment Scenario & Scale, Physical Network Configuration (with rack diagram), Rack Configuration, Leaf & Spine Architecture, AKS Logical Network Reachability & Routing Hops, Host Networking & Intents, Outbound Connectivity, Proxy Configuration, Security Configuration, Private Endpoints, Infrastructure Network, and a closing slide with links.
+- **Microsoft Learn reference hyperlinks** per network pattern via `getNetworkPatternUrl(state)`: FC no-backup, FC with backup, single-node, 2-node switchless, 3-node switchless (dual-link), 4+ switchless, 2-node switched, 3+ switched. Dedicated links for Private Endpoints (`/deploy/about-private-endpoints`) and Arc Gateway (`/deploy/deployment-azure-arc-gateway-overview`, only when Arc mode is `arc_gateway`).
+- **Visual extras**: ✓/✗ colored runs on the Security slide, red rounded-rect callout banner on the Private Endpoints slide warning that Arc Private Link is not supported on Azure Local, footer subnet-utilisation raster on the Infrastructure Network slide, nested bullets (`lvl: 2`) for `↳` follow-ups and security checks under Configuration mode.
+- **Client-side only**: The deck is generated entirely in the browser. No telemetry, no backend, no upload — same offline-first guarantee as the rest of the report exports.
+- **Vendored dependency**: PptxGenJS 3.12.0 (MIT) is added under `report/vendor/` purely to expose JSZip to the page; the builder does not call PptxGenJS itself.
+- **Skill documentation**: New `.github/skills/pptx-export.skill.md` describing the architecture, slide plan, hyperlink mapping, anti-patterns, and validation workflow.
+
 
 ### Changed
 
