@@ -195,6 +195,15 @@
         // For disaggregated clusters, use tenant network VLANs from Designer
         var isDisaggregated = ds.architecture === 'disaggregated';
         var tenantVlans = isDisaggregated && ds.disaggTenantNetworks ? flattenTenantVlans(ds.disaggTenantNetworks) : [];
+        // Re-running this function (e.g. when the user changes the
+        // Deployment Type picker and clicks Apply) must not leak the
+        // optional compute VLAN 2 / 3 blocks shown by a previous
+        // disaggregated-with-multiple-tenants run. Hide them up-front; the
+        // tenant loop below re-shows the ones it populates.
+        for (var hi = 2; hi <= 3; hi++) {
+            var hideBlock = document.getElementById('sc-compute-vlan-' + hi);
+            if (hideBlock) hideBlock.style.display = 'none';
+        }
         if (tenantVlans.length > 0) {
             // Populate compute VLAN slots from disaggregated tenant networks (up to 3)
             for (var tv = 0; tv < Math.min(tenantVlans.length, 3); tv++) {
@@ -216,6 +225,25 @@
 
         // Storage VLANs — for disaggregated, use cluster VLANs from Designer
         // and relabel the section as "Cluster Networks" using Designer-supplied names.
+        // Reset the section to its default state first so re-running this
+        // function (e.g. when the user changes the Deployment Type picker
+        // and clicks Apply) doesn't leave stale visibility / labels from the
+        // previous scenario:
+        //   - switchless previously set display:none → must be re-shown
+        //   - disaggregated previously set the title to "Cluster Networks"
+        //     and the per-VLAN labels to Designer-supplied cluster names →
+        //     must be reset to the static defaults from index.html.
+        var storageSection = document.getElementById('sc-storage-section');
+        if (storageSection) storageSection.style.display = '';
+        var storageTitleEl = document.getElementById('sc-storage-section-title');
+        if (storageTitleEl) storageTitleEl.textContent = 'Storage Networks';
+        var storageLbl1Default = 'Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 1 (<abbr title="Top of Rack">ToR</abbr>1)';
+        var storageLbl2Default = 'Storage <abbr title="Virtual Local Area Network">VLAN</abbr> 2 (<abbr title="Top of Rack">ToR</abbr>2)';
+        var storageLbl1El = document.getElementById('sc-storage1-vlan-label');
+        if (storageLbl1El) storageLbl1El.innerHTML = storageLbl1Default;
+        var storageLbl2El = document.getElementById('sc-storage2-vlan-label');
+        if (storageLbl2El) storageLbl2El.innerHTML = storageLbl2Default;
+
         if (isDisaggregated && ds.disaggVlans) {
             if (ds.disaggVlans.cluster1) setVal('sc-storage1-vlan', String(ds.disaggVlans.cluster1));
             if (ds.disaggVlans.cluster2) setVal('sc-storage2-vlan', String(ds.disaggVlans.cluster2));
@@ -229,7 +257,7 @@
             var lbl2 = document.getElementById('sc-storage2-vlan-label');
             if (lbl2) lbl2.innerHTML = escapeAttr(cName2) + ' \u2014 <abbr title="Virtual Local Area Network">VLAN</abbr> (<abbr title="Top of Rack">ToR</abbr>2)';
         } else if (pattern === 'switchless') {
-            document.getElementById('sc-storage-section').style.display = 'none';
+            if (storageSection) storageSection.style.display = 'none';
         } else {
             var storageVlans = extractStorageVlans(ds);
             if (storageVlans[0]) setVal('sc-storage1-vlan', storageVlans[0]);
