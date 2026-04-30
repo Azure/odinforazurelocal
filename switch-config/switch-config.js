@@ -120,35 +120,15 @@
     function populateFromDesigner() {
         if (!designerState) return;
         var ds = designerState;
-
-        // Deployment info banner — only show if we have meaningful data
-        var banner = document.getElementById('sc-deployment-banner');
-        if (ds.scenario && ds.nodes) {
-            var pattern = resolveDeploymentPattern(ds);
-            var patternLabel = {
-                fully_converged: 'Fully Converged (HyperConverged)',
-                switched: 'Storage Switched',
-                switchless: 'Storage Switchless'
-            };
-            var bannerText = '';
-            if (ds.architecture === 'disaggregated') {
-                var stLabel = { fc_san: 'FC SAN', iscsi_4nic: 'iSCSI 4-NIC', iscsi_6nic: 'iSCSI 6-NIC' };
-                bannerText = 'Disaggregated Storage (' + (stLabel[ds.disaggStorageType] || 'FC SAN') + ')' +
-                    ' \u00B7 ' + (ds.nodes || '?') + ' nodes';
-            } else {
-                bannerText = (patternLabel[pattern] || pattern) +
-                    ' \u00B7 ' + (ds.nodes || '?') + ' nodes' +
-                    (ds.scale === 'rack_aware' || ds.scale === 'rack-aware' ? ' \u00B7 Rack-Aware Cluster (2 racks)' : ' \u00B7 Single Rack');
-            }
-            var textEl = document.getElementById('sc-deployment-text');
-            if (textEl) textEl.innerHTML = bannerText + ' \u00B7 or use the <a href="#sc-qos-audit-section" style="color: var(--accent-blue); text-decoration: underline;">QoS Validator</a> to analyze an existing switch config.';
-        } else {
-            // Partial data — update the deployment banner with helpful guidance
-            if (banner) {
-                var textEl = document.getElementById('sc-deployment-text');
-                if (textEl) textEl.innerHTML = 'Designer data is partial \u2014 configure switch settings below, or use the <a href="#sc-qos-audit-section" style="color: var(--accent-blue); text-decoration: underline;">QoS Validator</a> to analyze an existing switch config.';
-            }
-        }
+        // Deployment pattern (switched / switchless / fully_converged) is
+        // still needed downstream to relabel the storage-VLAN section. (The
+        // in-form deployment-info banner that previously consumed this was
+        // removed — the always-visible Deployment Type picker at the top of
+        // the page now communicates the active scenario via its heading
+        // badge and intro copy, so duplicating the same info here would
+        // risk a stale or contradictory message after Quick Start defaults
+        // were applied.)
+        var pattern = resolveDeploymentPattern(ds);
 
         // Leaf-only scope banner for disaggregated deployments. The external SAN
         // fabric (FC zoning, iSCSI targets) and the EVPN spine/underlay are out
@@ -304,6 +284,9 @@
         }
     }
 
+    // Map a designer state to one of the three HCI deployment patterns
+    // (switched / switchless / fully_converged). Used by populateFromDesigner()
+    // to decide how to label and populate the storage-VLAN section.
     function resolveDeploymentPattern(ds) {
         var storage = (ds.storage || '').toLowerCase();
         var intent = (ds.intent || '').toLowerCase();
@@ -367,6 +350,12 @@
                 s.architecture = 'hyperconverged';
                 s.intent = 'compute_management';
                 s.storage = 'switchless';
+                // Storage Switchless does not support rack-aware clusters
+                // (storage NICs are wired directly between nodes within a
+                // single rack). Force scale + node count back to single-
+                // rack defaults regardless of what the caller passed.
+                s.scale = 'single';
+                s.nodes = 4;
                 break;
             case 'disagg_fc':
                 s.architecture = 'disaggregated';
@@ -436,16 +425,44 @@
      * Toggle which "scale" control is visible based on the current
      * Deployment Type selection. Disaggregated scenarios (FC SAN, iSCSI)
      * support 1–8 racks (one leaf pair per rack); HCI scenarios remain a
-     * binary single-rack / rack-aware toggle.
+     * binary single-rack / rack-aware toggle, except that **Storage
+     * Switchless** does not support rack-aware (storage NICs are wired
+     * directly between nodes within a single rack), so the Rack-Aware
+     * option is hidden in that mode and the selection is forced back to
+     * Single Rack if it was previously checked.
      */
     function updateQuickStartScaleControls() {
         var profileSelect = document.getElementById('sc-quick-start-profile');
         var radioWrap = document.getElementById('sc-quick-start-scale-radio');
         var disaggWrap = document.getElementById('sc-quick-start-scale-disagg');
         if (!profileSelect || !radioWrap || !disaggWrap) return;
-        var isDisagg = (profileSelect.value || '').indexOf('disagg_') === 0;
+        var profile = profileSelect.value || '';
+        var isDisagg = profile.indexOf('disagg_') === 0;
+        var isSwitchless = profile === 'hci_switchless';
         radioWrap.style.display = isDisagg ? 'none' : 'flex';
         disaggWrap.style.display = isDisagg ? 'block' : 'none';
+
+        // Hide the Rack-Aware radio for Storage Switchless and force the
+        // selection back to Single Rack if needed.
+        var raLabel = document.getElementById('sc-quick-start-scale-rack-aware-label');
+        if (raLabel) {
+            raLabel.style.display = isSwitchless ? 'none' : 'flex';
+        }
+        if (isSwitchless) {
+            var radios = document.getElementsByName('sc-quick-start-scale');
+            var sawCheckedRackAware = false;
+            for (var i = 0; i < radios.length; i++) {
+                if (radios[i].value === 'rack_aware' && radios[i].checked) {
+                    sawCheckedRackAware = true;
+                    radios[i].checked = false;
+                }
+            }
+            if (sawCheckedRackAware) {
+                for (var j = 0; j < radios.length; j++) {
+                    if (radios[j].value === 'single') { radios[j].checked = true; break; }
+                }
+            }
+        }
     }
     // Expose so the inline onchange handler in index.html can call it.
     window.updateQuickStartScaleControls = updateQuickStartScaleControls;

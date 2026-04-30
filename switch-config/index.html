@@ -96,7 +96,11 @@
                     <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
                         <input type="radio" name="sc-quick-start-scale" value="single" checked> Single Rack (2 ToR switches)
                     </label>
-                    <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
+                    <!-- Rack-Aware option is hidden when Storage Switchless is
+                         selected (Storage Switchless does not support rack-
+                         aware clusters — the storage NICs are wired directly
+                         between nodes within a single rack). -->
+                    <label id="sc-quick-start-scale-rack-aware-label" style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; padding:0.5rem 0.75rem; background:var(--card-bg); border:1px solid var(--glass-border); border-radius:6px; font-size:0.9rem;">
                         <input type="radio" name="sc-quick-start-scale" value="rack_aware"> Rack-Aware (2 racks, 4 ToR switches)
                     </label>
                 </div>
@@ -121,15 +125,11 @@
         <!-- Main content (hidden until data available) -->
         <div id="sc-main" style="display: none;">
 
-            <!-- (Quick-start mode banner removed — the Deployment Type picker above
-                 is now always visible, so an in-form "Change Deployment Type"
-                 banner is redundant.) -->
-
-            <!-- Deployment Info Banner -->
-            <div id="sc-deployment-banner" class="sc-info-banner">
-                <span class="sc-icon">ℹ️</span>
-                <span id="sc-deployment-text">Loading deployment details...</span>
-            </div>
+            <!-- (Deployment-info banner removed — the always-visible Deployment
+                 Type picker at the top of the page already shows the active
+                 scenario via its heading badge and intro paragraph, so this
+                 in-form banner was redundant and could disagree with the
+                 picker after Quick Start defaults were applied.) -->
 
             <!-- Disaggregated leaf-scope banner (shown only when Designer architecture is disaggregated) -->
             <div id="sc-disagg-scope-banner" class="sc-info-banner" style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.35); display: none;">

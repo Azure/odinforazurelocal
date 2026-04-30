@@ -7874,6 +7874,17 @@
             return r;
         })());
 
+        testSuite('Quick Start: hci_switchless forces single-rack even when rack_aware is requested', 'switch-config.js', (() => {
+            // Storage Switchless does not support rack-aware clusters
+            // (storage NICs are back-to-back within a rack). The synthesized
+            // state must always be single-rack regardless of the second arg.
+            const r = [];
+            const s = window.__buildQuickStartState('hci_switchless', 'rack_aware');
+            r.push(assert(s.scale === 'single', 'scale forced to single', 'single', s.scale));
+            r.push(assert(s.nodes === 4, 'nodes reset to 4 (single-rack default)', 4, s.nodes));
+            return r;
+        })());
+
         testSuite('Quick Start: disagg_fc single rack', 'switch-config.js', (() => {
             const r = [];
             const s = window.__buildQuickStartState('disagg_fc', 'single');
