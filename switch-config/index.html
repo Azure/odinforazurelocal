@@ -22,10 +22,24 @@
     <script src="../js/nav.js"></script>
 
     <main class="container">
+        <div class="disclaimer-wrapper">
+            <div class="disclaimer-banner">
+                <strong>⚠️ Disclaimer:</strong> This tool is provided as-is, without Microsoft support. Odin is an experimental project that accelerates skills and knowledge ramp up for Azure Local, and helps IT architects validate cluster design configurations.
+            </div>
+        </div>
+
         <header>
-            <h1><abbr title="Top of Rack">ToR</abbr> Switch Configuration Generator &amp; Validator</h1>
-            <p>Generate example <abbr title="Top of Rack">ToR</abbr>, <abbr title="Baseboard Management Controller">BMC</abbr>, and border switch configurations based on your Azure Local deployment design.</p>
-            <p style="font-size:0.85rem;color:#aaa;margin-top:0.5rem;">🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.</p>
+            <div class="header-title-wrapper">
+                <h1 class="header-title">ODIN <abbr title="Top of Rack">ToR</abbr> Switch for Azure Local</h1>
+                <div class="header-logo-wrapper">
+                    <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
+                    <div class="header-version">
+                        Version 0.20.10 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                    </div>
+                </div>
+            </div>
+            <p class="header-description">Generate example <abbr title="Top of Rack">ToR</abbr>, <abbr title="Baseboard Management Controller">BMC</abbr>, and border switch configurations based on your Azure Local deployment design.</p>
+            <p style="font-size:0.85rem;color:var(--text-secondary);margin-top:0.5rem;">🔒 Privacy: The data shown in this report is stored locally in your web browser. No data or template input values are transmitted externally.</p>
 
             <!-- Page Statistics (rendered by js/stats-bar.js) -->
             <div id="page-statistics" data-stats-bar></div>
@@ -725,6 +739,8 @@
     </div>
 
     <!-- Scripts (order matters: models → builder → templates → qos-audit → main) -->
+    <script src="../js/utils.js"></script>
+    <script src="../js/changelog.js"></script>
     <script src="../js/analytics.js"></script>
     <script src="../js/stats-bar.js"></script>
     <script src="models.js"></script>

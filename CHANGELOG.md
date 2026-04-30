@@ -29,6 +29,11 @@ Security and code-quality release. No end-user feature changes; this release tig
 - **30 new regression tests** added under `tests/index.html` ("Issue #207") covering all of the above plus boundary conditions (1, 2, 3, 4, 5, 8 nodes; Hyperconverged vs Rack-Aware; valid / invalid `numberOfCpuSockets`; ASEPRO2-shaped JSON; 80 GB lab-VM memory; custom memory option injection; S2D disk-count and disk-size apply path including 5.68 TB).
 - **JSON import → Configure in Designer integration test** added (`tests/index.html`, suite *"JSON import → Configure in Designer handoff (#207 integration)"*) — verifies that after `applyClusterJSONImport()` populates the Sizer DOM, the values that `selectRegionAndConfigure()` reads (cluster-type, node-count, `mapSizerToDesignerScale()` output) match the imported JSON for 4-node Hyperconverged, 6-node Rack-Aware, and 1-node single-node cases, plus that imported memory and S2D disk values reach the DOM fields the Designer payload will read.
 
+### Fixed (ToR Switch page parity)
+
+- **Stat tiles on the ToR Switch page now show real counts.** The page rendered the six-tile bar but every value stayed at `—` because `js/utils.js` (which defines `formatNumber()`) was not loaded; `fetchAndDisplayStats()` threw a silent `ReferenceError` before populating any tile. `switch-config/index.html` now loads `../js/utils.js` alongside `../js/analytics.js` and `../js/stats-bar.js`.
+- **Header layout aligned with Designer and Sizer.** The ToR Switch page previously had a plain `<h1>` with no logo, version, or What's New link. Restructured to use the shared `header-title-wrapper` / `header-logo-wrapper` / `header-version` markup plus the `whats-new-link` button (powered by `js/changelog.js`, now also loaded on this page). Title text follows the established convention: **ODIN ToR Switch for Azure Local**. The same disclaimer banner that appears on Designer and Sizer is now rendered above the header on this page too.
+
 ### Added
 
 - **`vendor/` folder** with locally-hosted copies of all third-party runtime JS:
