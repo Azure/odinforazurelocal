@@ -12,12 +12,15 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 - [Features](#features)
 - [Getting Started](#getting-started)
-- [Prerequisites](#prerequisites)
+- [Prerequisites Checklist](#prerequisites-checklist)
 - [Usage Guide](#usage-guide)
 - [Configuration Options](#configuration-options)
 - [Export Formats](#export-formats)
 - [Browser Compatibility](#browser-compatibility)
 - [Troubleshooting](#troubleshooting)
+- [Best Practices](#best-practices)
+- [Security Considerations](#security-considerations)
+- [Additional Resources](#additional-resources)
 - [Report an Issue and Contributing](#report-an-issue-and-contributing)
 - [License](#license)
 - [Appendix A - Version History](#appendix-a---version-history)
@@ -167,22 +170,32 @@ The wizard follows a sequential flow:
 | **Disconnected** | Air-gapped operation with local management | Isolated / security-sensitive environments |
 | **Microsoft 365 Local** | Microsoft 365 workloads with minimum 9 nodes | Microsoft 365 on-premises deployments |
 
-### Network Intents
+### Network Intents (Hyperconverged)
 
 | Intent | Description | Adapters |
 |--------|-------------|----------|
-| **Compute + Management** | Shared network for VMs and management | 2 adapters (redundant) |
-| **Compute + Storage** | Combined compute and storage traffic | 4+ adapters |
-| **All Traffic** | Single intent for all network types | 2 adapters |
-| **Custom** | User-defined adapter mapping | Flexible |
-| **Disaggregated** | External SAN storage (Fibre Channel / iSCSI) with Clos leaf-spine fabric | Up to 6 adapters |
+| **All Traffic** | Single intent for management, compute, and storage | 2 adapters |
+| **Compute + Management** | Shared network for VMs and management, dedicated storage | 4+ adapters |
+| **Compute + Storage** | Combined compute and storage traffic, dedicated management | 4+ adapters |
+| **Custom** | User-defined adapter-to-intent mapping | Flexible (2–8 adapters) |
+
+Disaggregated deployments use a separate intent model with external SAN storage (Fibre Channel or iSCSI) and a Clos leaf-spine fabric — see the **Disaggregated Architecture Wizard** for details.
 
 ### Storage Connectivity
 
 | Type | Description | Requirements |
 |------|-------------|--------------|
-| **Switched** | Traditional ToR switch-based | ToR switches, suitable for any scale |
-| **Switchless** | Direct node-to-node connections | 2-4 nodes, no storage switches |
+| **Switched** | Traditional ToR switch-based storage networking | ToR switches, any supported scale |
+| **Switchless** | Direct node-to-node storage connections | 2–4 nodes, no storage switches |
+
+### Companion Tools
+
+| Tool | Purpose |
+|------|---------|
+| **ODIN Sizer** | Workload-driven hardware sizing (VM, AKS Arc, AVD) — calculates CPU, memory, storage, GPU, power, and rack-space requirements with a 3D rack visualization. Transfers cluster type and node count into the Designer. |
+| **Switch Config Generator** | Generates example ToR / BMC / border switch configurations for Cisco NX-OS and Dell OS10, with rack-aware support and infrastructure token replacement. |
+| **QoS Validator** | Validates a pasted `show running-config` (Cisco) or `show running-configuration` (Dell OS10) against Azure Local QoS requirements (PFC, ETS, ECN, MTU 9216, system QoS policy, interface-level PFC/trunking). |
+| **Knowledge Tab** | Embedded outbound connectivity architecture guide and AzLoFlows interactive flow-diagram builder. |
 
 ---
 
@@ -200,11 +213,15 @@ The wizard follows a sequential flow:
 - Includes timestamp and metadata
 - Can be re-imported to restore session
 
-### Reports
-- Comprehensive configuration reports
-- Download as Word (DOCX-compatible), Markdown, or PDF
-- Includes decision rationale and network diagrams
-- Print-friendly formatting
+### Configuration Report
+- Comprehensive configuration report covering deployment scenario, network, intents, IP plan, identity, security, and SDN options
+- Download as **Word** (DOCX-compatible), **Markdown** (with embedded diagrams), or **PowerPoint** (template-driven `.pptx` deck)
+- Includes decision rationale, network diagrams (SVG / Mermaid / draw.io), and a 2D rack diagram
+- Print-friendly formatting (browser "Save as PDF" supported)
+
+### Sizer Report
+- **Save as PDF** and **Download Word** for sized hardware results
+- Includes per-workload breakdown, hardware configuration, capacity bars, and power / heat / rack-space estimates
 
 ---
 
@@ -257,10 +274,13 @@ Enable detailed logging in browser console:
 3. Look for errors or warnings
 4. Check localStorage: `localStorage.getItem('azureLocalWizardState')`
 
-### Report an Issue and Contributing:
-- Report bugs or request new features using GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
-- Include browser version, OS, screenshot if possible, and steps to reproduce the issue.
-- Provide exported config (sanitized) if required to recreate the problem.
+---
+
+## Report an Issue and Contributing
+
+- Report bugs or request new features via GitHub [Issues](https://github.com/Azure/odinforazurelocal/issues)
+- Include browser version, OS, screenshot if possible, and steps to reproduce the issue
+- Provide exported config (sanitized) if required to recreate the problem
 
 For detailed contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
