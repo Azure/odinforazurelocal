@@ -430,6 +430,7 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **First-visit walkthrough + Help button on the ToR Switch page**: a 3-step Welcome / Generator / QoS Validator overlay appears once on first visit (gated by `localStorage`), and the shared nav-bar Help (?) button now re-launches the same overlay on demand from the ToR Switch tab.
 - **New "Workloads" slide in the PowerPoint export** of the Configuration Report: when the report was started from the Sizer, the generated PPTX now includes a dedicated Workloads slide (right after Node Configuration) with one bullet per VM / AKS Arc / AVD workload plus a Subtotal sub-bullet. The slide is automatically skipped for non-Sizer reports.
 - **PowerPoint slide "Rack Configuration" renamed to "Node Configuration"** — the slide content is per-node hardware (CPU, memory, disks, resiliency, cluster type), so the new title describes what it actually shows.
+- **Designer “Start Over” now fully resets state.** Previously the reset missed `sizerHardware` / `sizerWorkloads` (so Sizer-imported workloads carried over), `architecture`, and all disaggregated fields. Defaults are now driven from a single source-of-truth factory so adding new state can’t silently bypass Start Over. Theme and font-size preferences are still preserved across a reset.
 
 #### 0.20.09 - Configuration Report: PowerPoint Export
 - **📊 Download PowerPoint button** on the Configuration Report page generates a styled `.pptx` deck (template-driven via `report/template/OdinPPTTemplate.potx`).
