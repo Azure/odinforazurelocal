@@ -428,7 +428,8 @@ For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 - **Tab navigation reordered** to `Designer | Sizer | ToR Switch | Knowledge` so the three "doing" tabs sit together first, with the reference / docs tab last.
 - **ToR Switch page parity fixes**: stat tiles now populate (was missing `js/utils.js`), and the page header now matches Designer / Sizer (logo, version, What's New link, disclaimer banner).
 - **First-visit walkthrough + Help button on the ToR Switch page**: a 3-step Welcome / Generator / QoS Validator overlay appears once on first visit (gated by `localStorage`), and the shared nav-bar Help (?) button now re-launches the same overlay on demand from the ToR Switch tab.
-- **New "Workloads" slide in the PowerPoint export** of the Configuration Report: when the report was started from the Sizer, the generated PPTX now includes a dedicated Workloads slide (right after Rack Configuration) with one bullet per VM / AKS Arc / AVD workload plus a Subtotal sub-bullet. The slide is automatically skipped for non-Sizer reports.
+- **New "Workloads" slide in the PowerPoint export** of the Configuration Report: when the report was started from the Sizer, the generated PPTX now includes a dedicated Workloads slide (right after Node Configuration) with one bullet per VM / AKS Arc / AVD workload plus a Subtotal sub-bullet. The slide is automatically skipped for non-Sizer reports.
+- **PowerPoint slide "Rack Configuration" renamed to "Node Configuration"** — the slide content is per-node hardware (CPU, memory, disks, resiliency, cluster type), so the new title describes what it actually shows.
 
 #### 0.20.09 - Configuration Report: PowerPoint Export
 - **📊 Download PowerPoint button** on the Configuration Report page generates a styled `.pptx` deck (template-driven via `report/template/OdinPPTTemplate.potx`).

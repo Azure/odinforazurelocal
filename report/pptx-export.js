@@ -56,7 +56,7 @@
             customExtract: extractPhysicalTopology
         },
         {
-            title: 'Rack Configuration',
+            title: 'Node Configuration',
             match: [
                 'Rack Aware TOR Architecture',
                 'Hardware Configuration'
@@ -1384,7 +1384,7 @@
         var bullets = [];
 
         // Cluster-wide totals (matches the "Hardware Configuration (from Sizer)"
-        // workloadSummary block already shown on the Rack Configuration slide).
+        // workloadSummary block already shown on the Node Configuration slide).
         var ws = s.sizerHardware && s.sizerHardware.workloadSummary;
         if (ws) {
             var totalLine = (ws.count || s.sizerWorkloads.length) + ' workloads'
