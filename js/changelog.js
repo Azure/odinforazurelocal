@@ -85,6 +85,16 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚡ Sizer — Rack U / Power: BMC switch now counted in non-disaggregated clusters</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Rack-Unit estimate and Network Infrastructure Power on the Sizer now correctly include 1 × 1U BMC switch per rack</strong> for Single-node, Standard Hyperconverged, and Rack-Aware Cluster deployments. The 3D rack visualization and 2D rack diagram have always rendered a BMC switch in every rack — including single-node — so the headline numbers now match what's drawn. Previously only Disaggregated counted the BMC; the others under-counted rack U by 1U per rack and infrastructure power by 150W per rack.</li>
+                        <li><strong>Per-cluster-type behaviour:</strong> Single-node = 3U / 150W infra (was 2U / 0W); Standard Hyperconverged (1 rack) = <code>nodes × 2U + 3U switches</code> and 650W infra (was <code>+2U</code> / 500W); Rack-Aware (2 racks) = <code>nodes × 2U + 6U switches</code> and 1,300W infra (was <code>+2U</code> / 500W); Disaggregated unchanged. Rack-Aware also annotates its rack-U value with <code>(across 2 racks, incl. 4 × ToR, 2 × BMC switches)</code>.</li>
+                        <li><strong>Power-detail expander</strong> now lists ToR and BMC as separate line items for non-disaggregated clusters, instead of a single misleading <em>"ToR switches: 2 × 250W"</em> line. Single-node shows just <em>"BMC switch: 1 × 150W"</em>.</li>
+                        <li><strong>Verified end-to-end via Playwright</strong> at all five cluster shapes (Single-node, Standard 2/4-node, Rack-Aware 4/8-node). All 1,130 tests still pass.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
                     <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">�🛡️ Security &amp; Code-Quality Release</h4>
                     <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">No end-user feature changes. Tightens the build, dependency, and CI surface.</p>
                     <ul style="margin: 0; padding-left: 20px;">

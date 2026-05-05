@@ -4823,8 +4823,16 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         if (fcCount > 0) infraPowerNote += ', ' + fcCount + '× FC (' + fcSwitchPower + 'W)';
         infraPowerNote += ', ' + spineCount + '× Spine (' + spineSwitchPower + 'W)';
     } else if (nodeCount > 1) {
-        // Standard/Rack-Aware: 2 × ToR switches (~250W each)
-        infraPowerW = 2 * 250;
+        // Standard HCI: 1 rack × (2 × ToR + 1 × BMC)
+        // Rack-Aware: 2 racks × (2 × ToR + 1 × BMC)
+        // ToR: ~250W (Cisco 93180YC-FX class), BMC: ~150W (Cisco 9348GC class)
+        var rackCount = (clusterType === 'rack-aware') ? 2 : 1;
+        infraPowerW = rackCount * ((2 * 250) + (1 * 150));
+    } else {
+        // Single-node: 1 × BMC switch only (no ToR rendered for single-node).
+        // Matches the 3D rack viz which shows a BMC switch in every rack
+        // including single-node deployments.
+        infraPowerW = 1 * 150;
     }
 
     const totalW = totalNodeW + infraPowerW;
@@ -4843,9 +4851,22 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         var rackDetail = 'across ' + drc + ' racks, incl. ' + (drc * torPerRack) + ' \u00d7 ToR, ' + drc + ' \u00d7 BMC' + (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + ' \u00d7 FC' : '') + ', ' + drc + ' \u00d7 SAN switches';
         rackUnitLabel = rackUnits + 'U <span style="font-size: 0.75em; opacity: 0.7;">(' + rackDetail + ')</span>';
     } else {
-        var torSwitchUnits = nodeCount > 1 ? 2 : 0; // 2 × 1U ToR switches
-        rackUnits = (nodeCount * 2) + torSwitchUnits;
-        rackUnitLabel = rackUnits + 'U';
+        // Standard / Rack-Aware / Single-node HCI:
+        //   - Single-node (1):       0 × ToR + 1 × BMC = 1U of switches (matches 3D viz)
+        //   - Standard HCI (2-16):   2 × ToR + 1 × BMC = 3U of switches in 1 rack
+        //   - Rack-Aware (2-8):      2 racks × (2 × ToR + 1 × BMC) = 6U of switches across 2 racks
+        // Server nodes are 2U each, distributed across racks for Rack-Aware.
+        var torPerRackHci = nodeCount > 1 ? 2 : 0; // single-node has no ToR in the viz
+        var bmcPerRackHci = 1;                     // BMC switch in every rack incl. single-node
+        var racksHci = (clusterType === 'rack-aware') ? 2 : 1;
+        var switchUnitsHci = racksHci * (torPerRackHci + bmcPerRackHci);
+        rackUnits = (nodeCount * 2) + switchUnitsHci;
+        if (clusterType === 'rack-aware') {
+            var rackAwareDetail = 'across 2 racks, incl. ' + (racksHci * torPerRackHci) + ' \u00d7 ToR, ' + (racksHci * bmcPerRackHci) + ' \u00d7 BMC switches';
+            rackUnitLabel = rackUnits + 'U <span style="font-size: 0.75em; opacity: 0.7;">(' + rackAwareDetail + ')</span>';
+        } else {
+            rackUnitLabel = rackUnits + 'U';
+        }
     }
 
     // Update DOM
@@ -4881,9 +4902,15 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     // Update rack units label
     var rackUnitsLabelEl = document.getElementById('rack-units-label');
     if (rackUnitsLabelEl) {
-        rackUnitsLabelEl.textContent = clusterType === 'disaggregated'
-            ? 'Rack Units (est.)'
-            : (nodeCount > 1 ? 'Rack Units (est., incl. 2 \u00d7 ToR switches)' : 'Rack Units (est.)');
+        if (clusterType === 'disaggregated') {
+            rackUnitsLabelEl.textContent = 'Rack Units (est.)';
+        } else if (clusterType === 'rack-aware') {
+            rackUnitsLabelEl.textContent = 'Rack Units (est., incl. 4 \u00d7 ToR + 2 \u00d7 BMC switches across 2 racks)';
+        } else if (nodeCount > 1) {
+            rackUnitsLabelEl.textContent = 'Rack Units (est., incl. 2 \u00d7 ToR + 1 \u00d7 BMC switch)';
+        } else {
+            rackUnitsLabelEl.textContent = 'Rack Units (est., incl. 1 \u00d7 BMC switch)';
+        }
     }
 
     // Infrastructure power breakdown note
@@ -4937,8 +4964,15 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
                 }
                 lines.push('Spine switches: ' + spineCount + ' × ' + spineSwitchPower + 'W = ' + (spineCount * spineSwitchPower).toLocaleString() + 'W');
                 lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+            } else if (nodeCount > 1) {
+                // Standard HCI (1 rack) or Rack-Aware (2 racks): 2 × ToR + 1 × BMC per rack
+                var racksLbl = (clusterType === 'rack-aware') ? 2 : 1;
+                lines.push('ToR switches: ' + (racksLbl * 2) + ' × 250W = ' + (racksLbl * 2 * 250).toLocaleString() + 'W');
+                lines.push('BMC switches: ' + racksLbl + ' × 150W = ' + (racksLbl * 150).toLocaleString() + 'W');
+                lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
             } else {
-                lines.push('ToR switches: 2 × 250W = <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+                // Single-node: BMC only
+                lines.push('BMC switch: 1 × 150W = <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
             }
         }
         lines.push('');

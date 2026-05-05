@@ -47,6 +47,18 @@ Security and code-quality release. No end-user feature changes; this release tig
 - **Verified** at viewport widths 390 / 768 / 1024 / 1400 px: zero horizontally-overflowing elements, single-column layout below 1025px, two-column layout at 1400px, and `documentElement.scrollWidth === viewport.clientWidth` at every tested width. All 1130 tests still pass.
 - **Lightning-bolt icon next to *Estimated Power, Heat & Rack Space per Instance*** is now rendered filled in the existing `--warning` amber colour (`#f59e0b`), instead of an unfilled outline in the heading's text colour. Same visual language as the rest of the project's warning / power UI cues.
 
+### Fixed (Sizer Rack U / power: BMC switch now counted in non-disaggregated clusters)
+
+- **Rack-Unit estimate and Network Infrastructure Power on the Sizer now correctly include 1 × 1U BMC switch per rack** for Single-node, Standard Hyperconverged, and Rack-Aware Cluster deployments. Previously only the Disaggregated path counted the BMC switch; the other three paths counted only the ToR switches (or, in the single-node case, *no* switches at all), which under-counted rack U by 1U per rack and under-counted infrastructure power by 150W per rack. The 3D rack visualization and 2D rack diagram have always rendered a BMC switch in every rack — including single-node — so the headline numbers now match what's drawn.
+- **Per-cluster-type behaviour:**
+  - **Single-node:** rack U now `(2U node) + 1U BMC = 3U` (was `2U`); infra power `1 × 150W = 150W` (was `0W`).
+  - **Standard Hyperconverged (1 rack):** rack U now `(nodes × 2U) + 2 × ToR + 1 × BMC = +3U of switches` (was `+2U`); infra power `(2 × 250W) + (1 × 150W) = 650W` (was `500W`).
+  - **Rack-Aware (2 racks):** rack U now `(nodes × 2U) + 2 × (2 × ToR + 1 × BMC) = +6U of switches` (was `+2U`); infra power `2 × ((2 × 250W) + (1 × 150W)) = 1,300W` (was `500W`). Rack-Aware also now annotates the rack-U value with a small `(across 2 racks, incl. 4 × ToR, 2 × BMC switches)` caption underneath.
+  - **Disaggregated:** unchanged — already counted ToR + BMC + FC + Spine per rack.
+- **`#rack-units-label` text** now reflects the cluster type: *"Rack Units (est., incl. 1 × BMC switch)"* for single-node, *"… incl. 2 × ToR + 1 × BMC switch"* for Standard, and *"… incl. 4 × ToR + 2 × BMC switches across 2 racks"* for Rack-Aware. The static initial label in `sizer/index.html` was updated to match so the page renders correctly before any user interaction.
+- **Power-detail expander breakdown** (`#power-detail-content`) now lists ToR and BMC as separate line items for non-disaggregated clusters (e.g. *"ToR switches: 2 × 250W = 500W"* and *"BMC switches: 1 × 150W = 150W"*), and shows just *"BMC switch: 1 × 150W = 150W"* for single-node, instead of a single misleading *"ToR switches: 2 × 250W"* line.
+- **Verified end-to-end via Playwright:** Single-node = 3U / 904W total; Standard 2-node = 7U / 2,158W; Standard 4-node = 11U / 3,666W; Rack-Aware 4-node = 14U / 4,316W; Rack-Aware 8-node = 22U / 7,332W. All 1,130 tests still pass.
+
 ### Added
 
 - **`vendor/` folder** with locally-hosted copies of all third-party runtime JS:
