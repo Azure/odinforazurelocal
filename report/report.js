@@ -2360,8 +2360,11 @@
         };
         var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
         var portListD = getDisaggPortListForReport(storageType, backupEnabled, portCount);
-        var groupsByZoneD = {};
-        var zoneLeafCountersD = {};
+        // CodeQL js/remote-property-injection (#19, #20, #21): use
+        // prototype-less dictionaries so user-derived zone keys can't pollute
+        // Object.prototype via assignment.
+        var groupsByZoneD = Object.create(null);
+        var zoneLeafCountersD = Object.create(null);
 
         for (var dpi = 0; dpi < portListD.length; dpi++) {
             var dPort = portListD[dpi];
@@ -3522,7 +3525,8 @@
                     unused: 'Unused'
                 };
 
-                var buckets = {};
+                // CodeQL js/remote-property-injection (#22): prototype-less dict.
+                var buckets = Object.create(null);
                 for (var i = 1; i <= p; i++) {
                     var assignment = customIntents[i] ? String(customIntents[i]) : 'unused';
                     if (assignment === 'unused') continue;
@@ -3569,7 +3573,8 @@
                     pool: 'Management + Compute'
                 };
 
-                var buckets = {};
+                // CodeQL js/remote-property-injection (#23): prototype-less dict.
+                var buckets = Object.create(null);
                 for (var i = 1; i <= p; i++) {
                     var assignment = adapterMapping[i] || 'pool';
                     // Normalize 'mgmt' and 'pool' to 'mgmt' for grouping
@@ -4313,9 +4318,10 @@
             };
 
             // Leaf assignment rules: first adapter to Leaf-A, second to Leaf-B within each group
-            var zoneLeafCounters = {};
+            // CodeQL js/remote-property-injection (#24, #25, #26): prototype-less dicts.
+            var zoneLeafCounters = Object.create(null);
             var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
-            var groupsByZone = {};
+            var groupsByZone = Object.create(null);
 
             // Iterate adapter mapping and group ports by their assigned zone
             var portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);

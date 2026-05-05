@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.02] - 2026-05-05
+
+Security-hardening release. Resolves all 12 open CodeQL code-scanning alerts on the repository (1 × `js/xss-through-dom`, 11 × `js/remote-property-injection`). No user-visible behaviour changes; all 1,130 tests still pass.
+
+### Security (CodeQL alerts cleared)
+
+- **`js/xss-through-dom` — Sizer JSON Import preview (alert #15, `sizer/sizer.js:6797`).** The Sizer's *Parse & Preview* path for an Azure Local machine JSON paste (`parseAndPreviewClusterJSON()`) now explicitly coerces every JSON-derived numeric value (`coreCount`, `coresPerSocket`, `sockets`, `memoryGiB`) to `Number()` immediately before they are interpolated into the preview HTML. This makes the type-narrowing barrier explicit on the data-flow path from `<textarea>.value` → `JSON.parse(...)` → `previewDiv.innerHTML`. String values were already escaped via `escapeHtml()`; this closes the remaining unsanitised-numeric-interpolation path that CodeQL was flagging.
+- **`js/remote-property-injection` — eleven sites where the code wrote to a JS object using a key derived from user-supplied data (alerts #16–#26)** have been hardened against prototype-chain pollution. In ten of the eleven cases the receiving dictionary is now created via `Object.create(null)` — a prototype-less object, so a key like `__proto__` / `constructor` / `toString` can no longer reach `Object.prototype`:
+  - `report/pptx-export.js` — `bySpeed` (line 1775) and `bySpeed2` (line 1798) NIC-speed dictionaries (alerts #16, #17).
+  - `report/report.js` — `groupsByZoneD` / `zoneLeafCountersD` for Disaggregated NIC-zone grouping (lines 2370, 2371, 2374; alerts #19–#21); `buckets` for custom-intent grouping (line 3529; alert #22); `buckets` for hyperconverged adapter grouping (line 3577; alert #23); `groupsByZone` / `zoneLeafCounters` for Hyperconverged NIC-zone grouping (lines 4326, 4327, 4330; alerts #24–#26).
+  - `js/disaggregated.js` — `state.disaggAdapterMapping[portId] = targetZone;` at `moveDisaggAdapter()` (line 2076; alert #18) is reached via a drag-and-drop event whose `portId` originates from `e.dataTransfer.getData('text/plain')` and is therefore user-controlled. Because `state.disaggAdapterMapping` is a long-lived shared object that can't be swapped to `Object.create(null)`, `portId` is now validated against the known port list (`getDisaggPortList()`) before being used as a property key — any unknown key is silently rejected.
+- **No functional changes.** These are defence-in-depth hardenings against a class of vulnerability that wasn't previously exploitable through the UI (the writes happened on application-controlled state, not arbitrary attacker input), but the data-flow paths CodeQL was flagging (paste-JSON-into-Sizer-import, drag-drop disaggregated adapter pill) had no allow-listing on the property key — so the alerts are now genuinely cleared rather than dismissed.
+
+---
+
 ## [0.21.01] - 2026-05-05
 
 Minor release. Fixes Sizer mobile layout on iPhone / narrow viewports, and corrects Rack-Unit and Network Infrastructure Power calculations to match what's actually rendered in the 3D rack visualization across **every** Sizer cluster type — Single-node, Hyperconverged, Rack-Aware, Disaggregated, and Low Capacity.
