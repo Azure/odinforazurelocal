@@ -4605,6 +4605,8 @@ function calculateRequirements(options) {
             MAX_NODES = 8;
         } else if (clusterType === 'single') {
             MAX_NODES = 1;
+        } else if (clusterType === 'low-capacity') {
+            MAX_NODES = 3; // Low Capacity supports 1-3 nodes only
         } else if (clusterType === 'aldo-mgmt') {
             MAX_NODES = 3;
         } else {
@@ -4615,7 +4617,13 @@ function calculateRequirements(options) {
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
         var nodesBarLabel = document.getElementById('nodes-bar-label');
         if (nodesBarLabel) {
-            nodesBarLabel.textContent = clusterType === 'disaggregated' ? 'Azure Local disaggregated instance size' : 'Azure Local hyperconverged instance size';
+            if (clusterType === 'disaggregated') {
+                nodesBarLabel.textContent = 'Azure Local disaggregated instance size';
+            } else if (clusterType === 'low-capacity') {
+                nodesBarLabel.textContent = 'Azure Local low capacity instance size';
+            } else {
+                nodesBarLabel.textContent = 'Azure Local hyperconverged instance size';
+            }
         }
         const isDisaggregated = clusterType === 'disaggregated';
         var storageLabelEl = document.getElementById('total-storage-label');
