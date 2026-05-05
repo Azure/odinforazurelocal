@@ -4871,8 +4871,10 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         var torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
         var bmcPerRack = 1; // 1 × 1U BMC switch per rack
         var fcPerRack = (dst === 'fc_san') ? 2 : 0; // 2 × 1U FC switches per rack (FC only)
-        var sanPerRack = 5; // 5U SAN appliance per rack
-        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack + sanPerRack;
+        // External SAN storage appliances are excluded from the rack-U total —
+        // form factor varies wildly by vendor (Pure Storage, NetApp, EMC, etc.)
+        // and is the customer's choice. Consult the SAN vendor for actual U.
+        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack;
         rackUnits = (nodeCount * 2) + (drc * switchesPerRack);
         rackUnitLabel = rackUnits + 'U';
         rackUnitsBreakdown = 'Across ' + drc + ' racks: ' +
@@ -4880,7 +4882,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             (drc * torPerRack) + ' \u00d7 ToR (1U), ' +
             drc + ' \u00d7 BMC (1U)' +
             (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + ' \u00d7 FC (1U)' : '') +
-            ', ' + drc + ' \u00d7 SAN appliance (5U).';
+            '. External SAN storage appliance(s) are not counted \u2014 consult your SAN vendor for actual rack-U.';
     } else if (clusterType === 'low-capacity') {
         // Low Capacity: compact edge appliances on a tabletop, not rack-mounted.
         // No BMC switch. At most 1 small edge switch (multi-node only).
