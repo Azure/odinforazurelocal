@@ -4605,6 +4605,8 @@ function calculateRequirements(options) {
             MAX_NODES = 8;
         } else if (clusterType === 'single') {
             MAX_NODES = 1;
+        } else if (clusterType === 'low-capacity') {
+            MAX_NODES = 3; // Low Capacity supports 1-3 nodes only
         } else if (clusterType === 'aldo-mgmt') {
             MAX_NODES = 3;
         } else {
@@ -4615,7 +4617,13 @@ function calculateRequirements(options) {
         document.getElementById('nodes-fill').style.width = nodesPercent + '%';
         var nodesBarLabel = document.getElementById('nodes-bar-label');
         if (nodesBarLabel) {
-            nodesBarLabel.textContent = clusterType === 'disaggregated' ? 'Azure Local disaggregated instance size' : 'Azure Local hyperconverged instance size';
+            if (clusterType === 'disaggregated') {
+                nodesBarLabel.textContent = 'Azure Local disaggregated instance size';
+            } else if (clusterType === 'low-capacity') {
+                nodesBarLabel.textContent = 'Azure Local low capacity instance size';
+            } else {
+                nodesBarLabel.textContent = 'Azure Local hyperconverged instance size';
+            }
         }
         const isDisaggregated = clusterType === 'disaggregated';
         var storageLabelEl = document.getElementById('total-storage-label');
@@ -4822,9 +4830,29 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         infraPowerNote = torCount + '× ToR (' + torSwitchPower + 'W), ' + bmcCount + '× BMC (' + bmcSwitchPower + 'W)';
         if (fcCount > 0) infraPowerNote += ', ' + fcCount + '× FC (' + fcSwitchPower + 'W)';
         infraPowerNote += ', ' + spineCount + '× Spine (' + spineSwitchPower + 'W)';
+    } else if (clusterType === 'low-capacity') {
+        // Low Capacity: compact edge appliances (NOT server-class 2U hardware) +
+        // at most 1 small edge switch shared by management/compute/storage traffic.
+        // No BMC switch (BMC ports go straight to the same edge switch via the
+        // out-of-band management VLAN). Per Microsoft docs:
+        // https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements
+        // 2-node switchless and 3-node switchless can run with NO switch at all
+        // (direct/full-mesh storage cabling), but the Sizer doesn't model the
+        // switchless variant separately — the conservative assumption here is
+        // 1 switch for any multi-node low-capacity deployment.
+        // Edge switch: ~50W (small managed L2/L3 switch, e.g. Cisco CBS350).
+        infraPowerW = (nodeCount > 1) ? 50 : 0;
     } else if (nodeCount > 1) {
-        // Standard/Rack-Aware: 2 × ToR switches (~250W each)
-        infraPowerW = 2 * 250;
+        // Standard HCI: 1 rack × (2 × ToR + 1 × BMC)
+        // Rack-Aware: 2 racks × (2 × ToR + 1 × BMC)
+        // ToR: ~250W (Cisco 93180YC-FX class), BMC: ~150W (Cisco 9348GC class)
+        var rackCount = (clusterType === 'rack-aware') ? 2 : 1;
+        infraPowerW = rackCount * ((2 * 250) + (1 * 150));
+    } else {
+        // Single-node: 1 × BMC switch only (no ToR rendered for single-node).
+        // Matches the 3D rack viz which shows a BMC switch in every rack
+        // including single-node deployments.
+        infraPowerW = 1 * 150;
     }
 
     const totalW = totalNodeW + infraPowerW;
@@ -4833,19 +4861,65 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     // Rack units: 2U per node + switches per rack
     var rackUnits;
     var rackUnitLabel;
+    // The breakdown text appears below the value when the user clicks the
+    // expand toggle (▸). Always populated; the cell stays collapsed by default.
+    var rackUnitsBreakdown = '';
+    // Low Capacity is a tabletop edge deployment, not a rack-mounted one, so
+    // we relabel the cell entirely and skip the breakdown chevron.
+    var rackUnitsIsLowCapacity = (clusterType === 'low-capacity');
     if (clusterType === 'disaggregated') {
         var torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
         var bmcPerRack = 1; // 1 × 1U BMC switch per rack
         var fcPerRack = (dst === 'fc_san') ? 2 : 0; // 2 × 1U FC switches per rack (FC only)
-        var sanPerRack = 5; // 5U SAN appliance per rack
-        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack + sanPerRack;
+        // External SAN storage appliances are excluded from the rack-U total —
+        // form factor varies wildly by vendor (Pure Storage, NetApp, EMC, etc.)
+        // and is the customer's choice. Consult the SAN vendor for actual U.
+        var switchesPerRack = torPerRack + bmcPerRack + fcPerRack;
         rackUnits = (nodeCount * 2) + (drc * switchesPerRack);
-        var rackDetail = 'across ' + drc + ' racks, incl. ' + (drc * torPerRack) + ' \u00d7 ToR, ' + drc + ' \u00d7 BMC' + (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + ' \u00d7 FC' : '') + ', ' + drc + ' \u00d7 SAN switches';
-        rackUnitLabel = rackUnits + 'U <span style="font-size: 0.75em; opacity: 0.7;">(' + rackDetail + ')</span>';
-    } else {
-        var torSwitchUnits = nodeCount > 1 ? 2 : 0; // 2 × 1U ToR switches
-        rackUnits = (nodeCount * 2) + torSwitchUnits;
         rackUnitLabel = rackUnits + 'U';
+        rackUnitsBreakdown = 'Across ' + drc + ' racks: ' +
+            nodeCount + ' \u00d7 server node (2U each) + ' +
+            (drc * torPerRack) + ' \u00d7 ToR (1U), ' +
+            drc + ' \u00d7 BMC (1U)' +
+            (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + ' \u00d7 FC (1U)' : '') +
+            '. External SAN storage appliance(s) are not counted \u2014 consult your SAN vendor for actual rack-U.';
+    } else if (clusterType === 'low-capacity') {
+        // Low Capacity: compact edge appliances on a tabletop, not rack-mounted.
+        // No BMC switch. At most 1 small edge switch (multi-node only).
+        // Per Microsoft docs, low-capacity systems do NOT require server-class
+        // racks or BMC switches:
+        // https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements
+        rackUnits = 0; // not meaningful for tabletop / non-datacenter deployments
+        if (nodeCount > 1) {
+            rackUnitLabel = 'Tabletop &mdash; ' + nodeCount + ' appliances + 1 switch';
+        } else {
+            rackUnitLabel = 'Tabletop &mdash; standalone appliance';
+        }
+    } else {
+        // Standard / Rack-Aware / Single-node HCI:
+        //   - Single-node (1):       0 × ToR + 1 × BMC = 1U of switches (matches 3D viz)
+        //   - Standard HCI (2-16):   2 × ToR + 1 × BMC = 3U of switches in 1 rack
+        //   - Rack-Aware (2-8):      2 racks × (2 × ToR + 1 × BMC) = 6U of switches across 2 racks
+        // Server nodes are 2U each, distributed across racks for Rack-Aware.
+        var torPerRackHci = nodeCount > 1 ? 2 : 0; // single-node has no ToR in the viz
+        var bmcPerRackHci = 1;                     // BMC switch in every rack incl. single-node
+        var racksHci = (clusterType === 'rack-aware') ? 2 : 1;
+        var switchUnitsHci = racksHci * (torPerRackHci + bmcPerRackHci);
+        rackUnits = (nodeCount * 2) + switchUnitsHci;
+        rackUnitLabel = rackUnits + 'U';
+        if (clusterType === 'rack-aware') {
+            rackUnitsBreakdown = 'Across 2 racks: ' +
+                nodeCount + ' \u00d7 server node (2U each, distributed across racks) + ' +
+                (racksHci * torPerRackHci) + ' \u00d7 ToR (1U) + ' +
+                (racksHci * bmcPerRackHci) + ' \u00d7 BMC (1U).';
+        } else if (nodeCount > 1) {
+            rackUnitsBreakdown = '1 rack: ' +
+                nodeCount + ' \u00d7 server node (2U each) + ' +
+                (racksHci * torPerRackHci) + ' \u00d7 ToR (1U) + ' +
+                (racksHci * bmcPerRackHci) + ' \u00d7 BMC (1U).';
+        } else {
+            rackUnitsBreakdown = '1 rack: 1 \u00d7 server node (2U) + 1 \u00d7 BMC switch (1U). Single-node clusters share BMC traffic via the same management switch shown in the 3D rack view.';
+        }
     }
 
     // Update DOM
@@ -4881,9 +4955,27 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     // Update rack units label
     var rackUnitsLabelEl = document.getElementById('rack-units-label');
     if (rackUnitsLabelEl) {
-        rackUnitsLabelEl.textContent = clusterType === 'disaggregated'
-            ? 'Rack Units (est.)'
-            : (nodeCount > 1 ? 'Rack Units (est., incl. 2 \u00d7 ToR switches)' : 'Rack Units (est.)');
+        rackUnitsLabelEl.textContent = rackUnitsIsLowCapacity ? 'Hardware Footprint' : 'Rack Units (est.)';
+    }
+    var rackUnitsCellEl = document.getElementById('rack-units-cell');
+    if (rackUnitsCellEl) {
+        rackUnitsCellEl.classList.toggle('low-capacity-mode', rackUnitsIsLowCapacity);
+    }
+
+    // Populate the inline expandable breakdown beneath the value, and toggle
+    // the chevron's visibility (Low Capacity has no rack-unit breakdown).
+    var rackUnitsToggleEl = document.getElementById('rack-units-toggle');
+    var rackUnitsDetailEl = document.getElementById('rack-units-detail');
+    if (rackUnitsToggleEl && rackUnitsDetailEl) {
+        if (rackUnitsBreakdown) {
+            rackUnitsDetailEl.textContent = rackUnitsBreakdown;
+            rackUnitsToggleEl.hidden = false;
+        } else {
+            rackUnitsDetailEl.textContent = '';
+            rackUnitsDetailEl.hidden = true;
+            rackUnitsToggleEl.hidden = true;
+            rackUnitsToggleEl.setAttribute('aria-expanded', 'false');
+        }
     }
 
     // Infrastructure power breakdown note
@@ -4937,8 +5029,18 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
                 }
                 lines.push('Spine switches: ' + spineCount + ' × ' + spineSwitchPower + 'W = ' + (spineCount * spineSwitchPower).toLocaleString() + 'W');
                 lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+            } else if (clusterType === 'low-capacity') {
+                // Low Capacity: 1 small edge switch (multi-node only), no BMC, no second ToR.
+                lines.push('Edge switch: 1 × 50W = <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+            } else if (nodeCount > 1) {
+                // Standard HCI (1 rack) or Rack-Aware (2 racks): 2 × ToR + 1 × BMC per rack
+                var racksLbl = (clusterType === 'rack-aware') ? 2 : 1;
+                lines.push('ToR switches: ' + (racksLbl * 2) + ' × 250W = ' + (racksLbl * 2 * 250).toLocaleString() + 'W');
+                lines.push('BMC switches: ' + racksLbl + ' × 150W = ' + (racksLbl * 150).toLocaleString() + 'W');
+                lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
             } else {
-                lines.push('ToR switches: 2 × 250W = <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
+                // Single-node: BMC only
+                lines.push('BMC switch: 1 × 150W = <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
             }
         }
         lines.push('');
@@ -4960,7 +5062,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         lines.push('• Boot: 2 × M.2 boot drives at ~8W each');
         lines.push('• Base overhead: ~100W per node (fans, motherboard chipset, NICs, BMC)');
         lines.push('• PSU: 80 Plus Titanium rated, ~96% efficient at 50% load');
-        lines.push('• ToR switch: ~250W (48-port 25GbE class), BMC switch: ~150W, Spine: ~350W, FC: ~200W');
+        lines.push('• ToR switch: ~250W (48-port 25GbE class), BMC switch: ~150W, Spine: ~350W, FC: ~200W, Low-capacity edge switch: ~50W');
         lines.push('• Actual power varies by OEM hardware, workload intensity, ambient temperature, and PSU load point');
         detailEl.innerHTML = lines.join('<br>');
     }
@@ -7531,6 +7633,17 @@ function toggleTheme() {
     currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
     applyTheme();
     localStorage.setItem('odin-theme', currentTheme);
+}
+
+// Toggle the rack-units breakdown disclosure beneath the value in the
+// "Estimated Power, Heat & Rack Space per Instance" panel.
+function toggleRackUnitsDetail() {
+    var btn = document.getElementById('rack-units-toggle');
+    var detail = document.getElementById('rack-units-detail');
+    if (!btn || !detail) return;
+    var expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    detail.hidden = expanded;
 }
 
 function applyTheme() {

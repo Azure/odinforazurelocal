@@ -53,6 +53,70 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.21.01</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">May 5, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Minor release. Sizer mobile-layout fix on iPhone / narrow viewports (closes <a href="https://github.com/Azure/odinforazurelocal/issues/210" target="_blank" rel="noopener noreferrer">#210</a>); Rack-Unit and Network Infrastructure Power are now correctly calculated for every Sizer cluster type — Single-node, Hyperconverged, Rack-Aware, Disaggregated, <em>and</em> Low Capacity (now correctly reported as a tabletop / non-rack deployment); the Rack Units cell now has a clean label and an expandable chevron for the per-rack breakdown so the text no longer overlaps; the <em>Capacity Usage for Workload</em> bar matches Low Capacity's max-3 limit; and external SAN appliances are no longer counted toward Disaggregated Rack Units.</p>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📱 Sizer — Mobile layout fix (iOS / narrow viewports) — closes <a href="https://github.com/Azure/odinforazurelocal/issues/210" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue);">#210</a></h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Sizer no longer overflows horizontally on iPhone and other narrow screens.</strong> Reported on iPhone 16 Pro (390px) and reproduced in Edge DevTools at 390px: form panels rendered ~614px wide on a 390px viewport, forcing horizontal scroll and visually misaligning the disclaimer banner, page title, stats bar, and 3D Hardware Visualization section against the form columns.</li>
+                        <li><strong>Root cause</strong>: the <code>.sizer-layout</code> CSS Grid (<code>1fr</code> = <code>minmax(auto, 1fr)</code>) was being held open by the CPU Generation <code>&lt;select&gt;</code>'s intrinsic min-content — browsers size <code>&lt;select&gt;</code> to fit its longest <code>&lt;option&gt;</code> text, and "Intel® 4th Gen Xeon® (Sapphire Rapids)" alone is ~353px wide. Compounded by flex rows that didn't wrap. Designer doesn't hit this because its mobile layout is a single flex column with no <code>&lt;select&gt;</code> inside a CSS Grid track.</li>
+                        <li><strong>Fixes applied</strong> in <code>sizer/sizer.css</code>: <code>min-width: 0</code> on <code>.config-panel</code> / <code>.results-panel</code>; <code>max-width: 100%</code> on <code>.config-row select</code>; <code>flex-wrap: wrap</code> on <code>.section-header-row</code>, <code>.config-row</code>, <code>.export-actions</code>; removed the mobile-only <code>padding: 0 25px</code> overrides on <code>&lt;header&gt;</code> / <code>.disclaimer-wrapper</code> / <code>.sizer-footer</code> introduced in PR #170 — those indented those three elements by an extra 25px on mobile but didn't extend to the form panels or 3D visualization section, which is why the title/disclaimer/footer didn't line up with the rest of the page on iPhone.</li>
+                        <li><strong>Verified</strong> at 390 / 768 / 1024 / 1400 px viewport widths: zero overflowing elements; <code>documentElement.scrollWidth === viewport.clientWidth</code> at every tested width. All 1130 tests still pass.</li>
+                        <li><strong>Lightning-bolt icon next to <em>Estimated Power, Heat &amp; Rack Space per Instance</em></strong> is now filled in the existing <code>--warning</code> amber colour (<code>#f59e0b</code>) instead of an unfilled outline in the heading's text colour.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">⚡ Sizer — Rack U / Power: BMC switch now counted in non-disaggregated clusters</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Rack-Unit estimate and Network Infrastructure Power on the Sizer now correctly include 1 × 1U BMC switch per rack</strong> for Single-node, Standard Hyperconverged, and Rack-Aware Cluster deployments. The 3D rack visualization and 2D rack diagram have always rendered a BMC switch in every rack — including single-node — so the headline numbers now match what's drawn. Previously only Disaggregated counted the BMC; the others under-counted rack U by 1U per rack and infrastructure power by 150W per rack.</li>
+                        <li><strong>Per-cluster-type behaviour:</strong> Single-node = 3U / 150W infra (was 2U / 0W); Standard Hyperconverged (1 rack) = <code>nodes × 2U + 3U switches</code> and 650W infra (was <code>+2U</code> / 500W); Rack-Aware (2 racks) = <code>nodes × 2U + 6U switches</code> and 1,300W infra (was <code>+2U</code> / 500W); Disaggregated unchanged. Rack-Aware also annotates its rack-U value with <code>(across 2 racks, incl. 4 × ToR, 2 × BMC switches)</code>.</li>
+                        <li><strong>Power-detail expander</strong> now lists ToR and BMC as separate line items for non-disaggregated clusters, instead of a single misleading <em>"ToR switches: 2 × 250W"</em> line. Single-node shows just <em>"BMC switch: 1 × 150W"</em>.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🪶 Sizer — Low Capacity: Rack U / Power now reflect compact edge hardware</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Low Capacity rack-U and infrastructure power now match the 3D tabletop visualization.</strong> Low Capacity is an edge / compact form-factor deployment — not server-class 2U hardware — and per <a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements" target="_blank" rel="noopener noreferrer">Microsoft's networking requirements for low-capacity systems</a>, it does <strong>not</strong> require a separate BMC switch and uses at most <strong>1 small edge switch</strong> shared by management, compute, and storage traffic.</li>
+                        <li><strong>Cell relabelled.</strong> Low Capacity is not a rack-mounted deployment, so the panel now shows <strong>"Hardware Footprint (est.)"</strong> with a value of <em>"Tabletop — N appliances + 1 switch"</em> (or <em>"Tabletop — standalone appliance"</em> for 1 node) instead of an inappropriate <code>U</code> figure.</li>
+                        <li><strong>Infra power corrected.</strong> 0W for single-node, 50W for multi-node (1 small managed L2/L3 edge switch, e.g. Cisco CBS350 class). Previously the Sizer was applying the 2 × ToR + 1 × BMC server-class assumption (650W) to Low Capacity — roughly 13× too high.</li>
+                        <li><strong>Edge-switch power assumption:</strong> ~50W. The <em>Power calculations, verbose information</em> expander now shows <code>Edge switch: 1 × 50W</code> for multi-node Low Capacity instead of the (incorrect) <em>"ToR switches: 2 × 250W"</em>.</li>
+                        <li><strong>Note:</strong> Low Capacity per-node power was already accurate because the Sizer derives node power from the constrained CPU/cores/memory/disk profile — the bug was only in the rack-U total and the network-infrastructure power add-on.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🔽 Sizer — Rack Units cell now uses an expandable breakdown (no more text overlap)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>The Rack Units cell in the Estimated Power, Heat &amp; Rack Space panel no longer overlaps text.</strong> The earlier label (<em>"Rack Units (est., incl. 2 × ToR + 1 × BMC switch)"</em>) and inline value caption (<em>"7U (across 2 racks, incl. 4 × ToR, 2 × BMC switches)"</em>) were running into each other inside the flex row on both desktop and iPhone.</li>
+                        <li><strong>New layout:</strong> a clean label (<em>"Rack Units (est."</em>)) and a clean value (<em>"7U"</em>), with a small blue chevron <code>▸</code> next to the value that expands to show the breakdown beneath the value (e.g. <em>"1 rack: 4 × server node (2U each) + 2 × ToR (1U) + 1 × BMC (1U)."</em>).</li>
+                        <li><strong>Keyboard-accessible</strong> (<code>&lt;button&gt;</code> with <code>aria-expanded</code> / <code>aria-controls</code>), rotates on expand, and is hidden entirely for Low Capacity where the breakdown isn't meaningful.</li>
+                        <li><strong>Low Capacity Hardware Footprint cell now stacks vertically</strong> when the value is too long for one row (e.g. <em>"Tabletop — 3 appliances + 1 switch"</em>) — label and value no longer collide on either desktop or iPhone.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">📊 Sizer — Capacity Usage for Workload now matches Low Capacity's 3-node limit</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Selecting <em>Low Capacity</em> now relabels the top progress bar to <em>"Azure Local low capacity instance size"</em></strong> and caps the machine count at <strong>3</strong> (e.g. <code>2 / 3</code>) instead of falling through to the Hyperconverged default of <code>/ 16</code>. Per <a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements" target="_blank" rel="noopener noreferrer">Microsoft's system requirements for low-capacity Azure Local</a>, Low Capacity supports 1, 2, or 3 nodes only.</li>
+                        <li><strong>Other cluster types unchanged:</strong> Standard HCI = <code>/ 16</code>, Rack-Aware = <code>/ 8</code>, Single-node = <code>/ 1</code>, Disaggregated = <code>/ 64</code>.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🗄️ Sizer — Disaggregated Rack Units no longer counts the external SAN appliance</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>The Disaggregated Rack Units total no longer includes the external SAN storage appliance.</strong> SAN form factor varies wildly by vendor (Pure Storage, NetApp, Dell EMC PowerStore, etc.) and is the customer's choice — counting a fixed <code>5U per rack</code> was misleading. This now mirrors the existing treatment of SAN power, which has always been excluded from the headline Watts figure.</li>
+                        <li><strong>Effect</strong> (4-node Disaggregated across 2 racks): iSCSI was <code>24U</code> → now <code>14U</code>; FC SAN was <code>28U</code> → now <code>18U</code>. Server nodes, ToR, BMC, and FC switches are still counted.</li>
+                        <li><strong>The expandable breakdown</strong> now ends with: <em>"External SAN storage appliance(s) are not counted — consult your SAN vendor for actual rack-U."</em></li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.20.67</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">April 30, 2026</div>
                 </div>
@@ -74,7 +138,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛡️ Security &amp; Code-Quality Release</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">�🛡️ Security &amp; Code-Quality Release</h4>
                     <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">No end-user feature changes. Tightens the build, dependency, and CI surface.</p>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>All third-party JS vendored locally</strong> (<code>html2canvas</code>, <code>jsPDF</code>, <code>three.js</code>, <code>OrbitControls</code>) — Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from <code>cdn.jsdelivr.net</code>. Better for offline / air-gapped use.</li>

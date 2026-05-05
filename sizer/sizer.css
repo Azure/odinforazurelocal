@@ -547,6 +547,11 @@ header .header-description {
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     padding: 24px;
+    /* Grid items default to min-width: auto (= min-content), which lets a child
+       with a long intrinsic width (e.g. a <select> sized to its longest option)
+       stretch the whole grid track past the viewport. min-width: 0 lets the
+       track honour 1fr instead. */
+    min-width: 0;
 }
 
 .panel-section {
@@ -557,6 +562,8 @@ header .header-description {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .section-header-actions {
@@ -875,6 +882,8 @@ header .header-description {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .config-row label {
@@ -897,6 +906,7 @@ header .header-description {
     color: var(--text-primary);
     font-size: 14px;
     min-width: 180px;
+    max-width: 100%;
     cursor: pointer;
 }
 
@@ -1186,6 +1196,83 @@ header .header-description {
     color: var(--text-primary);
 }
 
+/* Rack-units cell: special two-row layout so the breakdown can expand below
+   the value without overlapping or stretching the cell when collapsed. */
+.power-rack-item.rack-units-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+}
+
+.rack-units-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    width: 100%;
+}
+
+/* Low-capacity mode: the value (e.g. "Tabletop — 2 appliances + 1 switch")
+   is too long to share a row with the label, so stack them instead. */
+.rack-units-item.low-capacity-mode .rack-units-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.rack-units-item.low-capacity-mode .value-with-toggle {
+    width: 100%;
+}
+
+.rack-units-item.low-capacity-mode .value {
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+.value-with-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.rack-units-toggle {
+    background: transparent;
+    border: none;
+    color: var(--accent-blue);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.rack-units-toggle:hover,
+.rack-units-toggle:focus-visible {
+    background: rgba(59, 130, 246, 0.12);
+    outline: none;
+}
+
+.rack-units-toggle[aria-expanded="true"] {
+    transform: rotate(90deg);
+}
+
+.rack-units-toggle[hidden] {
+    display: none;
+}
+
+.rack-units-detail {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--glass-border);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
 /* Notes Section */
 .notes-section {
     padding: 20px;
@@ -1226,10 +1313,11 @@ header .header-description {
     display: flex;
     gap: 12px;
     margin-top: 16px;
+    flex-wrap: wrap;
 }
 
 .export-actions .btn {
-    flex: 1;
+    flex: 1 1 auto;
 }
 
 /* Configure in Designer action */
@@ -1549,10 +1637,6 @@ header .header-description {
         visibility: visible !important;
     }
 
-    header {
-        padding: 0 25px;
-    }
-
     header .header-title {
         font-size: 1.5rem;
     }
@@ -1560,15 +1644,6 @@ header .header-description {
     header .header-description {
         font-size: 0.95rem;
         text-align: center;
-    }
-
-    .disclaimer-wrapper {
-        padding: 0 25px;
-    }
-
-    .sizer-footer {
-        padding-left: 25px;
-        padding-right: 25px;
     }
 
     .stats-container {
