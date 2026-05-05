@@ -4945,7 +4945,11 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     // Update rack units label
     var rackUnitsLabelEl = document.getElementById('rack-units-label');
     if (rackUnitsLabelEl) {
-        rackUnitsLabelEl.textContent = rackUnitsIsLowCapacity ? 'Hardware Footprint (est.)' : 'Rack Units (est.)';
+        rackUnitsLabelEl.textContent = rackUnitsIsLowCapacity ? 'Hardware Footprint' : 'Rack Units (est.)';
+    }
+    var rackUnitsCellEl = document.getElementById('rack-units-cell');
+    if (rackUnitsCellEl) {
+        rackUnitsCellEl.classList.toggle('low-capacity-mode', rackUnitsIsLowCapacity);
     }
 
     // Populate the inline expandable breakdown beneath the value, and toggle
