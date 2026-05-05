@@ -1196,6 +1196,64 @@ header .header-description {
     color: var(--text-primary);
 }
 
+/* Rack-units cell: special two-row layout so the breakdown can expand below
+   the value without overlapping or stretching the cell when collapsed. */
+.power-rack-item.rack-units-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+}
+
+.rack-units-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.value-with-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.rack-units-toggle {
+    background: transparent;
+    border: none;
+    color: var(--accent-blue);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.rack-units-toggle:hover,
+.rack-units-toggle:focus-visible {
+    background: rgba(59, 130, 246, 0.12);
+    outline: none;
+}
+
+.rack-units-toggle[aria-expanded="true"] {
+    transform: rotate(90deg);
+}
+
+.rack-units-toggle[hidden] {
+    display: none;
+}
+
+.rack-units-detail {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--glass-border);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
 /* Notes Section */
 .notes-section {
     padding: 20px;

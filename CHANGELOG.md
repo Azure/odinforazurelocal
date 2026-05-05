@@ -7,9 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.01] - 2026-05-05
+
+Minor release. Fixes Sizer mobile layout on iPhone / narrow viewports, and corrects Rack-Unit and Network Infrastructure Power calculations to match what's actually rendered in the 3D rack visualization across **every** Sizer cluster type — Single-node, Hyperconverged, Rack-Aware, Disaggregated, and Low Capacity.
+
+### Fixed (Sizer mobile layout on iOS / narrow viewports)
+
+- **Sizer no longer overflows the viewport horizontally on iPhone and other narrow screens.** Reported on iPhone 16 Pro (390px logical width) and reproduced in Edge DevTools at 390px: the Workload Scenarios / Recommended Instance Configuration / Physical Node(s) form panels rendered ~614px wide on a 390px viewport, forcing horizontal scroll and visually misaligning the disclaimer banner, header title, stats bar, and 3D Hardware Visualization section against the form panels.
+- **Root cause** was an interaction between three things: (1) the `.sizer-layout` CSS Grid with `grid-template-columns: 1fr` on mobile — `1fr` resolves to `minmax(auto, 1fr)`, which honours the track's intrinsic min-content; (2) the CPU Generation `<select>` whose longest `<option>` text (e.g. `Intel® 4th Gen Xeon® (Sapphire Rapids)`) forced its intrinsic min-content width to ~353px; and (3) cascading flex containers (`.section-header-row`, `.config-row`, `.export-actions`) with no `flex-wrap` whose intrinsic widths combined with the wide `<select>` to push the panel track to ~614px. Designer doesn't hit this because its mobile layout is a single flex column with no `<select>` inside a CSS Grid track.
+- **Fixes applied to `sizer/sizer.css`:**
+  - `min-width: 0` on `.config-panel` / `.results-panel` — lets each grid track collapse to the actual `1fr` share instead of being held open by descendant min-content.
+  - `max-width: 100%` on `.config-row select` — the dropdown can't push wider than its parent column even if its longest option text would.
+  - `flex-wrap: wrap` on `.section-header-row`, `.config-row`, `.export-actions` — section titles, label/select pairs, and the export button row now wrap onto a second line on narrow screens instead of forcing the parent to grow.
+  - `flex: 1 1 auto` (was `flex: 1`) on `.export-actions .btn` — buttons keep their natural width when wrapped, instead of stretching to fill a single row that's wider than the viewport.
+  - Removed the mobile-only `padding: 0 25px` overrides on `<header>`, `.disclaimer-wrapper`, and `.sizer-footer` introduced in PR #170 (March 2026). Those overrides indented those three elements by an extra 25px on mobile *but did not extend to the form panels or 3D Hardware Visualization section*, which is why the title/disclaimer/footer didn't visually line up with the rest of the page on iPhone. All four now share the `.container`'s 16px mobile padding and align flush against the same edge — same approach Designer already uses (`css/style.css`).
+- **Verified** at viewport widths 390 / 768 / 1024 / 1400 px: zero horizontally-overflowing elements, single-column layout below 1025px, two-column layout at 1400px, and `documentElement.scrollWidth === viewport.clientWidth` at every tested width. All 1,130 tests still pass.
+- **Lightning-bolt icon next to *Estimated Power, Heat & Rack Space per Instance*** is now rendered filled in the existing `--warning` amber colour (`#f59e0b`), instead of an unfilled outline in the heading's text colour. Same visual language as the rest of the project's warning / power UI cues.
+
+### Fixed (Sizer Rack U / power: BMC switch now counted in non-disaggregated clusters)
+
+- **Rack-Unit estimate and Network Infrastructure Power on the Sizer now correctly include 1 × 1U BMC switch per rack** for Single-node, Standard Hyperconverged, and Rack-Aware Cluster deployments. Previously only the Disaggregated path counted the BMC switch; the other three paths counted only the ToR switches (or, in the single-node case, *no* switches at all), which under-counted rack U by 1U per rack and under-counted infrastructure power by 150W per rack. The 3D rack visualization and 2D rack diagram have always rendered a BMC switch in every rack — including single-node — so the headline numbers now match what's drawn.
+- **Per-cluster-type behaviour:**
+  - **Single-node:** rack U now `(2U node) + 1U BMC = 3U` (was `2U`); infra power `1 × 150W = 150W` (was `0W`).
+  - **Standard Hyperconverged (1 rack):** rack U now `(nodes × 2U) + 2 × ToR + 1 × BMC = +3U of switches` (was `+2U`); infra power `(2 × 250W) + (1 × 150W) = 650W` (was `500W`).
+  - **Rack-Aware (2 racks):** rack U now `(nodes × 2U) + 2 × (2 × ToR + 1 × BMC) = +6U of switches` (was `+2U`); infra power `2 × ((2 × 250W) + (1 × 150W)) = 1,300W` (was `500W`). Rack-Aware also now annotates the rack-U value with a small `(across 2 racks, incl. 4 × ToR, 2 × BMC switches)` caption underneath.
+  - **Disaggregated:** unchanged — already counted ToR + BMC + FC + Spine per rack.
+- **`#rack-units-label` text** now reflects the cluster type: *"Rack Units (est., incl. 1 × BMC switch)"* for single-node, *"… incl. 2 × ToR + 1 × BMC switch"* for Standard, and *"… incl. 4 × ToR + 2 × BMC switches across 2 racks"* for Rack-Aware. The static initial label in `sizer/index.html` was updated to match so the page renders correctly before any user interaction.
+- **Power-detail expander breakdown** (`#power-detail-content`) now lists ToR and BMC as separate line items for non-disaggregated clusters (e.g. *"ToR switches: 2 × 250W = 500W"* and *"BMC switches: 1 × 150W = 150W"*), and shows just *"BMC switch: 1 × 150W = 150W"* for single-node, instead of a single misleading *"ToR switches: 2 × 250W"* line.
+- **Verified end-to-end via Playwright:** Single-node = 3U / 904W total; Standard 2-node = 7U / 2,158W; Standard 4-node = 11U / 3,666W; Rack-Aware 4-node = 14U / 4,316W; Rack-Aware 8-node = 22U / 7,332W.
+
+### Fixed (Sizer Low Capacity: rack U / power now reflect compact edge hardware)
+
+- **Low Capacity rack-U and infrastructure power now match the 3D tabletop visualization** that has always rendered Low Capacity as compact appliances (not server-class 2U hardware) on a tabletop with at most one small edge switch.
+- **Networking model corrected** to match Microsoft's documented [networking requirements for low-capacity systems](https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-small-23h2?view=azloc-2604#networking-requirements): Low Capacity does **not** require a separate BMC switch (BMC traffic shares the same edge switch via an out-of-band management VLAN), and it uses **at most one** small edge switch shared by management, compute, and storage traffic. (2-node switchless and 3-node switchless variants need no switch at all, but the Sizer doesn't model the switchless sub-variant separately, so the conservative assumption is 1 edge switch for any multi-node Low Capacity deployment.)
+- **What changed in the headline numbers:**
+  - **Rack-U** is now `1U per appliance` (was `2U per node` — wrong for compact / non-server-class hardware) plus `1U` for the edge switch only when nodeCount > 1. No BMC switch counted.
+  - **Infra power** is now `50W` (1 × small managed L2/L3 edge switch, e.g. Cisco CBS350 class) for multi-node, or `0W` for single-node Low Capacity (standalone tabletop). Previously the Sizer was applying the 2 × ToR + 1 × BMC server-class assumption (`650W`) to Low Capacity, which is roughly **13× too high**.
+  - Net effect: Single-node Low Capacity = 1U / 0W infra (was 2U / 0W). 2-node = 3U / 50W infra (was 5U / 500W). 3-node = 4U / 50W infra (was 7U / 500W).
+- **`#rack-units-label`** now shows *"Hardware Footprint (est.)"* for Low Capacity, with the value reading *"Tabletop — 2 appliances + 1 switch"* / *"Tabletop — standalone appliance"* (no `U` figure) — Low Capacity is not a rack-mounted deployment, so the rack-unit count is no longer meaningful for it. For all rack-mounted cluster types (Single-node, Standard HCI, Rack-Aware, Disaggregated) the label is now simply *"Rack Units (est.)"* with the breakdown (e.g. *"1 rack: 4 × server node (2U each) + 2 × ToR (1U) + 1 × BMC (1U)."*) tucked behind a small expandable chevron next to the value.
+- **Power-detail expander breakdown** now shows *"Edge switch: 1 × 50W"* for multi-node Low Capacity instead of the (incorrect) *"ToR switches: 2 × 250W"* fallback line. The Assumptions section gained an explicit *"Low-capacity edge switch: ~50W"* entry alongside the existing ToR / BMC / Spine / FC numbers.
+- **Per-node power was already correct** because the Sizer derives node power from the Low-Capacity-constrained CPU/cores/memory/disk profile (single socket, ≤14 cores, 32–128 GB, no cache tier). The bug was only in the rack-U total and the network-infrastructure power add-on.
+
+### Changed (Sizer "Estimated Power, Heat & Rack Space" panel)
+
+- **Rack Units cell now uses an expandable disclosure** instead of stuffing the breakdown into the label / value text. Reported overlap on iPhone and desktop where the long *"(est., incl. 2 × ToR + 1 × BMC switch)"* label and the *"7U (across 2 racks, incl. 4 × ToR, 2 × BMC switches)"* caption HTML in the value were running into each other inside the flex row.
+- The cell now renders as: a clean label (*"Rack Units (est.)"*) and a clean value (*"7U"*), with a small blue chevron `▸` next to the value that expands to a single-line breakdown beneath (e.g. *"1 rack: 4 × server node (2U each) + 2 × ToR (1U) + 1 × BMC (1U)."*). The chevron is keyboard-accessible (`<button>` with `aria-expanded` / `aria-controls`), rotates on expand, and is hidden entirely for Low Capacity (where the breakdown isn't meaningful).
+- For Low Capacity, the cell label changes to **"Hardware Footprint (est.)"** and the value reads *"Tabletop — N appliances + 1 switch"* (or *"Tabletop — standalone appliance"* for 1 node). No `U` figure is shown because Low Capacity is not a rack-mounted deployment.
+
+---
+
 ## [0.20.67] - 2026-04-30
 
-Security and code-quality release. No end-user feature changes; this release tightens the build, dependency, and CI surface so future work is safer to land.
+Security and code-quality release. Tightens the build, dependency, and CI surface, plus a focused round of Sizer JSON-import fixes (#207) and ToR Switch page parity work.
 
 ### Fixed (#207 — Sizer: JSON Import of Azure Local Machine)
 
@@ -33,31 +82,6 @@ Security and code-quality release. No end-user feature changes; this release tig
 
 - **Stat tiles on the ToR Switch page now show real counts.** The page rendered the six-tile bar but every value stayed at `—` because `js/utils.js` (which defines `formatNumber()`) was not loaded; `fetchAndDisplayStats()` threw a silent `ReferenceError` before populating any tile. `switch-config/index.html` now loads `../js/utils.js` alongside `../js/analytics.js` and `../js/stats-bar.js`.
 - **Header layout aligned with Designer and Sizer.** The ToR Switch page previously had a plain `<h1>` with no logo, version, or What's New link. Restructured to use the shared `header-title-wrapper` / `header-logo-wrapper` / `header-version` markup plus the `whats-new-link` button (powered by `js/changelog.js`, now also loaded on this page). Title text follows the established convention: **ODIN ToR Switch for Azure Local**. The same disclaimer banner that appears on Designer and Sizer is now rendered above the header on this page too.
-
-### Fixed (Sizer mobile layout on iOS / narrow viewports)
-
-- **Sizer no longer overflows the viewport horizontally on iPhone and other narrow screens.** Reported on iPhone 16 Pro (390px logical width) and reproduced in Edge DevTools at 390px: the Workload Scenarios / Recommended Instance Configuration / Physical Node(s) form panels rendered ~614px wide on a 390px viewport, forcing horizontal scroll and visually misaligning the disclaimer banner, header title, stats bar, and 3D Hardware Visualization section against the form panels.
-- **Root cause** was an interaction between three things: (1) the `.sizer-layout` CSS Grid with `grid-template-columns: 1fr` on mobile — `1fr` resolves to `minmax(auto, 1fr)`, which honours the track's intrinsic min-content; (2) the CPU Generation `<select>` whose longest `<option>` text (e.g. `Intel® 4th Gen Xeon® (Sapphire Rapids)`) forced its intrinsic min-content width to ~353px; and (3) cascading flex containers (`.section-header-row`, `.config-row`, `.export-actions`) with no `flex-wrap` whose intrinsic widths combined with the wide `<select>` to push the panel track to ~614px. Designer doesn't hit this because its mobile layout is a single flex column with no `<select>` inside a CSS Grid track.
-- **Fixes applied to `sizer/sizer.css`:**
-  - `min-width: 0` on `.config-panel` / `.results-panel` — lets each grid track collapse to the actual `1fr` share instead of being held open by descendant min-content.
-  - `max-width: 100%` on `.config-row select` — the dropdown can't push wider than its parent column even if its longest option text would.
-  - `flex-wrap: wrap` on `.section-header-row`, `.config-row`, `.export-actions` — section titles, label/select pairs, and the export button row now wrap onto a second line on narrow screens instead of forcing the parent to grow.
-  - `flex: 1 1 auto` (was `flex: 1`) on `.export-actions .btn` — buttons keep their natural width when wrapped, instead of stretching to fill a single row that's wider than the viewport.
-  - Removed the mobile-only `padding: 0 25px` overrides on `<header>`, `.disclaimer-wrapper`, and `.sizer-footer` introduced in PR #170 (March 2026). Those overrides indented those three elements by an extra 25px on mobile *but did not extend to the form panels or 3D Hardware Visualization section*, which is why the title/disclaimer/footer didn't visually line up with the rest of the page on iPhone. All four now share the `.container`'s 16px mobile padding and align flush against the same edge — same approach Designer already uses (`css/style.css`).
-- **Verified** at viewport widths 390 / 768 / 1024 / 1400 px: zero horizontally-overflowing elements, single-column layout below 1025px, two-column layout at 1400px, and `documentElement.scrollWidth === viewport.clientWidth` at every tested width. All 1130 tests still pass.
-- **Lightning-bolt icon next to *Estimated Power, Heat & Rack Space per Instance*** is now rendered filled in the existing `--warning` amber colour (`#f59e0b`), instead of an unfilled outline in the heading's text colour. Same visual language as the rest of the project's warning / power UI cues.
-
-### Fixed (Sizer Rack U / power: BMC switch now counted in non-disaggregated clusters)
-
-- **Rack-Unit estimate and Network Infrastructure Power on the Sizer now correctly include 1 × 1U BMC switch per rack** for Single-node, Standard Hyperconverged, and Rack-Aware Cluster deployments. Previously only the Disaggregated path counted the BMC switch; the other three paths counted only the ToR switches (or, in the single-node case, *no* switches at all), which under-counted rack U by 1U per rack and under-counted infrastructure power by 150W per rack. The 3D rack visualization and 2D rack diagram have always rendered a BMC switch in every rack — including single-node — so the headline numbers now match what's drawn.
-- **Per-cluster-type behaviour:**
-  - **Single-node:** rack U now `(2U node) + 1U BMC = 3U` (was `2U`); infra power `1 × 150W = 150W` (was `0W`).
-  - **Standard Hyperconverged (1 rack):** rack U now `(nodes × 2U) + 2 × ToR + 1 × BMC = +3U of switches` (was `+2U`); infra power `(2 × 250W) + (1 × 150W) = 650W` (was `500W`).
-  - **Rack-Aware (2 racks):** rack U now `(nodes × 2U) + 2 × (2 × ToR + 1 × BMC) = +6U of switches` (was `+2U`); infra power `2 × ((2 × 250W) + (1 × 150W)) = 1,300W` (was `500W`). Rack-Aware also now annotates the rack-U value with a small `(across 2 racks, incl. 4 × ToR, 2 × BMC switches)` caption underneath.
-  - **Disaggregated:** unchanged — already counted ToR + BMC + FC + Spine per rack.
-- **`#rack-units-label` text** now reflects the cluster type: *"Rack Units (est., incl. 1 × BMC switch)"* for single-node, *"… incl. 2 × ToR + 1 × BMC switch"* for Standard, and *"… incl. 4 × ToR + 2 × BMC switches across 2 racks"* for Rack-Aware. The static initial label in `sizer/index.html` was updated to match so the page renders correctly before any user interaction.
-- **Power-detail expander breakdown** (`#power-detail-content`) now lists ToR and BMC as separate line items for non-disaggregated clusters (e.g. *"ToR switches: 2 × 250W = 500W"* and *"BMC switches: 1 × 150W = 150W"*), and shows just *"BMC switch: 1 × 150W = 150W"* for single-node, instead of a single misleading *"ToR switches: 2 × 250W"* line.
-- **Verified end-to-end via Playwright:** Single-node = 3U / 904W total; Standard 2-node = 7U / 2,158W; Standard 4-node = 11U / 3,666W; Rack-Aware 4-node = 14U / 4,316W; Rack-Aware 8-node = 22U / 7,332W. All 1,130 tests still pass.
 
 ### Added
 

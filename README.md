@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.20.67 - Available here: https://aka.ms/ODIN-for-AzureLocal
+## Version 0.21.01 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,51 +46,32 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.20.67 - Latest Release
-
-**Sizer — JSON Import fixes (#207)**
-- **CPU socket count is now respected when importing an Azure Local machine JSON.** Previously the sockets dropdown would always show **1 socket** even when the machine JSON reported `"numberOfCpuSockets": 2` or `"processorCount": "2"` — a heuristic was unconditionally overriding the imported value. The heuristic now only fires when the JSON value is missing or invalid.
-- **Total core count is now reconciled correctly** between `hardwareProfile.processors[].numberOfCores` (per-socket) and `detectedProperties.coreCount` (total). Real-world payloads that omit `hwProfile.numberOfCpuSockets` (e.g. ASEPRO2 machines) used to show 20 physical cores as `20 × 1 socket` instead of `10 × 2 sockets`. The parser now prefers `detectedProperties` when present and only falls back to multiplying per-socket cores by the socket count when it must.
-- **Single-node clusters are detected automatically.** When you set the machines count to `1` in the import preview, the Deployment Type is now forced to **Single Node** (Hyperconverged is not a valid 1-node configuration).
-- **Storage Resiliency now matches the cluster size.** Importing a 3-, 4-, or 16-node cluster now auto-selects **Three-way Mirror**; 2-node clusters keep **Two-way Mirror**. Previously the import always left the default `Two-way Mirror` value.
-- **New deployment-type prompt before applying the import.** The Parse & Preview screen now asks whether the cluster is **Hyperconverged** or **Rack-Aware Cluster**, so the Sizer initialises with the correct topology (Single Node still auto-applies if you set machines = 1).
-- **Rack-Aware Cluster machine-count validation.** Rack-Aware Cluster only supports **2, 4, 6, or 8 machines**. The import preview now shows an inline error and disables the Load button until the count is valid (or the user switches back to Hyperconverged).
-- **"Apply Configuration" renamed to "Load Cluster Configuration"** to better describe what the button does — it loads the parsed Azure Local Machine JSON into the Sizer's running configuration.
-- **Memory dropdown now preserves non-standard DIMM totals** via a custom option (mirrors how CPU cores work). An imported lab-VM with 80 GB no longer silently rounds to 64 GB — the dropdown gains an `80 GB (imported)` entry and the value is honoured by the sizing math.
-- **S2D capacity-disk count and size are now captured directly in the import preview.** Azure Local JSON does not expose the cluster's S2D data disks, so the preview now asks for them up-front (defaults: 4 × 3.84 TB) and applies them to both the single-tier and tiered capacity-disk selectors when the cluster is loaded — accurate sizing on first calculation rather than after manual fix-up.
-- **5.68 TB SSD added to all capacity-disk dropdowns** to match a customer-reported drive size sitting between the existing 3.84 TB and 7.68 TB options.
-- **Re-clicking *Parse & Preview* no longer resets your in-preview selections.** If you have already parsed the JSON once and customised the machine count, deployment type (Hyperconverged / Rack-Aware), or S2D disk count / size, an accidental re-click of the button now preserves those values instead of silently snapping them back to the defaults.
-- **Test coverage added**: 30 new regression tests under `tests/index.html` ("Issue #207") cover all of the above plus boundary conditions (1, 2, 3, 4, 5, 8 nodes; Hyperconverged vs Rack-Aware; valid/invalid `numberOfCpuSockets`; ASEPRO2-shaped JSON; 80 GB lab-VM memory; custom memory option injection; S2D disk-count and disk-size apply path including 5.68 TB). An additional integration test ("JSON import → Configure in Designer handoff") verifies that values from imported JSON correctly flow through the Sizer DOM into the Designer payload.
+### 🎉 Version 0.21.01 - Latest Release
 
 **Sizer — Mobile layout fix (iOS / narrow viewports)**
 - **Sizer no longer overflows horizontally on iPhone and other narrow screens.** Reported on iPhone 16 Pro (390px) and reproduced in Edge DevTools at 390px: the form panels rendered ~614px wide on a 390px viewport, forcing horizontal scroll and visually misaligning the disclaimer banner, page title, stats bar, and 3D Hardware Visualization section against the form columns.
-- **Root cause**: the `.sizer-layout` CSS Grid (`1fr` = `minmax(auto, 1fr)`) was being held open by the CPU Generation `<select>`'s intrinsic min-content width — browsers size `<select>` to fit its longest `<option>` text, and "Intel® 4th Gen Xeon® (Sapphire Rapids)" alone is ~353px wide. Compounded by flex containers (`.section-header-row`, `.config-row`, `.export-actions`) that didn't wrap on narrow screens. Designer doesn't hit this because its mobile layout is a single flex column with no `<select>` inside a CSS Grid track.
-- **Fixes applied to `sizer/sizer.css`**: `min-width: 0` on `.config-panel` / `.results-panel` (lets the grid track collapse to the actual `1fr` share); `max-width: 100%` on `.config-row select` (the dropdown can't push wider than its column); `flex-wrap: wrap` on the three flex rows above; removed the mobile-only `padding: 0 25px` indents on `<header>`, `.disclaimer-wrapper`, `.sizer-footer` from PR #170 — those didn't extend to the form panels, which is why the title/disclaimer/footer never lined up with the rest of the page on iPhone. All four now share the `.container`'s 16px mobile padding (same approach Designer uses).
-- **Verified** at viewport widths 390 / 768 / 1024 / 1400 px: zero horizontally-overflowing elements; single-column layout below 1025px; two-column layout at 1400px; `documentElement.scrollWidth === viewport.clientWidth` at every tested width. All 1130 tests still pass.
-- **Lightning-bolt icon next to *Estimated Power, Heat & Rack Space per Instance*** is now rendered filled in the existing `--warning` amber colour (`#f59e0b`), instead of an unfilled outline in the heading's text colour. Same visual language as the rest of the project's warning / power UI cues.
+- **Root cause**: the `.sizer-layout` CSS Grid (`1fr` = `minmax(auto, 1fr)`) was being held open by the CPU Generation `<select>`'s intrinsic min-content width — browsers size `<select>` to fit its longest `<option>` text, and "Intel® 4th Gen Xeon® (Sapphire Rapids)" alone is ~353px wide. Compounded by flex containers (`.section-header-row`, `.config-row`, `.export-actions`) that didn't wrap on narrow screens.
+- **Fixes applied to `sizer/sizer.css`**: `min-width: 0` on `.config-panel` / `.results-panel`; `max-width: 100%` on `.config-row select`; `flex-wrap: wrap` on the three flex rows above; removed the mobile-only `padding: 0 25px` indents on `<header>`, `.disclaimer-wrapper`, `.sizer-footer` from PR #170. All four now share the `.container`'s 16px mobile padding (same approach Designer uses).
+- **Verified** at viewport widths 390 / 768 / 1024 / 1400 px: zero horizontally-overflowing elements; single-column layout below 1025px; two-column layout at 1400px. All 1130 tests still pass.
+- **Lightning-bolt icon next to *Estimated Power, Heat & Rack Space per Instance*** is now rendered filled in the existing `--warning` amber colour (`#f59e0b`), instead of an unfilled outline in the heading's text colour.
 
 **Sizer Rack U / power: BMC switch now counted in non-disaggregated clusters**
 - **Rack-Unit estimate and Network Infrastructure Power on the Sizer now correctly include 1 × 1U BMC switch per rack** for Single-node, Standard Hyperconverged, and Rack-Aware Cluster deployments. The 3D rack visualization and 2D rack diagram have always rendered a BMC switch in every rack — including single-node — so the headline numbers now match what's drawn. Previously only the Disaggregated path counted the BMC; the other three paths under-counted rack U by 1U per rack and infrastructure power by 150W per rack.
-- **Per-cluster-type behaviour**: Single-node = 3U / 150W infra (was 2U / 0W); Standard Hyperconverged (1 rack) = `nodes × 2U + 3U switches` and 650W infra (was `+2U` / 500W); Rack-Aware (2 racks) = `nodes × 2U + 6U switches` and 1,300W infra (was `+2U` / 500W); Disaggregated unchanged. Rack-Aware also annotates its rack-U value with `(across 2 racks, incl. 4 × ToR, 2 × BMC switches)`.
+- **Per-cluster-type behaviour**: Single-node = 3U / 150W infra (was 2U / 0W); Standard Hyperconverged (1 rack) = `nodes × 2U + 3U switches` and 650W infra (was `+2U` / 500W); Rack-Aware (2 racks) = `nodes × 2U + 6U switches` and 1,300W infra (was `+2U` / 500W); Disaggregated unchanged.
 - **Power-detail expander** now lists ToR and BMC as separate line items for non-disaggregated clusters, instead of a single misleading *"ToR switches: 2 × 250W"* line. Single-node shows just *"BMC switch: 1 × 150W"*.
 - **Verified end-to-end via Playwright** at all five cluster shapes; all 1,130 tests still pass.
 
-**Security & code-quality release**
-- **No end-user feature changes** in this section — it tightens the build, dependency, and CI surface so future work is safer to land.
-- **All third-party JS libraries vendored locally** (`vendor/html2canvas-1.4.1.min.js`, `vendor/jspdf-4.2.1.umd.min.js`, `vendor/three-0.128.0.min.js`, `vendor/three-OrbitControls-0.128.0.js`). The Designer, Sizer, and Configuration Report pages no longer fetch any runtime JavaScript from `cdn.jsdelivr.net`. Firebase analytics (loaded from `gstatic.com`) is unchanged. Offline / air-gapped users no longer need an internet round-trip for the rack 3D viewer or PDF export.
-- **CSS lint added to CI** (`stylelint` with `custom-property-no-missing-var-function` and `color-no-invalid-hex`). Catches the bug class that surfaced earlier this cycle (undefined CSS custom properties).
-- **CodeQL security scanning** workflow added (`.github/workflows/codeql.yml`) — runs `security-and-quality` queries on every PR and weekly.
-- **`npm audit --audit-level=high`** added as a CI gate so new high-severity advisories block merges. `basic-ftp` override bumped to `>=5.3.1` to clear advisory `GHSA-rp42-5vxx-qpwr`. `npm audit` is currently clean.
-- **PPTX export smoke test** added (`scripts/smoke-test-pptx.js`) — runs in CI to verify the PowerPoint export produces a valid ZIP / OOXML file end-to-end.
-- **Code-quality cleanup**: replaced two silent `catch (e) {}` blocks with `console.warn` (`switch-config/switch-config.js`) and explanatory comments (`report/report.js`); replaced deprecated CSS keywords (`word-break: break-word`, `page-break-inside: avoid`) with their modern equivalents; removed the unreferenced `docs/outbound-connectivity/styles_backup.css`.
-- **ESLint convention documented** in `docs/ESLINT_CONFIG_NOTES.md`: every empty `catch` must include an inline comment explaining why the error is safe to swallow.
-- **Anonymous usage counters added to the ToR Switch Configuration page** — Firebase counters (`switchConfigGenerated`, `qosAuditAnalyzed`, `pageViews`) increment when **Generate Switch Configurations** or **Analyze QoS Configuration** complete successfully, and on page view. Increment-only via Firebase server-side `increment(1)`; no switch-config content, IPs, hostnames, or pasted running-config text is ever transmitted.
-- **Two new stat tiles** — **ToR Switch Configs** and **ToR Switch QoS Audits** — surface the new counters next to the existing Visitors / Designs / Sizes / ARM Deployments tiles on the Designer, Sizer, and (now) ToR Switch Configuration pages. Six tiles are arranged 3+3 on desktop and 2×3 on mobile.
-- **Shared `js/stats-bar.js` component** renders the six-tile counter strip from a single source on every page that needs it; eliminates three drifted hand-maintained copies of the same markup.
-- **ToR Switch tab added to the shared top nav** (`js/nav.js`). The Designer, Sizer, and ToR Switch Configuration pages now show a consistent `Designer | Sizer | ToR Switch | Knowledge` tab bar — the three "doing" tabs sit together first, with the reference / docs tab last. The old one-off `page-header-bar` on the switch-config page has been removed.
-- **ToR Switch Configuration page — header layout matches Designer and Sizer.** The page now uses the same `header-title-wrapper` / `header-logo-wrapper` / `header-version` markup as the Designer and Sizer, including the ODIN logo, version label, and What's New link. The same disclaimer banner is rendered above the header.
-- **ToR Switch Configuration page — stat tiles now show real counts.** The page rendered the six-tile bar but every value stayed at `—` because `js/utils.js` (which defines `formatNumber()`) was not loaded; `fetchAndDisplayStats()` threw a silent `ReferenceError` before populating any tile. The page now loads `../js/utils.js` alongside `../js/analytics.js` and `../js/stats-bar.js`, so all six counters populate correctly.
-- **ToR Switch page now has a Quick Start picker.** Opening the ToR Switch Configuration page without first using the Designer used to show only a "No Designer Data Found" stub — the entire generator was inaccessible. The page now shows a prominent **Quick Start** panel with a *Deployment Type* dropdown (the same five canonical scenarios as the QoS Validator: HCI All-Traffic Converged, HCI Storage Switched, HCI Storage Switchless, Disaggregated FC SAN, Disaggregated iSCSI) plus a *Single Rack / Rack-Aware* toggle. Click **Use These Defaults** and the full generator opens with sensible illustrative VLAN IDs, IPs, and hostnames pre-filled — every field stays editable, and a banner with a **Change Deployment Type** button lets you swap profiles without losing your hardware-model picks. When you arrive from the Designer instead, the dropdown auto-pre-selects to match so the picker is in sync if you ever reopen it.
+**Sizer — Low Capacity: Rack U / Power now reflect compact edge hardware**
+- **Low Capacity rack-U and infrastructure power now match the 3D tabletop visualization.** Low Capacity is an edge / compact form-factor deployment — not server-class 2U hardware — and per [Microsoft's networking requirements for low-capacity systems](https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-small-23h2?view=azloc-2604#networking-requirements), it does **not** require a separate BMC switch and uses at most **1 small edge switch** shared by management, compute, and storage traffic.
+- **Cell relabelled.** Low Capacity is not a rack-mounted deployment, so the panel now shows **"Hardware Footprint (est.)"** with a value of *"Tabletop — N appliances + 1 switch"* (or *"Tabletop — standalone appliance"* for 1 node) instead of an inappropriate `U` figure.
+- **Infra power corrected.** 0W for single-node, 50W for multi-node (1 small managed L2/L3 edge switch). Previously the Sizer was applying the 2 × ToR + 1 × BMC server-class assumption (650W) to Low Capacity — roughly 13× too high.
+- **Edge-switch power assumption:** ~50W. The *Power calculations, verbose information* expander now shows `Edge switch: 1 × 50W` for multi-node Low Capacity instead of the (incorrect) *"ToR switches: 2 × 250W"*.
+- **Note:** Low Capacity per-node power was already accurate because the Sizer derives node power from the constrained CPU/cores/memory/disk profile — the bug was only in the rack-U total and the network-infrastructure power add-on.
+
+**Sizer — Rack Units cell now uses an expandable breakdown (no more text overlap)**
+- **The Rack Units cell in the Estimated Power, Heat & Rack Space panel no longer overlaps text.** The earlier label (*"Rack Units (est., incl. 2 × ToR + 1 × BMC switch)"*) and inline value caption (*"7U (across 2 racks, incl. 4 × ToR, 2 × BMC switches)"*) were running into each other inside the flex row on both desktop and iPhone.
+- **New layout:** a clean label (*"Rack Units (est.)"*) and a clean value (*"7U"*), with a small blue chevron `▸` next to the value that expands to show the breakdown beneath the value (e.g. *"1 rack: 4 × server node (2U each) + 2 × ToR (1U) + 1 × BMC (1U)."*).
+- **Keyboard-accessible** (`<button>` with `aria-expanded` / `aria-controls`), rotates on expand, and is hidden entirely for Low Capacity where the breakdown isn't meaningful.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -101,7 +82,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 ### Quick Start
 
 1. **Open the ODIN designer wizard**:
-   - Open in a modern web browser, navigate to ODIN online version: https://aka.ms/ODIN-for-AzureLocal
+   - Open in a modern web browser, navigate to ODIN online version: https://aka.ms/ODIN
    - For offline or local access, download the source code of this repo, to run a local web server: `PowerShell.exe -ExecutionPolicy Bypass -file .\tests\serve.ps1` (then open address http://localhost:5500 using browser)
 
 2. **Unsure about hardware? Start with the Sizer**:
@@ -413,8 +394,8 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.20.67  
-**Last Updated**: April 2026  
+**Version**: 0.21.01  
+**Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
 ---
