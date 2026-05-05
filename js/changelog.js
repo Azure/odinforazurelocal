@@ -74,7 +74,18 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
-                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛡️ Security &amp; Code-Quality Release</h4>
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">� Sizer — Mobile layout fix (iOS / narrow viewports)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Sizer no longer overflows horizontally on iPhone and other narrow screens.</strong> Reported on iPhone 16 Pro (390px) and reproduced in Edge DevTools at 390px: form panels rendered ~614px wide on a 390px viewport, forcing horizontal scroll and visually misaligning the disclaimer banner, page title, stats bar, and 3D Hardware Visualization section against the form columns.</li>
+                        <li><strong>Root cause</strong>: the <code>.sizer-layout</code> CSS Grid (<code>1fr</code> = <code>minmax(auto, 1fr)</code>) was being held open by the CPU Generation <code>&lt;select&gt;</code>'s intrinsic min-content — browsers size <code>&lt;select&gt;</code> to fit its longest <code>&lt;option&gt;</code> text, and "Intel® 4th Gen Xeon® (Sapphire Rapids)" alone is ~353px wide. Compounded by flex rows that didn't wrap. Designer doesn't hit this because its mobile layout is a single flex column with no <code>&lt;select&gt;</code> inside a CSS Grid track.</li>
+                        <li><strong>Fixes applied</strong> in <code>sizer/sizer.css</code>: <code>min-width: 0</code> on <code>.config-panel</code> / <code>.results-panel</code>; <code>max-width: 100%</code> on <code>.config-row select</code>; <code>flex-wrap: wrap</code> on <code>.section-header-row</code>, <code>.config-row</code>, <code>.export-actions</code>; removed the mobile-only <code>padding: 0 25px</code> overrides on <code>&lt;header&gt;</code> / <code>.disclaimer-wrapper</code> / <code>.sizer-footer</code> introduced in PR #170 — those indented those three elements by an extra 25px on mobile but didn't extend to the form panels or 3D visualization section, which is why the title/disclaimer/footer didn't line up with the rest of the page on iPhone.</li>
+                        <li><strong>Verified</strong> at 390 / 768 / 1024 / 1400 px viewport widths: zero overflowing elements; <code>documentElement.scrollWidth === viewport.clientWidth</code> at every tested width. All 1130 tests still pass.</li>
+                        <li><strong>Lightning-bolt icon next to <em>Estimated Power, Heat &amp; Rack Space per Instance</em></strong> is now filled in the existing <code>--warning</code> amber colour (<code>#f59e0b</code>) instead of an unfilled outline in the heading's text colour.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">�🛡️ Security &amp; Code-Quality Release</h4>
                     <p style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 13px;">No end-user feature changes. Tightens the build, dependency, and CI surface.</p>
                     <ul style="margin: 0; padding-left: 20px;">
                         <li><strong>All third-party JS vendored locally</strong> (<code>html2canvas</code>, <code>jsPDF</code>, <code>three.js</code>, <code>OrbitControls</code>) — Designer, Sizer, and Configuration Report no longer fetch any runtime JavaScript from <code>cdn.jsdelivr.net</code>. Better for offline / air-gapped use.</li>
