@@ -48,7 +48,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.21.01 - Latest Release
 
-**Sizer — Mobile layout fix (iOS / narrow viewports)**
+> Closes [#210 — Sizer: Formatting issue when using a mobile device to view sizer](https://github.com/Azure/odinforazurelocal/issues/210).
+
+**Sizer — Mobile layout fix (iOS / narrow viewports)** ([#210](https://github.com/Azure/odinforazurelocal/issues/210))
 - **Sizer no longer overflows horizontally on iPhone and other narrow screens.** Reported on iPhone 16 Pro (390px) and reproduced in Edge DevTools at 390px: the form panels rendered ~614px wide on a 390px viewport, forcing horizontal scroll and visually misaligning the disclaimer banner, page title, stats bar, and 3D Hardware Visualization section against the form columns.
 - **Root cause**: the `.sizer-layout` CSS Grid (`1fr` = `minmax(auto, 1fr)`) was being held open by the CPU Generation `<select>`'s intrinsic min-content width — browsers size `<select>` to fit its longest `<option>` text, and "Intel® 4th Gen Xeon® (Sapphire Rapids)" alone is ~353px wide. Compounded by flex containers (`.section-header-row`, `.config-row`, `.export-actions`) that didn't wrap on narrow screens.
 - **Fixes applied to `sizer/sizer.css`**: `min-width: 0` on `.config-panel` / `.results-panel`; `max-width: 100%` on `.config-row select`; `flex-wrap: wrap` on the three flex rows above; removed the mobile-only `padding: 0 25px` indents on `<header>`, `.disclaimer-wrapper`, `.sizer-footer` from PR #170. All four now share the `.container`'s 16px mobile padding (same approach Designer uses).
@@ -63,7 +65,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 **Sizer — Low Capacity: Rack U / Power now reflect compact edge hardware**
 - **Low Capacity rack-U and infrastructure power now match the 3D tabletop visualization.** Low Capacity is an edge / compact form-factor deployment — not server-class 2U hardware — and per [Microsoft's networking requirements for low-capacity systems](https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-small-23h2?view=azloc-2604#networking-requirements), it does **not** require a separate BMC switch and uses at most **1 small edge switch** shared by management, compute, and storage traffic.
-- **Cell relabelled.** Low Capacity is not a rack-mounted deployment, so the panel now shows **"Hardware Footprint (est.)"** with a value of *"Tabletop — N appliances + 1 switch"* (or *"Tabletop — standalone appliance"* for 1 node) instead of an inappropriate `U` figure.
+- **Cell relabelled.** Low Capacity is not a rack-mounted deployment, so the panel now shows **"Hardware Footprint"** with a value of *"Tabletop — N appliances + 1 switch"* (or *"Tabletop — standalone appliance"* for 1 node) instead of an inappropriate `U` figure. Label and value stack vertically when the value text is long, so they no longer collide.
 - **Infra power corrected.** 0W for single-node, 50W for multi-node (1 small managed L2/L3 edge switch). Previously the Sizer was applying the 2 × ToR + 1 × BMC server-class assumption (650W) to Low Capacity — roughly 13× too high.
 - **Edge-switch power assumption:** ~50W. The *Power calculations, verbose information* expander now shows `Edge switch: 1 × 50W` for multi-node Low Capacity instead of the (incorrect) *"ToR switches: 2 × 250W"*.
 - **Note:** Low Capacity per-node power was already accurate because the Sizer derives node power from the constrained CPU/cores/memory/disk profile — the bug was only in the rack-U total and the network-infrastructure power add-on.
@@ -72,6 +74,15 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **The Rack Units cell in the Estimated Power, Heat & Rack Space panel no longer overlaps text.** The earlier label (*"Rack Units (est., incl. 2 × ToR + 1 × BMC switch)"*) and inline value caption (*"7U (across 2 racks, incl. 4 × ToR, 2 × BMC switches)"*) were running into each other inside the flex row on both desktop and iPhone.
 - **New layout:** a clean label (*"Rack Units (est.)"*) and a clean value (*"7U"*), with a small blue chevron `▸` next to the value that expands to show the breakdown beneath the value (e.g. *"1 rack: 4 × server node (2U each) + 2 × ToR (1U) + 1 × BMC (1U)."*).
 - **Keyboard-accessible** (`<button>` with `aria-expanded` / `aria-controls`), rotates on expand, and is hidden entirely for Low Capacity where the breakdown isn't meaningful.
+
+**Sizer — "Capacity Usage for Workload" now matches the Low Capacity max-3 limit**
+- Selecting **Low Capacity** now relabels the top progress bar to *"Azure Local low capacity instance size"* and caps the machine count at **3** (e.g. `2 / 3`) instead of falling through to the Hyperconverged default of `/ 16`. Per Microsoft's [system requirements for low-capacity Azure Local](https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements), Low Capacity supports 1, 2, or 3 nodes only.
+- Other cluster types are unchanged: Standard HCI = `/ 16`, Rack-Aware = `/ 8`, Single-node = `/ 1`, Disaggregated = `/ 64`.
+
+**Sizer — Disaggregated rack-U: external SAN appliance no longer counted**
+- **The Disaggregated Rack Units total no longer includes the external SAN storage appliance.** SAN form factor varies wildly by vendor (Pure Storage, NetApp, Dell EMC PowerStore, etc.) and is the customer's choice — counting a fixed `5U per rack` was misleading. This now mirrors the existing treatment of SAN power, which has always been excluded from the headline Watts figure with a *"consult your SAN vendor"* note.
+- **Effect** (4-node Disaggregated across 2 racks): iSCSI was `24U` → now `14U` (`8U nodes + 4U ToR + 2U BMC`); FC SAN was `28U` → now `18U` (`+ 4U FC`). Server nodes, ToR, BMC, and FC switches are still counted.
+- **Expandable breakdown** now ends with: *"External SAN storage appliance(s) are not counted — consult your SAN vendor for actual rack-U."*
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 

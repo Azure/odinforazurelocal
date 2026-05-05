@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Minor release. Fixes Sizer mobile layout on iPhone / narrow viewports, and corrects Rack-Unit and Network Infrastructure Power calculations to match what's actually rendered in the 3D rack visualization across **every** Sizer cluster type — Single-node, Hyperconverged, Rack-Aware, Disaggregated, and Low Capacity.
 
-### Fixed (Sizer mobile layout on iOS / narrow viewports)
+### Fixed (#210 — Sizer mobile layout on iOS / narrow viewports)
 
 - **Sizer no longer overflows the viewport horizontally on iPhone and other narrow screens.** Reported on iPhone 16 Pro (390px logical width) and reproduced in Edge DevTools at 390px: the Workload Scenarios / Recommended Instance Configuration / Physical Node(s) form panels rendered ~614px wide on a 390px viewport, forcing horizontal scroll and visually misaligning the disclaimer banner, header title, stats bar, and 3D Hardware Visualization section against the form panels.
 - **Root cause** was an interaction between three things: (1) the `.sizer-layout` CSS Grid with `grid-template-columns: 1fr` on mobile — `1fr` resolves to `minmax(auto, 1fr)`, which honours the track's intrinsic min-content; (2) the CPU Generation `<select>` whose longest `<option>` text (e.g. `Intel® 4th Gen Xeon® (Sapphire Rapids)`) forced its intrinsic min-content width to ~353px; and (3) cascading flex containers (`.section-header-row`, `.config-row`, `.export-actions`) with no `flex-wrap` whose intrinsic widths combined with the wide `<select>` to push the panel track to ~614px. Designer doesn't hit this because its mobile layout is a single flex column with no `<select>` inside a CSS Grid track.
@@ -52,7 +52,23 @@ Minor release. Fixes Sizer mobile layout on iPhone / narrow viewports, and corre
 
 - **Rack Units cell now uses an expandable disclosure** instead of stuffing the breakdown into the label / value text. Reported overlap on iPhone and desktop where the long *"(est., incl. 2 × ToR + 1 × BMC switch)"* label and the *"7U (across 2 racks, incl. 4 × ToR, 2 × BMC switches)"* caption HTML in the value were running into each other inside the flex row.
 - The cell now renders as: a clean label (*"Rack Units (est.)"*) and a clean value (*"7U"*), with a small blue chevron `▸` next to the value that expands to a single-line breakdown beneath (e.g. *"1 rack: 4 × server node (2U each) + 2 × ToR (1U) + 1 × BMC (1U)."*). The chevron is keyboard-accessible (`<button>` with `aria-expanded` / `aria-controls`), rotates on expand, and is hidden entirely for Low Capacity (where the breakdown isn't meaningful).
-- For Low Capacity, the cell label changes to **"Hardware Footprint (est.)"** and the value reads *"Tabletop — N appliances + 1 switch"* (or *"Tabletop — standalone appliance"* for 1 node). No `U` figure is shown because Low Capacity is not a rack-mounted deployment.
+- For Low Capacity, the cell label changes to **"Hardware Footprint"** (no "(est.)" suffix — the value text already conveys "tabletop / approximate") and the value reads *"Tabletop — N appliances + 1 switch"* (or *"Tabletop — standalone appliance"* for 1 node). No `U` figure is shown because Low Capacity is not a rack-mounted deployment.
+- **Low Capacity Hardware Footprint cell now stacks the label and value vertically** when the value text is too long for a one-row layout (e.g. *"Tabletop — 3 appliances + 1 switch"*). Reported on desktop and iPhone where the label *"Hardware Footprint (est.)"* and the value were colliding inside the flex row. Other cluster types keep the compact single-row layout (label ↔ `7U ▸`).
+
+### Changed (Sizer "Capacity Usage for Workload" — Low Capacity)
+
+- **The Capacity Usage progress bar now matches the Low Capacity deployment's actual maximum.** Selecting Low Capacity now relabels the top bar to **"Azure Local low capacity instance size"** and caps the machine count at **3** (e.g. `2 / 3`) instead of falling through to the Hyperconverged default of `/ 16`. Per Microsoft's [system requirements for low-capacity Azure Local](https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements), Low Capacity supports 1, 2, or 3 nodes only.
+- Other cluster types are unchanged: Standard HCI = `/ 16`, Rack-Aware = `/ 8`, Single-node = `/ 1`, Disaggregated = `/ 64`.
+
+### Fixed (Sizer Disaggregated rack-U: external SAN appliance no longer counted)
+
+- **The Disaggregated rack-U total no longer includes the external SAN storage appliance.** SAN form factor varies wildly by vendor (Pure Storage, NetApp, Dell EMC PowerStore, etc.) and is the customer's choice — counting a fixed `5U per rack` was misleading. This now mirrors the existing treatment of SAN power, which has always been excluded from the headline Watts figure with a *"consult your SAN vendor"* note.
+- **Effect** (4-node Disaggregated across 2 racks): iSCSI was `24U` → now `14U` (`8U nodes + 4U ToR + 2U BMC`); FC SAN was `28U` → now `18U` (`+ 4U FC`). Server nodes, ToR, BMC, and FC switches are still counted.
+- **Expandable breakdown** now ends with: *"External SAN storage appliance(s) are not counted — consult your SAN vendor for actual rack-U."*
+
+### Closes
+
+- [#210 — Sizer: Formatting issue when using a mobile device to view sizer](https://github.com/Azure/odinforazurelocal/issues/210)
 
 ---
 
