@@ -2056,6 +2056,16 @@ function setDisaggDropHandlers(el, zoneKey, confirmed) {
 function moveDisaggAdapter(portId, targetZone) {
     if (!state.disaggAdapterMapping) return;
 
+    // CodeQL js/remote-property-injection (#18): portId originates from
+    // e.dataTransfer.getData('text/plain') (drag-drop) which is
+    // user-controlled. Validate it against the known port list before using
+    // it as an object key, so an attacker can't write arbitrary properties
+    // (including '__proto__') onto state.disaggAdapterMapping.
+    if (typeof getDisaggPortList === 'function') {
+        const _validIds = getDisaggPortList().map(function (p) { return p.id; });
+        if (_validIds.indexOf(portId) === -1) return;
+    }
+
     // Enforce maxAdapters — don't allow dropping into a full zone
     if (targetZone !== 'pool') {
         const zones = getDisaggIntentZones();

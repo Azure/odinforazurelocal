@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.02] - 2026-05-05
+
+Security- and code-quality-hardening release. Resolves all 12 open CodeQL code-scanning alerts on the repository (1 × `js/xss-through-dom`, 11 × `js/remote-property-injection`) and the 8 open AI-generated Code Quality findings on the *Code quality → AI findings* tab. No user-visible behaviour changes; all 1,130 tests still pass.
+
+### Security (CodeQL alerts cleared)
+
+- **`js/xss-through-dom` — Sizer JSON Import preview (alert #15, `sizer/sizer.js:6797`).** The Sizer's *Parse & Preview* path for an Azure Local machine JSON paste (`parseAndPreviewClusterJSON()`) now explicitly coerces every JSON-derived numeric value (`coreCount`, `coresPerSocket`, `sockets`, `memoryGiB`) to `Number()` immediately before they are interpolated into the preview HTML. This makes the type-narrowing barrier explicit on the data-flow path from `<textarea>.value` → `JSON.parse(...)` → `previewDiv.innerHTML`. String values were already escaped via `escapeHtml()`; this closes the remaining unsanitised-numeric-interpolation path that CodeQL was flagging.
+- **`js/remote-property-injection` — eleven sites where the code wrote to a JS object using a key derived from user-supplied data (alerts #16–#26)** have been hardened against prototype-chain pollution. In ten of the eleven cases the receiving dictionary is now created via `Object.create(null)` — a prototype-less object, so a key like `__proto__` / `constructor` / `toString` can no longer reach `Object.prototype`:
+  - `report/pptx-export.js` — `bySpeed` (line 1775) and `bySpeed2` (line 1798) NIC-speed dictionaries (alerts #16, #17).
+  - `report/report.js` — `groupsByZoneD` / `zoneLeafCountersD` for Disaggregated NIC-zone grouping (lines 2370, 2371, 2374; alerts #19–#21); `buckets` for custom-intent grouping (line 3529; alert #22); `buckets` for hyperconverged adapter grouping (line 3577; alert #23); `groupsByZone` / `zoneLeafCounters` for Hyperconverged NIC-zone grouping (lines 4326, 4327, 4330; alerts #24–#26).
+  - `js/disaggregated.js` — `state.disaggAdapterMapping[portId] = targetZone;` at `moveDisaggAdapter()` (line 2076; alert #18) is reached via a drag-and-drop event whose `portId` originates from `e.dataTransfer.getData('text/plain')` and is therefore user-controlled. Because `state.disaggAdapterMapping` is a long-lived shared object that can't be swapped to `Object.create(null)`, `portId` is now validated against the known port list (`getDisaggPortList()`) before being used as a property key — any unknown key is silently rejected.
+- **No functional changes.** These are defence-in-depth hardenings against a class of vulnerability that wasn't previously exploitable through the UI (the writes happened on application-controlled state, not arbitrary attacker input), but the data-flow paths CodeQL was flagging (paste-JSON-into-Sizer-import, drag-drop disaggregated adapter pill) had no allow-listing on the property key — so the alerts are now genuinely cleared rather than dismissed.
+
+### Changed (AI Code Quality findings cleared)
+
+- **`js/stats-bar.js`** — the em-dash counter placeholder is now a named `STAT_PLACEHOLDER` constant at the top of the IIFE instead of an inline `'\u2014'` unicode escape inside the template literal, so the intent ("empty / not-yet-loaded counter") is named.
+- **`scripts/smoke-test-pptx.js`** — the *PPTX size too small* error message now reads `expected > 50 KB (template + cover + 11 sections + closing slide)`, matching the file-header comment instead of the older *"13 slides"* phrasing.
+- **`switch-config/index.html`** — removed the stray space before `>` in the *Arizona (MST, no DST)* `<option>` tag so its formatting matches every other timezone option in the dropdown.
+- **`tools/demos/generate-disagg-fc-deck.spec.js`** — the `page.on('dialog')` handler now `console.warn`s with the `[PPTX generation]` prefix when `d.accept()` rejects (instead of silently swallowing), matching the prefix already used elsewhere in the file; the *"Saved ... bytes"* line was also reformatted with the same prefix.
+- **`tools/demos/odin-full-walkthrough.spec.js`** — `slowMo` is now configurable via the `ODIN_DEMO_SLOWMO` env var with a default of 120 ms (was hard-coded 80 ms), so the demo records cleanly on slower hardware. The two `button.workload-type-btn` selectors that filtered by visible text (*"AKS Arc Clusters"*, *"Azure Local VMs"*) now use the existing stable `onclick="showAddWorkloadModal('aks')"` / `'vm'` attributes instead, so the demo doesn't break if the button copy changes. (Production HTML was deliberately not modified to add `data-testid` attributes — `tools/` is excluded from publication and the existing `onclick` markup is already a stable selector.)
+
+### Note on AI Code Quality scope
+
+- **No suggestions were dismissed**; the implementations differ from the verbatim AI suggestions in two narrow places where adopting them as-is would have over-engineered single-use tooling code: the `STAT_PLACEHOLDER` constant uses the existing `\u2014` escape for byte-equivalent diff (no risk of a stray copy-paste em-dash in source), and the demo selector switch uses `[onclick*="'aks'"]` rather than adding `data-testid` attributes to `sizer/index.html`. Net effect on the AI Code Quality tab is the same — all 8 findings cleared without modifying production HTML for tooling-only benefit.
+
+---
+
 ## [0.21.01] - 2026-05-05
 
 Minor release. Fixes Sizer mobile layout on iPhone / narrow viewports, and corrects Rack-Unit and Network Infrastructure Power calculations to match what's actually rendered in the 3D rack visualization across **every** Sizer cluster type — Single-node, Hyperconverged, Rack-Aware, Disaggregated, and Low Capacity.

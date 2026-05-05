@@ -1768,7 +1768,10 @@
             }
             out.push('NICs per node: ' + keys.length + ' data ports + 1 BMC');
 
-            var bySpeed = {};
+            // CodeQL js/remote-property-injection (#17): use a prototype-less
+            // object so user-controlled NIC speed strings can't pollute
+            // Object.prototype via the dictionary key.
+            var bySpeed = Object.create(null);
             var rdmaCount = 0;
             keys.forEach(function (k) {
                 var sp = (pc[k].speed) || (s.disaggPortSpeeds && s.disaggPortSpeeds[k.split('_')[0]]) || 'unknown';
@@ -1791,7 +1794,8 @@
             return out;
         }
         out.push('NICs per node: ' + cfg.length);
-        var bySpeed2 = {};
+        // CodeQL js/remote-property-injection (#16): prototype-less dict.
+        var bySpeed2 = Object.create(null);
         var rdma = 0;
         cfg.forEach(function (p) {
             var sp = (p && p.speed) || 'unknown';

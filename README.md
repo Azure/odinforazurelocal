@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.01 - Available here: https://aka.ms/ODIN
+## Version 0.21.02 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,43 +46,27 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.01 - Latest Release
+### 🎉 Version 0.21.02 - Latest Release
 
-> Closes [#210 — Sizer: Formatting issue when using a mobile device to view sizer](https://github.com/Azure/odinforazurelocal/issues/210).
+> Security- and code-quality-hardening release. Resolves the 12 open CodeQL code-scanning alerts on the repository (1 × `js/xss-through-dom`, 11 × `js/remote-property-injection`) and the 8 open AI-generated Code Quality findings. No user-visible behaviour changes.
 
-**Sizer — Mobile layout fix (iOS / narrow viewports)** ([#210](https://github.com/Azure/odinforazurelocal/issues/210))
-- **Sizer no longer overflows horizontally on iPhone and other narrow screens.** Reported on iPhone 16 Pro (390px) and reproduced in Edge DevTools at 390px: the form panels rendered ~614px wide on a 390px viewport, forcing horizontal scroll and visually misaligning the disclaimer banner, page title, stats bar, and 3D Hardware Visualization section against the form columns.
-- **Root cause**: the `.sizer-layout` CSS Grid (`1fr` = `minmax(auto, 1fr)`) was being held open by the CPU Generation `<select>`'s intrinsic min-content width — browsers size `<select>` to fit its longest `<option>` text, and "Intel® 4th Gen Xeon® (Sapphire Rapids)" alone is ~353px wide. Compounded by flex containers (`.section-header-row`, `.config-row`, `.export-actions`) that didn't wrap on narrow screens.
-- **Fixes applied to `sizer/sizer.css`**: `min-width: 0` on `.config-panel` / `.results-panel`; `max-width: 100%` on `.config-row select`; `flex-wrap: wrap` on the three flex rows above; removed the mobile-only `padding: 0 25px` indents on `<header>`, `.disclaimer-wrapper`, `.sizer-footer` from PR #170. All four now share the `.container`'s 16px mobile padding (same approach Designer uses).
-- **Verified** at viewport widths 390 / 768 / 1024 / 1400 px: zero horizontally-overflowing elements; single-column layout below 1025px; two-column layout at 1400px. All 1130 tests still pass.
-- **Lightning-bolt icon next to *Estimated Power, Heat & Rack Space per Instance*** is now rendered filled in the existing `--warning` amber colour (`#f59e0b`), instead of an unfilled outline in the heading's text colour.
+**CodeQL `js/xss-through-dom` (Sizer JSON Import preview, alert #15)**
+- The Sizer's *Parse & Preview* path for an Azure Local machine JSON paste (`parseAndPreviewClusterJSON()`) now explicitly coerces every JSON-derived numeric value (`coreCount`, `coresPerSocket`, `sockets`, `memoryGiB`) to `Number()` immediately before they're interpolated into the preview HTML. This makes the type-narrowing barrier explicit on the data-flow path from `<textarea>.value` → `JSON.parse(...)` → `previewDiv.innerHTML`. String values were already escaped via `escapeHtml()`; this closes the remaining unsanitised-numeric-interpolation path that CodeQL was flagging at `sizer/sizer.js:6797`.
 
-**Sizer Rack U / power: BMC switch now counted in non-disaggregated clusters**
-- **Rack-Unit estimate and Network Infrastructure Power on the Sizer now correctly include 1 × 1U BMC switch per rack** for Single-node, Standard Hyperconverged, and Rack-Aware Cluster deployments. The 3D rack visualization and 2D rack diagram have always rendered a BMC switch in every rack — including single-node — so the headline numbers now match what's drawn. Previously only the Disaggregated path counted the BMC; the other three paths under-counted rack U by 1U per rack and infrastructure power by 150W per rack.
-- **Per-cluster-type behaviour**: Single-node = 3U / 150W infra (was 2U / 0W); Standard Hyperconverged (1 rack) = `nodes × 2U + 3U switches` and 650W infra (was `+2U` / 500W); Rack-Aware (2 racks) = `nodes × 2U + 6U switches` and 1,300W infra (was `+2U` / 500W); Disaggregated unchanged.
-- **Power-detail expander** now lists ToR and BMC as separate line items for non-disaggregated clusters, instead of a single misleading *"ToR switches: 2 × 250W"* line. Single-node shows just *"BMC switch: 1 × 150W"*.
-- **Verified end-to-end via Playwright** at all five cluster shapes; all 1,130 tests still pass.
+**CodeQL `js/remote-property-injection` (alerts #16–#26)**
+- Eleven separate sites where the code wrote to a JS object using a key derived from user-supplied data (NIC speed strings, network-zone names, intent assignments, drag-and-drop port IDs) have been hardened to prevent prototype-chain pollution. In all but one case the receiving dictionary is now created via `Object.create(null)` (prototype-less object — keys like `__proto__` / `constructor` / `toString` can no longer reach `Object.prototype`):
+  - `report/pptx-export.js` — `bySpeed` and `bySpeed2` NIC-speed dictionaries (alerts #16, #17).
+  - `report/report.js` — `groupsByZoneD` / `zoneLeafCountersD` (Disaggregated NIC-zone grouping, alerts #19–#21); `buckets` for custom intent grouping (alert #22); `buckets` for hyperconverged adapter grouping (alert #23); `groupsByZone` / `zoneLeafCounters` (Hyperconverged NIC-zone grouping, alerts #24–#26).
+  - `js/disaggregated.js` — `state.disaggAdapterMapping[portId] = targetZone;` (alert #18) is reached via a drag-and-drop event whose `portId` comes from `e.dataTransfer.getData('text/plain')`. Because `state.disaggAdapterMapping` is a long-lived shared object that can't be swapped to `Object.create(null)`, `portId` is now validated against the known port list (`getDisaggPortList()`) before being used as a property key — any unknown key is silently rejected.
+- All 1,130 tests still pass; no functional changes — these are defence-in-depth hardenings against a class of vulnerability that wasn't previously exploitable through the UI.
 
-**Sizer — Low Capacity: Rack U / Power now reflect compact edge hardware**
-- **Low Capacity rack-U and infrastructure power now match the 3D tabletop visualization.** Low Capacity is an edge / compact form-factor deployment — not server-class 2U hardware — and per [Microsoft's networking requirements for low-capacity systems](https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-small-23h2?view=azloc-2604#networking-requirements), it does **not** require a separate BMC switch and uses at most **1 small edge switch** shared by management, compute, and storage traffic.
-- **Cell relabelled.** Low Capacity is not a rack-mounted deployment, so the panel now shows **"Hardware Footprint"** with a value of *"Tabletop — N appliances + 1 switch"* (or *"Tabletop — standalone appliance"* for 1 node) instead of an inappropriate `U` figure. Label and value stack vertically when the value text is long, so they no longer collide.
-- **Infra power corrected.** 0W for single-node, 50W for multi-node (1 small managed L2/L3 edge switch). Previously the Sizer was applying the 2 × ToR + 1 × BMC server-class assumption (650W) to Low Capacity — roughly 13× too high.
-- **Edge-switch power assumption:** ~50W. The *Power calculations, verbose information* expander now shows `Edge switch: 1 × 50W` for multi-node Low Capacity instead of the (incorrect) *"ToR switches: 2 × 250W"*.
-- **Note:** Low Capacity per-node power was already accurate because the Sizer derives node power from the constrained CPU/cores/memory/disk profile — the bug was only in the rack-U total and the network-infrastructure power add-on.
+**AI Code Quality findings cleared**
 
-**Sizer — Rack Units cell now uses an expandable breakdown (no more text overlap)**
-- **The Rack Units cell in the Estimated Power, Heat & Rack Space panel no longer overlaps text.** The earlier label (*"Rack Units (est., incl. 2 × ToR + 1 × BMC switch)"*) and inline value caption (*"7U (across 2 racks, incl. 4 × ToR, 2 × BMC switches)"*) were running into each other inside the flex row on both desktop and iPhone.
-- **New layout:** a clean label (*"Rack Units (est.)"*) and a clean value (*"7U"*), with a small blue chevron `▸` next to the value that expands to show the breakdown beneath the value (e.g. *"1 rack: 4 × server node (2U each) + 2 × ToR (1U) + 1 × BMC (1U)."*).
-- **Keyboard-accessible** (`<button>` with `aria-expanded` / `aria-controls`), rotates on expand, and is hidden entirely for Low Capacity where the breakdown isn't meaningful.
-
-**Sizer — "Capacity Usage for Workload" now matches the Low Capacity max-3 limit**
-- Selecting **Low Capacity** now relabels the top progress bar to *"Azure Local low capacity instance size"* and caps the machine count at **3** (e.g. `2 / 3`) instead of falling through to the Hyperconverged default of `/ 16`. Per Microsoft's [system requirements for low-capacity Azure Local](https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements), Low Capacity supports 1, 2, or 3 nodes only.
-- Other cluster types are unchanged: Standard HCI = `/ 16`, Rack-Aware = `/ 8`, Single-node = `/ 1`, Disaggregated = `/ 64`.
-
-**Sizer — Disaggregated rack-U: external SAN appliance no longer counted**
-- **The Disaggregated Rack Units total no longer includes the external SAN storage appliance.** SAN form factor varies wildly by vendor (Pure Storage, NetApp, Dell EMC PowerStore, etc.) and is the customer's choice — counting a fixed `5U per rack` was misleading. This now mirrors the existing treatment of SAN power, which has always been excluded from the headline Watts figure with a *"consult your SAN vendor"* note.
-- **Effect** (4-node Disaggregated across 2 racks): iSCSI was `24U` → now `14U` (`8U nodes + 4U ToR + 2U BMC`); FC SAN was `28U` → now `18U` (`+ 4U FC`). Server nodes, ToR, BMC, and FC switches are still counted.
-- **Expandable breakdown** now ends with: *"External SAN storage appliance(s) are not counted — consult your SAN vendor for actual rack-U."*
+- **`js/stats-bar.js`**: em-dash counter placeholder pulled out as a named `STAT_PLACEHOLDER` constant at the top of the IIFE.
+- **`scripts/smoke-test-pptx.js`**: *PPTX size too small* error message now reads `expected > 50 KB (template + cover + 11 sections + closing slide)`, matching the file header.
+- **`switch-config/index.html`**: removed stray space before `>` on the *Arizona (MST, no DST)* `<option>` tag.
+- **`tools/demos/generate-disagg-fc-deck.spec.js`**: dialog auto-accept failure is now logged via `console.warn` with the `[PPTX generation]` prefix instead of silently swallowed; the *"Saved"* line uses the same prefix.
+- **`tools/demos/odin-full-walkthrough.spec.js`**: `slowMo` is now configurable via `ODIN_DEMO_SLOWMO` env var (default 120 ms, was hard-coded 80 ms); brittle `button.workload-type-btn` text-filter selectors replaced with stable `[onclick*="'aks'"]` / `[onclick*="'vm'"]` attribute selectors. Production HTML was deliberately not modified to add `data-testid` attributes — `tools/` is excluded from publication and the existing `onclick` markup is already a stable selector.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -418,6 +402,19 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 ## Appendix A - Version History
 
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
+
+### Version 0.21.x Series (May 2026)
+
+#### 0.21.01 - Sizer mobile + Rack U / Power fixes
+
+> Closes [#210 — Sizer: Formatting issue when using a mobile device to view sizer](https://github.com/Azure/odinforazurelocal/issues/210).
+
+- **Sizer — Mobile layout fix (iOS / narrow viewports)** ([#210](https://github.com/Azure/odinforazurelocal/issues/210)): Sizer no longer overflows horizontally on iPhone (390px) or other narrow screens. Root cause was the CPU Generation `<select>` (~353px intrinsic width for *"Intel® 4th Gen Xeon® (Sapphire Rapids)"*) holding the `.sizer-layout` 1fr CSS Grid track open, plus flex containers (`.section-header-row`, `.config-row`, `.export-actions`) that didn't wrap. Fixed in `sizer/sizer.css` with `min-width: 0` on the panels, `max-width: 100%` on `.config-row select`, `flex-wrap: wrap` on the three flex rows, and removal of the mobile-only `padding: 0 25px` indents on `<header>` / `.disclaimer-wrapper` / `.sizer-footer` from PR #170. Verified at 390 / 768 / 1024 / 1400 px. Lightning-bolt icon next to *Estimated Power, Heat & Rack Space per Instance* now rendered filled in `--warning` amber (`#f59e0b`).
+- **Sizer Rack U / power: BMC switch now counted in non-disaggregated clusters**: Rack-Unit estimate and Network Infrastructure Power now correctly include 1 × 1U BMC switch per rack for Single-node, Standard Hyperconverged, and Rack-Aware deployments — matching what the 3D rack visualization has always rendered. Single-node = 3U / 150W infra (was 2U / 0W); Standard HCI (1 rack) = `nodes × 2U + 3U switches` / 650W infra; Rack-Aware (2 racks) = `nodes × 2U + 6U switches` / 1,300W infra. Power-detail expander now lists ToR and BMC as separate line items.
+- **Sizer — Low Capacity: Rack U / Power now reflect compact edge hardware**: Per [Microsoft's networking requirements for low-capacity systems](https://learn.microsoft.com/en-us/azure/azure-local/concepts/system-requirements-small-23h2?view=azloc-2604#networking-requirements), Low Capacity does not require a separate BMC switch and uses at most 1 small edge switch. Cell relabelled to **"Hardware Footprint"** with value *"Tabletop — N appliances + 1 switch"* (or *"Tabletop — standalone appliance"* for 1 node) — no `U` figure, since Low Capacity is not rack-mounted. Infra power corrected: 0W single-node, 50W multi-node (was 650W — ~13× too high).
+- **Sizer — Rack Units cell now uses an expandable breakdown** with chevron `▸` next to the value (no more text overlap). Keyboard-accessible (`<button>` with `aria-expanded` / `aria-controls`), hidden for Low Capacity.
+- **Sizer — *Capacity Usage for Workload* matches Low Capacity's 3-node limit**: top progress bar now shows *"Azure Local low capacity instance size"* / 3 max for Low Capacity (was `/ 16` Hyperconverged default).
+- **Sizer — Disaggregated rack-U: external SAN appliance no longer counted**. Server nodes, ToR, BMC, and FC switches are still counted; the breakdown now ends with *"External SAN storage appliance(s) are not counted — consult your SAN vendor for actual rack-U."*
 
 ### 🎉 Version 0.20.x Series (April 2026)
 

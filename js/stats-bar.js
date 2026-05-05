@@ -16,6 +16,12 @@
 (function() {
     'use strict';
 
+    // Em-dash placeholder shown until analytics.js fetches the real counter
+    // values from Firebase. Pulled out of the template literal below so the
+    // intent ("empty / not-yet-loaded counter") is named, not just a unicode
+    // escape.
+    const STAT_PLACEHOLDER = '\u2014';
+
     const host = document.querySelector('#page-statistics[data-stats-bar]');
     if (!host) return;
 
@@ -58,7 +64,7 @@
         html += '<div class="stat-item">'
             + t.svg
             + '<span class="stat-label">' + t.label + '</span>'
-            + '<span id="' + t.id + '" class="stat-value">\u2014</span>'
+            + '<span id="' + t.id + '" class="stat-value">' + STAT_PLACEHOLDER + '</span>'
             + '</div>';
     }
     html += '</div>';

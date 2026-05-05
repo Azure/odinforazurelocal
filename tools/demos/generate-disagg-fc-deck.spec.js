@@ -17,7 +17,11 @@ test.use({ launchOptions: { slowMo: 0 } });
 test('generate disaggregated FC SAN 64-node West Europe deck', async ({ page, context }) => {
     page.on('dialog', (d) => {
         // Best-effort auto-accept: dialog may already be gone during teardown/navigation.
-        d.accept().catch(() => { /* ignore: dialog already dismissed */ });
+        d.accept().catch((err) => {
+            // eslint-disable-next-line no-console
+            console.warn('[PPTX generation] dialog auto-accept failed (likely already dismissed):',
+                err && err.message ? err.message : err);
+        });
     });
 
     await page.goto('http://localhost:5500/');
@@ -101,6 +105,6 @@ test('generate disaggregated FC SAN 64-node West Europe deck', async ({ page, co
     await dl.saveAs(outPath);
 
     const stat = fs.statSync(outPath);
-    console.log('Saved', outPath, stat.size, 'bytes');
+    console.log('[PPTX generation]', 'Saved', outPath, stat.size, 'bytes');
     expect(stat.size).toBeGreaterThan(50000);
 });

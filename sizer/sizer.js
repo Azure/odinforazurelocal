@@ -6741,7 +6741,15 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         genMatchConfidence = 'approximate';
     }
 
-    // Build preview
+    // Build preview.
+    // CodeQL js/xss-through-dom (#15): coerce all numeric JSON-derived values
+    // to Number() at the construction site so the analyser recognises a
+    // type-narrowing barrier on the path from textarea.value → JSON.parse →
+    // innerHTML. String values continue to be escaped via escapeHtml() below.
+    coreCount = Number(coreCount) || 0;
+    coresPerSocket = Number(coresPerSocket) || 0;
+    sockets = Number(sockets) || 0;
+    memoryGiB = Number(memoryGiB) || 0;
     var previewHTML = '<strong style="color: var(--accent-purple);">Detected Machine: ' + escapeHtml(clusterName) + '</strong><br>';
     previewHTML += '<div style="margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; font-size: 12px;">';
     previewHTML += '<span style="grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">How many machines in this instance? <input type="number" id="cluster-node-count-input" value="2" min="1" max="16" oninput="validateClusterImportSelection()" style="width: 56px; background: var(--card-bg); border: 2px solid var(--accent-purple); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 14px; font-weight: 700; text-align: center;"></span>';

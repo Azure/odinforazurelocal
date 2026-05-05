@@ -122,7 +122,7 @@ const SEED_PAYLOAD = {
             throw new Error(`PPTX header is "${result.headHex}", expected "${ZIP_MAGIC}" (ZIP container)`);
         }
         if (result.size < 50 * 1024) {
-            throw new Error(`PPTX size is ${result.size} bytes; expected > 50 KB (template + cover + 13 slides)`);
+            throw new Error(`PPTX size is ${result.size} bytes; expected > 50 KB (template + cover + 11 sections + closing slide)`);
         }
         if (!/^odin-configuration-report_.+\.pptx$/.test(result.filename || '')) {
             throw new Error(`Unexpected download filename: ${result.filename}`);
