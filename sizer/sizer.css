@@ -547,6 +547,11 @@ header .header-description {
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     padding: 24px;
+    /* Grid items default to min-width: auto (= min-content), which lets a child
+       with a long intrinsic width (e.g. a <select> sized to its longest option)
+       stretch the whole grid track past the viewport. min-width: 0 lets the
+       track honour 1fr instead. */
+    min-width: 0;
 }
 
 .panel-section {
@@ -877,6 +882,8 @@ header .header-description {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .config-row label {
@@ -899,6 +906,7 @@ header .header-description {
     color: var(--text-primary);
     font-size: 14px;
     min-width: 180px;
+    max-width: 100%;
     cursor: pointer;
 }
 
@@ -1228,10 +1236,11 @@ header .header-description {
     display: flex;
     gap: 12px;
     margin-top: 16px;
+    flex-wrap: wrap;
 }
 
 .export-actions .btn {
-    flex: 1;
+    flex: 1 1 auto;
 }
 
 /* Configure in Designer action */
