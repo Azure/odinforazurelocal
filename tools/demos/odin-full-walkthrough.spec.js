@@ -19,8 +19,13 @@
  */
 const { test } = require('@playwright/test');
 
-// Keep slowMo light so we fit inside ~40 seconds.
-test.use({ launchOptions: { slowMo: 80 } });
+// Keep slowMo configurable for different recording hardware while preserving a
+// readable pace. Default 120ms is enough that UI transitions are visible in a
+// recording but still fits inside the ~40 second target. Override via the
+// ODIN_DEMO_SLOWMO env var when recording on faster / slower hardware.
+const parsedSlowMo = Number(process.env.ODIN_DEMO_SLOWMO);
+const demoSlowMo = Number.isFinite(parsedSlowMo) && parsedSlowMo >= 0 ? parsedSlowMo : 120;
+test.use({ launchOptions: { slowMo: demoSlowMo } });
 
 /** Show an on-screen annotation box in the top-right of the page. */
 async function annotate(page, text) {
@@ -103,7 +108,10 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
 
     // -- 2. Add 10x AKS Arc clusters ----------------------
     await annotate(page, 'Add AKS Arc workloads (10 clusters)');
-    await page.locator('button.workload-type-btn').filter({ hasText: /AKS Arc Clusters/i }).first().click();
+    // Select via the existing onclick="showAddWorkloadModal('aks')" attribute
+    // rather than text content, so the demo doesn't break if button copy
+    // changes (e.g. "AKS Arc Clusters" → "Arc-enabled AKS").
+    await page.locator("button.workload-type-btn[onclick*=\"'aks'\"]").first().click();
     await page.waitForTimeout(200);
     await page.locator('#aks-cluster-count').fill('10');
     await page.waitForTimeout(150);
@@ -112,7 +120,7 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
 
     // -- 3. Add 1000 Azure Local VMs ----------------------
     await annotate(page, 'Add 1,000 Azure Local VMs');
-    await page.locator('button.workload-type-btn').filter({ hasText: /Azure Local VMs/i }).first().click();
+    await page.locator("button.workload-type-btn[onclick*=\"'vm'\"]").first().click();
     await page.waitForTimeout(200);
     await page.locator('#vm-count').fill('1000');
     await page.waitForTimeout(150);

@@ -48,7 +48,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.21.02 - Latest Release
 
-> Security-hardening release. Resolves the 12 open CodeQL code-scanning alerts on the repository (1 × `js/xss-through-dom`, 11 × `js/remote-property-injection`). No user-visible behaviour changes.
+> Security- and code-quality-hardening release. Resolves the 12 open CodeQL code-scanning alerts on the repository (1 × `js/xss-through-dom`, 11 × `js/remote-property-injection`) and the 8 open AI-generated Code Quality findings. No user-visible behaviour changes.
 
 **CodeQL `js/xss-through-dom` (Sizer JSON Import preview, alert #15)**
 - The Sizer's *Parse & Preview* path for an Azure Local machine JSON paste (`parseAndPreviewClusterJSON()`) now explicitly coerces every JSON-derived numeric value (`coreCount`, `coresPerSocket`, `sockets`, `memoryGiB`) to `Number()` immediately before they're interpolated into the preview HTML. This makes the type-narrowing barrier explicit on the data-flow path from `<textarea>.value` → `JSON.parse(...)` → `previewDiv.innerHTML`. String values were already escaped via `escapeHtml()`; this closes the remaining unsanitised-numeric-interpolation path that CodeQL was flagging at `sizer/sizer.js:6797`.
@@ -59,6 +59,14 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
   - `report/report.js` — `groupsByZoneD` / `zoneLeafCountersD` (Disaggregated NIC-zone grouping, alerts #19–#21); `buckets` for custom intent grouping (alert #22); `buckets` for hyperconverged adapter grouping (alert #23); `groupsByZone` / `zoneLeafCounters` (Hyperconverged NIC-zone grouping, alerts #24–#26).
   - `js/disaggregated.js` — `state.disaggAdapterMapping[portId] = targetZone;` (alert #18) is reached via a drag-and-drop event whose `portId` comes from `e.dataTransfer.getData('text/plain')`. Because `state.disaggAdapterMapping` is a long-lived shared object that can't be swapped to `Object.create(null)`, `portId` is now validated against the known port list (`getDisaggPortList()`) before being used as a property key — any unknown key is silently rejected.
 - All 1,130 tests still pass; no functional changes — these are defence-in-depth hardenings against a class of vulnerability that wasn't previously exploitable through the UI.
+
+**AI Code Quality findings cleared**
+
+- **`js/stats-bar.js`**: em-dash counter placeholder pulled out as a named `STAT_PLACEHOLDER` constant at the top of the IIFE.
+- **`scripts/smoke-test-pptx.js`**: *PPTX size too small* error message now reads `expected > 50 KB (template + cover + 11 sections + closing slide)`, matching the file header.
+- **`switch-config/index.html`**: removed stray space before `>` on the *Arizona (MST, no DST)* `<option>` tag.
+- **`tools/demos/generate-disagg-fc-deck.spec.js`**: dialog auto-accept failure is now logged via `console.warn` with the `[PPTX generation]` prefix instead of silently swallowed; the *"Saved"* line uses the same prefix.
+- **`tools/demos/odin-full-walkthrough.spec.js`**: `slowMo` is now configurable via `ODIN_DEMO_SLOWMO` env var (default 120 ms, was hard-coded 80 ms); brittle `button.workload-type-btn` text-filter selectors replaced with stable `[onclick*="'aks'"]` / `[onclick*="'vm'"]` attribute selectors. Production HTML was deliberately not modified to add `data-testid` attributes — `tools/` is excluded from publication and the existing `onclick` markup is already a stable selector.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 

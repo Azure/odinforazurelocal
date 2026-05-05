@@ -55,7 +55,7 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.21.02</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">May 5, 2026</div>
-                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Security-hardening release. Resolves all 12 open CodeQL code-scanning alerts on the repository (1 × <code>js/xss-through-dom</code>, 11 × <code>js/remote-property-injection</code>). No user-visible behaviour changes; all 1,130 tests still pass.</p>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Security- and code-quality-hardening release. Resolves all 12 open CodeQL code-scanning alerts (1 × <code>js/xss-through-dom</code>, 11 × <code>js/remote-property-injection</code>) and the 8 open AI-generated Code Quality findings. No user-visible behaviour changes; all 1,130 tests still pass.</p>
                 </div>
 
                 <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
@@ -65,6 +65,17 @@ function showChangelog() { // eslint-disable-line no-unused-vars
                         <li><strong><code>js/remote-property-injection</code> — 11 sites (alerts #16–#26)</strong> where the code wrote to a JS object using a key derived from user-supplied data have been hardened against prototype-chain pollution. Ten of the eleven dictionaries are now created via <code>Object.create(null)</code> (prototype-less, so keys like <code>__proto__</code> / <code>constructor</code> / <code>toString</code> can no longer reach <code>Object.prototype</code>): <code>bySpeed</code> / <code>bySpeed2</code> NIC-speed dictionaries in <code>report/pptx-export.js</code>; the <code>groupsByZone(D)</code>, <code>zoneLeafCounters(D)</code>, and <code>buckets</code> NIC-zone / intent grouping dictionaries in <code>report/report.js</code>.</li>
                         <li><strong>Disaggregated drag-and-drop port mapping (alert #18, <code>js/disaggregated.js</code>)</strong>: <code>state.disaggAdapterMapping[portId] = targetZone</code> in <code>moveDisaggAdapter()</code> is reached via a drag event whose <code>portId</code> comes from <code>e.dataTransfer.getData('text/plain')</code>. Because <code>state.disaggAdapterMapping</code> is a shared long-lived object, <code>portId</code> is now validated against the known port list (<code>getDisaggPortList()</code>) before being used as a property key — any unknown key is silently rejected.</li>
                         <li><strong>No functional changes</strong>; these are defence-in-depth hardenings.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">✨ Code Quality — AI findings cleared</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong><code>js/stats-bar.js</code></strong>: em-dash counter placeholder pulled out as a named <code>STAT_PLACEHOLDER</code> constant at the top of the IIFE so the intent ("empty / not-yet-loaded counter") is named.</li>
+                        <li><strong><code>scripts/smoke-test-pptx.js</code></strong>: <em>PPTX size too small</em> error message now reads <code>expected &gt; 50 KB (template + cover + 11 sections + closing slide)</code>, matching the file header.</li>
+                        <li><strong><code>switch-config/index.html</code></strong>: removed stray space before <code>&gt;</code> on the <em>Arizona (MST, no DST)</em> <code>&lt;option&gt;</code> tag.</li>
+                        <li><strong><code>tools/demos/generate-disagg-fc-deck.spec.js</code></strong>: dialog auto-accept failure now logged via <code>console.warn</code> with a <code>[PPTX generation]</code> prefix instead of silently swallowed.</li>
+                        <li><strong><code>tools/demos/odin-full-walkthrough.spec.js</code></strong>: <code>slowMo</code> is configurable via <code>ODIN_DEMO_SLOWMO</code> (default 120 ms); brittle <em>workload-type-btn</em> text selectors replaced with stable <code>[onclick*="'aks'"]</code> / <code>[onclick*="'vm'"]</code> attribute selectors — production HTML was deliberately not modified to add <code>data-testid</code> attributes (the existing <code>onclick</code> markup is already stable, and <code>tools/</code> is excluded from publication).</li>
                     </ul>
                 </div>
 
