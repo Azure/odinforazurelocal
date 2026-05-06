@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.04] - 2026-05-06
+
+Adds **Foundry Local on Azure Local (Preview)** as a fourth workload type in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Foundry Local runs an Arc-enabled Kubernetes (AKS Arc) control plane plus N model deployment replicas, sized via three preset model classes (Small SLM / Medium SLM / Large LLM) or a Custom override.
+
+### Added
+
+- **`sizer/` — new "Foundry Local" workload type.** A fourth `workload-type-btn` next to VMs / AKS Arc / AVD on the Sizer page, with a dedicated modal for sizing AI inference deployments.
+  - **Model size classes** with conservative per-replica resource estimates:
+    - **Small SLM** (Phi-3.5-mini, Llama-3.2-3B): 4 vCPU / 8 GB / 20 GB per replica. CPU OK with ONNX-GenAI.
+    - **Medium SLM** (Phi-4, Mistral-7B, Llama-3.1-8B): 8 vCPU / 16 GB / 40 GB per replica. GPU recommended.
+    - **Large LLM** (DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4): 16 vCPU / 64 GB / 100 GB per replica. GPU required.
+    - **Custom** for user-specified per-replica vCPU / memory / storage.
+  - **Inference engine** picker — **ONNX-GenAI** (CPU or GPU) or **vLLM** (GPU only). Selecting vLLM forces GPU mode (DDA) and disables the *None* option to prevent invalid configurations.
+  - **Replicas** input (1–100) — each replica is sized to the model class and reserves a fixed 200 GB AKS Arc OS disk per worker node, matching the AKS workload pattern.
+  - **GPU sizing** reuses the standard workload GPU controls (DDA only — Foundry runs on AKS Arc, which doesn't support GPU partitioning). GPU model + count is set per replica.
+  - **Total sizing** = 3-node Kubernetes control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + N replicas × per-replica resources + 200 GB OS disk per replica + 2 vCPU / 4 GB inference operator overhead. The modal displays this composition inline so users see exactly what's being added to the cluster.
+  - **Preview pill** in the workload-type button and an inline link to [request preview deployment access](https://aka.ms/FoundryLocalAzure_PreviewRequest) inside the modal.
+- **Round-trip support**: Foundry workloads serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and the Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
+- **`tests/index.html`** — 13 new unit tests covering `FOUNDRY_MODEL_CLASSES` integrity (preset values, monotonic memory progression, custom class) and `calculateWorkloadRequirements()` for Foundry workloads (control-plane + worker + operator overhead arithmetic, Custom override path, GPU count calculation).
+- **`images/foundry-icon.png`** — new 28 × 28 icon for the Foundry Local workload button (copied from `docs/reference-architectures/icons/paas-foundry-local.png` so the Sizer button matches the icon already used on the Microsoft Sovereign Private Clouds reference architectures page).
+
+### Changed
+
+- **`sizer/sizer.css`** — added `--accent-cyan: #00bcf2` CSS custom property (matches the existing Foundry Local color used by the reference-architectures page) and a `.workload-icon.foundry` variant for the Sizer's workload-type button.
+- **`report/report.js` and `report/pptx-export.js`** — added a `'foundry'` branch to the per-workload type-label / detail rendering so Foundry workloads appear correctly in the Configuration Report's Markdown export, HTML preview, and PowerPoint export, with a Preview-aware *Inference Engine* row and per-replica Custom Spec row.
+
+### Notes
+
+- Per-replica resource estimates are conservative rules of thumb (model weights × bytes-per-weight + KV cache + serving overhead). **Foundry Local on Azure Local is in Preview**; sizing depends on the specific model, quantization, batch size, and concurrent request load. Validate with your OEM hardware partner and your actual model.
+- No new external network calls. No new third-party CDN dependencies. Foundry workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
+
+---
+
 ## [0.21.03] - 2026-05-06
 
 New **Microsoft Sovereign Private Clouds reference architectures** page (Preview) in the Knowledge tab. Picks a business purpose, renders a live SVG diagram of the resulting architecture, and exports an editable multi-slide PowerPoint generated entirely client-side via JSZip — no upload, no backend.

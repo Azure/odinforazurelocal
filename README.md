@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.03 - Available here: https://aka.ms/ODIN
+## Version 0.21.04 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,23 +46,24 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.03 - Latest Release
+### 🎉 Version 0.21.04 - Latest Release
 
-> New **Microsoft Sovereign Private Clouds reference architectures** page (Preview) in the Knowledge tab. Pick a business purpose, see a live SVG diagram of the resulting architecture, and download an editable multi-slide PowerPoint generated entirely client-side via JSZip.
+> Adds **Foundry Local on Azure Local (Preview)** as a fourth workload type in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Foundry Local runs an Arc-enabled Kubernetes (AKS Arc) control plane plus N model deployment replicas, sized via three preset model classes (Small SLM / Medium SLM / Large LLM) or a Custom override.
 
-**`docs/reference-architectures/` — new self-contained Knowledge-tab page**
-- Five business purposes — **Azure Local** (general-purpose VMs / AKS Arc), **Microsoft 365 Local** (Exchange / SharePoint / Skype for Business — Small-Scale and Large-Scale variants from the SPC L300 deck), **GitHub Enterprise Local** (Private Preview), **Azure Virtual Desktop on Azure Local**, and **Foundry Local** (AI platform with model families, Edge RAG, Video Indexer, GPU partitioning).
-- **Picker controls** for connectivity (Connected vs Disconnected / air-gapped), tenancy (Strict — dedicated hardware vs Logical — coming soon), and topology (Single Node / 16 / 64 / 128 — coming soon) per purpose.
-- **Live SVG preview** with an Azure cloud band, a Distributed location band, per-purpose workload bands, real cluster icons, and (for disconnected mode) a shared 3-node Control Plane Appliance.
-- **Narrative "About this architecture" section** that explains the selected footprint in prose — the connectivity choice's consequence (Azure Arc for connected; on-prem Control Plane Appliance with ARM / Portal / Key Vault / Defender / Monitor / Update Manager equivalents for disconnected) and a per-purpose paragraph for each selected workload.
-- **Editable PowerPoint export** generated client-side via [JSZip 3.10.1](https://github.com/Stuk/jszip) (MIT, vendored at `vendor/jszip-3.10.1.min.js`). Cover slide (large centered ODIN logo), Diagram slide, Control Plane slide (Connected or Disconnected, with hero icon and 3 × 2 service-tile grid), Summary slide, and one per-purpose slide with shadows, accent strips, pill chips, and crisp icons (rasterized at 1024 × 1024 so SVGs stay sharp at hero size and small PNGs don't visibly upscale).
-- **Knowledge-tab navigation entry** added to `index.html` with a **Preview** badge and a contextual onboarding step in `js/script.js`.
-- **Independent of the Designer**: this page does not read or modify your Designer / Sizer / Switch Configuration state. Use it for first-conversation framing or quick stakeholder hand-offs.
+**`sizer/` — new "Foundry Local" workload type**
+- Fourth `workload-type-btn` next to VMs / AKS Arc / AVD on the Sizer page, with a dedicated modal for sizing AI inference deployments.
+- **Model size classes** with conservative per-replica resource estimates: **Small SLM** (Phi-3.5-mini, Llama-3.2-3B — 4 vCPU / 8 GB / 20 GB), **Medium SLM** (Phi-4, Mistral-7B, Llama-3.1-8B — 8 vCPU / 16 GB / 40 GB), **Large LLM** (DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4 — 16 vCPU / 64 GB / 100 GB), and **Custom**.
+- **Inference engine picker** — **ONNX-GenAI** (CPU or GPU) or **vLLM** (GPU only). Selecting vLLM forces GPU mode (DDA) and disables the *None* option to prevent invalid configurations.
+- **Replicas** input (1–100). Each replica is sized to the model class and reserves a fixed 200 GB AKS Arc OS disk per worker node, matching the existing AKS workload pattern.
+- **GPU sizing** reuses the standard workload GPU controls (DDA only — Foundry runs on AKS Arc, which doesn't support GPU partitioning). GPU model + count is set per replica.
+- **Total sizing** = 3-node Kubernetes control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + N replicas × per-replica resources + 200 GB OS disk per replica + 2 vCPU / 4 GB inference operator overhead. The modal displays this composition inline so users see exactly what's being added to the cluster.
+- **Preview pill** in the workload-type button and an inline link to [request preview deployment access](https://aka.ms/FoundryLocalAzure_PreviewRequest) inside the modal.
+- **Round-trip support** through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
+- **13 new unit tests** in `tests/index.html` covering `FOUNDRY_MODEL_CLASSES` integrity and `calculateWorkloadRequirements()` for Foundry workloads (control-plane + worker + operator overhead arithmetic, Custom override path, GPU count calculation).
 
-**Behind the scenes**
-- **JSZip 3.10.1 vendored locally** (`vendor/jszip-3.10.1.min.js`, MIT) — used only by the new page. Designer, Sizer, Switch Configuration, and Configuration Report don't load it. No new third-party CDN runtime dependencies.
-- **No new external network calls**. All icons, the cover logo, and the deck assembly happen client-side. Only outbound traffic from the new page is the existing Firebase page-view counter (unchanged).
-- **`docs/Temp/` added to `.gitignore` and `_config.yml` exclude list** — defence-in-depth so the local working folder for source decks / extracted PPTX content (which may contain internal Microsoft reference material) can never be committed *and* can never be published via Jekyll even if a clone has it locally.
+**Notes**
+- Per-replica resource estimates are conservative rules of thumb (model weights × bytes-per-weight + KV cache + serving overhead). **Foundry Local on Azure Local is in Preview**; sizing depends on the specific model, quantization, batch size, and concurrent request load. Validate with your OEM hardware partner and your actual model.
+- No new external network calls. No new third-party CDN dependencies. Foundry workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -385,7 +386,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.01  
+**Version**: 0.21.04  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -400,6 +401,14 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.03 - Microsoft Sovereign Private Clouds reference architectures (Preview)
+
+> New **Microsoft Sovereign Private Clouds reference architectures** page (Preview) in the Knowledge tab. Pick a business purpose, see a live SVG diagram of the resulting architecture, and download an editable multi-slide PowerPoint generated entirely client-side via JSZip.
+
+- **`docs/reference-architectures/` — new self-contained Knowledge-tab page** with five business purposes (Azure Local, Microsoft 365 Local, GitHub Enterprise Local, Azure Virtual Desktop on Azure Local, Foundry Local), connectivity / tenancy / topology pickers, a live SVG preview, an *About this architecture* narrative section, and an editable client-side PowerPoint export (Cover, Diagram, Control Plane, Summary, and per-purpose slides) generated via [JSZip 3.10.1](https://github.com/Stuk/jszip) (MIT, vendored at `vendor/jszip-3.10.1.min.js`).
+- **Independent of the Designer**: this page does not read or modify your Designer / Sizer / Switch Configuration state.
+- **No new external network calls** — all icons, the cover logo, and the deck assembly happen client-side. `docs/Temp/` added to `.gitignore` and `_config.yml` exclude list as defence-in-depth so the local working folder for source decks / extracted PPTX content (which may contain internal Microsoft reference material) can never be committed *and* can never be published via Jekyll.
 
 #### 0.21.02 - Security & Code-Quality Hardening
 

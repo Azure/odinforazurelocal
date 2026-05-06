@@ -53,6 +53,11 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.21.04</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">May 6, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Adds <strong>Foundry Local on Azure Local (Preview)</strong> as a fourth workload type in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Pick from three preset model classes (<strong>Small SLM</strong>, <strong>Medium SLM</strong>, <strong>Large LLM</strong>) or Custom, choose an inference engine (<strong>ONNX-GenAI</strong> CPU/GPU, or <strong>vLLM</strong> GPU-only), and set the number of model replicas. Sizing covers a 3-node AKS Arc control plane plus per-replica vCPU/memory/storage and a 200&nbsp;GB OS disk per worker, with full GPU (DDA) integration and round-trip support through JSON Export/Import, share URLs, the Designer hand-off, and Configuration Reports.</p>
+                </div>
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.05); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.21.03</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">May 6, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">New <strong>Microsoft Sovereign Private Clouds reference architectures</strong> page in the Knowledge tab (Preview). A purpose-driven picker (Azure Local, M365 Local, GitHub Enterprise Local, AVD, Foundry Local) builds a live SVG diagram and exports a multi-slide editable PowerPoint generated entirely client-side via JSZip. No backend, no upload — diagram, icons, cover slide, control-plane slide, and per-purpose narrative are all assembled in the browser.</p>

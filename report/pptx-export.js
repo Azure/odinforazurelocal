@@ -1382,8 +1382,9 @@
             return null;
         }
 
-        var typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop' };
+        var typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop', foundry: 'Foundry Local' };
         var avdProfileLabels = { light: 'Light', medium: 'Medium', heavy: 'Heavy', power: 'Power', custom: 'Custom' };
+        var foundryClassLabels = { small: 'Small SLM', medium: 'Medium SLM', large: 'Large LLM', custom: 'Custom' };
 
         function fmtStorage(gb) {
             var n = Number(gb) || 0;
@@ -1427,6 +1428,13 @@
                 if (wl.sessionType !== 'single') headline += ' (' + (wl.concurrency || 100) + '%)';
                 if (wl.fslogix) headline += ' \u00b7 FSLogix ' + (wl.fslogixSize || 30) + ' GB';
                 if (wl.profile === 'custom') {
+                    headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
+                }
+            } else if (wl.type === 'foundry') {
+                var fcls = foundryClassLabels[wl.modelClass] || wl.modelClass || '\u2014';
+                var fengine = wl.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI';
+                headline = (wl.replicas || 1) + ' replica(s) \u00b7 ' + fcls + ' \u00b7 ' + fengine;
+                if (wl.modelClass === 'custom') {
                     headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
                 }
             } else {

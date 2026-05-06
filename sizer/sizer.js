@@ -532,14 +532,18 @@ function getGpuLabel(gpuType) {
 }
 
 // Build GPU requirement fields HTML for workload modals
-// workloadType: 'vm', 'aks', or 'avd'
+// workloadType: 'vm', 'aks', 'avd', or 'foundry'
 function getGpuRequirementFields(workloadType) {
-    const supportGpuP = workloadType !== 'aks';
+    // GPU-P (partitioning) is unsupported on AKS Arc, and Foundry Local runs on
+    // top of AKS Arc, so neither offers GPU-P.
+    const supportGpuP = workloadType !== 'aks' && workloadType !== 'foundry';
     const gpuPOption = supportGpuP
         ? '<option value="gpu-p">GPU-P (GPU Partitioning)</option>'
         : '';
     const gpuPNote = !supportGpuP
-        ? '<span class="hint">Note: AKS Arc does not support GPU-P at this time.</span>'
+        ? (workloadType === 'foundry'
+            ? '<span class="hint">Note: Foundry Local runs on AKS Arc, which does not support GPU-P at this time.</span>'
+            : '<span class="hint">Note: AKS Arc does not support GPU-P at this time.</span>')
         : '';
 
     // For AKS, build a GPU VM size selector instead of manual DDA count
@@ -563,15 +567,21 @@ function getGpuRequirementFields(workloadType) {
     let gpuDocsLink = '';
     if (workloadType === 'aks') {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc</a></div>';
+    } else if (workloadType === 'foundry') {
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Foundry Local runs on AKS Arc)</a></div>';
     } else if (workloadType === 'vm' || workloadType === 'avd') {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for Azure Local VMs</a></div>';
     }
 
     // DDA label varies by workload type
-    const ddaLabel = workloadType === 'avd' ? 'GPUs per Session Host' : 'GPUs per VM';
+    const ddaLabel = workloadType === 'avd' ? 'GPUs per Session Host'
+        : workloadType === 'foundry' ? 'GPUs per replica'
+        : 'GPUs per VM';
     const ddaTooltip = workloadType === 'avd'
         ? 'Number of physical GPUs assigned via DDA to each AVD session host.'
-        : 'Number of physical GPUs assigned via DDA to each VM.';
+        : workloadType === 'foundry'
+            ? 'Number of physical GPUs assigned via DDA to each Foundry Local model replica.'
+            : 'Number of physical GPUs assigned via DDA to each VM.';
 
     return `
         <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">GPU Requirements</h4>
@@ -2715,8 +2725,63 @@ const WORKLOAD_DEFAULTS = {
         fslogix: false,
         fslogixSize: 30,
         userCount: 50
+    },
+    foundry: {
+        name: 'Foundry Local',
+        modelClass: 'medium', // small, medium, large, custom
+        replicas: 1,
+        engine: 'onnx-genai' // onnx-genai (CPU or GPU) or vllm (GPU only)
     }
 };
+
+// Foundry Local model size classes (per replica resource estimates).
+// Numbers are conservative rules-of-thumb (memory ~= params * bytes-per-weight + KV cache + overhead).
+// These are estimates only — actual sizing depends on the model, quantization,
+// batch size and concurrent request load. Validate with your OEM hardware partner.
+const FOUNDRY_MODEL_CLASSES = {
+    small: {
+        name: 'Small SLM',
+        description: 'Phi-3.5-mini, Llama-3.2-3B (~3B params)',
+        vcpus: 4,
+        memory: 8,
+        storage: 20,
+        recommendedGpu: 'optional' // CPU OK with ONNX-GenAI; vLLM still requires GPU
+    },
+    medium: {
+        name: 'Medium SLM',
+        description: 'Phi-4, Mistral-7B, Llama-3.1-8B (~7-14B params)',
+        vcpus: 8,
+        memory: 16,
+        storage: 40,
+        recommendedGpu: 'recommended'
+    },
+    large: {
+        name: 'Large LLM',
+        description: 'DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4 (~32-70B params)',
+        vcpus: 16,
+        memory: 64,
+        storage: 100,
+        recommendedGpu: 'required'
+    },
+    custom: {
+        name: 'Custom',
+        description: 'Custom per-replica resource specification',
+        vcpus: 8,
+        memory: 16,
+        storage: 40,
+        recommendedGpu: 'optional'
+    }
+};
+
+// Foundry Local fixed sizing constants. Foundry runs on a 3-node Arc-enabled
+// Kubernetes (AKS Arc) control plane plus N model deployment replicas.
+// Numbers below mirror the AKS_OS_DISK_GB constant used in the AKS workload.
+const FOUNDRY_CP_NODES = 3;
+const FOUNDRY_CP_VCPU_PER_NODE = 4;
+const FOUNDRY_CP_MEM_PER_NODE = 8;
+const FOUNDRY_OS_DISK_GB = 200;
+const FOUNDRY_OPERATOR_VCPU = 2;
+const FOUNDRY_OPERATOR_MEM_GB = 4;
 
 // AVD Profile specifications — multi-session per-user shares, single-session per-VM
 const AVD_PROFILES = {
@@ -3369,6 +3434,10 @@ function showAddWorkloadModal(type) {
             title.textContent = 'Add Azure Virtual Desktop';
             body.innerHTML = getAVDModalContent();
             break;
+        case 'foundry':
+            title.textContent = 'Add Foundry Local';
+            body.innerHTML = getFoundryModalContent();
+            break;
     }
     
     modal.classList.add('active');
@@ -3639,6 +3708,148 @@ function getAVDModalContent() {
     `;
 }
 
+// Get Foundry Local modal content
+function getFoundryModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.foundry;
+    const cls = FOUNDRY_MODEL_CLASSES[defaults.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
+    const customCls = FOUNDRY_MODEL_CLASSES.custom;
+    return `
+        <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+            <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Foundry Local on Azure Local is available by request during preview. <a href="https://aka.ms/FoundryLocalAzure_PreviewRequest" target="_blank" style="color: var(--link-color);">Request preview deployment access</a>.
+        </div>
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/foundry-local/what-is-foundry-local-on-azure-local" target="_blank" style="color: var(--link-color);">What is Foundry Local on Azure Local?</a>
+        </div>
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Foundry">
+        </div>
+        <div class="form-group">
+            <label>Model Size Class
+                <span class="info-icon" title="Pick the model size class. Sizing presets are conservative rules of thumb (model weights + KV cache + overhead). Validate with your OEM hardware partner and your actual model.">ⓘ</span>
+            </label>
+            <select id="foundry-model-class" onchange="updateFoundryClassDescription()">
+                <option value="small">${FOUNDRY_MODEL_CLASSES.small.name} &mdash; ${FOUNDRY_MODEL_CLASSES.small.description}</option>
+                <option value="medium" selected>${FOUNDRY_MODEL_CLASSES.medium.name} &mdash; ${FOUNDRY_MODEL_CLASSES.medium.description}</option>
+                <option value="large">${FOUNDRY_MODEL_CLASSES.large.name} &mdash; ${FOUNDRY_MODEL_CLASSES.large.description}</option>
+                <option value="custom">${FOUNDRY_MODEL_CLASSES.custom.name} &mdash; ${FOUNDRY_MODEL_CLASSES.custom.description}</option>
+            </select>
+            <span class="hint" id="foundry-class-desc">${cls.description}</span>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Number of Replicas
+                    <span class="info-icon" title="Number of model deployment replicas (pods). Each replica handles a share of inference traffic.">ⓘ</span>
+                </label>
+                <input type="number" id="foundry-replicas" value="${defaults.replicas}" min="1" max="100">
+            </div>
+            <div class="form-group">
+                <label>Inference Engine
+                    <span class="info-icon" title="ONNX-GenAI runs on CPU or GPU. vLLM is GPU-only and provides higher-throughput batched inference.">ⓘ</span>
+                </label>
+                <select id="foundry-engine" onchange="onFoundryEngineChange()">
+                    <option value="onnx-genai" selected>ONNX-GenAI (CPU or GPU)</option>
+                    <option value="vllm">vLLM (GPU only)</option>
+                </select>
+            </div>
+        </div>
+        <div id="foundry-custom-fields" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>vCPUs per Replica</label>
+                    <input type="number" id="foundry-custom-vcpus" value="${customCls.vcpus}" min="1" max="256">
+                </div>
+                <div class="form-group">
+                    <label>Memory per Replica (GB)</label>
+                    <input type="number" id="foundry-custom-memory" value="${customCls.memory}" min="1" max="2048">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Storage per Replica (GB)
+                    <span class="info-icon" title="Disk space for model weights, KV cache and tokenizer artefacts. Excludes the fixed 200 GB AKS Arc OS disk per node.">ⓘ</span>
+                </label>
+                <input type="number" id="foundry-custom-storage" value="${customCls.storage}" min="5" max="2048">
+            </div>
+        </div>
+        <div id="foundry-specs-panel" style="margin-top: 12px; padding: 14px; background: var(--subtle-bg); border-radius: 8px;">
+            <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">Per-Replica Specifications</h4>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px;">
+                <div>
+                    <span style="color: var(--text-secondary);">vCPUs:</span>
+                    <span id="foundry-spec-vcpus">${cls.vcpus}</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Memory:</span>
+                    <span id="foundry-spec-memory">${cls.memory} GB</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Storage:</span>
+                    <span id="foundry-spec-storage">${cls.storage} GB</span>
+                </div>
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
+                GPU: <span id="foundry-spec-gpu">${cls.recommendedGpu}</span>
+            </div>
+        </div>
+        <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
+            <strong>Includes:</strong> ${FOUNDRY_CP_NODES}-node Kubernetes control plane (${FOUNDRY_CP_VCPU_PER_NODE} vCPU / ${FOUNDRY_CP_MEM_PER_NODE} GB / ${FOUNDRY_OS_DISK_GB} GB OS each), N model deployment replicas, and ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB inference operator overhead. Each replica also adds a fixed ${FOUNDRY_OS_DISK_GB} GB AKS Arc OS disk.
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
+            Estimates only &mdash; actual sizing depends on the model, quantization, batch size and concurrent request load. Validate with your OEM hardware partner.
+        </div>
+        ${getGpuRequirementFields('foundry')}
+    `;
+}
+
+// Update Foundry class description and per-replica specs panel when class changes
+function updateFoundryClassDescription() {
+    const classSelect = document.getElementById('foundry-model-class');
+    if (!classSelect) return;
+    const classId = classSelect.value;
+    const cls = FOUNDRY_MODEL_CLASSES[classId] || FOUNDRY_MODEL_CLASSES.medium;
+    const customFields = document.getElementById('foundry-custom-fields');
+    const specsPanel = document.getElementById('foundry-specs-panel');
+    const descEl = document.getElementById('foundry-class-desc');
+    if (descEl) descEl.textContent = cls.description;
+    if (classId === 'custom') {
+        if (customFields) customFields.style.display = 'block';
+        if (specsPanel) specsPanel.style.display = 'none';
+    } else {
+        if (customFields) customFields.style.display = 'none';
+        if (specsPanel) specsPanel.style.display = 'block';
+        const vcpusEl = document.getElementById('foundry-spec-vcpus');
+        const memEl = document.getElementById('foundry-spec-memory');
+        const storEl = document.getElementById('foundry-spec-storage');
+        const gpuEl = document.getElementById('foundry-spec-gpu');
+        if (vcpusEl) vcpusEl.textContent = cls.vcpus;
+        if (memEl) memEl.textContent = cls.memory + ' GB';
+        if (storEl) storEl.textContent = cls.storage + ' GB';
+        if (gpuEl) gpuEl.textContent = cls.recommendedGpu;
+    }
+}
+
+// When the Foundry inference engine changes, force GPU mode if vLLM is selected
+function onFoundryEngineChange() {
+    const engineEl = document.getElementById('foundry-engine');
+    if (!engineEl) return;
+    const gpuModeEl = document.getElementById('wl-gpu-mode');
+    if (!gpuModeEl) return;
+    if (engineEl.value === 'vllm') {
+        // vLLM is GPU-only — switch to DDA if currently 'none'
+        if (gpuModeEl.value === 'none') {
+            gpuModeEl.value = 'dda';
+            toggleWorkloadGpuFields();
+        }
+        // Disable the 'none' option to prevent users from un-selecting GPU
+        const noneOpt = gpuModeEl.querySelector('option[value="none"]');
+        if (noneOpt) noneOpt.disabled = true;
+    } else {
+        const noneOpt = gpuModeEl.querySelector('option[value="none"]');
+        if (noneOpt) noneOpt.disabled = false;
+    }
+}
+
 // Toggle FSLogix size input visibility
 function toggleFSLogixSize() {
     const cb = document.getElementById('avd-fslogix');
@@ -3741,6 +3952,16 @@ function addWorkload() {
             workload.workerVcpus = parseInt(document.getElementById('aks-worker-vcpus').value) || 8;
             workload.workerMemory = parseInt(document.getElementById('aks-worker-memory').value) || 16;
             workload.workerStorage = parseInt(document.getElementById('aks-worker-storage').value) || 200;
+            break;
+        case 'foundry':
+            workload.modelClass = document.getElementById('foundry-model-class').value || 'medium';
+            workload.replicas = parseInt(document.getElementById('foundry-replicas').value) || 1;
+            workload.engine = document.getElementById('foundry-engine').value || 'onnx-genai';
+            if (workload.modelClass === 'custom') {
+                workload.customVcpus = parseInt(document.getElementById('foundry-custom-vcpus').value) || 8;
+                workload.customMemory = parseInt(document.getElementById('foundry-custom-memory').value) || 16;
+                workload.customStorage = parseInt(document.getElementById('foundry-custom-storage').value) || 40;
+            }
             break;
         case 'avd':
             workload.profile = document.getElementById('avd-profile').value;
@@ -3862,6 +4083,22 @@ function editWorkload(id) {
                 document.getElementById('avd-custom-memory').value = w.customMemory || 8;
                 document.getElementById('avd-custom-storage').value = w.customStorage || 50;
             }
+            break;
+        case 'foundry':
+            title.textContent = 'Edit Foundry Local';
+            body.innerHTML = getFoundryModalContent();
+            document.getElementById('workload-name').value = w.name;
+            document.getElementById('foundry-model-class').value = w.modelClass || 'medium';
+            document.getElementById('foundry-replicas').value = w.replicas || 1;
+            document.getElementById('foundry-engine').value = w.engine || 'onnx-genai';
+            updateFoundryClassDescription();
+            if (w.modelClass === 'custom') {
+                document.getElementById('foundry-custom-vcpus').value = w.customVcpus || 8;
+                document.getElementById('foundry-custom-memory').value = w.customMemory || 16;
+                document.getElementById('foundry-custom-storage').value = w.customStorage || 40;
+            }
+            // Apply vLLM constraint to GPU mode after restoring engine
+            onFoundryEngineChange();
             break;
     }
 
@@ -4002,6 +4239,8 @@ function getWorkloadIcon(type) {
             return '<img src="../images/aks-arc-icon.png" alt="AKS Arc" width="20" height="20" style="vertical-align: middle;">';
         case 'avd':
             return '<img src="../images/avd-icon.png" alt="AVD" width="20" height="20" style="vertical-align: middle;">';
+        case 'foundry':
+            return '<img src="../images/foundry-icon.png" alt="Foundry Local" width="20" height="20" style="vertical-align: middle;">';
         default:
             return '';
     }
@@ -4013,6 +4252,7 @@ function getWorkloadTypeName(type) {
         case 'vm': return 'VMs';
         case 'aks': return 'AKS Arc';
         case 'avd': return 'AVD';
+        case 'foundry': return 'Foundry Local';
         default: return '';
     }
 }
@@ -4047,6 +4287,15 @@ function getWorkloadDetails(w) {
             if (w.fslogix) avdDesc += ` \u2022 FSLogix ${w.fslogixSize || 30} GB/user`;
             detail = avdDesc;
             break;
+        case 'foundry': {
+            const fcls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
+            const className = w.modelClass === 'custom'
+                ? `Custom (${w.customVcpus} vCPU / ${w.customMemory} GB / ${w.customStorage} GB per replica)`
+                : fcls.name;
+            const engineLabel = w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI';
+            detail = `${w.replicas || 1} replica${(w.replicas || 1) > 1 ? 's' : ''} \u2022 ${className} \u2022 ${engineLabel}`;
+            break;
+        }
         default:
             return '';
     }
@@ -4116,6 +4365,34 @@ function calculateWorkloadRequirements(w) {
             }
             break;
         }
+        case 'foundry': {
+            // Per-replica resources (model class preset OR custom override)
+            let perReplicaVcpu, perReplicaMem, perReplicaStor;
+            if (w.modelClass === 'custom') {
+                perReplicaVcpu = w.customVcpus || 8;
+                perReplicaMem = w.customMemory || 16;
+                perReplicaStor = w.customStorage || 40;
+            } else {
+                const cls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
+                perReplicaVcpu = cls.vcpus;
+                perReplicaMem = cls.memory;
+                perReplicaStor = cls.storage;
+            }
+            const replicas = w.replicas || 1;
+            // Foundry runs on a 3-node Kubernetes control plane. Each model
+            // replica = 1 worker node sized to the model class, plus the fixed
+            // 200 GB AKS Arc OS disk (matching the AKS workload pattern).
+            const cpVcpus = FOUNDRY_CP_NODES * FOUNDRY_CP_VCPU_PER_NODE;
+            const cpMemory = FOUNDRY_CP_NODES * FOUNDRY_CP_MEM_PER_NODE;
+            const cpStorage = FOUNDRY_CP_NODES * FOUNDRY_OS_DISK_GB;
+            const workerVcpus = perReplicaVcpu * replicas;
+            const workerMemory = perReplicaMem * replicas;
+            const workerStorage = (FOUNDRY_OS_DISK_GB + perReplicaStor) * replicas;
+            vcpus = cpVcpus + workerVcpus + FOUNDRY_OPERATOR_VCPU;
+            memory = cpMemory + workerMemory + FOUNDRY_OPERATOR_MEM_GB;
+            storage = cpStorage + workerStorage;
+            break;
+        }
     }
 
     // Calculate GPU requirements
@@ -4135,6 +4412,10 @@ function calculateWorkloadRequirements(w) {
                 gpus = ddaCount * (w.sessionType === 'single'
                     ? w.userCount
                     : Math.ceil(w.userCount * ((w.concurrency || 100) / 100)));
+                break;
+            case 'foundry':
+                // DDA GPUs per replica × replicas (one model pod per worker node)
+                gpus = ddaCount * (w.replicas || 1);
                 break;
         }
     } else if (w.gpuMode === 'gpu-p') {
@@ -6266,6 +6547,16 @@ function selectRegionAndConfigure(region, cloud) {
                         entry.customStorage = w.customStorage;
                     }
                     break;
+                case 'foundry':
+                    entry.modelClass = w.modelClass;
+                    entry.replicas = w.replicas;
+                    entry.engine = w.engine;
+                    if (w.modelClass === 'custom') {
+                        entry.customVcpus = w.customVcpus;
+                        entry.customMemory = w.customMemory;
+                        entry.customStorage = w.customStorage;
+                    }
+                    break;
             }
             return entry;
         })
@@ -6403,6 +6694,13 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     var users = w.userCount || 0;
                     var reqs = calculateWorkloadRequirements(w);
                     rows.push(['Workload', 'AVD', users + ' users (' + avdProfile + ')', reqs.vcpus, reqs.memory, reqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
+                } else if (w.type === 'foundry') {
+                    var foundryReqs = calculateWorkloadRequirements(w);
+                    var foundryClass = w.modelClass === 'custom'
+                        ? 'Custom (' + (w.customVcpus || 0) + ' vCPU / ' + (w.customMemory || 0) + ' GB / ' + (w.customStorage || 0) + ' GB per replica)'
+                        : (FOUNDRY_MODEL_CLASSES[w.modelClass] && FOUNDRY_MODEL_CLASSES[w.modelClass].name) || (w.modelClass || 'medium');
+                    var foundryDetail = (w.replicas || 1) + ' replica(s) \u00b7 ' + foundryClass + ' \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
+                    rows.push(['Workload', 'Foundry Local', foundryDetail, foundryReqs.vcpus, foundryReqs.memory, foundryReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 }
             });
         }

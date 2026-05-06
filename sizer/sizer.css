@@ -12,6 +12,7 @@
     --accent-purple: #8b5cf6;
     --accent-green: #10b981;
     --accent-orange: #f59e0b;
+    --accent-cyan: #00bcf2;
     --success: #10b981;
     --warning: #f59e0b;
     --danger: #ef4444;
@@ -648,6 +649,11 @@ header .header-description {
 .workload-icon.avd {
     --workload-icon-bg: rgba(16, 185, 129, 0.15);
     --workload-icon-color: var(--accent-green);
+}
+
+.workload-icon.foundry {
+    --workload-icon-bg: rgba(0, 188, 242, 0.15);
+    --workload-icon-color: var(--accent-cyan);
 }
 
 .workload-type-btn span {

@@ -1214,8 +1214,9 @@
 
         // Sizer Workloads (individual workload details from Sizer)
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop' };
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local' };
             var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            var foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             md.push('## Workloads (from Sizer)');
             md.push('');
             for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
@@ -1246,6 +1247,13 @@
                     }
                     if (wl.profile === 'custom') {
                         md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user |');
+                    }
+                } else if (wl.type === 'foundry') {
+                    md.push('| Model Class | ' + (foundryClassLabels[wl.modelClass] || wl.modelClass || '-') + ' |');
+                    md.push('| Replicas | ' + (wl.replicas || 1) + ' |');
+                    md.push('| Inference Engine | ' + (wl.engine === 'vllm' ? 'vLLM (GPU only)' : 'ONNX-GenAI (CPU or GPU)') + ' |');
+                    if (wl.modelClass === 'custom') {
+                        md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica |');
                     }
                 }
                 md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
@@ -8216,8 +8224,9 @@
         // Sizer Workloads (individual workload details from Sizer)
         var sizerWorkloadsRows = '';
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop' };
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local' };
             var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            var foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
                 var wl = s.sizerWorkloads[wi];
                 var wlLabel = wl.name || typeLabels[wl.type] || wl.type;
@@ -8248,6 +8257,13 @@
                     }
                     if (wl.profile === 'custom') {
                         sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user');
+                    }
+                } else if (wl.type === 'foundry') {
+                    sizerWorkloadsRows += row('Model Class', foundryClassLabels[wl.modelClass] || wl.modelClass || '-');
+                    sizerWorkloadsRows += row('Replicas', String(wl.replicas || 1));
+                    sizerWorkloadsRows += row('Inference Engine', (wl.engine === 'vllm' ? 'vLLM (GPU only)' : 'ONNX-GenAI (CPU or GPU)'));
+                    if (wl.modelClass === 'custom') {
+                        sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica');
                     }
                 }
                 // Totals for this workload

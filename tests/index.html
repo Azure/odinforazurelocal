@@ -3159,6 +3159,81 @@
             })()
         ]);
 
+        // --- FOUNDRY_MODEL_CLASSES ---
+        testSuite('FOUNDRY_MODEL_CLASSES', 'sizer.js', [
+            assert(typeof FOUNDRY_MODEL_CLASSES === 'object' && FOUNDRY_MODEL_CLASSES !== null,
+                'FOUNDRY_MODEL_CLASSES exists', true, typeof FOUNDRY_MODEL_CLASSES === 'object'),
+            assert(FOUNDRY_MODEL_CLASSES.small.vcpus === 4,
+                'Small SLM: 4 vCPUs/replica', 4, FOUNDRY_MODEL_CLASSES.small.vcpus),
+            assert(FOUNDRY_MODEL_CLASSES.medium.vcpus === 8,
+                'Medium SLM: 8 vCPUs/replica', 8, FOUNDRY_MODEL_CLASSES.medium.vcpus),
+            assert(FOUNDRY_MODEL_CLASSES.large.vcpus === 16,
+                'Large LLM: 16 vCPUs/replica', 16, FOUNDRY_MODEL_CLASSES.large.vcpus),
+            assert(FOUNDRY_MODEL_CLASSES.small.memory < FOUNDRY_MODEL_CLASSES.medium.memory
+                && FOUNDRY_MODEL_CLASSES.medium.memory < FOUNDRY_MODEL_CLASSES.large.memory,
+                'Memory monotonic: small < medium < large', true,
+                FOUNDRY_MODEL_CLASSES.small.memory < FOUNDRY_MODEL_CLASSES.medium.memory
+                && FOUNDRY_MODEL_CLASSES.medium.memory < FOUNDRY_MODEL_CLASSES.large.memory),
+            assert(FOUNDRY_MODEL_CLASSES.large.recommendedGpu === 'required',
+                'Large LLM requires GPU', 'required', FOUNDRY_MODEL_CLASSES.large.recommendedGpu),
+            assert(FOUNDRY_MODEL_CLASSES.custom !== undefined && FOUNDRY_MODEL_CLASSES.custom.name === 'Custom',
+                'Custom class exists', 'Custom', (FOUNDRY_MODEL_CLASSES.custom || {}).name)
+        ]);
+
+        testSuite('calculateWorkloadRequirements() - Foundry Local', 'sizer.js', [
+            (() => {
+                // Medium SLM, 1 replica, ONNX-GenAI
+                // CP: 3 nodes × 4 vCPU = 12, worker: 1 × 8 = 8, operator: 2 → 22 vCPU
+                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 22, 'Foundry Medium 1 replica: 22 vCPUs', 22, r.vcpus);
+            })(),
+            (() => {
+                // Medium SLM, 1 replica
+                // CP: 3 × 8 = 24, worker: 1 × 16 = 16, operator: 4 → 44 GB
+                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.memory === 44, 'Foundry Medium 1 replica: 44 GB memory', 44, r.memory);
+            })(),
+            (() => {
+                // Medium SLM, 1 replica
+                // CP storage: 3 × 200 = 600, worker storage: 1 × (200 + 40) = 240 → 840 GB
+                const w = { type: 'foundry', modelClass: 'medium', replicas: 1, engine: 'onnx-genai' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.storage === 840, 'Foundry Medium 1 replica: 840 GB storage', 840, r.storage);
+            })(),
+            (() => {
+                // Large LLM, 2 replicas
+                // CP: 12, worker: 2 × 16 = 32, operator: 2 → 46 vCPU
+                // CP mem: 24, worker mem: 2 × 64 = 128, operator mem: 4 → 156 GB
+                // Storage: 600 + 2 × (200 + 100) = 1200
+                const w = { type: 'foundry', modelClass: 'large', replicas: 2, engine: 'vllm' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 46 && r.memory === 156 && r.storage === 1200,
+                    'Foundry Large 2 replicas: 46/156/1200', '46/156/1200',
+                    r.vcpus + '/' + r.memory + '/' + r.storage);
+            })(),
+            (() => {
+                // Custom: 6 vCPU, 12 GB, 30 GB per replica × 3 replicas
+                // CP: 12, worker: 18, operator: 2 → 32 vCPU
+                // CP mem: 24, worker: 36, operator: 4 → 64 GB
+                // Storage: 600 + 3 × (200 + 30) = 1290
+                const w = { type: 'foundry', modelClass: 'custom', replicas: 3,
+                            customVcpus: 6, customMemory: 12, customStorage: 30, engine: 'onnx-genai' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 32 && r.memory === 64 && r.storage === 1290,
+                    'Foundry Custom 3 replicas (6/12/30): 32/64/1290', '32/64/1290',
+                    r.vcpus + '/' + r.memory + '/' + r.storage);
+            })(),
+            (() => {
+                // GPU: DDA 1 GPU per replica × 4 replicas = 4 GPUs
+                const w = { type: 'foundry', modelClass: 'medium', replicas: 4, engine: 'vllm',
+                            gpuMode: 'dda', gpuDdaCount: 1 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.gpus === 4, 'Foundry vLLM 4 replicas × 1 GPU = 4 GPUs', 4, r.gpus);
+            })()
+        ]);
+
         // --- getRecommendedNodeCount() ---
         testSuite('getRecommendedNodeCount()', 'sizer.js', [
             (() => {
