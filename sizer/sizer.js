@@ -2773,7 +2773,7 @@ const FOUNDRY_MODEL_CLASSES = {
     },
     medium: {
         name: 'Medium SLM',
-        description: 'Phi-4, Mistral-7B, Llama-3.1-8B, gpt-oss-20b (~7-20B params)',
+        description: 'OpenAI gpt-oss-20b, Phi-4, Mistral-7B, Llama-3.1-8B (~7-20B params)',
         vcpus: 8,
         memory: 16,
         storage: 40,
@@ -2781,7 +2781,7 @@ const FOUNDRY_MODEL_CLASSES = {
     },
     large: {
         name: 'Large LLM',
-        description: 'DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4, gpt-oss-120b (~32-120B params)',
+        description: 'OpenAI gpt-oss-120b, DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4 (~32-120B params)',
         vcpus: 16,
         memory: 64,
         storage: 100,
