@@ -80,6 +80,16 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - All three new workload types serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
 - **26 new unit tests** in `tests/index.html` (13 for Foundry, 6 for Edge RAG, 7 for AI Video Indexer) covering preset integrity, control-plane + worker + operator overhead arithmetic, custom-override paths, vector-DB scaling, per-tier arithmetic, and GPU count calculation.
 
+**Other UX polish bundled in this release**
+- **Sizer AUTO sizing** now enforces a **24-core CPU minimum per node when GPUs are involved on multi-node clusters** (Low Capacity remains capped at 14 cores). Manual CPU overrides still win.
+- **Sizer**: fixed misleading "*Auto-configured N node(s) based on undefined requirements*" message that appeared when GPU was the bottleneck (added the `gpu: 'GPU'` label).
+- **Sizer Foundry Local model class examples now lead with OpenAI gpt-oss models** — Medium SLM lists `OpenAI gpt-oss-20b` first; Large LLM lists `OpenAI gpt-oss-120b` first.
+- **Configuration Report** now renders Video Indexer as **AI Video Indexer** in the Markdown / HTML / PowerPoint exports.
+- **3D rack visualization on mobile**: hidden the "Azure Local" brand badge overlay on viewports ≤ 768 px so it no longer overlaps the rack.
+- **Top navigation tab order changed to**: **Knowledge | Sizer | Designer | ToR Switch**. Single source of truth in `js/nav.js` — affects every page.
+- **Knowledge tab**: *Microsoft Sovereign Private Clouds Reference Architectures* is now the first item in the left-hand navigation menu and the default page that loads.
+- **Reference Architectures page — new "Share Architecture as URL" button**, mirroring the Sizer's pattern. Encodes purposes / connectivity / tenancy / scale / storage selections into a base64 `?config=` URL, copies it to the clipboard, and shows recipients a green confirmation banner. URL-load path validates every property key against the known `PURPOSES` whitelist (rejects `__proto__` / `constructor` / `prototype`) before writing to state.
+
 **Notes**
 - Per-replica, per-corpus, and per-tier resource estimates are conservative rules of thumb. **Foundry Local on Azure Local, Edge RAG Preview enabled by Azure Arc, and Azure AI Video Indexer enabled by Arc are all in Preview**; sizing depends on the specific model, quantization, batch size, document mix, chunking strategy, embedding model, video volume / resolution / codecs, concurrent jobs, and ReadWriteMany volume performance. Validate with your OEM hardware partner.
 - No new external network calls. No new third-party CDN dependencies. Foundry, Edge RAG, and AI Video Indexer workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
