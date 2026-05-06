@@ -495,6 +495,46 @@
     font-weight: 700;
 }
 
+/* Disabled state for the connectivity card (e.g. disconnected when AVD is
+   selected). Greys out the card, removes hover lift, and blocks the click
+   handler from firing visually. */
+.spc-card.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    filter: grayscale(0.6);
+}
+
+.spc-card.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--glass-border);
+}
+
+/* Inline warning shown under the connectivity grid when AVD is selected. */
+.avd-warning {
+    margin-top: 14px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(255, 184, 0, 0.10);
+    border: 1px solid rgba(255, 184, 0, 0.45);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    line-height: 1.45;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.avd-warning.hidden {
+    display: none;
+}
+
+.avd-warning-icon {
+    font-size: 1.05rem;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
 .spc-card-cloud {
     position: absolute;
     top: 14px;

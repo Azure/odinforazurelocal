@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.07] - 2026-05-06
+
+Polishes the **Microsoft Sovereign Private Clouds reference architectures** page (Knowledge tab, `docs/reference-architectures/`) with five targeted refinements to the Foundry Local cluster diagram, an AVD compatibility guard on the connectivity picker, and tighter AVD workload labelling. No changes to the PowerPoint export, Sizer, Designer, or any other surface.
+
+### Added
+
+- **`docs/reference-architectures/script.js` — AVD ↔ Disconnected compatibility guard.** New `isDisconnectedBlockedByAvd()` predicate + `renderAvdDisconnectedWarning()` helper. When `avd` is in `state.purposes`, the *Disconnected / Air-gapped* card on the connectivity grid (step 2) is rendered disabled (`.disabled` class, `aria-disabled="true"`, `tabindex="-1"`, click handler is a no-op) and an inline warning is shown directly under the grid: *"Azure Virtual Desktop is not supported in disconnected / air-gapped mode."* If `state.connectivity` was already `'disconnected'` when AVD is added, `refreshSelections()` force-flips it back to `'connected'` before the rest of the UI repaints, so the SVG preview, summary text, and PPT export all stay consistent. Removing AVD restores the disconnected option and hides the warning.
+- **`docs/reference-architectures/styles.css` — `.spc-card.disabled` + `.avd-warning` styles.** Disabled card uses `opacity: 0.45 + filter: grayscale(0.6) + cursor: not-allowed` and suppresses hover lift; the inline warning uses a translucent yellow background (`rgba(255, 184, 0, 0.10)`) with a `⚠️` icon, matching the existing yellow advisory tone.
+- **`docs/reference-architectures/script.js` — recursive workload-group rendering** (`renderGroupContainer()` + `renderGroupLeafTile()` + `measureGroupContainerH()`). The `workloadGroup` data model now allows a child to be either a string (leaf workload tile) or another `{ parent, parentLabel, children }` object (nested sub-container). Used by the Foundry Local cluster card to render an outer **AKS Cluster** container holding an inner **Foundry Local** sub-container, with **Edge RAG** and **Video Indexer** tiles inside Foundry Local. Both containers anchor their parent icon + bold label as a centered footer at the bottom of the band.
+
+### Changed
+
+- **Foundry Local cluster card — diagram restructured.** The `'foundry-local'` template now declares a nested `workloadGroup`: `{ parent: 'AKS Arc', parentLabel: 'AKS Cluster', children: [{ parent: 'foundry', parentLabel: 'Foundry Local', children: ['Edge RAG', 'Video Indexer'] }] }`, plus a separate `workloads: ['GPUs (VI + RAG)']` token that is pulled out of the workload band and rendered as a dedicated GPU tile between the *SERVERS* title and the server pills.
+- **Foundry Local cluster card — AVAILABLE AI MODELS strip moved above the workload band** so the model logos sit between the department chips and the AKS container, matching the reading order of the rest of the card.
+- **Foundry Local cluster card — GPU tile palette switched to green.** Fill `#e6f5ee`, stroke `#9bd6b8`, label text `#1f4e3a` — same green palette as the server pills, since GPUs are physical hardware that lives on the servers, not a workload.
+- **AVD Session Host Cluster workloads** simplified to **AVD session hosts**, **FSLogix profiles**, **AVD VMs** (replacing the previous *Domain controllers* + *AKS Arc* tiles, which weren't representative of the typical AVD-on-Azure-Local footprint). New `'AVD VMs'` entry in `WORKLOAD_ICON_FILES` mapped to `icons/sovereign-vm.svg`.
+
+### Notes
+
+- No new external network calls. No new dependencies. ESLint clean across all browser-facing scopes; all 1,156 existing unit tests still pass.
+
+---
+
+## [0.21.06] - 2026-05-06
+
+Restyles the **Configuration Report PowerPoint export** (Designer's *Download PowerPoint* button) to match the dark-mode visual identity of the *Microsoft Sovereign Private Clouds reference architectures* PPTX export. The two ODIN-generated decks now share a single, consistent look-and-feel: dark `#0A0A0F` backgrounds, white titles with a blue accent underline, rounded-rect cards with drop shadows for content panels, the ODIN logo top-right on every section slide, and a centered cover slide with a large 2.2" logo. Bullet content and rasterized SVG diagrams are unchanged — only the layout, palette, and chrome were rebuilt.
+
+### Changed
+
+- **`report/pptx-export.js` — full rewrite of the package-assembly path.** The previous template-based pipeline (which fetched `report/template/OdinPPTTemplate.potx`, stripped placeholders, and emitted via `paragraphXml` / `placeholderSp` / `placeholderSpSized`) has been replaced with a from-scratch dark-mode OOXML builder. New helpers: `makeShape()`, `makeTextBoxSp()`, `makeBulletsTxBox()`, `makeCard()` (rounded-rect with shadow), `makeLogoPic()`, `buildSlideChrome()` (title + blue accent underline + optional tagline + logo + optional footer), and `wrapSlide()` (paints the dark background). All six slide builders (`buildCoverSlide`, `buildClosingSlide`, `buildTextSectionSlide`, `buildPictureSectionSlide`, `buildBulletsWithFooterSlide`, `buildBodySvgSlide`) were rewritten to return `{ xml, images, links }` instead of the old `{ sps, layout, images, links }` template-slot shape.
+- **Per-slide rels convention.** `rId1` = slide layout, `rId2` = ODIN logo (referenced by every slide), `rId3+` = content images for that slide, `rId100+` = hyperlinks. The logo PNG is written once into `ppt/media/odin-logo.png` rather than being re-embedded on the cover slide as before.
+- **Cover slide.** New centered layout: 2.2" ODIN logo at top, large white title at 40pt bold, subtitle at 18pt, generated-on footer in italic accent purple at the bottom.
+- **Closing slide.** Replaces the old template-driven layout with a "Thank you" headline, tagline, and centered body text linking to GitHub Issues.
+- **`extractProxyConfiguration` callout** — repositioned to `(0.6", 6.4", 12.15", 0.55")` so it sits cleanly at the bottom of the new bullets card just above the footer line.
+
+### Removed
+
+- Template-fetch path (`fetchTemplate`, `TEMPLATE_URL`, `TEMPLATE_CT`, `SLIDE_REL`, `BULLETS_XFRM_LAYOUT9`) and the placeholder-based emitters (`paragraphXml`, `placeholderSp`, `placeholderSpSized`, `slideXml`, `slideRels`). The deck is now assembled synchronously without a network round-trip to load `OdinPPTTemplate.potx` (the template file is still in the repo for reference but is no longer referenced by code).
+
+### Notes
+
+- No new external network calls (one fewer, in fact — the `.potx` template fetch is gone). No new dependencies. All 1,156 existing unit tests still pass; smoke test (`node scripts/smoke-test-pptx.js`) confirms the new builder produces a valid ~9 MB PPTX with the expected ZIP magic bytes.
+- Bullet content extraction, SVG diagram rasterization, and the `SECTION_PLAN` slide ordering are unchanged.
+
+---
+
+## [0.21.05] - 2026-05-06
+
+Adds an **"About this architecture" slide** to the PowerPoint export on the *Microsoft Sovereign Private Clouds reference architectures* page (Knowledge tab). The slide carries the same on-screen narrative — overview, control-plane explanation, and per-purpose design notes — so the deck now reads end-to-end (Cover → About → Diagram → Control Plane → Summary → per-purpose detail slides) instead of jumping straight from the cover into the diagram with no context.
+
+### Added
+
+- **`docs/reference-architectures/script.js` — new `buildAboutSlideXml()` and `buildArchitectureNarrativeSections()`** plus a generic `makeRichTextBoxSp()` rich-text frame helper that supports per-paragraph font size, weight, color, alignment and `spcBef` / `spcAft` paragraph spacing in a single OOXML text box.
+  - The new slide is inserted between the existing Cover and Diagram slides in `buildPptxFromScratch()`. Existing rId allocation, content-types, and presentation rels were already keyed off `slideXmlList.length`, so all downstream slide indices and rel IDs shift by one automatically.
+  - Section text is generated by reusing the existing `buildOverviewParagraph()` / `buildControlPlaneParagraph()` HTML builders (so on-screen and in-deck wording stay in lockstep) and then stripped to plain text via a small `htmlToPlainText()` helper. The per-purpose block uses the same `tpl.summary` + `tpl.notes` data the on-screen narrative does.
+  - Body font auto-shrinks (1200 → 1100 → 1000 → 900) when the combined character count grows, so combined multi-purpose architectures (e.g. M365 Local + General Purpose + Foundry Local) still fit on a single 16:9 slide without overflow.
+- **`docs/reference-architectures/script.js` — new `getPurposeEntries()` helper** factored out of `updatePreview()` so the PPT-export path can rebuild the resolved per-purpose entry list (with `tpl.notes`, `tpl.cloud.disconnectedTitle`, etc.) without duplicating the `state.purposes.map(...).filter(Boolean)` block.
+
+### Notes
+
+- No new tests are required: the existing `node scripts/run-tests.js` suite (1,156 tests) continues to pass. The Reference Architectures PPTX export is not asserted at the slide-count level by any unit test, and the new slide reuses already-tested narrative builders.
+- No new external network calls. No new dependencies. The slide is generated entirely client-side via the already-vendored JSZip 3.10.1 (`vendor/jszip-3.10.1.min.js`).
+
+---
+
 ## [0.21.04] - 2026-05-06
 
 Adds three new top-level workload types in the Sizer alongside Azure Local VMs, AKS Arc, and AVD: **Foundry Local on Azure Local (Preview)**, **Edge RAG Preview, enabled by Azure Arc**, and **Azure AI Video Indexer enabled by Arc (Preview)**. All three run on AKS Arc; Foundry sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline driven by document corpus size, and Video Indexer sizes Microsoft's published Minimum / Recommended cluster-wide tiers for video and audio analysis on edge devices.
