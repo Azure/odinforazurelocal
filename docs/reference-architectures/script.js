@@ -323,6 +323,25 @@
         storageByPurpose: {}
     };
 
+    // Whitelist of purpose ids derived from the static PURPOSES table.
+    // Used as a defence-in-depth filter before any code path writes to
+    // state.tenancyByPurpose / scaleByPurpose / storageByPurpose with a key
+    // that originated (directly or indirectly) from a user-supplied source
+    // such as the ?config= URL parameter. Prototype-less Object.create(null)
+    // is used so that lookups for crafted keys like '__proto__' or
+    // 'constructor' return undefined rather than reaching Object.prototype.
+    // (CodeQL: js/prototype-polluting-assignment / js/remote-property-injection.)
+    const VALID_PURPOSE_IDS = (function() {
+        const m = Object.create(null);
+        for (let i = 0; i < PURPOSES.length; i++) { m[PURPOSES[i].id] = true; }
+        return m;
+    })();
+    function isValidPurposeId(k) {
+        return typeof k === 'string'
+            && k !== '__proto__' && k !== 'constructor' && k !== 'prototype'
+            && Object.prototype.hasOwnProperty.call(VALID_PURPOSE_IDS, k);
+    }
+
     // Convenience: tenancy id to use for a given purpose. No global default any
     // more — each purpose owns its own tenancy in state.tenancyByPurpose.
     function getTenancyFor(purposeId) {
@@ -3918,19 +3937,19 @@
             const data = JSON.parse(json);
             if (!data || !Array.isArray(data.purposes)) { return null; }
 
-            const validIds = Object.create(null);
-            for (let i = 0; i < PURPOSES.length; i++) { validIds[PURPOSES[i].id] = true; }
-            const isValidPurposeId = function(k) {
-                return typeof k === 'string'
-                    && k !== '__proto__' && k !== 'constructor' && k !== 'prototype'
-                    && Object.prototype.hasOwnProperty.call(validIds, k);
-            };
             const sanitizeKeyedObject = function(src, valueFn) {
-                const out = {};
+                // Output object is prototype-less so that even if a future
+                // change loosens the key check, '__proto__' / 'constructor'
+                // can never reach Object.prototype.
+                const out = Object.create(null);
                 if (!src || typeof src !== 'object') { return out; }
                 Object.keys(src).forEach(function(k) {
                     if (!isValidPurposeId(k)) { return; }
-                    out[k] = valueFn(src[k]);
+                    // Re-resolve the key to a literal from the trusted whitelist
+                    // so the property name being written is not derived from
+                    // user input (CodeQL js/remote-property-injection).
+                    const safeKey = PURPOSES.find(function(p) { return p.id === k; }).id;
+                    out[safeKey] = valueFn(src[k]);
                 });
                 return out;
             };
@@ -4201,25 +4220,41 @@
                 state.purposes = next.purpose ? [next.purpose] : [];
             }
             if (next.connectivity !== undefined) { state.connectivity = next.connectivity; }
+            // All writes below validate the property name against the
+            // PURPOSES whitelist (and re-resolve to a literal from that table)
+            // so that a tainted key — e.g. one that flowed in from
+            // ?config= via state.purposes — can never become a property
+            // name on a state.* object. (CodeQL: js/remote-property-injection.)
+            const writeKeyed = function(target, key, value) {
+                if (!isValidPurposeId(key)) { return; }
+                const safeKey = PURPOSES.find(function(p) { return p.id === key; }).id;
+                target[safeKey] = value;
+            };
             if (next.tenancyByPurpose !== undefined) {
-                state.tenancyByPurpose = Object.assign({}, next.tenancyByPurpose);
+                state.tenancyByPurpose = {};
+                Object.keys(next.tenancyByPurpose).forEach(function(k) {
+                    writeKeyed(state.tenancyByPurpose, k, next.tenancyByPurpose[k]);
+                });
             } else if (next.tenancy !== undefined) {
                 // Back-compat: a single global tenancy now gets applied to every selected purpose.
-                state.purposes.forEach(function(pid) { state.tenancyByPurpose[pid] = next.tenancy; });
+                state.purposes.forEach(function(pid) { writeKeyed(state.tenancyByPurpose, pid, next.tenancy); });
             }
             if (next.scaleByPurpose !== undefined) {
                 state.scaleByPurpose = {};
                 Object.keys(next.scaleByPurpose).forEach(function(k) {
                     const v = next.scaleByPurpose[k];
-                    state.scaleByPurpose[k] = Array.isArray(v) ? v.slice() : (v ? [v] : []);
+                    writeKeyed(state.scaleByPurpose, k, Array.isArray(v) ? v.slice() : (v ? [v] : []));
                 });
             } else if (next.scale !== undefined) {
                 // Back-compat: a single global scale list now gets applied to every selected purpose.
                 const arr = Array.isArray(next.scale) ? next.scale.slice() : (next.scale ? [next.scale] : []);
-                state.purposes.forEach(function(pid) { state.scaleByPurpose[pid] = arr.slice(); });
+                state.purposes.forEach(function(pid) { writeKeyed(state.scaleByPurpose, pid, arr.slice()); });
             }
             if (next.storageByPurpose !== undefined) {
-                state.storageByPurpose = Object.assign({}, next.storageByPurpose);
+                state.storageByPurpose = {};
+                Object.keys(next.storageByPurpose).forEach(function(k) {
+                    writeKeyed(state.storageByPurpose, k, next.storageByPurpose[k]);
+                });
             }
             refreshSelections();
             renderTenancyPerPurpose();
