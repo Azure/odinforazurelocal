@@ -19,8 +19,9 @@
   "dependencies": {
     "html-validate": "^10.7.0"
   },
-  "//": "basic-ftp override: NEVER downgrade below 5.3.1 (DoS in Client.list() affects <=5.2.2, GHSA-rp42-5vxx-qpwr)",
+  "//": "Security overrides: NEVER downgrade these. basic-ftp <=5.2.2 has DoS in Client.list() (GHSA-rp42-5vxx-qpwr). ip-address <=10.1.0 has XSS in Address6 HTML-emitting methods (GHSA-v2v4-37r5-5v8g / CVE-2026-42338) — pulled in transitively via puppeteer -> @puppeteer/browsers -> proxy-agent -> socks-proxy-agent -> socks.",
   "overrides": {
-    "basic-ftp": ">=5.3.1"
+    "basic-ftp": ">=5.3.1",
+    "ip-address": ">=10.1.1"
   }
 }
