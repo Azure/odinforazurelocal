@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.06 - Available here: https://aka.ms/ODIN
+## Version 0.21.07 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,19 +46,19 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.06 - Latest Release
+### 🎉 Version 0.21.07 - Latest Release
 
-> Restyles the **Configuration Report PowerPoint export** (Designer's *Download PowerPoint* button) to match the dark-mode visual identity of the *Microsoft Sovereign Private Clouds reference architectures* PPTX export. The two ODIN-generated decks now share a single, consistent look-and-feel — dark backgrounds, white titles with a blue accent underline, rounded-rect content cards with drop shadows, ODIN logo top-right on every section slide, and a centered cover slide. **Bullet content and rasterized SVG diagrams are unchanged** — only the layout, palette, and chrome were rebuilt.
+> Polishes the **Microsoft Sovereign Private Clouds reference architectures** page (Knowledge tab) with five targeted refinements to the Foundry Local cluster diagram, an AVD compatibility guard on the connectivity picker, and tighter AVD workload labelling. No changes to PPT export, Sizer, Designer, or any other surface.
 
-**Configuration Report PPTX — full restyle to match Sovereign dark-mode look**
-- New from-scratch OOXML builder in `report/pptx-export.js` — replaces the previous template-based pipeline (which fetched `report/template/OdinPPTTemplate.potx` and emitted via placeholders). The deck is now assembled synchronously without a network round-trip.
-- Dark-mode palette: `#0A0A0F` background, `#FFFFFF` titles, `#A1A1AA` body, `#1A1A24` card fill with `#2D2D3A` borders, `#0078D4` blue accent underline beneath every title, `#7B68EE` accent purple for cover footer text.
-- Cover slide: large 2.2" centered ODIN logo + 40 pt bold white title + 18 pt subtitle + italic purple "Generated on …" footer.
-- Section slides: rounded-rect cards with drop shadows hold the bullets and the diagram; ODIN logo top-right on every slide.
-- Closing slide: "Thank you" + tagline + centered link to GitHub Issues.
+**Reference Architectures — UI refinements**
+- **AVD ↔ Disconnected guard.** Selecting *Azure Virtual Desktop* in step 1 now disables the *Disconnected / Air-gapped* card in step 2 (AVD requires the AVD control plane in Azure). If Disconnected was already selected, connectivity is force-flipped back to *Connected* and an inline warning is shown under the connectivity grid. Removing AVD restores the disconnected option.
+- **Foundry Local cluster — nested AKS Cluster → Foundry Local container.** The cluster card now renders a hierarchy: outer **AKS Cluster** container holds an inner **Foundry Local** sub-container, with **Edge RAG** and **Video Indexer** tiles inside Foundry Local. Reflects the actual deployment shape (Foundry-hosted services on AKS Arc).
+- **Foundry Local cluster — AVAILABLE AI MODELS strip moved above the workload band** so the model logos sit between the department chips and the AKS container, matching the reading order of the rest of the card.
+- **Foundry Local cluster — GPUs pulled out into a dedicated tile** between the *SERVERS* title and the server pills, in the same green palette as the server pills (`#e6f5ee` / `#9bd6b8`) — GPUs are physical hardware that lives on the servers, not a workload.
+- **AVD Session Host Cluster** — workloads simplified to **AVD session hosts**, **FSLogix profiles**, and **AVD VMs** (replacing the previous *Domain controllers* + *AKS Arc* tiles, which weren't representative of the typical AVD-on-Azure-Local footprint).
 
 **Notes**
-- No new external network calls (one fewer, in fact — the `.potx` template fetch is gone). No new dependencies. All 1,156 existing unit tests still pass; smoke test (`node scripts/smoke-test-pptx.js`) confirms the new builder produces a valid ~9 MB PPTX.
+- No external network calls. No new dependencies. ESLint clean across all browser-facing scopes; all 1,156 existing unit tests still pass.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -381,7 +381,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.06  
+**Version**: 0.21.07  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -396,6 +396,15 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.06 - Configuration Report PPTX restyled to dark-mode Sovereign look
+
+> Restyles the **Configuration Report PowerPoint export** (Designer's *Download PowerPoint* button) to match the dark-mode visual identity of the *Microsoft Sovereign Private Clouds reference architectures* PPTX export. The two ODIN-generated decks now share a single, consistent look-and-feel — dark `#0A0A0F` backgrounds, white titles with a blue accent underline, rounded-rect content cards with drop shadows, ODIN logo top-right on every section slide, and a centered cover slide. **Bullet content and rasterized SVG diagrams are unchanged** — only the layout, palette, and chrome were rebuilt.
+
+- New from-scratch OOXML builder in `report/pptx-export.js` — replaces the previous template-based pipeline (which fetched `report/template/OdinPPTTemplate.potx` and emitted via placeholders). The deck is now assembled synchronously without a network round-trip.
+- Dark-mode palette: `#0A0A0F` background, `#FFFFFF` titles, `#A1A1AA` body, `#1A1A24` card fill with `#2D2D3A` borders, `#0078D4` blue accent underline beneath every title, `#7B68EE` accent purple for cover footer text.
+- Cover slide: large 2.2" centered ODIN logo + 40 pt bold white title + 18 pt subtitle + italic purple "Generated on …" footer.
+- Section slides: rounded-rect cards with drop shadows hold the bullets and the diagram; ODIN logo top-right on every slide.
 
 #### 0.21.05 - "About this architecture" slide in Reference Architectures PPTX
 

@@ -212,7 +212,24 @@
                 {
                     name: 'AI HCI Cluster',
                     nodes: 4,
-                    workloads: ['foundry', 'AKS Arc', 'Edge RAG', 'Video Indexer', 'GPUs (VI + RAG)'],
+                    // The Foundry Local stack runs on a single AKS Arc cluster.
+                    // Render it as a nested hierarchy: an outer "AKS Cluster"
+                    // container holds an inner "Foundry Local" container, and
+                    // the Edge RAG + Video Indexer workload tiles live inside
+                    // the Foundry Local box (since they're both Foundry-hosted
+                    // services).
+                    workloadGroup: {
+                        parent: 'AKS Arc',
+                        parentLabel: 'AKS Cluster',
+                        children: [
+                            {
+                                parent: 'foundry',
+                                parentLabel: 'Foundry Local',
+                                children: ['Edge RAG', 'Video Indexer']
+                            }
+                        ]
+                    },
+                    workloads: ['GPUs (VI + RAG)'],
                     // Slide 56 — model families available on Foundry Local. Logos are
                     // extracted from the L300 deck (slide 56) so the diagram matches
                     // the official marketing visual.
@@ -246,7 +263,7 @@
                 {
                     name: 'AVD Session Host Cluster',
                     nodes: 4,
-                    workloads: ['AVD session hosts', 'FSLogix profiles', 'Domain controllers', 'AKS Arc']
+                    workloads: ['AVD session hosts', 'FSLogix profiles', 'AVD VMs']
                 }
             ],
             notes: [
@@ -279,6 +296,7 @@
         'AVD session hosts': 'icons/azure-virtual-desktop.svg',
         'FSLogix profiles': 'icons/azure-files.svg',
         'Domain controllers': 'icons/entra-domain-services.svg',
+        'AVD VMs': 'icons/sovereign-vm.svg',
         // Foundry Local AI scenario components — Azure AI Search as the closest
         // stand-in for the Edge RAG retrieval layer (no dedicated Edge RAG icon
         // exists in the official Azure icon set). GPU is a hand-drawn glyph since
@@ -541,12 +559,22 @@
                 '<div class="spc-card-desc">' + escapeHtml(item.desc) + '</div>';
 
             btn.addEventListener('click', function() {
+                // AVD requires Azure (it is not supported in fully disconnected
+                // mode), so the disconnected card is non-interactive while AVD
+                // is in state.purposes.
+                if (isDisconnectedBlockedByAvd() && item.id === 'disconnected') { return; }
                 state.connectivity = item.id;
                 refreshSelections();
                 updatePreview();
             });
             container.appendChild(btn);
         });
+    }
+
+    // True when the currently selected purposes include AVD, which cannot run
+    // on a disconnected / air-gapped Azure Local footprint.
+    function isDisconnectedBlockedByAvd() {
+        return state.purposes.indexOf('avd') >= 0;
     }
 
     // Build a single Strict / Logical tenancy "spc-card" matching slides 29/30. Used
@@ -915,6 +943,14 @@
     }
 
     function refreshSelections() {
+        // AVD cannot run on a disconnected footprint — if the user picks AVD
+        // while disconnected was selected, force-flip back to connected before
+        // the rest of the UI repaints.
+        const avdBlocks = isDisconnectedBlockedByAvd();
+        if (avdBlocks && state.connectivity === 'disconnected') {
+            state.connectivity = 'connected';
+        }
+
         // mark selected
         document.querySelectorAll('#purpose-grid .pick-card, #purpose-grid .purpose-card').forEach(function(el) {
             const sel = state.purposes.indexOf(el.dataset.value) >= 0;
@@ -925,16 +961,53 @@
             const sel = el.dataset.value === state.connectivity;
             el.classList.toggle('selected', sel);
             el.setAttribute('aria-checked', sel ? 'true' : 'false');
+            // Disable the disconnected card while AVD is in the purpose mix.
+            const isDiscCard = el.dataset.value === 'disconnected';
+            const disable = isDiscCard && avdBlocks;
+            el.classList.toggle('disabled', disable);
+            if (disable) {
+                el.setAttribute('aria-disabled', 'true');
+                el.setAttribute('tabindex', '-1');
+            } else {
+                el.removeAttribute('aria-disabled');
+                el.removeAttribute('tabindex');
+            }
         });
 
         // mark recommended footprint based on the first selected purpose (if any)
         const firstPurposeId = state.purposes[0];
         const purpose = firstPurposeId ? PURPOSES.find(function(p) { return p.id === firstPurposeId; }) : null;
         document.querySelectorAll('#connectivity-grid .pick-card, #connectivity-grid .spc-card').forEach(function(el) {
-            el.classList.toggle('recommended', !!purpose && el.dataset.value === purpose.recommendedConnectivity && el.dataset.value !== state.connectivity);
+            // Don't paint a 'Recommended' badge on a card we just disabled.
+            const isDiscCard = el.dataset.value === 'disconnected';
+            const blocked = isDiscCard && avdBlocks;
+            el.classList.toggle('recommended', !blocked && !!purpose && el.dataset.value === purpose.recommendedConnectivity && el.dataset.value !== state.connectivity);
         });
 
+        renderAvdDisconnectedWarning(avdBlocks);
         renderSelectionSummary();
+    }
+
+    // Insert/update an inline warning under the connectivity grid explaining
+    // that AVD forces a connected footprint. The element is created once on
+    // first call and toggled via a `hidden` class afterwards.
+    function renderAvdDisconnectedWarning(show) {
+        const grid = document.getElementById('connectivity-grid');
+        if (!grid || !grid.parentNode) { return; }
+        let warn = document.getElementById('avd-disconnected-warning');
+        if (!warn) {
+            warn = document.createElement('div');
+            warn.id = 'avd-disconnected-warning';
+            warn.className = 'avd-warning';
+            warn.setAttribute('role', 'note');
+            warn.innerHTML =
+                '<span class="avd-warning-icon" aria-hidden="true">\u26A0\uFE0F</span>' +
+                '<span><strong>Azure Virtual Desktop is not supported in disconnected / air-gapped mode.</strong> ' +
+                'AVD requires the AVD control plane in Azure, so the connectivity is locked to <em>Connected</em> while AVD is in the selection. ' +
+                'Remove AVD from step 1 to enable disconnected.</span>';
+            grid.parentNode.insertBefore(warn, grid.nextSibling);
+        }
+        warn.classList.toggle('hidden', !show);
     }
 
     function renderSelectionSummary() {
@@ -1529,6 +1602,7 @@
                         kind: 'workload',
                         title: wc.name,
                         workloads: wc.workloads,
+                        workloadGroup: wc.workloadGroup || null,
                         models: wc.models || null,
                         servers: wc.servers || ['Server 1'],
                         serversLabel: wc.serversLabel || 'Servers',
@@ -1564,6 +1638,7 @@
                     kind: 'workload',
                     title: v.title,
                     workloads: wc.workloads,
+                    workloadGroup: wc.workloadGroup || null,
                     models: wc.models || null,
                     servers: v.servers,
                     serversLabel: v.serversLabel || 'Servers',
@@ -1650,10 +1725,21 @@
         const chipsLabelBlock = (card.departmentChips && card.chipsLabel) ? 16 : 0;
         const chipsBlock = card.departmentChips ? (22 + 12 + 8) : 0;
         const tileH = 36, tileGap = 8, wlBandPad = 12;
-        const workloads = (card.workloads || []).slice(0, 6);
-        const wlBandH = workloads.length > 0
-            ? wlBandPad * 2 + workloads.length * tileH + (workloads.length - 1) * tileGap
-            : 60;
+        const allWorkloads = (card.workloads || []).slice(0, 6);
+        // GPU workloads render in a dedicated block between the Servers
+        // title and the server pills, not inside the workload band — see
+        // renderWorkloadCard.
+        const bandWorkloads = allWorkloads.filter(function(wl) { return !isGpuWorkload(wl); });
+        const gpuWorkloads = allWorkloads.filter(isGpuWorkload);
+        let wlBandH;
+        const group = card.workloadGroup;
+        if (group && group.children && group.children.length) {
+            wlBandH = measureGroupContainerH(group);
+        } else if (bandWorkloads.length > 0) {
+            wlBandH = wlBandPad * 2 + bandWorkloads.length * tileH + (bandWorkloads.length - 1) * tileGap;
+        } else {
+            wlBandH = 60;
+        }
         let modelsBlock = 0;
         if (card.models && card.models.length) {
             const modelRows = packModelsRows(card.models, cardW - 16);
@@ -1664,9 +1750,160 @@
         const labelText = card.serversLabel || (card.multiRack ? 'Racks' : 'Servers');
         const labelLines = wrapServersLabel(labelText.toUpperCase(), cardW - 24);
         const labelBlock = sectionLabelH + Math.max(0, labelLines.length - 1) * 13;
+        const gpuBlock = gpuWorkloads.length > 0 ? (8 + tileH + 8) : 0;
         const pillH = 30, pillGap = 8;
         const pillsBlock = card.servers.length * pillH + (card.servers.length - 1) * pillGap;
-        return titleBlock + ribbonBlock + chipsLabelBlock + chipsBlock + wlBandH + modelsBlock + 14 + labelBlock + pillsBlock + 18;
+        return titleBlock + ribbonBlock + chipsLabelBlock + chipsBlock + modelsBlock + wlBandH + 14 + labelBlock + gpuBlock + pillsBlock + 18;
+    }
+
+    // Workload tokens that should be pulled out of the workload band and
+    // rendered as a dedicated GPU tile between the Servers title and the
+    // server pills. Currently only Foundry Local uses this, but match by
+    // prefix so future GPU variants (e.g. "GPUs (Inference)") just work.
+    function isGpuWorkload(wl) {
+        return typeof wl === 'string' && wl.indexOf('GPUs') === 0;
+    }
+
+    // Recursively measure the height needed by a workloadGroup container
+    // (and any nested sub-groups). Mirrors the layout produced by
+    // renderGroupContainer below — children stacked at top, parent
+    // icon + label as a footer at the bottom.
+    function measureGroupContainerH(group) {
+        if (!group || !group.children || !group.children.length) { return 0; }
+        const wlBandPad = 12;
+        const groupChildGap = 6;
+        const groupHeaderGap = 8;
+        const groupHeaderH = 28; // footer (parent icon + label) height
+        const leafChildH = 28;
+        const childHeights = group.children.map(function(c) {
+            if (typeof c === 'string') { return leafChildH; }
+            return measureGroupContainerH(c);
+        });
+        const sumH = childHeights.reduce(function(a, b) { return a + b; }, 0);
+        const gapH = (group.children.length - 1) * groupChildGap;
+        return wlBandPad * 2 + sumH + gapH + groupHeaderGap + groupHeaderH;
+    }
+
+    // Recursively render a workloadGroup container: outer rounded band
+    // (filled / outlined per nesting depth), children stacked at the top
+    // (leaf strings as flat tiles, nested groups as inner containers via
+    // recursion), and the parent icon + bold label as a centered footer
+    // at the bottom of the band. depth 0 = outer "AKS Cluster", depth >= 1 =
+    // inner sub-container (e.g. "Foundry Local").
+    function renderGroupContainer(svg, SVG_NS, x, y, w, h, group, depth) {
+        const wlBandPad = 12;
+        const groupChildGap = 6;
+        const groupHeaderGap = 8;
+        const groupHeaderH = 28;
+        const leafChildH = 28;
+
+        // Outer band rect.
+        const band = document.createElementNS(SVG_NS, 'rect');
+        band.setAttribute('x', String(x));
+        band.setAttribute('y', String(y));
+        band.setAttribute('width', String(w));
+        band.setAttribute('height', String(h));
+        band.setAttribute('rx', '8');
+        if (depth === 0) {
+            // AKS Cluster: lightest fill, blue outline.
+            band.setAttribute('fill', '#e8f1fa');
+            band.setAttribute('stroke', '#7aa6d6');
+            band.setAttribute('stroke-width', '1.5');
+        } else {
+            // Nested sub-container (e.g. Foundry Local): slightly tinted
+            // fill + same blue stroke so it reads as a child of the AKS box.
+            band.setAttribute('fill', '#d6e6f4');
+            band.setAttribute('stroke', '#7aa6d6');
+            band.setAttribute('stroke-width', '1.2');
+        }
+        svg.appendChild(band);
+
+        // Children stacked at the top of the container.
+        const childIndent = depth === 0 ? 8 : 6;
+        const childX = x + wlBandPad + childIndent;
+        const childW = w - (wlBandPad + childIndent) * 2;
+        let cy = y + wlBandPad;
+        group.children.forEach(function(c, i) {
+            if (i > 0) { cy += groupChildGap; }
+            if (typeof c === 'string') {
+                renderGroupLeafTile(svg, SVG_NS, childX, cy, childW, leafChildH, c);
+                cy += leafChildH;
+            } else {
+                const subH = measureGroupContainerH(c);
+                renderGroupContainer(svg, SVG_NS, childX, cy, childW, subH, c, depth + 1);
+                cy += subH;
+            }
+        });
+
+        // Footer: parent icon + bold label centered horizontally, anchored
+        // to the bottom of the container.
+        const footerY = cy + groupHeaderGap;
+        const parentIcon = WORKLOAD_ICON_FILES[group.parent];
+        const parentLabel = group.parentLabel || group.parent;
+        const footerLabelFont = 12;
+        const footerLabelCharW = footerLabelFont * 0.62;
+        const labelW = parentLabel.length * footerLabelCharW;
+        const iconSize = 18;
+        const iconGap = parentIcon ? 6 : 0;
+        const footerBlockW = (parentIcon ? iconSize + iconGap : 0) + labelW;
+        const footerBlockX = x + (w - footerBlockW) / 2;
+        if (parentIcon) {
+            const pImg = document.createElementNS(SVG_NS, 'image');
+            pImg.setAttribute('x', String(footerBlockX));
+            pImg.setAttribute('y', String(footerY + (groupHeaderH - iconSize) / 2));
+            pImg.setAttribute('width', String(iconSize));
+            pImg.setAttribute('height', String(iconSize));
+            pImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', parentIcon);
+            pImg.setAttribute('href', parentIcon);
+            svg.appendChild(pImg);
+        }
+        const pLbl = document.createElementNS(SVG_NS, 'text');
+        pLbl.setAttribute('x', String(footerBlockX + (parentIcon ? iconSize + iconGap : 0)));
+        pLbl.setAttribute('y', String(footerY + groupHeaderH / 2 + 4));
+        pLbl.setAttribute('fill', '#1a2733');
+        pLbl.setAttribute('font-family', 'Segoe UI, sans-serif');
+        pLbl.setAttribute('font-size', String(footerLabelFont));
+        pLbl.setAttribute('font-weight', '700');
+        pLbl.textContent = parentLabel;
+        svg.appendChild(pLbl);
+    }
+
+    // Leaf workload tile inside a workloadGroup container — small (28h)
+    // rounded rect with optional Azure service icon + bold label.
+    function renderGroupLeafTile(svg, SVG_NS, tx, ty, tw, th, wl) {
+        const child = document.createElementNS(SVG_NS, 'rect');
+        child.setAttribute('x', String(tx));
+        child.setAttribute('y', String(ty));
+        child.setAttribute('width', String(tw));
+        child.setAttribute('height', String(th));
+        child.setAttribute('rx', '4');
+        child.setAttribute('fill', '#dbe9f7');
+        child.setAttribute('stroke', '#9bbedf');
+        child.setAttribute('stroke-width', '1');
+        svg.appendChild(child);
+
+        const hasIcon = !!WORKLOAD_ICON_FILES[wl];
+        const labelText = hasIcon ? (WORKLOAD_ICON_LABELS[wl] || wl) : wl;
+        if (hasIcon) {
+            const cImg = document.createElementNS(SVG_NS, 'image');
+            cImg.setAttribute('x', String(tx + 8));
+            cImg.setAttribute('y', String(ty + (th - 20) / 2));
+            cImg.setAttribute('width', '20');
+            cImg.setAttribute('height', '20');
+            cImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', WORKLOAD_ICON_FILES[wl]);
+            cImg.setAttribute('href', WORKLOAD_ICON_FILES[wl]);
+            svg.appendChild(cImg);
+        }
+        const cLbl = document.createElementNS(SVG_NS, 'text');
+        cLbl.setAttribute('x', String(hasIcon ? tx + 36 : tx + tw / 2));
+        cLbl.setAttribute('y', String(ty + th / 2 + 4));
+        cLbl.setAttribute('fill', '#1a2733');
+        cLbl.setAttribute('font-family', 'Segoe UI, sans-serif');
+        cLbl.setAttribute('font-size', '12');
+        cLbl.setAttribute('font-weight', '600');
+        if (!hasIcon) { cLbl.setAttribute('text-anchor', 'middle'); }
+        cLbl.textContent = labelText;
+        svg.appendChild(cLbl);
     }
 
     // Greedy-pack the models strip into N rows so each row fits within `availW`.
@@ -2249,106 +2486,12 @@
             workloadY += 22 + groupPad + 8;
         }
 
-        // Workload band — blue rounded rect housing workload icon tiles (1 per row).
-        const workloads = (card.workloads || []).slice(0, 6);
-        const tileH = 36;
-        const tileGap = 8;
-        const wlBandPad = 12;
-        const wlBandH = workloads.length > 0
-            ? wlBandPad * 2 + workloads.length * tileH + (workloads.length - 1) * tileGap
-            : 60;
-        const wlBand = document.createElementNS(SVG_NS, 'rect');
-        wlBand.setAttribute('x', String(x + 12));
-        wlBand.setAttribute('y', String(workloadY));
-        wlBand.setAttribute('width', String(w - 24));
-        wlBand.setAttribute('height', String(wlBandH));
-        wlBand.setAttribute('rx', '8');
-        wlBand.setAttribute('fill', '#cfe4f7');
-        wlBand.setAttribute('opacity', '0.9');
-        svg.appendChild(wlBand);
-
-        // Workload tiles inside the band — one per row, full width, label has plenty of room.
-        const tileX = x + 12 + wlBandPad;
-        const tileW = w - 24 - wlBandPad * 2;
-
-        workloads.forEach(function(wl, i) {
-            const ty = workloadY + wlBandPad + i * (tileH + tileGap);
-
-            const tile = document.createElementNS(SVG_NS, 'rect');
-            tile.setAttribute('x', String(tileX));
-            tile.setAttribute('y', String(ty));
-            tile.setAttribute('width', String(tileW));
-            tile.setAttribute('height', String(tileH));
-            tile.setAttribute('rx', '4');
-            // Lighter blue tile + dark text so the official Azure service icons
-            // (which use saturated blue/teal/red glyphs) keep good contrast.
-            tile.setAttribute('fill', '#dbe9f7');
-            tile.setAttribute('stroke', '#9bbedf');
-            tile.setAttribute('stroke-width', '1');
-            svg.appendChild(tile);
-
-            const hasIcon = !!WORKLOAD_ICON_FILES[wl];
-            const labelText = hasIcon ? (WORKLOAD_ICON_LABELS[wl] || wl) : wl;
-            if (hasIcon) {
-                const img = document.createElementNS(SVG_NS, 'image');
-                img.setAttribute('x', String(tileX + 8));
-                img.setAttribute('y', String(ty + (tileH - 24) / 2));
-                img.setAttribute('width', '24');
-                img.setAttribute('height', '24');
-                img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', WORKLOAD_ICON_FILES[wl]);
-                img.setAttribute('href', WORKLOAD_ICON_FILES[wl]);
-                svg.appendChild(img);
-            }
-            const lbl = document.createElementNS(SVG_NS, 'text');
-            const labelX = hasIcon ? tileX + 40 : tileX + tileW / 2;
-            lbl.setAttribute('x', String(labelX));
-            lbl.setAttribute('fill', '#1a2733');
-            lbl.setAttribute('font-family', 'Segoe UI, sans-serif');
-            lbl.setAttribute('font-size', '12');
-            lbl.setAttribute('font-weight', '600');
-            if (!hasIcon) { lbl.setAttribute('text-anchor', 'middle'); }
-
-            // Wrap to 2 lines when the label is too long for the tile width.
-            const charW = 6.5; // approx px per char @ 12px Segoe UI 600
-            const availW = tileW - (hasIcon ? 48 : 16);
-            const maxChars = Math.max(8, Math.floor(availW / charW));
-            if (labelText.length > maxChars && labelText.indexOf(' ') >= 0) {
-                // Find the best split point: the last space at or before maxChars.
-                let splitAt = labelText.lastIndexOf(' ', maxChars);
-                if (splitAt < 4) { splitAt = labelText.indexOf(' ', maxChars); }
-                if (splitAt > 0) {
-                    const line1 = labelText.slice(0, splitAt);
-                    const line2 = labelText.slice(splitAt + 1);
-                    lbl.setAttribute('y', String(ty + tileH / 2 - 3));
-                    const t1 = document.createElementNS(SVG_NS, 'tspan');
-                    t1.setAttribute('x', String(labelX));
-                    t1.textContent = line1;
-                    lbl.appendChild(t1);
-                    const t2 = document.createElementNS(SVG_NS, 'tspan');
-                    t2.setAttribute('x', String(labelX));
-                    t2.setAttribute('dy', '13');
-                    t2.textContent = line2;
-                    lbl.appendChild(t2);
-                } else {
-                    lbl.setAttribute('y', String(ty + tileH / 2 + 4));
-                    lbl.textContent = labelText;
-                }
-            } else {
-                lbl.setAttribute('y', String(ty + tileH / 2 + 4));
-                lbl.textContent = labelText;
-            }
-            svg.appendChild(lbl);
-        });
-
-        // Server pills at the bottom — preceded by a section label ("Servers" or "Racks").
-        const pillH = 30;
-        const pillGap = 8;
-        const sectionLabelH = 22;
-        // Optional "AVAILABLE MODELS" strip (Foundry Local scenario, slide 56).
-        // Renders 2 rows of chips, each chip = colored monogram circle + name.
-        let modelsStripH = 0;
+        // AVAILABLE AI MODELS strip — rendered ABOVE the workload band so
+        // the model chips sit immediately under the tenant ribbon and frame
+        // the components below them. Foundry Local is the only scenario
+        // that supplies card.models today.
         if (card.models && card.models.length) {
-            const stripY = workloadY + wlBandH + 10;
+            const stripY = workloadY;
             const stripLabel = document.createElementNS(SVG_NS, 'text');
             stripLabel.setAttribute('x', String(x + w / 2));
             stripLabel.setAttribute('y', String(stripY + 11));
@@ -2440,8 +2583,129 @@
                     cx += cw + chipGap;
                 });
             });
-            modelsStripH = 16 + rows.length * chipH + Math.max(0, rows.length - 1) * rowGap + 8;
+            workloadY += 16 + rows.length * chipH + Math.max(0, rows.length - 1) * rowGap + 8;
         }
+
+        // Workload band — blue rounded rect housing workload icon tiles (1 per row).
+        // GPU workloads are pulled out and rendered separately above the server
+        // pills so they sit closer to the hardware they live on. When the cluster
+        // declares a workloadGroup (e.g. Foundry Local on AKS Arc), render a
+        // single parent container with the children nested inside instead of
+        // independent tiles.
+        const allWorkloads = (card.workloads || []).slice(0, 6);
+        const workloads = allWorkloads.filter(function(wl) { return !isGpuWorkload(wl); });
+        const gpuWorkloads = allWorkloads.filter(isGpuWorkload);
+        const group = card.workloadGroup;
+        const tileH = 36;
+        const tileGap = 8;
+        const wlBandPad = 12;
+        let wlBandH;
+        if (group && group.children && group.children.length) {
+            wlBandH = measureGroupContainerH(group);
+        } else if (workloads.length > 0) {
+            wlBandH = wlBandPad * 2 + workloads.length * tileH + (workloads.length - 1) * tileGap;
+        } else {
+            wlBandH = 60;
+        }
+
+        // Workload tiles inside the band — one per row, full width, label has plenty of room.
+        const tileX = x + 12 + wlBandPad;
+        const tileW = w - 24 - wlBandPad * 2;
+
+        if (group && group.children && group.children.length) {
+            // Recursively render the AKS Cluster container (and any nested
+            // sub-containers like Foundry Local) at the workload-band slot.
+            renderGroupContainer(svg, SVG_NS, x + 12, workloadY, w - 24, wlBandH, group, 0);
+        } else {
+            const wlBand = document.createElementNS(SVG_NS, 'rect');
+            wlBand.setAttribute('x', String(x + 12));
+            wlBand.setAttribute('y', String(workloadY));
+            wlBand.setAttribute('width', String(w - 24));
+            wlBand.setAttribute('height', String(wlBandH));
+            wlBand.setAttribute('rx', '8');
+            wlBand.setAttribute('fill', '#cfe4f7');
+            wlBand.setAttribute('opacity', '0.9');
+            svg.appendChild(wlBand);
+
+            workloads.forEach(function(wl, i) {
+                const ty = workloadY + wlBandPad + i * (tileH + tileGap);
+
+                const tile = document.createElementNS(SVG_NS, 'rect');
+                tile.setAttribute('x', String(tileX));
+                tile.setAttribute('y', String(ty));
+                tile.setAttribute('width', String(tileW));
+                tile.setAttribute('height', String(tileH));
+                tile.setAttribute('rx', '4');
+                // Lighter blue tile + dark text so the official Azure service icons
+                // (which use saturated blue/teal/red glyphs) keep good contrast.
+                tile.setAttribute('fill', '#dbe9f7');
+                tile.setAttribute('stroke', '#9bbedf');
+                tile.setAttribute('stroke-width', '1');
+                svg.appendChild(tile);
+
+                const hasIcon = !!WORKLOAD_ICON_FILES[wl];
+                const labelText = hasIcon ? (WORKLOAD_ICON_LABELS[wl] || wl) : wl;
+                if (hasIcon) {
+                    const img = document.createElementNS(SVG_NS, 'image');
+                    img.setAttribute('x', String(tileX + 8));
+                    img.setAttribute('y', String(ty + (tileH - 24) / 2));
+                    img.setAttribute('width', '24');
+                    img.setAttribute('height', '24');
+                    img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', WORKLOAD_ICON_FILES[wl]);
+                    img.setAttribute('href', WORKLOAD_ICON_FILES[wl]);
+                    svg.appendChild(img);
+                }
+                const lbl = document.createElementNS(SVG_NS, 'text');
+                const labelX = hasIcon ? tileX + 40 : tileX + tileW / 2;
+                lbl.setAttribute('x', String(labelX));
+                lbl.setAttribute('fill', '#1a2733');
+                lbl.setAttribute('font-family', 'Segoe UI, sans-serif');
+                lbl.setAttribute('font-size', '12');
+                lbl.setAttribute('font-weight', '600');
+                if (!hasIcon) { lbl.setAttribute('text-anchor', 'middle'); }
+
+                // Wrap to 2 lines when the label is too long for the tile width.
+                const charW = 6.5; // approx px per char @ 12px Segoe UI 600
+                const availW = tileW - (hasIcon ? 48 : 16);
+                const maxChars = Math.max(8, Math.floor(availW / charW));
+                if (labelText.length > maxChars && labelText.indexOf(' ') >= 0) {
+                // Find the best split point: the last space at or before maxChars.
+                    let splitAt = labelText.lastIndexOf(' ', maxChars);
+                    if (splitAt < 4) { splitAt = labelText.indexOf(' ', maxChars); }
+                    if (splitAt > 0) {
+                        const line1 = labelText.slice(0, splitAt);
+                        const line2 = labelText.slice(splitAt + 1);
+                        lbl.setAttribute('y', String(ty + tileH / 2 - 3));
+                        const t1 = document.createElementNS(SVG_NS, 'tspan');
+                        t1.setAttribute('x', String(labelX));
+                        t1.textContent = line1;
+                        lbl.appendChild(t1);
+                        const t2 = document.createElementNS(SVG_NS, 'tspan');
+                        t2.setAttribute('x', String(labelX));
+                        t2.setAttribute('dy', '13');
+                        t2.textContent = line2;
+                        lbl.appendChild(t2);
+                    } else {
+                        lbl.setAttribute('y', String(ty + tileH / 2 + 4));
+                        lbl.textContent = labelText;
+                    }
+                } else {
+                    lbl.setAttribute('y', String(ty + tileH / 2 + 4));
+                    lbl.textContent = labelText;
+                }
+                svg.appendChild(lbl);
+            });
+        }
+
+        // Server pills at the bottom — preceded by a section label ("Servers" or "Racks").
+        const pillH = 30;
+        const pillGap = 8;
+        const sectionLabelH = 22;
+        // The AVAILABLE AI MODELS strip is now rendered above the workload
+        // band (immediately under the tenant ribbon), so it no longer
+        // contributes to the vertical offset between the workload band and
+        // the Servers section.
+        const modelsStripH = 0;
         const sectionY = workloadY + wlBandH + modelsStripH + 14;
         const labelText = card.serversLabel || (card.multiRack ? 'Racks' : 'Servers');
         const labelLines = wrapServersLabel(labelText.toUpperCase(), w - 24);
@@ -2461,7 +2725,58 @@
             svg.appendChild(lblText);
         });
 
-        const serverY = sectionY + sectionLabelH + Math.max(0, labelLines.length - 1) * labelLineH;
+        let serverY = sectionY + sectionLabelH + Math.max(0, labelLines.length - 1) * labelLineH;
+
+        // GPU block — a single full-width tile rendered directly under the
+        // Servers title and above the server pills, to make it visually clear
+        // that the GPUs live on the hardware (not in the workload band).
+        if (gpuWorkloads.length > 0) {
+            const gpuTileH = tileH;
+            const gpuTileX = x + 16;
+            const gpuTileW = w - 32;
+            const gpuTileY = serverY + 4;
+            gpuWorkloads.forEach(function(wl, gi) {
+                const ty = gpuTileY + gi * (gpuTileH + tileGap);
+                const tile = document.createElementNS(SVG_NS, 'rect');
+                tile.setAttribute('x', String(gpuTileX));
+                tile.setAttribute('y', String(ty));
+                tile.setAttribute('width', String(gpuTileW));
+                tile.setAttribute('height', String(gpuTileH));
+                tile.setAttribute('rx', '4');
+                // Same green palette as server pills — GPUs are physical
+                // hardware that lives on the servers, not a workload.
+                tile.setAttribute('fill', '#e6f5ee');
+                tile.setAttribute('stroke', '#9bd6b8');
+                tile.setAttribute('stroke-width', '1');
+                svg.appendChild(tile);
+
+                const hasIcon = !!WORKLOAD_ICON_FILES[wl];
+                const labelText = hasIcon ? (WORKLOAD_ICON_LABELS[wl] || wl) : wl;
+                if (hasIcon) {
+                    const img = document.createElementNS(SVG_NS, 'image');
+                    img.setAttribute('x', String(gpuTileX + 8));
+                    img.setAttribute('y', String(ty + (gpuTileH - 24) / 2));
+                    img.setAttribute('width', '24');
+                    img.setAttribute('height', '24');
+                    img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', WORKLOAD_ICON_FILES[wl]);
+                    img.setAttribute('href', WORKLOAD_ICON_FILES[wl]);
+                    svg.appendChild(img);
+                }
+                const lbl = document.createElementNS(SVG_NS, 'text');
+                lbl.setAttribute('x', String(hasIcon ? gpuTileX + 40 : gpuTileX + gpuTileW / 2));
+                lbl.setAttribute('y', String(ty + gpuTileH / 2 + 4));
+                lbl.setAttribute('fill', '#1f4e3a');
+                lbl.setAttribute('font-family', 'Segoe UI, sans-serif');
+                lbl.setAttribute('font-size', '12');
+                lbl.setAttribute('font-weight', '600');
+                if (!hasIcon) { lbl.setAttribute('text-anchor', 'middle'); }
+                lbl.textContent = labelText;
+                svg.appendChild(lbl);
+            });
+            serverY = gpuTileY + gpuWorkloads.length * gpuTileH
+                + Math.max(0, gpuWorkloads.length - 1) * tileGap + 8;
+        }
+
         card.servers.forEach(function(s, i) {
             appendServerPill(svg, SVG_NS, x + 16, serverY + i * (pillH + pillGap), w - 32, pillH, s, !!card.multiRack, !!card.showLocalDisks);
         });

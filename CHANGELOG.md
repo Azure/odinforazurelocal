@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.07] - 2026-05-06
+
+Polishes the **Microsoft Sovereign Private Clouds reference architectures** page (Knowledge tab, `docs/reference-architectures/`) with five targeted refinements to the Foundry Local cluster diagram, an AVD compatibility guard on the connectivity picker, and tighter AVD workload labelling. No changes to the PowerPoint export, Sizer, Designer, or any other surface.
+
+### Added
+
+- **`docs/reference-architectures/script.js` — AVD ↔ Disconnected compatibility guard.** New `isDisconnectedBlockedByAvd()` predicate + `renderAvdDisconnectedWarning()` helper. When `avd` is in `state.purposes`, the *Disconnected / Air-gapped* card on the connectivity grid (step 2) is rendered disabled (`.disabled` class, `aria-disabled="true"`, `tabindex="-1"`, click handler is a no-op) and an inline warning is shown directly under the grid: *"Azure Virtual Desktop is not supported in disconnected / air-gapped mode."* If `state.connectivity` was already `'disconnected'` when AVD is added, `refreshSelections()` force-flips it back to `'connected'` before the rest of the UI repaints, so the SVG preview, summary text, and PPT export all stay consistent. Removing AVD restores the disconnected option and hides the warning.
+- **`docs/reference-architectures/styles.css` — `.spc-card.disabled` + `.avd-warning` styles.** Disabled card uses `opacity: 0.45 + filter: grayscale(0.6) + cursor: not-allowed` and suppresses hover lift; the inline warning uses a translucent yellow background (`rgba(255, 184, 0, 0.10)`) with a `⚠️` icon, matching the existing yellow advisory tone.
+- **`docs/reference-architectures/script.js` — recursive workload-group rendering** (`renderGroupContainer()` + `renderGroupLeafTile()` + `measureGroupContainerH()`). The `workloadGroup` data model now allows a child to be either a string (leaf workload tile) or another `{ parent, parentLabel, children }` object (nested sub-container). Used by the Foundry Local cluster card to render an outer **AKS Cluster** container holding an inner **Foundry Local** sub-container, with **Edge RAG** and **Video Indexer** tiles inside Foundry Local. Both containers anchor their parent icon + bold label as a centered footer at the bottom of the band.
+
+### Changed
+
+- **Foundry Local cluster card — diagram restructured.** The `'foundry-local'` template now declares a nested `workloadGroup`: `{ parent: 'AKS Arc', parentLabel: 'AKS Cluster', children: [{ parent: 'foundry', parentLabel: 'Foundry Local', children: ['Edge RAG', 'Video Indexer'] }] }`, plus a separate `workloads: ['GPUs (VI + RAG)']` token that is pulled out of the workload band and rendered as a dedicated GPU tile between the *SERVERS* title and the server pills.
+- **Foundry Local cluster card — AVAILABLE AI MODELS strip moved above the workload band** so the model logos sit between the department chips and the AKS container, matching the reading order of the rest of the card.
+- **Foundry Local cluster card — GPU tile palette switched to green.** Fill `#e6f5ee`, stroke `#9bd6b8`, label text `#1f4e3a` — same green palette as the server pills, since GPUs are physical hardware that lives on the servers, not a workload.
+- **AVD Session Host Cluster workloads** simplified to **AVD session hosts**, **FSLogix profiles**, **AVD VMs** (replacing the previous *Domain controllers* + *AKS Arc* tiles, which weren't representative of the typical AVD-on-Azure-Local footprint). New `'AVD VMs'` entry in `WORKLOAD_ICON_FILES` mapped to `icons/sovereign-vm.svg`.
+
+### Notes
+
+- No new external network calls. No new dependencies. ESLint clean across all browser-facing scopes; all 1,156 existing unit tests still pass.
+
+---
+
 ## [0.21.06] - 2026-05-06
 
 Restyles the **Configuration Report PowerPoint export** (Designer's *Download PowerPoint* button) to match the dark-mode visual identity of the *Microsoft Sovereign Private Clouds reference architectures* PPTX export. The two ODIN-generated decks now share a single, consistent look-and-feel: dark `#0A0A0F` backgrounds, white titles with a blue accent underline, rounded-rect cards with drop shadows for content panels, the ODIN logo top-right on every section slide, and a centered cover slide with a large 2.2" logo. Bullet content and rasterized SVG diagrams are unchanged — only the layout, palette, and chrome were rebuilt.
