@@ -1096,12 +1096,12 @@
             .replace(/<br\s*\/?>/gi, '\n')
             .replace(/<\/?(strong|em|b|i)>/gi, '')
             .replace(/&nbsp;/gi, ' ')
-            .replace(/&amp;/g, '&')
             .replace(/&lt;/g, '<')
             .replace(/&gt;/g, '>')
             .replace(/&quot;/g, '"')
             .replace(/&apos;/g, "'")
             .replace(/&#39;/g, "'")
+            .replace(/&amp;/g, '&')
             .trim();
     }
 
