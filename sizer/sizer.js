@@ -2753,7 +2753,7 @@ const WORKLOAD_DEFAULTS = {
         corpusGB: 100        // total document corpus size in GB (drives vector DB / embedding storage)
     },
     videoindexer: {
-        name: 'Video Indexer',
+        name: 'AI Video Indexer',
         configuration: 'recommended' // 'minimum' (1 worker) or 'recommended' (2 workers, HA)
     }
 };
@@ -4485,7 +4485,7 @@ function getWorkloadTypeName(type) {
         case 'avd': return 'AVD';
         case 'foundry': return 'Foundry Local';
         case 'edgerag': return 'Edge RAG';
-        case 'videoindexer': return 'Video Indexer';
+        case 'videoindexer': return 'AI Video Indexer';
         default: return '';
     }
 }
@@ -7013,7 +7013,7 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     var isMin = w.configuration === 'minimum';
                     var viWorkers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
                     var viDetail = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (isMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (isMin ? VI_MIN_VCPU : VI_REC_VCPU) + ' vCPU / ' + (isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB) + ' GB cluster-wide';
-                    rows.push(['Workload', 'Video Indexer', viDetail, viReqs.vcpus, viReqs.memory, viReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
+                    rows.push(['Workload', 'AI Video Indexer', viDetail, viReqs.vcpus, viReqs.memory, viReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 }
             });
         }
