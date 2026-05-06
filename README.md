@@ -48,22 +48,29 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.21.04 - Latest Release
 
-> Adds **Foundry Local on Azure Local (Preview)** as a fourth workload type in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Foundry Local runs an Arc-enabled Kubernetes (AKS Arc) control plane plus N model deployment replicas, sized via three preset model classes (Small SLM / Medium SLM / Large LLM) or a Custom override.
+> Adds **Foundry Local on Azure Local (Preview)** *and* **Edge RAG Preview, enabled by Azure Arc** as two new top-level workload types in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Both run on AKS Arc; Foundry Local sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) driven by the user's document corpus size.
 
 **`sizer/` — new "Foundry Local" workload type**
-- Fourth `workload-type-btn` next to VMs / AKS Arc / AVD on the Sizer page, with a dedicated modal for sizing AI inference deployments.
+- Fourth `workload-type-btn` on the Sizer page, with a dedicated modal for sizing AI inference deployments.
 - **Model size classes** with conservative per-replica resource estimates: **Small SLM** (Phi-3.5-mini, Llama-3.2-3B — 4 vCPU / 8 GB / 20 GB), **Medium SLM** (Phi-4, Mistral-7B, Llama-3.1-8B — 8 vCPU / 16 GB / 40 GB), **Large LLM** (DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4 — 16 vCPU / 64 GB / 100 GB), and **Custom**.
-- **Inference engine picker** — **ONNX-GenAI** (CPU or GPU) or **vLLM** (GPU only). Selecting vLLM forces GPU mode (DDA) and disables the *None* option to prevent invalid configurations.
-- **Replicas** input (1–100). Each replica is sized to the model class and reserves a fixed 200 GB AKS Arc OS disk per worker node, matching the existing AKS workload pattern.
-- **GPU sizing** reuses the standard workload GPU controls (DDA only — Foundry runs on AKS Arc, which doesn't support GPU partitioning). GPU model + count is set per replica.
-- **Total sizing** = 3-node Kubernetes control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + N replicas × per-replica resources + 200 GB OS disk per replica + 2 vCPU / 4 GB inference operator overhead. The modal displays this composition inline so users see exactly what's being added to the cluster.
-- **Preview pill** in the workload-type button and an inline link to [request preview deployment access](https://aka.ms/FoundryLocalAzure_PreviewRequest) inside the modal.
-- **Round-trip support** through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
-- **13 new unit tests** in `tests/index.html` covering `FOUNDRY_MODEL_CLASSES` integrity and `calculateWorkloadRequirements()` for Foundry workloads (control-plane + worker + operator overhead arithmetic, Custom override path, GPU count calculation).
+- **Inference engine picker** — **ONNX-GenAI** (CPU or GPU) or **vLLM** (GPU only). Selecting vLLM forces GPU mode (DDA) and disables the *None* option.
+- **Replicas** input (1–100). Each replica is sized to the model class and reserves a fixed 200 GB AKS Arc OS disk per worker node.
+- **Total sizing** = 3-node Kubernetes control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + N replicas × per-replica resources + 200 GB OS disk per replica + 2 vCPU / 4 GB inference operator overhead.
+- **Preview pill** + inline link to [request preview deployment access](https://aka.ms/FoundryLocalAzure_PreviewRequest).
+
+**`sizer/` — new "Edge RAG" workload type**
+- Fifth `workload-type-btn` on the Sizer page, with a dedicated modal for sizing [Edge RAG Preview, enabled by Azure Arc](https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/overview) — Microsoft's turnkey on-premises Retrieval Augmented Generation pipeline.
+- **Compute mode** — **GPU mode (recommended)** = 4 × NC8_A2 / NC8_A16 worker VMs (8 vCPU / 32 GB / 1 GPU each), or **CPU mode** = 4 × D8s_v3-equivalent worker VMs (8 vCPU / 32 GB each). Numbers come straight from Microsoft's published [Edge RAG hardware requirements](https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/requirements). Switching modes auto-toggles the standard GPU controls (DDA on / off).
+- **Document Corpus Size (GB)** — drives a vector-database storage allowance of `corpusGB × 1.5` (chunks + embeddings + index).
+- **Total sizing** = 3-node AKS Arc control plane + 4 worker VMs + vector-DB storage + 2 vCPU / 4 GB Edge RAG operator overhead. The modal displays this composition inline.
+
+**Round-trip + tests**
+- Both new workload types serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
+- **19 new unit tests** in `tests/index.html` (13 for Foundry, 6 for Edge RAG) covering preset integrity, control-plane + worker + operator overhead arithmetic, custom-override paths, vector-DB scaling, and GPU count calculation.
 
 **Notes**
-- Per-replica resource estimates are conservative rules of thumb (model weights × bytes-per-weight + KV cache + serving overhead). **Foundry Local on Azure Local is in Preview**; sizing depends on the specific model, quantization, batch size, and concurrent request load. Validate with your OEM hardware partner and your actual model.
-- No new external network calls. No new third-party CDN dependencies. Foundry workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
+- Per-replica and per-corpus resource estimates are conservative rules of thumb. **Foundry Local on Azure Local and Edge RAG Preview, enabled by Azure Arc, are both in Preview**; sizing depends on the specific model, quantization, batch size, document mix, chunking strategy, embedding model, and concurrent query load. Validate with your OEM hardware partner.
+- No new external network calls. No new third-party CDN dependencies. Foundry and Edge RAG workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 

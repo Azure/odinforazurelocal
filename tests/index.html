@@ -3234,6 +3234,56 @@
             })()
         ]);
 
+        testSuite('calculateWorkloadRequirements() - Edge RAG', 'sizer.js', [
+            (() => {
+                // GPU mode, 100 GB corpus
+                // CP: 3 × 4 = 12, workers: 4 × 8 = 32, operator: 2 → 46 vCPU
+                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
+                            gpuMode: 'dda', gpuDdaCount: 1 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 46, 'Edge RAG GPU 100 GB corpus: 46 vCPUs', 46, r.vcpus);
+            })(),
+            (() => {
+                // GPU mode, 100 GB corpus
+                // CP mem: 3 × 8 = 24, workers: 4 × 32 = 128, operator: 4 → 156 GB
+                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
+                            gpuMode: 'dda', gpuDdaCount: 1 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.memory === 156, 'Edge RAG GPU 100 GB corpus: 156 GB memory', 156, r.memory);
+            })(),
+            (() => {
+                // GPU mode, 100 GB corpus
+                // Storage: CP 3×200=600, workers 4×200=800, vector DB 100×1.5=150 → 1550 GB
+                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
+                            gpuMode: 'dda', gpuDdaCount: 1 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.storage === 1550, 'Edge RAG GPU 100 GB corpus: 1550 GB storage', 1550, r.storage);
+            })(),
+            (() => {
+                // CPU mode produces same compute footprint, no GPUs
+                const w = { type: 'edgerag', computeMode: 'cpu', corpusGB: 50, gpuMode: 'none' };
+                const r = calculateWorkloadRequirements(w);
+                // CP storage 600 + workers OS 800 + vector DB ceil(50*1.5)=75 → 1475 GB
+                return assert(r.storage === 1475 && r.gpus === 0,
+                    'Edge RAG CPU 50 GB corpus: 1475 GB / 0 GPUs', '1475/0', r.storage + '/' + r.gpus);
+            })(),
+            (() => {
+                // GPU count: 1 GPU per worker × 4 workers = 4 GPUs
+                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 100,
+                            gpuMode: 'dda', gpuDdaCount: 1 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.gpus === 4, 'Edge RAG GPU mode: 4 GPUs total (1 per worker × 4)', 4, r.gpus);
+            })(),
+            (() => {
+                // Larger corpus scales storage linearly
+                const w = { type: 'edgerag', computeMode: 'gpu', corpusGB: 1000,
+                            gpuMode: 'dda', gpuDdaCount: 1 };
+                const r = calculateWorkloadRequirements(w);
+                // 600 + 800 + ceil(1000*1.5)=1500 → 2900 GB
+                return assert(r.storage === 2900, 'Edge RAG 1000 GB corpus: 2900 GB storage', 2900, r.storage);
+            })()
+        ]);
+
         // --- getRecommendedNodeCount() ---
         testSuite('getRecommendedNodeCount()', 'sizer.js', [
             (() => {

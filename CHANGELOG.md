@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.21.04] - 2026-05-06
 
-Adds **Foundry Local on Azure Local (Preview)** as a fourth workload type in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Foundry Local runs an Arc-enabled Kubernetes (AKS Arc) control plane plus N model deployment replicas, sized via three preset model classes (Small SLM / Medium SLM / Large LLM) or a Custom override.
+Adds **Foundry Local on Azure Local (Preview)** *and* **Edge RAG Preview, enabled by Azure Arc** as two new top-level workload types in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Both run on AKS Arc; Foundry Local sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) driven by the user's document corpus size.
 
 ### Added
 
@@ -24,19 +24,27 @@ Adds **Foundry Local on Azure Local (Preview)** as a fourth workload type in the
   - **GPU sizing** reuses the standard workload GPU controls (DDA only — Foundry runs on AKS Arc, which doesn't support GPU partitioning). GPU model + count is set per replica.
   - **Total sizing** = 3-node Kubernetes control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + N replicas × per-replica resources + 200 GB OS disk per replica + 2 vCPU / 4 GB inference operator overhead. The modal displays this composition inline so users see exactly what's being added to the cluster.
   - **Preview pill** in the workload-type button and an inline link to [request preview deployment access](https://aka.ms/FoundryLocalAzure_PreviewRequest) inside the modal.
-- **Round-trip support**: Foundry workloads serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and the Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
-- **`tests/index.html`** — 13 new unit tests covering `FOUNDRY_MODEL_CLASSES` integrity (preset values, monotonic memory progression, custom class) and `calculateWorkloadRequirements()` for Foundry workloads (control-plane + worker + operator overhead arithmetic, Custom override path, GPU count calculation).
-- **`images/foundry-icon.png`** — new 28 × 28 icon for the Foundry Local workload button (copied from `docs/reference-architectures/icons/paas-foundry-local.png` so the Sizer button matches the icon already used on the Microsoft Sovereign Private Clouds reference architectures page).
+- **`sizer/` — new "Edge RAG" workload type.** A fifth `workload-type-btn` for sizing [Edge RAG Preview, enabled by Azure Arc](https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/overview), Microsoft's turnkey on-premises Retrieval Augmented Generation pipeline.
+  - **Compute mode** — **GPU mode (recommended)** = 4 × NC8_A2 / NC8_A16 worker VMs (8 vCPU / 32 GB / 1 GPU each), or **CPU mode** = 4 × D8s_v3-equivalent worker VMs (8 vCPU / 32 GB each). Numbers come straight from Microsoft's published [Edge RAG hardware requirements](https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/requirements). Switching to GPU mode forces the standard GPU controls into DDA mode (1 GPU per worker = 4 GPUs total) and disables the *None* option; switching to CPU mode resets GPU mode to *None*.
+  - **Document Corpus Size (GB)** — drives a vector-database storage allowance of `corpusGB × 1.5` (chunks + embeddings + index) added on top of the worker OS-disk allowance.
+  - **Total sizing** = 3-node AKS Arc control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + 4 worker VMs (8 vCPU / 32 GB / 200 GB OS each) + vector-DB storage + 2 vCPU / 4 GB Edge RAG operator overhead. The modal displays this composition inline.
+  - **Preview pill** in the workload-type button and inline links to *What is Edge RAG?* and *Edge RAG requirements*.
+- **Round-trip support**: Foundry Local *and* Edge RAG workloads serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and the Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
+- **`tests/index.html`** — 19 new unit tests:
+  - 13 covering Foundry: `FOUNDRY_MODEL_CLASSES` integrity (preset values, monotonic memory progression, custom class) and `calculateWorkloadRequirements()` for Foundry workloads (control-plane + worker + operator overhead arithmetic, Custom override path, GPU count calculation).
+  - 6 covering Edge RAG: `calculateWorkloadRequirements()` GPU-mode and CPU-mode arithmetic, vector-DB storage scaling with corpus size, and GPU count (`1 × workerNodes`).
+- **`images/foundry-icon.png`** — new 28 × 28 icon for the Foundry Local workload button (copied from `docs/reference-architectures/icons/paas-foundry-local.png`).
+- **`images/edge-rag-icon.svg`** — new icon for the Edge RAG workload button (copied from `docs/reference-architectures/icons/azure-ai-search.svg`, the same stand-in already used for Edge RAG on the reference-architectures page).
 
 ### Changed
 
-- **`sizer/sizer.css`** — added `--accent-cyan: #00bcf2` CSS custom property (matches the existing Foundry Local color used by the reference-architectures page) and a `.workload-icon.foundry` variant for the Sizer's workload-type button.
-- **`report/report.js` and `report/pptx-export.js`** — added a `'foundry'` branch to the per-workload type-label / detail rendering so Foundry workloads appear correctly in the Configuration Report's Markdown export, HTML preview, and PowerPoint export, with a Preview-aware *Inference Engine* row and per-replica Custom Spec row.
+- **`sizer/sizer.css`** — added `--accent-cyan: #00bcf2` CSS custom property and `.workload-icon.foundry` / `.workload-icon.edgerag` variants for the Sizer's workload-type buttons.
+- **`report/report.js` and `report/pptx-export.js`** — added `'foundry'` and `'edgerag'` branches to the per-workload type-label / detail rendering so both new workload types appear correctly in the Configuration Report's Markdown export, HTML preview, and PowerPoint export, with Preview-aware Inference Engine / Compute Mode rows and per-replica or per-corpus detail rows.
 
 ### Notes
 
-- Per-replica resource estimates are conservative rules of thumb (model weights × bytes-per-weight + KV cache + serving overhead). **Foundry Local on Azure Local is in Preview**; sizing depends on the specific model, quantization, batch size, and concurrent request load. Validate with your OEM hardware partner and your actual model.
-- No new external network calls. No new third-party CDN dependencies. Foundry workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
+- Per-replica and per-corpus resource estimates are conservative rules of thumb. **Foundry Local on Azure Local and Edge RAG Preview, enabled by Azure Arc, are both in Preview**; sizing depends on the specific model, quantization, batch size, document mix, chunking strategy, embedding model, and concurrent query load. Validate with your OEM hardware partner.
+- No new external network calls. No new third-party CDN dependencies. Foundry and Edge RAG workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
 
 ---
 

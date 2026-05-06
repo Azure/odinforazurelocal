@@ -656,6 +656,11 @@ header .header-description {
     --workload-icon-color: var(--accent-cyan);
 }
 
+.workload-icon.edgerag {
+    --workload-icon-bg: rgba(139, 92, 246, 0.15);
+    --workload-icon-color: var(--accent-purple, #8b5cf6);
+}
+
 .workload-type-btn span {
     font-size: 13px;
     font-weight: 500;

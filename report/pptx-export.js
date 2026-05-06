@@ -1382,7 +1382,7 @@
             return null;
         }
 
-        var typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop', foundry: 'Foundry Local' };
+        var typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop', foundry: 'Foundry Local', edgerag: 'Edge RAG' };
         var avdProfileLabels = { light: 'Light', medium: 'Medium', heavy: 'Heavy', power: 'Power', custom: 'Custom' };
         var foundryClassLabels = { small: 'Small SLM', medium: 'Medium SLM', large: 'Large LLM', custom: 'Custom' };
 
@@ -1437,6 +1437,9 @@
                 if (wl.modelClass === 'custom') {
                     headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
                 }
+            } else if (wl.type === 'edgerag') {
+                var emode = wl.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode';
+                headline = '4 worker VMs \u00b7 ' + emode + ' \u00b7 ' + (wl.corpusGB || 0) + ' GB corpus';
             } else {
                 headline = '\u2014';
             }

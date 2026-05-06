@@ -1214,7 +1214,7 @@
 
         // Sizer Workloads (individual workload details from Sizer)
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local' };
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG' };
             var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
             var foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             md.push('## Workloads (from Sizer)');
@@ -1255,6 +1255,10 @@
                     if (wl.modelClass === 'custom') {
                         md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica |');
                     }
+                } else if (wl.type === 'edgerag') {
+                    md.push('| Compute Mode | ' + (wl.computeMode === 'cpu' ? 'CPU mode (≤ 5 MB per file)' : 'GPU mode (recommended, ≤ 30 MB per file)') + ' |');
+                    md.push('| Worker VMs | 4 (' + (wl.computeMode === 'cpu' ? '8 vCPU / 32 GB / 200 GB OS each' : 'NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU / 200 GB OS each') + ') |');
+                    md.push('| Document Corpus | ' + (wl.corpusGB || 0) + ' GB |');
                 }
                 md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
                 md.push('');
@@ -8224,7 +8228,7 @@
         // Sizer Workloads (individual workload details from Sizer)
         var sizerWorkloadsRows = '';
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local' };
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG' };
             var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
             var foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
@@ -8265,6 +8269,10 @@
                     if (wl.modelClass === 'custom') {
                         sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica');
                     }
+                } else if (wl.type === 'edgerag') {
+                    sizerWorkloadsRows += row('Compute Mode', (wl.computeMode === 'cpu' ? 'CPU mode (≤ 5 MB per file)' : 'GPU mode (recommended, ≤ 30 MB per file)'));
+                    sizerWorkloadsRows += row('Worker VMs', '4 (' + (wl.computeMode === 'cpu' ? '8 vCPU / 32 GB / 200 GB OS each' : 'NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU / 200 GB OS each') + ')');
+                    sizerWorkloadsRows += row('Document Corpus', (wl.corpusGB || 0) + ' GB');
                 }
                 // Totals for this workload
                 sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');
