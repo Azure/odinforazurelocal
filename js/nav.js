@@ -27,10 +27,10 @@
 
     const tabs = [
         {
-            id: 'designer',
-            label: 'Designer',
-            svg: svgDesigner,
-            href: (base || './') + '?tab=designer',
+            id: 'knowledge',
+            label: 'Knowledge',
+            svg: svgKnowledge,
+            href: (base || './') + '?tab=knowledge',
             badge: null
         },
         {
@@ -41,17 +41,17 @@
             badge: null
         },
         {
+            id: 'designer',
+            label: 'Designer',
+            svg: svgDesigner,
+            href: (base || './') + '?tab=designer',
+            badge: null
+        },
+        {
             id: 'switch',
             label: 'ToR Switch',
             svg: svgSwitch,
             href: base + 'switch-config/',
-            badge: null
-        },
-        {
-            id: 'knowledge',
-            label: 'Knowledge',
-            svg: svgKnowledge,
-            href: (base || './') + '?tab=knowledge',
             badge: null
         }
     ];

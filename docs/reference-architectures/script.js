@@ -3903,6 +3903,12 @@
     // Decode the ?config= query parameter (if present) and apply state.
     // Returns the decoded snapshot on success (so the caller can show a
     // banner), or null if no config parameter / decode failure.
+    //
+    // Security: every property key copied from the decoded payload is
+    // validated against the known PURPOSES whitelist before being written
+    // to a state object. This prevents prototype-pollution / property
+    // injection (CodeQL js/prototype-polluting-assignment) via crafted
+    // ?config= URLs containing keys like "__proto__" or unknown IDs.
     function loadArchitectureFromURL() {
         try {
             const params = new URLSearchParams(window.location.search);
@@ -3912,19 +3918,32 @@
             const data = JSON.parse(json);
             if (!data || !Array.isArray(data.purposes)) { return null; }
 
+            const validIds = Object.create(null);
+            for (let i = 0; i < PURPOSES.length; i++) { validIds[PURPOSES[i].id] = true; }
+            const isValidPurposeId = function(k) {
+                return typeof k === 'string'
+                    && k !== '__proto__' && k !== 'constructor' && k !== 'prototype'
+                    && Object.prototype.hasOwnProperty.call(validIds, k);
+            };
+            const sanitizeKeyedObject = function(src, valueFn) {
+                const out = {};
+                if (!src || typeof src !== 'object') { return out; }
+                Object.keys(src).forEach(function(k) {
+                    if (!isValidPurposeId(k)) { return; }
+                    out[k] = valueFn(src[k]);
+                });
+                return out;
+            };
+
             // Apply directly to state, bypassing setState's render cascade
             // (init() will call updatePreview() right after this returns).
-            state.purposes = data.purposes.slice();
+            state.purposes = data.purposes.filter(isValidPurposeId);
             state.connectivity = data.connectivity || null;
-            state.tenancyByPurpose = Object.assign({}, data.tenancyByPurpose || {});
-            state.scaleByPurpose = {};
-            if (data.scaleByPurpose) {
-                Object.keys(data.scaleByPurpose).forEach(function(k) {
-                    const v = data.scaleByPurpose[k];
-                    state.scaleByPurpose[k] = Array.isArray(v) ? v.slice() : (v ? [v] : []);
-                });
-            }
-            state.storageByPurpose = Object.assign({}, data.storageByPurpose || {});
+            state.tenancyByPurpose = sanitizeKeyedObject(data.tenancyByPurpose, function(v) { return v; });
+            state.scaleByPurpose = sanitizeKeyedObject(data.scaleByPurpose, function(v) {
+                return Array.isArray(v) ? v.slice() : (v ? [v] : []);
+            });
+            state.storageByPurpose = sanitizeKeyedObject(data.storageByPurpose, function(v) { return v; });
 
             // Re-render the dependent sections so the selected pills/cards reflect state.
             refreshSelections();
@@ -3943,9 +3962,11 @@
         }
     }
 
+    // Caller (init) only invokes this when loadArchitectureFromURL()
+    // returned a truthy snapshot, so `snapshot` itself is always defined.
     function showSharedConfigBanner(snapshot) {
-        const shareName = snapshot && snapshot._shareName ? snapshot._shareName : '';
-        const wlCount = (snapshot && Array.isArray(snapshot.purposes)) ? snapshot.purposes.length : 0;
+        const shareName = snapshot._shareName ? String(snapshot._shareName) : '';
+        const wlCount = Array.isArray(snapshot.purposes) ? snapshot.purposes.length : 0;
         let msg = shareName
             ? 'Shared configuration loaded: <strong>"' + escapeHtmlText(shareName) + '"</strong>'
             : 'Configuration loaded from a shared URL';
