@@ -5,7 +5,7 @@
  *   <div id="page-statistics" data-stats-bar></div>
  *   <script src="js/stats-bar.js"></script>
  *
- * Renders a six-tile counter strip (Visitors / Designs Generated / Sizes Calculated /
+ * Renders a six-tile counter strip (Visitors / Sizes Calculated / Designs Generated /
  * ARM Deployments / ToR Switch Configs / ToR Switch QoS Audits). The counters are
  * populated by analytics.js -> fetchAndDisplayStats() reading from Firebase Realtime
  * Database. Layout / responsive behaviour comes from .stats-container in css/style.css
@@ -32,14 +32,14 @@
             svg: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
         },
         {
-            id: 'stat-design-docs',
-            label: 'Designs Generated:',
-            svg: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
-        },
-        {
             id: 'stat-sizer-calcs',
             label: 'Sizes Calculated:',
             svg: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>'
+        },
+        {
+            id: 'stat-design-docs',
+            label: 'Designs Generated:',
+            svg: '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
         },
         {
             id: 'stat-arm-deployments',
