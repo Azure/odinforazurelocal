@@ -48,7 +48,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.21.04 - Latest Release
 
-> Adds **Foundry Local on Azure Local (Preview)** *and* **Edge RAG Preview, enabled by Azure Arc** as two new top-level workload types in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Both run on AKS Arc; Foundry Local sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) driven by the user's document corpus size.
+> Adds **Foundry Local on Azure Local (Preview)**, **Edge RAG Preview, enabled by Azure Arc**, and **Azure AI Video Indexer enabled by Arc (Preview)** as three new top-level workload types in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. All three run on AKS Arc; Foundry Local sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) driven by the user's document corpus size, and AI Video Indexer sizes Microsoft's published Minimum / Recommended cluster-wide tiers for video and audio analysis on edge devices. Closes [issue #213](https://github.com/Azure/odinforazurelocal/issues/213).
 
 **`sizer/` — new "Foundry Local" workload type**
 - Fourth `workload-type-btn` on the Sizer page, with a dedicated modal for sizing AI inference deployments.
@@ -64,13 +64,25 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Document Corpus Size (GB)** — drives a vector-database storage allowance of `corpusGB × 1.5` (chunks + embeddings + index).
 - **Total sizing** = 3-node AKS Arc control plane + 4 worker VMs + vector-DB storage + 2 vCPU / 4 GB Edge RAG operator overhead. The modal displays this composition inline.
 
+**`sizer/` — new "AI Video Indexer" workload type**
+- Sixth `workload-type-btn` on the Sizer page, with a dedicated modal for sizing [Azure AI Video Indexer enabled by Arc (Preview)](https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview) — Microsoft's video and audio analysis pipeline (transcripts, OCR, faces, objects, topics, sentiment) running on AKS Arc.
+- **Configuration picker** — **Recommended** (2 worker nodes / 64 vCPU / 256 GB / 100 GB cluster-wide PV storage, HA-capable) or **Minimum** (1 worker node / 32 vCPU / 64 GB / 50 GB) — values from Microsoft's published [minimum hardware requirements](https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview#minimum-hardware-requirements).
+- **GPU optional** — Video Indexer's default Phi LLM is CPU-bound; GPU is only needed if you bring your own GPU-bound model. DDA only.
+- **ReadWriteMany storage class required** — modal hint links to Azure Container Storage enabled by Arc as the recommended option.
+- **Total sizing** = 3-node AKS Arc control plane + 1–2 worker nodes sized per Microsoft's cluster-wide totals + 2 vCPU / 4 GB operator overhead.
+- **Gated Preview** — modal includes a link to [request subscription registration](https://aka.ms/vi-register).
+
+**Modern Preview banner + descriptive hover tooltips**
+- **Preview banner** moved from the inline pill next to the workload name to a small, animated badge in the top-left corner of each Preview workload-type button (Foundry Local, Edge RAG, AI Video Indexer). Subtle blue→purple gradient with a soft pulsing glow.
+- **Descriptive hover tooltips** on every workload-type button (all six). Replaces the native browser `title=` attribute with a styled, multi-line tooltip card (1-second hover delay). Expands acronyms (AKS = Azure Kubernetes Service enabled by Arc; AVD = Azure Virtual Desktop; RAG = Retrieval Augmented Generation) and gives a one-paragraph summary of what each workload provides.
+
 **Round-trip + tests**
-- Both new workload types serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
-- **19 new unit tests** in `tests/index.html` (13 for Foundry, 6 for Edge RAG) covering preset integrity, control-plane + worker + operator overhead arithmetic, custom-override paths, vector-DB scaling, and GPU count calculation.
+- All three new workload types serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
+- **26 new unit tests** in `tests/index.html` (13 for Foundry, 6 for Edge RAG, 7 for AI Video Indexer) covering preset integrity, control-plane + worker + operator overhead arithmetic, custom-override paths, vector-DB scaling, per-tier arithmetic, and GPU count calculation.
 
 **Notes**
-- Per-replica and per-corpus resource estimates are conservative rules of thumb. **Foundry Local on Azure Local and Edge RAG Preview, enabled by Azure Arc, are both in Preview**; sizing depends on the specific model, quantization, batch size, document mix, chunking strategy, embedding model, and concurrent query load. Validate with your OEM hardware partner.
-- No new external network calls. No new third-party CDN dependencies. Foundry and Edge RAG workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
+- Per-replica, per-corpus, and per-tier resource estimates are conservative rules of thumb. **Foundry Local on Azure Local, Edge RAG Preview enabled by Azure Arc, and Azure AI Video Indexer enabled by Arc are all in Preview**; sizing depends on the specific model, quantization, batch size, document mix, chunking strategy, embedding model, video volume / resolution / codecs, concurrent jobs, and ReadWriteMany volume performance. Validate with your OEM hardware partner.
+- No new external network calls. No new third-party CDN dependencies. Foundry, Edge RAG, and AI Video Indexer workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
