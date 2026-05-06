@@ -33,6 +33,11 @@ test-results/
 *.temp
 .cache/
 
+# Local-only working folder for source decks, extracted PPTX content,
+# and other reference material. Must never be committed (may contain
+# internal Microsoft material; not for public distribution).
+docs/Temp/
+
 # Draw.io editor backups
 *.bkp
 

@@ -64,8 +64,31 @@ function showKnowledgeOnboarding() {
     const activeItem = document.querySelector('#tab-knowledge .knowledge-nav-item.active');
     const src = activeItem ? (activeItem.getAttribute('data-src') || '') : '';
     const isAzLoFlows = src.indexOf('AzLoFlows') !== -1;
+    const isReferenceArchitectures = src.indexOf('reference-architectures') !== -1;
 
-    const steps = isAzLoFlows ? [
+    const referenceArchSteps = [
+        {
+            icon: '🧭',
+            title: 'Microsoft Sovereign Private Clouds (Preview)',
+            description: 'A guided picker that maps a business purpose to a starter Microsoft Sovereign Private Cloud reference architecture and lets you download an editable PowerPoint to share with stakeholders.',
+            features: [
+                { icon: '🎯', title: 'Six business purposes', text: 'AI Workloads, Productivity & Collaboration (M365 Local), DevSecOps, General-purpose VMs/AKS, Sovereign HCI, and Sovereign Disaggregated SAN.' },
+                { icon: '🔌', title: 'Connectivity & scale', text: 'Pick connected vs disconnected and single-rack vs multi-rack vs disaggregated. The recommended option for your purpose is highlighted.' },
+                { icon: '🧩', title: 'Independent of the Designer', text: 'This page does not read or modify your current Designer state. Use it for first-conversation framing or quick stakeholder hand-offs.' }
+            ]
+        },
+        {
+            icon: '🖼️',
+            title: 'Live preview & PowerPoint',
+            description: 'Once you pick a purpose the preview updates live, then you can download a 2-slide editable PowerPoint that uses the same shapes and icons as the Microsoft reference content.',
+            features: [
+                { icon: '👀', title: 'In-page diagram', text: 'A live SVG preview shows the Azure cloud band, the Distributed location band, and one or more cluster cards with workload tiles.' },
+                { icon: '⬇', title: 'Download PowerPoint', text: 'Generates a 2-slide deck (cover + diagram) that you can edit further in PowerPoint. Output is fully client-side — no upload.' }
+            ]
+        }
+    ];
+
+    const steps = isReferenceArchitectures ? referenceArchSteps : isAzLoFlows ? [
         {
             icon: '🔀',
             title: 'Interactive Traffic Flow Diagrams',

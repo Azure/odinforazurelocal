@@ -29,6 +29,11 @@ exclude:
   # Historical / archived markdown documentation (not linked from the site)
   - docs/archive/
 
+  # Local working folder for source decks / extracted PPTX content / internal
+  # reference material (also git-ignored — defence-in-depth in case it ever
+  # appears in the working tree).
+  - docs/Temp/
+
   # Internal developer reference (not user-facing)
   - docs/ESLINT_CONFIG_NOTES.md
 
