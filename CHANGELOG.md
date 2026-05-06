@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.21.04] - 2026-05-06
 
-Adds **Foundry Local on Azure Local (Preview)** *and* **Edge RAG Preview, enabled by Azure Arc** as two new top-level workload types in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. Both run on AKS Arc; Foundry Local sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) driven by the user's document corpus size.
+Adds three new top-level workload types in the Sizer alongside Azure Local VMs, AKS Arc, and AVD: **Foundry Local on Azure Local (Preview)**, **Edge RAG Preview, enabled by Azure Arc**, and **Azure AI Video Indexer enabled by Arc (Preview)**. All three run on AKS Arc; Foundry sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline driven by document corpus size, and Video Indexer sizes Microsoft's published Minimum / Recommended cluster-wide tiers for video and audio analysis on edge devices.
 
 ### Added
 
-- **`sizer/` — new "Foundry Local" workload type.** A fourth `workload-type-btn` next to VMs / AKS Arc / AVD on the Sizer page, with a dedicated modal for sizing AI inference deployments.
+- **`sizer/` — new "Foundry Local" workload type.** A fourth `workload-type-btn` with a dedicated modal for sizing AI inference deployments.
   - **Model size classes** with conservative per-replica resource estimates:
     - **Small SLM** (Phi-3.5-mini, Llama-3.2-3B): 4 vCPU / 8 GB / 20 GB per replica. CPU OK with ONNX-GenAI.
     - **Medium SLM** (Phi-4, Mistral-7B, Llama-3.1-8B): 8 vCPU / 16 GB / 40 GB per replica. GPU recommended.

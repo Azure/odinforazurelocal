@@ -78,35 +78,44 @@
 
                 <!-- Workload Type Selector -->
                 <div class="workload-types">
-                    <button class="workload-type-btn" onclick="showAddWorkloadModal('vm')">
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('vm')" data-tooltip="Azure Local VMs — virtual machines (Windows / Linux) running directly on your Azure Local cluster, sized by vCPU, memory, and storage per VM.">
                         <span class="workload-icon vm">
                             <img src="../images/vm-icon.png" alt="VM" width="28" height="28">
                         </span>
                         <span>Azure Local VMs</span>
                     </button>
-                    <button class="workload-type-btn" onclick="showAddWorkloadModal('aks')">
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('aks')" data-tooltip="AKS Arc — Azure Kubernetes Service enabled by Azure Arc. Managed Kubernetes clusters for containerized workloads on Azure Local, sized by control-plane and worker node pools.">
                         <span class="workload-icon aks">
                             <img src="../images/aks-arc-icon.png" alt="AKS Arc" width="28" height="28">
                         </span>
                         <span>AKS Arc Clusters</span>
                     </button>
-                    <button class="workload-type-btn" onclick="showAddWorkloadModal('avd')">
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('avd')" data-tooltip="AVD — Azure Virtual Desktop. Session hosts on Azure Local that deliver remote Windows desktops and apps to users, sized by user count and workload profile.">
                         <span class="workload-icon avd">
                             <img src="../images/avd-icon.png" alt="AVD" width="28" height="28">
                         </span>
                         <span>Azure Virtual Desktop</span>
                     </button>
-                    <button class="workload-type-btn" onclick="showAddWorkloadModal('foundry')" title="Foundry Local on Azure Local (Preview)">
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('foundry')" data-tooltip="Foundry Local on Azure Local (Preview) — locally hosted AI model serving for SLMs and LLMs (DeepSeek, Microsoft, OpenAI, Qwen, Mistral, or BYO models) with optional GPU partitioning. Sized per model replica.">
+                        <span class="workload-preview-badge">Preview</span>
                         <span class="workload-icon foundry">
                             <img src="../images/foundry-icon.png" alt="Foundry Local" width="28" height="28">
                         </span>
-                        <span>Foundry Local <span style="font-size:10px;background:#f59e0b;color:white;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:600;vertical-align:middle;">Preview</span></span>
+                        <span>Foundry Local</span>
                     </button>
-                    <button class="workload-type-btn" onclick="showAddWorkloadModal('edgerag')" title="Edge RAG Preview, enabled by Azure Arc">
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('edgerag')" data-tooltip="Edge RAG (Preview), enabled by Azure Arc — Retrieval Augmented Generation. A turnkey GenAI pipeline that grounds LLM answers in your private document corpus (ingest, embed, vector search, chat). Sized by document corpus size.">
+                        <span class="workload-preview-badge">Preview</span>
                         <span class="workload-icon edgerag">
                             <img src="../images/edge-rag-icon.svg" alt="Edge RAG" width="28" height="28">
                         </span>
-                        <span>Edge RAG <span style="font-size:10px;background:#f59e0b;color:white;padding:1px 5px;border-radius:4px;margin-left:4px;font-weight:600;vertical-align:middle;">Preview</span></span>
+                        <span>Edge RAG</span>
+                    </button>
+                    <button class="workload-type-btn" onclick="showAddWorkloadModal('videoindexer')" data-tooltip="Azure AI Video Indexer enabled by Arc (Preview) — extracts insights from video and audio (transcripts, OCR, faces, objects, topics, sentiment) using AI models running on AKS Arc. Sized by Microsoft's published Minimum / Recommended cluster-wide tiers. Gated subscription registration required.">
+                        <span class="workload-preview-badge">Preview</span>
+                        <span class="workload-icon videoindexer">
+                            <img src="../images/video-indexer-icon.svg" alt="AI Video Indexer" width="28" height="28">
+                        </span>
+                        <span>AI Video Indexer</span>
                     </button>
                 </div>
 
@@ -124,6 +133,7 @@
                                 <span>&#128421; AVD</span>
                                 <span>&#129504; Foundry Local</span>
                                 <span>&#128270; Edge RAG</span>
+                                <span>&#127916; AI Video Indexer</span>
                             </div>
                         </div>
                         <a href="#rack-viz-section" style="color: #60a5fa; text-decoration: underline; margin-top: 12px; display: inline-block; font-size: 13px;">View an example 3D visualization of the hardware below</a>

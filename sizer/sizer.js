@@ -532,11 +532,12 @@ function getGpuLabel(gpuType) {
 }
 
 // Build GPU requirement fields HTML for workload modals
-// workloadType: 'vm', 'aks', 'avd', 'foundry', or 'edgerag'
+// workloadType: 'vm', 'aks', 'avd', 'foundry', 'edgerag', or 'videoindexer'
 function getGpuRequirementFields(workloadType) {
-    // GPU-P (partitioning) is unsupported on AKS Arc, and Foundry Local + Edge
-    // RAG run on top of AKS Arc, so none of those three offer GPU-P.
-    const supportGpuP = workloadType !== 'aks' && workloadType !== 'foundry' && workloadType !== 'edgerag';
+    // GPU-P (partitioning) is unsupported on AKS Arc, and Foundry Local, Edge
+    // RAG, and Video Indexer all run on top of AKS Arc, so none of those
+    // four offer GPU-P.
+    const supportGpuP = workloadType !== 'aks' && workloadType !== 'foundry' && workloadType !== 'edgerag' && workloadType !== 'videoindexer';
     const gpuPOption = supportGpuP
         ? '<option value="gpu-p">GPU-P (GPU Partitioning)</option>'
         : '';
@@ -545,7 +546,9 @@ function getGpuRequirementFields(workloadType) {
             ? '<span class="hint">Note: Foundry Local runs on AKS Arc, which does not support GPU-P at this time.</span>'
             : workloadType === 'edgerag'
                 ? '<span class="hint">Note: Edge RAG runs on AKS Arc, which does not support GPU-P at this time.</span>'
-                : '<span class="hint">Note: AKS Arc does not support GPU-P at this time.</span>')
+                : workloadType === 'videoindexer'
+                    ? '<span class="hint">Note: Video Indexer runs on AKS Arc, which does not support GPU-P at this time.</span>'
+                    : '<span class="hint">Note: AKS Arc does not support GPU-P at this time.</span>')
         : '';
 
     // For AKS, build a GPU VM size selector instead of manual DDA count
@@ -573,6 +576,8 @@ function getGpuRequirementFields(workloadType) {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Foundry Local runs on AKS Arc)</a></div>';
     } else if (workloadType === 'edgerag') {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Edge RAG runs on AKS Arc)</a></div>';
+    } else if (workloadType === 'videoindexer') {
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Video Indexer runs on AKS Arc)</a></div>';
     } else if (workloadType === 'vm' || workloadType === 'avd') {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for Azure Local VMs</a></div>';
     }
@@ -581,6 +586,7 @@ function getGpuRequirementFields(workloadType) {
     const ddaLabel = workloadType === 'avd' ? 'GPUs per Session Host'
         : workloadType === 'foundry' ? 'GPUs per replica'
         : workloadType === 'edgerag' ? 'GPUs per worker node'
+        : workloadType === 'videoindexer' ? 'GPUs per worker node'
         : 'GPUs per VM';
     const ddaTooltip = workloadType === 'avd'
         ? 'Number of physical GPUs assigned via DDA to each AVD session host.'
@@ -588,7 +594,9 @@ function getGpuRequirementFields(workloadType) {
             ? 'Number of physical GPUs assigned via DDA to each Foundry Local model replica.'
             : workloadType === 'edgerag'
                 ? `Number of physical GPUs assigned via DDA to each of the ${EDGERAG_WORKER_NODES} Edge RAG worker nodes (typically 1 per worker = ${EDGERAG_WORKER_NODES} total).`
-                : 'Number of physical GPUs assigned via DDA to each VM.';
+                : workloadType === 'videoindexer'
+                    ? 'Number of physical GPUs assigned via DDA to each Video Indexer worker node. Optional — Video Indexer’s default models are CPU-only; add a GPU only if you bring your own GPU-bound model.'
+                    : 'Number of physical GPUs assigned via DDA to each VM.';
 
     return `
         <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">GPU Requirements</h4>
@@ -2743,6 +2751,10 @@ const WORKLOAD_DEFAULTS = {
         name: 'Edge RAG',
         computeMode: 'gpu', // gpu (recommended) or cpu
         corpusGB: 100        // total document corpus size in GB (drives vector DB / embedding storage)
+    },
+    videoindexer: {
+        name: 'Video Indexer',
+        configuration: 'recommended' // 'minimum' (1 worker) or 'recommended' (2 workers, HA)
     }
 };
 
@@ -2815,6 +2827,31 @@ const EDGERAG_WORKER_GPU_PER_NODE = 1; // GPU mode only — DDA, 1 GPU per worke
 const EDGERAG_OPERATOR_VCPU = 2;
 const EDGERAG_OPERATOR_MEM_GB = 4;
 const EDGERAG_VECTOR_DB_MULTIPLIER = 1.5; // total storage = corpusGB * 1.5 (chunks + embeddings + index)
+
+// Video Indexer enabled by Arc fixed sizing constants. Video Indexer (Azure
+// Arc-enabled Kubernetes extension, Preview) runs on a 3-node AKS Arc control
+// plane plus a dedicated worker node pool. Per Microsoft's published minimum
+// hardware requirements (https://learn.microsoft.com/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview#minimum-hardware-requirements):
+//   Minimum:     1 worker node, 32 cores / 64 GB RAM / 50 GB storage (cluster-wide)
+//   Recommended: 2 worker nodes, 64 cores / 256 GB RAM / 100 GB storage (cluster-wide, HA)
+// The cluster-wide vCPU and memory totals are split evenly across the worker
+// pool (e.g. 2 nodes -> 32 vCPU / 128 GB each in Recommended mode). The 50 /
+// 100 GB storage figure is the ReadWriteMany persistent-volume requirement
+// for the VI extension; AKS Arc adds 200 GB OS disk per node.
+const VI_CP_NODES = 3;
+const VI_CP_VCPU_PER_NODE = 4;
+const VI_CP_MEM_PER_NODE = 8;
+const VI_OS_DISK_GB = 200;
+const VI_OPERATOR_VCPU = 2;
+const VI_OPERATOR_MEM_GB = 4;
+const VI_MIN_WORKER_NODES = 1;
+const VI_MIN_VCPU = 32;       // cluster-wide minimum vCPU for VI
+const VI_MIN_MEM_GB = 64;     // cluster-wide minimum memory
+const VI_MIN_STORAGE_GB = 50; // cluster-wide minimum PV storage
+const VI_REC_WORKER_NODES = 2;
+const VI_REC_VCPU = 64;       // cluster-wide recommended vCPU (upper bound of 48-64)
+const VI_REC_MEM_GB = 256;    // cluster-wide recommended memory
+const VI_REC_STORAGE_GB = 100; // cluster-wide recommended PV storage
 
 // AVD Profile specifications — multi-session per-user shares, single-session per-VM
 const AVD_PROFILES = {
@@ -3475,6 +3512,10 @@ function showAddWorkloadModal(type) {
             title.textContent = 'Add Edge RAG';
             body.innerHTML = getEdgeRagModalContent();
             break;
+        case 'videoindexer':
+            title.textContent = 'Add Video Indexer enabled by Arc';
+            body.innerHTML = getVideoIndexerModalContent();
+            break;
     }
     
     modal.classList.add('active');
@@ -3963,6 +4004,56 @@ function updateEdgeRagComputeMode() {
     }
 }
 
+// Get Video Indexer enabled by Arc modal content
+function getVideoIndexerModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.videoindexer;
+    return `
+        <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+            <strong style="color: var(--accent-orange);">Preview / gated</strong> &mdash; Azure AI Video Indexer enabled by Arc runs video and audio analysis (transcription, translation, OCR, object/scene detection, summarization with Phi) on AKS Arc. Subscription must be approved via the <a href="https://aka.ms/vi-register" target="_blank" style="color: var(--accent-orange);">gated services application form</a>.
+        </div>
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview?context=/azure/azure-sovereign-clouds/context/context" target="_blank" style="color: var(--link-color);">What is Video Indexer enabled by Arc?</a>
+            <span style="margin: 0 6px;">|</span>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview#minimum-hardware-requirements" target="_blank" style="color: var(--link-color);">Hardware requirements</a>
+        </div>
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Video Indexer">
+        </div>
+        <div class="form-group">
+            <label>Configuration
+                <span class="info-icon" title="Microsoft publishes two cluster-wide sizing tiers. Minimum: 1 worker node, 32 cores / 64 GB / 50 GB. Recommended: 2 worker nodes (HA), 64 cores / 256 GB / 100 GB total. Storage class must support ReadWriteMany (e.g. Azure Container Storage enabled by Arc).">ⓘ</span>
+            </label>
+            <select id="vi-configuration" onchange="updateVideoIndexerConfiguration()">
+                <option value="recommended"${defaults.configuration === 'recommended' ? ' selected' : ''}>Recommended &mdash; ${VI_REC_WORKER_NODES} workers, ${VI_REC_VCPU} vCPU / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB (HA)</option>
+                <option value="minimum"${defaults.configuration === 'minimum' ? ' selected' : ''}>Minimum &mdash; ${VI_MIN_WORKER_NODES} worker, ${VI_MIN_VCPU} vCPU / ${VI_MIN_MEM_GB} GB / ${VI_MIN_STORAGE_GB} GB</option>
+            </select>
+            <span class="hint" id="vi-config-desc">Recommended: ${VI_REC_WORKER_NODES} worker nodes (HA), ${VI_REC_VCPU} cores / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB cluster-wide. Storage class must support ReadWriteMany.</span>
+        </div>
+        <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
+            <strong>Includes:</strong> ${VI_CP_NODES}-node AKS Arc control plane (${VI_CP_VCPU_PER_NODE} vCPU / ${VI_CP_MEM_PER_NODE} GB / ${VI_OS_DISK_GB} GB OS each), Video Indexer worker pool (${VI_OS_DISK_GB} GB OS per worker + cluster-wide PV storage), Phi language model (included for textual summarization), and ${VI_OPERATOR_VCPU} vCPU / ${VI_OPERATOR_MEM_GB} GB Video Indexer extension overhead.
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
+            Estimates only &mdash; actual sizing depends on video volume, resolution, codecs, and concurrent indexing jobs. Volume performance (storage class) significantly affects indexing turnaround. Validate with your OEM hardware partner.
+        </div>
+        ${getGpuRequirementFields('videoindexer')}
+    `;
+}
+
+// Update Video Indexer configuration hint when toggled
+function updateVideoIndexerConfiguration() {
+    const cfgEl = document.getElementById('vi-configuration');
+    if (!cfgEl) return;
+    const descEl = document.getElementById('vi-config-desc');
+    if (!descEl) return;
+    if (cfgEl.value === 'minimum') {
+        descEl.textContent = `Minimum: ${VI_MIN_WORKER_NODES} worker node, ${VI_MIN_VCPU} cores / ${VI_MIN_MEM_GB} GB / ${VI_MIN_STORAGE_GB} GB cluster-wide. No HA — for development/evaluation.`;
+    } else {
+        descEl.textContent = `Recommended: ${VI_REC_WORKER_NODES} worker nodes (HA), ${VI_REC_VCPU} cores / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB cluster-wide. Storage class must support ReadWriteMany.`;
+    }
+}
+
 // Toggle FSLogix size input visibility
 function toggleFSLogixSize() {
     const cb = document.getElementById('avd-fslogix');
@@ -4079,6 +4170,9 @@ function addWorkload() {
         case 'edgerag':
             workload.computeMode = document.getElementById('edgerag-compute-mode').value || 'gpu';
             workload.corpusGB = parseInt(document.getElementById('edgerag-corpus-gb').value) || 100;
+            break;
+        case 'videoindexer':
+            workload.configuration = document.getElementById('vi-configuration').value || 'recommended';
             break;
         case 'avd':
             workload.profile = document.getElementById('avd-profile').value;
@@ -4226,6 +4320,13 @@ function editWorkload(id) {
             // Apply GPU/CPU mode constraint after restoring compute mode
             updateEdgeRagComputeMode();
             break;
+        case 'videoindexer':
+            title.textContent = 'Edit Video Indexer enabled by Arc';
+            body.innerHTML = getVideoIndexerModalContent();
+            document.getElementById('workload-name').value = w.name;
+            document.getElementById('vi-configuration').value = w.configuration || 'recommended';
+            updateVideoIndexerConfiguration();
+            break;
     }
 
     // Restore GPU fields (common to all types)
@@ -4369,6 +4470,8 @@ function getWorkloadIcon(type) {
             return '<img src="../images/foundry-icon.png" alt="Foundry Local" width="20" height="20" style="vertical-align: middle;">';
         case 'edgerag':
             return '<img src="../images/edge-rag-icon.svg" alt="Edge RAG" width="20" height="20" style="vertical-align: middle;">';
+        case 'videoindexer':
+            return '<img src="../images/video-indexer-icon.svg" alt="Video Indexer" width="20" height="20" style="vertical-align: middle;">';
         default:
             return '';
     }
@@ -4382,6 +4485,7 @@ function getWorkloadTypeName(type) {
         case 'avd': return 'AVD';
         case 'foundry': return 'Foundry Local';
         case 'edgerag': return 'Edge RAG';
+        case 'videoindexer': return 'Video Indexer';
         default: return '';
     }
 }
@@ -4429,6 +4533,14 @@ function getWorkloadDetails(w) {
             const modeLabel = w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode';
             const corpus = w.corpusGB || 100;
             detail = `${EDGERAG_WORKER_NODES} worker VMs \u2022 ${modeLabel} \u2022 ${corpus} GB corpus`;
+            break;
+        }
+        case 'videoindexer': {
+            const isMin = w.configuration === 'minimum';
+            const workers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
+            const totVcpu = isMin ? VI_MIN_VCPU : VI_REC_VCPU;
+            const totMem = isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB;
+            detail = `${workers} worker${workers > 1 ? 's' : ''} \u2022 ${isMin ? 'Minimum' : 'Recommended'} \u2022 ${totVcpu} vCPU / ${totMem} GB cluster-wide`;
             break;
         }
         default:
@@ -4547,6 +4659,26 @@ function calculateWorkloadRequirements(w) {
             storage = cpStorage + workerStorageOs + vectorDbStorage;
             break;
         }
+        case 'videoindexer': {
+            // Video Indexer enabled by Arc runs on a 3-node AKS Arc control
+            // plane plus a worker pool sized per Microsoft's published
+            // minimum hardware requirements (cluster-wide totals):
+            //   Minimum:     1 worker, 32 vCPU / 64 GB / 50 GB PV storage
+            //   Recommended: 2 workers (HA), 64 vCPU / 256 GB / 100 GB PV
+            const isMin = w.configuration === 'minimum';
+            const workerNodes = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
+            const workerVcpus = isMin ? VI_MIN_VCPU : VI_REC_VCPU;
+            const workerMemory = isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB;
+            const pvStorage = isMin ? VI_MIN_STORAGE_GB : VI_REC_STORAGE_GB;
+            const cpVcpus = VI_CP_NODES * VI_CP_VCPU_PER_NODE;
+            const cpMemory = VI_CP_NODES * VI_CP_MEM_PER_NODE;
+            const cpStorage = VI_CP_NODES * VI_OS_DISK_GB;
+            const workerStorageOs = workerNodes * VI_OS_DISK_GB;
+            vcpus = cpVcpus + workerVcpus + VI_OPERATOR_VCPU;
+            memory = cpMemory + workerMemory + VI_OPERATOR_MEM_GB;
+            storage = cpStorage + workerStorageOs + pvStorage;
+            break;
+        }
     }
 
     // Calculate GPU requirements
@@ -4575,6 +4707,11 @@ function calculateWorkloadRequirements(w) {
                 // Edge RAG GPU mode: ddaCount GPUs per worker × 4 worker nodes
                 // (CPU mode never reaches this branch because gpuMode='none')
                 gpus = ddaCount * EDGERAG_WORKER_NODES;
+                break;
+            case 'videoindexer':
+                // Video Indexer GPU is optional (BYO model). ddaCount GPUs per
+                // worker × worker nodes (1 minimum, 2 recommended).
+                gpus = ddaCount * (w.configuration === 'minimum' ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES);
                 break;
         }
     } else if (w.gpuMode === 'gpu-p') {
@@ -6720,6 +6857,9 @@ function selectRegionAndConfigure(region, cloud) {
                     entry.computeMode = w.computeMode;
                     entry.corpusGB = w.corpusGB;
                     break;
+                case 'videoindexer':
+                    entry.configuration = w.configuration;
+                    break;
             }
             return entry;
         })
@@ -6868,6 +7008,12 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     var edgeragReqs = calculateWorkloadRequirements(w);
                     var edgeragDetail = EDGERAG_WORKER_NODES + ' worker VMs \u00b7 ' + (w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode') + ' \u00b7 ' + (w.corpusGB || 0) + ' GB corpus';
                     rows.push(['Workload', 'Edge RAG', edgeragDetail, edgeragReqs.vcpus, edgeragReqs.memory, edgeragReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
+                } else if (w.type === 'videoindexer') {
+                    var viReqs = calculateWorkloadRequirements(w);
+                    var isMin = w.configuration === 'minimum';
+                    var viWorkers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
+                    var viDetail = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (isMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (isMin ? VI_MIN_VCPU : VI_REC_VCPU) + ' vCPU / ' + (isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB) + ' GB cluster-wide';
+                    rows.push(['Workload', 'Video Indexer', viDetail, viReqs.vcpus, viReqs.memory, viReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 }
             });
         }

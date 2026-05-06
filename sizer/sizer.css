@@ -617,6 +617,7 @@ header .header-description {
     cursor: pointer;
     transition: all 0.2s ease;
     color: var(--text-primary);
+    position: relative;
 }
 
 .workload-type-btn:hover {
@@ -661,10 +662,84 @@ header .header-description {
     --workload-icon-color: var(--accent-purple, #8b5cf6);
 }
 
+.workload-icon.videoindexer {
+    --workload-icon-bg: rgba(236, 72, 153, 0.15);
+    --workload-icon-color: var(--accent-pink, #ec4899);
+}
+
+/* Modern "PREVIEW" banner pinned to the top-left corner of a workload-type
+   button. Smaller than START HERE / MANUAL / AUTO badges, with a soft glow
+   that pulses to draw the eye to in-preview workload types. */
+@keyframes workload-preview-glow {
+    0%, 100% { box-shadow: 0 0 3px 0 rgba(59, 130, 246, 0.25); }
+    50%      { box-shadow: 0 0 6px 1px rgba(59, 130, 246, 0.45); }
+}
+
+.workload-preview-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    /* Browsers clamp rendered font-size to ~6px; scale a 9px badge down with
+       transform so it actually renders smaller than that floor. */
+    font-size: 9px;
+    transform: scale(0.825);
+    transform-origin: top left;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: rgba(255, 255, 255, 0.92);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(124, 58, 237, 0.8));
+    border-radius: 3px;
+    padding: 2px 5px;
+    line-height: 1;
+    pointer-events: none;
+    animation: workload-preview-glow 2.4s ease-in-out infinite;
+}
+
 .workload-type-btn span {
     font-size: 13px;
     font-weight: 500;
     text-align: center;
+}
+
+/* Custom tooltip for workload-type buttons. Uses data-tooltip attribute
+   instead of native title= so it renders styled, with no 700ms browser
+   delay, and supports multi-line wrapping. */
+.workload-type-btn[data-tooltip] {
+    /* overflow:visible needed so the tooltip can escape the button box */
+    overflow: visible;
+}
+
+.workload-type-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
+    max-width: 90vw;
+    padding: 10px 12px;
+    background: var(--card-bg, #1f2937);
+    color: var(--text-primary, #f3f4f6);
+    border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: left;
+    white-space: normal;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease 0s, visibility 0s linear 0.15s;
+    z-index: 100;
+}
+
+.workload-type-btn[data-tooltip]:hover::after,
+.workload-type-btn[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.15s ease 1s, visibility 0s linear 1s;
 }
 
 /* Workloads List */

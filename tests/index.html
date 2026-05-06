@@ -3284,6 +3284,53 @@
             })()
         ]);
 
+        testSuite('calculateWorkloadRequirements() - Video Indexer', 'sizer.js', [
+            (() => {
+                // Recommended: CP 3×4=12 + workers 64 + operator 2 = 78 vCPU
+                const w = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'none' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 78, 'VI Recommended: 78 vCPUs', 78, r.vcpus);
+            })(),
+            (() => {
+                // Recommended: CP 3×8=24 + workers 256 + operator 4 = 284 GB
+                const w = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'none' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.memory === 284, 'VI Recommended: 284 GB memory', 284, r.memory);
+            })(),
+            (() => {
+                // Recommended: CP 600 + workers 2×200=400 + PV 100 = 1100 GB
+                const w = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'none' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.storage === 1100, 'VI Recommended: 1100 GB storage', 1100, r.storage);
+            })(),
+            (() => {
+                // Minimum: CP 12 + workers 32 + operator 2 = 46 vCPU
+                const w = { type: 'videoindexer', configuration: 'minimum', gpuMode: 'none' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.vcpus === 46, 'VI Minimum: 46 vCPUs', 46, r.vcpus);
+            })(),
+            (() => {
+                // Minimum: CP 24 + workers 64 + operator 4 = 92 GB; storage 600+200+50=850
+                const w = { type: 'videoindexer', configuration: 'minimum', gpuMode: 'none' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.memory === 92 && r.storage === 850,
+                    'VI Minimum: 92 GB memory / 850 GB storage', '92/850', r.memory + '/' + r.storage);
+            })(),
+            (() => {
+                // GPU optional — none by default
+                const w = { type: 'videoindexer', configuration: 'recommended', gpuMode: 'none' };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.gpus === 0, 'VI gpuMode=none: 0 GPUs', 0, r.gpus);
+            })(),
+            (() => {
+                // GPU DDA with 1 GPU per worker × 2 workers (Recommended) = 2 GPUs
+                const w = { type: 'videoindexer', configuration: 'recommended',
+                            gpuMode: 'dda', gpuDdaCount: 1 };
+                const r = calculateWorkloadRequirements(w);
+                return assert(r.gpus === 2, 'VI Recommended + 1 GPU/worker = 2 GPUs', 2, r.gpus);
+            })()
+        ]);
+
         // --- getRecommendedNodeCount() ---
         testSuite('getRecommendedNodeCount()', 'sizer.js', [
             (() => {
