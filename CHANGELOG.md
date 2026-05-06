@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.06] - 2026-05-06
+
+Restyles the **Configuration Report PowerPoint export** (Designer's *Download PowerPoint* button) to match the dark-mode visual identity of the *Microsoft Sovereign Private Clouds reference architectures* PPTX export. The two ODIN-generated decks now share a single, consistent look-and-feel: dark `#0A0A0F` backgrounds, white titles with a blue accent underline, rounded-rect cards with drop shadows for content panels, the ODIN logo top-right on every section slide, and a centered cover slide with a large 2.2" logo. Bullet content and rasterized SVG diagrams are unchanged — only the layout, palette, and chrome were rebuilt.
+
+### Changed
+
+- **`report/pptx-export.js` — full rewrite of the package-assembly path.** The previous template-based pipeline (which fetched `report/template/OdinPPTTemplate.potx`, stripped placeholders, and emitted via `paragraphXml` / `placeholderSp` / `placeholderSpSized`) has been replaced with a from-scratch dark-mode OOXML builder. New helpers: `makeShape()`, `makeTextBoxSp()`, `makeBulletsTxBox()`, `makeCard()` (rounded-rect with shadow), `makeLogoPic()`, `buildSlideChrome()` (title + blue accent underline + optional tagline + logo + optional footer), and `wrapSlide()` (paints the dark background). All six slide builders (`buildCoverSlide`, `buildClosingSlide`, `buildTextSectionSlide`, `buildPictureSectionSlide`, `buildBulletsWithFooterSlide`, `buildBodySvgSlide`) were rewritten to return `{ xml, images, links }` instead of the old `{ sps, layout, images, links }` template-slot shape.
+- **Per-slide rels convention.** `rId1` = slide layout, `rId2` = ODIN logo (referenced by every slide), `rId3+` = content images for that slide, `rId100+` = hyperlinks. The logo PNG is written once into `ppt/media/odin-logo.png` rather than being re-embedded on the cover slide as before.
+- **Cover slide.** New centered layout: 2.2" ODIN logo at top, large white title at 40pt bold, subtitle at 18pt, generated-on footer in italic accent purple at the bottom.
+- **Closing slide.** Replaces the old template-driven layout with a "Thank you" headline, tagline, and centered body text linking to GitHub Issues.
+- **`extractProxyConfiguration` callout** — repositioned to `(0.6", 6.4", 12.15", 0.55")` so it sits cleanly at the bottom of the new bullets card just above the footer line.
+
+### Removed
+
+- Template-fetch path (`fetchTemplate`, `TEMPLATE_URL`, `TEMPLATE_CT`, `SLIDE_REL`, `BULLETS_XFRM_LAYOUT9`) and the placeholder-based emitters (`paragraphXml`, `placeholderSp`, `placeholderSpSized`, `slideXml`, `slideRels`). The deck is now assembled synchronously without a network round-trip to load `OdinPPTTemplate.potx` (the template file is still in the repo for reference but is no longer referenced by code).
+
+### Notes
+
+- No new external network calls (one fewer, in fact — the `.potx` template fetch is gone). No new dependencies. All 1,156 existing unit tests still pass; smoke test (`node scripts/smoke-test-pptx.js`) confirms the new builder produces a valid ~9 MB PPTX with the expected ZIP magic bytes.
+- Bullet content extraction, SVG diagram rasterization, and the `SECTION_PLAN` slide ordering are unchanged.
+
+---
+
 ## [0.21.05] - 2026-05-06
 
 Adds an **"About this architecture" slide** to the PowerPoint export on the *Microsoft Sovereign Private Clouds reference architectures* page (Knowledge tab). The slide carries the same on-screen narrative — overview, control-plane explanation, and per-purpose design notes — so the deck now reads end-to-end (Cover → About → Diagram → Control Plane → Summary → per-purpose detail slides) instead of jumping straight from the cover into the diagram with no context.

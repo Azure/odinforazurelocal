@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.05 - Available here: https://aka.ms/ODIN
+## Version 0.21.06 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,26 +46,21 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.05 - Latest Release
+### 🎉 Version 0.21.06 - Latest Release
 
-> Adds an **"About this architecture" slide** to the PowerPoint export on the *Microsoft Sovereign Private Clouds reference architectures* page (Knowledge tab). The slide carries the same on-screen narrative — overview, control-plane explanation, and per-purpose design notes — so the deck now reads end-to-end **Cover → About → Diagram → Control Plane → Summary → per-purpose detail slides** instead of jumping straight from the cover into the diagram with no context.
+> Restyles the **Configuration Report PowerPoint export** (Designer's *Download PowerPoint* button) to match the dark-mode visual identity of the *Microsoft Sovereign Private Clouds reference architectures* PPTX export. The two ODIN-generated decks now share a single, consistent look-and-feel — dark backgrounds, white titles with a blue accent underline, rounded-rect content cards with drop shadows, ODIN logo top-right on every section slide, and a centered cover slide. **Bullet content and rasterized SVG diagrams are unchanged** — only the layout, palette, and chrome were rebuilt.
 
-**Reference Architectures — new "About this architecture" slide in the PowerPoint export**
-- Inserted between the existing Cover and Diagram slides. Generated entirely client-side via the already-vendored JSZip 3.10.1.
-- Section text reuses the same `buildOverviewParagraph()` / `buildControlPlaneParagraph()` builders that drive the on-screen narrative, so wording stays in lockstep between the page and the deck. The per-purpose block uses the same `tpl.summary` + `tpl.notes` data.
-- Body font auto-shrinks (12 → 11 → 10 → 9 pt) when the combined character count grows, so combined multi-purpose architectures (e.g. M365 Local + General Purpose Workloads + Foundry Local) still fit on a single 16:9 slide.
-- New `makeRichTextBoxSp()` rich-text frame helper that supports per-paragraph font size, weight, color, alignment and `spcBef` / `spcAft` paragraph spacing in a single OOXML text box.
+**Configuration Report PPTX — full restyle to match Sovereign dark-mode look**
+- New from-scratch OOXML builder in `report/pptx-export.js` — replaces the previous template-based pipeline (which fetched `report/template/OdinPPTTemplate.potx` and emitted via placeholders). The deck is now assembled synchronously without a network round-trip.
+- Dark-mode palette: `#0A0A0F` background, `#FFFFFF` titles, `#A1A1AA` body, `#1A1A24` card fill with `#2D2D3A` borders, `#0078D4` blue accent underline beneath every title, `#7B68EE` accent purple for cover footer text.
+- Cover slide: large 2.2" centered ODIN logo + 40 pt bold white title + 18 pt subtitle + italic purple "Generated on …" footer.
+- Section slides: rounded-rect cards with drop shadows hold the bullets and the diagram; ODIN logo top-right on every slide.
+- Closing slide: "Thank you" + tagline + centered link to GitHub Issues.
 
 **Notes**
-- No new external network calls. No new dependencies. All 1,156 existing unit tests still pass.
+- No new external network calls (one fewer, in fact — the `.potx` template fetch is gone). No new dependencies. All 1,156 existing unit tests still pass; smoke test (`node scripts/smoke-test-pptx.js`) confirms the new builder produces a valid ~9 MB PPTX.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
-
----
-
-### Version 0.21.04 — earlier in this release series
-
-See [Appendix A — Version History](#appendix-a---version-history) for the full Foundry Local / Edge RAG / AI Video Indexer release notes.
 
 ---
 
@@ -386,7 +381,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.05  
+**Version**: 0.21.06  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -401,6 +396,15 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.05 - "About this architecture" slide in Reference Architectures PPTX
+
+> Adds an **"About this architecture" slide** to the PowerPoint export on the *Microsoft Sovereign Private Clouds reference architectures* page (Knowledge tab). The slide carries the same on-screen narrative — overview, control-plane explanation, and per-purpose design notes — so the deck now reads end-to-end **Cover → About → Diagram → Control Plane → Summary → per-purpose detail slides** instead of jumping straight from the cover into the diagram with no context.
+
+- Inserted between the existing Cover and Diagram slides. Generated entirely client-side via the already-vendored JSZip 3.10.1.
+- Section text reuses the same `buildOverviewParagraph()` / `buildControlPlaneParagraph()` builders that drive the on-screen narrative, so wording stays in lockstep between the page and the deck. The per-purpose block uses the same `tpl.summary` + `tpl.notes` data.
+- Body font auto-shrinks (12 → 11 → 10 → 9 pt) when the combined character count grows, so combined multi-purpose architectures (e.g. M365 Local + General Purpose Workloads + Foundry Local) still fit on a single 16:9 slide.
+- New `makeRichTextBoxSp()` rich-text frame helper that supports per-paragraph font size, weight, color, alignment and `spcBef` / `spcAft` paragraph spacing in a single OOXML text box.
 
 #### 0.21.04 - Foundry Local, Edge RAG and AI Video Indexer in the Sizer
 
