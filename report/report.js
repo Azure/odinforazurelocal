@@ -1319,11 +1319,12 @@
             md.push('');
         }
 
-        // AKS Arc Network Requirements (shown when any AKS-Arc-hosted
-        // workload is configured: native AKS Arc clusters or any of the
-        // workload types that run on top of AKS Arc — Foundry Local,
-        // Edge RAG, AI Video Indexer).
-        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks' || w.type === 'foundry' || w.type === 'edgerag' || w.type === 'videoindexer'; })) {
+        // AKS Arc Network Requirements — always shown in the report.
+        // Even Designer-only users (no Sizer workloads) may add AKS Arc to
+        // their cluster later, so the port table + docs link is always
+        // useful. The native AKS Arc workload, Foundry Local, Edge RAG, and
+        // AI Video Indexer all run on AKS Arc and inherit these requirements.
+        {
             md.push('## AKS Arc Network Requirements');
             md.push('');
             md.push('[AKS Arc network & port requirements documentation](https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements)');
@@ -8292,12 +8293,13 @@
             }
         }
 
-        // AKS Arc Network Requirements (shown when any AKS-Arc-hosted
-        // workload is configured: native AKS Arc clusters or any of the
-        // workload types that run on top of AKS Arc — Foundry Local,
-        // Edge RAG, AI Video Indexer).
+        // AKS Arc Network Requirements — always shown in the report.
+        // Even Designer-only users (no Sizer workloads) may add AKS Arc to
+        // their cluster later, so the port table + docs link is always
+        // useful. The native AKS Arc workload, Foundry Local, Edge RAG, and
+        // AI Video Indexer all run on AKS Arc and inherit these requirements.
         var aksNetworkRows = '';
-        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks' || w.type === 'foundry' || w.type === 'edgerag' || w.type === 'videoindexer'; })) {
+        {
             aksNetworkRows += '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">'
                 + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">AKS Arc network &amp; port requirements documentation</a>'
                 + '</div>'
