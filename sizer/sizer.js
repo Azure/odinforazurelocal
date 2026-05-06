@@ -1203,7 +1203,7 @@ function updateNodeRecommendation(recommendation) {
     const recDiv = document.getElementById('node-recommendation');
     const recText = document.getElementById('node-recommendation-text');
     if (recDiv && recText) {
-        const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage' };
+        const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage', gpu: 'GPU' };
         const driver = bottleneckLabels[recommendation.bottleneck];
 
         let msg = '';
@@ -1227,7 +1227,7 @@ function updateNodeRecommendationInfo(recommendation, currentNodeCount) {
     const recText = document.getElementById('node-recommendation-text');
     if (!recDiv || !recText) return;
 
-    const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage' };
+    const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage', gpu: 'GPU' };
     const driver = bottleneckLabels[recommendation.bottleneck];
     const snapped = snapToAvailableNodeCount(recommendation.recommended);
 
@@ -1278,6 +1278,15 @@ const ALDO_MIN_MEMORY_GB = 96;          // Minimum 96 GB memory per node
 const ALDO_MIN_CORES_PER_NODE = 24;     // Minimum 24 physical cores per node
 const ALDO_MIN_STORAGE_PER_NODE_TB = 2; // Minimum 2 TB SSD/NVMe storage per node
 const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM reservation per node
+
+// GPU multi-node clusters: minimum cores-per-node for AUTO sizing.
+// Rationale: GPU workloads (Foundry Local model serving, Edge RAG vLLM workers,
+// AI Video Indexer transcoding/inference) are CPU-heavy on the host side for
+// data preprocessing, scheduling, and feeding the GPU. An 8-core node will
+// bottleneck the GPU. 24 cores/node is a reasonable AUTO floor that still
+// leaves the user free to manually pick a smaller value if they have a
+// specific reason to (e.g. low-throughput inference workloads).
+const GPU_MIN_CORES_PER_NODE = 24;
 
 // Low Capacity deployment type hardware limits
 // Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
@@ -1780,7 +1789,13 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // For ALDO management clusters, enforce minimum 24 physical cores per node
     const isLowCapacity = clusterTypeForOverhead === 'low-capacity';
     const aldoMinCores = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_CORES_PER_NODE : 0;
-    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores);
+    // Multi-node GPU clusters: enforce a minimum cores-per-node floor so AUTO
+    // doesn't pick e.g. 8-core CPUs that will starve the GPU. Skipped in Low
+    // Capacity (single-socket, capped at 14 cores) where the floor would
+    // exceed the deployment type's max.
+    const gpuCountPerNodeForCpu = parseInt((document.getElementById('gpu-count') || {}).value, 10) || 0;
+    const gpuMinCores = (!isLowCapacity && nodeCount > 1 && gpuCountPerNodeForCpu > 0) ? GPU_MIN_CORES_PER_NODE : 0;
+    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores, gpuMinCores);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
     const SOCKET_OPTIONS = isLowCapacity ? [1] : [1, 2];
