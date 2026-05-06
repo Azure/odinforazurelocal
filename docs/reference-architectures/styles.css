@@ -1171,6 +1171,30 @@ body.in-iframe .sidebar {
     border-color: var(--accent-blue);
 }
 
+/* Share Architecture as URL — mirrors the theme-toggle styling */
+#share-refarch-url {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    font-family: inherit;
+}
+#share-refarch-url:hover:not(:disabled) {
+    background: rgba(139, 92, 246, 0.12);
+    border-color: var(--accent-purple);
+}
+#share-refarch-url:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* When the diagram is in light mode, paint the canvas white and override the
    CSS variables that the SVG renderer reads so text contrasts on white. */
 .preview-canvas.diagram-light {
