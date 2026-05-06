@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" role="img" aria-label="GPU">
+    <title>GPU</title>
+    <!-- PCB card body -->
+    <rect x="1" y="5" width="15" height="8" rx="1" fill="#0078D4"/>
+    <!-- PCIe edge connector tab (lighter strip on the bottom-left) -->
+    <rect x="1.4" y="13" width="6" height="1.2" fill="#3a8fd6"/>
+    <!-- Bracket / I/O plate on the right edge -->
+    <rect x="16" y="4" width="1.2" height="10" rx="0.3" fill="#5c6b7a"/>
+    <!-- GPU die (square in the center) -->
+    <rect x="3" y="6.6" width="4.5" height="4.5" rx="0.4" fill="#1a2733"/>
+    <rect x="3.6" y="7.2" width="3.3" height="3.3" rx="0.2" fill="#9bbedf"/>
+    <!-- Cooling fan (circle to the right of the die) -->
+    <circle cx="11.5" cy="9" r="3.1" fill="#1a2733"/>
+    <circle cx="11.5" cy="9" r="2.5" fill="none" stroke="#9bbedf" stroke-width="0.4"/>
+    <!-- Fan hub -->
+    <circle cx="11.5" cy="9" r="0.7" fill="#9bbedf"/>
+    <!-- Fan blades (3 simple curves) -->
+    <path d="M11.5 9 L13.7 7.6 A2.5 2.5 0 0 1 13.9 9.3 Z" fill="#9bbedf" opacity="0.85"/>
+    <path d="M11.5 9 L10.3 11.3 A2.5 2.5 0 0 1 9.0 10.0 Z" fill="#9bbedf" opacity="0.85"/>
+    <path d="M11.5 9 L10.6 6.7 A2.5 2.5 0 0 1 12.3 6.6 Z" fill="#9bbedf" opacity="0.85"/>
+</svg>

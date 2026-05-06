@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.03] - 2026-05-06
+
+New **Microsoft Sovereign Private Clouds reference architectures** page (Preview) in the Knowledge tab. Picks a business purpose, renders a live SVG diagram of the resulting architecture, and exports an editable multi-slide PowerPoint generated entirely client-side via JSZip — no upload, no backend.
+
+### Added
+
+- **`docs/reference-architectures/`** — new self-contained page (HTML + JS + CSS + 46 icons) that renders Microsoft Sovereign Private Cloud reference architectures for five business purposes:
+  - **Azure Local** — general-purpose VMs / AKS Arc / Arc Data Services on a 2–4 node cluster (or up to 64 nodes).
+  - **Microsoft 365 Local** — Exchange / SharePoint / Skype for Business productivity workloads with Small-Scale (1 × 3-node cluster) and Large-Scale (4 single-node Exchange mailbox + 2 single-node Edge Transport + 1 three-node SharePoint/Skype/SQL = 7 clusters total) variants from the SPC L300 deck (slides 66–68).
+  - **GitHub Enterprise Local** — on-prem DevSecOps platform with GitHub Enterprise Server, container registry, AKS build agents, observability (Private Preview).
+  - **Azure Virtual Desktop on Azure Local** — VDI session hosts, FSLogix profiles, domain controllers.
+  - **Foundry Local** — AI platform with model families (DeepSeek / Microsoft / OpenAI / Qwen / Mistral / BYO), Edge RAG, Video Indexer, GPU partitioning.
+- **Live SVG preview** with Azure cloud band, Distributed location band, per-purpose workload bands, real cluster icons, and (for disconnected mode) a shared 3-node Control Plane Appliance.
+- **Connectivity / tenancy / scale picker**: Connected vs Disconnected (air-gapped); Strict (dedicated hardware) vs Logical (shared, coming soon) tenancy; Single Node / 16 / 64 / 128 (coming soon) scale per purpose.
+- **Narrative "About this architecture" section** instead of a flat bullet list — explains the selected footprint, the consequence of the connectivity choice (Azure Arc for connected; on-prem Control Plane Appliance with ARM/Portal/Key Vault/Defender/Monitor/Update Manager equivalents for disconnected), and a per-purpose paragraph for each selected workload.
+- **Editable PowerPoint export** generated entirely client-side via [JSZip 3.10.1](https://github.com/Stuk/jszip) (MIT, vendored at `vendor/jszip-3.10.1.min.js`):
+  - **Cover slide** with a large centered ODIN logo, title, subtitle, and a footprint summary in the footer.
+  - **Diagram slide** rendering the live SVG architecture as a high-resolution PNG.
+  - **Control Plane slide** (Connected or Disconnected) with a hero icon and a 3 × 2 grid of service tiles (Azure Arc / ARM / Portal / Defender / Monitor / Policy for connected; on-prem ARM / Portal / Key Vault / Defender / Monitor / Update Manager for disconnected).
+  - **Summary slide** with shadows, accent strips, and pill chips per purpose.
+  - **One per-purpose slide** per selected purpose — title, summary, design narrative, real cluster icon, and feature pills.
+  - Icons rasterized at 1024×1024 so SVG sources stay crisp at any slide scale and small PNG sources don't get visibly upscaled. SVG-only versions of the GitHub mark (Octicons MIT) and the Azure AI Foundry icon are used in the deck so they don't blur on the per-purpose hero card.
+- **Knowledge tab navigation entry** in `index.html` ("Microsoft Sovereign Private Clouds reference architectures" — Preview badge) and a contextual onboarding step in `js/script.js` that explains the page when it's opened for the first time.
+
+### Changed
+
+- **`vendor/README.md`** — added JSZip 3.10.1 row to the vendored-libraries table with the upstream CDN URL it was sourced from. Designer, Sizer, Switch Configuration, and Configuration Report do not load JSZip; only the new reference-architectures page does.
+- **`_config.yml`** — added `docs/Temp/` to the GitHub Pages exclude list (defence in depth — see Security below).
+
+### Security
+
+- **`docs/Temp/`** added to `.gitignore` and `_config.yml` exclude list. This is the local-only working folder for source PPTX decks, extracted PPTX media, and internal Microsoft reference material used to build the new page. **It must never be committed or published** — it can contain internal-only material. Both gates are now in place: git won't commit it, and Jekyll won't publish it even if a clone has it locally.
+- **No new external runtime calls**. JSZip is loaded from `vendor/`; all icons, the cover logo, and the deck assembly happen client-side. The only outbound traffic from the new page is the existing Firebase page-view counter (unchanged).
+- **No new third-party CDN dependencies** — JSZip was vendored locally rather than referenced from a CDN, matching the existing policy for `html2canvas`, `jspdf`, and `three.js`.
+- **Cross-origin SVG → canvas rasterization** uses same-origin URLs only (icons live under `docs/reference-architectures/icons/`), so the canvas is never tainted and `toDataURL()` is safe.
+- **No use of `innerHTML` with user-controlled input**. The narrative builder calls `escapeHtml()` on every variable interpolation; the SVG renderer constructs DOM nodes via `document.createElementNS()`.
+
+---
+
 ## [0.21.02] - 2026-05-05
 
 Security- and code-quality-hardening release. Resolves all 12 open CodeQL code-scanning alerts on the repository (1 × `js/xss-through-dom`, 11 × `js/remote-property-injection`) and the 8 open AI-generated Code Quality findings on the *Code quality → AI findings* tab. No user-visible behaviour changes; all 1,130 tests still pass.

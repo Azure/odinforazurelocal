@@ -53,6 +53,32 @@ function showChangelog() { // eslint-disable-line no-unused-vars
 
             <div style="color: var(--text-primary); line-height: 1.8;">
                 <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.21.03</h4>
+                    <div style="font-size: 13px; color: var(--text-secondary);">May 6, 2026</div>
+                    <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">New <strong>Microsoft Sovereign Private Clouds reference architectures</strong> page in the Knowledge tab (Preview). A purpose-driven picker (Azure Local, M365 Local, GitHub Enterprise Local, AVD, Foundry Local) builds a live SVG diagram and exports a multi-slide editable PowerPoint generated entirely client-side via JSZip. No backend, no upload — diagram, icons, cover slide, control-plane slide, and per-purpose narrative are all assembled in the browser.</p>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🧭 New page — Microsoft Sovereign Private Clouds reference architectures (Preview)</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>Purpose picker</strong>: pick one or more business purposes — Azure Local (general-purpose VMs / AKS Arc), Microsoft 365 Local, GitHub Enterprise Local, Azure Virtual Desktop, Foundry Local — and choose connectivity (connected vs disconnected / air-gapped), tenancy (strict vs logical isolation), and topology (single node, up to 16 / 64 / 128 nodes).</li>
+                        <li><strong>Live SVG diagram</strong>: renders an Azure cloud band, a Distributed location band, and one workload band per selected purpose with cluster cards, workload tiles, and real cluster icons. M365 Local renders Small-Scale (single 3-node cluster) and Large-Scale (7 single/three-node clusters) variants from the SPC L300 deck. Foundry Local shows the model-family logos (DeepSeek / Microsoft / OpenAI / Qwen / Mistral / BYO).</li>
+                        <li><strong>Narrative description</strong> (instead of a flat bullet list): "About this architecture" prose explains the selected footprint, the consequence of the connectivity choice (Azure Arc for connected; on-prem Control Plane Appliance for disconnected), and a per-purpose paragraph for each selected workload.</li>
+                        <li><strong>Editable PowerPoint export</strong>: generates a multi-slide deck client-side — Cover, Diagram, Control Plane (Connected or Disconnected), Summary, and one slide per purpose — with shadows, accent strips, pill chips, and crisp SVG-rendered icons. Output is a valid OOXML PPTX assembled in the browser via JSZip.</li>
+                        <li><strong>Independent of the Designer</strong>: this page does not read or modify your Designer / Sizer / Switch Configuration state. Use it for first-conversation framing or quick stakeholder hand-offs.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--glass-border);">
+                    <h4 style="color: var(--accent-purple); margin: 0 0 12px 0;">🛠️ Behind the scenes</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li><strong>JSZip 3.10.1 vendored locally</strong> (<code>vendor/jszip-3.10.1.min.js</code>, MIT) — used only by the new page. Designer, Sizer, Switch Configuration, and Configuration Report do not load it.</li>
+                        <li><strong>No external runtime calls</strong>: all icons, the cover logo, and the deck assembly happen client-side. No upload, no telemetry beyond the existing Firebase counter.</li>
+                        <li><strong>Defence-in-depth</strong>: <code>docs/Temp/</code> (local working folder for source decks / extracted PPTX content) added to <code>.gitignore</code> and <code>_config.yml</code> exclude list — never committed, never published.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--accent-blue); border-radius: 4px;">
                     <h4 style="margin: 0 0 8px 0; color: var(--accent-blue);">Version 0.21.02</h4>
                     <div style="font-size: 13px; color: var(--text-secondary);">May 5, 2026</div>
                     <p style="margin: 8px 0 0 0; font-size: 13px; color: var(--text-secondary);">Security- and code-quality-hardening release. Resolves all 12 open CodeQL code-scanning alerts (1 × <code>js/xss-through-dom</code>, 11 × <code>js/remote-property-injection</code>) and the 8 open AI-generated Code Quality findings. No user-visible behaviour changes; all 1,130 tests still pass.</p>

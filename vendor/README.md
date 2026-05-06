@@ -9,6 +9,7 @@ work fully offline (clone-and-open use case).
 |------|---------|---------|---------|--------|
 | `html2canvas-1.4.1.min.js`       | [html2canvas](https://github.com/niklasvh/html2canvas) | 1.4.1   | MIT | https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js |
 | `jspdf-4.2.1.umd.min.js`         | [jsPDF](https://github.com/parallax/jsPDF)             | 4.2.1   | MIT | https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js |
+| `jszip-3.10.1.min.js`            | [JSZip](https://github.com/Stuk/jszip)                 | 3.10.1  | MIT | https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js |
 | `three-0.128.0.min.js`           | [three.js](https://github.com/mrdoob/three.js)         | 0.128.0 | MIT | https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js |
 | `three-OrbitControls-0.128.0.js` | three.js OrbitControls (examples)                       | 0.128.0 | MIT | https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js |
 

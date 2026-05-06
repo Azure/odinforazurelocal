@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Sovereign Private Clouds Reference Architectures - ODIN</title>
+    <link rel="icon" type="image/png" href="../../images/odin-logo.png">
+    <link rel="stylesheet" href="../outbound-connectivity/styles.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="odin-tab-nav" id="odin-nav" data-active="knowledge" data-base="../../" aria-label="Primary navigation"></nav>
+    <script src="../../js/nav.js"></script>
+    <script>
+        (function () {
+            try {
+                if (window.self !== window.top) {
+                    var nav = document.getElementById('odin-nav');
+                    if (nav) { nav.style.display = 'none'; }
+                    document.body.classList.add('in-iframe');
+                }
+            } catch (e) { /* cross-origin – leave nav visible */ }
+        })();
+    </script>
+
+    <main class="content no-sidebar">
+        <section id="overview" class="section">
+            <h1>Microsoft Sovereign Private Clouds Reference Architectures</h1>
+            <p class="subtitle">A guided way to map a business purpose to a starter Microsoft Sovereign Private Cloud reference architecture &mdash; and walk away with an editable PowerPoint.</p>
+
+            <div class="intro-card">
+                <h3>Why this exists</h3>
+                <p>Many Azure Local conversations start the same way: <em>&ldquo;What should my cluster look like for <strong>X</strong>?&rdquo;</em>
+                Designer answers that for hardware, but the architectural shape &mdash; the workloads, the supporting services, the connectivity model &mdash;
+                usually lives only in someone&rsquo;s head or on a slide deck. This page captures the most common starting points and gives you a reusable
+                visual you can tailor for your customer or internal stakeholders.</p>
+                <ul>
+                    <li><strong>Five business purposes</strong> covering the workloads we see most on Azure Local today.</li>
+                    <li><strong>Connected vs Disconnected</strong> footprint pickers that match Azure Local 2604+ deployment options.</li>
+                    <li><strong>Live preview</strong> of the resulting architecture before you download the deck.</li>
+                    <li><strong>Editable PowerPoint</strong> output (.pptx) using the same shapes and icons used in Microsoft reference content.</li>
+                </ul>
+                <p class="muted-note">This page is independent from the Designer, the Sizer and the Switch Config tools. It does not read or modify your existing design.</p>
+            </div>
+        </section>
+
+        <section id="picker" class="section">
+            <h2>1. Select your Azure Local business purpose</h2>
+            <p>Choose what the cluster is primarily for. You can select more than one to combine scenarios in a single reference architecture &mdash; nothing is saved.</p>
+            <div class="purpose-grid" id="purpose-grid" role="group" aria-label="Business purpose"></div>
+        </section>
+
+        <section id="footprint" class="section">
+            <h2>2. Select your Azure Local control plane connectivity</h2>
+            <p>Pick the connectivity that matches the deployment. The recommended option for the selected purpose is highlighted.</p>
+            <div class="footprint-grid" id="connectivity-grid" role="radiogroup" aria-label="Connectivity"></div>
+        </section>
+
+        <section id="scale" class="section">
+            <h2>3. Select your scale &amp; topology <span class="footprint-multi-hint">(per purpose)</span></h2>
+            <p>Pick the cluster footprint for each business purpose. You can choose more than one footprint per purpose to render multiple variants side by side.</p>
+            <div id="scale-per-purpose" class="scale-per-purpose"></div>
+        </section>
+
+        <section id="tenancy" class="section">
+            <h2>4. Select your multi-tenancy model <span class="footprint-multi-hint">(per purpose)</span></h2>
+            <p>Choose how tenants are isolated for each business purpose.</p>
+            <div id="tenancy-per-purpose" class="tenancy-per-purpose"></div>
+        </section>
+
+        <section id="preview" class="section">
+            <h2>5. Preview &amp; download</h2>
+            <div id="selection-summary" class="selection-summary" aria-live="polite"></div>
+
+            <div class="preview-card">
+                <div class="preview-header">
+                    <h3 id="preview-title">Your reference architecture</h3>
+                    <div class="preview-actions">
+                        <button type="button" id="preview-theme-toggle" class="btn-secondary" aria-pressed="false" title="Switch between dark and light diagram theme">
+                            <span aria-hidden="true">☀</span> Light theme
+                        </button>
+                        <button type="button" id="download-pptx" class="btn-primary" disabled>
+                            <span aria-hidden="true">⬇</span> Download PowerPoint
+                        </button>
+                    </div>
+                </div>
+                <div class="preview-canvas-wrapper">
+                    <div class="preview-zoom-controls" role="toolbar" aria-label="Zoom controls">
+                        <button type="button" id="preview-zoom-out" class="preview-zoom-btn" aria-label="Zoom out" title="Zoom out">−</button>
+                        <span id="preview-zoom-level" class="preview-zoom-level" aria-live="polite">100%</span>
+                        <button type="button" id="preview-zoom-in" class="preview-zoom-btn" aria-label="Zoom in" title="Zoom in">+</button>
+                        <button type="button" id="preview-zoom-reset" class="preview-zoom-btn" aria-label="Reset zoom" title="Reset zoom">⟳</button>
+                        <button type="button" id="preview-zoom-fit" class="preview-zoom-btn" aria-label="Fit to width" title="Fit to width">⤢</button>
+                    </div>
+                    <div id="preview-canvas" class="preview-canvas" role="img" aria-label="Architecture preview"></div>
+                </div>
+                <div id="preview-notes" class="preview-notes"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="../../vendor/jszip-3.10.1.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.02 - Available here: https://aka.ms/ODIN
+## Version 0.21.03 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,27 +46,23 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.02 - Latest Release
+### 🎉 Version 0.21.03 - Latest Release
 
-> Security- and code-quality-hardening release. Resolves the 12 open CodeQL code-scanning alerts on the repository (1 × `js/xss-through-dom`, 11 × `js/remote-property-injection`) and the 8 open AI-generated Code Quality findings. No user-visible behaviour changes.
+> New **Microsoft Sovereign Private Clouds reference architectures** page (Preview) in the Knowledge tab. Pick a business purpose, see a live SVG diagram of the resulting architecture, and download an editable multi-slide PowerPoint generated entirely client-side via JSZip.
 
-**CodeQL `js/xss-through-dom` (Sizer JSON Import preview, alert #15)**
-- The Sizer's *Parse & Preview* path for an Azure Local machine JSON paste (`parseAndPreviewClusterJSON()`) now explicitly coerces every JSON-derived numeric value (`coreCount`, `coresPerSocket`, `sockets`, `memoryGiB`) to `Number()` immediately before they're interpolated into the preview HTML. This makes the type-narrowing barrier explicit on the data-flow path from `<textarea>.value` → `JSON.parse(...)` → `previewDiv.innerHTML`. String values were already escaped via `escapeHtml()`; this closes the remaining unsanitised-numeric-interpolation path that CodeQL was flagging at `sizer/sizer.js:6797`.
+**`docs/reference-architectures/` — new self-contained Knowledge-tab page**
+- Five business purposes — **Azure Local** (general-purpose VMs / AKS Arc), **Microsoft 365 Local** (Exchange / SharePoint / Skype for Business — Small-Scale and Large-Scale variants from the SPC L300 deck), **GitHub Enterprise Local** (Private Preview), **Azure Virtual Desktop on Azure Local**, and **Foundry Local** (AI platform with model families, Edge RAG, Video Indexer, GPU partitioning).
+- **Picker controls** for connectivity (Connected vs Disconnected / air-gapped), tenancy (Strict — dedicated hardware vs Logical — coming soon), and topology (Single Node / 16 / 64 / 128 — coming soon) per purpose.
+- **Live SVG preview** with an Azure cloud band, a Distributed location band, per-purpose workload bands, real cluster icons, and (for disconnected mode) a shared 3-node Control Plane Appliance.
+- **Narrative "About this architecture" section** that explains the selected footprint in prose — the connectivity choice's consequence (Azure Arc for connected; on-prem Control Plane Appliance with ARM / Portal / Key Vault / Defender / Monitor / Update Manager equivalents for disconnected) and a per-purpose paragraph for each selected workload.
+- **Editable PowerPoint export** generated client-side via [JSZip 3.10.1](https://github.com/Stuk/jszip) (MIT, vendored at `vendor/jszip-3.10.1.min.js`). Cover slide (large centered ODIN logo), Diagram slide, Control Plane slide (Connected or Disconnected, with hero icon and 3 × 2 service-tile grid), Summary slide, and one per-purpose slide with shadows, accent strips, pill chips, and crisp icons (rasterized at 1024 × 1024 so SVGs stay sharp at hero size and small PNGs don't visibly upscale).
+- **Knowledge-tab navigation entry** added to `index.html` with a **Preview** badge and a contextual onboarding step in `js/script.js`.
+- **Independent of the Designer**: this page does not read or modify your Designer / Sizer / Switch Configuration state. Use it for first-conversation framing or quick stakeholder hand-offs.
 
-**CodeQL `js/remote-property-injection` (alerts #16–#26)**
-- Eleven separate sites where the code wrote to a JS object using a key derived from user-supplied data (NIC speed strings, network-zone names, intent assignments, drag-and-drop port IDs) have been hardened to prevent prototype-chain pollution. In all but one case the receiving dictionary is now created via `Object.create(null)` (prototype-less object — keys like `__proto__` / `constructor` / `toString` can no longer reach `Object.prototype`):
-  - `report/pptx-export.js` — `bySpeed` and `bySpeed2` NIC-speed dictionaries (alerts #16, #17).
-  - `report/report.js` — `groupsByZoneD` / `zoneLeafCountersD` (Disaggregated NIC-zone grouping, alerts #19–#21); `buckets` for custom intent grouping (alert #22); `buckets` for hyperconverged adapter grouping (alert #23); `groupsByZone` / `zoneLeafCounters` (Hyperconverged NIC-zone grouping, alerts #24–#26).
-  - `js/disaggregated.js` — `state.disaggAdapterMapping[portId] = targetZone;` (alert #18) is reached via a drag-and-drop event whose `portId` comes from `e.dataTransfer.getData('text/plain')`. Because `state.disaggAdapterMapping` is a long-lived shared object that can't be swapped to `Object.create(null)`, `portId` is now validated against the known port list (`getDisaggPortList()`) before being used as a property key — any unknown key is silently rejected.
-- All 1,130 tests still pass; no functional changes — these are defence-in-depth hardenings against a class of vulnerability that wasn't previously exploitable through the UI.
-
-**AI Code Quality findings cleared**
-
-- **`js/stats-bar.js`**: em-dash counter placeholder pulled out as a named `STAT_PLACEHOLDER` constant at the top of the IIFE.
-- **`scripts/smoke-test-pptx.js`**: *PPTX size too small* error message now reads `expected > 50 KB (template + cover + 11 sections + closing slide)`, matching the file header.
-- **`switch-config/index.html`**: removed stray space before `>` on the *Arizona (MST, no DST)* `<option>` tag.
-- **`tools/demos/generate-disagg-fc-deck.spec.js`**: dialog auto-accept failure is now logged via `console.warn` with the `[PPTX generation]` prefix instead of silently swallowed; the *"Saved"* line uses the same prefix.
-- **`tools/demos/odin-full-walkthrough.spec.js`**: `slowMo` is now configurable via `ODIN_DEMO_SLOWMO` env var (default 120 ms, was hard-coded 80 ms); brittle `button.workload-type-btn` text-filter selectors replaced with stable `[onclick*="'aks'"]` / `[onclick*="'vm'"]` attribute selectors. Production HTML was deliberately not modified to add `data-testid` attributes — `tools/` is excluded from publication and the existing `onclick` markup is already a stable selector.
+**Behind the scenes**
+- **JSZip 3.10.1 vendored locally** (`vendor/jszip-3.10.1.min.js`, MIT) — used only by the new page. Designer, Sizer, Switch Configuration, and Configuration Report don't load it. No new third-party CDN runtime dependencies.
+- **No new external network calls**. All icons, the cover logo, and the deck assembly happen client-side. Only outbound traffic from the new page is the existing Firebase page-view counter (unchanged).
+- **`docs/Temp/` added to `.gitignore` and `_config.yml` exclude list** — defence-in-depth so the local working folder for source decks / extracted PPTX content (which may contain internal Microsoft reference material) can never be committed *and* can never be published via Jekyll even if a clone has it locally.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -404,6 +400,14 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.02 - Security & Code-Quality Hardening
+
+> Security- and code-quality-hardening release. Resolves the 12 open CodeQL code-scanning alerts on the repository (1 × `js/xss-through-dom`, 11 × `js/remote-property-injection`) and the 8 open AI-generated Code Quality findings. No user-visible behaviour changes.
+
+- **CodeQL `js/xss-through-dom` (Sizer JSON Import preview, alert #15)** — `parseAndPreviewClusterJSON()` now coerces every JSON-derived numeric value (`coreCount`, `coresPerSocket`, `sockets`, `memoryGiB`) to `Number()` immediately before they are interpolated into the preview HTML, making the type-narrowing barrier explicit on the data-flow path from `<textarea>.value` → `JSON.parse(...)` → `previewDiv.innerHTML`. String values were already escaped via `escapeHtml()`.
+- **CodeQL `js/remote-property-injection` (alerts #16–#26)** — eleven sites where the code wrote to a JS object using a key derived from user-supplied data (NIC speed strings, network-zone names, intent assignments, drag-and-drop port IDs) hardened against prototype-chain pollution. Ten dictionaries are now created via `Object.create(null)` (`bySpeed` / `bySpeed2` in `report/pptx-export.js`; `groupsByZoneD` / `zoneLeafCountersD` / `buckets` / `groupsByZone` / `zoneLeafCounters` in `report/report.js`). The remaining one (`state.disaggAdapterMapping[portId]` in `js/disaggregated.js`) validates `portId` against `getDisaggPortList()` before using it as a property key.
+- **AI Code Quality findings cleared** — `js/stats-bar.js` (`STAT_PLACEHOLDER` constant); `scripts/smoke-test-pptx.js` (size error message); `switch-config/index.html` (Arizona option tag); `tools/demos/generate-disagg-fc-deck.spec.js` (dialog auto-accept logging); `tools/demos/odin-full-walkthrough.spec.js` (configurable `slowMo` via `ODIN_DEMO_SLOWMO`, stable `[onclick*="'aks'"]` / `[onclick*="'vm'"]` selectors).
 
 #### 0.21.01 - Sizer mobile + Rack U / Power fixes
 
