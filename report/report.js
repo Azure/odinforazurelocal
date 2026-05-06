@@ -1214,8 +1214,9 @@
 
         // Sizer Workloads (individual workload details from Sizer)
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop' };
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG', 'videoindexer': 'AI Video Indexer' };
             var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            var foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             md.push('## Workloads (from Sizer)');
             md.push('');
             for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
@@ -1247,6 +1248,22 @@
                     if (wl.profile === 'custom') {
                         md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user |');
                     }
+                } else if (wl.type === 'foundry') {
+                    md.push('| Model Class | ' + (foundryClassLabels[wl.modelClass] || wl.modelClass || '-') + ' |');
+                    md.push('| Replicas | ' + (wl.replicas || 1) + ' |');
+                    md.push('| Inference Engine | ' + (wl.engine === 'vllm' ? 'vLLM (GPU only)' : 'ONNX-GenAI (CPU or GPU)') + ' |');
+                    if (wl.modelClass === 'custom') {
+                        md.push('| Custom Spec | ' + (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica |');
+                    }
+                } else if (wl.type === 'edgerag') {
+                    md.push('| Compute Mode | ' + (wl.computeMode === 'cpu' ? 'CPU mode (≤ 5 MB per file)' : 'GPU mode (recommended, ≤ 30 MB per file)') + ' |');
+                    md.push('| Worker VMs | 4 (' + (wl.computeMode === 'cpu' ? '8 vCPU / 32 GB / 200 GB OS each' : 'NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU / 200 GB OS each') + ') |');
+                    md.push('| Document Corpus | ' + (wl.corpusGB || 0) + ' GB |');
+                } else if (wl.type === 'videoindexer') {
+                    var viIsMin = wl.configuration === 'minimum';
+                    md.push('| Configuration | ' + (viIsMin ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)') + ' |');
+                    md.push('| Cluster-wide compute | ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' |');
+                    md.push('| PV storage | ' + (viIsMin ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)') + ' |');
                 }
                 md.push('| **Subtotal** | ' + (wl.totalVcpus || 0) + ' vCPUs · ' + (wl.totalMemoryGB || 0) + ' GB memory · ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : (wl.totalStorageGB || 0) + ' GB') + ' storage |');
                 md.push('');
@@ -1302,8 +1319,12 @@
             md.push('');
         }
 
-        // AKS Arc Network Requirements (shown when AKS workloads are configured)
-        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks'; })) {
+        // AKS Arc Network Requirements — always shown in the report.
+        // Even Designer-only users (no Sizer workloads) may add AKS Arc to
+        // their cluster later, so the port table + docs link is always
+        // useful. The native AKS Arc workload, Foundry Local, Edge RAG, and
+        // AI Video Indexer all run on AKS Arc and inherit these requirements.
+        {
             md.push('## AKS Arc Network Requirements');
             md.push('');
             md.push('[AKS Arc network & port requirements documentation](https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements)');
@@ -8216,8 +8237,9 @@
         // Sizer Workloads (individual workload details from Sizer)
         var sizerWorkloadsRows = '';
         if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.length > 0) {
-            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop' };
+            var typeLabels = { 'vm': 'Azure Local VMs', 'aks': 'AKS Arc Cluster', 'avd': 'Azure Virtual Desktop', 'foundry': 'Foundry Local', 'edgerag': 'Edge RAG', 'videoindexer': 'AI Video Indexer' };
             var avdProfileLabels = { 'light': 'Light', 'medium': 'Medium', 'heavy': 'Heavy', 'power': 'Power', 'custom': 'Custom' };
+            var foundryClassLabels = { 'small': 'Small SLM', 'medium': 'Medium SLM', 'large': 'Large LLM', 'custom': 'Custom' };
             for (var wi = 0; wi < s.sizerWorkloads.length; wi++) {
                 var wl = s.sizerWorkloads[wi];
                 var wlLabel = wl.name || typeLabels[wl.type] || wl.type;
@@ -8249,15 +8271,35 @@
                     if (wl.profile === 'custom') {
                         sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per user');
                     }
+                } else if (wl.type === 'foundry') {
+                    sizerWorkloadsRows += row('Model Class', foundryClassLabels[wl.modelClass] || wl.modelClass || '-');
+                    sizerWorkloadsRows += row('Replicas', String(wl.replicas || 1));
+                    sizerWorkloadsRows += row('Inference Engine', (wl.engine === 'vllm' ? 'vLLM (GPU only)' : 'ONNX-GenAI (CPU or GPU)'));
+                    if (wl.modelClass === 'custom') {
+                        sizerWorkloadsRows += row('Custom Spec', (wl.customVcpus || 0) + ' vCPU / ' + (wl.customMemory || 0) + ' GB / ' + (wl.customStorage || 0) + ' GB per replica');
+                    }
+                } else if (wl.type === 'edgerag') {
+                    sizerWorkloadsRows += row('Compute Mode', (wl.computeMode === 'cpu' ? 'CPU mode (≤ 5 MB per file)' : 'GPU mode (recommended, ≤ 30 MB per file)'));
+                    sizerWorkloadsRows += row('Worker VMs', '4 (' + (wl.computeMode === 'cpu' ? '8 vCPU / 32 GB / 200 GB OS each' : 'NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU / 200 GB OS each') + ')');
+                    sizerWorkloadsRows += row('Document Corpus', (wl.corpusGB || 0) + ' GB');
+                } else if (wl.type === 'videoindexer') {
+                    var viIsMinH = wl.configuration === 'minimum';
+                    sizerWorkloadsRows += row('Configuration', viIsMinH ? 'Minimum (1 worker)' : 'Recommended (2 workers, HA)');
+                    sizerWorkloadsRows += row('Cluster-wide compute', viIsMinH ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB');
+                    sizerWorkloadsRows += row('PV storage', viIsMinH ? '50 GB (ReadWriteMany)' : '100 GB (ReadWriteMany)');
                 }
                 // Totals for this workload
                 sizerWorkloadsRows += row('Subtotal', wl.totalVcpus + ' vCPUs • ' + wl.totalMemoryGB + ' GB memory • ' + (wl.totalStorageGB >= 1024 ? (wl.totalStorageGB / 1024).toFixed(1) + ' TB' : wl.totalStorageGB + ' GB') + ' storage');
             }
         }
 
-        // AKS Arc Network Requirements (shown when AKS workloads are configured)
+        // AKS Arc Network Requirements — always shown in the report.
+        // Even Designer-only users (no Sizer workloads) may add AKS Arc to
+        // their cluster later, so the port table + docs link is always
+        // useful. The native AKS Arc workload, Foundry Local, Edge RAG, and
+        // AI Video Indexer all run on AKS Arc and inherit these requirements.
         var aksNetworkRows = '';
-        if (Array.isArray(s.sizerWorkloads) && s.sizerWorkloads.some(function(w) { return w.type === 'aks'; })) {
+        {
             aksNetworkRows += '<div style="margin-bottom: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">'
                 + '<a href="https://learn.microsoft.com/en-us/azure/aks/aksarc/network-system-requirements#network-port-and-cross-vlan-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-primary); text-decoration: underline;">AKS Arc network &amp; port requirements documentation</a>'
                 + '</div>'

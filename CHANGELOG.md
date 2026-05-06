@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.04] - 2026-05-06
+
+Adds three new top-level workload types in the Sizer alongside Azure Local VMs, AKS Arc, and AVD: **Foundry Local on Azure Local (Preview)**, **Edge RAG Preview, enabled by Azure Arc**, and **Azure AI Video Indexer enabled by Arc (Preview)**. All three run on AKS Arc; Foundry sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline driven by document corpus size, and Video Indexer sizes Microsoft's published Minimum / Recommended cluster-wide tiers for video and audio analysis on edge devices.
+
+### Added
+
+- **`sizer/` — new "Foundry Local" workload type.** A fourth `workload-type-btn` with a dedicated modal for sizing AI inference deployments.
+  - **Model size classes** with conservative per-replica resource estimates:
+    - **Small SLM** (Phi-3.5-mini, Llama-3.2-3B): 4 vCPU / 8 GB / 20 GB per replica. CPU OK with ONNX-GenAI.
+    - **Medium SLM** (Phi-4, Mistral-7B, Llama-3.1-8B): 8 vCPU / 16 GB / 40 GB per replica. GPU recommended.
+    - **Large LLM** (DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4): 16 vCPU / 64 GB / 100 GB per replica. GPU required.
+    - **Custom** for user-specified per-replica vCPU / memory / storage.
+  - **Inference engine** picker — **ONNX-GenAI** (CPU or GPU) or **vLLM** (GPU only). Selecting vLLM forces GPU mode (DDA) and disables the *None* option to prevent invalid configurations.
+  - **Replicas** input (1–100) — each replica is sized to the model class and reserves a fixed 200 GB AKS Arc OS disk per worker node, matching the AKS workload pattern.
+  - **GPU sizing** reuses the standard workload GPU controls (DDA only — Foundry runs on AKS Arc, which doesn't support GPU partitioning). GPU model + count is set per replica.
+  - **Total sizing** = 3-node Kubernetes control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + N replicas × per-replica resources + 200 GB OS disk per replica + 2 vCPU / 4 GB inference operator overhead. The modal displays this composition inline so users see exactly what's being added to the cluster.
+  - **Preview pill** in the workload-type button and an inline link to [request preview deployment access](https://aka.ms/FoundryLocalAzure_PreviewRequest) inside the modal.
+- **`sizer/` — new "Edge RAG" workload type.** A fifth `workload-type-btn` for sizing [Edge RAG Preview, enabled by Azure Arc](https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/overview), Microsoft's turnkey on-premises Retrieval Augmented Generation pipeline.
+  - **Compute mode** — **GPU mode (recommended)** = 4 × NC8_A2 / NC8_A16 worker VMs (8 vCPU / 32 GB / 1 GPU each), or **CPU mode** = 4 × D8s_v3-equivalent worker VMs (8 vCPU / 32 GB each). Numbers come straight from Microsoft's published [Edge RAG hardware requirements](https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/requirements). Switching to GPU mode forces the standard GPU controls into DDA mode (1 GPU per worker = 4 GPUs total) and disables the *None* option; switching to CPU mode resets GPU mode to *None*.
+  - **Document Corpus Size (GB)** — drives a vector-database storage allowance of `corpusGB × 1.5` (chunks + embeddings + index) added on top of the worker OS-disk allowance.
+  - **Total sizing** = 3-node AKS Arc control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + 4 worker VMs (8 vCPU / 32 GB / 200 GB OS each) + vector-DB storage + 2 vCPU / 4 GB Edge RAG operator overhead. The modal displays this composition inline.
+  - **Preview pill** in the workload-type button and inline links to *What is Edge RAG?* and *Edge RAG requirements*.
+- **`sizer/` — new "AI Video Indexer" workload type.** A sixth `workload-type-btn` for sizing [Azure AI Video Indexer enabled by Arc (Preview)](https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview) — Microsoft's video and audio analysis pipeline (transcripts, OCR, faces, objects, topics, sentiment) running on AKS Arc.
+  - **Configuration picker** — **Recommended** (2 worker nodes / 64 vCPU / 256 GB / 100 GB cluster-wide PV storage, HA-capable) or **Minimum** (1 worker node / 32 vCPU / 64 GB / 50 GB) — values taken straight from Microsoft's published [minimum hardware requirements](https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview#minimum-hardware-requirements).
+  - **GPU optional** — Video Indexer's default Phi LLM is CPU-bound; GPU is only needed if you bring your own GPU-bound model. DDA only (AKS Arc, no GPU-P).
+  - **ReadWriteMany storage class required** — modal hint links to Azure Container Storage enabled by Arc as the recommended option.
+  - **Total sizing** = 3-node AKS Arc control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + 1–2 worker nodes sized per Microsoft's published cluster-wide totals + 2 vCPU / 4 GB Video Indexer operator overhead.
+  - **Gated Preview** — modal includes an inline link to [request subscription registration](https://aka.ms/vi-register) (the service is currently behind a subscription allow-list).
+- **Round-trip support**: Foundry Local, Edge RAG, *and* AI Video Indexer workloads serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and the Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
+- **`tests/index.html`** — 26 new unit tests:
+  - 13 covering Foundry: `FOUNDRY_MODEL_CLASSES` integrity (preset values, monotonic memory progression, custom class) and `calculateWorkloadRequirements()` for Foundry workloads (control-plane + worker + operator overhead arithmetic, Custom override path, GPU count calculation).
+  - 6 covering Edge RAG: `calculateWorkloadRequirements()` GPU-mode and CPU-mode arithmetic, vector-DB storage scaling with corpus size, and GPU count (`1 × workerNodes`).
+  - 7 covering AI Video Indexer: `calculateWorkloadRequirements()` Recommended-tier arithmetic (78 vCPU / 284 GB / 1100 GB), Minimum-tier arithmetic (46 vCPU / 92 GB / 850 GB), GPU count zero by default, GPU count = workers when DDA is enabled.
+- **`images/foundry-icon.png`** — new 28 × 28 icon for the Foundry Local workload button (copied from `docs/reference-architectures/icons/paas-foundry-local.png`).
+- **`images/edge-rag-icon.svg`** — new icon for the Edge RAG workload button (copied from `docs/reference-architectures/icons/azure-ai-search.svg`, the same stand-in already used for Edge RAG on the reference-architectures page).
+- **`images/video-indexer-icon.svg`** — new icon for the AI Video Indexer workload button (copied from `docs/reference-architectures/icons/azure-video-indexer.svg`).
+
+### Changed
+
+- **`sizer/sizer.css`** — added `--accent-cyan: #00bcf2` CSS custom property and `.workload-icon.foundry` / `.workload-icon.edgerag` / `.workload-icon.videoindexer` variants for the Sizer's workload-type buttons.
+- **`sizer/sizer.css` — modern "Preview" banner** in the top-left corner of each Preview workload-type button (Foundry, Edge RAG, AI Video Indexer). Replaces the inline preview pill that previously sat next to the workload name. New `.workload-preview-badge` class with a subtle blue → purple gradient, soft pulsing glow (`@keyframes workload-preview-glow`), and a `transform: scale(0.825)` to render below the browser's clamped-min-font-size floor. The animation is intentionally low-amplitude so it draws the eye without being distracting.
+- **`sizer/sizer.css` and `sizer/index.html` — descriptive hover tooltips** on every workload-type button (all six). New `.workload-type-btn[data-tooltip]::after` styled tooltip card replaces the native `title=` attribute — multi-line, 280 px wide, 1-second hover delay, fades in and out, expands acronyms (AKS = Azure Kubernetes Service enabled by Arc; AVD = Azure Virtual Desktop; RAG = Retrieval Augmented Generation) and gives a one-paragraph summary of what each workload provides.
+- **`report/report.js` and `report/pptx-export.js`** — added `'foundry'`, `'edgerag'`, and `'videoindexer'` branches to the per-workload type-label / detail rendering so all three new workload types appear correctly in the Configuration Report's Markdown export, HTML preview, and PowerPoint export, with Preview-aware Inference Engine / Compute Mode / Configuration rows and per-replica, per-corpus, or per-tier detail rows.
+
+### Other UX polish bundled in this release
+
+- **Sizer AUTO sizing now enforces a 24-core CPU minimum per node when GPUs are involved on multi-node clusters** (excluding the *Low Capacity* CPU class, which remains capped at 14 cores per Microsoft guidance). Prevents AUTO from picking 8-core CPUs on AI clusters where per-node compute pressure is non-trivial. Manual CPU overrides (`_cpuConfigUserSet`) still win.
+- **Sizer**: fixed misleading "*Auto-configured N node(s) based on undefined requirements*" message that appeared when the GPU count drove the recommended node count. The `bottleneckLabels` map in `updateNodeRecommendation()` and `updateNodeRecommendationInfo()` now includes a `gpu: 'GPU'` entry.
+- **Sizer Foundry Local model class examples now lead with OpenAI gpt-oss models**: Medium SLM examples now read `OpenAI gpt-oss-20b, Phi-4, Mistral-7B, Llama-3.1-8B (~7-20B params)`; Large LLM examples now read `OpenAI gpt-oss-120b, DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4 (~32-120B params)`. Reflects the new gpt-oss family being a first-class citizen on Foundry Local.
+- **Configuration Report**: the *Video Indexer* workload now renders as **AI Video Indexer** in the Markdown / HTML / PowerPoint exports (matches the Sizer label).
+- **3D rack visualization on mobile**: hidden the absolute-positioned "Azure Local" brand badge overlay (`.rack-viz-brand`) on viewports ≤ 768 px so it no longer overlaps the rendered rack. Desktop is unchanged.
+- **Top navigation tab order changed to: Knowledge | Sizer | Designer | ToR Switch.** Single source of truth in `js/nav.js` — affects all pages (Designer, Sizer, ToR Switch, Knowledge sub-pages). Active-tab highlighting and the in-page Designer/Knowledge `<button>` dispatch via `switchOdinTab()` are unchanged (driven by tab id, not array position).
+- **Knowledge tab**: *Microsoft Sovereign Private Clouds Reference Architectures* is now the first item in the left-hand navigation menu and the default page that loads when the Knowledge tab is opened.
+- **Reference Architectures page — new "Share Architecture as URL" button.** Sits next to the *Download PowerPoint* button and is enabled once at least one business purpose is selected. Encodes the page state — `purposes` / `connectivity` / `tenancyByPurpose` / `scaleByPurpose` / `storageByPurpose` plus an optional user-supplied share name (max 100 chars) — as base64 (UTF-8 safe) into a `?config=` query parameter, copies the URL to the clipboard, and falls back to a `prompt()` if the Clipboard API is unavailable. Recipients land on the standalone Reference Architectures page; the state is decoded, the URL is cleaned via `history.replaceState`, and a green confirmation banner shows the share name and the number of purposes. Mirrors the Sizer's existing `shareSizerURL()` pattern.
+  - **Security**: the URL-load path validates every property key from the decoded payload against the known `PURPOSES` whitelist (and rejects `__proto__`, `constructor`, `prototype`) before writing to `state.tenancyByPurpose` / `scaleByPurpose` / `storageByPurpose`. Unknown or dangerous keys are silently dropped. Addresses the CodeQL `js/prototype-polluting-assignment` finding.
+
+### Notes
+
+- Per-replica, per-corpus, and per-tier resource estimates are conservative rules of thumb. **Foundry Local on Azure Local, Edge RAG Preview enabled by Azure Arc, and Azure AI Video Indexer enabled by Arc are all in Preview**; sizing depends on the specific model, quantization, batch size, document mix, chunking strategy, embedding model, video volume / resolution / codecs, concurrent jobs, and ReadWriteMany volume performance. Validate with your OEM hardware partner.
+- No new external network calls. No new third-party CDN dependencies. Foundry, Edge RAG, and AI Video Indexer workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
+- **Issue link**: this release closes [#213](https://github.com/Azure/odinforazurelocal/issues/213).
+
+---
+
 ## [0.21.03] - 2026-05-06
 
 New **Microsoft Sovereign Private Clouds reference architectures** page (Preview) in the Knowledge tab. Picks a business purpose, renders a live SVG diagram of the resulting architecture, and exports an editable multi-slide PowerPoint generated entirely client-side via JSZip — no upload, no backend.

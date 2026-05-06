@@ -110,7 +110,7 @@ jobs:
           done
       
       - name: Validate HTML files
-        run: npx html-validate index.html arm/arm.html report/report.html sizer/index.html --formatter stylish
+        run: npx html-validate index.html arm/arm.html report/report.html sizer/index.html switch-config/index.html docs/outbound-connectivity/index.html docs/reference-architectures/index.html --formatter stylish
 
   stylelint:
     name: CSS Lint

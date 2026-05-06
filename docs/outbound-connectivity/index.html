@@ -13,7 +13,7 @@
 </head>
 <body>
     <!-- Tab Navigation (shared component) - hidden when embedded in iframe -->
-    <nav class="odin-tab-nav" id="odin-nav" data-active="knowledge" data-base="../../"></nav>
+    <nav class="odin-tab-nav" id="odin-nav" data-active="knowledge" data-base="../../" aria-label="Primary navigation"></nav>
     <script src="../../js/nav.js"></script>
     <script>
         // When loaded inside an iframe (e.g. from Designer Knowledge tab),
@@ -29,7 +29,7 @@
         })();
     </script>
 
-    <nav class="sidebar">
+    <nav class="sidebar" aria-label="Outbound connectivity sections">
         <div class="sidebar-header">
             <h2>Odin for Azure Local</h2>
             <p>Outbound Connectivity Guide</p>
@@ -53,7 +53,7 @@
         <section id="overview" class="section">
             <h1>Azure Local Outbound Connectivity</h1>
             <p class="subtitle">Comprehensive Guide to Public Path vs Private Path Architectures</p>
-            
+
             <div class="intro-card">
                 <h3>What You'll Learn</h3>
                 <ul>
@@ -89,7 +89,7 @@
         <!-- Architecture Comparison Section -->
         <section id="comparison" class="section">
             <h2>Architecture Comparison</h2>
-            
+
             <div class="comparison-intro">
                 <p>Azure Local supports two primary outbound connectivity models. Arc Gateway is recommended to simplify and secure connectivity, but the key difference is how traffic reaches Azure services.</p>
             </div>
@@ -245,8 +245,8 @@
                     <h4>🌐 Public Path</h4>
                     <p>Traffic routed through the Arc Gateway to Azure services via the <strong>public internet</strong>. Your on-premises enterprise proxy and firewall control the traffic flow.</p>
                     <div class="diagram-container">
-                        <img src="images/public-path-step-0-components.svg" 
-                             alt="Public Path - Components Overview" 
+                        <img src="images/public-path-step-0-components.svg"
+                             alt="Public Path - Components Overview"
                              class="diagram">
                         <div class="diagram-fallback" style="display:none;">
                             <p>Diagram showing Azure Local components for Public Path.</p>
@@ -257,8 +257,8 @@
                     <h4>🔐 Private Path</h4>
                     <p>Traffic routed <strong>securely through private connections</strong> (ExpressRoute or Site-to-Site VPN) to Azure, eliminating public internet exposure.</p>
                     <div class="diagram-container private-path">
-                        <img src="images/private-path-step-0-components.svg" 
-                             alt="Private Path - Components Overview" 
+                        <img src="images/private-path-step-0-components.svg"
+                             alt="Private Path - Components Overview"
                              class="diagram">
                     </div>
                 </div>
@@ -327,14 +327,14 @@
         <!-- Private Endpoints Scenarios Section -->
         <section id="private-endpoints" class="section">
             <h2>Private Endpoints Usage Across Deployment Scenarios</h2>
-            
+
             <p>Azure Local supports multiple deployment scenarios with varying proxy and Arc Gateway configurations. Private Endpoints (Private Link) work across all scenarios but require proper proxy bypass configuration.</p>
 
             <div class="scenarios-overview">
                 <div class="path-column">
                     <h3 class="public-header">🌐 Public Path - 4 Options</h3>
                     <p>When using public internet for Azure connectivity, you have four deployment options:</p>
-                    
+
                     <!-- Option 1: No Proxy, No Arc Gateway -->
                     <div class="scenario-card">
                         <div class="scenario-header option1">
@@ -344,8 +344,8 @@
                         <div class="scenario-content">
                             <p>Direct connection to Azure through firewall only. Requires opening all Azure endpoints in firewall.</p>
                             <div class="diagram-container public-scenario">
-                                <img src="images/public-path-no-proxy-no-arc-gateway.svg" 
-                                     alt="No Proxy, No Arc Gateway" 
+                                <img src="images/public-path-no-proxy-no-arc-gateway.svg"
+                                     alt="No Proxy, No Arc Gateway"
                                      class="diagram">
                             </div>
                             <div class="private-path-details">
@@ -379,8 +379,8 @@
                         <div class="scenario-content">
                             <p>Traffic routes through enterprise proxy. Proxy handles URL filtering and logging.</p>
                             <div class="diagram-container public-scenario">
-                                <img src="images/public-path-proxy-no-arc-gateway.svg" 
-                                     alt="Proxy, No Arc Gateway" 
+                                <img src="images/public-path-proxy-no-arc-gateway.svg"
+                                     alt="Proxy, No Arc Gateway"
                                      class="diagram">
                             </div>
                             <div class="private-path-details">
@@ -414,8 +414,8 @@
                         <div class="scenario-content">
                             <p>Arc Gateway handles Azure connectivity. Reduces firewall rules to fewer than 30 endpoints.</p>
                             <div class="diagram-container public-scenario">
-                                <img src="images/public-path-no-proxy-with-arc-gateway.svg" 
-                                     alt="No Proxy, Arc Gateway" 
+                                <img src="images/public-path-no-proxy-with-arc-gateway.svg"
+                                     alt="No Proxy, Arc Gateway"
                                      class="diagram">
                             </div>
                             <div class="private-path-details">
@@ -449,8 +449,8 @@
                         <div class="scenario-content">
                             <p>Best of both worlds: Arc Gateway for HTTPS to Azure, enterprise proxy for HTTP and third-party traffic.</p>
                             <div class="diagram-container public-scenario">
-                                <img src="images/public-path-with-proxy-and-arc-gateway.svg" 
-                                     alt="Proxy with Arc Gateway" 
+                                <img src="images/public-path-with-proxy-and-arc-gateway.svg"
+                                     alt="Proxy with Arc Gateway"
                                      class="diagram">
                             </div>
                             <div class="private-path-details">
@@ -479,7 +479,7 @@
                 <div class="path-column">
                     <h3 class="private-header">🔐 Private Path - 1 Option</h3>
                     <p>When using ExpressRoute/VPN for private Azure connectivity, there is only one supported configuration:</p>
-                    
+
                     <!-- Only Option: Azure Firewall Explicit Proxy with Arc Gateway -->
                     <div class="scenario-card private-only">
                         <div class="scenario-header private-option">
@@ -490,8 +490,8 @@
                         <div class="scenario-content">
                             <p>All traffic routes through ExpressRoute/VPN to Azure Firewall Explicit Proxy, with Arc Gateway providing the secure tunnel to Azure services.</p>
                             <div class="diagram-container private-scenario">
-                                <img src="images/private-path-explicit-proxy-and-arc-gateway.svg" 
-                                     alt="Azure Firewall Explicit Proxy with Arc Gateway" 
+                                <img src="images/private-path-explicit-proxy-and-arc-gateway.svg"
+                                     alt="Azure Firewall Explicit Proxy with Arc Gateway"
                                      class="diagram">
                             </div>
                             <div class="private-path-details">
@@ -705,8 +705,8 @@
 
         <!-- Reserved Subnets Section -->
         <section id="reserved-subnets" class="section">
-            <h2>Reserved Subnets: ARB & AKS</h2>
-            
+            <h2>Reserved Subnets: ARB &amp; AKS</h2>
+
             <p>The Arc Resource Bridge (ARB) VM reserves specific IP ranges for internal Kubernetes operations. <strong>Never use these ranges for your private endpoint networks</strong> — traffic will fail to route correctly.</p>
 
             <div class="reserved-subnets-warning">
@@ -792,7 +792,7 @@
         <!-- Combined Traffic Flows Comparison Section -->
         <section id="traffic-flows-comparison" class="section">
             <h2>Traffic Flow Comparison: Public vs Private Path</h2>
-            
+
             <p>Compare how traffic flows through each architecture side-by-side. Both paths handle the same traffic categories but route them differently.</p>
 
             <!-- Step 1: Bypass Traffic -->
@@ -803,8 +803,8 @@
                     <div class="flow-column public">
                         <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
-                            <img src="images/public-path-step-1-bypass.svg" 
-                                 alt="Public Path - Bypass Traffic" 
+                            <img src="images/public-path-step-1-bypass.svg"
+                                 alt="Public Path - Bypass Traffic"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -818,8 +818,8 @@
                     <div class="flow-column private">
                         <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
-                            <img src="images/private-path-step-1-bypass.svg" 
-                                 alt="Private Path - Bypass Traffic" 
+                            <img src="images/private-path-step-1-bypass.svg"
+                                 alt="Private Path - Bypass Traffic"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -841,8 +841,8 @@
                     <div class="flow-column public">
                         <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
-                            <img src="images/public-path-step-2-http.svg" 
-                                 alt="Public Path - HTTP Traffic" 
+                            <img src="images/public-path-step-2-http.svg"
+                                 alt="Public Path - HTTP Traffic"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -855,8 +855,8 @@
                     <div class="flow-column private">
                         <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
-                            <img src="images/private-path-step-2-http.svg" 
-                                 alt="Private Path - HTTP Traffic" 
+                            <img src="images/private-path-step-2-http.svg"
+                                 alt="Private Path - HTTP Traffic"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -877,8 +877,8 @@
                     <div class="flow-column public">
                         <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
-                            <img src="images/public-path-step-3-https.svg" 
-                                 alt="Public Path - HTTPS via Arc Proxy" 
+                            <img src="images/public-path-step-3-https.svg"
+                                 alt="Public Path - HTTPS via Arc Proxy"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -891,8 +891,8 @@
                     <div class="flow-column private">
                         <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
-                            <img src="images/private-path-step-3-https.svg" 
-                                 alt="Private Path - HTTPS via Arc Proxy" 
+                            <img src="images/private-path-step-3-https.svg"
+                                 alt="Private Path - HTTPS via Arc Proxy"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -913,8 +913,8 @@
                     <div class="flow-column public">
                         <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
-                            <img src="images/public-path-step-4-arb.svg" 
-                                 alt="Public Path - ARB VM" 
+                            <img src="images/public-path-step-4-arb.svg"
+                                 alt="Public Path - ARB VM"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -927,8 +927,8 @@
                     <div class="flow-column private">
                         <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
-                            <img src="images/private-path-step-4-arb.svg" 
-                                 alt="Private Path - ARB VM" 
+                            <img src="images/private-path-step-4-arb.svg"
+                                 alt="Private Path - ARB VM"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -949,8 +949,8 @@
                     <div class="flow-column public">
                         <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
-                            <img src="images/public-path-step-5-aks.svg" 
-                                 alt="Public Path - AKS Clusters" 
+                            <img src="images/public-path-step-5-aks.svg"
+                                 alt="Public Path - AKS Clusters"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -963,8 +963,8 @@
                     <div class="flow-column private">
                         <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
-                            <img src="images/private-path-step-5-aks.svg" 
-                                 alt="Private Path - AKS Clusters" 
+                            <img src="images/private-path-step-5-aks.svg"
+                                 alt="Private Path - AKS Clusters"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -985,8 +985,8 @@
                     <div class="flow-column public">
                         <h4>🌐 Public Path</h4>
                         <div class="diagram-container">
-                            <img src="images/public-path-step-6-vns.svg" 
-                                 alt="Public Path - VMs" 
+                            <img src="images/public-path-step-6-vns.svg"
+                                 alt="Public Path - VMs"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -999,8 +999,8 @@
                     <div class="flow-column private">
                         <h4>🔐 Private Path</h4>
                         <div class="diagram-container private-path">
-                            <img src="images/private-path-step-6-vms.svg" 
-                                 alt="Private Path - VMs" 
+                            <img src="images/private-path-step-6-vms.svg"
+                                 alt="Private Path - VMs"
                                  class="diagram">
                         </div>
                         <div class="flow-details">
@@ -1069,7 +1069,7 @@
         <!-- Traffic Categories Section -->
         <section id="traffic-categories" class="section">
             <h2>Traffic Categories</h2>
-            
+
             <p>Network traffic is categorized based on how it should be routed. These categories apply to <strong>both Public and Private Path</strong> architectures.</p>
 
             <div class="traffic-categories">
@@ -1155,15 +1155,15 @@
         <!-- AKS Subnet Requirements Section -->
         <section id="aks-subnet" class="section">
             <h2>AKS Clusters on Separated Subnet</h2>
-            
+
             <p>When AKS clusters run on a separated subnet from the Azure Local infrastructure subnet, additional firewall rules are required.</p>
 
             <div class="flow-comparison-grid">
                 <div class="flow-column public">
                     <h4>🌐 Public Path</h4>
                     <div class="diagram-container">
-                        <img src="images/public-path-step-5bis-akssubnet.svg" 
-                             alt="AKS Clusters on Separated Subnet - Public Path" 
+                        <img src="images/public-path-step-5bis-akssubnet.svg"
+                             alt="AKS Clusters on Separated Subnet - Public Path"
                              class="diagram">
                         <div class="diagram-fallback" style="display:none;">
                             <p>Diagram showing AKS subnet firewall requirements (Public Path).</p>
@@ -1173,15 +1173,15 @@
                 <div class="flow-column private">
                     <h4>🔐 Private Path</h4>
                     <div class="diagram-container private-path">
-                        <img src="images/private-path-step-5bis-akssubnet.svg" 
-                             alt="AKS Clusters on Separated Subnet - Private Path" 
+                        <img src="images/private-path-step-5bis-akssubnet.svg"
+                             alt="AKS Clusters on Separated Subnet - Private Path"
                              class="diagram">
                     </div>
                 </div>
             </div>
 
             <h3>Firewall Requirements</h3>
-            
+
             <h4>Traffic between AKS subnet and Azure Local Infrastructure subnet</h4>
             <table class="requirements-table">
                 <thead>
@@ -1433,7 +1433,7 @@ Invoke-AzStackHciArcInitialization `
             <div class="code-block">
                 <h4>Check Arc Agent Status</h4>
                 <pre><code># Check Arc agent configuration
-& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
+&amp; "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" show
 
 # Expected values:
 # - Agent Status: Connected
@@ -1442,7 +1442,7 @@ Invoke-AzStackHciArcInitialization `
 # - Azure Arc Proxy: Running (when Arc Gateway enabled)
 
 # Verify connectivity
-& "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" check
+&amp; "C:\Program Files\AzureConnectedMachineAgent\azcmagent.exe" check
 
 # All URLs should show Reachable: true
 # Connection.type should be "gateway" when Arc Gateway is enabled</code></pre>

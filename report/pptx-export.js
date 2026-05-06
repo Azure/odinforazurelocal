@@ -1382,8 +1382,9 @@
             return null;
         }
 
-        var typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop' };
+        var typeLabels = { vm: 'Azure Local VMs', aks: 'AKS Arc Cluster', avd: 'Azure Virtual Desktop', foundry: 'Foundry Local', edgerag: 'Edge RAG', videoindexer: 'AI Video Indexer' };
         var avdProfileLabels = { light: 'Light', medium: 'Medium', heavy: 'Heavy', power: 'Power', custom: 'Custom' };
+        var foundryClassLabels = { small: 'Small SLM', medium: 'Medium SLM', large: 'Large LLM', custom: 'Custom' };
 
         function fmtStorage(gb) {
             var n = Number(gb) || 0;
@@ -1429,6 +1430,20 @@
                 if (wl.profile === 'custom') {
                     headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
                 }
+            } else if (wl.type === 'foundry') {
+                var fcls = foundryClassLabels[wl.modelClass] || wl.modelClass || '\u2014';
+                var fengine = wl.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI';
+                headline = (wl.replicas || 1) + ' replica(s) \u00b7 ' + fcls + ' \u00b7 ' + fengine;
+                if (wl.modelClass === 'custom') {
+                    headline += ' \u00b7 Custom ' + (wl.customVcpus || 0) + 'vCPU/' + (wl.customMemory || 0) + 'GB/' + (wl.customStorage || 0) + 'GB';
+                }
+            } else if (wl.type === 'edgerag') {
+                var emode = wl.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode';
+                headline = '4 worker VMs \u00b7 ' + emode + ' \u00b7 ' + (wl.corpusGB || 0) + ' GB corpus';
+            } else if (wl.type === 'videoindexer') {
+                var viIsMin = wl.configuration === 'minimum';
+                var viWorkers = viIsMin ? 1 : 2;
+                headline = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (viIsMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (viIsMin ? '32 vCPU / 64 GB' : '64 vCPU / 256 GB') + ' cluster-wide';
             } else {
                 headline = '\u2014';
             }

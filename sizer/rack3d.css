@@ -151,6 +151,14 @@
     #rack-3d-canvas {
         height: 350px;
     }
+
+    /* The "Azure Local" brand badge in the top-right of the canvas is large
+       enough to overlap the rack on narrow viewports. Hide it on mobile —
+       the section header above the canvas already says "Azure Local - 3D
+       Hardware Visualization", so the badge is redundant on small screens. */
+    .rack-viz-brand {
+        display: none;
+    }
 }
 
 @media (max-width: 480px) {

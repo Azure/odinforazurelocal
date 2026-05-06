@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.03 - Available here: https://aka.ms/ODIN
+## Version 0.21.04 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,23 +46,53 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.03 - Latest Release
+### 🎉 Version 0.21.04 - Latest Release
 
-> New **Microsoft Sovereign Private Clouds reference architectures** page (Preview) in the Knowledge tab. Pick a business purpose, see a live SVG diagram of the resulting architecture, and download an editable multi-slide PowerPoint generated entirely client-side via JSZip.
+> Adds **Foundry Local on Azure Local (Preview)**, **Edge RAG Preview, enabled by Azure Arc**, and **Azure AI Video Indexer enabled by Arc (Preview)** as three new top-level workload types in the Sizer, alongside Azure Local VMs, AKS Arc, and AVD. All three run on AKS Arc; Foundry Local sizes per-replica model serving, Edge RAG sizes a turnkey 4-VM Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) driven by the user's document corpus size, and AI Video Indexer sizes Microsoft's published Minimum / Recommended cluster-wide tiers for video and audio analysis on edge devices. Closes [issue #213](https://github.com/Azure/odinforazurelocal/issues/213).
 
-**`docs/reference-architectures/` — new self-contained Knowledge-tab page**
-- Five business purposes — **Azure Local** (general-purpose VMs / AKS Arc), **Microsoft 365 Local** (Exchange / SharePoint / Skype for Business — Small-Scale and Large-Scale variants from the SPC L300 deck), **GitHub Enterprise Local** (Private Preview), **Azure Virtual Desktop on Azure Local**, and **Foundry Local** (AI platform with model families, Edge RAG, Video Indexer, GPU partitioning).
-- **Picker controls** for connectivity (Connected vs Disconnected / air-gapped), tenancy (Strict — dedicated hardware vs Logical — coming soon), and topology (Single Node / 16 / 64 / 128 — coming soon) per purpose.
-- **Live SVG preview** with an Azure cloud band, a Distributed location band, per-purpose workload bands, real cluster icons, and (for disconnected mode) a shared 3-node Control Plane Appliance.
-- **Narrative "About this architecture" section** that explains the selected footprint in prose — the connectivity choice's consequence (Azure Arc for connected; on-prem Control Plane Appliance with ARM / Portal / Key Vault / Defender / Monitor / Update Manager equivalents for disconnected) and a per-purpose paragraph for each selected workload.
-- **Editable PowerPoint export** generated client-side via [JSZip 3.10.1](https://github.com/Stuk/jszip) (MIT, vendored at `vendor/jszip-3.10.1.min.js`). Cover slide (large centered ODIN logo), Diagram slide, Control Plane slide (Connected or Disconnected, with hero icon and 3 × 2 service-tile grid), Summary slide, and one per-purpose slide with shadows, accent strips, pill chips, and crisp icons (rasterized at 1024 × 1024 so SVGs stay sharp at hero size and small PNGs don't visibly upscale).
-- **Knowledge-tab navigation entry** added to `index.html` with a **Preview** badge and a contextual onboarding step in `js/script.js`.
-- **Independent of the Designer**: this page does not read or modify your Designer / Sizer / Switch Configuration state. Use it for first-conversation framing or quick stakeholder hand-offs.
+**`sizer/` — new "Foundry Local" workload type**
+- Fourth `workload-type-btn` on the Sizer page, with a dedicated modal for sizing AI inference deployments.
+- **Model size classes** with conservative per-replica resource estimates: **Small SLM** (Phi-3.5-mini, Llama-3.2-3B — 4 vCPU / 8 GB / 20 GB), **Medium SLM** (Phi-4, Mistral-7B, Llama-3.1-8B — 8 vCPU / 16 GB / 40 GB), **Large LLM** (DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4 — 16 vCPU / 64 GB / 100 GB), and **Custom**.
+- **Inference engine picker** — **ONNX-GenAI** (CPU or GPU) or **vLLM** (GPU only). Selecting vLLM forces GPU mode (DDA) and disables the *None* option.
+- **Replicas** input (1–100). Each replica is sized to the model class and reserves a fixed 200 GB AKS Arc OS disk per worker node.
+- **Total sizing** = 3-node Kubernetes control plane (3 × 4 vCPU / 8 GB / 200 GB OS each) + N replicas × per-replica resources + 200 GB OS disk per replica + 2 vCPU / 4 GB inference operator overhead.
+- **Preview pill** + inline link to [request preview deployment access](https://aka.ms/FoundryLocalAzure_PreviewRequest).
 
-**Behind the scenes**
-- **JSZip 3.10.1 vendored locally** (`vendor/jszip-3.10.1.min.js`, MIT) — used only by the new page. Designer, Sizer, Switch Configuration, and Configuration Report don't load it. No new third-party CDN runtime dependencies.
-- **No new external network calls**. All icons, the cover logo, and the deck assembly happen client-side. Only outbound traffic from the new page is the existing Firebase page-view counter (unchanged).
-- **`docs/Temp/` added to `.gitignore` and `_config.yml` exclude list** — defence-in-depth so the local working folder for source decks / extracted PPTX content (which may contain internal Microsoft reference material) can never be committed *and* can never be published via Jekyll even if a clone has it locally.
+**`sizer/` — new "Edge RAG" workload type**
+- Fifth `workload-type-btn` on the Sizer page, with a dedicated modal for sizing [Edge RAG Preview, enabled by Azure Arc](https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/overview) — Microsoft's turnkey on-premises Retrieval Augmented Generation pipeline.
+- **Compute mode** — **GPU mode (recommended)** = 4 × NC8_A2 / NC8_A16 worker VMs (8 vCPU / 32 GB / 1 GPU each), or **CPU mode** = 4 × D8s_v3-equivalent worker VMs (8 vCPU / 32 GB each). Numbers come straight from Microsoft's published [Edge RAG hardware requirements](https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/requirements). Switching modes auto-toggles the standard GPU controls (DDA on / off).
+- **Document Corpus Size (GB)** — drives a vector-database storage allowance of `corpusGB × 1.5` (chunks + embeddings + index).
+- **Total sizing** = 3-node AKS Arc control plane + 4 worker VMs + vector-DB storage + 2 vCPU / 4 GB Edge RAG operator overhead. The modal displays this composition inline.
+
+**`sizer/` — new "AI Video Indexer" workload type**
+- Sixth `workload-type-btn` on the Sizer page, with a dedicated modal for sizing [Azure AI Video Indexer enabled by Arc (Preview)](https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview) — Microsoft's video and audio analysis pipeline (transcripts, OCR, faces, objects, topics, sentiment) running on AKS Arc.
+- **Configuration picker** — **Recommended** (2 worker nodes / 64 vCPU / 256 GB / 100 GB cluster-wide PV storage, HA-capable) or **Minimum** (1 worker node / 32 vCPU / 64 GB / 50 GB) — values from Microsoft's published [minimum hardware requirements](https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview#minimum-hardware-requirements).
+- **GPU optional** — Video Indexer's default Phi LLM is CPU-bound; GPU is only needed if you bring your own GPU-bound model. DDA only.
+- **ReadWriteMany storage class required** — modal hint links to Azure Container Storage enabled by Arc as the recommended option.
+- **Total sizing** = 3-node AKS Arc control plane + 1–2 worker nodes sized per Microsoft's cluster-wide totals + 2 vCPU / 4 GB operator overhead.
+- **Gated Preview** — modal includes a link to [request subscription registration](https://aka.ms/vi-register).
+
+**Modern Preview banner + descriptive hover tooltips**
+- **Preview banner** moved from the inline pill next to the workload name to a small, animated badge in the top-left corner of each Preview workload-type button (Foundry Local, Edge RAG, AI Video Indexer). Subtle blue→purple gradient with a soft pulsing glow.
+- **Descriptive hover tooltips** on every workload-type button (all six). Replaces the native browser `title=` attribute with a styled, multi-line tooltip card (1-second hover delay). Expands acronyms (AKS = Azure Kubernetes Service enabled by Arc; AVD = Azure Virtual Desktop; RAG = Retrieval Augmented Generation) and gives a one-paragraph summary of what each workload provides.
+
+**Round-trip + tests**
+- All three new workload types serialize/deserialize through the existing JSON Export, JSON Import, share URL, *Configure in Designer* hand-off, and Configuration Report (Markdown + HTML + PowerPoint) — same code paths VMs / AKS / AVD use.
+- **26 new unit tests** in `tests/index.html` (13 for Foundry, 6 for Edge RAG, 7 for AI Video Indexer) covering preset integrity, control-plane + worker + operator overhead arithmetic, custom-override paths, vector-DB scaling, per-tier arithmetic, and GPU count calculation.
+
+**Other UX polish bundled in this release**
+- **Sizer AUTO sizing** now enforces a **24-core CPU minimum per node when GPUs are involved on multi-node clusters** (Low Capacity remains capped at 14 cores). Manual CPU overrides still win.
+- **Sizer**: fixed misleading "*Auto-configured N node(s) based on undefined requirements*" message that appeared when GPU was the bottleneck (added the `gpu: 'GPU'` label).
+- **Sizer Foundry Local model class examples now lead with OpenAI gpt-oss models** — Medium SLM lists `OpenAI gpt-oss-20b` first; Large LLM lists `OpenAI gpt-oss-120b` first.
+- **Configuration Report** now renders Video Indexer as **AI Video Indexer** in the Markdown / HTML / PowerPoint exports.
+- **3D rack visualization on mobile**: hidden the "Azure Local" brand badge overlay on viewports ≤ 768 px so it no longer overlaps the rack.
+- **Top navigation tab order changed to**: **Knowledge | Sizer | Designer | ToR Switch**. Single source of truth in `js/nav.js` — affects every page.
+- **Knowledge tab**: *Microsoft Sovereign Private Clouds Reference Architectures* is now the first item in the left-hand navigation menu and the default page that loads.
+- **Reference Architectures page — new "Share Architecture as URL" button**, mirroring the Sizer's pattern. Encodes purposes / connectivity / tenancy / scale / storage selections into a base64 `?config=` URL, copies it to the clipboard, and shows recipients a green confirmation banner. URL-load path validates every property key against the known `PURPOSES` whitelist (rejects `__proto__` / `constructor` / `prototype`) before writing to state.
+
+**Notes**
+- Per-replica, per-corpus, and per-tier resource estimates are conservative rules of thumb. **Foundry Local on Azure Local, Edge RAG Preview enabled by Azure Arc, and Azure AI Video Indexer enabled by Arc are all in Preview**; sizing depends on the specific model, quantization, batch size, document mix, chunking strategy, embedding model, video volume / resolution / codecs, concurrent jobs, and ReadWriteMany volume performance. Validate with your OEM hardware partner.
+- No new external network calls. No new third-party CDN dependencies. Foundry, Edge RAG, and AI Video Indexer workload state lives in `localStorage` and the existing share-URL / JSON-export pipeline, exactly like the other three workload types.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -385,7 +415,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.01  
+**Version**: 0.21.04  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -400,6 +430,14 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.03 - Microsoft Sovereign Private Clouds reference architectures (Preview)
+
+> New **Microsoft Sovereign Private Clouds reference architectures** page (Preview) in the Knowledge tab. Pick a business purpose, see a live SVG diagram of the resulting architecture, and download an editable multi-slide PowerPoint generated entirely client-side via JSZip.
+
+- **`docs/reference-architectures/` — new self-contained Knowledge-tab page** with five business purposes (Azure Local, Microsoft 365 Local, GitHub Enterprise Local, Azure Virtual Desktop on Azure Local, Foundry Local), connectivity / tenancy / topology pickers, a live SVG preview, an *About this architecture* narrative section, and an editable client-side PowerPoint export (Cover, Diagram, Control Plane, Summary, and per-purpose slides) generated via [JSZip 3.10.1](https://github.com/Stuk/jszip) (MIT, vendored at `vendor/jszip-3.10.1.min.js`).
+- **Independent of the Designer**: this page does not read or modify your Designer / Sizer / Switch Configuration state.
+- **No new external network calls** — all icons, the cover logo, and the deck assembly happen client-side. `docs/Temp/` added to `.gitignore` and `_config.yml` exclude list as defence-in-depth so the local working folder for source decks / extracted PPTX content (which may contain internal Microsoft reference material) can never be committed *and* can never be published via Jekyll.
 
 #### 0.21.02 - Security & Code-Quality Hardening
 

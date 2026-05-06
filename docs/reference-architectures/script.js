@@ -323,6 +323,25 @@
         storageByPurpose: {}
     };
 
+    // Whitelist of purpose ids derived from the static PURPOSES table.
+    // Used as a defence-in-depth filter before any code path writes to
+    // state.tenancyByPurpose / scaleByPurpose / storageByPurpose with a key
+    // that originated (directly or indirectly) from a user-supplied source
+    // such as the ?config= URL parameter. Prototype-less Object.create(null)
+    // is used so that lookups for crafted keys like '__proto__' or
+    // 'constructor' return undefined rather than reaching Object.prototype.
+    // (CodeQL: js/prototype-polluting-assignment / js/remote-property-injection.)
+    const VALID_PURPOSE_IDS = (function() {
+        const m = Object.create(null);
+        for (let i = 0; i < PURPOSES.length; i++) { m[PURPOSES[i].id] = true; }
+        return m;
+    })();
+    function isValidPurposeId(k) {
+        return typeof k === 'string'
+            && k !== '__proto__' && k !== 'constructor' && k !== 'prototype'
+            && Object.prototype.hasOwnProperty.call(VALID_PURPOSE_IDS, k);
+    }
+
     // Convenience: tenancy id to use for a given purpose. No global default any
     // more — each purpose owns its own tenancy in state.tenancyByPurpose.
     function getTenancyFor(purposeId) {
@@ -970,6 +989,7 @@
         const titleEl = document.getElementById('preview-title');
         const notesEl = document.getElementById('preview-notes');
         const downloadBtn = document.getElementById('download-pptx');
+        const shareBtn = document.getElementById('share-refarch-url');
         if (!canvas || !titleEl || !notesEl || !downloadBtn) { return; }
 
         if (state.purposes.length === 0) {
@@ -977,6 +997,10 @@
             titleEl.textContent = 'Your reference architecture';
             notesEl.innerHTML = '';
             downloadBtn.disabled = true;
+            if (shareBtn) {
+                shareBtn.disabled = true;
+                shareBtn.title = 'Pick a business purpose before you can share your architecture configuration with others';
+            }
             return;
         }
 
@@ -1007,6 +1031,10 @@
         notesEl.innerHTML = buildArchitectureNarrativeHtml(purposeEntries);
 
         downloadBtn.disabled = false;
+        if (shareBtn) {
+            shareBtn.disabled = false;
+            shareBtn.title = 'Copy a shareable URL with your architecture configuration encoded';
+        }
     }
 
     function buildArchitectureNarrativeHtml(purposeEntries) {
@@ -3832,6 +3860,172 @@
     }
 
     // ------------------------------------------------------------------
+    // Share Architecture as URL
+    //
+    // Encodes the current state object as base64 (UTF-8 safe) and copies a
+    // shareable URL to the clipboard. Mirrors the Sizer's shareSizerURL()
+    // pattern: prompt for an optional name, build URL with ?config= param,
+    // copy to clipboard with fallback prompt(), recipients land on the page
+    // and see a confirmation banner.
+    // ------------------------------------------------------------------
+
+    function shareArchitectureURL() {
+        if (state.purposes.length === 0) {
+            // Should not happen — button is gated — but guard anyway.
+            window.alert('Pick at least one business purpose before sharing.');
+            return;
+        }
+        try {
+            const shareName = window.prompt('Enter a name for this configuration (optional):', '');
+            if (shareName === null) { return; } // Cancelled
+
+            // Build a flat snapshot of state for serialization.
+            const snapshot = {
+                purposes: state.purposes.slice(),
+                connectivity: state.connectivity,
+                tenancyByPurpose: Object.assign({}, state.tenancyByPurpose),
+                scaleByPurpose: {},
+                storageByPurpose: Object.assign({}, state.storageByPurpose)
+            };
+            Object.keys(state.scaleByPurpose).forEach(function(k) {
+                snapshot.scaleByPurpose[k] = (state.scaleByPurpose[k] || []).slice();
+            });
+            const trimmedName = (shareName || '').trim();
+            if (trimmedName) { snapshot._shareName = trimmedName.substring(0, 100); }
+
+            const json = JSON.stringify(snapshot);
+            const encoded = btoa(unescape(encodeURIComponent(json)));
+            const base = window.location.origin + window.location.pathname;
+            const url = base + '?config=' + encodeURIComponent(encoded);
+
+            if (url.length > 8000) {
+                window.alert('Configuration is too large to share via URL (' + Math.round(url.length / 1024) + ' KB).');
+                return;
+            }
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(function() {
+                    showSharedConfigToast('Shareable URL copied to clipboard!');
+                }).catch(function() {
+                    window.prompt('Copy this URL to share your architecture configuration:', url);
+                });
+            } else {
+                window.prompt('Copy this URL to share your architecture configuration:', url);
+            }
+        } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('Share URL failed:', e);
+            window.alert('Failed to generate shareable URL.');
+        }
+    }
+
+    // Decode the ?config= query parameter (if present) and apply state.
+    // Returns the decoded snapshot on success (so the caller can show a
+    // banner), or null if no config parameter / decode failure.
+    //
+    // Security: every property key copied from the decoded payload is
+    // validated against the known PURPOSES whitelist before being written
+    // to a state object. This prevents prototype-pollution / property
+    // injection (CodeQL js/prototype-polluting-assignment) via crafted
+    // ?config= URLs containing keys like "__proto__" or unknown IDs.
+    function loadArchitectureFromURL() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const configParam = params.get('config');
+            if (!configParam) { return null; }
+            const json = decodeURIComponent(escape(atob(decodeURIComponent(configParam))));
+            const data = JSON.parse(json);
+            if (!data || !Array.isArray(data.purposes)) { return null; }
+
+            const sanitizeKeyedObject = function(src, valueFn) {
+                // Output object is prototype-less so that even if a future
+                // change loosens the key check, '__proto__' / 'constructor'
+                // can never reach Object.prototype.
+                const out = Object.create(null);
+                if (!src || typeof src !== 'object') { return out; }
+                Object.keys(src).forEach(function(k) {
+                    if (!isValidPurposeId(k)) { return; }
+                    // Re-resolve the key to a literal from the trusted whitelist
+                    // so the property name being written is not derived from
+                    // user input (CodeQL js/remote-property-injection).
+                    const safeKey = PURPOSES.find(function(p) { return p.id === k; }).id;
+                    out[safeKey] = valueFn(src[k]);
+                });
+                return out;
+            };
+
+            // Apply directly to state, bypassing setState's render cascade
+            // (init() will call updatePreview() right after this returns).
+            state.purposes = data.purposes.filter(isValidPurposeId);
+            state.connectivity = data.connectivity || null;
+            state.tenancyByPurpose = sanitizeKeyedObject(data.tenancyByPurpose, function(v) { return v; });
+            state.scaleByPurpose = sanitizeKeyedObject(data.scaleByPurpose, function(v) {
+                return Array.isArray(v) ? v.slice() : (v ? [v] : []);
+            });
+            state.storageByPurpose = sanitizeKeyedObject(data.storageByPurpose, function(v) { return v; });
+
+            // Re-render the dependent sections so the selected pills/cards reflect state.
+            refreshSelections();
+            renderTenancyPerPurpose();
+            renderScalePerPurpose();
+            renderSelectionSummary();
+
+            // Clean the URL so a refresh / further edits don't re-trigger the banner.
+            try { history.replaceState(null, '', window.location.pathname); } catch (_e) { /* ignore */ }
+
+            return data;
+        } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('Load architecture from URL failed:', e);
+            return null;
+        }
+    }
+
+    // Caller (init) only invokes this when loadArchitectureFromURL()
+    // returned a truthy snapshot, so `snapshot` itself is always defined.
+    function showSharedConfigBanner(snapshot) {
+        const shareName = snapshot._shareName ? String(snapshot._shareName) : '';
+        const wlCount = Array.isArray(snapshot.purposes) ? snapshot.purposes.length : 0;
+        let msg = shareName
+            ? 'Shared configuration loaded: <strong>"' + escapeHtmlText(shareName) + '"</strong>'
+            : 'Configuration loaded from a shared URL';
+        if (wlCount > 0) { msg += ' \u2014 ' + wlCount + ' purpose(s)'; }
+        const banner = document.createElement('div');
+        banner.id = 'refarch-shared-banner';
+        banner.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:10000;padding:16px 24px;background:linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));color:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);font-size:14px;font-weight:500;display:flex;align-items:center;gap:16px;max-width:600px;';
+        banner.innerHTML = '<span>\ud83d\udd17 ' + msg + '</span>'
+            + '<button type="button" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">Ok</button>';
+        const dismiss = function() { if (banner.parentElement) { banner.parentElement.removeChild(banner); } };
+        const okBtn = banner.querySelector('button');
+        if (okBtn) { okBtn.addEventListener('click', dismiss); }
+        document.body.appendChild(banner);
+        // Auto-dismiss after 8 seconds.
+        setTimeout(dismiss, 8000);
+    }
+
+    // Lightweight toast for "URL copied" — independent of the parent app's
+    // global showToast() because this page can also run standalone.
+    function showSharedConfigToast(text) {
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:32px;left:50%;transform:translateX(-50%);z-index:10000;padding:12px 20px;background:linear-gradient(135deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95));color:white;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.3);font-size:14px;font-weight:500;';
+        toast.textContent = text;
+        document.body.appendChild(toast);
+        setTimeout(function() {
+            if (toast.parentElement) { toast.parentElement.removeChild(toast); }
+        }, 2500);
+    }
+
+    // Minimal HTML-escape for the shareName before injecting into innerHTML.
+    function escapeHtmlText(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // ------------------------------------------------------------------
     // Init
     // ------------------------------------------------------------------
 
@@ -3841,12 +4035,18 @@
         renderTenancyPerPurpose();
         renderScalePerPurpose();
         renderSelectionSummary();
+        // If the URL carries a ?config=... payload, decode it and apply state
+        // BEFORE the first preview render so the loaded config shows up.
+        const loadedFromURL = loadArchitectureFromURL();
         updatePreview();
 
         const btn = document.getElementById('download-pptx');
         if (btn) { btn.addEventListener('click', downloadPptx); }
+        const shareBtn = document.getElementById('share-refarch-url');
+        if (shareBtn) { shareBtn.addEventListener('click', shareArchitectureURL); }
         wireZoomControls();
         wireThemeToggle();
+        if (loadedFromURL) { showSharedConfigBanner(loadedFromURL); }
     }
 
     // ------------------------------------------------------------------
@@ -4020,22 +4220,41 @@
                 state.purposes = next.purpose ? [next.purpose] : [];
             }
             if (next.connectivity !== undefined) { state.connectivity = next.connectivity; }
+            // All writes below validate the property name against the
+            // PURPOSES whitelist (and re-resolve to a literal from that table)
+            // so that a tainted key — e.g. one that flowed in from
+            // ?config= via state.purposes — can never become a property
+            // name on a state.* object. (CodeQL: js/remote-property-injection.)
+            const writeKeyed = function(target, key, value) {
+                if (!isValidPurposeId(key)) { return; }
+                const safeKey = PURPOSES.find(function(p) { return p.id === key; }).id;
+                target[safeKey] = value;
+            };
             if (next.tenancyByPurpose !== undefined) {
-                state.tenancyByPurpose = Object.assign({}, next.tenancyByPurpose);
+                state.tenancyByPurpose = {};
+                Object.keys(next.tenancyByPurpose).forEach(function(k) {
+                    writeKeyed(state.tenancyByPurpose, k, next.tenancyByPurpose[k]);
+                });
             } else if (next.tenancy !== undefined) {
                 // Back-compat: a single global tenancy now gets applied to every selected purpose.
-                state.purposes.forEach(function(pid) { state.tenancyByPurpose[pid] = next.tenancy; });
+                state.purposes.forEach(function(pid) { writeKeyed(state.tenancyByPurpose, pid, next.tenancy); });
             }
             if (next.scaleByPurpose !== undefined) {
                 state.scaleByPurpose = {};
                 Object.keys(next.scaleByPurpose).forEach(function(k) {
                     const v = next.scaleByPurpose[k];
-                    state.scaleByPurpose[k] = Array.isArray(v) ? v.slice() : (v ? [v] : []);
+                    writeKeyed(state.scaleByPurpose, k, Array.isArray(v) ? v.slice() : (v ? [v] : []));
                 });
             } else if (next.scale !== undefined) {
                 // Back-compat: a single global scale list now gets applied to every selected purpose.
                 const arr = Array.isArray(next.scale) ? next.scale.slice() : (next.scale ? [next.scale] : []);
-                state.purposes.forEach(function(pid) { state.scaleByPurpose[pid] = arr.slice(); });
+                state.purposes.forEach(function(pid) { writeKeyed(state.scaleByPurpose, pid, arr.slice()); });
+            }
+            if (next.storageByPurpose !== undefined) {
+                state.storageByPurpose = {};
+                Object.keys(next.storageByPurpose).forEach(function(k) {
+                    writeKeyed(state.storageByPurpose, k, next.storageByPurpose[k]);
+                });
             }
             refreshSelections();
             renderTenancyPerPurpose();

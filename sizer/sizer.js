@@ -532,14 +532,23 @@ function getGpuLabel(gpuType) {
 }
 
 // Build GPU requirement fields HTML for workload modals
-// workloadType: 'vm', 'aks', or 'avd'
+// workloadType: 'vm', 'aks', 'avd', 'foundry', 'edgerag', or 'videoindexer'
 function getGpuRequirementFields(workloadType) {
-    const supportGpuP = workloadType !== 'aks';
+    // GPU-P (partitioning) is unsupported on AKS Arc, and Foundry Local, Edge
+    // RAG, and Video Indexer all run on top of AKS Arc, so none of those
+    // four offer GPU-P.
+    const supportGpuP = workloadType !== 'aks' && workloadType !== 'foundry' && workloadType !== 'edgerag' && workloadType !== 'videoindexer';
     const gpuPOption = supportGpuP
         ? '<option value="gpu-p">GPU-P (GPU Partitioning)</option>'
         : '';
     const gpuPNote = !supportGpuP
-        ? '<span class="hint">Note: AKS Arc does not support GPU-P at this time.</span>'
+        ? (workloadType === 'foundry'
+            ? '<span class="hint">Note: Foundry Local runs on AKS Arc, which does not support GPU-P at this time.</span>'
+            : workloadType === 'edgerag'
+                ? '<span class="hint">Note: Edge RAG runs on AKS Arc, which does not support GPU-P at this time.</span>'
+                : workloadType === 'videoindexer'
+                    ? '<span class="hint">Note: Video Indexer runs on AKS Arc, which does not support GPU-P at this time.</span>'
+                    : '<span class="hint">Note: AKS Arc does not support GPU-P at this time.</span>')
         : '';
 
     // For AKS, build a GPU VM size selector instead of manual DDA count
@@ -563,15 +572,31 @@ function getGpuRequirementFields(workloadType) {
     let gpuDocsLink = '';
     if (workloadType === 'aks') {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc</a></div>';
+    } else if (workloadType === 'foundry') {
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Foundry Local runs on AKS Arc)</a></div>';
+    } else if (workloadType === 'edgerag') {
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Edge RAG runs on AKS Arc)</a></div>';
+    } else if (workloadType === 'videoindexer') {
+        gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/aks/aksarc/deploy-gpu-node-pool#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for AKS Arc (Video Indexer runs on AKS Arc)</a></div>';
     } else if (workloadType === 'vm' || workloadType === 'avd') {
         gpuDocsLink = '<div style="margin-bottom: 10px; font-size: 11px;"><a href="https://learn.microsoft.com/azure/azure-local/manage/gpu-preparation#supported-gpu-models" target="_blank" style="color: var(--link-color);">📖 Supported GPU Information for Azure Local VMs</a></div>';
     }
 
     // DDA label varies by workload type
-    const ddaLabel = workloadType === 'avd' ? 'GPUs per Session Host' : 'GPUs per VM';
+    const ddaLabel = workloadType === 'avd' ? 'GPUs per Session Host'
+        : workloadType === 'foundry' ? 'GPUs per replica'
+        : workloadType === 'edgerag' ? 'GPUs per worker node'
+        : workloadType === 'videoindexer' ? 'GPUs per worker node'
+        : 'GPUs per VM';
     const ddaTooltip = workloadType === 'avd'
         ? 'Number of physical GPUs assigned via DDA to each AVD session host.'
-        : 'Number of physical GPUs assigned via DDA to each VM.';
+        : workloadType === 'foundry'
+            ? 'Number of physical GPUs assigned via DDA to each Foundry Local model replica.'
+            : workloadType === 'edgerag'
+                ? `Number of physical GPUs assigned via DDA to each of the ${EDGERAG_WORKER_NODES} Edge RAG worker nodes (typically 1 per worker = ${EDGERAG_WORKER_NODES} total).`
+                : workloadType === 'videoindexer'
+                    ? 'Number of physical GPUs assigned via DDA to each Video Indexer worker node. Optional — Video Indexer’s default models are CPU-only; add a GPU only if you bring your own GPU-bound model.'
+                    : 'Number of physical GPUs assigned via DDA to each VM.';
 
     return `
         <h4 style="margin: 20px 0 12px; font-size: 14px; color: var(--text-secondary);">GPU Requirements</h4>
@@ -1178,7 +1203,7 @@ function updateNodeRecommendation(recommendation) {
     const recDiv = document.getElementById('node-recommendation');
     const recText = document.getElementById('node-recommendation-text');
     if (recDiv && recText) {
-        const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage' };
+        const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage', gpu: 'GPU' };
         const driver = bottleneckLabels[recommendation.bottleneck];
 
         let msg = '';
@@ -1202,7 +1227,7 @@ function updateNodeRecommendationInfo(recommendation, currentNodeCount) {
     const recText = document.getElementById('node-recommendation-text');
     if (!recDiv || !recText) return;
 
-    const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage' };
+    const bottleneckLabels = { compute: 'Compute (vCPUs)', memory: 'Memory', storage: 'Storage', gpu: 'GPU' };
     const driver = bottleneckLabels[recommendation.bottleneck];
     const snapped = snapToAvailableNodeCount(recommendation.recommended);
 
@@ -1253,6 +1278,15 @@ const ALDO_MIN_MEMORY_GB = 96;          // Minimum 96 GB memory per node
 const ALDO_MIN_CORES_PER_NODE = 24;     // Minimum 24 physical cores per node
 const ALDO_MIN_STORAGE_PER_NODE_TB = 2; // Minimum 2 TB SSD/NVMe storage per node
 const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM reservation per node
+
+// GPU multi-node clusters: minimum cores-per-node for AUTO sizing.
+// Rationale: GPU workloads (Foundry Local model serving, Edge RAG vLLM workers,
+// AI Video Indexer transcoding/inference) are CPU-heavy on the host side for
+// data preprocessing, scheduling, and feeding the GPU. An 8-core node will
+// bottleneck the GPU. 24 cores/node is a reasonable AUTO floor that still
+// leaves the user free to manually pick a smaller value if they have a
+// specific reason to (e.g. low-throughput inference workloads).
+const GPU_MIN_CORES_PER_NODE = 24;
 
 // Low Capacity deployment type hardware limits
 // Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
@@ -1755,7 +1789,13 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // For ALDO management clusters, enforce minimum 24 physical cores per node
     const isLowCapacity = clusterTypeForOverhead === 'low-capacity';
     const aldoMinCores = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_CORES_PER_NODE : 0;
-    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores);
+    // Multi-node GPU clusters: enforce a minimum cores-per-node floor so AUTO
+    // doesn't pick e.g. 8-core CPUs that will starve the GPU. Skipped in Low
+    // Capacity (single-socket, capped at 14 cores) where the floor would
+    // exceed the deployment type's max.
+    const gpuCountPerNodeForCpu = parseInt((document.getElementById('gpu-count') || {}).value, 10) || 0;
+    const gpuMinCores = (!isLowCapacity && nodeCount > 1 && gpuCountPerNodeForCpu > 0) ? GPU_MIN_CORES_PER_NODE : 0;
+    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores, gpuMinCores);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
     const SOCKET_OPTIONS = isLowCapacity ? [1] : [1, 2];
@@ -2715,8 +2755,118 @@ const WORKLOAD_DEFAULTS = {
         fslogix: false,
         fslogixSize: 30,
         userCount: 50
+    },
+    foundry: {
+        name: 'Foundry Local',
+        modelClass: 'medium', // small, medium, large, custom
+        replicas: 1,
+        engine: 'onnx-genai' // onnx-genai (CPU or GPU) or vllm (GPU only)
+    },
+    edgerag: {
+        name: 'Edge RAG',
+        computeMode: 'gpu', // gpu (recommended) or cpu
+        corpusGB: 100        // total document corpus size in GB (drives vector DB / embedding storage)
+    },
+    videoindexer: {
+        name: 'AI Video Indexer',
+        configuration: 'recommended' // 'minimum' (1 worker) or 'recommended' (2 workers, HA)
     }
 };
+
+// Foundry Local model size classes (per replica resource estimates).
+// Numbers are conservative rules-of-thumb (memory ~= params * bytes-per-weight + KV cache + overhead).
+// These are estimates only — actual sizing depends on the model, quantization,
+// batch size and concurrent request load. Validate with your OEM hardware partner.
+const FOUNDRY_MODEL_CLASSES = {
+    small: {
+        name: 'Small SLM',
+        description: 'Phi-3.5-mini, Llama-3.2-3B (~3B params)',
+        vcpus: 4,
+        memory: 8,
+        storage: 20,
+        recommendedGpu: 'optional' // CPU OK with ONNX-GenAI; vLLM still requires GPU
+    },
+    medium: {
+        name: 'Medium SLM',
+        description: 'OpenAI gpt-oss-20b, Phi-4, Mistral-7B, Llama-3.1-8B (~7-20B params)',
+        vcpus: 8,
+        memory: 16,
+        storage: 40,
+        recommendedGpu: 'recommended'
+    },
+    large: {
+        name: 'Large LLM',
+        description: 'OpenAI gpt-oss-120b, DeepSeek-R1-Distill-32B, Llama-3.3-70B Q4 (~32-120B params)',
+        vcpus: 16,
+        memory: 64,
+        storage: 100,
+        recommendedGpu: 'required'
+    },
+    custom: {
+        name: 'Custom',
+        description: 'Custom per-replica resource specification',
+        vcpus: 8,
+        memory: 16,
+        storage: 40,
+        recommendedGpu: 'optional'
+    }
+};
+
+// Foundry Local fixed sizing constants. Foundry runs on a 3-node Arc-enabled
+// Kubernetes (AKS Arc) control plane plus N model deployment replicas.
+// Numbers below mirror the AKS_OS_DISK_GB constant used in the AKS workload.
+const FOUNDRY_CP_NODES = 3;
+const FOUNDRY_CP_VCPU_PER_NODE = 4;
+const FOUNDRY_CP_MEM_PER_NODE = 8;
+const FOUNDRY_OS_DISK_GB = 200;
+const FOUNDRY_OPERATOR_VCPU = 2;
+const FOUNDRY_OPERATOR_MEM_GB = 4;
+
+// Edge RAG fixed sizing constants. Edge RAG (Azure Arc-enabled Kubernetes
+// extension, Preview) runs on a 3-node AKS Arc control plane plus a fixed
+// 4-VM worker node pool. Per Microsoft's published minimum hardware
+// requirements (https://learn.microsoft.com/azure/azure-arc/edge-rag/requirements):
+//   GPU mode: 4 GPU-enabled VMs (NC8_A2 or NC8_A16 — 8 vCPU / ~28-32 GB) with 1 GPU each
+//   CPU mode: 4 CPU VMs at minimum 8 vCPU / 32 GB each (D8s_v3)
+// Plus an Edge RAG operator overhead and a vector-database storage allowance
+// driven by the user-supplied document corpus size (typical RAG embedding
+// overhead is ~1.5x the source corpus once chunked, embedded and indexed).
+const EDGERAG_CP_NODES = 3;
+const EDGERAG_CP_VCPU_PER_NODE = 4;
+const EDGERAG_CP_MEM_PER_NODE = 8;
+const EDGERAG_OS_DISK_GB = 200;
+const EDGERAG_WORKER_NODES = 4;
+const EDGERAG_WORKER_VCPU_PER_NODE = 8;
+const EDGERAG_WORKER_MEM_PER_NODE = 32;
+const EDGERAG_WORKER_GPU_PER_NODE = 1; // GPU mode only — DDA, 1 GPU per worker (4 total)
+const EDGERAG_OPERATOR_VCPU = 2;
+const EDGERAG_OPERATOR_MEM_GB = 4;
+const EDGERAG_VECTOR_DB_MULTIPLIER = 1.5; // total storage = corpusGB * 1.5 (chunks + embeddings + index)
+
+// Video Indexer enabled by Arc fixed sizing constants. Video Indexer (Azure
+// Arc-enabled Kubernetes extension, Preview) runs on a 3-node AKS Arc control
+// plane plus a dedicated worker node pool. Per Microsoft's published minimum
+// hardware requirements (https://learn.microsoft.com/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview#minimum-hardware-requirements):
+//   Minimum:     1 worker node, 32 cores / 64 GB RAM / 50 GB storage (cluster-wide)
+//   Recommended: 2 worker nodes, 64 cores / 256 GB RAM / 100 GB storage (cluster-wide, HA)
+// The cluster-wide vCPU and memory totals are split evenly across the worker
+// pool (e.g. 2 nodes -> 32 vCPU / 128 GB each in Recommended mode). The 50 /
+// 100 GB storage figure is the ReadWriteMany persistent-volume requirement
+// for the VI extension; AKS Arc adds 200 GB OS disk per node.
+const VI_CP_NODES = 3;
+const VI_CP_VCPU_PER_NODE = 4;
+const VI_CP_MEM_PER_NODE = 8;
+const VI_OS_DISK_GB = 200;
+const VI_OPERATOR_VCPU = 2;
+const VI_OPERATOR_MEM_GB = 4;
+const VI_MIN_WORKER_NODES = 1;
+const VI_MIN_VCPU = 32;       // cluster-wide minimum vCPU for VI
+const VI_MIN_MEM_GB = 64;     // cluster-wide minimum memory
+const VI_MIN_STORAGE_GB = 50; // cluster-wide minimum PV storage
+const VI_REC_WORKER_NODES = 2;
+const VI_REC_VCPU = 64;       // cluster-wide recommended vCPU (upper bound of 48-64)
+const VI_REC_MEM_GB = 256;    // cluster-wide recommended memory
+const VI_REC_STORAGE_GB = 100; // cluster-wide recommended PV storage
 
 // AVD Profile specifications — multi-session per-user shares, single-session per-VM
 const AVD_PROFILES = {
@@ -3369,6 +3519,18 @@ function showAddWorkloadModal(type) {
             title.textContent = 'Add Azure Virtual Desktop';
             body.innerHTML = getAVDModalContent();
             break;
+        case 'foundry':
+            title.textContent = 'Add Foundry Local';
+            body.innerHTML = getFoundryModalContent();
+            break;
+        case 'edgerag':
+            title.textContent = 'Add Edge RAG';
+            body.innerHTML = getEdgeRagModalContent();
+            break;
+        case 'videoindexer':
+            title.textContent = 'Add Video Indexer enabled by Arc';
+            body.innerHTML = getVideoIndexerModalContent();
+            break;
     }
     
     modal.classList.add('active');
@@ -3639,6 +3801,274 @@ function getAVDModalContent() {
     `;
 }
 
+// Get Foundry Local modal content
+function getFoundryModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.foundry;
+    const cls = FOUNDRY_MODEL_CLASSES[defaults.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
+    const customCls = FOUNDRY_MODEL_CLASSES.custom;
+    return `
+        <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+            <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Foundry Local on Azure Local is available by request during preview. <a href="https://aka.ms/FoundryLocalAzure_PreviewRequest" target="_blank" style="color: var(--link-color);">Request preview deployment access</a>.
+        </div>
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-sovereign-clouds/private/foundry-local/what-is-foundry-local-on-azure-local" target="_blank" style="color: var(--link-color);">What is Foundry Local on Azure Local?</a>
+        </div>
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Foundry">
+        </div>
+        <div class="form-group">
+            <label>Model Size Class
+                <span class="info-icon" title="Pick the model size class. Sizing presets are conservative rules of thumb (model weights + KV cache + overhead). Validate with your OEM hardware partner and your actual model.">ⓘ</span>
+            </label>
+            <select id="foundry-model-class" onchange="updateFoundryClassDescription()">
+                <option value="small">${FOUNDRY_MODEL_CLASSES.small.name} &mdash; ${FOUNDRY_MODEL_CLASSES.small.description}</option>
+                <option value="medium" selected>${FOUNDRY_MODEL_CLASSES.medium.name} &mdash; ${FOUNDRY_MODEL_CLASSES.medium.description}</option>
+                <option value="large">${FOUNDRY_MODEL_CLASSES.large.name} &mdash; ${FOUNDRY_MODEL_CLASSES.large.description}</option>
+                <option value="custom">${FOUNDRY_MODEL_CLASSES.custom.name} &mdash; ${FOUNDRY_MODEL_CLASSES.custom.description}</option>
+            </select>
+            <span class="hint" id="foundry-class-desc">${cls.description}</span>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Number of Replicas
+                    <span class="info-icon" title="Number of model deployment replicas (pods). Each replica handles a share of inference traffic.">ⓘ</span>
+                </label>
+                <input type="number" id="foundry-replicas" value="${defaults.replicas}" min="1" max="100">
+            </div>
+            <div class="form-group">
+                <label>Inference Engine
+                    <span class="info-icon" title="ONNX-GenAI runs on CPU or GPU. vLLM is GPU-only and provides higher-throughput batched inference.">ⓘ</span>
+                </label>
+                <select id="foundry-engine" onchange="onFoundryEngineChange()">
+                    <option value="onnx-genai" selected>ONNX-GenAI (CPU or GPU)</option>
+                    <option value="vllm">vLLM (GPU only)</option>
+                </select>
+            </div>
+        </div>
+        <div id="foundry-custom-fields" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>vCPUs per Replica</label>
+                    <input type="number" id="foundry-custom-vcpus" value="${customCls.vcpus}" min="1" max="256">
+                </div>
+                <div class="form-group">
+                    <label>Memory per Replica (GB)</label>
+                    <input type="number" id="foundry-custom-memory" value="${customCls.memory}" min="1" max="2048">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Storage per Replica (GB)
+                    <span class="info-icon" title="Disk space for model weights, KV cache and tokenizer artefacts. Excludes the fixed 200 GB AKS Arc OS disk per node.">ⓘ</span>
+                </label>
+                <input type="number" id="foundry-custom-storage" value="${customCls.storage}" min="5" max="2048">
+            </div>
+        </div>
+        <div id="foundry-specs-panel" style="margin-top: 12px; padding: 14px; background: var(--subtle-bg); border-radius: 8px;">
+            <h4 style="font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">Per-Replica Specifications</h4>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 12px;">
+                <div>
+                    <span style="color: var(--text-secondary);">vCPUs:</span>
+                    <span id="foundry-spec-vcpus">${cls.vcpus}</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Memory:</span>
+                    <span id="foundry-spec-memory">${cls.memory} GB</span>
+                </div>
+                <div>
+                    <span style="color: var(--text-secondary);">Storage:</span>
+                    <span id="foundry-spec-storage">${cls.storage} GB</span>
+                </div>
+            </div>
+            <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
+                GPU: <span id="foundry-spec-gpu">${cls.recommendedGpu}</span>
+            </div>
+        </div>
+        <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
+            <strong>Includes:</strong> ${FOUNDRY_CP_NODES}-node Kubernetes control plane (${FOUNDRY_CP_VCPU_PER_NODE} vCPU / ${FOUNDRY_CP_MEM_PER_NODE} GB / ${FOUNDRY_OS_DISK_GB} GB OS each), N model deployment replicas, and ${FOUNDRY_OPERATOR_VCPU} vCPU / ${FOUNDRY_OPERATOR_MEM_GB} GB inference operator overhead. Each replica also adds a fixed ${FOUNDRY_OS_DISK_GB} GB AKS Arc OS disk.
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
+            Estimates only &mdash; actual sizing depends on the model, quantization, batch size and concurrent request load. Validate with your OEM hardware partner.
+        </div>
+        ${getGpuRequirementFields('foundry')}
+    `;
+}
+
+// Update Foundry class description and per-replica specs panel when class changes
+function updateFoundryClassDescription() {
+    const classSelect = document.getElementById('foundry-model-class');
+    if (!classSelect) return;
+    const classId = classSelect.value;
+    const cls = FOUNDRY_MODEL_CLASSES[classId] || FOUNDRY_MODEL_CLASSES.medium;
+    const customFields = document.getElementById('foundry-custom-fields');
+    const specsPanel = document.getElementById('foundry-specs-panel');
+    const descEl = document.getElementById('foundry-class-desc');
+    if (descEl) descEl.textContent = cls.description;
+    if (classId === 'custom') {
+        if (customFields) customFields.style.display = 'block';
+        if (specsPanel) specsPanel.style.display = 'none';
+    } else {
+        if (customFields) customFields.style.display = 'none';
+        if (specsPanel) specsPanel.style.display = 'block';
+        const vcpusEl = document.getElementById('foundry-spec-vcpus');
+        const memEl = document.getElementById('foundry-spec-memory');
+        const storEl = document.getElementById('foundry-spec-storage');
+        const gpuEl = document.getElementById('foundry-spec-gpu');
+        if (vcpusEl) vcpusEl.textContent = cls.vcpus;
+        if (memEl) memEl.textContent = cls.memory + ' GB';
+        if (storEl) storEl.textContent = cls.storage + ' GB';
+        if (gpuEl) gpuEl.textContent = cls.recommendedGpu;
+    }
+}
+
+// When the Foundry inference engine changes, force GPU mode if vLLM is selected
+function onFoundryEngineChange() {
+    const engineEl = document.getElementById('foundry-engine');
+    if (!engineEl) return;
+    const gpuModeEl = document.getElementById('wl-gpu-mode');
+    if (!gpuModeEl) return;
+    if (engineEl.value === 'vllm') {
+        // vLLM is GPU-only — switch to DDA if currently 'none'
+        if (gpuModeEl.value === 'none') {
+            gpuModeEl.value = 'dda';
+            toggleWorkloadGpuFields();
+        }
+        // Disable the 'none' option to prevent users from un-selecting GPU
+        const noneOpt = gpuModeEl.querySelector('option[value="none"]');
+        if (noneOpt) noneOpt.disabled = true;
+    } else {
+        const noneOpt = gpuModeEl.querySelector('option[value="none"]');
+        if (noneOpt) noneOpt.disabled = false;
+    }
+}
+
+// Get Edge RAG modal content
+function getEdgeRagModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.edgerag;
+    return `
+        <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+            <strong style="color: var(--accent-orange);">Preview</strong> &mdash; Edge RAG Preview, enabled by Azure Arc, packages a turnkey Retrieval Augmented Generation pipeline (LLM + embeddings + vector DB) on AKS Arc.
+        </div>
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/overview?context=/azure/azure-sovereign-clouds/context/context" target="_blank" style="color: var(--link-color);">What is Edge RAG?</a>
+            <span style="margin: 0 6px;">|</span>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-arc/edge-rag/requirements" target="_blank" style="color: var(--link-color);">Edge RAG requirements</a>
+        </div>
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Edge RAG">
+        </div>
+        <div class="form-group">
+            <label>Compute Mode
+                <span class="info-icon" title="GPU mode (recommended) deploys 4 GPU-enabled VMs (NC8_A2 / NC8_A16 — 8 vCPU / 32 GB / 1 GPU each). CPU mode deploys 4 CPU-only VMs (8 vCPU / 32 GB each); CPU mode supports smaller files (≤5 MB) and slower retrieval.">ⓘ</span>
+            </label>
+            <select id="edgerag-compute-mode" onchange="updateEdgeRagComputeMode()">
+                <option value="gpu" selected>GPU mode (recommended) &mdash; 4 \u00d7 GPU-enabled VMs</option>
+                <option value="cpu">CPU mode &mdash; 4 \u00d7 CPU-only VMs (≤ 5 MB per file)</option>
+            </select>
+            <span class="hint" id="edgerag-mode-desc">GPU mode: 4 \u00d7 NC8_A2 / NC8_A16 worker VMs (8 vCPU, 32 GB, 1 GPU each). Larger documents (≤ 30 MB), faster ingestion and retrieval.</span>
+        </div>
+        <div class="form-group">
+            <label>Document Corpus Size (GB)
+                <span class="info-icon" title="Total size of the on-premises documents (PDF, DOCX, TXT, MHTML, MD, JPG, PNG) you plan to ingest. Drives the vector-database storage estimate (chunks + embeddings + index ≈ 1.5 \u00d7 corpus).">ⓘ</span>
+            </label>
+            <input type="number" id="edgerag-corpus-gb" value="${defaults.corpusGB}" min="1" max="100000">
+            <span class="hint">Vector DB storage \u2248 ${EDGERAG_VECTOR_DB_MULTIPLIER} \u00d7 corpus size (chunks + embeddings + index).</span>
+        </div>
+        <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
+            <strong>Includes:</strong> ${EDGERAG_CP_NODES}-node AKS Arc control plane (${EDGERAG_CP_VCPU_PER_NODE} vCPU / ${EDGERAG_CP_MEM_PER_NODE} GB / ${EDGERAG_OS_DISK_GB} GB OS each), ${EDGERAG_WORKER_NODES} \u00d7 worker VMs at ${EDGERAG_WORKER_VCPU_PER_NODE} vCPU / ${EDGERAG_WORKER_MEM_PER_NODE} GB / ${EDGERAG_OS_DISK_GB} GB OS each, vector DB storage, and ${EDGERAG_OPERATOR_VCPU} vCPU / ${EDGERAG_OPERATOR_MEM_GB} GB Edge RAG operator overhead.
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
+            Estimates only &mdash; actual sizing depends on document mix, chunking strategy, embedding model, and concurrent query load. Validate with your OEM hardware partner.
+        </div>
+        ${getGpuRequirementFields('edgerag')}
+    `;
+}
+
+// Update Edge RAG compute mode hint and force GPU mode on / off when switched
+function updateEdgeRagComputeMode() {
+    const modeEl = document.getElementById('edgerag-compute-mode');
+    if (!modeEl) return;
+    const descEl = document.getElementById('edgerag-mode-desc');
+    const gpuModeEl = document.getElementById('wl-gpu-mode');
+    if (modeEl.value === 'gpu') {
+        if (descEl) descEl.textContent = 'GPU mode: 4 \u00d7 NC8_A2 / NC8_A16 worker VMs (8 vCPU, 32 GB, 1 GPU each). Larger documents (\u2264 30 MB), faster ingestion and retrieval.';
+        if (gpuModeEl) {
+            if (gpuModeEl.value === 'none') {
+                gpuModeEl.value = 'dda';
+                toggleWorkloadGpuFields();
+            }
+            const noneOpt = gpuModeEl.querySelector('option[value="none"]');
+            if (noneOpt) noneOpt.disabled = true;
+            // Default to 1 GPU per worker (4 total) if user hasn't customised
+            const gpuCountEl = document.getElementById('wl-gpu-dda-count');
+            if (gpuCountEl && (!gpuCountEl.value || gpuCountEl.value === '0')) {
+                gpuCountEl.value = EDGERAG_WORKER_GPU_PER_NODE;
+            }
+        }
+    } else {
+        if (descEl) descEl.textContent = 'CPU mode: 4 \u00d7 D8s_v3-equivalent worker VMs (8 vCPU, 32 GB each). Smaller documents only (\u2264 5 MB), slower ingestion and retrieval.';
+        if (gpuModeEl) {
+            const noneOpt = gpuModeEl.querySelector('option[value="none"]');
+            if (noneOpt) noneOpt.disabled = false;
+            gpuModeEl.value = 'none';
+            toggleWorkloadGpuFields();
+        }
+    }
+}
+
+// Get Video Indexer enabled by Arc modal content
+function getVideoIndexerModalContent() {
+    const defaults = WORKLOAD_DEFAULTS.videoindexer;
+    return `
+        <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.12); border-left: 3px solid var(--accent-orange); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+            <strong style="color: var(--accent-orange);">Preview / gated</strong> &mdash; Azure AI Video Indexer enabled by Arc runs video and audio analysis (transcription, translation, OCR, object/scene detection, summarization with Phi) on AKS Arc. Subscription must be approved via the <a href="https://aka.ms/vi-register" target="_blank" style="color: var(--accent-orange);">gated services application form</a>.
+        </div>
+        <div style="margin-bottom: 16px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+            <span style="margin-right: 4px;">\uD83D\uDCD6</span>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview?context=/azure/azure-sovereign-clouds/context/context" target="_blank" style="color: var(--link-color);">What is Video Indexer enabled by Arc?</a>
+            <span style="margin: 0 6px;">|</span>
+            <a href="https://learn.microsoft.com/en-us/azure/azure-video-indexer/arc/azure-video-indexer-enabled-by-arc-overview#minimum-hardware-requirements" target="_blank" style="color: var(--link-color);">Hardware requirements</a>
+        </div>
+        <div class="form-group">
+            <label>Workload Name</label>
+            <input type="text" id="workload-name" value="${defaults.name}" placeholder="e.g., Production Video Indexer">
+        </div>
+        <div class="form-group">
+            <label>Configuration
+                <span class="info-icon" title="Microsoft publishes two cluster-wide sizing tiers. Minimum: 1 worker node, 32 cores / 64 GB / 50 GB. Recommended: 2 worker nodes (HA), 64 cores / 256 GB / 100 GB total. Storage class must support ReadWriteMany (e.g. Azure Container Storage enabled by Arc).">ⓘ</span>
+            </label>
+            <select id="vi-configuration" onchange="updateVideoIndexerConfiguration()">
+                <option value="recommended"${defaults.configuration === 'recommended' ? ' selected' : ''}>Recommended &mdash; ${VI_REC_WORKER_NODES} workers, ${VI_REC_VCPU} vCPU / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB (HA)</option>
+                <option value="minimum"${defaults.configuration === 'minimum' ? ' selected' : ''}>Minimum &mdash; ${VI_MIN_WORKER_NODES} worker, ${VI_MIN_VCPU} vCPU / ${VI_MIN_MEM_GB} GB / ${VI_MIN_STORAGE_GB} GB</option>
+            </select>
+            <span class="hint" id="vi-config-desc">Recommended: ${VI_REC_WORKER_NODES} worker nodes (HA), ${VI_REC_VCPU} cores / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB cluster-wide. Storage class must support ReadWriteMany.</span>
+        </div>
+        <div style="margin-top: 12px; padding: 10px 12px; background: var(--subtle-bg); border-radius: 8px; font-size: 11px; color: var(--text-secondary);">
+            <strong>Includes:</strong> ${VI_CP_NODES}-node AKS Arc control plane (${VI_CP_VCPU_PER_NODE} vCPU / ${VI_CP_MEM_PER_NODE} GB / ${VI_OS_DISK_GB} GB OS each), Video Indexer worker pool (${VI_OS_DISK_GB} GB OS per worker + cluster-wide PV storage), Phi language model (included for textual summarization), and ${VI_OPERATOR_VCPU} vCPU / ${VI_OPERATOR_MEM_GB} GB Video Indexer extension overhead.
+        </div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
+            Estimates only &mdash; actual sizing depends on video volume, resolution, codecs, and concurrent indexing jobs. Volume performance (storage class) significantly affects indexing turnaround. Validate with your OEM hardware partner.
+        </div>
+        ${getGpuRequirementFields('videoindexer')}
+    `;
+}
+
+// Update Video Indexer configuration hint when toggled
+function updateVideoIndexerConfiguration() {
+    const cfgEl = document.getElementById('vi-configuration');
+    if (!cfgEl) return;
+    const descEl = document.getElementById('vi-config-desc');
+    if (!descEl) return;
+    if (cfgEl.value === 'minimum') {
+        descEl.textContent = `Minimum: ${VI_MIN_WORKER_NODES} worker node, ${VI_MIN_VCPU} cores / ${VI_MIN_MEM_GB} GB / ${VI_MIN_STORAGE_GB} GB cluster-wide. No HA — for development/evaluation.`;
+    } else {
+        descEl.textContent = `Recommended: ${VI_REC_WORKER_NODES} worker nodes (HA), ${VI_REC_VCPU} cores / ${VI_REC_MEM_GB} GB / ${VI_REC_STORAGE_GB} GB cluster-wide. Storage class must support ReadWriteMany.`;
+    }
+}
+
 // Toggle FSLogix size input visibility
 function toggleFSLogixSize() {
     const cb = document.getElementById('avd-fslogix');
@@ -3741,6 +4171,23 @@ function addWorkload() {
             workload.workerVcpus = parseInt(document.getElementById('aks-worker-vcpus').value) || 8;
             workload.workerMemory = parseInt(document.getElementById('aks-worker-memory').value) || 16;
             workload.workerStorage = parseInt(document.getElementById('aks-worker-storage').value) || 200;
+            break;
+        case 'foundry':
+            workload.modelClass = document.getElementById('foundry-model-class').value || 'medium';
+            workload.replicas = parseInt(document.getElementById('foundry-replicas').value) || 1;
+            workload.engine = document.getElementById('foundry-engine').value || 'onnx-genai';
+            if (workload.modelClass === 'custom') {
+                workload.customVcpus = parseInt(document.getElementById('foundry-custom-vcpus').value) || 8;
+                workload.customMemory = parseInt(document.getElementById('foundry-custom-memory').value) || 16;
+                workload.customStorage = parseInt(document.getElementById('foundry-custom-storage').value) || 40;
+            }
+            break;
+        case 'edgerag':
+            workload.computeMode = document.getElementById('edgerag-compute-mode').value || 'gpu';
+            workload.corpusGB = parseInt(document.getElementById('edgerag-corpus-gb').value) || 100;
+            break;
+        case 'videoindexer':
+            workload.configuration = document.getElementById('vi-configuration').value || 'recommended';
             break;
         case 'avd':
             workload.profile = document.getElementById('avd-profile').value;
@@ -3862,6 +4309,38 @@ function editWorkload(id) {
                 document.getElementById('avd-custom-memory').value = w.customMemory || 8;
                 document.getElementById('avd-custom-storage').value = w.customStorage || 50;
             }
+            break;
+        case 'foundry':
+            title.textContent = 'Edit Foundry Local';
+            body.innerHTML = getFoundryModalContent();
+            document.getElementById('workload-name').value = w.name;
+            document.getElementById('foundry-model-class').value = w.modelClass || 'medium';
+            document.getElementById('foundry-replicas').value = w.replicas || 1;
+            document.getElementById('foundry-engine').value = w.engine || 'onnx-genai';
+            updateFoundryClassDescription();
+            if (w.modelClass === 'custom') {
+                document.getElementById('foundry-custom-vcpus').value = w.customVcpus || 8;
+                document.getElementById('foundry-custom-memory').value = w.customMemory || 16;
+                document.getElementById('foundry-custom-storage').value = w.customStorage || 40;
+            }
+            // Apply vLLM constraint to GPU mode after restoring engine
+            onFoundryEngineChange();
+            break;
+        case 'edgerag':
+            title.textContent = 'Edit Edge RAG';
+            body.innerHTML = getEdgeRagModalContent();
+            document.getElementById('workload-name').value = w.name;
+            document.getElementById('edgerag-compute-mode').value = w.computeMode || 'gpu';
+            document.getElementById('edgerag-corpus-gb').value = w.corpusGB || 100;
+            // Apply GPU/CPU mode constraint after restoring compute mode
+            updateEdgeRagComputeMode();
+            break;
+        case 'videoindexer':
+            title.textContent = 'Edit Video Indexer enabled by Arc';
+            body.innerHTML = getVideoIndexerModalContent();
+            document.getElementById('workload-name').value = w.name;
+            document.getElementById('vi-configuration').value = w.configuration || 'recommended';
+            updateVideoIndexerConfiguration();
             break;
     }
 
@@ -4002,6 +4481,12 @@ function getWorkloadIcon(type) {
             return '<img src="../images/aks-arc-icon.png" alt="AKS Arc" width="20" height="20" style="vertical-align: middle;">';
         case 'avd':
             return '<img src="../images/avd-icon.png" alt="AVD" width="20" height="20" style="vertical-align: middle;">';
+        case 'foundry':
+            return '<img src="../images/foundry-icon.png" alt="Foundry Local" width="20" height="20" style="vertical-align: middle;">';
+        case 'edgerag':
+            return '<img src="../images/edge-rag-icon.svg" alt="Edge RAG" width="20" height="20" style="vertical-align: middle;">';
+        case 'videoindexer':
+            return '<img src="../images/video-indexer-icon.svg" alt="Video Indexer" width="20" height="20" style="vertical-align: middle;">';
         default:
             return '';
     }
@@ -4013,6 +4498,9 @@ function getWorkloadTypeName(type) {
         case 'vm': return 'VMs';
         case 'aks': return 'AKS Arc';
         case 'avd': return 'AVD';
+        case 'foundry': return 'Foundry Local';
+        case 'edgerag': return 'Edge RAG';
+        case 'videoindexer': return 'AI Video Indexer';
         default: return '';
     }
 }
@@ -4047,6 +4535,29 @@ function getWorkloadDetails(w) {
             if (w.fslogix) avdDesc += ` \u2022 FSLogix ${w.fslogixSize || 30} GB/user`;
             detail = avdDesc;
             break;
+        case 'foundry': {
+            const fcls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
+            const className = w.modelClass === 'custom'
+                ? `Custom (${w.customVcpus} vCPU / ${w.customMemory} GB / ${w.customStorage} GB per replica)`
+                : fcls.name;
+            const engineLabel = w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI';
+            detail = `${w.replicas || 1} replica${(w.replicas || 1) > 1 ? 's' : ''} \u2022 ${className} \u2022 ${engineLabel}`;
+            break;
+        }
+        case 'edgerag': {
+            const modeLabel = w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode';
+            const corpus = w.corpusGB || 100;
+            detail = `${EDGERAG_WORKER_NODES} worker VMs \u2022 ${modeLabel} \u2022 ${corpus} GB corpus`;
+            break;
+        }
+        case 'videoindexer': {
+            const isMin = w.configuration === 'minimum';
+            const workers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
+            const totVcpu = isMin ? VI_MIN_VCPU : VI_REC_VCPU;
+            const totMem = isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB;
+            detail = `${workers} worker${workers > 1 ? 's' : ''} \u2022 ${isMin ? 'Minimum' : 'Recommended'} \u2022 ${totVcpu} vCPU / ${totMem} GB cluster-wide`;
+            break;
+        }
         default:
             return '';
     }
@@ -4116,6 +4627,73 @@ function calculateWorkloadRequirements(w) {
             }
             break;
         }
+        case 'foundry': {
+            // Per-replica resources (model class preset OR custom override)
+            let perReplicaVcpu, perReplicaMem, perReplicaStor;
+            if (w.modelClass === 'custom') {
+                perReplicaVcpu = w.customVcpus || 8;
+                perReplicaMem = w.customMemory || 16;
+                perReplicaStor = w.customStorage || 40;
+            } else {
+                const cls = FOUNDRY_MODEL_CLASSES[w.modelClass] || FOUNDRY_MODEL_CLASSES.medium;
+                perReplicaVcpu = cls.vcpus;
+                perReplicaMem = cls.memory;
+                perReplicaStor = cls.storage;
+            }
+            const replicas = w.replicas || 1;
+            // Foundry runs on a 3-node Kubernetes control plane. Each model
+            // replica = 1 worker node sized to the model class, plus the fixed
+            // 200 GB AKS Arc OS disk (matching the AKS workload pattern).
+            const cpVcpus = FOUNDRY_CP_NODES * FOUNDRY_CP_VCPU_PER_NODE;
+            const cpMemory = FOUNDRY_CP_NODES * FOUNDRY_CP_MEM_PER_NODE;
+            const cpStorage = FOUNDRY_CP_NODES * FOUNDRY_OS_DISK_GB;
+            const workerVcpus = perReplicaVcpu * replicas;
+            const workerMemory = perReplicaMem * replicas;
+            const workerStorage = (FOUNDRY_OS_DISK_GB + perReplicaStor) * replicas;
+            vcpus = cpVcpus + workerVcpus + FOUNDRY_OPERATOR_VCPU;
+            memory = cpMemory + workerMemory + FOUNDRY_OPERATOR_MEM_GB;
+            storage = cpStorage + workerStorage;
+            break;
+        }
+        case 'edgerag': {
+            // Edge RAG runs on a 3-node AKS Arc control plane plus a fixed
+            // 4-VM worker pool. Per Microsoft's published minimum requirements:
+            //   GPU mode: 4 \u00d7 NC8_A2/NC8_A16 (8 vCPU / 32 GB / 1 GPU)
+            //   CPU mode: 4 \u00d7 D8s_v3-equivalent (8 vCPU / 32 GB)
+            // Vector DB storage is estimated as corpus \u00d7 EDGERAG_VECTOR_DB_MULTIPLIER.
+            const cpVcpus = EDGERAG_CP_NODES * EDGERAG_CP_VCPU_PER_NODE;
+            const cpMemory = EDGERAG_CP_NODES * EDGERAG_CP_MEM_PER_NODE;
+            const cpStorage = EDGERAG_CP_NODES * EDGERAG_OS_DISK_GB;
+            const workerVcpus = EDGERAG_WORKER_NODES * EDGERAG_WORKER_VCPU_PER_NODE;
+            const workerMemory = EDGERAG_WORKER_NODES * EDGERAG_WORKER_MEM_PER_NODE;
+            const workerStorageOs = EDGERAG_WORKER_NODES * EDGERAG_OS_DISK_GB;
+            const corpusGB = w.corpusGB || 100;
+            const vectorDbStorage = Math.ceil(corpusGB * EDGERAG_VECTOR_DB_MULTIPLIER);
+            vcpus = cpVcpus + workerVcpus + EDGERAG_OPERATOR_VCPU;
+            memory = cpMemory + workerMemory + EDGERAG_OPERATOR_MEM_GB;
+            storage = cpStorage + workerStorageOs + vectorDbStorage;
+            break;
+        }
+        case 'videoindexer': {
+            // Video Indexer enabled by Arc runs on a 3-node AKS Arc control
+            // plane plus a worker pool sized per Microsoft's published
+            // minimum hardware requirements (cluster-wide totals):
+            //   Minimum:     1 worker, 32 vCPU / 64 GB / 50 GB PV storage
+            //   Recommended: 2 workers (HA), 64 vCPU / 256 GB / 100 GB PV
+            const isMin = w.configuration === 'minimum';
+            const workerNodes = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
+            const workerVcpus = isMin ? VI_MIN_VCPU : VI_REC_VCPU;
+            const workerMemory = isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB;
+            const pvStorage = isMin ? VI_MIN_STORAGE_GB : VI_REC_STORAGE_GB;
+            const cpVcpus = VI_CP_NODES * VI_CP_VCPU_PER_NODE;
+            const cpMemory = VI_CP_NODES * VI_CP_MEM_PER_NODE;
+            const cpStorage = VI_CP_NODES * VI_OS_DISK_GB;
+            const workerStorageOs = workerNodes * VI_OS_DISK_GB;
+            vcpus = cpVcpus + workerVcpus + VI_OPERATOR_VCPU;
+            memory = cpMemory + workerMemory + VI_OPERATOR_MEM_GB;
+            storage = cpStorage + workerStorageOs + pvStorage;
+            break;
+        }
     }
 
     // Calculate GPU requirements
@@ -4135,6 +4713,20 @@ function calculateWorkloadRequirements(w) {
                 gpus = ddaCount * (w.sessionType === 'single'
                     ? w.userCount
                     : Math.ceil(w.userCount * ((w.concurrency || 100) / 100)));
+                break;
+            case 'foundry':
+                // DDA GPUs per replica × replicas (one model pod per worker node)
+                gpus = ddaCount * (w.replicas || 1);
+                break;
+            case 'edgerag':
+                // Edge RAG GPU mode: ddaCount GPUs per worker × 4 worker nodes
+                // (CPU mode never reaches this branch because gpuMode='none')
+                gpus = ddaCount * EDGERAG_WORKER_NODES;
+                break;
+            case 'videoindexer':
+                // Video Indexer GPU is optional (BYO model). ddaCount GPUs per
+                // worker × worker nodes (1 minimum, 2 recommended).
+                gpus = ddaCount * (w.configuration === 'minimum' ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES);
                 break;
         }
     } else if (w.gpuMode === 'gpu-p') {
@@ -6266,6 +6858,23 @@ function selectRegionAndConfigure(region, cloud) {
                         entry.customStorage = w.customStorage;
                     }
                     break;
+                case 'foundry':
+                    entry.modelClass = w.modelClass;
+                    entry.replicas = w.replicas;
+                    entry.engine = w.engine;
+                    if (w.modelClass === 'custom') {
+                        entry.customVcpus = w.customVcpus;
+                        entry.customMemory = w.customMemory;
+                        entry.customStorage = w.customStorage;
+                    }
+                    break;
+                case 'edgerag':
+                    entry.computeMode = w.computeMode;
+                    entry.corpusGB = w.corpusGB;
+                    break;
+                case 'videoindexer':
+                    entry.configuration = w.configuration;
+                    break;
             }
             return entry;
         })
@@ -6403,6 +7012,23 @@ function exportSizerCSV() { // eslint-disable-line no-unused-vars
                     var users = w.userCount || 0;
                     var reqs = calculateWorkloadRequirements(w);
                     rows.push(['Workload', 'AVD', users + ' users (' + avdProfile + ')', reqs.vcpus, reqs.memory, reqs.storage, w.gpuEnabled ? 'Yes' : 'No']);
+                } else if (w.type === 'foundry') {
+                    var foundryReqs = calculateWorkloadRequirements(w);
+                    var foundryClass = w.modelClass === 'custom'
+                        ? 'Custom (' + (w.customVcpus || 0) + ' vCPU / ' + (w.customMemory || 0) + ' GB / ' + (w.customStorage || 0) + ' GB per replica)'
+                        : (FOUNDRY_MODEL_CLASSES[w.modelClass] && FOUNDRY_MODEL_CLASSES[w.modelClass].name) || (w.modelClass || 'medium');
+                    var foundryDetail = (w.replicas || 1) + ' replica(s) \u00b7 ' + foundryClass + ' \u00b7 ' + (w.engine === 'vllm' ? 'vLLM' : 'ONNX-GenAI');
+                    rows.push(['Workload', 'Foundry Local', foundryDetail, foundryReqs.vcpus, foundryReqs.memory, foundryReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
+                } else if (w.type === 'edgerag') {
+                    var edgeragReqs = calculateWorkloadRequirements(w);
+                    var edgeragDetail = EDGERAG_WORKER_NODES + ' worker VMs \u00b7 ' + (w.computeMode === 'cpu' ? 'CPU mode' : 'GPU mode') + ' \u00b7 ' + (w.corpusGB || 0) + ' GB corpus';
+                    rows.push(['Workload', 'Edge RAG', edgeragDetail, edgeragReqs.vcpus, edgeragReqs.memory, edgeragReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
+                } else if (w.type === 'videoindexer') {
+                    var viReqs = calculateWorkloadRequirements(w);
+                    var isMin = w.configuration === 'minimum';
+                    var viWorkers = isMin ? VI_MIN_WORKER_NODES : VI_REC_WORKER_NODES;
+                    var viDetail = viWorkers + ' worker' + (viWorkers > 1 ? 's' : '') + ' \u00b7 ' + (isMin ? 'Minimum' : 'Recommended') + ' \u00b7 ' + (isMin ? VI_MIN_VCPU : VI_REC_VCPU) + ' vCPU / ' + (isMin ? VI_MIN_MEM_GB : VI_REC_MEM_GB) + ' GB cluster-wide';
+                    rows.push(['Workload', 'AI Video Indexer', viDetail, viReqs.vcpus, viReqs.memory, viReqs.storage, (w.gpuMode && w.gpuMode !== 'none') ? 'Yes' : 'No']);
                 }
             });
         }
