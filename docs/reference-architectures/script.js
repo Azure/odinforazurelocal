@@ -1004,15 +1004,7 @@
             return;
         }
 
-        const purposeEntries = state.purposes.map(function(pid) {
-            const tpl = TEMPLATES[pid];
-            if (!tpl) { return null; }
-            return {
-                id: pid,
-                purpose: PURPOSES.find(function(p) { return p.id === pid; }),
-                tpl: resolveTemplate(tpl)
-            };
-        }).filter(Boolean);
+        const purposeEntries = getPurposeEntries();
         if (purposeEntries.length === 0) { return; }
 
         if (purposeEntries.length === 1) {
@@ -1037,6 +1029,20 @@
         }
     }
 
+    // Resolve every selected purpose into the structure used by the
+    // narrative + diagram + PPT-export builders.
+    function getPurposeEntries() {
+        return state.purposes.map(function(pid) {
+            const tpl = TEMPLATES[pid];
+            if (!tpl) { return null; }
+            return {
+                id: pid,
+                purpose: PURPOSES.find(function(p) { return p.id === pid; }),
+                tpl: resolveTemplate(tpl)
+            };
+        }).filter(Boolean);
+    }
+
     function buildArchitectureNarrativeHtml(purposeEntries) {
         const parts = ['<strong>About this architecture</strong>'];
         const overview = buildOverviewParagraph(purposeEntries);
@@ -1047,6 +1053,56 @@
             parts.push(buildPurposeNarrativeBlock(e, purposeEntries.length > 1));
         });
         return parts.join('');
+    }
+
+    // Plain-text mirror of buildArchitectureNarrativeHtml() used by the PPTX
+    // export. Returns an array of { heading, paragraphs[] } so the slide
+    // builder can lay each section out as a bold heading followed by one or
+    // more body paragraphs.
+    function buildArchitectureNarrativeSections(purposeEntries) {
+        const sections = [];
+        const overview = htmlToPlainText(buildOverviewParagraph(purposeEntries));
+        if (overview) {
+            sections.push({ heading: 'Overview', paragraphs: [overview] });
+        }
+        const cpHtml = buildControlPlaneParagraph(purposeEntries);
+        if (cpHtml) {
+            const cpHeading = state.connectivity === 'disconnected'
+                ? 'Control plane (Disconnected / air-gapped)'
+                : 'Control plane (Connected to Azure)';
+            sections.push({ heading: cpHeading, paragraphs: [htmlToPlainText(cpHtml)] });
+        }
+        purposeEntries.forEach(function(entry) {
+            const title = (entry.purpose && entry.purpose.title) || entry.tpl.title;
+            const heading = purposeEntries.length > 1 ? title : 'Design details';
+            const paragraphs = [];
+            if (entry.tpl.summary) { paragraphs.push(entry.tpl.summary); }
+            const notes = (entry.tpl.notes || []).map(function(n) {
+                const trimmed = n.trim();
+                return /[.!?]$/.test(trimmed) ? trimmed : trimmed + '.';
+            });
+            if (notes.length) { paragraphs.push(notes.join(' ')); }
+            sections.push({ heading: heading, paragraphs: paragraphs });
+        });
+        return sections;
+    }
+
+    // Strip the limited HTML emitted by the narrative builders (just <strong>
+    // and <p>) down to plain text suitable for a PPTX text run.
+    function htmlToPlainText(html) {
+        return String(html == null ? '' : html)
+            .replace(/<\/p>\s*<p>/gi, '\n\n')
+            .replace(/<\/?p>/gi, '')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/?(strong|em|b|i)>/gi, '')
+            .replace(/&nbsp;/gi, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&apos;/g, "'")
+            .replace(/&#39;/g, "'")
+            .trim();
     }
 
     function buildOverviewParagraph(purposeEntries) {
@@ -2621,9 +2677,12 @@
     // PPT export — generates a standalone PPTX from scratch (no external
     // template dependency). The deck contains:
     //   1. Cover slide (title + subtitle + footer + ODIN logo)
-    //   2. Diagram slide (the live ODIN diagram captured as a PNG)
-    //   3. Summary slide (connectivity + per-purpose cluster breakdown)
-    //   4..N. One detail slide per selected business purpose, with the
+    //   2. About this architecture (narrative summary that mirrors the
+    //      on-screen description)
+    //   3. Diagram slide (the live ODIN diagram captured as a PNG)
+    //   4. Control plane slide (Connected vs Disconnected)
+    //   5. Summary slide (connectivity + per-purpose cluster breakdown)
+    //   6..N. One detail slide per selected business purpose, with the
     //         user's choices and a short description sourced from the
     //         public Microsoft Learn documentation.
     //
@@ -2741,7 +2800,8 @@
                 logoArrayBuffer: logoBuf,
                 iconPngs: iconPngs,
                 heroIconUrl: heroIconUrl,
-                cpServices: cpServices
+                cpServices: cpServices,
+                narrativeSections: buildArchitectureNarrativeSections(getPurposeEntries())
             });
             return zip.generateAsync({
                 type: 'blob',
@@ -2831,15 +2891,22 @@
 
         // Build the ordered list of slides:
         //   1. Cover
-        //   2. Diagram
-        //   3. Control plane (Connected vs Disconnected)
-        //   4. Summary (Your selections)
-        //   5..N. One per business purpose
+        //   2. About this architecture (narrative summary)
+        //   3. Diagram
+        //   4. Control plane (Connected vs Disconnected)
+        //   5. Summary (Your selections)
+        //   6..N. One per business purpose
         const slideXmlList = [];
 
         // Cover (no pictures except the logo).
         slideXmlList.push({
             xml: buildCoverSlideXml(opts),
+            rels: buildSlideRels([], false)
+        });
+
+        // About this architecture — narrative copy only, no embedded icons.
+        slideXmlList.push({
+            xml: buildAboutSlideXml(opts),
             rels: buildSlideRels([], false)
         });
 
@@ -3215,6 +3282,83 @@
             const y = boxY + (boxH - h) / 2;
             shapes.push(makePic(4, 'Diagram', 'rId3', emu(x), emu(y), emu(w), emu(h)));
         }
+        return wrapSlide(shapes, bg);
+    }
+
+    // "About this architecture" slide — narrative summary that mirrors the
+    // on-screen description shown beneath the live preview. Sits between the
+    // cover and the diagram so readers can absorb the design intent before
+    // they see the picture.
+    function buildAboutSlideXml(opts) {
+        const isLight = opts.isLight;
+        const bg = isLight ? 'FFFFFF' : '0A0A0F';
+        const titleColor = isLight ? '0078D4' : 'FFFFFF';
+        const subtitleColor = '7B68EE';
+        const headingColor = isLight ? '1F2937' : 'E5E7EB';
+        const bodyColor = isLight ? '4B5563' : 'A1A1AA';
+        const accentBlue = '0078D4';
+
+        const sections = opts.narrativeSections || [];
+
+        const shapes = [];
+        let id = 2;
+
+        // Title + accent underline + tagline + logo.
+        shapes.push(makeTextBoxSp(id++, 'Title', emu(0.4), emu(0.25), emu(11.9), emu(0.6),
+            'About this architecture',
+            { sz: 2800, bold: true, color: titleColor })[0]);
+        shapes.push(makeShape({
+            id: id++, name: 'TitleAccent', prst: 'rect',
+            x: emu(0.4), y: emu(0.92), cx: emu(1.4), cy: emu(0.06),
+            fillHex: accentBlue
+        }));
+        shapes.push(makeTextBoxSp(id++, 'Tagline', emu(0.4), emu(1.0), emu(12), emu(0.4),
+            'Generated narrative summary of the selected reference architecture',
+            { sz: 1300, italic: true, color: subtitleColor })[0]);
+        shapes.push(makeLogoPic(id++, 'OdinLogo', 'rId2'));
+
+        // Auto-shrink body font when there are many purposes / lots of text
+        // so the content still fits on a single 16:9 slide.
+        const totalChars = sections.reduce(function(sum, s) {
+            return sum + (s.heading || '').length + s.paragraphs.join(' ').length;
+        }, 0);
+        let bodySz = 1200;
+        let headingSz = 1400;
+        if (totalChars > 1400) { bodySz = 1100; headingSz = 1300; }
+        if (totalChars > 1900) { bodySz = 1000; headingSz = 1200; }
+        if (totalChars > 2500) { bodySz = 900;  headingSz = 1100; }
+
+        // Build the rich-text paragraph list: bold heading per section,
+        // followed by its body paragraphs.
+        const richParas = [];
+        sections.forEach(function(sec, idx) {
+            richParas.push({
+                text: sec.heading,
+                sz: headingSz,
+                bold: true,
+                color: headingColor,
+                spaceBefore: idx === 0 ? 0 : 600,
+                spaceAfter: 100
+            });
+            (sec.paragraphs || []).forEach(function(p) {
+                richParas.push({
+                    text: p,
+                    sz: bodySz,
+                    color: bodyColor,
+                    spaceAfter: 200
+                });
+            });
+        });
+
+        shapes.push(makeRichTextBoxSp(id++, 'AboutBody',
+            emu(0.4), emu(1.55), emu(12.55), emu(5.5),
+            richParas));
+
+        shapes.push(makeTextBoxSp(id++, 'Footer', emu(0.4), emu(7.15),
+            emu(12.5), emu(0.3),
+            'Source: learn.microsoft.com — Microsoft Sovereign Private Cloud',
+            { sz: 1000, italic: true, color: subtitleColor })[0]);
+
         return wrapSlide(shapes, bg);
     }
 
@@ -3814,6 +3958,51 @@
             + '</p:txBody>'
             + '</p:sp>'
         ];
+    }
+
+    // Like makeTextBoxSp but accepts a list of paragraph descriptors with
+    // per-paragraph font size, weight, color and spacing — used by the
+    // About slide so headings and body text can share one text frame.
+    // Each paragraph is { text, sz?, bold?, italic?, color?, align?,
+    //   spaceBefore?, spaceAfter? } where spaceBefore/spaceAfter are in
+    // hundredths of a point (e.g. 600 = 6pt).
+    function makeRichTextBoxSp(id, name, x, y, cx, cy, paragraphs) {
+        const latin = '<a:latin typeface="Segoe UI"/>';
+        const paras = (paragraphs || []).map(function(p) {
+            const sz = p.sz || 1100;
+            const bold = p.bold ? ' b="1"' : '';
+            const italic = p.italic ? ' i="1"' : '';
+            const color = p.color || '000000';
+            const fill = '<a:solidFill><a:srgbClr val="' + color + '"/></a:solidFill>';
+            const algn = p.align || 'l';
+            const spcBef = p.spaceBefore != null ? p.spaceBefore : 0;
+            const spcAft = p.spaceAfter != null ? p.spaceAfter : 200;
+            const pPr = '<a:pPr algn="' + algn + '">'
+                + '<a:spcBef><a:spcPts val="' + spcBef + '"/></a:spcBef>'
+                + '<a:spcAft><a:spcPts val="' + spcAft + '"/></a:spcAft>'
+                + '</a:pPr>';
+            return '<a:p>' + pPr
+                + '<a:r><a:rPr lang="en-US" sz="' + sz + '"' + bold + italic + '>'
+                + fill + latin + '</a:rPr>'
+                + '<a:t>' + xmlEscape(p.text) + '</a:t></a:r></a:p>';
+        }).join('');
+        return '<p:sp>'
+            + '<p:nvSpPr>'
+            + '<p:cNvPr id="' + id + '" name="' + xmlEscape(name) + '"/>'
+            + '<p:cNvSpPr txBox="1"/>'
+            + '<p:nvPr/>'
+            + '</p:nvSpPr>'
+            + '<p:spPr>'
+            + '<a:xfrm><a:off x="' + x + '" y="' + y + '"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>'
+            + '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>'
+            + '<a:noFill/>'
+            + '</p:spPr>'
+            + '<p:txBody>'
+            + '<a:bodyPr wrap="square" rtlCol="0" anchor="t" lIns="0" tIns="0" rIns="0" bIns="0"/>'
+            + '<a:lstStyle/>'
+            + paras
+            + '</p:txBody>'
+            + '</p:sp>';
     }
 
     // ODIN logo top-right, 0.6" x 0.6".
