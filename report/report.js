@@ -2381,32 +2381,33 @@
         };
         var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
         var portListD = getDisaggPortListForReport(storageType, backupEnabled, portCount);
-        // CodeQL js/remote-property-injection (#19, #20, #21): use
-        // prototype-less dictionaries so user-derived zone keys can't pollute
-        // Object.prototype via assignment.
-        var groupsByZoneD = Object.create(null);
-        var zoneLeafCountersD = Object.create(null);
+        // CodeQL js/remote-property-injection (#19, #20, #21): use Maps so
+        // user-derived zone keys are stored as explicit key/value pairs with
+        // safe dictionary semantics.
+        var groupsByZoneD = new Map();
+        var zoneLeafCountersD = new Map();
 
         for (var dpi = 0; dpi < portListD.length; dpi++) {
             var dPort = portListD[dpi];
             var dZone = adapterMapping[dPort.id];
             if (!dZone || dZone === 'pool' || dPort.slot === 'bmc') continue;
-            if (!groupsByZoneD[dZone]) groupsByZoneD[dZone] = [];
-            if (!zoneLeafCountersD[dZone]) zoneLeafCountersD[dZone] = 0;
+            if (!groupsByZoneD.has(dZone)) groupsByZoneD.set(dZone, []);
+            if (!zoneLeafCountersD.has(dZone)) zoneLeafCountersD.set(dZone, 0);
             var dzmeta = zoneMeta[dZone];
-            var dLeaf = (dzmeta && dzmeta.forcedLeaf) ? dzmeta.forcedLeaf : ((zoneLeafCountersD[dZone] % 2 === 0) ? 'A' : 'B');
-            zoneLeafCountersD[dZone]++;
+            var dLeaf = (dzmeta && dzmeta.forcedLeaf) ? dzmeta.forcedLeaf : ((zoneLeafCountersD.get(dZone) % 2 === 0) ? 'A' : 'B');
+            zoneLeafCountersD.set(dZone, zoneLeafCountersD.get(dZone) + 1);
             var dSlotKey = dPort.id.replace(/_p\d+$/, '');
             var dIdx = parseInt(dPort.id.replace(/^.*_p/, ''), 10);
-            groupsByZoneD[dZone].push({ name: getNicNameD(dSlotKey, dIdx), speed: getPortSpeedD(dSlotKey, dIdx), leaf: dLeaf });
+            groupsByZoneD.get(dZone).push({ name: getNicNameD(dSlotKey, dIdx), speed: getPortSpeedD(dSlotKey, dIdx), leaf: dLeaf });
         }
 
         for (var dzi = 0; dzi < zoneOrder.length; dzi++) {
             var dzk = zoneOrder[dzi];
-            if (!groupsByZoneD[dzk] || groupsByZoneD[dzk].length === 0) continue;
+            var dList = groupsByZoneD.get(dzk);
+            if (!dList || dList.length === 0) continue;
             var dmeta = zoneMeta[dzk];
             if (!dmeta) continue;
-            var dgrp = { key: dzk, label: dmeta.label, color: dmeta.color, nics: groupsByZoneD[dzk] };
+            var dgrp = { key: dzk, label: dmeta.label, color: dmeta.color, nics: dList };
             if (dmeta.vnicAbove) dgrp.vnicAbove = dmeta.vnicAbove;
             if (dmeta.vlanBelow) dgrp.vlanBelow = dmeta.vlanBelow;
             if (dmeta.subLabel) dgrp.subLabel = dmeta.subLabel;
@@ -3546,13 +3547,14 @@
                     unused: 'Unused'
                 };
 
-                // CodeQL js/remote-property-injection (#22): prototype-less dict.
-                var buckets = Object.create(null);
+                // CodeQL js/remote-property-injection (#22): use a Map for
+                // user-controlled intent keys.
+                var buckets = new Map();
                 for (var i = 1; i <= p; i++) {
                     var assignment = customIntents[i] ? String(customIntents[i]) : 'unused';
                     if (assignment === 'unused') continue;
-                    if (!buckets[assignment]) buckets[assignment] = [];
-                    buckets[assignment].push(i);
+                    if (!buckets.has(assignment)) buckets.set(assignment, []);
+                    buckets.get(assignment).push(i);
                 }
 
                 // Always show Mgmt + Compute first when present.
@@ -3560,17 +3562,17 @@
                 var groups = [];
                 for (var oi = 0; oi < order.length; oi++) {
                     var key = order[oi];
-                    if (!buckets[key] || buckets[key].length === 0) continue;
-                    var nics = buckets[key];
+                    var nics = buckets.get(key);
+                    if (!nics || nics.length === 0) continue;
                     var label = (trafficNames[key] || key);
                     var isStorageLike = (key === 'storage' || key === 'compute_storage' || key === 'all');
                     groups.push({ key: key, label: label, nics: nics, isStorageLike: isStorageLike });
                 }
 
                 // Include any unexpected keys at the end (stable).
-                Object.keys(buckets).sort().forEach(function (k) {
+                Array.from(buckets.keys()).sort().forEach(function (k) {
                     if (order.indexOf(k) >= 0) return;
-                    var nics2 = buckets[k];
+                    var nics2 = buckets.get(k);
                     if (!nics2 || nics2.length === 0) return;
                     groups.push({ key: k, label: (trafficNames[k] || k), nics: nics2, isStorageLike: (String(k).indexOf('storage') >= 0) });
                 });
@@ -3594,22 +3596,23 @@
                     pool: 'Management + Compute'
                 };
 
-                // CodeQL js/remote-property-injection (#23): prototype-less dict.
-                var buckets = Object.create(null);
+                // CodeQL js/remote-property-injection (#23): use a Map for
+                // user-controlled intent keys.
+                var buckets = new Map();
                 for (var i = 1; i <= p; i++) {
                     var assignment = adapterMapping[i] || 'pool';
                     // Normalize 'mgmt' and 'pool' to 'mgmt' for grouping
                     if (assignment === 'pool') assignment = 'mgmt';
-                    if (!buckets[assignment]) buckets[assignment] = [];
-                    buckets[assignment].push(i);
+                    if (!buckets.has(assignment)) buckets.set(assignment, []);
+                    buckets.get(assignment).push(i);
                 }
 
                 var order = ['mgmt', 'compute', 'compute_1', 'compute_2', 'storage', 'compute_storage', 'all'];
                 var groups = [];
                 for (var oi = 0; oi < order.length; oi++) {
                     var key = order[oi];
-                    if (!buckets[key] || buckets[key].length === 0) continue;
-                    var nics = buckets[key];
+                    var nics = buckets.get(key);
+                    if (!nics || nics.length === 0) continue;
                     var label = (trafficNames[key] || key);
                     var isStorageLike = (key === 'storage' || key === 'compute_storage' || key === 'all');
                     groups.push({ key: key, label: label, nics: nics, isStorageLike: isStorageLike });
@@ -4339,10 +4342,12 @@
             };
 
             // Leaf assignment rules: first adapter to Leaf-A, second to Leaf-B within each group
-            // CodeQL js/remote-property-injection (#24, #25, #26): prototype-less dicts.
-            var zoneLeafCounters = Object.create(null);
+            // CodeQL js/remote-property-injection (#24, #25, #26): use Maps so
+            // user-derived zone keys are stored as explicit key/value pairs with
+            // safe dictionary semantics.
+            var zoneLeafCounters = new Map();
             var zoneOrder = ['mgmt_compute', 'cluster_1', 'cluster_2', 'iscsi_a', 'iscsi_b', 'backup'];
-            var groupsByZone = Object.create(null);
+            var groupsByZone = new Map();
 
             // Iterate adapter mapping and group ports by their assigned zone
             var portList = getDisaggPortListForReport(storageType, backupEnabled, portCount);
@@ -4350,16 +4355,16 @@
                 var port = portList[pi];
                 var zone = adapterMapping[port.id];
                 if (!zone || zone === 'pool' || port.slot === 'bmc') continue;
-                if (!groupsByZone[zone]) groupsByZone[zone] = [];
-                if (!zoneLeafCounters[zone]) zoneLeafCounters[zone] = 0;
+                if (!groupsByZone.has(zone)) groupsByZone.set(zone, []);
+                if (!zoneLeafCounters.has(zone)) zoneLeafCounters.set(zone, 0);
                 var zmeta = zoneMeta[zone];
-                var leafLabel = (zmeta && zmeta.forcedLeaf) ? zmeta.forcedLeaf : ((zoneLeafCounters[zone] % 2 === 0) ? 'A' : 'B');
-                zoneLeafCounters[zone]++;
+                var leafLabel = (zmeta && zmeta.forcedLeaf) ? zmeta.forcedLeaf : ((zoneLeafCounters.get(zone) % 2 === 0) ? 'A' : 'B');
+                zoneLeafCounters.set(zone, zoneLeafCounters.get(zone) + 1);
 
                 var slotKey = port.id.replace(/_p\d+$/, '');
                 var idx = parseInt(port.id.replace(/^.*_p/, ''), 10);
 
-                groupsByZone[zone].push({
+                groupsByZone.get(zone).push({
                     id: port.id,
                     name: getNicName(slotKey, idx),
                     speed: getPortSpeed(slotKey, idx),
@@ -4370,14 +4375,15 @@
             // Build nicGroups in zone order
             for (var zi = 0; zi < zoneOrder.length; zi++) {
                 var zk = zoneOrder[zi];
-                if (!groupsByZone[zk] || groupsByZone[zk].length === 0) continue;
+                var zList = groupsByZone.get(zk);
+                if (!zList || zList.length === 0) continue;
                 var meta = zoneMeta[zk];
                 if (!meta) continue;
                 var grp = {
                     key: zk,
                     label: meta.label,
                     color: meta.color,
-                    nics: groupsByZone[zk]
+                    nics: zList
                 };
                 if (meta.vnicsAbove && meta.vnicsAbove.length > 0) grp.vnicsAbove = meta.vnicsAbove;
                 if (meta.vlanBelow) grp.vlanBelow = meta.vlanBelow;
