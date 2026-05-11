@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.07 - Available here: https://aka.ms/ODIN
+## Version 0.21.08 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,19 +46,17 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.07 - Latest Release
+### 🎉 Version 0.21.08 - Latest Release
 
-> Polishes the **Microsoft Sovereign Private Clouds reference architectures** page (Knowledge tab) with five targeted refinements to the Foundry Local cluster diagram, an AVD compatibility guard on the connectivity picker, and tighter AVD workload labelling. No changes to PPT export, Sizer, Designer, or any other surface.
+> **Security maintenance release.** Bumps the transitive `fast-uri` npm dependency to `>= 3.1.2` to clear two high-severity Dependabot alerts. No functional, UI, or user-facing changes to the Designer, Sizer, Switch Configuration, Reference Architectures page, or PowerPoint export.
 
-**Reference Architectures — UI refinements**
-- **AVD ↔ Disconnected guard.** Selecting *Azure Virtual Desktop* in step 1 now disables the *Disconnected / Air-gapped* card in step 2 (AVD requires the AVD control plane in Azure). If Disconnected was already selected, connectivity is force-flipped back to *Connected* and an inline warning is shown under the connectivity grid. Removing AVD restores the disconnected option.
-- **Foundry Local cluster — nested AKS Cluster → Foundry Local container.** The cluster card now renders a hierarchy: outer **AKS Cluster** container holds an inner **Foundry Local** sub-container, with **Edge RAG** and **Video Indexer** tiles inside Foundry Local. Reflects the actual deployment shape (Foundry-hosted services on AKS Arc).
-- **Foundry Local cluster — AVAILABLE AI MODELS strip moved above the workload band** so the model logos sit between the department chips and the AKS container, matching the reading order of the rest of the card.
-- **Foundry Local cluster — GPUs pulled out into a dedicated tile** between the *SERVERS* title and the server pills, in the same green palette as the server pills (`#e6f5ee` / `#9bd6b8`) — GPUs are physical hardware that lives on the servers, not a workload.
-- **AVD Session Host Cluster** — workloads simplified to **AVD session hosts**, **FSLogix profiles**, and **AVD VMs** (replacing the previous *Domain controllers* + *AKS Arc* tiles, which weren't representative of the typical AVD-on-Azure-Local footprint).
+**Security**
+- **`fast-uri` pinned to `>= 3.1.2`** via a new `overrides` entry in [`package.json`](package.json). Resolves [GHSA-q3j6-qgpj-74h6 / CVE-2026-6321](https://github.com/advisories/GHSA-q3j6-qgpj-74h6) (path traversal via percent-encoded dot segments, patched in 3.1.1) and [GHSA-v39h-62p7-jpjc / CVE-2026-6322](https://github.com/advisories/GHSA-v39h-62p7-jpjc) (host confusion via percent-encoded authority delimiters, patched in 3.1.2). The package is pulled in transitively via `html-validate → ajv` and `stylelint → table → ajv` and is used only by the local lint tooling — it is never bundled into the published site.
+- Matching guard entry added to `.github/copilot-instructions.md` so future PRs cannot regress the override.
+- `npm audit` now reports **0 vulnerabilities**.
 
 **Notes**
-- No external network calls. No new dependencies. ESLint clean across all browser-facing scopes; all 1,156 existing unit tests still pass.
+- No new external network calls. No new runtime dependencies. ESLint clean across all browser-facing scopes; all 1,156 existing unit tests still pass.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -381,7 +379,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.07  
+**Version**: 0.21.08  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -396,6 +394,16 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.07 - Reference Architectures: AVD/Disconnected guard + Foundry Local diagram polish
+
+> Polishes the **Microsoft Sovereign Private Clouds reference architectures** page (Knowledge tab) with five targeted refinements to the Foundry Local cluster diagram, an AVD compatibility guard on the connectivity picker, and tighter AVD workload labelling. No changes to PPT export, Sizer, Designer, or any other surface.
+
+- **AVD ↔ Disconnected guard.** Selecting *Azure Virtual Desktop* in step 1 now disables the *Disconnected / Air-gapped* card in step 2 (AVD requires the AVD control plane in Azure). If Disconnected was already selected, connectivity is force-flipped back to *Connected* and an inline warning is shown under the connectivity grid. Removing AVD restores the disconnected option.
+- **Foundry Local cluster — nested AKS Cluster → Foundry Local container.** Outer **AKS Cluster** container holds an inner **Foundry Local** sub-container, with **Edge RAG** and **Video Indexer** tiles inside Foundry Local. Reflects the actual deployment shape (Foundry-hosted services on AKS Arc).
+- **Foundry Local cluster — AVAILABLE AI MODELS strip moved above the workload band** so the model logos sit between the department chips and the AKS container.
+- **Foundry Local cluster — GPUs pulled out into a dedicated tile** between the *SERVERS* title and the server pills, in the same green palette as the server pills (`#e6f5ee` / `#9bd6b8`) — GPUs are physical hardware that lives on the servers, not a workload.
+- **AVD Session Host Cluster** — workloads simplified to **AVD session hosts**, **FSLogix profiles**, and **AVD VMs** (replacing the previous *Domain controllers* + *AKS Arc* tiles).
 
 #### 0.21.06 - Configuration Report PPTX restyled to dark-mode Sovereign look
 

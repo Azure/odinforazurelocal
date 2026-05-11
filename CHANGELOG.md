@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.08] - 2026-05-11
+
+Security maintenance release. Bumps the transitive `fast-uri` npm dependency to `>= 3.1.2` to clear two high-severity Dependabot alerts. No functional, UI, or user-facing changes to the Designer, Sizer, Switch Configuration, Reference Architectures page, or PowerPoint export.
+
+### Security
+
+- **`fast-uri` pinned to `>= 3.1.2`** via a new `overrides` entry in `package.json`. Resolves [GHSA-q3j6-qgpj-74h6](https://github.com/advisories/GHSA-q3j6-qgpj-74h6) / CVE-2026-6321 (high — path traversal via percent-encoded dot segments, patched in 3.1.1) and [GHSA-v39h-62p7-jpjc](https://github.com/advisories/GHSA-v39h-62p7-jpjc) / CVE-2026-6322 (high — host confusion via percent-encoded authority delimiters, patched in 3.1.2). The package is pulled in transitively via `html-validate → ajv` and `stylelint → table → ajv` and is used only by the local lint tooling — it is never bundled into the published site.
+- **Guard added** to `.github/copilot-instructions.md` under "Security Constraints" so future PRs cannot regress the override.
+- **`npm audit` reports 0 vulnerabilities** after the bump.
+
+### Notes
+
+- No new external network calls. No new runtime dependencies. ESLint clean across all browser-facing scopes; all 1,156 existing unit tests still pass.
+
+---
+
 ## [0.21.07] - 2026-05-06
 
 Polishes the **Microsoft Sovereign Private Clouds reference architectures** page (Knowledge tab, `docs/reference-architectures/`) with five targeted refinements to the Foundry Local cluster diagram, an AVD compatibility guard on the connectivity picker, and tighter AVD workload labelling. No changes to the PowerPoint export, Sizer, Designer, or any other surface.

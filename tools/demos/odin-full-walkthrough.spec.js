@@ -19,12 +19,20 @@
  */
 const { test } = require('@playwright/test');
 
+/**
+ * Read an environment variable as a finite non-negative number.
+ * Falls back when the value is missing, non-numeric, infinite, or negative.
+ */
+function readNonNegativeNumberEnv(name, fallback) {
+    const parsed = Number(process.env[name]);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 // Keep slowMo configurable for different recording hardware while preserving a
 // readable pace. Default 120ms is enough that UI transitions are visible in a
 // recording but still fits inside the ~40 second target. Override via the
 // ODIN_DEMO_SLOWMO env var when recording on faster / slower hardware.
-const parsedSlowMo = Number(process.env.ODIN_DEMO_SLOWMO);
-const demoSlowMo = Number.isFinite(parsedSlowMo) && parsedSlowMo >= 0 ? parsedSlowMo : 120;
+const demoSlowMo = readNonNegativeNumberEnv('ODIN_DEMO_SLOWMO', 120);
 test.use({ launchOptions: { slowMo: demoSlowMo } });
 
 /** Show an on-screen annotation box in the top-right of the page. */

@@ -1947,18 +1947,18 @@
             }
             out.push('NICs per node: ' + keys.length + ' data ports + 1 BMC');
 
-            // CodeQL js/remote-property-injection (#17): use a prototype-less
-            // object so user-controlled NIC speed strings can't pollute
-            // Object.prototype via the dictionary key.
-            var bySpeed = Object.create(null);
+            // CodeQL js/remote-property-injection (#17): use a Map so
+            // user-controlled NIC speed strings are stored as explicit
+            // key/value pairs with safe dictionary semantics.
+            var bySpeed = new Map();
             var rdmaCount = 0;
             keys.forEach(function (k) {
                 var sp = (pc[k].speed) || (s.disaggPortSpeeds && s.disaggPortSpeeds[k.split('_')[0]]) || 'unknown';
-                bySpeed[sp] = (bySpeed[sp] || 0) + 1;
+                bySpeed.set(sp, (bySpeed.get(sp) || 0) + 1);
                 if (pc[k].rdma === true) rdmaCount += 1;
             });
-            var speedParts = Object.keys(bySpeed).map(function (sp) {
-                return bySpeed[sp] + '× ' + sp;
+            var speedParts = Array.from(bySpeed.entries()).map(function (entry) {
+                return entry[1] + '× ' + entry[0];
             });
             if (speedParts.length) out.push('Port speeds: ' + speedParts.join(', '));
             out.push('RDMA-capable ports: ' + rdmaCount + ' / ' + keys.length);
@@ -1973,15 +1973,17 @@
             return out;
         }
         out.push('NICs per node: ' + cfg.length);
-        // CodeQL js/remote-property-injection (#16): prototype-less dict.
-        var bySpeed2 = Object.create(null);
+        // CodeQL js/remote-property-injection (#16): use a Map so
+        // user-controlled NIC speed strings are stored as explicit
+        // key/value pairs with safe dictionary semantics.
+        var bySpeed2 = new Map();
         var rdma = 0;
         cfg.forEach(function (p) {
             var sp = (p && p.speed) || 'unknown';
-            bySpeed2[sp] = (bySpeed2[sp] || 0) + 1;
+            bySpeed2.set(sp, (bySpeed2.get(sp) || 0) + 1);
             if (p && p.rdma === true) rdma += 1;
         });
-        var sp2 = Object.keys(bySpeed2).map(function (k) { return bySpeed2[k] + '× ' + k; });
+        var sp2 = Array.from(bySpeed2.entries()).map(function (entry) { return entry[1] + '× ' + entry[0]; });
         if (sp2.length) out.push('Port speeds: ' + sp2.join(', '));
         out.push('RDMA-capable ports: ' + rdma + ' / ' + cfg.length);
         return out;
