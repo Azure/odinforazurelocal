@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.12 - Available here: https://aka.ms/ODIN
+## Version 0.21.13 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,33 +46,19 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.12 - Latest Release
+### 🎉 Version 0.21.13 - Latest Release
 
-> **Two bug fixes plus a small wizard quality-of-life feature.** Closes [issue #221](https://github.com/Azure/odinforazurelocal/issues/221) (Designer: easier infrastructure-network setup) and [issue #223](https://github.com/Azure/odinforazurelocal/issues/223) (Disaggregated rack diagram: single-rack title / SAN / legend overlap and clipping).
+> **Cosmetic fix on the Microsoft Sovereign Private Clouds reference architectures page (Knowledge tab).** The *Azure Local Cluster (up to 128 nodes)* title no longer renders with a misleading `*` (Coming soon) suffix — 128 nodes is documented and supported.
 
-**Designer · Step 15 — "🪄 Auto-fill from Node IPs" button (issue #221)**
-- New green button next to the existing *Subnet Calculator*. One click derives the **Infrastructure CIDR**, **Default Gateway**, and **Infra IP Pool start/end** from the Node IPs already entered on Step 12.
-- Gateway prefers `.1` (first usable host); pivots to broadcast-1 (`.254` in /24) **only if** a node already uses `.1`.
-- Pool size is fixed at 6 IPs (Cluster IP + 3 ARB + 2 spare), placed past the highest node IP with at least 10 IPs of node-growth headroom; if the gateway sits inside the candidate pool range, the pool is shifted past it.
-- Any field already manually edited (CIDR, gateway, or pool) is silently kept and reported in a toast — e.g. *"Skipped: gateway (kept your manual value)"*.
-
-**Designer + Configuration Report — live "Infrastructure Subnet Utilisation" diagram**
-- A horizontal bar diagram (Default Gateway / Infra IP Pool / Node IPs / Unused, with counts per segment) now renders inline below the Step 15 inputs as the user types — same SVG that previously only appeared in the PowerPoint export.
-- The same diagram is now also embedded in the *IP, Infrastructure Network & VLAN* section of the on-screen Configuration Report.
-- Single source of truth in new `js/subnet-utilization.js` shared by the wizard live preview, the configuration report, and the PowerPoint export.
-
-**Disaggregated rack diagram — single-rack overlap + clipping resolved (issue #223)**
-- Two SVG generators render the same diagram (the wizard preview in `js/disaggregated.js` and the configuration report in `report/rack-svg.js`); both previously sized the SVG canvas based on rack count alone, which produced a ~300 px-wide viewBox for a single rack and caused the title to slide under the *Azure Local* brand badge top-right, the SAN / iSCSI fabric label boxes to clip their `Connected to FC Switch A in each rack` sub-line, and the legend to run off the right edge.
-- Both generators now compute a content-aware width floor — `Math.max(naturalWidth, titleMinW, sanLabelMinW, legendMinW)` — and centre the rack column inside the widened canvas; the SAN / iSCSI box pair now spans `(svgWidth − 2·padX)` instead of the narrower rack column.
-- `max-width: ${svgW}px` was also removed from both SVG roots so the diagram now uses the entire available container width instead of being clamped to the minimum-content size.
+**What changed**
+- Removed the stray `comingSoon: true` flag from the `cluster-128` entry in `cardForScale()` in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js). Both the on-screen SVG diagram and the PowerPoint export now render the title cleanly without the asterisk.
+- The unrelated `comingSoon: true` flag on the **logical-isolation** tenancy option (which gates the *Coming soon* badge in the picker) was deliberately left untouched.
 
 **Tests & quality**
-- Full test suite passes **1,246 / 1,246**. ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean.
-- New `state.infraPoolManual` field registered in all three state-field inventories in `tests/index.html` to lock the manual-edit-tracking behaviour.
+- Full test suite passes **1,246 / 1,246**. ESLint clean across all browser-facing scopes; HTML validation clean.
 
 **Notes**
-- No new external network calls. No new runtime dependencies. The `subnet-utilization.js` module is loaded as a regular `<script>` on the same surfaces that already render the wizard / report — consistent with the repo's no-bundler architecture.
-- The single-rack diagram fix preserves the existing side-by-side fabric layout (Fabric A | Fabric B) and the existing colour palette / legend ordering — only the canvas width and centring logic changed.
+- No data, schema, or PPT-template changes. No new external network calls. Single-line change to one card descriptor.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -395,7 +381,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.12  
+**Version**: 0.21.13  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -410,6 +396,15 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.12 - Designer auto-fill for Infrastructure Network + Disaggregated single-rack overlap fix (issues #221 + #223)
+
+> **Two bug fixes plus a small wizard quality-of-life feature.** Closes [issue #221](https://github.com/Azure/odinforazurelocal/issues/221) (Designer: easier infrastructure-network setup) and [issue #223](https://github.com/Azure/odinforazurelocal/issues/223) (Disaggregated rack diagram: single-rack title / SAN / legend overlap and clipping).
+
+- **Designer · Step 15 — "🪄 Auto-fill from Node IPs" button (issue #221).** New green button next to the existing *Subnet Calculator*. One click derives the **Infrastructure CIDR**, **Default Gateway**, and **Infra IP Pool start/end** from the Node IPs already entered on Step 12. Gateway prefers `.1` (first usable host); pivots to broadcast-1 (`.254` in /24) **only if** a node already uses `.1`. Pool size is fixed at 6 IPs (Cluster IP + 3 ARB + 2 spare), placed past the highest node IP with at least 10 IPs of node-growth headroom; if the gateway sits inside the candidate pool range, the pool is shifted past it. Any field already manually edited (CIDR, gateway, or pool) is silently kept and reported in a toast — e.g. *"Skipped: gateway (kept your manual value)"*.
+- **Designer + Configuration Report — live "Infrastructure Subnet Utilisation" diagram.** A horizontal bar diagram (Default Gateway / Infra IP Pool / Node IPs / Unused, with counts per segment) now renders inline below the Step 15 inputs as the user types — same SVG that previously only appeared in the PowerPoint export. The same diagram is also embedded in the *IP, Infrastructure Network & VLAN* section of the on-screen Configuration Report. Single source of truth in new `js/subnet-utilization.js` shared by the wizard live preview, the configuration report, and the PowerPoint export.
+- **Disaggregated rack diagram — single-rack overlap + clipping resolved (issue #223).** Two SVG generators render the same diagram (the wizard preview in `js/disaggregated.js` and the configuration report in `report/rack-svg.js`); both previously sized the SVG canvas based on rack count alone, which produced a ~300 px-wide viewBox for a single rack and caused the title to slide under the *Azure Local* brand badge, SAN / iSCSI fabric label boxes to clip the `Connected to FC Switch A in each rack` sub-line, and the legend to run off the right edge. Both generators now compute a content-aware width floor — `Math.max(naturalWidth, titleMinW, sanLabelMinW, legendMinW)` — and centre the rack column inside the widened canvas; the SAN / iSCSI box pair now spans `(svgWidth − 2·padX)` instead of the narrower rack column. `max-width: ${svgW}px` was also removed from both SVG roots so the diagram fills the available container width.
+- New `state.infraPoolManual` field registered in all three state-field inventories in `tests/index.html`. ESLint clean; HTML validation clean; full test suite passes **1,246 / 1,246**.
 
 #### 0.21.11 - Sizer hardware-options alignment with the Azure Local Solutions Catalog (issue #226)
 

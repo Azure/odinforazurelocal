@@ -1844,7 +1844,7 @@
         }
         if (scale === 'cluster-128') {
             return [
-                { title: 'Azure Local Cluster (up to 128 nodes)', stack: 3, multiRack: true, comingSoon: true, servers: ['Rack 1', 'Rack 2', 'Rack 3', 'Rack 4'], serversLabel: 'Up to 8 racks × 16 servers' }
+                { title: 'Azure Local Cluster (up to 128 nodes)', stack: 3, multiRack: true, servers: ['Rack 1', 'Rack 2', 'Rack 3', 'Rack 4'], serversLabel: 'Up to 8 racks × 16 servers' }
             ];
         }
         // default fallback
