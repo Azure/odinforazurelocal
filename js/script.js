@@ -3852,13 +3852,15 @@ function getPrivateEndpointInfo(serviceKey) {
 // Step 16 "Storage Pool Configuration" DOM sync — handles:
 //   1. Auto-locking Express + KeepStorage cards when architecture=disaggregated
 //      (create-cluster-san only supports InfraOnly).
-//   2. Showing/hiding the SAN LUN ID input section based on whether
-//      storagePoolConfiguration === 'InfraOnly'.
+//   2. Showing/hiding the SAN LUN ID input section. The LUN IDs are only
+//      consumed by the Disaggregated (create-cluster-san) ARM template, so
+//      the section is shown only when architecture === 'disaggregated'.
+//      HCI deployments do not have a SAN and never need these inputs,
+//      regardless of which storage-pool option they choose.
 //   3. Keeping the LUN ID <input> .value in sync with state (for resume).
 // Safe to call in test environments — all DOM lookups are null-guarded.
 function syncStoragePoolUi() {
     const isDisagg = state.architecture === 'disaggregated';
-    const isInfraOnly = state.storagePoolConfiguration === 'InfraOnly';
 
     // 1. Lock Express / KeepStorage for Disaggregated
     const expressCard = document.getElementById('storage-pool-express-card');
@@ -3874,10 +3876,18 @@ function syncStoragePoolUi() {
         else disaggNote.classList.add('hidden');
     }
 
-    // 2. Show/hide SAN LUN ID section
+    // 2. Show/hide SAN LUN ID section.
+    //    The LUN IDs (`infraVolLunId` / `infraPerfLunId`) are only consumed by
+    //    the Disaggregated (create-cluster-san) ARM template — they describe
+    //    pre-provisioned volumes on an external SAN array. HCI deployments do
+    //    not have a SAN, so the section is hidden for any non-Disaggregated
+    //    architecture, regardless of the storage-pool choice (Express /
+    //    InfraOnly / KeepStorage). See issue #222: showing the section for
+    //    HCI + InfraOnly misled users into thinking the LUN IDs were required
+    //    to proceed.
     const lunSection = document.getElementById('san-lun-id-section');
     if (lunSection) {
-        if (isInfraOnly) lunSection.classList.remove('hidden');
+        if (isDisagg) lunSection.classList.remove('hidden');
         else lunSection.classList.add('hidden');
     }
 

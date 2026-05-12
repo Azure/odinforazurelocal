@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.09] - 2026-05-12
+
+Bug fix release. Resolves [issue #222](https://github.com/Azure/odinforazurelocal/issues/222) — the SAN Volume LUN ID inputs on Step 16 ("Storage Pool Configuration") were shown for any deployment that selected **InfraOnly**, including Hyperconverged. Those inputs are only meaningful for the **Disaggregated (create-cluster-san)** ARM template, so they would never be valid for an HCI cluster (which has no SAN array). Showing them mislead users into thinking the LUN IDs were required to proceed.
+
+### Fixed
+
+- **Designer · Step 16 — SAN LUN ID section now gated on architecture only.** `syncStoragePoolUi()` in [`js/script.js`](js/script.js) was previously toggling the `#san-lun-id-section` block on `storagePoolConfiguration === 'InfraOnly'`, which fired for both Disaggregated (correct) and HCI + InfraOnly (incorrect — issue #222). The visibility check is now `state.architecture === 'disaggregated'`, matching the underlying ARM template's requirement: only `create-cluster-san` consumes `infraVolLunId` / `infraPerfLunId`, and that template is only emitted for the Disaggregated branch. HCI users selecting *Express*, *InfraOnly*, or *KeepStorage* now see only the three storage-pool choice cards and can proceed to the next step.
+- **No state-machine or ARM-generation changes.** `state.infraVolLunId` / `state.infraPerfLunId` were already reset when the architecture switches away from Disaggregated; `validateSanLunInputs()` already short-circuits unless `architecture === 'disaggregated' && storagePoolConfiguration === 'InfraOnly'`; and `getArmReadiness()` only checks the LUN IDs on the Disaggregated branch. The bug was purely in the DOM visibility step.
+
+### Tests
+
+- New unit test in [`tests/index.html`](tests/index.html) (`Step 16: SAN LUN ID section gated on architecture only (issue #222)`) covers all four `(architecture × storagePoolConfiguration)` combinations — HCI+InfraOnly, HCI+Express, HCI+KeepStorage (all must hide), Disaggregated+InfraOnly (must show) — to lock the visibility behaviour against future regressions.
+- ESLint clean across all browser-facing scopes; HTML validation clean; full 1,160-test suite passes (1,156 previously + 1 new test suite covering four assertions).
+
+### Notes
+
+- No new external network calls. No new runtime dependencies. No changes to the Sizer, Switch Configuration generator, Reference Architectures page, PowerPoint export, or any ARM template emission path.
+
+---
+
 ## [0.21.08] - 2026-05-11
 
 Security maintenance release. Bumps the transitive `fast-uri` npm dependency to `>= 3.1.2` to clear two high-severity Dependabot alerts. No functional, UI, or user-facing changes to the Designer, Sizer, Switch Configuration, Reference Architectures page, or PowerPoint export.

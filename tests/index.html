@@ -8381,6 +8381,67 @@
                 (() => { try { syncStoragePoolUi(); return true; } catch(e) { return false; } })())
         ]);
 
+        // ========================================================================
+        // Step 16 — SAN LUN ID section visibility gating (issue #222)
+        // The LUN inputs are ARM-template-specific to create-cluster-san and
+        // must ONLY appear when architecture === 'disaggregated'. HCI never
+        // needs SAN LUN IDs, regardless of the storage-pool choice (Express /
+        // InfraOnly / KeepStorage) — HCI clusters have no SAN array.
+        // ========================================================================
+        testSuite('Step 16: SAN LUN ID section gated on architecture only (issue #222)', 'script.js', (() => {
+            var results = [];
+            var origState = JSON.parse(JSON.stringify(state));
+
+            // Mount a stub DOM node so syncStoragePoolUi() can toggle its class.
+            var lunSection = document.createElement('div');
+            lunSection.id = 'san-lun-id-section';
+            lunSection.classList.add('hidden');
+            document.body.appendChild(lunSection);
+
+            // Case 1: HCI + InfraOnly → section MUST stay hidden.
+            // This is the exact scenario reported in issue #222.
+            state.architecture = 'hci';
+            state.storagePoolConfiguration = 'InfraOnly';
+            state.infraVolLunId = null;
+            state.infraPerfLunId = null;
+            try { syncStoragePoolUi(); } catch(e) { /* no-op */ }
+            results.push(assert(lunSection.classList.contains('hidden'),
+                'HCI+InfraOnly: san-lun-id-section is hidden',
+                true, lunSection.classList.contains('hidden')));
+
+            // Case 2: HCI + Express → section MUST stay hidden.
+            state.architecture = 'hci';
+            state.storagePoolConfiguration = 'Express';
+            try { syncStoragePoolUi(); } catch(e) { /* no-op */ }
+            results.push(assert(lunSection.classList.contains('hidden'),
+                'HCI+Express: san-lun-id-section is hidden',
+                true, lunSection.classList.contains('hidden')));
+
+            // Case 3: HCI + KeepStorage → section MUST stay hidden.
+            state.architecture = 'hci';
+            state.storagePoolConfiguration = 'KeepStorage';
+            try { syncStoragePoolUi(); } catch(e) { /* no-op */ }
+            results.push(assert(lunSection.classList.contains('hidden'),
+                'HCI+KeepStorage: san-lun-id-section is hidden',
+                true, lunSection.classList.contains('hidden')));
+
+            // Case 4: Disaggregated + InfraOnly → section MUST be shown.
+            // (Disaggregated auto-locks storagePoolConfiguration to InfraOnly.)
+            state.architecture = 'disaggregated';
+            state.storagePoolConfiguration = 'InfraOnly';
+            try { syncStoragePoolUi(); } catch(e) { /* no-op */ }
+            results.push(assert(!lunSection.classList.contains('hidden'),
+                'Disaggregated+InfraOnly: san-lun-id-section is visible',
+                true, !lunSection.classList.contains('hidden')));
+
+            // Cleanup
+            lunSection.remove();
+            Object.keys(state).forEach(function(k) { delete state[k]; });
+            Object.assign(state, origState);
+
+            return results;
+        })());
+
         testSuite('Step 16: updateInfraVolLunId/updateInfraPerfLunId functions exist', 'script.js', [
             assert(typeof updateInfraVolLunId === 'function',
                 'updateInfraVolLunId is defined', true,
