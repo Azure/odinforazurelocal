@@ -4249,6 +4249,161 @@
             })()
         ]);
 
+        // --- getWorkloadGpuType() ---
+        // Pure helper: resolves a single workload's effective GPU type key
+        // (gpu-p model → dda model → AKS VM-size lookup). Does NOT fall back
+        // to hardware-config (callers do that separately).
+        testSuite('getWorkloadGpuType()', 'sizer.js', [
+            assert(getWorkloadGpuType(null) === null, 'null → null', null, getWorkloadGpuType(null)),
+            assert(getWorkloadGpuType(undefined) === null, 'undefined → null', null, getWorkloadGpuType(undefined)),
+            assert(getWorkloadGpuType('vm') === null, 'string → null', null, getWorkloadGpuType('vm')),
+            assert(getWorkloadGpuType({}) === null, 'empty object → null', null, getWorkloadGpuType({})),
+            assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'none' }) === null,
+                "gpuMode 'none' → null", null, getWorkloadGpuType({ type: 'vm', gpuMode: 'none' })),
+            assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }) === 'h100',
+                "VM DDA H100 → 'h100'", 'h100',
+                getWorkloadGpuType({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' })),
+            assert(getWorkloadGpuType({ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a16' }) === 'a16',
+                "VM GPU-P A16 → 'a16'", 'a16',
+                getWorkloadGpuType({ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a16' })),
+            assert(getWorkloadGpuType({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }) === 'l40s',
+                "Foundry DDA L40S → 'l40s'", 'l40s',
+                getWorkloadGpuType({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' })),
+            (() => {
+                // AKS workload with VM size → derive GPU type from AKS_GPU_VM_SIZES
+                const t = getWorkloadGpuType({ type: 'aks', gpuMode: 'dda', aksGpuVmSize: 'Standard_NC16_L4_1' });
+                return assert(t === 'l4',
+                    "AKS DDA Standard_NC16_L4_1 → 'l4'", 'l4', t);
+            })(),
+            (() => {
+                // Malformed: gpuMode dda but no model
+                const t = getWorkloadGpuType({ type: 'vm', gpuMode: 'dda' });
+                return assert(t === null,
+                    'gpuMode dda with no model → null (no hw fallback in pure helper)', null, t);
+            })()
+        ]);
+
+        // --- validateWorkloadBeforeSave: cross-workload homogeneous-GPU rule ---
+        // Real-world bug: user adds Azure Local VM with H100 (DDA), then opens
+        // Add Foundry Local. The AKS-hosted GPU filter removes H100 from the
+        // dropdown, so the lock-fallback in populateDdaModels did NOT engage
+        // and the user could freely pick L40S — saving a heterogeneous-GPU
+        // config that's physically impossible in a real cluster. This rule
+        // backstops the UI lock by comparing effective GPU types across
+        // workloads at save time.
+        testSuite('validateWorkloadBeforeSave: cross-workload homogeneous-GPU', 'sizer.js', [
+            // No other workloads → no conflict possible
+            (() => {
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, []);
+                return assert(err === null,
+                    'No other workloads → no conflict', null, err);
+            })(),
+            // otherWorkloads undefined → no conflict (back-compat with 1-arg call sites)
+            (() => {
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' });
+                return assert(err === null,
+                    'otherWorkloads omitted → no conflict (1-arg back-compat)', null, err);
+            })(),
+            // The exact reported scenario: VM with H100, then Foundry with L40S → block
+            (() => {
+                const others = [{ type: 'vm', name: 'AI Inference VMs', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
+                    'VM H100 + Foundry L40S → blocks with gpu-conflicts-with-locked-type',
+                    'gpu-conflicts-with-locked-type', err && err.code);
+            })(),
+            // Symmetric: Foundry L40S first, then VM H100 → block
+            (() => {
+                const others = [{ type: 'foundry', name: 'Foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }, others);
+                return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
+                    'Foundry L40S + VM H100 → blocks with gpu-conflicts-with-locked-type',
+                    'gpu-conflicts-with-locked-type', err && err.code);
+            })(),
+            // Same GPU on both → OK (homogeneous)
+            (() => {
+                const others = [{ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'l40s' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                return assert(err === null,
+                    'Both workloads use L40S → no conflict', null, err);
+            })(),
+            // GPU-P vs DDA, different models → block
+            (() => {
+                const others = [{ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'a16' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l4' }, others);
+                return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
+                    'VM GPU-P A16 + Foundry DDA L4 → blocks (different GPU types)',
+                    'gpu-conflicts-with-locked-type', err && err.code);
+            })(),
+            // GPU-P vs DDA, same model → OK
+            (() => {
+                const others = [{ type: 'vm', gpuMode: 'gpu-p', gpuPModel: 'l4' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l4' }, others);
+                return assert(err === null,
+                    'VM GPU-P L4 + Foundry DDA L4 → no conflict (same model)', null, err);
+            })(),
+            // AKS workload (uses aksGpuVmSize) vs another workload's gpuDdaModel
+            (() => {
+                const others = [{ type: 'aks', gpuMode: 'dda', aksGpuVmSize: 'Standard_NC16_L4_1' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                return assert(err !== null && err.code === 'gpu-conflicts-with-locked-type',
+                    'AKS L4 VM-size + VM L40S DDA → blocks',
+                    'gpu-conflicts-with-locked-type', err && err.code);
+            })(),
+            // AKS workload + same GPU on VM
+            (() => {
+                const others = [{ type: 'aks', gpuMode: 'dda', aksGpuVmSize: 'Standard_NC16_L4_1' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'vm', gpuMode: 'dda', gpuDdaModel: 'l4' }, others);
+                return assert(err === null,
+                    'AKS L4 VM-size + VM L4 DDA → no conflict (both resolve to L4)', null, err);
+            })(),
+            // Other workload has no GPU → no conflict regardless of new workload's GPU
+            (() => {
+                const others = [{ type: 'vm', gpuMode: 'none' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                return assert(err === null,
+                    'Other workload has no GPU → no conflict', null, err);
+            })(),
+            // New workload has no GPU → no conflict
+            (() => {
+                const others = [{ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'none' }, others);
+                return assert(err === null,
+                    'New workload has no GPU → no conflict', null, err);
+            })(),
+            // The aks-hosted rule fires BEFORE the cross-workload rule, so a
+            // Foundry+A100 candidate is still blocked by the AKS-hosted rule
+            // even if there are no other workloads (back-compat).
+            (() => {
+                const others = [];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'a100' }, others);
+                return assert(err !== null && err.code === 'aks-hosted-dda-unsupported-gpu',
+                    'Foundry+A100 with empty others → still blocked by AKS-hosted rule (not cross-workload)',
+                    'aks-hosted-dda-unsupported-gpu', err && err.code);
+            })(),
+            // Error message should name both workloads' GPUs.
+            (() => {
+                const others = [{ type: 'vm', name: 'GPU VMs', gpuMode: 'dda', gpuDdaModel: 'h100' }];
+                const err = validateWorkloadBeforeSave(
+                    { type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' }, others);
+                return assert(err && err.message.indexOf('H100') !== -1 && err.message.indexOf('L40S') !== -1,
+                    'Error message names both GPU models (H100 and L40S)',
+                    true, err && err.message.indexOf('H100') !== -1 && err.message.indexOf('L40S') !== -1);
+            })()
+        ]);
+
         // --- Feature 4: Intel Xeon D-2700 (intel_edge) CPU generation ---
         testSuite('CPU_GENERATIONS: intel_edge (Xeon D-2700)', 'sizer.js', [
             assert(CPU_GENERATIONS.intel_edge !== undefined, 'intel_edge category exists', true, CPU_GENERATIONS.intel_edge !== undefined),

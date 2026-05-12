@@ -527,18 +527,33 @@ function enforceGpuMaxPerNode() {
 // Returns the GPU type key if any workload has selected a GPU, or null if none.
 function getLockedGpuType() {
     for (const w of workloads) {
-        if (!w.gpuMode || w.gpuMode === 'none') continue;
-        if (w.gpuMode === 'gpu-p' && w.gpuPModel) return w.gpuPModel;
-        if (w.gpuMode === 'dda' && w.gpuDdaModel) return w.gpuDdaModel;
-        // For AKS DDA with a VM size, derive GPU type from AKS_GPU_VM_SIZES
-        if (w.aksGpuVmSize) {
-            for (const [gpuKey, sizes] of Object.entries(AKS_GPU_VM_SIZES)) {
-                if (sizes.some(s => s.name === w.aksGpuVmSize)) return gpuKey;
-            }
+        const t = getWorkloadGpuType(w);
+        if (t) return t;
+        // Edge case: workload has gpuMode != 'none' but no resolvable model
+        // (malformed/in-progress workload). Fall back to the hardware-config
+        // GPU type so the lock still engages — matches pre-helper behaviour.
+        if (w && w.gpuMode && w.gpuMode !== 'none') {
+            const hwGpuTypeEl = document.getElementById('gpu-type');
+            if (hwGpuTypeEl) return hwGpuTypeEl.value;
         }
-        // Fallback: use the hardware config GPU type
-        const hwGpuTypeEl = document.getElementById('gpu-type');
-        if (hwGpuTypeEl) return hwGpuTypeEl.value;
+    }
+    return null;
+}
+
+// Pure helper: return the GPU type key implied by a single workload, or null
+// if the workload has no GPU configured. Mirrors getLockedGpuType()'s priority
+// (gpu-p model → dda model → AKS VM-size lookup) but does NOT fall back to
+// the hardware-config GPU type — callers wanting that behaviour should add it
+// at the call site. Pure data, no DOM, safe for unit tests.
+function getWorkloadGpuType(w) {
+    if (!w || typeof w !== 'object') return null;
+    if (!w.gpuMode || w.gpuMode === 'none') return null;
+    if (w.gpuMode === 'gpu-p' && w.gpuPModel) return w.gpuPModel;
+    if (w.gpuMode === 'dda' && w.gpuDdaModel) return w.gpuDdaModel;
+    if (w.aksGpuVmSize) {
+        for (const [gpuKey, sizes] of Object.entries(AKS_GPU_VM_SIZES)) {
+            if (sizes.some(s => s.name === w.aksGpuVmSize)) return gpuKey;
+        }
     }
     return null;
 }
@@ -729,7 +744,6 @@ function populateDdaModels() {
     const hwGpuType = hwGpuTypeEl ? hwGpuTypeEl.value : '';
     const restrictToAks = currentModalType && currentModalType !== 'aks' && isAksHostedWorkloadType(currentModalType);
     const aksSupportedKeys = restrictToAks ? getAksSupportedGpuKeys() : null;
-    let optionsAdded = 0;
     for (const [key, model] of Object.entries(GPU_MODELS)) {
         if (!model.supportsAzureLocalVMs) continue;
         if (restrictToAks && !aksSupportedKeys.has(key)) continue;
@@ -737,15 +751,20 @@ function populateDdaModels() {
         opt.value = key;
         opt.textContent = `${model.name} (${model.vramGB} GB, max ${model.maxPerNode}/node)`;
         modelSelect.appendChild(opt);
-        optionsAdded++;
     }
     // Show a contextual hint about the AKS Arc restriction (and warn if a
     // workload elsewhere has locked the cluster's GPU to a model that is NOT
-    // supported on AKS Arc — in that case the dropdown will be empty and the
-    // user needs to remediate before saving).
+    // supported on AKS Arc — the dropdown will then be either empty or filled
+    // with options that conflict with the locked GPU, so the user needs to
+    // remediate before saving).
     const infoEl = document.getElementById('wl-gpu-dda-info');
+    const lockedNotInDropdown = lockedType && !modelSelect.querySelector(`option[value="${lockedType}"]`);
     if (infoEl) {
-        if (restrictToAks && optionsAdded === 0 && lockedType) {
+        if (restrictToAks && lockedNotInDropdown) {
+            // Either the dropdown is empty (no options matched) or it has options
+            // but none of them match the locked GPU. Either way the user can't
+            // pick a GPU without breaking homogeneity, so show the actionable
+            // warning instead of the bland "Filtered to..." note.
             const lockedModel = GPU_MODELS[lockedType];
             const lockedName = lockedModel ? lockedModel.name : lockedType;
             infoEl.innerHTML =
@@ -758,6 +777,15 @@ function populateDdaModels() {
             infoEl.innerHTML =
                 '<em>Filtered to GPUs supported by AKS Arc — ' + workloadTypeDisplayName(currentModalType) +
                 ' runs on AKS Arc node pools.</em>';
+        } else if (lockedNotInDropdown) {
+            // Non-AKS-hosted modal but the locked GPU still isn't in the dropdown
+            // (e.g. the workload's locked GPU has supportsAzureLocalVMs=false).
+            // Defensive — shouldn't happen with current data but covers the case.
+            const lockedModel = GPU_MODELS[lockedType];
+            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            infoEl.innerHTML =
+                '<span style="color: var(--warning);"><strong>⚠ GPU model conflict.</strong> Another workload selected ' + lockedName +
+                ', which is not available for this workload type. Remove or change that workload first.</span>';
         } else {
             infoEl.textContent = '';
         }
@@ -767,6 +795,16 @@ function populateDdaModels() {
         modelSelect.value = lockedType;
         modelSelect.disabled = true;
         modelSelect.title = 'GPU model is locked \u2014 all nodes must use the same GPU model (homogeneous configuration).';
+    } else if (lockedType) {
+        // Locked GPU is NOT in the (possibly AKS-filtered) dropdown — e.g. another
+        // workload locked the cluster to H100 but this is an AKS-hosted modal that
+        // filters to AKS-supported GPUs only. Disable the dropdown and clear any
+        // stale selection so the user cannot save a heterogeneous-GPU config.
+        // validateWorkloadBeforeSave() also backstops this via the cross-workload
+        // homogeneous-GPU rule.
+        modelSelect.value = '';
+        modelSelect.disabled = true;
+        modelSelect.title = 'GPU model is locked by another workload to a GPU that is not supported by AKS Arc \u2014 remove that workload (or change its GPU) before adding this one.';
     } else {
         modelSelect.disabled = false;
         modelSelect.title = '';
@@ -4287,7 +4325,14 @@ function readWorkloadGpuFields() {
 //     that AKS Arc supports (i.e. has at least one entry in AKS_GPU_VM_SIZES).
 //     This catches the case where the GPU dropdown was filtered to zero items
 //     by a homogeneous-GPU lock from another workload.
-function validateWorkloadBeforeSave(workload) {
+//   - Cross-workload homogeneous-GPU rule: an Azure Local cluster has one
+//     GPU model installed in its nodes — every GPU-using workload must use
+//     that same model. If the new workload's effective GPU type differs from
+//     any *other* GPU-using workload's type, save is blocked. Backstops the
+//     UI dropdown lock for the case where the AKS-supported filter removed
+//     the locked GPU from the dropdown (e.g. VM with H100 + Foundry trying
+//     to pick L40S would otherwise slip past the UI).
+function validateWorkloadBeforeSave(workload, otherWorkloads) {
     if (!workload || typeof workload !== 'object') return null;
     if (workload.type === 'aks' && workload.gpuMode === 'dda' && !workload.aksGpuVmSize) {
         return {
@@ -4315,6 +4360,32 @@ function validateWorkloadBeforeSave(workload) {
                     'T4, A2, A16, L4, L40, L40S, and RTX Pro 6000 via DDA. ' +
                     'Either select a different GPU model, or set this workload\'s GPU Mode to None.',
             };
+        }
+    }
+    // Cross-workload homogeneous-GPU rule. Compare this workload's effective
+    // GPU type against any other workload that already has a GPU configured.
+    if (Array.isArray(otherWorkloads) && otherWorkloads.length > 0) {
+        const myGpu = getWorkloadGpuType(workload);
+        if (myGpu) {
+            for (const ow of otherWorkloads) {
+                const otherGpu = getWorkloadGpuType(ow);
+                if (otherGpu && otherGpu !== myGpu) {
+                    const myModel = GPU_MODELS[myGpu];
+                    const otherModel = GPU_MODELS[otherGpu];
+                    const myName = myModel ? myModel.name : myGpu;
+                    const otherName = otherModel ? otherModel.name : otherGpu;
+                    const otherWlName = workloadTypeDisplayName(ow.type) + (ow.name ? ' "' + ow.name + '"' : '');
+                    return {
+                        code: 'gpu-conflicts-with-locked-type',
+                        message:
+                            'GPU model conflict.\n\n' +
+                            'Another workload (' + otherWlName + ') is already using ' + otherName + ', ' +
+                            'but this workload is set to use ' + myName + '. ' +
+                            'An Azure Local cluster installs one GPU model in its nodes — every GPU-using workload must use the same model (homogeneous configuration).\n\n' +
+                            'Either change this workload\'s GPU to ' + otherName + ', or remove the existing ' + otherName + ' workload first.',
+                    };
+                }
+            }
         }
     }
     return null;
@@ -4396,7 +4467,12 @@ function addWorkload() {
 
     // Pre-save validation (e.g. AKS+DDA requires a GPU VM size). Helper is
     // pure-data so it's also covered by unit tests in tests/index.html.
-    const validationError = validateWorkloadBeforeSave(workload);
+    // Pass other workloads (excluding the one being edited, if any) so the
+    // cross-workload homogeneous-GPU rule can detect conflicts.
+    const otherWorkloads = editingWorkloadId
+        ? workloads.filter(w => w.id !== editingWorkloadId)
+        : workloads;
+    const validationError = validateWorkloadBeforeSave(workload, otherWorkloads);
     if (validationError) {
         alert(validationError.message);
         return;
