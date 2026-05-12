@@ -187,6 +187,44 @@ function generateJUnitXML(results, passed, failed, total) {
         }
         
         console.log(`\n✅ All ${results.passed} tests passed!`);
+
+        // ------------------------------------------------------------------
+        // Catalog Gap Analysis — informational, runs after the browser tests.
+        // Compares Sizer hardware options against the committed snapshot of
+        // the Azure Local Solutions catalog API. Never fails the build unless
+        // --strict-catalog-gap is passed. See scripts/catalog-gap-check.js.
+        // ------------------------------------------------------------------
+        try {
+            const catalogCheck = require('./catalog-gap-check.js');
+            const sizerOpts = catalogCheck.loadSizerOptions();
+            const snapshot = catalogCheck.loadSnapshot();
+            const gapResult = catalogCheck.runGapAnalysis(snapshot, sizerOpts);
+            const reportText = catalogCheck.formatReport(gapResult);
+            console.log('\n' + reportText);
+
+            // Persist a human-readable text report and machine-readable JSON
+            // alongside the NUnit/JUnit files so CI can publish them as build
+            // artefacts and PR reviewers can open them from the run page.
+            try {
+                const gapTxtPath = path.join(resultsDir, 'catalog-gap-report.txt');
+                const gapJsonPath = path.join(resultsDir, 'catalog-gap-report.json');
+                fs.writeFileSync(gapTxtPath, reportText + '\n', 'utf8');
+                fs.writeFileSync(gapJsonPath, JSON.stringify(gapResult, null, 2) + '\n', 'utf8');
+                console.log(`Catalog gap report written to: ${gapTxtPath}`);
+                console.log(`Catalog gap report (JSON) written to: ${gapJsonPath}`);
+            } catch (writeErr) {
+                console.warn('⚠️  Could not write catalog gap report file: ' + (writeErr && writeErr.message ? writeErr.message : writeErr));
+            }
+
+            if (process.argv.includes('--strict-catalog-gap') && gapResult.gaps.length > 0) {
+                console.error(`\n❌ ${gapResult.gaps.length} catalog gap(s) detected (strict mode).`);
+                process.exit(1);
+            }
+        } catch (gapErr) {
+            // Catalog gap analysis is informational — log and continue.
+            console.warn('\n⚠️  Catalog gap analysis skipped: ' + (gapErr && gapErr.message ? gapErr.message : gapErr));
+        }
+
         process.exit(0);
     } catch (err) {
         console.error('Error running tests:', err.message);

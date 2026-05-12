@@ -45,8 +45,9 @@ const CPU_GENERATIONS = {
             id: 'xeon-5th',
             name: 'Intel® 5th Gen Xeon® (Emerald Rapids)',
             minCores: 8,
-            maxCores: 64,
-            coreOptions: [8, 12, 16, 24, 32, 48, 64],
+            // Catalog v2026-05: top SKUs (e.g. Platinum 8593Q) ship at 128 cores/socket.
+            maxCores: 128,
+            coreOptions: [8, 10, 12, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 80, 96, 128],
             defaultCores: 24,
             architecture: 'Raptor Cove',
             socket: 'LGA 4677',
@@ -60,7 +61,7 @@ const CPU_GENERATIONS = {
             name: 'Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest)',
             minCores: 8,
             maxCores: 172,
-            coreOptions: [8, 12, 16, 24, 32, 48, 64, 72, 86, 96, 128, 144, 172],
+            coreOptions: [8, 12, 16, 24, 32, 36, 48, 64, 72, 80, 86, 96, 128, 144, 172],
             defaultCores: 32,
             architecture: 'Lion Cove / Skymont',
             socket: 'LGA 4710',
@@ -148,10 +149,16 @@ const CPU_GENERATIONS = {
 
 // GPU model specifications
 // Ref: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation?view=azloc-2602#supported-gpu-models
+// A100 / A40 added in v0.21.11 to reflect OEM SKUs seen in the public Azure Local
+// Solutions catalog (https://azurelocalsolutions.azure.microsoft.com). A100 uses
+// hardware Multi-Instance GPU (MIG) which tops out at 7 slices/board, so it does
+// NOT expose the '1/16' partition Sizer offers for vGPU-software GPUs.
 const GPU_MODELS = {
     t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: false, validPartitions: [] },
     a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
     a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    a40:       { name: 'NVIDIA A40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    a100:      { name: 'NVIDIA A100',            vramGB: 80, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
     l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
     l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
     l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
@@ -203,6 +210,24 @@ const AKS_GPU_VM_SIZES = {
         { name: 'Standard_NC32_RTX6000Pro_2', gpus: 2, vramGB: 96, vcpus: 32, memoryGB: 128 }
     ]
 };
+
+// Workload types that run on AKS Arc node pools. These inherit AKS Arc's
+// supported-GPU constraints — they can only attach GPUs that AKS Arc itself
+// supports (i.e. GPUs that appear as keys in AKS_GPU_VM_SIZES). Foundry Local,
+// Edge RAG and Video Indexer all run on AKS Arc clusters; their DDA GPU model
+// list must therefore match AKS Arc, not the full Azure Local VM GPU list.
+const AKS_HOSTED_WORKLOAD_TYPES = new Set(['aks', 'foundry', 'edgerag', 'videoindexer']);
+
+function isAksHostedWorkloadType(workloadType) {
+    return AKS_HOSTED_WORKLOAD_TYPES.has(workloadType);
+}
+
+// Returns the set of GPU keys that AKS Arc supports (i.e. that have at least
+// one published AKS GPU VM SKU). Currently: t4, a2, a16, l4, l40, l40s,
+// rtxpro6000. NOT included: a40, a100, h100.
+function getAksSupportedGpuKeys() {
+    return new Set(Object.keys(AKS_GPU_VM_SIZES));
+}
 
 // GPU-P partition sizes (fraction of a physical GPU)
 // See: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation
@@ -502,18 +527,33 @@ function enforceGpuMaxPerNode() {
 // Returns the GPU type key if any workload has selected a GPU, or null if none.
 function getLockedGpuType() {
     for (const w of workloads) {
-        if (!w.gpuMode || w.gpuMode === 'none') continue;
-        if (w.gpuMode === 'gpu-p' && w.gpuPModel) return w.gpuPModel;
-        if (w.gpuMode === 'dda' && w.gpuDdaModel) return w.gpuDdaModel;
-        // For AKS DDA with a VM size, derive GPU type from AKS_GPU_VM_SIZES
-        if (w.aksGpuVmSize) {
-            for (const [gpuKey, sizes] of Object.entries(AKS_GPU_VM_SIZES)) {
-                if (sizes.some(s => s.name === w.aksGpuVmSize)) return gpuKey;
-            }
+        const t = getWorkloadGpuType(w);
+        if (t) return t;
+        // Edge case: workload has gpuMode != 'none' but no resolvable model
+        // (malformed/in-progress workload). Fall back to the hardware-config
+        // GPU type so the lock still engages — matches pre-helper behaviour.
+        if (w && w.gpuMode && w.gpuMode !== 'none') {
+            const hwGpuTypeEl = document.getElementById('gpu-type');
+            if (hwGpuTypeEl) return hwGpuTypeEl.value;
         }
-        // Fallback: use the hardware config GPU type
-        const hwGpuTypeEl = document.getElementById('gpu-type');
-        if (hwGpuTypeEl) return hwGpuTypeEl.value;
+    }
+    return null;
+}
+
+// Pure helper: return the GPU type key implied by a single workload, or null
+// if the workload has no GPU configured. Mirrors getLockedGpuType()'s priority
+// (gpu-p model → dda model → AKS VM-size lookup) but does NOT fall back to
+// the hardware-config GPU type — callers wanting that behaviour should add it
+// at the call site. Pure data, no DOM, safe for unit tests.
+function getWorkloadGpuType(w) {
+    if (!w || typeof w !== 'object') return null;
+    if (!w.gpuMode || w.gpuMode === 'none') return null;
+    if (w.gpuMode === 'gpu-p' && w.gpuPModel) return w.gpuPModel;
+    if (w.gpuMode === 'dda' && w.gpuDdaModel) return w.gpuDdaModel;
+    if (w.aksGpuVmSize) {
+        for (const [gpuKey, sizes] of Object.entries(AKS_GPU_VM_SIZES)) {
+            if (sizes.some(s => s.name === w.aksGpuVmSize)) return gpuKey;
+        }
     }
     return null;
 }
@@ -619,6 +659,7 @@ function getGpuRequirementFields(workloadType) {
                 </label>
                 <select id="wl-gpu-dda-model" onchange="onDdaModelChange()">
                 </select>
+                <div id="wl-gpu-dda-info" class="hint" style="margin-top: 4px;"></div>
             </div>
             <div class="form-group">
                 <label id="wl-gpu-dda-label">${ddaLabel}
@@ -687,7 +728,12 @@ function toggleWorkloadGpuFields() {
     }
 }
 
-// Populate DDA GPU model dropdown (for VM/AVD, not AKS)
+// Populate DDA GPU model dropdown. Filters by workload type:
+//   - VM / AVD: any GPU with supportsAzureLocalVMs === true.
+//   - Foundry / Edge RAG / Video Indexer: AKS-hosted workloads, so the list
+//     is further restricted to GPUs that AKS Arc itself supports (those that
+//     have published AKS GPU VM SKUs in AKS_GPU_VM_SIZES). AKS itself doesn't
+//     use this dropdown — it has the dedicated `wl-gpu-aks-vm-size` selector.
 function populateDdaModels() {
     const modelSelect = document.getElementById('wl-gpu-dda-model');
     if (!modelSelect) return;
@@ -696,18 +742,69 @@ function populateDdaModels() {
     const lockedType = getLockedGpuType();
     const hwGpuTypeEl = document.getElementById('gpu-type');
     const hwGpuType = hwGpuTypeEl ? hwGpuTypeEl.value : '';
+    const restrictToAks = currentModalType && currentModalType !== 'aks' && isAksHostedWorkloadType(currentModalType);
+    const aksSupportedKeys = restrictToAks ? getAksSupportedGpuKeys() : null;
     for (const [key, model] of Object.entries(GPU_MODELS)) {
         if (!model.supportsAzureLocalVMs) continue;
+        if (restrictToAks && !aksSupportedKeys.has(key)) continue;
         const opt = document.createElement('option');
         opt.value = key;
         opt.textContent = `${model.name} (${model.vramGB} GB, max ${model.maxPerNode}/node)`;
         modelSelect.appendChild(opt);
+    }
+    // Show a contextual hint about the AKS Arc restriction (and warn if a
+    // workload elsewhere has locked the cluster's GPU to a model that is NOT
+    // supported on AKS Arc — the dropdown will then be either empty or filled
+    // with options that conflict with the locked GPU, so the user needs to
+    // remediate before saving).
+    const infoEl = document.getElementById('wl-gpu-dda-info');
+    const lockedNotInDropdown = lockedType && !modelSelect.querySelector(`option[value="${lockedType}"]`);
+    if (infoEl) {
+        if (restrictToAks && lockedNotInDropdown) {
+            // Either the dropdown is empty (no options matched) or it has options
+            // but none of them match the locked GPU. Either way the user can't
+            // pick a GPU without breaking homogeneity, so show the actionable
+            // warning instead of the bland "Filtered to..." note.
+            const lockedModel = GPU_MODELS[lockedType];
+            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            infoEl.innerHTML =
+                '<span style="color: var(--warning);"><strong>⚠ ' + lockedName +
+                ' is not supported on AKS Arc.</strong> Another workload selected ' + lockedName +
+                ', and ' + workloadTypeDisplayName(currentModalType) + ' runs on AKS Arc — which currently only supports ' +
+                'T4, A2, A16, L4, L40, L40S, and RTX Pro 6000. ' +
+                'Either change that workload\'s GPU model to an AKS-supported one, or set this workload\'s GPU Mode to None.</span>';
+        } else if (restrictToAks) {
+            infoEl.innerHTML =
+                '<em>Filtered to GPUs supported by AKS Arc — ' + workloadTypeDisplayName(currentModalType) +
+                ' runs on AKS Arc node pools.</em>';
+        } else if (lockedNotInDropdown) {
+            // Non-AKS-hosted modal but the locked GPU still isn't in the dropdown
+            // (e.g. the workload's locked GPU has supportsAzureLocalVMs=false).
+            // Defensive — shouldn't happen with current data but covers the case.
+            const lockedModel = GPU_MODELS[lockedType];
+            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            infoEl.innerHTML =
+                '<span style="color: var(--warning);"><strong>⚠ GPU model conflict.</strong> Another workload selected ' + lockedName +
+                ', which is not available for this workload type. Remove or change that workload first.</span>';
+        } else {
+            infoEl.textContent = '';
+        }
     }
     // If locked, force to that type and disable
     if (lockedType && modelSelect.querySelector(`option[value="${lockedType}"]`)) {
         modelSelect.value = lockedType;
         modelSelect.disabled = true;
         modelSelect.title = 'GPU model is locked \u2014 all nodes must use the same GPU model (homogeneous configuration).';
+    } else if (lockedType) {
+        // Locked GPU is NOT in the (possibly AKS-filtered) dropdown — e.g. another
+        // workload locked the cluster to H100 but this is an AKS-hosted modal that
+        // filters to AKS-supported GPUs only. Disable the dropdown and clear any
+        // stale selection so the user cannot save a heterogeneous-GPU config.
+        // validateWorkloadBeforeSave() also backstops this via the cross-workload
+        // homogeneous-GPU rule.
+        modelSelect.value = '';
+        modelSelect.disabled = true;
+        modelSelect.title = 'GPU model is locked by another workload to a GPU that is not supported by AKS Arc \u2014 remove that workload (or change its GPU) before adding this one.';
     } else {
         modelSelect.disabled = false;
         modelSelect.title = '';
@@ -716,6 +813,19 @@ function populateDdaModels() {
         } else if (hwGpuType && modelSelect.querySelector(`option[value="${hwGpuType}"]`)) {
             modelSelect.value = hwGpuType;
         }
+    }
+}
+
+// Human-readable name for a workload type (used in warning text).
+function workloadTypeDisplayName(t) {
+    switch (t) {
+        case 'aks': return 'AKS Arc';
+        case 'foundry': return 'Foundry Local';
+        case 'edgerag': return 'Edge RAG';
+        case 'videoindexer': return 'Video Indexer';
+        case 'vm': return 'VM';
+        case 'avd': return 'AVD';
+        default: return t || 'this workload';
     }
 }
 
@@ -852,6 +962,7 @@ function populateAksGpuVmSizes() {
     vmSizeSelect.innerHTML = '<option value="" selected>Select a GPU VM size...</option>';
     // Check if GPU type is locked by an existing workload
     const lockedType = getLockedGpuType();
+    let optionsAdded = 0;
     // Iterate GPU types — filter to locked type if set
     for (const gpuKey of Object.keys(AKS_GPU_VM_SIZES)) {
         if (lockedType && gpuKey !== lockedType) continue;
@@ -860,11 +971,25 @@ function populateAksGpuVmSizes() {
         const gpuName = gpuModel ? gpuModel.name : gpuKey;
         sizes.forEach(s => {
             vmSizeSelect.innerHTML += `<option value="${s.name}" data-gpu-type="${gpuKey}">${s.name} [${gpuName}] (${s.gpus} GPU, ${s.vcpus} vCPUs, ${s.memoryGB} GB RAM)</option>`;
+            optionsAdded++;
         });
     }
     const infoEl = document.getElementById('wl-gpu-aks-vm-info');
     if (infoEl) {
-        if (lockedType) {
+        if (lockedType && optionsAdded === 0) {
+            // The cluster's GPU type is locked by another workload to a model
+            // that has NO published AKS Arc VM SKUs (e.g. A100, A40, H100).
+            // Warn the user *before* they try to save — addWorkload() will
+            // also block save via validateWorkloadBeforeSave() as a backstop.
+            const lockedModel = GPU_MODELS[lockedType];
+            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            infoEl.innerHTML =
+                '<span style="color: var(--warning);"><strong>⚠ ' + lockedName +
+                ' has no AKS Arc GPU VM SKUs.</strong> Another workload selected ' + lockedName +
+                ', which is not currently supported by AKS Arc node pools. ' +
+                'Either change that workload\'s GPU model to one with AKS VM SKUs ' +
+                '(T4, A2, A16, L4, L40, L40S, RTX Pro 6000), or set this AKS cluster\'s GPU Mode to None.</span>';
+        } else if (lockedType) {
             const lockedModel = GPU_MODELS[lockedType];
             infoEl.textContent = `GPU model locked to ${lockedModel ? lockedModel.name : lockedType} — all nodes must use the same GPU (homogeneous configuration).`;
         } else {
@@ -1138,6 +1263,42 @@ function getDisaggMaxNodesPerRack(rackCount) {
     var rc = parseInt(rackCount, 10) || 1;
     if (rc < 1) rc = 1;
     return Math.min(16, Math.floor(64 / rc));
+}
+
+// Conservative auto-scale node-count options for a given cluster type.
+// - 'rack-aware': [2,4,6,8] (must stay even for balanced rack distribution)
+// - 'low-capacity': [1,2,3]
+// - 'disaggregated': multiples of rackCount up to maxPerRack*rackCount, so the
+//   loop can scale past the HCI 16-node cap (disagg supports up to 64 nodes).
+// - everything else (standard HCI): [2..16]
+function getConservativeNodeOptions(clusterType, rackCount) {
+    if (clusterType === 'rack-aware') return [2, 4, 6, 8];
+    if (clusterType === 'low-capacity') return [1, 2, 3];
+    if (clusterType === 'disaggregated') {
+        var rc = parseInt(rackCount, 10) || 1;
+        if (rc < 1) rc = 1;
+        var maxPerRack = getDisaggMaxNodesPerRack(rc);
+        var opts = [];
+        for (var i = 1; i <= maxPerRack; i++) opts.push(i * rc);
+        return opts;
+    }
+    return [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+}
+
+// Decide whether a standard (HCI) cluster should be auto-upgraded to
+// disaggregated when the conservative node loop has reached the 16-node cap.
+// Only upgrades when the disaggregated recommendation genuinely exceeds 16 —
+// otherwise the same 16-node count is reachable on HCI and aggressive
+// memory/ratio scaling should be tried first (cheaper than adding a SAN).
+// Returns { upgrade: false } or { upgrade: true, racks, estimatedNodes }.
+function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
+    var HCI_MAX = 16;
+    var cur = parseInt(currentNodeCount, 10) || 0;
+    if (cur < HCI_MAX) return { upgrade: false };
+    var rec = parseInt(disaggRecommended, 10) || 0;
+    if (rec <= HCI_MAX) return { upgrade: false };
+    var racks = Math.min(4, Math.max(1, Math.ceil(rec / 16)));
+    return { upgrade: true, racks: racks, estimatedNodes: rec };
 }
 
 // Get the maximum node cap for the current cluster type
@@ -4144,6 +4305,92 @@ function readWorkloadGpuFields() {
     return result;
 }
 
+// Validate a workload object before it's added/saved. Returns null when the
+// workload is valid, or `{ code, message }` describing the problem so the
+// caller can surface it (the modal flow uses alert()).
+//
+// Factored as a pure-data helper (no DOM access) so unit tests can cover
+// every branch without mocking the workload modal.
+//
+// Current rules:
+//   - AKS Arc workloads with `gpuMode === 'dda'` MUST have an `aksGpuVmSize`
+//     selected. The "GPU VM Size" dropdown can legitimately end up empty when
+//     another workload has locked the cluster's GPU type to a model that has
+//     no AKS Arc VM SKUs (e.g. A100, A40, H100), or when the user simply
+//     forgot to pick one. Without this guard the worker-node sizing math
+//     downstream would silently use the default vCPU/memory values from the
+//     plain (non-GPU) AKS modal fields, mis-sizing the cluster.
+//   - Foundry Local / Edge RAG / Video Indexer all run on AKS Arc node pools,
+//     so when they use `gpuMode === 'dda'` the selected GPU model must be one
+//     that AKS Arc supports (i.e. has at least one entry in AKS_GPU_VM_SIZES).
+//     This catches the case where the GPU dropdown was filtered to zero items
+//     by a homogeneous-GPU lock from another workload.
+//   - Cross-workload homogeneous-GPU rule: an Azure Local cluster has one
+//     GPU model installed in its nodes — every GPU-using workload must use
+//     that same model. If the new workload's effective GPU type differs from
+//     any *other* GPU-using workload's type, save is blocked. Backstops the
+//     UI dropdown lock for the case where the AKS-supported filter removed
+//     the locked GPU from the dropdown (e.g. VM with H100 + Foundry trying
+//     to pick L40S would otherwise slip past the UI).
+function validateWorkloadBeforeSave(workload, otherWorkloads) {
+    if (!workload || typeof workload !== 'object') return null;
+    if (workload.type === 'aks' && workload.gpuMode === 'dda' && !workload.aksGpuVmSize) {
+        return {
+            code: 'aks-dda-missing-vm-size',
+            message:
+                'Please select a GPU VM Size for the AKS GPU worker nodes.\n\n' +
+                'AKS Arc requires a supported GPU VM SKU (for example Standard_NC16_L4_1) to run GPU-accelerated worker nodes via DDA. ' +
+                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100, A40, or H100) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.',
+        };
+    }
+    // Foundry / Edge RAG / Video Indexer all run on AKS Arc — their DDA GPU
+    // must be one that AKS Arc supports.
+    if (workload.type !== 'aks' && isAksHostedWorkloadType(workload.type) &&
+        workload.gpuMode === 'dda' && workload.gpuDdaModel) {
+        const aksSupported = getAksSupportedGpuKeys();
+        if (!aksSupported.has(workload.gpuDdaModel)) {
+            const model = GPU_MODELS[workload.gpuDdaModel];
+            const modelName = model ? model.name : workload.gpuDdaModel;
+            const wlName = workloadTypeDisplayName(workload.type);
+            return {
+                code: 'aks-hosted-dda-unsupported-gpu',
+                message:
+                    'The selected GPU (' + modelName + ') is not supported on AKS Arc.\n\n' +
+                    wlName + ' runs on AKS Arc node pools, which currently only support ' +
+                    'T4, A2, A16, L4, L40, L40S, and RTX Pro 6000 via DDA. ' +
+                    'Either select a different GPU model, or set this workload\'s GPU Mode to None.',
+            };
+        }
+    }
+    // Cross-workload homogeneous-GPU rule. Compare this workload's effective
+    // GPU type against any other workload that already has a GPU configured.
+    if (Array.isArray(otherWorkloads) && otherWorkloads.length > 0) {
+        const myGpu = getWorkloadGpuType(workload);
+        if (myGpu) {
+            for (const ow of otherWorkloads) {
+                const otherGpu = getWorkloadGpuType(ow);
+                if (otherGpu && otherGpu !== myGpu) {
+                    const myModel = GPU_MODELS[myGpu];
+                    const otherModel = GPU_MODELS[otherGpu];
+                    const myName = myModel ? myModel.name : myGpu;
+                    const otherName = otherModel ? otherModel.name : otherGpu;
+                    const otherWlName = workloadTypeDisplayName(ow.type) + (ow.name ? ' "' + ow.name + '"' : '');
+                    return {
+                        code: 'gpu-conflicts-with-locked-type',
+                        message:
+                            'GPU model conflict.\n\n' +
+                            'Another workload (' + otherWlName + ') is already using ' + otherName + ', ' +
+                            'but this workload is set to use ' + myName + '. ' +
+                            'An Azure Local cluster installs one GPU model in its nodes — every GPU-using workload must use the same model (homogeneous configuration).\n\n' +
+                            'Either change this workload\'s GPU to ' + otherName + ', or remove the existing ' + otherName + ' workload first.',
+                    };
+                }
+            }
+        }
+    }
+    return null;
+}
+
 function addWorkload() {
     if (!currentModalType) return;
     
@@ -4217,6 +4464,19 @@ function addWorkload() {
     // Read GPU requirements (common to all workload types)
     const gpuFields = readWorkloadGpuFields();
     Object.assign(workload, gpuFields);
+
+    // Pre-save validation (e.g. AKS+DDA requires a GPU VM size). Helper is
+    // pure-data so it's also covered by unit tests in tests/index.html.
+    // Pass other workloads (excluding the one being edited, if any) so the
+    // cross-workload homogeneous-GPU rule can detect conflicts.
+    const otherWorkloads = editingWorkloadId
+        ? workloads.filter(w => w.id !== editingWorkloadId)
+        : workloads;
+    const validationError = validateWorkloadBeforeSave(workload, otherWorkloads);
+    if (validationError) {
+        alert(validationError.message);
+        return;
+    }
 
     // Auto-enable GPUs in hardware config if workload requires them
     if (workload.gpuMode && workload.gpuMode !== 'none') {
@@ -4890,7 +5150,9 @@ function calculateRequirements(options) {
             // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
             if (clusterType !== 'single' && clusterType !== 'aldo-mgmt' && !skipAutoNodeRecommend) {
-                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : (clusterType === 'low-capacity' ? [1, 2, 3] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+                var disaggRackEl = document.getElementById('disagg-rack-count');
+                var disaggRackCountForOpts = disaggRackEl ? (parseInt(disaggRackEl.value, 10) || 1) : 1;
+                const nodeOptions = getConservativeNodeOptions(clusterType, disaggRackCountForOpts);
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
                 let attempts = 0;
@@ -4971,33 +5233,40 @@ function calculateRequirements(options) {
                 if (!conservativeSuccess) {
 
                 // --- Prefer disaggregated upgrade over aggressive memory/ratio escalation ---
-                // When we've hit 16-node max on a standard cluster, try adding more nodes
-                // via disaggregated BEFORE resorting to expensive 3-4 TB DIMMs or high ratios.
-                if (clusterType === 'standard' && !_disaggAutoUpgraded && nodeCount >= 16) {
+                // When we've hit the 16-node max on a standard cluster AND the disaggregated
+                // recommendation calls for more than 16 nodes, pivot to disaggregated before
+                // resorting to expensive 3-4 TB DIMMs or high ratios. If disaggregated would
+                // also land at ≤16 nodes, the SAN brings no extra capacity — stay HCI and let
+                // the aggressive memory/ratio escalation below fix the remaining utilisation.
+                if (clusterType === 'standard' && !_disaggAutoUpgraded) {
                     var disaggRec = getRecommendedNodeCount(
                         totalVcpus, totalMemory, totalStorage,
                         hwConfig, resiliencyMultiplier, resiliency, totalGpus
                     );
-                    var estimatedNodes = disaggRec ? Math.max(disaggRec.recommended, nodeCount) : nodeCount;
-                    var minRacks = Math.min(4, Math.max(1, Math.ceil(estimatedNodes / 16)));
+                    var upgradeDecision = shouldUpgradeToDisaggregated(
+                        nodeCount, disaggRec ? disaggRec.recommended : 0
+                    );
+                    if (upgradeDecision.upgrade) {
+                        var minRacks = upgradeDecision.racks;
 
-                    _disaggAutoUpgraded = true;
-                    document.getElementById('cluster-type').value = 'disaggregated';
-                    markAutoScaled('cluster-type');
-                    var rackEl = document.getElementById('disagg-rack-count');
-                    if (rackEl) rackEl.value = String(minRacks);
-                    updateNodeOptionsForClusterType();
-                    updateStorageForClusterType();
-                    updateResiliencyOptions();
-                    updateClusterInfo();
-                    updateDisaggregatedUI(true);
-                    _nodeCountUserSet = false;
+                        _disaggAutoUpgraded = true;
+                        document.getElementById('cluster-type').value = 'disaggregated';
+                        markAutoScaled('cluster-type');
+                        var rackEl = document.getElementById('disagg-rack-count');
+                        if (rackEl) rackEl.value = String(minRacks);
+                        updateNodeOptionsForClusterType();
+                        updateStorageForClusterType();
+                        updateResiliencyOptions();
+                        updateClusterInfo();
+                        updateDisaggregatedUI(true);
+                        _nodeCountUserSet = false;
 
-                    showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+                        showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
 
-                    isCalculating = false;
-                    calculateRequirements();
-                    return;
+                        isCalculating = false;
+                        calculateRequirements();
+                        return;
+                    }
                 }
 
                 const aggressiveChanged = autoScaleHardware(
