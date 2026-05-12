@@ -211,6 +211,24 @@ const AKS_GPU_VM_SIZES = {
     ]
 };
 
+// Workload types that run on AKS Arc node pools. These inherit AKS Arc's
+// supported-GPU constraints — they can only attach GPUs that AKS Arc itself
+// supports (i.e. GPUs that appear as keys in AKS_GPU_VM_SIZES). Foundry Local,
+// Edge RAG and Video Indexer all run on AKS Arc clusters; their DDA GPU model
+// list must therefore match AKS Arc, not the full Azure Local VM GPU list.
+const AKS_HOSTED_WORKLOAD_TYPES = new Set(['aks', 'foundry', 'edgerag', 'videoindexer']);
+
+function isAksHostedWorkloadType(workloadType) {
+    return AKS_HOSTED_WORKLOAD_TYPES.has(workloadType);
+}
+
+// Returns the set of GPU keys that AKS Arc supports (i.e. that have at least
+// one published AKS GPU VM SKU). Currently: t4, a2, a16, l4, l40, l40s,
+// rtxpro6000. NOT included: a40, a100, h100.
+function getAksSupportedGpuKeys() {
+    return new Set(Object.keys(AKS_GPU_VM_SIZES));
+}
+
 // GPU-P partition sizes (fraction of a physical GPU)
 // See: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation
 const GPU_PARTITION_PROFILES = [
@@ -626,6 +644,7 @@ function getGpuRequirementFields(workloadType) {
                 </label>
                 <select id="wl-gpu-dda-model" onchange="onDdaModelChange()">
                 </select>
+                <div id="wl-gpu-dda-info" class="hint" style="margin-top: 4px;"></div>
             </div>
             <div class="form-group">
                 <label id="wl-gpu-dda-label">${ddaLabel}
@@ -694,7 +713,12 @@ function toggleWorkloadGpuFields() {
     }
 }
 
-// Populate DDA GPU model dropdown (for VM/AVD, not AKS)
+// Populate DDA GPU model dropdown. Filters by workload type:
+//   - VM / AVD: any GPU with supportsAzureLocalVMs === true.
+//   - Foundry / Edge RAG / Video Indexer: AKS-hosted workloads, so the list
+//     is further restricted to GPUs that AKS Arc itself supports (those that
+//     have published AKS GPU VM SKUs in AKS_GPU_VM_SIZES). AKS itself doesn't
+//     use this dropdown — it has the dedicated `wl-gpu-aks-vm-size` selector.
 function populateDdaModels() {
     const modelSelect = document.getElementById('wl-gpu-dda-model');
     if (!modelSelect) return;
@@ -703,12 +727,40 @@ function populateDdaModels() {
     const lockedType = getLockedGpuType();
     const hwGpuTypeEl = document.getElementById('gpu-type');
     const hwGpuType = hwGpuTypeEl ? hwGpuTypeEl.value : '';
+    const restrictToAks = currentModalType && currentModalType !== 'aks' && isAksHostedWorkloadType(currentModalType);
+    const aksSupportedKeys = restrictToAks ? getAksSupportedGpuKeys() : null;
+    let optionsAdded = 0;
     for (const [key, model] of Object.entries(GPU_MODELS)) {
         if (!model.supportsAzureLocalVMs) continue;
+        if (restrictToAks && !aksSupportedKeys.has(key)) continue;
         const opt = document.createElement('option');
         opt.value = key;
         opt.textContent = `${model.name} (${model.vramGB} GB, max ${model.maxPerNode}/node)`;
         modelSelect.appendChild(opt);
+        optionsAdded++;
+    }
+    // Show a contextual hint about the AKS Arc restriction (and warn if a
+    // workload elsewhere has locked the cluster's GPU to a model that is NOT
+    // supported on AKS Arc — in that case the dropdown will be empty and the
+    // user needs to remediate before saving).
+    const infoEl = document.getElementById('wl-gpu-dda-info');
+    if (infoEl) {
+        if (restrictToAks && optionsAdded === 0 && lockedType) {
+            const lockedModel = GPU_MODELS[lockedType];
+            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            infoEl.innerHTML =
+                '<span style="color: var(--warning);"><strong>⚠ ' + lockedName +
+                ' is not supported on AKS Arc.</strong> Another workload selected ' + lockedName +
+                ', and ' + workloadTypeDisplayName(currentModalType) + ' runs on AKS Arc — which currently only supports ' +
+                'T4, A2, A16, L4, L40, L40S, and RTX Pro 6000. ' +
+                'Either change that workload\'s GPU model to an AKS-supported one, or set this workload\'s GPU Mode to None.</span>';
+        } else if (restrictToAks) {
+            infoEl.innerHTML =
+                '<em>Filtered to GPUs supported by AKS Arc — ' + workloadTypeDisplayName(currentModalType) +
+                ' runs on AKS Arc node pools.</em>';
+        } else {
+            infoEl.textContent = '';
+        }
     }
     // If locked, force to that type and disable
     if (lockedType && modelSelect.querySelector(`option[value="${lockedType}"]`)) {
@@ -723,6 +775,19 @@ function populateDdaModels() {
         } else if (hwGpuType && modelSelect.querySelector(`option[value="${hwGpuType}"]`)) {
             modelSelect.value = hwGpuType;
         }
+    }
+}
+
+// Human-readable name for a workload type (used in warning text).
+function workloadTypeDisplayName(t) {
+    switch (t) {
+        case 'aks': return 'AKS Arc';
+        case 'foundry': return 'Foundry Local';
+        case 'edgerag': return 'Edge RAG';
+        case 'videoindexer': return 'Video Indexer';
+        case 'vm': return 'VM';
+        case 'avd': return 'AVD';
+        default: return t || 'this workload';
     }
 }
 
@@ -4167,7 +4232,7 @@ function readWorkloadGpuFields() {
 }
 
 // Validate a workload object before it's added/saved. Returns null when the
-// workload is valid, or `{ message: string }` describing the problem so the
+// workload is valid, or `{ code, message }` describing the problem so the
 // caller can surface it (the modal flow uses alert()).
 //
 // Factored as a pure-data helper (no DOM access) so unit tests can cover
@@ -4181,6 +4246,11 @@ function readWorkloadGpuFields() {
 //     forgot to pick one. Without this guard the worker-node sizing math
 //     downstream would silently use the default vCPU/memory values from the
 //     plain (non-GPU) AKS modal fields, mis-sizing the cluster.
+//   - Foundry Local / Edge RAG / Video Indexer all run on AKS Arc node pools,
+//     so when they use `gpuMode === 'dda'` the selected GPU model must be one
+//     that AKS Arc supports (i.e. has at least one entry in AKS_GPU_VM_SIZES).
+//     This catches the case where the GPU dropdown was filtered to zero items
+//     by a homogeneous-GPU lock from another workload.
 function validateWorkloadBeforeSave(workload) {
     if (!workload || typeof workload !== 'object') return null;
     if (workload.type === 'aks' && workload.gpuMode === 'dda' && !workload.aksGpuVmSize) {
@@ -4191,6 +4261,25 @@ function validateWorkloadBeforeSave(workload) {
                 'AKS Arc requires a supported GPU VM SKU (for example Standard_NC16_L4_1) to run GPU-accelerated worker nodes via DDA. ' +
                 'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100, A40, or H100) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.',
         };
+    }
+    // Foundry / Edge RAG / Video Indexer all run on AKS Arc — their DDA GPU
+    // must be one that AKS Arc supports.
+    if (workload.type !== 'aks' && isAksHostedWorkloadType(workload.type) &&
+        workload.gpuMode === 'dda' && workload.gpuDdaModel) {
+        const aksSupported = getAksSupportedGpuKeys();
+        if (!aksSupported.has(workload.gpuDdaModel)) {
+            const model = GPU_MODELS[workload.gpuDdaModel];
+            const modelName = model ? model.name : workload.gpuDdaModel;
+            const wlName = workloadTypeDisplayName(workload.type);
+            return {
+                code: 'aks-hosted-dda-unsupported-gpu',
+                message:
+                    'The selected GPU (' + modelName + ') is not supported on AKS Arc.\n\n' +
+                    wlName + ' runs on AKS Arc node pools, which currently only support ' +
+                    'T4, A2, A16, L4, L40, L40S, and RTX Pro 6000 via DDA. ' +
+                    'Either select a different GPU model, or set this workload\'s GPU Mode to None.',
+            };
+        }
     }
     return null;
 }
