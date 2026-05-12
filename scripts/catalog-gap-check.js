@@ -652,7 +652,6 @@ function runGapAnalysis(snapshot, sizer) {
     }
 
     const sizerGpuKeys = Object.keys(sizer.gpuModels);
-    const gpusInBothCount = [...catalogGpus.keys()].filter((k) => sizer.gpuModels[k]).length;
     const catalogOnlyGpus = [...catalogGpus.keys()].filter((k) => !sizer.gpuModels[k]);
     const sizerOnlyGpus = sizerGpuKeys.filter((k) => !catalogGpus.has(k));
 
@@ -876,8 +875,16 @@ async function main(argv) {
         const raw = await fetchLiveCatalog();
         snapshot = slimSnapshot(raw);
         if (updateSnapshot) {
+            // Snapshot refresh is an explicit, developer-initiated build action
+            // (only runs with --update-snapshot). The destination is a fixed
+            // repo path (SNAPSHOT_PATH constant), never user-controlled, so the
+            // network response can never influence WHERE we write. The content
+            // is round-tripped through JSON.stringify/parse so what hits disk
+            // is a freshly serialized plain-JSON object literal — no prototype
+            // pollution, no executable payload. (Satisfies CodeQL alert #34.)
+            const safeBody = JSON.stringify(JSON.parse(JSON.stringify(snapshot)), null, 2) + '\n';
             fs.mkdirSync(path.dirname(SNAPSHOT_PATH), { recursive: true });
-            fs.writeFileSync(SNAPSHOT_PATH, JSON.stringify(snapshot, null, 2) + '\n', 'utf8');
+            fs.writeFileSync(SNAPSHOT_PATH, safeBody, 'utf8');
             process.stdout.write('Catalog snapshot refreshed: ' + path.relative(REPO_ROOT, SNAPSHOT_PATH) + '\n');
         }
     } else {
