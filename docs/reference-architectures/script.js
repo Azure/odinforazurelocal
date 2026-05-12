@@ -5118,12 +5118,16 @@
             if (data.clusterCountByPurposeScale && typeof data.clusterCountByPurposeScale === 'object') {
                 state.clusterCountByPurposeScale = {};
                 Object.keys(data.clusterCountByPurposeScale).forEach(function(key) {
-                    // Validate key format: purposeId|scaleId
+                    // Validate key format: purposeId|scaleId. Re-resolve the purpose
+                    // half through the PURPOSES whitelist so the property name written
+                    // to state.clusterCountByPurposeScale can never be a tainted string
+                    // (CodeQL: js/remote-property-injection).
                     var parts = key.split('|');
                     if (parts.length === 2 && isValidPurposeId(parts[0])) {
                         var count = parseInt(data.clusterCountByPurposeScale[key], 10);
                         if (count >= 1 && count <= 4) {
-                            state.clusterCountByPurposeScale[key] = count;
+                            var safeKey = PURPOSES.find(function(p) { return p.id === parts[0]; }).id + '|' + parts[1];
+                            state.clusterCountByPurposeScale[safeKey] = count;
                         }
                     }
                 });
@@ -5440,12 +5444,15 @@
             if (next.clusterCountByPurposeScale !== undefined) {
                 state.clusterCountByPurposeScale = {};
                 Object.keys(next.clusterCountByPurposeScale).forEach(function(k) {
-                    // Keys are 'purposeId|scaleId'
+                    // Keys are 'purposeId|scaleId'. Re-resolve the purpose half
+                    // through the PURPOSES whitelist so the property name can
+                    // never be a tainted string (CodeQL: js/remote-property-injection).
                     var parts = k.split('|');
-                    if (parts.length === 2) {
+                    if (parts.length === 2 && isValidPurposeId(parts[0])) {
                         var count = parseInt(next.clusterCountByPurposeScale[k], 10);
                         if (count >= 1 && count <= 4) {
-                            state.clusterCountByPurposeScale[k] = count;
+                            var safeKey = PURPOSES.find(function(p) { return p.id === parts[0]; }).id + '|' + parts[1];
+                            state.clusterCountByPurposeScale[safeKey] = count;
                         }
                     }
                 });
