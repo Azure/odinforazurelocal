@@ -116,10 +116,14 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
 
     // -- 2. Add 10x AKS Arc clusters ----------------------
     await annotate(page, 'Add AKS Arc workloads (10 clusters)');
-    // Select via the existing onclick="showAddWorkloadModal('aks')" attribute
-    // rather than text content, so the demo doesn't break if button copy
-    // changes (e.g. "AKS Arc Clusters" → "Arc-enabled AKS").
-    await page.locator("button.workload-type-btn[onclick*=\"'aks'\"]").first().click();
+    // Prefer the stable `data-workload-type` attribute (added v0.21.11). Fall
+    // back to a visible-text filter only if the attribute is missing in an
+    // older build, so the demo keeps working against earlier site versions.
+    let aksButton = page.locator("button.workload-type-btn[data-workload-type='aks']").first();
+    if (await aksButton.count() === 0) {
+        aksButton = page.locator('button.workload-type-btn').filter({ hasText: /aks|arc/i }).first();
+    }
+    await aksButton.click();
     await page.waitForTimeout(200);
     await page.locator('#aks-cluster-count').fill('10');
     await page.waitForTimeout(150);
@@ -128,7 +132,11 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
 
     // -- 3. Add 1000 Azure Local VMs ----------------------
     await annotate(page, 'Add 1,000 Azure Local VMs');
-    await page.locator("button.workload-type-btn[onclick*=\"'vm'\"]").first().click();
+    let vmButton = page.locator("button.workload-type-btn[data-workload-type='vm']").first();
+    if (await vmButton.count() === 0) {
+        vmButton = page.locator('button.workload-type-btn').filter({ hasText: /\bvm/i }).first();
+    }
+    await vmButton.click();
     await page.waitForTimeout(200);
     await page.locator('#vm-count').fill('1000');
     await page.waitForTimeout(150);
@@ -212,23 +220,17 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
     await annotate(page, 'Load example template - 64-Node Disaggregated');
     await page.getByRole('button', { name: /Load Example Configuration Template/i }).first().click();
     await page.waitForTimeout(350);
-    await page.evaluate(() => {
-        const cards = Array.from(document.querySelectorAll('div[onclick^="loadTemplate"]'));
-        const card = cards.find((el) => /64-Node Disaggregated/i.test(el.textContent || ''));
-        if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    });
+    // Locate the template card by its visible heading text, then click it
+    // through Playwright's normal interaction model. The card's existing
+    // onclick="loadTemplate(N)" handler is fired naturally by the click, so
+    // the demo doesn't need to reach into the page's globals.
+    const templateCard = page
+        .locator('div[onclick^="loadTemplate"]')
+        .filter({ hasText: /64-Node Disaggregated/i })
+        .first();
+    await templateCard.scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
-    // @ts-ignore - loadTemplate is a global defined in js/script.js
-    await page.evaluate(() => {
-        const cards = Array.from(document.querySelectorAll('div[onclick^="loadTemplate"]'));
-        const card = cards.find((el) => /64-Node Disaggregated/i.test(el.textContent || ''));
-        if (!card) throw new Error('Template "64-Node Disaggregated" not found');
-        const onclick = card.getAttribute('onclick') || '';
-        const match = onclick.match(/loadTemplate\((\d+)\)/);
-        if (!match) throw new Error('Unable to determine template index for "64-Node Disaggregated"');
-        const index = Number(match[1]);
-        window.loadTemplate(index);
-    });
+    await templateCard.click();
     await page.waitForTimeout(600);
 
     // -- 9. Scroll to the bottom to showcase the Generate / Validate button --
