@@ -32,12 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes **1,171 / 1,171**. The catalog gap report drops from **9 → 3** remaining items; all 3 are deliberate (see Notes).
+- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes **1,171 / 1,171**. The catalog gap report now reports **0 gaps** plus **3 known design exceptions** (memory-cap-4tb, capacity-drive-legacy-and-enterprise-skus, cache-drive-legacy-skus).
 
 ### Notes
 
-- **Memory ceiling intentionally held at 4 TB per node** even though the catalog now lists SKUs supporting up to 8 TB. The gap report will continue to flag this as `[memory-max]` — it's deliberate density / DIMM-cost steering inside the Sizer, not an oversight.
-- **Storage drive-size gap** — the catalog also lists minor enterprise SSD sizes (0.8 / 1.2 / 1.5 / 1.6 / 1.8 / 2.4 / 3.2 / 6 / 6.4 / 10 / 12.8 / 14 TB) and cache sizes (0.8 / 1.6 / 3.2 / 6.4 TB) that are not exposed in the Sizer. These are legacy or niche SKUs; the principal density choices (3.84 / 7.68 / 8 / 12 / 15.36 / 16 / 20 TB capacity; 3.84 / 7.68 / 12.8 TB cache) are now all covered.
+- **Memory ceiling intentionally held at 4 TB per node** even though the catalog now lists SKUs supporting up to 8 TB. The gap report classifies this as a **known design exception** (`id=memory-cap-4tb`) — deliberate density / DIMM-cost steering inside the Sizer, not an oversight. `--strict-catalog-gap` no longer trips on it.
+- **Storage drive-size design exceptions** — the catalog also lists minor enterprise SSD sizes (0.8 / 1.2 / 1.5 / 1.6 / 1.8 / 2.4 / 3.2 / 6 / 6.4 / 10 / 12.8 / 14 TB) and cache sizes (0.8 / 1.6 / 3.2 / 6.4 TB) that are not exposed in the Sizer. These are legacy or niche SKUs; the principal density choices (3.84 / 7.68 / 8 / 12 / 15.36 / 16 / 20 TB capacity; 3.84 / 7.68 / 12.8 TB cache) are now all covered. Classified as design exceptions `id=capacity-drive-legacy-and-enterprise-skus` and `id=cache-drive-legacy-skus`. Any **new** size outside the documented allowlist will surface as a real gap.
+- **Design-exception allowlist lives in [`scripts/catalog-gap-check.js`](scripts/catalog-gap-check.js)** (`KNOWN_DESIGN_EXCEPTIONS`). Each entry has a narrow `match(gap)` predicate plus a `reason:` string explaining why the deviation is intentional. The report now prints `RESULT: N gap(s) detected` for *real* gaps only and lists design exceptions in a separate "BY DESIGN" section.
 - **3D rack visualization (`sizer/rack3d.js`) unchanged.** Drive slot positions on the front face of each rack-unit remain illustrative; disk counts beyond the drawn slot count do not change the rendered geometry. Power and rack-space totals remain accurate.
 - **No new external network calls at runtime.** The catalog gap check runs only at build time via Node.js; the published site never calls the catalog API.
 

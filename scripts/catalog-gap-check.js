@@ -86,6 +86,93 @@ const CATALOG_REQUEST_BODY = {
 };
 
 // ----------------------------------------------------------------------------
+// Known design exceptions — Sizer-vs-catalog deviations that are DELIBERATE
+// ----------------------------------------------------------------------------
+//
+// Some catalog options are intentionally not exposed in the Sizer dropdowns.
+// Listing them here turns the gap-check into a real signal: the "gaps" list
+// only contains things a reviewer should look at, and the "design exceptions"
+// section documents the rationale for the ones we've already considered and
+// chosen to leave out.
+//
+// Each entry has a `match(gap)` predicate; if it returns true, the gap is
+// moved out of `result.gaps` and into `result.designExceptions` (and so
+// `--strict-catalog-gap` will no longer fail the build on these).
+//
+// The predicates are intentionally NARROW: if the catalog ever publishes a
+// *new* small drive size, or pushes memory past the documented ceiling, the
+// predicate will not match the enlarged list and the new deviation will show
+// up as a regular gap for review.
+// ----------------------------------------------------------------------------
+
+const LEGACY_CAPACITY_DRIVE_SIZES_TB = new Set([
+    0.8, 1.2, 1.5, 1.6, 1.8, 2.4, 3.2, 6, 6.4, 10, 12.8, 14,
+]);
+const LEGACY_CACHE_DRIVE_SIZES_TB = new Set([0.8, 1.6, 3.2, 6.4]);
+
+const KNOWN_DESIGN_EXCEPTIONS = [
+    {
+        id: 'memory-cap-4tb',
+        category: 'memory-max',
+        match: (g) => g.category === 'memory-max' &&
+            typeof g.catalogMaxGB === 'number' && g.catalogMaxGB <= 8192 &&
+            typeof g.sizerMaxGB === 'number' && g.sizerMaxGB === 4096,
+        reason:
+            'Sizer intentionally caps per-node memory at 4 TB (4096 GB). Some OEM ' +
+            'catalog SKUs advertise up to 8 TB but the Sizer\'s standard sizing ' +
+            'envelope stops at 4 TB; adding 6 TB / 8 TB options would imply support ' +
+            'beyond the documented Azure Local guidance. Revisit if Microsoft ' +
+            'publishes guidance to extend the supported memory ceiling.',
+    },
+    {
+        id: 'capacity-drive-legacy-and-enterprise-skus',
+        category: 'storage-capacity-sizes',
+        match: (g) => g.category === 'storage-capacity-sizes' &&
+            Array.isArray(g.missingSizesTB) && g.missingSizesTB.length > 0 &&
+            g.missingSizesTB.every((tb) => LEGACY_CAPACITY_DRIVE_SIZES_TB.has(tb)),
+        reason:
+            'Small (<3.84 TB) and odd enterprise capacity SKUs in the OEM catalog ' +
+            'are deliberately not surfaced in the Sizer. The Sizer offers a curated ' +
+            'set (0.96, 1.92, 3.84, 5.68, 7.68, 8, 12, 15.36, 16, 20 TB) covering ' +
+            'common Azure Local deployment shapes; full OEM SKU breadth lives in ' +
+            'the catalog itself. A NEW size outside this allowlist will surface as ' +
+            'a regular gap.',
+    },
+    {
+        id: 'cache-drive-legacy-skus',
+        category: 'storage-cache-sizes',
+        match: (g) => g.category === 'storage-cache-sizes' &&
+            Array.isArray(g.missingSizesTB) && g.missingSizesTB.length > 0 &&
+            g.missingSizesTB.every((tb) => LEGACY_CACHE_DRIVE_SIZES_TB.has(tb)),
+        reason:
+            'Legacy small cache SKUs (<7.68 TB) in the OEM catalog are deliberately ' +
+            'not surfaced in the Sizer. Sizer offers 0.96–15.36 TB cache choices ' +
+            'aligned with current AI / VM / AKS deployment guidance. A NEW small ' +
+            'cache size outside this allowlist will surface as a regular gap.',
+    },
+];
+
+function partitionDesignExceptions(gaps) {
+    const remaining = [];
+    const designExceptions = [];
+    gaps.forEach((g) => {
+        const hit = KNOWN_DESIGN_EXCEPTIONS.find((d) => d.match(g));
+        if (hit) {
+            designExceptions.push({
+                id: hit.id,
+                category: g.category,
+                severity: g.severity,
+                detail: g.detail,
+                reason: hit.reason,
+            });
+        } else {
+            remaining.push(g);
+        }
+    });
+    return { gaps: remaining, designExceptions };
+}
+
+// ----------------------------------------------------------------------------
 // Sizer constant extraction
 // ----------------------------------------------------------------------------
 
@@ -532,6 +619,8 @@ function runGapAnalysis(snapshot, sizer) {
             category: 'memory-max',
             severity: 'medium',
             detail: 'Catalog max memory per node ' + memoryFinding.catalogMaxGB + ' GB exceeds Sizer max ' + sizerMaxMemGB + ' GB',
+            catalogMaxGB: memoryFinding.catalogMaxGB,
+            sizerMaxGB: sizerMaxMemGB,
         });
     }
 
@@ -622,6 +711,7 @@ function runGapAnalysis(snapshot, sizer) {
             category: 'storage-capacity-sizes',
             severity: 'low',
             detail: 'Capacity drive sizes in catalog not in Sizer: [' + capSizesMissing.join(', ') + '] TB',
+            missingSizesTB: capSizesMissing.slice(),
         });
     }
     if (cacheSizesMissing.length) {
@@ -629,6 +719,7 @@ function runGapAnalysis(snapshot, sizer) {
             category: 'storage-cache-sizes',
             severity: 'low',
             detail: 'Cache drive sizes in catalog not in Sizer: [' + cacheSizesMissing.join(', ') + '] TB',
+            missingSizesTB: cacheSizesMissing.slice(),
         });
     }
 
@@ -729,7 +820,13 @@ function runGapAnalysis(snapshot, sizer) {
         platformCount: snapshot.platforms.length,
         configurationCount: snapshot.platforms.reduce((s, p) => s + p.configurations.length, 0),
         cpuGapsByFamily,
-        gaps,
+        // Filter out gaps that match a documented design exception. Both lists
+        // are exposed on the result so reports can show "real" gaps separately
+        // from "things we've already considered and chosen to leave out".
+        ...(function partitionGaps() {
+            const { gaps: remainingGaps, designExceptions } = partitionDesignExceptions(gaps);
+            return { gaps: remainingGaps, designExceptions };
+        }()),
         findings,
     };
 }
@@ -841,17 +938,34 @@ function formatReport(result) {
     }
 
     // Gap summary
+    const designExceptions = result.designExceptions || [];
     out.push('  ────────────────────────────────────────────────────────────────');
     if (result.gaps.length === 0) {
-        out.push('  RESULT: No gaps detected — Sizer options cover the catalog surface.');
+        if (designExceptions.length === 0) {
+            out.push('  RESULT: No gaps detected — Sizer options cover the catalog surface.');
+        } else {
+            out.push('  RESULT: No new gaps detected — ' + designExceptions.length +
+                ' known design exception(s) (see below, all by design).');
+        }
     } else {
-        const byCat = {};
-        result.gaps.forEach((g) => { byCat[g.category] = (byCat[g.category] || 0) + 1; });
-        out.push('  RESULT: ' + result.gaps.length + ' gap(s) detected.');
+        out.push('  RESULT: ' + result.gaps.length + ' gap(s) detected' +
+            (designExceptions.length ? ' (plus ' + designExceptions.length + ' known design exception(s) below).' : '.'));
         out.push('  ────────────────────────────────────────────────────────────────');
         result.gaps.forEach((g, i) => {
             out.push('    [' + (i + 1) + '] (' + g.severity + ') [' + g.category + ']');
             g.detail.split('\n').forEach((l) => out.push('        ' + l));
+        });
+    }
+
+    // Known design exceptions — intentional Sizer-vs-catalog deviations
+    if (designExceptions.length) {
+        out.push('  ────────────────────────────────────────────────────────────────');
+        out.push('  Known design exceptions (BY DESIGN — not counted as gaps)');
+        out.push('  ────────────────────────────────────────────────────────────────');
+        designExceptions.forEach((d, i) => {
+            out.push('    [' + (i + 1) + '] [' + d.category + ']  id=' + d.id);
+            d.detail.split('\n').forEach((l) => out.push('        ' + l));
+            out.push('        reason: ' + d.reason);
         });
     }
     out.push(sep);
