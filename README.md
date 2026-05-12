@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.09 - Available here: https://aka.ms/ODIN
+## Version 0.21.10 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,16 +46,22 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.09 - Latest Release
+### 🎉 Version 0.21.10 - Latest Release
 
-> **Bug fix.** Resolves [issue #222](https://github.com/Azure/odinforazurelocal/issues/222) — the SAN Volume LUN ID inputs on Step 16 ("Storage Pool Configuration") were shown whenever **InfraOnly** was selected, regardless of architecture. They are only meaningful for the **Disaggregated (create-cluster-san)** ARM template; for **Hyperconverged** deployments they could not be filled in correctly and misled users into thinking they had to enter SAN details before continuing the wizard.
+> **Sovereign Private Clouds Reference Architectures — visual polish + PPT export improvements.** A focused release on the Knowledge tab's reference-architectures page and its PowerPoint export. The on-screen SVG diagram now aligns strict-vs-logical tenant headers identically, groups SAN-using clusters contiguously inside each band so the SAN cylinder visually anchors them, and shows the official Microsoft 365 logo (vector) for the M365 Local purpose. The PPT export gets shorter scale labels with auto-shrink fonts so long combinations no longer overflow, and a new per-purpose **Scale** panel that lists every selected scale with its full title + description.
 
-**Fixed**
-- **Designer · Step 16 — SAN LUN ID section now gated on architecture only.** The two SAN LUN ID inputs (`Infrastructure_1 Volume SAN LUN ID` and `Cluster Performance History Volume SAN LUN ID`) are now hidden whenever `state.architecture !== 'disaggregated'`. HCI clusters have no SAN array, so the inputs are hidden for **all three** HCI storage-pool choices (*Express*, *InfraOnly*, *KeepStorage*) — users can pick any option and proceed without entering LUN IDs. Disaggregated deployments still require both LUN IDs (gated by `getArmReadiness()` before Generate ARM).
-- **No state changes.** `state.infraVolLunId` / `state.infraPerfLunId` continue to be reset when the architecture switches away from Disaggregated. ARM generation, validation (`validateSanLunInputs()`), and the Generate-ARM readiness check were already architecture-gated — the bug was purely in the DOM visibility step (`syncStoragePoolUi()`).
+**Reference Architectures page**
+- **Tenant header alignment unified.** Strict and Logical isolation cards now use the same vertical layout — a small uppercase label (`TENANT — STRICT ISOLATION` / `TENANTS — LOGICAL ISOLATION`) sitting above a dashed-border group that wraps the tenant chips. Strict tenancy synthesizes a single chip from `tenantBadge` so workload areas align byte-for-byte across cards in the same row, regardless of which tenancy was picked. The dashed border no longer overlaps the label.
+- **SAN-using clusters grouped together.** Within each band, a stable sort moves SAN-using clusters (cluster-64, cluster-128, plus single-node / cluster-16 clusters where the user chose `SAN` or `S2D + SAN`) to the left so they sit adjacent to each other and the SAN cylinder is centered across only the SAN-using cards. The Control Plane Appliance card stays pinned to position 0 on disconnected bands.
+- **M365 Local switched to the official Microsoft 365 SVG logo.** Replaces the older Exchange/SharePoint/Skype trio with the official Microsoft 365 (2022) logo (public-domain SVG sourced from Wikimedia Commons, `docs/reference-architectures/icons/sovereign-m365.svg`) — now used on both the on-screen purpose card / footer chip and the PPT hero card.
+- **"RECOMMENDED" badge removed from connectivity options.** The green pill no longer appears on any connectivity card; the `recommendedConnectivity` data field is retained for body copy but no longer drives a visual badge.
 
-**Tests**
-- New unit test in [`tests/index.html`](tests/index.html) covers all four `(architecture × storagePoolConfiguration)` combinations to lock the visibility behaviour. ESLint clean; all 1,160 unit tests pass.
+**PowerPoint export**
+- **Overview slide ("Your selections") — long scale labels now fit.** New compact label set (`Single Node`, `Rack-Aware (2-8)`, `16 nodes`, `64 nodes`, `128 nodes`, `M365 Small`, `M365 Large`) replaces the long titles inside the Scale pill. The pill is widened (3.5″ → 4.55″), and a new `pillFontSize()` helper auto-shrinks the font down to 7 pt if a particular combination still doesn't fit, so multi-scale rows like `64 nodes + 16 nodes + Rack-Aware (2-8)` always render on a single line.
+- **Per-purpose slide — new Scale panel with descriptions.** The "Your configuration" area was restructured: compact `TENANCY` and `STORAGE` tiles stack on the left, and a wide `SCALE` panel on the right lists every selected scale on its own row — bold title (e.g. `Azure Local Cluster up to 16 nodes`) followed by the scale's official description (e.g. *"Standard Azure Local cluster — 2 to 16 nodes in a single rack."*). Font sizes inside the panel scale gracefully (1 scale → 14 / 11 pt, 2 scales → 13 / 10 pt, 3 scales → 11 / 9 pt) so all combinations fit in the 1.95″ panel.
+
+**Tests & quality**
+- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes (1,160 / 1,160). Smoke test (`node scripts/smoke-test-pptx.js`) confirms the new builder still produces a valid PPTX.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -378,7 +384,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.09  
+**Version**: 0.21.10  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -393,6 +399,14 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.09 - Designer Step 16: SAN LUN ID inputs hidden for HCI deployments (issue #222)
+
+> **Bug fix.** Resolves [issue #222](https://github.com/Azure/odinforazurelocal/issues/222) — the SAN Volume LUN ID inputs on Step 16 ("Storage Pool Configuration") were shown whenever **InfraOnly** was selected, regardless of architecture. They are only meaningful for the **Disaggregated (create-cluster-san)** ARM template; for **Hyperconverged** deployments they could not be filled in correctly and misled users into thinking they had to enter SAN details before continuing the wizard.
+
+- **Designer · Step 16 — SAN LUN ID section now gated on architecture only.** The two SAN LUN ID inputs (`Infrastructure_1 Volume SAN LUN ID` and `Cluster Performance History Volume SAN LUN ID`) are now hidden whenever `state.architecture !== 'disaggregated'`. HCI clusters have no SAN array, so the inputs are hidden for all three HCI storage-pool choices (*Express*, *InfraOnly*, *KeepStorage*). Disaggregated deployments still require both LUN IDs (gated by `getArmReadiness()` before Generate ARM).
+- **No state-machine changes.** `state.infraVolLunId` / `state.infraPerfLunId` continue to be reset when the architecture switches away from Disaggregated. ARM generation, validation (`validateSanLunInputs()`), and the Generate-ARM readiness check were already architecture-gated — the bug was purely in the DOM visibility step (`syncStoragePoolUi()`).
+- New unit test in [`tests/index.html`](tests/index.html) covers all four `(architecture × storagePoolConfiguration)` combinations to lock the visibility behaviour. ESLint clean; all 1,160 unit tests pass.
 
 #### 0.21.08 - Security maintenance — `fast-uri` pinned to ≥ 3.1.2
 

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.10] - 2026-05-12
+
+Polish release for the **Microsoft Sovereign Private Clouds reference architectures** page (Knowledge tab) and its PowerPoint export. The on-screen SVG diagram now aligns strict-vs-logical tenant headers identically, groups SAN-using clusters contiguously inside each band so the SAN cylinder visually anchors them, and shows the official Microsoft 365 logo (vector) for the M365 Local purpose. The PPT export gets shorter scale labels with auto-shrink fonts so long combinations no longer overflow the Scale pill, plus a new per-purpose **Scale** panel that lists every selected scale with its full title + description so multi-scale architectures are properly explained in the deck.
+
+### Added
+
+- **`docs/reference-architectures/icons/sovereign-m365.svg`** — the official Microsoft 365 (2022) logo (public-domain SVG, sourced from [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Microsoft_365_(2022).svg)). Used by both the on-screen purpose card / footer chip and the PPT hero card / overview-slide row card. Replaces the older Exchange/SharePoint/Skype trio that was previously stacked into the M365 Local card.
+- **`docs/reference-architectures/script.js` — `SHORT_SCALE_LABEL` map + `shortScaleLabel(id, opt)` helper.** Compact label set used inside the overview slide's Scale pill: `Single Node`, `Rack-Aware (2-8)`, `16 nodes`, `64 nodes`, `128 nodes`, `M365 Small`, `M365 Large` (instead of the long `Azure Local Cluster up to 64 nodes` titles, which would not fit in the pill when joined together with `+`).
+- **`docs/reference-architectures/script.js` — `pillFontSize(label, widthIn, baseSz)` helper.** Estimates the largest font size at which a single-line label fits inside a pill of the given width using Segoe UI bold metrics, and floors at 7 pt so text never disappears. Applied to both the Scale and Storage pills on the overview slide.
+- **`docs/reference-architectures/script.js` — per-purpose Scale panel.** Replaces the old equal-width 3-stat row with a wider layout: compact `TENANCY` + `STORAGE` tiles stacked on the left (4″ wide each, half-height), and a wide `SCALE` panel on the right (~8.4″ × 1.95″) that lists every selected scale on its own row — bold title (e.g. `Azure Local Cluster up to 16 nodes`) followed by the scale's official description (e.g. *"Standard Azure Local cluster — 2 to 16 nodes in a single rack."*). Font sizes scale gracefully (1 scale → 14 / 11 pt, 2 scales → 13 / 10 pt, 3 scales → 11 / 9 pt) so all combinations fit the panel.
+
+### Changed
+
+- **`docs/reference-architectures/script.js` — strict + logical tenant headers unified.** Both tenancy modes now render with the same vertical layout: a small uppercase label (`TENANT — STRICT ISOLATION` / `TENANTS — LOGICAL ISOLATION`) sitting above a dashed-border group that wraps the tenant chip(s). Strict tenancy synthesizes a single chip from `tenantBadge` so the rendering path is shared. New `TENANT_HEADER_H = 60` constant in `renderWorkloadCard()` and matching `tenantLabelBlock + tenantChipsBlock = 60` in `measureCardHeight()` guarantee workload areas align byte-for-byte across cards in the same row, regardless of which tenancy was picked. The dashed border no longer overlaps the label (`groupY = workloadY` instead of the previous `workloadY - groupPad`).
+- **`docs/reference-architectures/script.js` — SAN-using clusters grouped together inside each band.** New stable decorate-sort-undecorate pass in `buildSvg()` moves SAN-using clusters (cluster-64, cluster-128, plus single-node / cluster-16 clusters where the user chose `SAN` or `S2D + SAN`) to the left of each band so they sit adjacent to each other, and the SAN cylinder is centered across only those cards (using `sanFirstIdx` / `sanLastIdx`). The Control Plane Appliance card stays pinned to position 0 on disconnected bands.
+- **`docs/reference-architectures/script.js` + `index.html` — "RECOMMENDED" badge removed from connectivity options.** The connectivity grid no longer paints the green "RECOMMENDED" pill on any card. The `recommendedConnectivity` data field is retained in `PURPOSES` because it's still referenced in some body copy, but never drives a visual badge. The helper sentence under the connectivity heading has been trimmed to remove the now-stale "*The recommended option for the selected purpose is highlighted.*"
+- **`docs/reference-architectures/script.js` — overview slide ("Your selections") pill widths rebalanced.** Tenancy pill 1.5″ → 1.2″, Scale pill 3.5″ → 4.55″ (with auto-shrink via `pillFontSize`), Storage pill 2.65″ → 2.4″ (also auto-shrinking). Long combinations like `64 nodes + 16 nodes + Rack-Aware (2-8)` for GitHub Enterprise Local now render on a single line without wrapping or overflowing the pill.
+- **`docs/reference-architectures/script.js` — `PURPOSE_ICON_FILE.m365-local`** switched from `icons/sovereign-m365-exchange.png` (a single icon picked from the trio) to the new official `icons/sovereign-m365.svg`. The shared `loadIconAsPng()` rasterizer already handles SVG via `<img>`, so no PPT export pipeline change was needed.
+- **`docs/reference-architectures/script.js` — `m365-local` purpose `iconFiles` → single `iconFile`.** The on-screen purpose card and footer chip now show the same single Microsoft 365 vector logo used in the PPT export, instead of the trio of Exchange / SharePoint / Skype PNGs.
+
+### Removed
+
+- **`scaleLabel` local in `buildPurposeSlideXml()`** — was only used by the now-replaced 3-stat row; the new Scale panel iterates over the raw `scales` array and looks up each `scaleOpts` entry directly, so the joined-string variable is no longer needed.
+
+### Tests
+
+- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean. Full test suite passes (1,160 / 1,160). Smoke test (`node scripts/smoke-test-pptx.js`) confirms the new builder still produces a valid PPTX.
+
+### Notes
+
+- No new external network calls. No new runtime dependencies. The Microsoft 365 logo SVG is bundled in the repo (the brand file is already public-domain via the Wikimedia Commons rationale `{{PD-textlogo}} + {{Trademark}}`); no runtime fetch from `upload.wikimedia.org`. Designer, Sizer, Switch Configuration generator, ARM templates and Configuration Report PPTX export are unchanged in this release.
+
+---
+
 ## [0.21.09] - 2026-05-12
 
 Bug fix release. Resolves [issue #222](https://github.com/Azure/odinforazurelocal/issues/222) — the SAN Volume LUN ID inputs on Step 16 ("Storage Pool Configuration") were shown for any deployment that selected **InfraOnly**, including Hyperconverged. Those inputs are only meaningful for the **Disaggregated (create-cluster-san)** ARM template, so they would never be valid for an HCI cluster (which has no SAN array). Showing them mislead users into thinking the LUN IDs were required to proceed.
