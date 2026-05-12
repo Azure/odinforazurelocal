@@ -22,7 +22,7 @@
         },
         {
             id: 'm365-local',
-            iconFiles: ['icons/sovereign-m365-exchange.png', 'icons/sovereign-m365-sharepoint.png', 'icons/sovereign-m365-skype.png'],
+            iconFile: 'icons/sovereign-m365.svg',
             title: 'Microsoft 365 Local',
             subtitle: 'on Azure Local',
             desc: 'Run Microsoft productivity server workloads on secure, on-premises infrastructure that meets local regulatory requirements. Deploy and operate with confidence through a partner-led deployment based on validated reference architecture.',
@@ -30,8 +30,8 @@
             recommendedScale: 'm365-large',
             // M365 Local has its own scale options (see SPC L300 deck slides 66-68).
             scaleOptionsOverride: [
-                { id: 'm365-small', iconFiles: ['icons/sovereign-m365-exchange.png', 'icons/sovereign-m365-sharepoint.png', 'icons/sovereign-m365-skype.png'], sizeBadge: 'S', title: 'M365 Local — Small-Scale', desc: 'Single 3-node Azure Local cluster hosting Active Directory, Firewall, Load Balancer, and the M365 Local workload servers.' },
-                { id: 'm365-large', iconFiles: ['icons/sovereign-m365-exchange.png', 'icons/sovereign-m365-sharepoint.png', 'icons/sovereign-m365-skype.png'], sizeBadge: 'L', title: 'M365 Local — Large-Scale', desc: 'Multi-cluster M365 Local deployment with dedicated clusters for Exchange mailbox, Exchange Edge Transport, SharePoint/Skype/SQL, AD, Firewall, and Load Balancer.' }
+                { id: 'm365-small', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: 'S', title: 'M365 Local — Small-Scale', desc: 'Single 3-node Azure Local cluster hosting Active Directory, Firewall, Load Balancer, and the M365 Local workload servers.' },
+                { id: 'm365-large', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: 'L', title: 'M365 Local — Large-Scale', desc: 'Multi-cluster M365 Local deployment with dedicated clusters for Exchange mailbox, Exchange Edge Transport, SharePoint/Skype/SQL, AD, Firewall, and Load Balancer.' }
             ],
             // M365 Local supports strict isolation only — no logical isolation option.
             tenancyOptionsOverride: ['strict']
@@ -53,7 +53,13 @@
             subtitle: 'on Azure Local',
             desc: 'Run a fully cloud-managed VDI experience on-premises, keeping desktops and data local while using the familiar Azure control plane. Benefit from cloud consistency with on-prem performance, sovereignty, and low latency.',
             recommendedConnectivity: 'connected',
-            recommendedScale: 'cluster-16'
+            recommendedScale: 'cluster-16',
+            // AVD is not supported at 128-node scale
+            scaleOptionsOverride: [
+                { id: 'single-node', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '1', title: 'Azure Local Single Node', desc: 'A single-server Azure Local deployment for the smallest edge footprints.' },
+                { id: 'cluster-16', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '16', title: 'Azure Local Cluster up to 16 nodes', desc: 'Standard Azure Local cluster — 2 to 16 nodes in a single rack.' },
+                { id: 'cluster-64', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '64', title: 'Azure Local Cluster up to 64 nodes', desc: 'Multi-rack Azure Local cluster scaled up to 64 nodes.' }
+            ]
         },
         {
             id: 'foundry-local',
@@ -90,9 +96,10 @@
 
     const SCALE = [
         { id: 'single-node', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '1', title: 'Azure Local Single Node', desc: 'A single-server Azure Local deployment for the smallest edge footprints.' },
+        { id: 'rack-aware', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '2–8', title: 'Rack-Aware Cluster (2–8 nodes)', desc: 'Stretch cluster across two racks with S2D storage replication for high availability. Supports 2, 4, 6, or 8 nodes split evenly between racks.' },
         { id: 'cluster-16', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '16', title: 'Azure Local Cluster up to 16 nodes', desc: 'Standard Azure Local cluster — 2 to 16 nodes in a single rack.' },
         { id: 'cluster-64', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '64', title: 'Azure Local Cluster up to 64 nodes', desc: 'Multi-rack Azure Local cluster scaled up to 64 nodes.' },
-        { id: 'cluster-128', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '128', title: 'Azure Local Cluster up to 128 nodes', desc: 'Largest Azure Local footprint — up to 128 nodes across multiple racks.', comingSoon: true }
+        { id: 'cluster-128', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: '128', title: 'Azure Local Cluster up to 128 nodes', desc: 'Largest Azure Local footprint — up to 128 nodes across multiple racks.' }
     ];
 
     // Each template defines clusters (rendered as cards in the "Distributed location" band)
@@ -263,7 +270,7 @@
                 {
                     name: 'AVD Session Host Cluster',
                     nodes: 4,
-                    workloads: ['AVD session hosts', 'FSLogix profiles', 'AVD VMs']
+                    workloads: ['AVD session hosts', 'FSLogix profiles']
                 }
             ],
             notes: [
@@ -336,9 +343,13 @@
         tenancyByPurpose: {},
         // Per-purpose scale (multi-select per purpose): { [purposeId]: ['cluster-16', ...] }.
         scaleByPurpose: {},
-        // Per-purpose storage choice for cluster-16 scale: 'local' (S2D) | 'san' | 'both'.
-        // Defaults to 'local' when unset. Only meaningful when cluster-16 is selected.
-        storageByPurpose: {}
+        // Per-purpose-per-scale storage choice: 'local' (S2D) | 'san' | 'both'.
+        // Keyed by 'purposeId|scaleId'. Defaults to 'local' when unset.
+        // Only meaningful for single-node and cluster-16 (other scales are constrained).
+        storageByPurposeScale: {},
+        // Per-purpose-scale cluster count: { [purposeId + '|' + scaleId]: 1..4 }.
+        // Defaults to 1 when unset.
+        clusterCountByPurposeScale: {}
     };
 
     // Whitelist of purpose ids derived from the static PURPOSES table.
@@ -373,9 +384,16 @@
         return Array.isArray(arr) ? arr.slice() : [];
     }
 
-    // Storage choice for a purpose when cluster-16 is in play. Defaults to 'local'.
-    function getStorageFor(purposeId) {
-        return state.storageByPurpose[purposeId] || 'local';
+    // Storage choice for a purpose+scale combination. Defaults to 'local'.
+    function getStorageFor(purposeId, scaleId) {
+        var key = purposeId + '|' + scaleId;
+        return state.storageByPurposeScale[key] || 'local';
+    }
+
+    // Cluster count for a purpose + scale combination. Defaults to 1.
+    function getClusterCountFor(purposeId, scaleId) {
+        var key = purposeId + '|' + scaleId;
+        return state.clusterCountByPurposeScale[key] || 1;
     }
 
     // Scale options available for a purpose. Returns the purpose's override list
@@ -498,7 +516,17 @@
             state.purposes.splice(idx, 1);
             delete state.tenancyByPurpose[purposeId];
             delete state.scaleByPurpose[purposeId];
-            delete state.storageByPurpose[purposeId];
+            // Clean up all per-scale storage and cluster-count entries for this purpose.
+            Object.keys(state.storageByPurposeScale).forEach(function(key) {
+                if (key.indexOf(purposeId + '|') === 0) {
+                    delete state.storageByPurposeScale[key];
+                }
+            });
+            Object.keys(state.clusterCountByPurposeScale).forEach(function(key) {
+                if (key.indexOf(purposeId + '|') === 0) {
+                    delete state.clusterCountByPurposeScale[key];
+                }
+            });
         } else {
             state.purposes.push(purposeId);
             // M365 Local supports strict isolation only — auto-pick it so step 4
@@ -861,20 +889,23 @@
 
             card.appendChild(toggles);
 
+            // Compute which purposes are actually using this scale (for storage + cluster count UI).
+            var purposesUsingThis = purposesAllowing.filter(function(p) {
+                return getScalesFor(p.id).indexOf(item.id) >= 0;
+            });
+
             // Storage selector — shown on every Azure Local scale card so the
             // diagram makes the storage choice explicit. Single-node and cluster-16
             // allow S2D / SAN / Both. Cluster-64 and cluster-128 only support SAN
             // (Storage Spaces Direct does not scale beyond 16 nodes), so the SAN
             // option is shown selected and the others are disabled. M365 Local
-            // small/large scales are S2D-only (validated reference architectures).
+            // small/large scales and rack-aware are S2D-only.
             if (item.id === 'cluster-16' || item.id === 'single-node'
                 || item.id === 'cluster-64' || item.id === 'cluster-128'
-                || item.id === 'm365-small' || item.id === 'm365-large') {
+                || item.id === 'm365-small' || item.id === 'm365-large'
+                || item.id === 'rack-aware') {
                 const sanOnly = (item.id === 'cluster-64' || item.id === 'cluster-128');
-                const s2dOnly = (item.id === 'm365-small' || item.id === 'm365-large');
-                const purposesUsingThis = purposesAllowing.filter(function(p) {
-                    return getScalesFor(p.id).indexOf(item.id) >= 0;
-                });
+                const s2dOnly = (item.id === 'm365-small' || item.id === 'm365-large' || item.id === 'rack-aware');
                 if (purposesUsingThis.length) {
                     const storageWrap = document.createElement('div');
                     storageWrap.className = 'scale-storage-wrap';
@@ -900,7 +931,7 @@
                         } else if (s2dOnly) {
                             cur = 'local';
                         } else {
-                            cur = getStorageFor(p.id);
+                            cur = getStorageFor(p.id, item.id);
                         }
                         [
                             { id: 'local', label: 'S2D (local)' },
@@ -924,7 +955,7 @@
                             chip.addEventListener('click', function(ev) {
                                 ev.stopPropagation();
                                 if (isDisabled) { return; }
-                                state.storageByPurpose[p.id] = opt.id;
+                                state.storageByPurposeScale[p.id + '|' + item.id] = opt.id;
                                 renderScalePerPurpose();
                                 updatePreview();
                             });
@@ -934,6 +965,49 @@
                     });
                     card.appendChild(storageWrap);
                 }
+            }
+
+            // Cluster count selector — lets users choose how many clusters of this
+            // scale to show in the diagram (1 to 4).
+            // Exclude M365 Local purposes — they have a fixed cluster layout.
+            var purposesForClusterCount = purposesUsingThis.filter(function(p) {
+                return p.id !== 'm365-small' && p.id !== 'm365-large';
+            });
+            if (purposesForClusterCount.length) {
+                var clusterCountWrap = document.createElement('div');
+                clusterCountWrap.className = 'scale-cluster-count-wrap';
+                var countHeading = document.createElement('div');
+                countHeading.className = 'scale-storage-heading';
+                countHeading.textContent = 'Number of Clusters';
+                clusterCountWrap.appendChild(countHeading);
+                purposesForClusterCount.forEach(function(p) {
+                    var countRow = document.createElement('div');
+                    countRow.className = 'scale-storage-row';
+                    var countLbl = document.createElement('span');
+                    countLbl.className = 'scale-storage-purpose-label';
+                    countLbl.innerHTML = buildPurposeChipIconHtml(p) +
+                        '<span>' + escapeHtml(p.title) + '</span>';
+                    countRow.appendChild(countLbl);
+                    var curCount = getClusterCountFor(p.id, item.id);
+                    [1, 2, 3, 4].forEach(function(n) {
+                        var countChip = document.createElement('button');
+                        countChip.type = 'button';
+                        countChip.className = 'scale-storage-chip' + (curCount === n ? ' selected' : '');
+                        countChip.setAttribute('role', 'radio');
+                        countChip.setAttribute('aria-checked', curCount === n ? 'true' : 'false');
+                        countChip.textContent = String(n);
+                        countChip.addEventListener('click', function(ev) {
+                            ev.stopPropagation();
+                            var key = p.id + '|' + item.id;
+                            state.clusterCountByPurposeScale[key] = n;
+                            renderScalePerPurpose();
+                            updatePreview();
+                        });
+                        countRow.appendChild(countChip);
+                    });
+                    clusterCountWrap.appendChild(countRow);
+                });
+                card.appendChild(clusterCountWrap);
             }
 
             grid.appendChild(card);
@@ -974,14 +1048,12 @@
             }
         });
 
-        // mark recommended footprint based on the first selected purpose (if any)
-        const firstPurposeId = state.purposes[0];
-        const purpose = firstPurposeId ? PURPOSES.find(function(p) { return p.id === firstPurposeId; }) : null;
+        // Recommended-option badges have been disabled at the user's request:
+        // we still keep `recommendedConnectivity` in PURPOSES (used in body
+        // copy elsewhere) but never paint the green "RECOMMENDED" pill on the
+        // connectivity cards.
         document.querySelectorAll('#connectivity-grid .pick-card, #connectivity-grid .spc-card').forEach(function(el) {
-            // Don't paint a 'Recommended' badge on a card we just disabled.
-            const isDiscCard = el.dataset.value === 'disconnected';
-            const blocked = isDiscCard && avdBlocks;
-            el.classList.toggle('recommended', !blocked && !!purpose && el.dataset.value === purpose.recommendedConnectivity && el.dataset.value !== state.connectivity);
+            el.classList.remove('recommended');
         });
 
         renderAvdDisconnectedWarning(avdBlocks);
@@ -1403,13 +1475,44 @@
         // Per-band SAN requirement: clusters of 64+ nodes must use disaggregated
         // SAN-based storage. Single-node and cluster-16 may also use SAN (or local + SAN)
         // when the user picks 'san' or 'both' in the storage selector.
+        // Per-card needsSan flag drives the connector lines so cards that don't
+        // need SAN don't get drawn into the SAN cylinder.
+        function cardNeedsSan(card, purposeId) {
+            if (!card || !card.scaleId) { return false; }
+            if (card.scaleId === 'cluster-64' || card.scaleId === 'cluster-128') { return true; }
+            if (card.scaleId === 'single-node' || card.scaleId === 'cluster-16') {
+                if (!purposeId) { return false; }
+                const st = getStorageFor(purposeId, card.scaleId);
+                return st === 'san' || st === 'both';
+            }
+            return false;
+        }
+
+        // Within each band, group SAN-using cards together so the connector
+        // lines and the SAN cylinder visually anchor the clusters that
+        // actually share storage. The Control Plane Appliance card is pinned
+        // to position 0 (it's always the leftmost on disconnected bands).
+        // Stable sort: SAN cards come before non-SAN cards, original order
+        // preserved within each group, so cluster-64s stay before cluster-16
+        // SAN clusters which stay before non-SAN clusters.
         bands.forEach(function(b) {
-            const scales = b.id ? getScalesFor(b.id) : [];
-            const storage = b.id ? getStorageFor(b.id) : 'local';
-            const has64Plus = scales.indexOf('cluster-64') >= 0 || scales.indexOf('cluster-128') >= 0;
-            const hasSmallWithSan = (scales.indexOf('cluster-16') >= 0 || scales.indexOf('single-node') >= 0)
-                && (storage === 'san' || storage === 'both');
-            b.needsSan = has64Plus || hasSmallWithSan;
+            if (!b.cards.length) { return; }
+            const appliance = (b.cards[0] && b.cards[0].kind === 'control-plane-appliance')
+                ? b.cards.shift() : null;
+            // decorate-sort-undecorate so the sort is guaranteed stable.
+            const decorated = b.cards.map(function(c, i) {
+                return { c: c, i: i, san: cardNeedsSan(c, b.id) ? 0 : 1 };
+            });
+            decorated.sort(function(a, x) {
+                if (a.san !== x.san) { return a.san - x.san; }
+                return a.i - x.i;
+            });
+            b.cards = decorated.map(function(d) { return d.c; });
+            if (appliance) { b.cards.unshift(appliance); }
+        });
+
+        bands.forEach(function(b) {
+            b.needsSan = b.cards.some(function(c) { return cardNeedsSan(c, b.id); });
         });
         const anySan = bands.some(function(b) { return b.needsSan; });
         const sanGap = 14;
@@ -1479,14 +1582,29 @@
 
             // Disaggregated SAN block (clusters of 64+ nodes require SAN-based storage).
             // One centered cylinder per band, with connector lines from each card to the SAN top.
+            // Only cards that actually need SAN get a connector line, and the cylinder
+            // is centered on those cards (not the whole band).
             const sanTop = cardsY + rowCardH + sanGap;
             if (b.needsSan) {
                 const sanW = 80;
-                const sanCx = b.startX + b.cardsTotalW / 2;
+                // Compute the X-range of just the SAN-using cards so the cylinder
+                // is centered between them rather than across the whole band.
+                let sanFirstIdx = -1;
+                let sanLastIdx = -1;
+                b.cards.forEach(function(card, j) {
+                    if (cardNeedsSan(card, b.id)) {
+                        if (sanFirstIdx === -1) { sanFirstIdx = j; }
+                        sanLastIdx = j;
+                    }
+                });
+                const firstCx = b.startX + sanFirstIdx * (cardW + cardGap) + cardW / 2;
+                const lastCx = b.startX + sanLastIdx * (cardW + cardGap) + cardW / 2;
+                const sanCx = (firstCx + lastCx) / 2;
                 const sanX = sanCx - sanW / 2;
                 renderSanCylinder(svg, SVG_NS, sanX, sanTop, sanW, sanH);
                 // Connectors: from each card's bottom-center down to the SAN top.
-                b.cards.forEach(function(_card, j) {
+                b.cards.forEach(function(card, j) {
+                    if (!cardNeedsSan(card, b.id)) { return; }
                     const cardX = b.startX + j * (cardW + cardGap);
                     const cx = cardX + cardW / 2;
                     appendLine(svg, SVG_NS, cx, cardsY + rowCardH, cx, sanTop + 6, lineColor);
@@ -1559,15 +1677,18 @@
         const isStrict = tenancyId === 'strict';
         const isLogical = tenancyId === 'logical';
         const scales = (scaleIds && scaleIds.length) ? scaleIds.slice() : ['cluster-16'];
-        const storage = purposeId ? getStorageFor(purposeId) : 'local';
 
         // For a given scale id, decide whether the cluster's servers should display
         // local S2D disk glyphs. Single-node and cluster-16 honor the per-purpose
-        // storage choice ('local' or 'both' = show disks); cluster-64/128 use SAN
-        // only (no local disks).
+        // storage choice ('local' or 'both' = show disks); rack-aware is always S2D;
+        // cluster-64/128 use SAN only (no local disks).
         function showDisksForScale(scaleId) {
+            if (scaleId === 'rack-aware') {
+                return true; // Rack-aware is always S2D
+            }
             if (scaleId === 'single-node' || scaleId === 'cluster-16') {
-                return storage === 'local' || storage === 'both';
+                const st = purposeId ? getStorageFor(purposeId, scaleId) : 'local';
+                return st === 'local' || st === 'both';
             }
             return false;
         }
@@ -1609,7 +1730,11 @@
                         multiRack: !!wc.multiRack,
                         comingSoon: !!wc.comingSoon,
                         stack: wc.stack || 1,
-                        // M365 scaleVariants are all small clusters using local disks.
+                        scaleId: scaleId,
+                        // M365 scaleVariants are all small clusters using local disks
+                        // — render with the single rack-box layout for visual parity
+                        // with single-node / cluster-16.
+                        singleRack: true,
                         showLocalDisks: true,
                         departmentChips: null
                     };
@@ -1643,30 +1768,45 @@
                     servers: v.servers,
                     serversLabel: v.serversLabel || 'Servers',
                     multiRack: !!v.multiRack,
+                    rackAware: !!v.rackAware,
+                    singleRack: !!v.singleRack,
                     comingSoon: !!v.comingSoon,
                     stack: v.stack || 1,
+                    scaleId: v.scaleId,
                     showLocalDisks: showDisksForScale(v.scaleId),
                     departmentChips: null
                 };
 
-                if (isStrict) {
-                    cards.push(Object.assign({}, baseCard, {
-                        tenantBadge: { label: 'Tenant 1', color: '#6d3fe0' }
-                    }));
-                    cards.push(Object.assign({}, baseCard, {
-                        tenantBadge: { label: 'Tenant 2', color: '#e0612a' }
-                    }));
-                } else if (isLogical) {
-                    cards.push(Object.assign({}, baseCard, {
-                        chipsLabel: 'Tenants — logical isolation',
-                        departmentChips: [
-                            { label: 'Tenant 1', color: '#6d3fe0' },
-                            { label: 'Tenant 2', color: '#e0612a' },
-                            { label: 'Tenant 3', color: '#2faa4a' }
-                        ]
-                    }));
-                } else {
-                    cards.push(baseCard);
+                // Get cluster count for this purpose + scale combination
+                var clusterCount = purposeId ? getClusterCountFor(purposeId, v.scaleId) : 1;
+
+                // Generate the specified number of clusters
+                for (var ci = 0; ci < clusterCount; ci++) {
+                    var clusterLabel = clusterCount > 1 ? ' #' + (ci + 1) : '';
+                    if (isStrict) {
+                        cards.push(Object.assign({}, baseCard, {
+                            title: baseCard.title + clusterLabel,
+                            tenantBadge: { label: 'Tenant 1', color: '#6d3fe0' }
+                        }));
+                        cards.push(Object.assign({}, baseCard, {
+                            title: baseCard.title + clusterLabel,
+                            tenantBadge: { label: 'Tenant 2', color: '#e0612a' }
+                        }));
+                    } else if (isLogical) {
+                        cards.push(Object.assign({}, baseCard, {
+                            title: baseCard.title + clusterLabel,
+                            chipsLabel: 'Tenants — logical isolation',
+                            departmentChips: [
+                                { label: 'Tenant 1', color: '#6d3fe0' },
+                                { label: 'Tenant 2', color: '#e0612a' },
+                                { label: 'Tenant 3', color: '#2faa4a' }
+                            ]
+                        }));
+                    } else {
+                        cards.push(Object.assign({}, baseCard, {
+                            title: baseCard.title + clusterLabel
+                        }));
+                    }
                 }
             });
         });
@@ -1678,12 +1818,23 @@
     function scaleToVariants(scale) {
         if (scale === 'single-node') {
             return [
-                { title: 'Azure Local Single Node', stack: 1, servers: ['Server 1'], serversLabel: 'Server' }
+                { title: 'Azure Local Single Node', stack: 1, singleRack: true, servers: ['Server 1'], serversLabel: 'Rack' }
             ];
         }
         if (scale === 'cluster-16') {
             return [
-                { title: 'Azure Local Cluster (up to 16 nodes)', stack: 2, servers: ['Server 1', 'Server 2', 'Server 3', 'Servers 4-16'], serversLabel: 'Servers' }
+                { title: 'Azure Local Cluster (up to 16 nodes)', stack: 2, singleRack: true, servers: ['Server 1', 'Server 2', 'Server 3', 'Servers 4-16'], serversLabel: 'Rack' }
+            ];
+        }
+        if (scale === 'rack-aware') {
+            return [
+                {
+                    title: 'Rack-Aware Azure Local Cluster (2–8 nodes)',
+                    stack: 2,
+                    rackAware: true,
+                    servers: [], // Rendered specially as two availability zones
+                    serversLabel: 'Availability Zones'
+                }
             ];
         }
         if (scale === 'cluster-64') {
@@ -1705,12 +1856,14 @@
     // Compute how tall a card needs to be so its content fits without overlap.
     function measureCardHeight(card) {
         if (card.kind === 'control-plane-appliance') {
-            const titleH = 50;
-            const vmH = 40;
-            const subTitleBlock = 44;
+            // New layout: everything inside the cluster sub-card (title, VM pill, servers, PaaS services)
+            const titleH = 36;      // Teal title pill (inside cluster)
+            const vmH = 32;         // Blue VM pill
+            const clusterTitleH = 28; // Disconnected Ops Cluster label
             const pillH = 26, pillGap = 8;
             const pillsBlock = card.servers.length * pillH + (card.servers.length - 1) * pillGap;
-            return titleH + 12 + vmH + 16 + subTitleBlock + pillsBlock + 14 + APPLIANCE_PAAS_BLOCK_H + 24;
+            // Sub-card content: 12 (top) + title + 8 + vm + 12 + clusterTitle + pills + 14 + PaaS + 12 (bottom)
+            return 12 + titleH + 8 + vmH + 12 + clusterTitleH + pillsBlock + 14 + APPLIANCE_PAAS_BLOCK_H + 12;
         }
         // workload card — assume the worst-case (smallest) cardW from the adaptive
         // squeeze so chips and labels wrap correctly even when the row gets crowded.
@@ -1720,10 +1873,20 @@
         if (card.comingSoon) { titleText += ' *'; }
         const badgeSize = 28;
         const titleLines = wrapTitle(titleText, cardW - 24 - badgeSize - 8, 15);
-        const titleBlock = Math.max(22 + titleLines.length * 18, 8 + badgeSize + 4) + 8;
-        const ribbonBlock = card.tenantBadge ? 28 : 0;
-        const chipsLabelBlock = (card.departmentChips && card.chipsLabel) ? 16 : 0;
-        const chipsBlock = card.departmentChips ? (22 + 12 + 8) : 0;
+        // Always reserve room for 2 title lines so cards in the same row align
+        // their content below the title regardless of whether the title wraps.
+        const reservedTitleLines = Math.max(2, titleLines.length);
+        const titleBlock = Math.max(22 + reservedTitleLines * 18, 8 + badgeSize + 4) + 8;
+        // Tenant header — strict (single tenantBadge) and logical (departmentChips + chipsLabel)
+        // both render with the same layout: 18px label + (22 + 12 padding) chips group + 8px gap = 60px.
+        // Strict synthesizes a single chip from tenantBadge, so its label is always present.
+        const hasTenantHeader = !!(card.tenantBadge || card.departmentChips);
+        const tenantLabelBlock = hasTenantHeader ? 18 : 0;
+        const tenantChipsBlock = hasTenantHeader ? (22 + 12 + 8) : 0;
+        // Legacy variable names retained to keep the height total expression below readable.
+        const ribbonBlock = 0;
+        const chipsLabelBlock = tenantLabelBlock;
+        const chipsBlock = tenantChipsBlock;
         const tileH = 36, tileGap = 8, wlBandPad = 12;
         const allWorkloads = (card.workloads || []).slice(0, 6);
         // GPU workloads render in a dedicated block between the Servers
@@ -1752,8 +1915,24 @@
         const labelBlock = sectionLabelH + Math.max(0, labelLines.length - 1) * 13;
         const gpuBlock = gpuWorkloads.length > 0 ? (8 + tileH + 8) : 0;
         const pillH = 30, pillGap = 8;
-        const pillsBlock = card.servers.length * pillH + (card.servers.length - 1) * pillGap;
-        return titleBlock + ribbonBlock + chipsLabelBlock + chipsBlock + modelsBlock + wlBandH + 14 + labelBlock + gpuBlock + pillsBlock + 18;
+        // Rack-aware cards use a special layout with two side-by-side zone boxes
+        // plus storage cylinders and replication arrows below.
+        // Single-rack cards use a single rack box similar to rack-aware but without availability zone labels.
+        let serversBlock;
+        if (card.rackAware) {
+            const zoneH = 140;
+            const storageH = 30 + 20; // cylinder + label
+            serversBlock = zoneH + 8 + storageH + 8;
+        } else if (card.singleRack) {
+            // Single rack box height: 12 top pad + title(16) + 8 + servers + 12 bottom pad
+            const sPillH = 22, sPillGap = 4;
+            const serverCount = card.servers.length;
+            const serversInsideH = serverCount * sPillH + Math.max(0, serverCount - 1) * sPillGap;
+            serversBlock = 12 + 16 + 8 + serversInsideH + 12;
+        } else {
+            serversBlock = card.servers.length * pillH + (card.servers.length - 1) * pillGap;
+        }
+        return titleBlock + ribbonBlock + chipsLabelBlock + chipsBlock + modelsBlock + wlBandH + 14 + labelBlock + gpuBlock + serversBlock + 18;
     }
 
     // Workload tokens that should be pulled out of the workload band and
@@ -2174,54 +2353,21 @@
         + 8;
 
     function renderControlPlaneApplianceCard(svg, SVG_NS, x, y, w, h, card) {
-        // Teal title pill
-        const titleH = 50;
-        const tr = document.createElementNS(SVG_NS, 'rect');
-        tr.setAttribute('x', String(x));
-        tr.setAttribute('y', String(y));
-        tr.setAttribute('width', String(w));
-        tr.setAttribute('height', String(titleH));
-        tr.setAttribute('rx', '8');
-        tr.setAttribute('fill', '#2bc4a6');
-        svg.appendChild(tr);
-        const tt = document.createElementNS(SVG_NS, 'text');
-        tt.setAttribute('x', String(x + w / 2));
-        tt.setAttribute('y', String(y + titleH / 2 + 5));
-        tt.setAttribute('fill', '#fff');
-        tt.setAttribute('font-family', 'Segoe UI, sans-serif');
-        tt.setAttribute('font-size', '14');
-        tt.setAttribute('font-weight', '700');
-        tt.setAttribute('text-anchor', 'middle');
-        tt.textContent = card.title;
-        svg.appendChild(tt);
+        // Calculate heights for elements inside the cluster sub-card
+        const titleH = 36;      // Teal title pill height (inside cluster)
+        const vmH = 32;         // Blue VM pill height
+        const clusterTitleH = 28; // Disconnected Ops Cluster label
+        const pillH = 26;
+        const pillGap = 8;
+        const pillsBlock = card.servers.length * pillH + (card.servers.length - 1) * pillGap;
 
-        // Blue VM pill
-        const vmY = y + titleH + 12;
-        const vmH = 40;
-        const vmR = document.createElementNS(SVG_NS, 'rect');
-        vmR.setAttribute('x', String(x + 14));
-        vmR.setAttribute('y', String(vmY));
-        vmR.setAttribute('width', String(w - 28));
-        vmR.setAttribute('height', String(vmH));
-        vmR.setAttribute('rx', '6');
-        vmR.setAttribute('fill', '#0078D4');
-        svg.appendChild(vmR);
-        const vmT = document.createElementNS(SVG_NS, 'text');
-        vmT.setAttribute('x', String(x + w / 2));
-        vmT.setAttribute('y', String(vmY + vmH / 2 + 4));
-        vmT.setAttribute('fill', '#fff');
-        vmT.setAttribute('font-family', 'Segoe UI, sans-serif');
-        vmT.setAttribute('font-size', '12');
-        vmT.setAttribute('text-anchor', 'middle');
-        vmT.textContent = card.appliancePill;
-        svg.appendChild(vmT);
+        // Sub-card height = title + vm pill + cluster title + servers + PaaS services + padding
+        const subH = 12 + titleH + 8 + vmH + 12 + clusterTitleH + pillsBlock + 14 + APPLIANCE_PAAS_BLOCK_H + 12;
 
-        // Sub-card with cluster name + servers
-        const subY = vmY + vmH + 16;
-        const subH = h - (subY - y);
+        // Sub-card with cluster outline (contains everything: title, VM pill, servers, PaaS services)
         const sub = document.createElementNS(SVG_NS, 'rect');
         sub.setAttribute('x', String(x));
-        sub.setAttribute('y', String(subY));
+        sub.setAttribute('y', String(y));
         sub.setAttribute('width', String(w));
         sub.setAttribute('height', String(subH));
         sub.setAttribute('rx', '8');
@@ -2230,9 +2376,52 @@
         sub.setAttribute('stroke-width', '1.2');
         svg.appendChild(sub);
 
+        // Teal title pill (inside cluster sub-card)
+        const titleY = y + 12;
+        const tr = document.createElementNS(SVG_NS, 'rect');
+        tr.setAttribute('x', String(x + 12));
+        tr.setAttribute('y', String(titleY));
+        tr.setAttribute('width', String(w - 24));
+        tr.setAttribute('height', String(titleH));
+        tr.setAttribute('rx', '6');
+        tr.setAttribute('fill', '#2bc4a6');
+        svg.appendChild(tr);
+        const tt = document.createElementNS(SVG_NS, 'text');
+        tt.setAttribute('x', String(x + w / 2));
+        tt.setAttribute('y', String(titleY + titleH / 2 + 5));
+        tt.setAttribute('fill', '#fff');
+        tt.setAttribute('font-family', 'Segoe UI, sans-serif');
+        tt.setAttribute('font-size', '13');
+        tt.setAttribute('font-weight', '700');
+        tt.setAttribute('text-anchor', 'middle');
+        tt.textContent = card.title;
+        svg.appendChild(tt);
+
+        // Blue VM pill (inside cluster sub-card, below title)
+        const vmY = titleY + titleH + 8;
+        const vmR = document.createElementNS(SVG_NS, 'rect');
+        vmR.setAttribute('x', String(x + 16));
+        vmR.setAttribute('y', String(vmY));
+        vmR.setAttribute('width', String(w - 32));
+        vmR.setAttribute('height', String(vmH));
+        vmR.setAttribute('rx', '5');
+        vmR.setAttribute('fill', '#0078D4');
+        svg.appendChild(vmR);
+        const vmT = document.createElementNS(SVG_NS, 'text');
+        vmT.setAttribute('x', String(x + w / 2));
+        vmT.setAttribute('y', String(vmY + vmH / 2 + 4));
+        vmT.setAttribute('fill', '#fff');
+        vmT.setAttribute('font-family', 'Segoe UI, sans-serif');
+        vmT.setAttribute('font-size', '11');
+        vmT.setAttribute('text-anchor', 'middle');
+        vmT.textContent = card.appliancePill;
+        svg.appendChild(vmT);
+
+        // Cluster title (Disconnected Ops Cluster)
+        const clusterTitleY = vmY + vmH + 12;
         const subTitle = document.createElementNS(SVG_NS, 'text');
         subTitle.setAttribute('x', String(x + w / 2));
-        subTitle.setAttribute('y', String(subY + 24));
+        subTitle.setAttribute('y', String(clusterTitleY + 14));
         subTitle.setAttribute('fill', 'var(--text-primary, #222)');
         subTitle.setAttribute('font-family', 'Segoe UI, sans-serif');
         subTitle.setAttribute('font-size', '12');
@@ -2242,9 +2431,7 @@
         svg.appendChild(subTitle);
 
         // Server pills
-        const startY = subY + 44;
-        const pillH = 26;
-        const pillGap = 8;
+        const startY = clusterTitleY + clusterTitleH;
         card.servers.forEach(function(s, i) {
             const py = startY + i * (pillH + pillGap);
             appendServerPill(svg, SVG_NS, x + 16, py, w - 32, pillH, s, false, true);
@@ -2396,57 +2583,46 @@
             t.textContent = line;
             svg.appendChild(t);
         });
-        const titleBlockH = Math.max(22 + titleLines.length * titleLineH, 8 + badgeSize + 4);
+        const titleBlockH = Math.max(22 + Math.max(2, titleLines.length) * titleLineH, 8 + badgeSize + 4);
 
-        // Strict-isolation tenant ribbon — colored band across the top of the card,
-        // sitting above the title row. Indicates which tenant this dedicated cluster serves.
-        let tenantRibbonH = 0;
-        if (card.tenantBadge) {
-            tenantRibbonH = 22;
-            const ribbonY = y + titleBlockH + 4;
-            const ribbon = document.createElementNS(SVG_NS, 'rect');
-            ribbon.setAttribute('x', String(x + 8));
-            ribbon.setAttribute('y', String(ribbonY));
-            ribbon.setAttribute('width', String(w - 16));
-            ribbon.setAttribute('height', String(tenantRibbonH));
-            ribbon.setAttribute('rx', '4');
-            ribbon.setAttribute('fill', card.tenantBadge.color);
-            svg.appendChild(ribbon);
-            const ribbonText = document.createElementNS(SVG_NS, 'text');
-            ribbonText.setAttribute('x', String(x + w / 2));
-            ribbonText.setAttribute('y', String(ribbonY + 16));
-            ribbonText.setAttribute('fill', '#fff');
-            ribbonText.setAttribute('font-family', 'Segoe UI, sans-serif');
-            ribbonText.setAttribute('font-size', '11');
-            ribbonText.setAttribute('font-weight', '700');
-            ribbonText.setAttribute('text-anchor', 'middle');
-            ribbonText.setAttribute('letter-spacing', '0.08em');
-            ribbonText.textContent = (card.tenantBadge.label + ' — STRICT ISOLATION').toUpperCase();
-            svg.appendChild(ribbonText);
-            tenantRibbonH += 6;
+        // Tenant header — both strict and logical isolation render with the same
+        // vertical layout: a small uppercase label, then a dashed-border group
+        // wrapping one or more tenant chips. This keeps workload areas aligned
+        // across cards in the same row regardless of which tenancy is used.
+        const TENANT_HEADER_H = 60;
+        // Normalize strict (single tenantBadge) into the same chips-with-label
+        // shape used for logical isolation, so a single render path handles both.
+        let tenantChips = null;
+        let tenantLabel = null;
+        if (card.departmentChips) {
+            tenantChips = card.departmentChips;
+            tenantLabel = card.chipsLabel || null;
+        } else if (card.tenantBadge) {
+            tenantChips = [{ label: card.tenantBadge.label, color: card.tenantBadge.color }];
+            tenantLabel = 'Tenant — strict isolation';
         }
 
-        // Department / tenant chips (logical isolation) with a small label header above.
-        let workloadY = y + titleBlockH + tenantRibbonH + 8;
-        if (card.departmentChips) {
-            if (card.chipsLabel) {
+        let workloadY = y + titleBlockH + 8;
+        if (tenantChips) {
+            if (tenantLabel) {
                 const lbl = document.createElementNS(SVG_NS, 'text');
                 lbl.setAttribute('x', String(x + w / 2));
-                lbl.setAttribute('y', String(workloadY + 10));
+                lbl.setAttribute('y', String(workloadY + 11));
                 lbl.setAttribute('fill', 'var(--text-secondary, #5c6b7a)');
                 lbl.setAttribute('font-family', 'Segoe UI, sans-serif');
                 lbl.setAttribute('font-size', '10');
                 lbl.setAttribute('font-weight', '600');
                 lbl.setAttribute('text-anchor', 'middle');
                 lbl.setAttribute('letter-spacing', '0.06em');
-                lbl.textContent = card.chipsLabel.toUpperCase();
+                lbl.textContent = tenantLabel.toUpperCase();
                 svg.appendChild(lbl);
-                workloadY += 16;
+                workloadY += 18;
             }
 
             // Group container behind the chips so they read as one logical unit.
+            // Sits BELOW the label (no negative offset) so the dashed border doesn't overlap the text.
             const groupPad = 6;
-            const groupY = workloadY - groupPad;
+            const groupY = workloadY;
             const groupH = 22 + groupPad * 2;
             const group = document.createElementNS(SVG_NS, 'rect');
             group.setAttribute('x', String(x + 8));
@@ -2461,12 +2637,13 @@
             group.setAttribute('opacity', '0.6');
             svg.appendChild(group);
 
-            const chipW = (w - 24 - (card.departmentChips.length - 1) * 8) / card.departmentChips.length;
-            card.departmentChips.forEach(function(chip, i) {
+            const chipY = groupY + groupPad;
+            const chipW = (w - 24 - (tenantChips.length - 1) * 8) / tenantChips.length;
+            tenantChips.forEach(function(chip, i) {
                 const cx = x + 12 + i * (chipW + 8);
                 const c = document.createElementNS(SVG_NS, 'rect');
                 c.setAttribute('x', String(cx));
-                c.setAttribute('y', String(workloadY));
+                c.setAttribute('y', String(chipY));
                 c.setAttribute('width', String(chipW));
                 c.setAttribute('height', '22');
                 c.setAttribute('rx', '3');
@@ -2474,7 +2651,7 @@
                 svg.appendChild(c);
                 const ct = document.createElementNS(SVG_NS, 'text');
                 ct.setAttribute('x', String(cx + chipW / 2));
-                ct.setAttribute('y', String(workloadY + 16));
+                ct.setAttribute('y', String(chipY + 16));
                 ct.setAttribute('fill', '#fff');
                 ct.setAttribute('font-family', 'Segoe UI, sans-serif');
                 ct.setAttribute('font-size', '11');
@@ -2483,7 +2660,10 @@
                 ct.textContent = chip.label;
                 svg.appendChild(ct);
             });
-            workloadY += 22 + groupPad + 8;
+            workloadY = groupY + groupH + 8;
+            // Sanity check: this exact sequence (18 label + 22+12 group + 8 gap)
+            // = TENANT_HEADER_H so all cards align at workloadY = y + titleBlockH + TENANT_HEADER_H.
+            void TENANT_HEADER_H;
         }
 
         // AVAILABLE AI MODELS strip — rendered ABOVE the workload band so
@@ -2778,8 +2958,331 @@
         }
 
         card.servers.forEach(function(s, i) {
+            // Skip normal server pill rendering for rack-aware and singleRack — handled separately below
+            if (card.rackAware || card.singleRack) { return; }
             appendServerPill(svg, SVG_NS, x + 16, serverY + i * (pillH + pillGap), w - 32, pillH, s, !!card.multiRack, !!card.showLocalDisks);
         });
+
+        // Single-rack layout: one rack box containing all servers (no availability zone labels)
+        if (card.singleRack) {
+            const rackW = w - 32;
+            const sPillH = 22, sPillGap = 4;
+            const serverCount = card.servers.length;
+            const serversInsideH = serverCount * sPillH + Math.max(0, serverCount - 1) * sPillGap;
+            const rackH = 12 + 16 + 8 + serversInsideH + 12; // pad + title + gap + servers + pad
+            const rackX = x + 16;
+            const rackY = serverY;
+
+            // Rack border box
+            const rackRect = document.createElementNS(SVG_NS, 'rect');
+            rackRect.setAttribute('x', String(rackX));
+            rackRect.setAttribute('y', String(rackY));
+            rackRect.setAttribute('width', String(rackW));
+            rackRect.setAttribute('height', String(rackH));
+            rackRect.setAttribute('rx', '6');
+            rackRect.setAttribute('fill', '#f0f7ff');
+            rackRect.setAttribute('stroke', '#7aa6d6');
+            rackRect.setAttribute('stroke-width', '1.5');
+            rackRect.setAttribute('stroke-dasharray', '4,2');
+            svg.appendChild(rackRect);
+
+            // Rack title
+            const rackTitle = document.createElementNS(SVG_NS, 'text');
+            rackTitle.setAttribute('x', String(rackX + rackW / 2));
+            rackTitle.setAttribute('y', String(rackY + 12 + 12));
+            rackTitle.setAttribute('fill', '#1f3d6e');
+            rackTitle.setAttribute('font-family', 'Segoe UI, sans-serif');
+            rackTitle.setAttribute('font-size', '11');
+            rackTitle.setAttribute('font-weight', '700');
+            rackTitle.setAttribute('text-anchor', 'middle');
+            rackTitle.textContent = 'Rack 1';
+            svg.appendChild(rackTitle);
+
+            // Server pills inside the rack
+            const serverStartY = rackY + 12 + 16 + 8;
+            card.servers.forEach(function(sLabel, si) {
+                const spY = serverStartY + si * (sPillH + sPillGap);
+                const spX = rackX + 6;
+                const spW = rackW - 12;
+
+                const sp = document.createElementNS(SVG_NS, 'rect');
+                sp.setAttribute('x', String(spX));
+                sp.setAttribute('y', String(spY));
+                sp.setAttribute('width', String(spW));
+                sp.setAttribute('height', String(sPillH));
+                sp.setAttribute('rx', '3');
+                sp.setAttribute('fill', '#e6f5ee');
+                sp.setAttribute('stroke', '#9bd6b8');
+                sp.setAttribute('stroke-width', '1');
+                svg.appendChild(sp);
+
+                // Server glyph on the left (matches appendServerPill style for consistency).
+                const glyphX = spX + 6;
+                const glyphY = spY + sPillH / 2 - 4;
+                const glyphBar = document.createElementNS(SVG_NS, 'rect');
+                glyphBar.setAttribute('x', String(glyphX));
+                glyphBar.setAttribute('y', String(glyphY));
+                glyphBar.setAttribute('width', '10');
+                glyphBar.setAttribute('height', '6');
+                glyphBar.setAttribute('rx', '1');
+                glyphBar.setAttribute('fill', '#1f4e3a');
+                svg.appendChild(glyphBar);
+
+                const spText = document.createElementNS(SVG_NS, 'text');
+                spText.setAttribute('x', String(spX + spW / 2));
+                spText.setAttribute('y', String(spY + sPillH / 2 + 3));
+                spText.setAttribute('fill', '#1f4e3a');
+                spText.setAttribute('font-family', 'Segoe UI, sans-serif');
+                spText.setAttribute('font-size', '9');
+                spText.setAttribute('text-anchor', 'middle');
+                spText.textContent = sLabel;
+                svg.appendChild(spText);
+
+                // S2D disk indicator on the right of the pill (when local storage is in use).
+                if (card.showLocalDisks) {
+                    const diskFill = '#1f4e3a';
+                    const diskStroke = '#0f3a28';
+                    const diskW = 10;
+                    const diskH = 2.5;
+                    const diskGap = 1;
+                    const platters = 3;
+                    const stackH = platters * diskH + (platters - 1) * diskGap;
+                    const labelW = 18;
+                    const stackX = spX + spW - labelW - diskW - 4;
+                    const stackY = spY + sPillH / 2 - stackH / 2;
+                    for (let pi = 0; pi < platters; pi++) {
+                        const platter = document.createElementNS(SVG_NS, 'rect');
+                        platter.setAttribute('x', String(stackX));
+                        platter.setAttribute('y', String(stackY + pi * (diskH + diskGap)));
+                        platter.setAttribute('width', String(diskW));
+                        platter.setAttribute('height', String(diskH));
+                        platter.setAttribute('rx', '1');
+                        platter.setAttribute('ry', '1');
+                        platter.setAttribute('fill', diskFill);
+                        platter.setAttribute('stroke', diskStroke);
+                        platter.setAttribute('stroke-width', '0.4');
+                        svg.appendChild(platter);
+                    }
+                    const dlbl = document.createElementNS(SVG_NS, 'text');
+                    dlbl.setAttribute('x', String(stackX + diskW + 2));
+                    dlbl.setAttribute('y', String(spY + sPillH / 2 + 2));
+                    dlbl.setAttribute('fill', '#1f4e3a');
+                    dlbl.setAttribute('font-family', 'Segoe UI, sans-serif');
+                    dlbl.setAttribute('font-size', '8');
+                    dlbl.setAttribute('font-weight', '600');
+                    dlbl.textContent = 'S2D';
+                    svg.appendChild(dlbl);
+                }
+            });
+        }
+
+        // Rack-aware layout: two side-by-side availability zone boxes with S2D storage
+        // cylinders and replication arrows between them.
+        if (card.rackAware) {
+            const zoneGap = 12;
+            const zoneW = (w - 32 - zoneGap) / 2;
+            const zoneH = 140; // Height for zone box (servers + storage)
+            const zone1X = x + 16;
+            const zone2X = x + 16 + zoneW + zoneGap;
+            const zoneY = serverY;
+
+            // Draw the two availability zone boxes
+            [
+                { zx: zone1X, label: 'Rack 1', subLabel: 'Availability Zone 1' },
+                { zx: zone2X, label: 'Rack 2', subLabel: 'Availability Zone 2' }
+            ].forEach(function(zone) {
+                // Zone border
+                const zoneRect = document.createElementNS(SVG_NS, 'rect');
+                zoneRect.setAttribute('x', String(zone.zx));
+                zoneRect.setAttribute('y', String(zoneY));
+                zoneRect.setAttribute('width', String(zoneW));
+                zoneRect.setAttribute('height', String(zoneH));
+                zoneRect.setAttribute('rx', '6');
+                zoneRect.setAttribute('fill', '#f0f7ff');
+                zoneRect.setAttribute('stroke', '#7aa6d6');
+                zoneRect.setAttribute('stroke-width', '1.5');
+                zoneRect.setAttribute('stroke-dasharray', '4,2');
+                svg.appendChild(zoneRect);
+
+                // Zone title (Rack 1 / Rack 2)
+                const zTitle = document.createElementNS(SVG_NS, 'text');
+                zTitle.setAttribute('x', String(zone.zx + zoneW / 2));
+                zTitle.setAttribute('y', String(zoneY + 16));
+                zTitle.setAttribute('fill', '#1f3d6e');
+                zTitle.setAttribute('font-family', 'Segoe UI, sans-serif');
+                zTitle.setAttribute('font-size', '11');
+                zTitle.setAttribute('font-weight', '700');
+                zTitle.setAttribute('text-anchor', 'middle');
+                zTitle.textContent = zone.label;
+                svg.appendChild(zTitle);
+
+                // Zone subtitle (Availability Zone)
+                const zSub = document.createElementNS(SVG_NS, 'text');
+                zSub.setAttribute('x', String(zone.zx + zoneW / 2));
+                zSub.setAttribute('y', String(zoneY + 28));
+                zSub.setAttribute('fill', '#5c7ba0');
+                zSub.setAttribute('font-family', 'Segoe UI, sans-serif');
+                zSub.setAttribute('font-size', '9');
+                zSub.setAttribute('text-anchor', 'middle');
+                zSub.textContent = zone.subLabel;
+                svg.appendChild(zSub);
+
+                // Server pills inside the zone (1-4 servers)
+                const serverY1 = zoneY + 36;
+                const sPillH = 22;
+                const sPillGap = 4;
+                const serverLabels = ['Server 1', 'Server 2', 'Server 3', 'Server 4'];
+                serverLabels.forEach(function(sLabel, si) {
+                    const spY = serverY1 + si * (sPillH + sPillGap);
+                    const spX = zone.zx + 6;
+                    const spW = zoneW - 12;
+
+                    const sp = document.createElementNS(SVG_NS, 'rect');
+                    sp.setAttribute('x', String(spX));
+                    sp.setAttribute('y', String(spY));
+                    sp.setAttribute('width', String(spW));
+                    sp.setAttribute('height', String(sPillH));
+                    sp.setAttribute('rx', '3');
+                    sp.setAttribute('fill', '#e6f5ee');
+                    sp.setAttribute('stroke', '#9bd6b8');
+                    sp.setAttribute('stroke-width', '1');
+                    svg.appendChild(sp);
+
+                    // Server glyph on the left for visual consistency with M365 / SAN-only cards.
+                    const glyphX = spX + 6;
+                    const glyphY = spY + sPillH / 2 - 4;
+                    const glyphBar = document.createElementNS(SVG_NS, 'rect');
+                    glyphBar.setAttribute('x', String(glyphX));
+                    glyphBar.setAttribute('y', String(glyphY));
+                    glyphBar.setAttribute('width', '10');
+                    glyphBar.setAttribute('height', '6');
+                    glyphBar.setAttribute('rx', '1');
+                    glyphBar.setAttribute('fill', '#1f4e3a');
+                    svg.appendChild(glyphBar);
+
+                    const spText = document.createElementNS(SVG_NS, 'text');
+                    spText.setAttribute('x', String(spX + spW / 2));
+                    spText.setAttribute('y', String(spY + sPillH / 2 + 3));
+                    spText.setAttribute('fill', '#1f4e3a');
+                    spText.setAttribute('font-family', 'Segoe UI, sans-serif');
+                    spText.setAttribute('font-size', '9');
+                    spText.setAttribute('text-anchor', 'middle');
+                    spText.textContent = sLabel;
+                    svg.appendChild(spText);
+                });
+            });
+
+            // S2D storage cylinders at the bottom of each zone
+            const storageY = zoneY + zoneH + 8;
+            const cylW = 50;
+            const cylH = 30;
+            const cyl1X = zone1X + (zoneW - cylW) / 2;
+            const cyl2X = zone2X + (zoneW - cylW) / 2;
+
+            // Draw storage cylinder helper
+            var drawStorageCylinder = function(cx, cy, cw, ch, label) {
+                const ellipseH = 8;
+                // Cylinder body
+                const body = document.createElementNS(SVG_NS, 'rect');
+                body.setAttribute('x', String(cx));
+                body.setAttribute('y', String(cy + ellipseH / 2));
+                body.setAttribute('width', String(cw));
+                body.setAttribute('height', String(ch - ellipseH));
+                body.setAttribute('fill', '#1f4e3a');
+                svg.appendChild(body);
+
+                // Top ellipse
+                const topEllipse = document.createElementNS(SVG_NS, 'ellipse');
+                topEllipse.setAttribute('cx', String(cx + cw / 2));
+                topEllipse.setAttribute('cy', String(cy + ellipseH / 2));
+                topEllipse.setAttribute('rx', String(cw / 2));
+                topEllipse.setAttribute('ry', String(ellipseH / 2));
+                topEllipse.setAttribute('fill', '#2d7a5a');
+                svg.appendChild(topEllipse);
+
+                // Bottom ellipse
+                const botEllipse = document.createElementNS(SVG_NS, 'ellipse');
+                botEllipse.setAttribute('cx', String(cx + cw / 2));
+                botEllipse.setAttribute('cy', String(cy + ch - ellipseH / 2));
+                botEllipse.setAttribute('rx', String(cw / 2));
+                botEllipse.setAttribute('ry', String(ellipseH / 2));
+                botEllipse.setAttribute('fill', '#1f4e3a');
+                svg.appendChild(botEllipse);
+
+                // Label
+                const lbl = document.createElementNS(SVG_NS, 'text');
+                lbl.setAttribute('x', String(cx + cw / 2));
+                lbl.setAttribute('y', String(cy + ch + 12));
+                lbl.setAttribute('fill', '#1f4e3a');
+                lbl.setAttribute('font-family', 'Segoe UI, sans-serif');
+                lbl.setAttribute('font-size', '10');
+                lbl.setAttribute('font-weight', '600');
+                lbl.setAttribute('text-anchor', 'middle');
+                lbl.textContent = label;
+                svg.appendChild(lbl);
+            };
+
+            drawStorageCylinder(cyl1X, storageY, cylW, cylH, 'S2D');
+            drawStorageCylinder(cyl2X, storageY, cylW, cylH, 'S2D');
+
+            // Bidirectional replication arrows between the two storage cylinders
+            const arrowY = storageY + cylH / 2;
+            const arrow1EndX = cyl1X + cylW + 4;
+            const arrow2StartX = cyl2X - 4;
+            const arrowColor = '#0078D4';
+
+            // Top arrow (left to right)
+            const topLineY = arrowY - 6;
+            const topLine = document.createElementNS(SVG_NS, 'line');
+            topLine.setAttribute('x1', String(arrow1EndX));
+            topLine.setAttribute('y1', String(topLineY));
+            topLine.setAttribute('x2', String(arrow2StartX - 6));
+            topLine.setAttribute('y2', String(topLineY));
+            topLine.setAttribute('stroke', arrowColor);
+            topLine.setAttribute('stroke-width', '2');
+            svg.appendChild(topLine);
+
+            // Right arrow head
+            const rightArrow = document.createElementNS(SVG_NS, 'polygon');
+            rightArrow.setAttribute('points',
+                (arrow2StartX) + ',' + (topLineY) + ' ' +
+                (arrow2StartX - 6) + ',' + (topLineY - 4) + ' ' +
+                (arrow2StartX - 6) + ',' + (topLineY + 4));
+            rightArrow.setAttribute('fill', arrowColor);
+            svg.appendChild(rightArrow);
+
+            // Bottom arrow (right to left)
+            const botLineY = arrowY + 6;
+            const botLine = document.createElementNS(SVG_NS, 'line');
+            botLine.setAttribute('x1', String(arrow2StartX));
+            botLine.setAttribute('y1', String(botLineY));
+            botLine.setAttribute('x2', String(arrow1EndX + 6));
+            botLine.setAttribute('y2', String(botLineY));
+            botLine.setAttribute('stroke', arrowColor);
+            botLine.setAttribute('stroke-width', '2');
+            svg.appendChild(botLine);
+
+            // Left arrow head
+            const leftArrow = document.createElementNS(SVG_NS, 'polygon');
+            leftArrow.setAttribute('points',
+                (arrow1EndX) + ',' + (botLineY) + ' ' +
+                (arrow1EndX + 6) + ',' + (botLineY - 4) + ' ' +
+                (arrow1EndX + 6) + ',' + (botLineY + 4));
+            leftArrow.setAttribute('fill', arrowColor);
+            svg.appendChild(leftArrow);
+
+            // Replication label in the center
+            const replLabel = document.createElementNS(SVG_NS, 'text');
+            replLabel.setAttribute('x', String((cyl1X + cylW + cyl2X) / 2));
+            replLabel.setAttribute('y', String(arrowY + 2));
+            replLabel.setAttribute('fill', arrowColor);
+            replLabel.setAttribute('font-family', 'Segoe UI, sans-serif');
+            replLabel.setAttribute('font-size', '9');
+            replLabel.setAttribute('font-weight', '600');
+            replLabel.setAttribute('text-anchor', 'middle');
+            replLabel.textContent = 'Sync Replication';
+            svg.appendChild(replLabel);
+        }
     }
 
     function appendServerPill(svg, SVG_NS, x, y, w, h, label, isRack, showDisks) {
@@ -3689,11 +4192,12 @@
     };
 
     // Icon image used on the cluster row cards and per-purpose hero card.
-    // For M365 the docs page uses three icons (Exchange / SharePoint / Skype);
-    // we pick Exchange as the single representative icon for the slide.
+    // For M365 the docs page lists three workload icons (Exchange / SharePoint /
+    // Skype) but the hero card uses the official Microsoft 365 logo as the
+    // single representative icon.
     const PURPOSE_ICON_FILE = {
         'azure-local':              'icons/sovereign-azure-local-cluster.svg',
-        'm365-local':               'icons/sovereign-m365-exchange.png',
+        'm365-local':               'icons/sovereign-m365.svg',
         'github-enterprise-local':  'icons/sovereign-github.svg',
         'avd':                      'icons/sovereign-avd.svg',
         'foundry-local':            'icons/azure-ai-foundry.svg'
@@ -3777,7 +4281,7 @@
             const scaleOpts = getScaleOptionsFor(p);
             const scaleLabels = scales.map(function(sid) {
                 const it = scaleOpts.find(function(o) { return o.id === sid; });
-                return it ? it.title : sid;
+                return shortScaleLabel(sid, it);
             }).join(' + ');
             const storage = formatStorageForSummary(pid, scales);
             const ry = rowStartY + i * (rowH + rowGap);
@@ -3810,19 +4314,27 @@
                 emu(1.5), emu(ry + 0.22), emu(3.4), emu(0.45),
                 p ? p.title : pid,
                 { sz: 1400, bold: true, color: headingColor })[0]);
-            // Pills — tenancy / scale / storage
+            // Pills — tenancy / scale / storage. Scale pill auto-shrinks its
+            // font when many scales are joined together (e.g. 64 + 16 + 2-8).
+            const tenancyW = 1.2, scaleW = 4.55, storageW = 2.40;
+            const tenancyX = 4.95;
+            const scaleX = tenancyX + tenancyW + 0.10;       // 6.25
+            const storageX = scaleX + scaleW + 0.10;          // 10.90
+            const scaleLabelText = scaleLabels || 'not selected';
             shapes.push(makePill(id++, 'Row' + i + 'TenancyPill',
-                emu(4.95), emu(ry + 0.25), emu(1.5), emu(0.36),
+                emu(tenancyX), emu(ry + 0.25), emu(tenancyW), emu(0.36),
                 (tenancy ? capitalizeWord(tenancy) : 'not set'),
                 accentPurple, 'FFFFFF'));
             shapes.push(makePill(id++, 'Row' + i + 'ScalePill',
-                emu(6.6), emu(ry + 0.25), emu(3.5), emu(0.36),
-                (scaleLabels || 'not selected'),
-                '0078D4', 'FFFFFF'));
+                emu(scaleX), emu(ry + 0.25), emu(scaleW), emu(0.36),
+                scaleLabelText,
+                '0078D4', 'FFFFFF',
+                pillFontSize(scaleLabelText, scaleW, 1000)));
             shapes.push(makePill(id++, 'Row' + i + 'StoragePill',
-                emu(10.25), emu(ry + 0.25), emu(2.65), emu(0.36),
+                emu(storageX), emu(ry + 0.25), emu(storageW), emu(0.36),
                 storage,
-                '16A085', 'FFFFFF'));
+                '16A085', 'FFFFFF',
+                pillFontSize(storage, storageW, 1000)));
         });
 
         // ---- Footer ---------------------------------------------------
@@ -3859,12 +4371,6 @@
         const tenancy = getTenancyFor(purposeId);
         const scales = getScalesFor(purposeId);
         const scaleOpts = getScaleOptionsFor(p);
-        const scaleLabel = scales.length === 0
-            ? 'not selected'
-            : scales.map(function(sid) {
-                const it = scaleOpts.find(function(o) { return o.id === sid; });
-                return it ? it.title : sid;
-            }).join('  +  ');
         const storage = formatStorageForSummary(purposeId, scales);
 
         const shapes = [];
@@ -3922,55 +4428,141 @@
             { sz: 1150, color: bodyColor })[0]);
 
         // ---- Configuration heading + accent --------------------------
-        shapes.push(makeTextBoxSp(id++, 'ConfigHeading', emu(0.4), emu(4.75),
+        // Pulled up slightly to free vertical room for the wider Scale panel.
+        shapes.push(makeTextBoxSp(id++, 'ConfigHeading', emu(0.4), emu(4.55),
             emu(12), emu(0.4),
             'Your configuration', { sz: 1500, bold: true, color: headingColor })[0]);
         shapes.push(makeShape({
             id: id++, name: 'ConfigAccent', prst: 'rect',
-            x: emu(0.4), y: emu(5.17), cx: emu(0.5), cy: emu(0.04),
+            x: emu(0.4), y: emu(4.97), cx: emu(0.5), cy: emu(0.04),
             fillHex: accent
         }));
 
-        // ---- Three stat cards: Tenancy / Scale / Storage -------------
-        const statY = 5.35;
-        const statH = 1.45;
-        const statW = 4.05;
-        const statGap = 0.20;
-        const statX0 = 0.4;
-        const statColors = ['7B68EE', '0078D4', '16A085'];
-        const statLabels = ['TENANCY', 'SCALE', 'STORAGE'];
-        const statValues = [
-            tenancy ? capitalizeWord(tenancy) : 'not set',
-            scaleLabel,
-            storage
-        ];
-        for (let s = 0; s < 3; s++) {
-            const sx = statX0 + s * (statW + statGap);
-            shapes.push(makeShape({
-                id: id++, name: 'Stat' + s + 'Bg', prst: 'roundRect', adj: 12000,
-                x: emu(sx), y: emu(statY), cx: emu(statW), cy: emu(statH),
-                fillHex: cardFill, lineHex: cardLine, lineW: 6350, shadow: true
-            }));
-            shapes.push(makeShape({
-                id: id++, name: 'Stat' + s + 'Band', prst: 'rect',
-                x: emu(sx + 0.01), y: emu(statY + 0.01),
-                cx: emu(statW - 0.02), cy: emu(0.12),
-                fillHex: statColors[s]
-            }));
-            shapes.push(makeTextBoxSp(id++, 'Stat' + s + 'Label',
-                emu(sx + 0.25), emu(statY + 0.25), emu(statW - 0.5), emu(0.3),
-                statLabels[s],
-                { sz: 1000, bold: true, color: statColors[s] })[0]);
-            shapes.push(makeShape({
-                id: id++, name: 'Stat' + s + 'Value', prst: 'rect',
-                x: emu(sx + 0.2), y: emu(statY + 0.55),
-                cx: emu(statW - 0.4), cy: emu(statH - 0.7),
-                fillHex: null,
-                text: statValues[s],
-                textProps: { sz: 1500, bold: true, color: headingColor },
-                textAnchor: 'ctr', textAlign: 'l'
-            }));
+        // ---- Configuration area --------------------------------------
+        // Two compact stat tiles on the left (Tenancy stacked above Storage)
+        // and a wide Scale panel on the right that lists every selected
+        // scale with its title + description, so users get a clear narrative
+        // explanation when they pick more than one scale for a purpose.
+        const cfgY = 5.05;
+        const cfgH = 1.95;            // bottom edge at 7.00, leaving 0.05 gap before learn-more pill at 7.05
+        const cfgGap = 0.20;
+        const tenancyW = 4.00;
+        const tileH = (cfgH - cfgGap) / 2;
+        const tenancyX = 0.4;
+        const scaleX = tenancyX + tenancyW + cfgGap;       // 4.60
+        const scalePanelW = 12.95 - scaleX;                // ~8.35
+
+        const tileColor = '7B68EE';
+        const storageColor = '16A085';
+        const scalePanelColor = '0078D4';
+
+        // Tenancy tile
+        shapes.push(makeShape({
+            id: id++, name: 'TenancyBg', prst: 'roundRect', adj: 12000,
+            x: emu(tenancyX), y: emu(cfgY), cx: emu(tenancyW), cy: emu(tileH),
+            fillHex: cardFill, lineHex: cardLine, lineW: 6350, shadow: true
+        }));
+        shapes.push(makeShape({
+            id: id++, name: 'TenancyBand', prst: 'rect',
+            x: emu(tenancyX + 0.01), y: emu(cfgY + 0.01),
+            cx: emu(tenancyW - 0.02), cy: emu(0.10),
+            fillHex: tileColor
+        }));
+        shapes.push(makeTextBoxSp(id++, 'TenancyLabel',
+            emu(tenancyX + 0.25), emu(cfgY + 0.20), emu(tenancyW - 0.5), emu(0.3),
+            'TENANCY',
+            { sz: 1000, bold: true, color: tileColor })[0]);
+        shapes.push(makeShape({
+            id: id++, name: 'TenancyValue', prst: 'rect',
+            x: emu(tenancyX + 0.20), y: emu(cfgY + 0.50),
+            cx: emu(tenancyW - 0.4), cy: emu(tileH - 0.55),
+            fillHex: null,
+            text: tenancy ? capitalizeWord(tenancy) : 'not set',
+            textProps: { sz: 1500, bold: true, color: headingColor },
+            textAnchor: 'ctr', textAlign: 'l'
+        }));
+
+        // Storage tile
+        const storageY = cfgY + tileH + cfgGap;
+        shapes.push(makeShape({
+            id: id++, name: 'StorageBg', prst: 'roundRect', adj: 12000,
+            x: emu(tenancyX), y: emu(storageY), cx: emu(tenancyW), cy: emu(tileH),
+            fillHex: cardFill, lineHex: cardLine, lineW: 6350, shadow: true
+        }));
+        shapes.push(makeShape({
+            id: id++, name: 'StorageBand', prst: 'rect',
+            x: emu(tenancyX + 0.01), y: emu(storageY + 0.01),
+            cx: emu(tenancyW - 0.02), cy: emu(0.10),
+            fillHex: storageColor
+        }));
+        shapes.push(makeTextBoxSp(id++, 'StorageLabel',
+            emu(tenancyX + 0.25), emu(storageY + 0.20), emu(tenancyW - 0.5), emu(0.3),
+            'STORAGE',
+            { sz: 1000, bold: true, color: storageColor })[0]);
+        shapes.push(makeShape({
+            id: id++, name: 'StorageValue', prst: 'rect',
+            x: emu(tenancyX + 0.20), y: emu(storageY + 0.50),
+            cx: emu(tenancyW - 0.4), cy: emu(tileH - 0.55),
+            fillHex: null,
+            text: storage,
+            textProps: { sz: 1500, bold: true, color: headingColor },
+            textAnchor: 'ctr', textAlign: 'l'
+        }));
+
+        // Scale panel — full configuration height, header + per-scale entries
+        shapes.push(makeShape({
+            id: id++, name: 'ScalePanelBg', prst: 'roundRect', adj: 8000,
+            x: emu(scaleX), y: emu(cfgY), cx: emu(scalePanelW), cy: emu(cfgH),
+            fillHex: cardFill, lineHex: cardLine, lineW: 6350, shadow: true
+        }));
+        shapes.push(makeShape({
+            id: id++, name: 'ScalePanelBand', prst: 'rect',
+            x: emu(scaleX + 0.01), y: emu(cfgY + 0.01),
+            cx: emu(scalePanelW - 0.02), cy: emu(0.10),
+            fillHex: scalePanelColor
+        }));
+        shapes.push(makeTextBoxSp(id++, 'ScalePanelLabel',
+            emu(scaleX + 0.25), emu(cfgY + 0.20), emu(scalePanelW - 0.5), emu(0.3),
+            'SCALE',
+            { sz: 1000, bold: true, color: scalePanelColor })[0]);
+
+        // Build per-scale paragraphs: bold title line, then a body line
+        // describing the selected scale (taken from the scale's `desc` field).
+        const scalePanelParas = [];
+        if (!scales.length) {
+            scalePanelParas.push({
+                text: 'No scale selected for this purpose yet.',
+                sz: 1200, italic: true, color: bodyColor, spaceAfter: 0
+            });
+        } else {
+            // Choose a sensible base font size so 1, 2, or 3 scales all fit
+            // within the panel without overflow.
+            const titleSz = scales.length >= 3 ? 1100 : (scales.length === 2 ? 1300 : 1400);
+            const descSz  = scales.length >= 3 ?  900 : (scales.length === 2 ? 1000 : 1100);
+            const interGap = scales.length >= 3 ? 200 : 400; // hundredths of a pt between entries
+            scales.forEach(function(sid, idx) {
+                const it = scaleOpts.find(function(o) { return o.id === sid; });
+                const titleText = it ? it.title : sid;
+                const descText  = it && it.desc ? it.desc : '';
+                scalePanelParas.push({
+                    text: titleText,
+                    sz: titleSz, bold: true, color: headingColor,
+                    spaceBefore: idx === 0 ? 0 : interGap,
+                    spaceAfter: 60
+                });
+                if (descText) {
+                    scalePanelParas.push({
+                        text: descText,
+                        sz: descSz, color: bodyColor,
+                        spaceBefore: 0, spaceAfter: 0
+                    });
+                }
+            });
         }
+        shapes.push(makeRichTextBoxSp(id++, 'ScalePanelBody',
+            emu(scaleX + 0.20), emu(cfgY + 0.55),
+            emu(scalePanelW - 0.4), emu(cfgH - 0.65),
+            scalePanelParas));
 
         // ---- Learn-more footer pill ----------------------------------
         const learnText = info.learnLabel + '  →  ' + info.learnUrl;
@@ -4188,13 +4780,15 @@
     }
 
     // Small fully-rounded "pill" badge used for tenancy / scale / storage chips.
-    function makePill(id, name, x, y, cx, cy, label, fillHex, textHex) {
+    // sz is in hundredths of a point (1000 = 10pt). Defaults to 1000 to match
+    // legacy callers; pass a smaller value to fit longer labels (see pillFontSize).
+    function makePill(id, name, x, y, cx, cy, label, fillHex, textHex, sz) {
         return makeShape({
             id: id, name: name, prst: 'roundRect', adj: 50000,
             x: x, y: y, cx: cx, cy: cy,
             fillHex: fillHex,
             text: label,
-            textProps: { sz: 1000, bold: true, color: textHex },
+            textProps: { sz: sz || 1000, bold: true, color: textHex },
             textAnchor: 'ctr', textAlign: 'ctr'
         });
     }
@@ -4206,7 +4800,7 @@
         const isM365 = scales.indexOf('m365-small') >= 0 || scales.indexOf('m365-large') >= 0;
         if (has64Plus && !isM365) { return 'SAN (required at this scale)'; }
         if (isM365) { return 'S2D (local)'; }
-        return storageLabelFor(scales[0], getStorageFor(purposeId));
+        return storageLabelFor(scales[0], getStorageFor(purposeId, scales[0]));
     }
 
     function storageLabelFor(scaleId, storedChoice) {
@@ -4215,6 +4809,37 @@
         if (storedChoice === 'san') { return 'SAN'; }
         if (storedChoice === 'both') { return 'S2D + SAN'; }
         return 'S2D (local)';
+    }
+
+    // Compact label used inside the overview slide's Scale pill, where
+    // the full title (e.g. "Azure Local Cluster up to 16 nodes") is too long
+    // when multiple scales are joined together with " + ".
+    const SHORT_SCALE_LABEL = {
+        'single-node':  'Single Node',
+        'rack-aware':   'Rack-Aware (2-8)',
+        'cluster-16':   '16 nodes',
+        'cluster-64':   '64 nodes',
+        'cluster-128':  '128 nodes',
+        'm365-small':   'M365 Small',
+        'm365-large':   'M365 Large'
+    };
+    function shortScaleLabel(scaleId, scaleOpt) {
+        return SHORT_SCALE_LABEL[scaleId] || (scaleOpt && scaleOpt.title) || scaleId;
+    }
+
+    // Estimate the largest font size (in hundredths of a point) at which the
+    // single-line label fits inside a pill of the given width (inches).
+    // Conservative estimate using Segoe UI bold metrics: ~0.06" per character at 10pt.
+    // Floors at 700 (7pt) so text never disappears.
+    function pillFontSize(label, widthIn, baseSz) {
+        if (!label) { return baseSz; }
+        const horizontalPaddingIn = 0.20;
+        const usableIn = Math.max(0.1, widthIn - horizontalPaddingIn);
+        // chars that fit at baseSz: usableIn / (0.06 * baseSz/1000) = usableIn * 16667 / baseSz
+        const charsThatFit = Math.floor((usableIn * 16667) / baseSz);
+        if (label.length <= charsThatFit) { return baseSz; }
+        const scaled = Math.floor(baseSz * (charsThatFit / label.length));
+        return Math.max(700, scaled);
     }
 
     function capitalizeWord(s) {
@@ -4389,7 +5014,8 @@
                 connectivity: state.connectivity,
                 tenancyByPurpose: Object.assign({}, state.tenancyByPurpose),
                 scaleByPurpose: {},
-                storageByPurpose: Object.assign({}, state.storageByPurpose)
+                storageByPurposeScale: Object.assign({}, state.storageByPurposeScale),
+                clusterCountByPurposeScale: Object.assign({}, state.clusterCountByPurposeScale)
             };
             Object.keys(state.scaleByPurpose).forEach(function(k) {
                 snapshot.scaleByPurpose[k] = (state.scaleByPurpose[k] || []).slice();
@@ -4466,7 +5092,42 @@
             state.scaleByPurpose = sanitizeKeyedObject(data.scaleByPurpose, function(v) {
                 return Array.isArray(v) ? v.slice() : (v ? [v] : []);
             });
-            state.storageByPurpose = sanitizeKeyedObject(data.storageByPurpose, function(v) { return v; });
+
+            // Restore per-purpose-per-scale storage — keys are 'purposeId|scaleId'.
+            state.storageByPurposeScale = {};
+            if (data.storageByPurposeScale && typeof data.storageByPurposeScale === 'object') {
+                Object.keys(data.storageByPurposeScale).forEach(function(key) {
+                    var parts = key.split('|');
+                    if (parts.length === 2 && isValidPurposeId(parts[0])) {
+                        var safeKey = PURPOSES.find(function(p) { return p.id === parts[0]; }).id + '|' + parts[1];
+                        state.storageByPurposeScale[safeKey] = data.storageByPurposeScale[key];
+                    }
+                });
+            } else if (data.storageByPurpose && typeof data.storageByPurpose === 'object') {
+                // Back-compat: old shared URLs used storageByPurpose (one storage per purpose).
+                // Apply the value to both single-node and cluster-16 keys for that purpose.
+                Object.keys(data.storageByPurpose).forEach(function(k) {
+                    if (!isValidPurposeId(k)) { return; }
+                    var safeKey = PURPOSES.find(function(p) { return p.id === k; }).id;
+                    state.storageByPurposeScale[safeKey + '|single-node'] = data.storageByPurpose[k];
+                    state.storageByPurposeScale[safeKey + '|cluster-16'] = data.storageByPurpose[k];
+                });
+            }
+
+            // Restore cluster counts — keys are 'purposeId|scaleId', values are 1-4.
+            if (data.clusterCountByPurposeScale && typeof data.clusterCountByPurposeScale === 'object') {
+                state.clusterCountByPurposeScale = {};
+                Object.keys(data.clusterCountByPurposeScale).forEach(function(key) {
+                    // Validate key format: purposeId|scaleId
+                    var parts = key.split('|');
+                    if (parts.length === 2 && isValidPurposeId(parts[0])) {
+                        var count = parseInt(data.clusterCountByPurposeScale[key], 10);
+                        if (count >= 1 && count <= 4) {
+                            state.clusterCountByPurposeScale[key] = count;
+                        }
+                    }
+                });
+            }
 
             // Re-render the dependent sections so the selected pills/cards reflect state.
             refreshSelections();
@@ -4668,8 +5329,10 @@
             const available = containerW - 48; // 24px wrapper padding each side
             if (available <= 0) { applyZoom(); return; }
             const fit = available / baseW;
-            // Cap at 1.0 so small diagrams don't render larger than designed.
-            setZoom(Math.min(1, fit));
+            // Cap at 0.7 so the diagram starts compact enough to show 5+ clusters
+            // without horizontal scrolling on the typical viewport. Users can
+            // zoom in / fit to width manually for a closer look.
+            setZoom(Math.min(0.7, fit));
         };
         if (typeof window.requestAnimationFrame === 'function') {
             window.requestAnimationFrame(run);
@@ -4754,10 +5417,37 @@
                 const arr = Array.isArray(next.scale) ? next.scale.slice() : (next.scale ? [next.scale] : []);
                 state.purposes.forEach(function(pid) { writeKeyed(state.scaleByPurpose, pid, arr.slice()); });
             }
-            if (next.storageByPurpose !== undefined) {
-                state.storageByPurpose = {};
+            if (next.storageByPurposeScale !== undefined) {
+                state.storageByPurposeScale = {};
+                Object.keys(next.storageByPurposeScale).forEach(function(k) {
+                    // Keys are 'purposeId|scaleId'
+                    var parts = k.split('|');
+                    if (parts.length === 2 && isValidPurposeId(parts[0])) {
+                        var safeKey = PURPOSES.find(function(p) { return p.id === parts[0]; }).id + '|' + parts[1];
+                        state.storageByPurposeScale[safeKey] = next.storageByPurposeScale[k];
+                    }
+                });
+            } else if (next.storageByPurpose !== undefined) {
+                // Back-compat: tests may still pass storageByPurpose. Apply to single-node and cluster-16.
+                state.storageByPurposeScale = {};
                 Object.keys(next.storageByPurpose).forEach(function(k) {
-                    writeKeyed(state.storageByPurpose, k, next.storageByPurpose[k]);
+                    if (!isValidPurposeId(k)) { return; }
+                    var safeKey = PURPOSES.find(function(p) { return p.id === k; }).id;
+                    state.storageByPurposeScale[safeKey + '|single-node'] = next.storageByPurpose[k];
+                    state.storageByPurposeScale[safeKey + '|cluster-16'] = next.storageByPurpose[k];
+                });
+            }
+            if (next.clusterCountByPurposeScale !== undefined) {
+                state.clusterCountByPurposeScale = {};
+                Object.keys(next.clusterCountByPurposeScale).forEach(function(k) {
+                    // Keys are 'purposeId|scaleId'
+                    var parts = k.split('|');
+                    if (parts.length === 2) {
+                        var count = parseInt(next.clusterCountByPurposeScale[k], 10);
+                        if (count >= 1 && count <= 4) {
+                            state.clusterCountByPurposeScale[k] = count;
+                        }
+                    }
                 });
             }
             refreshSelections();

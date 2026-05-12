@@ -114,6 +114,10 @@
     /* Suppress the clickable hover treatment on the card itself */
     transform: none;
 }
+/* Push the description to grow so purpose toggles align at the bottom */
+.pick-card.pick-card--multi .pick-desc {
+    flex: 1;
+}
 .scale-purpose-toggles {
     display: flex;
     flex-direction: column;
@@ -255,6 +259,16 @@
     opacity: 0.4;
     cursor: not-allowed;
     pointer-events: none;
+}
+
+/* Cluster count selector (shares styles with storage selector) */
+.scale-cluster-count-wrap {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 /* Purpose / footprint grids */
@@ -439,6 +453,7 @@
     gap: 12px;
     margin-top: 12px;
     margin-bottom: 8px;
+    align-items: stretch;
 }
 
 /* Slide-23 style "Azure Local (connected)" / "(disconnected)" cards */
