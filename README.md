@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.08 - Available here: https://aka.ms/ODIN
+## Version 0.21.09 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,17 +46,16 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.08 - Latest Release
+### 🎉 Version 0.21.09 - Latest Release
 
-> **Security maintenance release.** Bumps the transitive `fast-uri` npm dependency to `>= 3.1.2` to clear two high-severity Dependabot alerts. No functional, UI, or user-facing changes to the Designer, Sizer, Switch Configuration, Reference Architectures page, or PowerPoint export.
+> **Bug fix.** Resolves [issue #222](https://github.com/Azure/odinforazurelocal/issues/222) — the SAN Volume LUN ID inputs on Step 16 ("Storage Pool Configuration") were shown whenever **InfraOnly** was selected, regardless of architecture. They are only meaningful for the **Disaggregated (create-cluster-san)** ARM template; for **Hyperconverged** deployments they could not be filled in correctly and misled users into thinking they had to enter SAN details before continuing the wizard.
 
-**Security**
-- **`fast-uri` pinned to `>= 3.1.2`** via a new `overrides` entry in [`package.json`](package.json). Resolves [GHSA-q3j6-qgpj-74h6 / CVE-2026-6321](https://github.com/advisories/GHSA-q3j6-qgpj-74h6) (path traversal via percent-encoded dot segments, patched in 3.1.1) and [GHSA-v39h-62p7-jpjc / CVE-2026-6322](https://github.com/advisories/GHSA-v39h-62p7-jpjc) (host confusion via percent-encoded authority delimiters, patched in 3.1.2). The package is pulled in transitively via `html-validate → ajv` and `stylelint → table → ajv` and is used only by the local lint tooling — it is never bundled into the published site.
-- Matching guard entry added to `.github/copilot-instructions.md` so future PRs cannot regress the override.
-- `npm audit` now reports **0 vulnerabilities**.
+**Fixed**
+- **Designer · Step 16 — SAN LUN ID section now gated on architecture only.** The two SAN LUN ID inputs (`Infrastructure_1 Volume SAN LUN ID` and `Cluster Performance History Volume SAN LUN ID`) are now hidden whenever `state.architecture !== 'disaggregated'`. HCI clusters have no SAN array, so the inputs are hidden for **all three** HCI storage-pool choices (*Express*, *InfraOnly*, *KeepStorage*) — users can pick any option and proceed without entering LUN IDs. Disaggregated deployments still require both LUN IDs (gated by `getArmReadiness()` before Generate ARM).
+- **No state changes.** `state.infraVolLunId` / `state.infraPerfLunId` continue to be reset when the architecture switches away from Disaggregated. ARM generation, validation (`validateSanLunInputs()`), and the Generate-ARM readiness check were already architecture-gated — the bug was purely in the DOM visibility step (`syncStoragePoolUi()`).
 
-**Notes**
-- No new external network calls. No new runtime dependencies. ESLint clean across all browser-facing scopes; all 1,156 existing unit tests still pass.
+**Tests**
+- New unit test in [`tests/index.html`](tests/index.html) covers all four `(architecture × storagePoolConfiguration)` combinations to lock the visibility behaviour. ESLint clean; all 1,160 unit tests pass.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -379,7 +378,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.08  
+**Version**: 0.21.09  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -394,6 +393,14 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.08 - Security maintenance — `fast-uri` pinned to ≥ 3.1.2
+
+> **Security maintenance release.** Bumps the transitive `fast-uri` npm dependency to `>= 3.1.2` to clear two high-severity Dependabot alerts. No functional, UI, or user-facing changes to the Designer, Sizer, Switch Configuration, Reference Architectures page, or PowerPoint export.
+
+- **`fast-uri` pinned to `>= 3.1.2`** via a new `overrides` entry in [`package.json`](package.json). Resolves [GHSA-q3j6-qgpj-74h6 / CVE-2026-6321](https://github.com/advisories/GHSA-q3j6-qgpj-74h6) (path traversal via percent-encoded dot segments, patched in 3.1.1) and [GHSA-v39h-62p7-jpjc / CVE-2026-6322](https://github.com/advisories/GHSA-v39h-62p7-jpjc) (host confusion via percent-encoded authority delimiters, patched in 3.1.2). The package is pulled in transitively via `html-validate → ajv` and `stylelint → table → ajv` and is used only by the local lint tooling — it is never bundled into the published site.
+- Matching guard entry added to `.github/copilot-instructions.md` so future PRs cannot regress the override.
+- `npm audit` now reports **0 vulnerabilities**. No new external network calls. No new runtime dependencies. ESLint clean across all browser-facing scopes; all 1,156 existing unit tests still pass.
 
 #### 0.21.07 - Reference Architectures: AVD/Disconnected guard + Foundry Local diagram polish
 
