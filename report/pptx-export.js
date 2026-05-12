@@ -1738,6 +1738,11 @@
     }
 
     // ---- Subnet utilisation bar (SVG) -------------------------------------
+    // The bar is shared with the wizard (Step 15 live preview) and the HTML
+    // configuration report. The shared SVG builder lives in
+    // js/subnet-utilization.js (loaded from report.html). We pass the same
+    // PPT-specific layout/colour options that this slide has always used so
+    // the existing deck visuals stay byte-compatible.
     function ipToInt(ip) {
         var o = String(ip || '').split('.').map(Number);
         if (o.length !== 4 || o.some(function (n) { return isNaN(n); })) return null;
@@ -1745,6 +1750,31 @@
     }
 
     function buildInfraSubnetBarSvg(s) {
+        if (window.OdinSubnetUtil && typeof window.OdinSubnetUtil.buildInfraSubnetBarSvg === 'function') {
+            return window.OdinSubnetUtil.buildInfraSubnetBarSvg(s, {
+                width: 1600,
+                height: 320,
+                pad: 30,
+                barY: 90,
+                barH: 70,
+                background: DIAGRAM_BG,
+                titleFontSize: 26,
+                subtitleFontSize: 20,
+                axisFontSize: 18,
+                legendFontSize: 20
+            });
+        }
+        // Defensive fallback — should never trigger because report.html loads
+        // the shared module before pptx-export.js. Returning null lets the
+        // slide render without the bar instead of breaking the export.
+        return _legacyBuildInfraSubnetBarSvg(s);
+    }
+
+    // Original implementation kept inline as a safety net while the shared
+    // module rolls out. Identical output to the shared helper for the
+    // PPT-specific options above. Safe to remove once subnet-utilization.js
+    // has shipped in a release.
+    function _legacyBuildInfraSubnetBarSvg(s) {
         var cidr = String(s.infraCidr || '').trim();
         var m = cidr.match(/^(\d+\.\d+\.\d+\.\d+)\/(\d+)$/);
         if (!m) return null;

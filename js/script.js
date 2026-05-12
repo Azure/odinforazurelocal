@@ -282,6 +282,7 @@ function getInitialWizardState() {
     infraCidrAuto: true,
     infraGateway: null,
     infraGatewayManual: false,
+    infraPoolManual: false,
     nodeSettings: [],
     infraVlan: null,
     infraVlanId: null,
@@ -1291,6 +1292,11 @@ function autoFillInfraCidrFromNodes() {
         }
         state.infraCidr = derived;
         state.infraCidrAuto = true;
+        // Refresh the live subnet utilisation bar so it tracks node-IP edits
+        // made before the user lands on Step 15.
+        if (typeof renderInfraSubnetBar === 'function') {
+            renderInfraSubnetBar();
+        }
     } catch (e) {
         // ignore
     }
@@ -2853,6 +2859,7 @@ function selectOption(category, value) {
         state.infraCidrAuto = true;
         state.infraGateway = null;
         state.infraGatewayManual = false;
+        state.infraPoolManual = false;
         state.infraVlan = null;
         state.infraVlanId = null;
         state.storageAutoIp = null;
@@ -2926,6 +2933,7 @@ function selectOption(category, value) {
         state.infraCidrAuto = true;
         state.infraGateway = null;
         state.infraGatewayManual = false;
+        state.infraPoolManual = false;
         state.infraVlan = null;
         state.infraVlanId = null;
         state.storageAutoIp = null;
@@ -2953,6 +2961,7 @@ function selectOption(category, value) {
         state.infraCidrAuto = true;
         state.infraGateway = null;
         state.infraGatewayManual = false;
+        state.infraPoolManual = false;
         state.infraVlan = null;
         state.infraVlanId = null;
         state.storageAutoIp = null;
@@ -3067,7 +3076,7 @@ function selectOption(category, value) {
         // Reset PE checkboxes UI
         document.querySelectorAll('input[name="pe-service"]').forEach(cb => cb.checked = false);
     } else if (category === 'ip') {
-        state.infra = null; state.infraCidr = null; state.infraCidrAuto = true; state.infraGateway = null; state.infraGatewayManual = false; state.infraVlan = 'default'; state.infraVlanId = null;
+        state.infra = null; state.infraCidr = null; state.infraCidrAuto = true; state.infraGateway = null; state.infraGatewayManual = false; state.infraPoolManual = false; state.infraVlan = 'default'; state.infraVlanId = null;
         state.nodeSettings = [];
     } else if (category === 'infraVlan') {
         state.infraVlan = value;
@@ -7977,6 +7986,9 @@ function updateInfraNetwork() {
 
     updateSummary();
     updateUI();
+    if (typeof renderInfraSubnetBar === 'function') {
+        renderInfraSubnetBar();
+    }
 }
 
 function markInfraCidrManual(value) {
@@ -7989,6 +8001,212 @@ function markInfraGatewayManual(value) {
     // If the user clears the field, allow auto-fill again.
     const v = (value || '').trim();
     state.infraGatewayManual = v.length > 0;
+}
+
+// Track manual edits to the Infrastructure IP Pool start/end fields. Cleared
+// only when BOTH inputs are empty so the auto-fill button can re-populate
+// when the user explicitly resets the range.
+function markInfraPoolManual() {
+    const startInput = document.getElementById('infra-ip-start');
+    const endInput = document.getElementById('infra-ip-end');
+    const sv = startInput ? String(startInput.value || '').trim() : '';
+    const ev = endInput ? String(endInput.value || '').trim() : '';
+    state.infraPoolManual = (sv.length > 0 || ev.length > 0);
+}
+
+// ── Auto-fill: Infrastructure Network from Node IPs (Issue #221) ─────────
+// Derives a complete Infrastructure Network configuration from the node IPs
+// already entered in Step 12. Returns:
+//   { cidr, gateway, poolStart, poolEnd, gatewayShifted, warnings[] }
+// or null when the node IPs are missing/invalid/non-contiguous.
+//
+// Rules (per design discussion on issue #221):
+//   - CIDR is derived by reusing deriveInfraCidrFromNodeIps().
+//   - Gateway prefers the first usable host (.1). If a node already uses .1,
+//     the gateway pivots to broadcast-1 (.254 in a /24).
+//   - Pool start = max(lastNodeHost, firstHost + 9) + 1 (≥10 IPs of headroom
+//     after the highest node IP, never below firstHost+10).
+//   - Pool size = 6 (fixed — Cluster IP + 3 ARB IPs + 2 spare).
+//   - Pool must end before broadcast-1 (excluding the gateway slot when the
+//     gateway lives at broadcast-1).
+function deriveInfraNetworkFromNodeIps() {
+    try {
+        if (!Array.isArray(state.nodeSettings) || state.nodeSettings.length === 0) return null;
+
+        const cidr = deriveInfraCidrFromNodeIps();
+        if (!cidr) return null;
+
+        const cidrParts = String(cidr).split('/');
+        const prefix = parseInt(cidrParts[1], 10);
+        if (Number.isNaN(prefix) || prefix < 0 || prefix > 30) {
+            // /31 and /32 cannot host gateway + pool + nodes.
+            return null;
+        }
+
+        const ipv4Regex = /^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        const ipToLong = (ip) => ip.split('.').reduce((a, o) => (a << 8) + parseInt(o, 10), 0) >>> 0;
+        const longToIp = (n) => [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff].join('.');
+
+        const networkL = ipToLong(cidrParts[0]);
+        const mask = prefix === 0 ? 0 : ((0xFFFFFFFF << (32 - prefix)) >>> 0);
+        const broadcastL = (networkL | ((~mask) >>> 0)) >>> 0;
+        const firstHost = (networkL + 1) >>> 0;
+        const lastHost = (broadcastL - 1) >>> 0;
+
+        // Collect node host longs that fall inside this CIDR.
+        const nodeLongs = [];
+        for (let i = 0; i < state.nodeSettings.length; i++) {
+            const node = state.nodeSettings[i] || {};
+            const ipCidr = String(node.ipCidr || '').trim();
+            if (!isValidIpv4Cidr(ipCidr)) continue;
+            const nodeIp = extractIpFromCidr(ipCidr);
+            if (!ipv4Regex.test(nodeIp)) continue;
+            const nodeL = ipToLong(nodeIp);
+            if (nodeL > networkL && nodeL < broadcastL) nodeLongs.push(nodeL);
+        }
+        if (!nodeLongs.length) return null;
+        nodeLongs.sort((a, b) => a - b);
+
+        const warnings = [];
+
+        // Gateway: prefer .1, pivot to broadcast-1 if a node already uses .1.
+        let gatewayL = firstHost;
+        let gatewayShifted = false;
+        if (nodeLongs.includes(gatewayL)) {
+            gatewayL = lastHost;
+            gatewayShifted = true;
+            if (nodeLongs.includes(gatewayL)) {
+                warnings.push('Could not place gateway: both .1 and the broadcast-1 address are in use by nodes.');
+                return { cidr, gateway: null, poolStart: null, poolEnd: null, gatewayShifted, warnings };
+            }
+        }
+
+        // Pool: 6 consecutive IPs starting at max(lastNodeHost, firstHost+9) + 1
+        // — guarantees at least 10 IPs of node-growth headroom past the
+        // highest currently-used node IP.
+        const POOL_SIZE = 6;
+        const lastNodeHost = nodeLongs[nodeLongs.length - 1];
+        let poolStartL = Math.max(lastNodeHost, firstHost + 9) + 1;
+        let poolEndL = poolStartL + POOL_SIZE - 1;
+
+        // Reserve the gateway slot — pool must not include it.
+        const includesGateway = (gatewayL >= poolStartL && gatewayL <= poolEndL);
+        if (includesGateway) {
+            poolStartL = gatewayL + 1;
+            poolEndL = poolStartL + POOL_SIZE - 1;
+        }
+
+        // Cap pool to lastHost; exclude broadcast-1 if gateway sits there.
+        const poolCap = gatewayShifted ? (lastHost - 1) : lastHost;
+        if (poolEndL > poolCap) {
+            warnings.push('Subnet ' + cidr + ' is too small to fit ' + POOL_SIZE + ' pool IPs after the last node. Pool not auto-filled — please widen the subnet or set the pool manually.');
+            return { cidr, gateway: longToIp(gatewayL), poolStart: null, poolEnd: null, gatewayShifted, warnings };
+        }
+
+        return {
+            cidr: cidr,
+            gateway: longToIp(gatewayL),
+            poolStart: longToIp(poolStartL),
+            poolEnd: longToIp(poolEndL),
+            gatewayShifted: gatewayShifted,
+            warnings: warnings
+        };
+    } catch (e) {
+        return null;
+    }
+}
+
+// User-facing entry point bound to the "🪄 Auto-fill from Node IPs" button on
+// Step 15. Writes only into fields the user has not already edited; surfaces
+// the result (and any skipped fields) via a notification toast.
+function autoFillInfraNetworkFromNodes() {
+    const result = deriveInfraNetworkFromNodeIps();
+    if (!result) {
+        if (typeof showNotification === 'function') {
+            showNotification('Auto-fill needs a valid Node 1 IP first. Enter your node IPs in Step 12, then try again.', 'warning');
+        }
+        return;
+    }
+
+    const cidrInput = document.getElementById('infra-cidr');
+    const startInput = document.getElementById('infra-ip-start');
+    const endInput = document.getElementById('infra-ip-end');
+    const gwInput = document.getElementById('infra-default-gateway');
+
+    const filled = [];
+    const skipped = [];
+
+    // CIDR — auto-fill unless the user manually edited it.
+    if (cidrInput && state.infraCidrAuto !== false && result.cidr) {
+        cidrInput.value = result.cidr;
+        state.infraCidr = result.cidr;
+        state.infraCidrAuto = true;
+        filled.push('CIDR');
+    } else if (cidrInput && cidrInput.value && cidrInput.value.trim() !== result.cidr) {
+        skipped.push('CIDR (kept your manual value)');
+    } else if (cidrInput && result.cidr && !cidrInput.value) {
+        cidrInput.value = result.cidr;
+        state.infraCidr = result.cidr;
+        filled.push('CIDR');
+    }
+
+    // Gateway — auto-fill unless the user manually edited it.
+    if (gwInput && !gwInput.disabled && state.ip === 'static' && result.gateway) {
+        if (!state.infraGatewayManual) {
+            gwInput.value = result.gateway;
+            filled.push('gateway' + (result.gatewayShifted ? ' (shifted to broadcast-1 — .1 was in use by a node)' : ''));
+        } else {
+            skipped.push('gateway (kept your manual value)');
+        }
+    }
+
+    // Pool — auto-fill unless the user manually edited either field.
+    if (startInput && endInput && result.poolStart && result.poolEnd) {
+        if (!state.infraPoolManual) {
+            startInput.value = result.poolStart;
+            endInput.value = result.poolEnd;
+            filled.push('IP Pool');
+        } else {
+            skipped.push('IP Pool (kept your manual values)');
+        }
+    }
+
+    // Re-run validation to refresh state.infra, gateway state, and the
+    // success / error banners.
+    updateInfraNetwork();
+
+    // Toast the outcome.
+    if (typeof showNotification === 'function') {
+        const parts = [];
+        if (filled.length) parts.push('Filled: ' + filled.join(', '));
+        if (skipped.length) parts.push('Skipped: ' + skipped.join(', '));
+        if (result.warnings && result.warnings.length) parts.push(result.warnings.join(' '));
+        const msg = parts.length ? parts.join(' · ') : 'No fields needed updating.';
+        const kind = (result.warnings && result.warnings.length) ? 'warning' : 'success';
+        showNotification('Infrastructure auto-fill: ' + msg, kind);
+    }
+}
+
+// Renders the live "Infrastructure Subnet Utilisation" bar inside Step 15.
+// Uses the shared SVG builder in js/subnet-utilization.js so the wizard, the
+// configuration report and the PPT export all share the same visualisation.
+function renderInfraSubnetBar() {
+    const wrap = document.getElementById('infra-subnet-bar-wrap');
+    const target = document.getElementById('infra-subnet-bar');
+    if (!wrap || !target) return;
+    if (!window.OdinSubnetUtil || typeof window.OdinSubnetUtil.buildInfraSubnetBarSvg !== 'function') return;
+
+    const svg = window.OdinSubnetUtil.buildInfraSubnetBarSvg(state, {
+        // Slightly shorter than PPT defaults for in-page rendering.
+        width: 1600, height: 320
+    });
+    if (!svg) {
+        wrap.classList.add('hidden');
+        target.innerHTML = '';
+        return;
+    }
+    wrap.classList.remove('hidden');
+    target.innerHTML = svg;
 }
 
 function updateInfraVlanId() {
