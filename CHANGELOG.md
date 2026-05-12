@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.13] - 2026-05-12
+
+Cosmetic fix on the **Microsoft Sovereign Private Clouds** reference architectures page (Knowledge tab).
+
+### Fixed
+
+- **Microsoft Sovereign Private Clouds — `Azure Local Cluster (up to 128 nodes)` title no longer renders with a misleading `*` (Coming soon) suffix.** The 128-node scale is documented and supported, so the asterisk that visually marked it as a preview was wrong. Removed the stray `comingSoon: true` flag from the `cluster-128` entry in `cardForScale()` in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js); both the on-screen SVG diagram (`if (card.comingSoon) { titleText += ' *'; }`) and the PowerPoint export render the title cleanly now. The unrelated `comingSoon: true` flag on the **logical-isolation** tenancy option (line 93) — which gates the *Coming soon* badge in the picker — was deliberately left untouched.
+
+### Tests
+
+- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes **1,246 / 1,246**.
+
+### Notes
+
+- No data, schema, or PPT-template changes. No new external network calls. Single-line change to one card descriptor.
+
+---
+
 ## [0.21.12] - 2026-05-12
 
 Two bug fixes plus a small wizard quality-of-life feature. Closes [issue #221](https://github.com/Azure/odinforazurelocal/issues/221) (Designer: easier infrastructure-network setup) and [issue #223](https://github.com/Azure/odinforazurelocal/issues/223) (Disaggregated rack diagram: single-rack title / SAN / legend overlap and clipping).
