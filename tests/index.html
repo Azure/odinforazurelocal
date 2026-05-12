@@ -3034,6 +3034,122 @@
             assert(getDisaggMaxNodesPerRack(null) === 16, 'Null guarded → treated as 1 rack', 16, getDisaggMaxNodesPerRack(null))
         ]);
 
+        // --- getConservativeNodeOptions() ---
+        // Drives the conservative auto-scale loop in calculateRequirements().
+        // For disaggregated, options must be multiples of rackCount up to
+        // maxPerRack*rackCount so the loop can scale past the 16-node HCI cap.
+        testSuite('getConservativeNodeOptions()', 'sizer.js', [
+            (() => {
+                const o = getConservativeNodeOptions('standard');
+                return assert(JSON.stringify(o) === JSON.stringify([2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]),
+                    "'standard' → [2..16]", '[2..16]', JSON.stringify(o));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('rack-aware');
+                return assert(JSON.stringify(o) === JSON.stringify([2,4,6,8]),
+                    "'rack-aware' → [2,4,6,8]", '[2,4,6,8]', JSON.stringify(o));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('low-capacity');
+                return assert(JSON.stringify(o) === JSON.stringify([1,2,3]),
+                    "'low-capacity' → [1,2,3]", '[1,2,3]', JSON.stringify(o));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('disaggregated', 1);
+                return assert(JSON.stringify(o) === JSON.stringify([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]),
+                    "'disaggregated' rackCount=1 → [1..16]", '[1..16]', JSON.stringify(o));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('disaggregated', 2);
+                return assert(o.length === 16 && o[0] === 2 && o[o.length - 1] === 32,
+                    "'disaggregated' rackCount=2 → [2,4,...,32] (16 options, max 32)", '32', String(o[o.length - 1]));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('disaggregated', 4);
+                return assert(o.length === 16 && o[0] === 4 && o[o.length - 1] === 64,
+                    "'disaggregated' rackCount=4 → [4,8,...,64] (16 options, max 64)", '64', String(o[o.length - 1]));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('disaggregated', 5);
+                // maxPerRack=12, options 5..60 in steps of 5
+                return assert(o.length === 12 && o[o.length - 1] === 60,
+                    "'disaggregated' rackCount=5 → max 60 (12 options)", '60', String(o[o.length - 1]));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('disaggregated', 8);
+                // maxPerRack=8, options 8..64 in steps of 8
+                return assert(o.length === 8 && o[o.length - 1] === 64,
+                    "'disaggregated' rackCount=8 → max 64 (8 options)", '64', String(o[o.length - 1]));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('disaggregated', '2');
+                return assert(o[o.length - 1] === 32,
+                    "'disaggregated' rackCount=string('2') parses → max 32", '32', String(o[o.length - 1]));
+            })(),
+            (() => {
+                const o = getConservativeNodeOptions('disaggregated', 0);
+                return assert(o[0] === 1 && o[o.length - 1] === 16,
+                    "'disaggregated' rackCount=0 guarded → treated as 1 rack", '16', String(o[o.length - 1]));
+            })()
+        ]);
+
+        // --- shouldUpgradeToDisaggregated() ---
+        // Auto-pivot from standard HCI to disaggregated must ONLY fire when
+        // disaggregated would genuinely provide more nodes than the 16-node
+        // HCI cap. At exactly 16 nodes recommended, staying HCI and letting
+        // aggressive memory/ratio scaling fix utilisation is cheaper than a SAN.
+        testSuite('shouldUpgradeToDisaggregated()', 'sizer.js', [
+            (() => {
+                const r = shouldUpgradeToDisaggregated(14, 20);
+                return assert(r.upgrade === false,
+                    'currentNodeCount<16 → no upgrade (HCI not yet at cap)', false, r.upgrade);
+            })(),
+            (() => {
+                const r = shouldUpgradeToDisaggregated(16, 16);
+                return assert(r.upgrade === false,
+                    'recommended=16 → no upgrade (disagg would not help)', false, r.upgrade);
+            })(),
+            (() => {
+                const r = shouldUpgradeToDisaggregated(16, 0);
+                return assert(r.upgrade === false,
+                    'recommended=0 (null disaggRec) → no upgrade', false, r.upgrade);
+            })(),
+            (() => {
+                const r = shouldUpgradeToDisaggregated(16, 17);
+                return assert(r.upgrade === true && r.racks === 2 && r.estimatedNodes === 17,
+                    'recommended=17 → upgrade, 2 racks, 17 nodes', '{upgrade:true,racks:2,nodes:17}',
+                    '{upgrade:' + r.upgrade + ',racks:' + r.racks + ',nodes:' + r.estimatedNodes + '}');
+            })(),
+            (() => {
+                const r = shouldUpgradeToDisaggregated(16, 32);
+                return assert(r.upgrade === true && r.racks === 2,
+                    'recommended=32 → upgrade, 2 racks (32/16=2)', '2', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldUpgradeToDisaggregated(16, 33);
+                return assert(r.upgrade === true && r.racks === 3,
+                    'recommended=33 → upgrade, 3 racks (ceil(33/16)=3)', '3', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldUpgradeToDisaggregated(16, 64);
+                return assert(r.upgrade === true && r.racks === 4,
+                    'recommended=64 → upgrade, 4 racks', '4', String(r.racks));
+            })(),
+            (() => {
+                const r = shouldUpgradeToDisaggregated(16, 100);
+                return assert(r.upgrade === true && r.racks === 4,
+                    'recommended=100 (over 64-node cap) → capped at 4 racks', '4', String(r.racks));
+            })(),
+            (() => {
+                // Real-world scenario from screenshot: 32 GPUs on a RTX Pro 6000 host
+                // (maxPerNode=2) → gpuNodes=16, gpuWithN1=17. disaggRec.recommended=17,
+                // currentNodeCount=16 → upgrade to 2 racks (NOT 1 rack × 16 nodes).
+                const r = shouldUpgradeToDisaggregated(16, 17);
+                return assert(r.racks === 2,
+                    '32 GPU @ maxPerNode=2 scenario → 2 racks (not 1)', '2', String(r.racks));
+            })()
+        ]);
+
         // --- escapeHtmlSizer() ---
         testSuite('escapeHtmlSizer()', 'sizer.js', [
             assert(escapeHtmlSizer('hello') === 'hello', 'Plain text unchanged', 'hello', escapeHtmlSizer('hello')),

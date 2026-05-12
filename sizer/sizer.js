@@ -1227,6 +1227,42 @@ function getDisaggMaxNodesPerRack(rackCount) {
     return Math.min(16, Math.floor(64 / rc));
 }
 
+// Conservative auto-scale node-count options for a given cluster type.
+// - 'rack-aware': [2,4,6,8] (must stay even for balanced rack distribution)
+// - 'low-capacity': [1,2,3]
+// - 'disaggregated': multiples of rackCount up to maxPerRack*rackCount, so the
+//   loop can scale past the HCI 16-node cap (disagg supports up to 64 nodes).
+// - everything else (standard HCI): [2..16]
+function getConservativeNodeOptions(clusterType, rackCount) {
+    if (clusterType === 'rack-aware') return [2, 4, 6, 8];
+    if (clusterType === 'low-capacity') return [1, 2, 3];
+    if (clusterType === 'disaggregated') {
+        var rc = parseInt(rackCount, 10) || 1;
+        if (rc < 1) rc = 1;
+        var maxPerRack = getDisaggMaxNodesPerRack(rc);
+        var opts = [];
+        for (var i = 1; i <= maxPerRack; i++) opts.push(i * rc);
+        return opts;
+    }
+    return [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+}
+
+// Decide whether a standard (HCI) cluster should be auto-upgraded to
+// disaggregated when the conservative node loop has reached the 16-node cap.
+// Only upgrades when the disaggregated recommendation genuinely exceeds 16 —
+// otherwise the same 16-node count is reachable on HCI and aggressive
+// memory/ratio scaling should be tried first (cheaper than adding a SAN).
+// Returns { upgrade: false } or { upgrade: true, racks, estimatedNodes }.
+function shouldUpgradeToDisaggregated(currentNodeCount, disaggRecommended) {
+    var HCI_MAX = 16;
+    var cur = parseInt(currentNodeCount, 10) || 0;
+    if (cur < HCI_MAX) return { upgrade: false };
+    var rec = parseInt(disaggRecommended, 10) || 0;
+    if (rec <= HCI_MAX) return { upgrade: false };
+    var racks = Math.min(4, Math.max(1, Math.ceil(rec / 16)));
+    return { upgrade: true, racks: racks, estimatedNodes: rec };
+}
+
 // Get the maximum node cap for the current cluster type
 function getMaxNodeCap() {
     var ct = document.getElementById('cluster-type').value;
@@ -5038,7 +5074,9 @@ function calculateRequirements(options) {
             // Skip when user manually changed node count to respect their selection
             const clusterType = document.getElementById('cluster-type').value;
             if (clusterType !== 'single' && clusterType !== 'aldo-mgmt' && !skipAutoNodeRecommend) {
-                const nodeOptions = clusterType === 'rack-aware' ? [2, 4, 6, 8] : (clusterType === 'low-capacity' ? [1, 2, 3] : [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+                var disaggRackEl = document.getElementById('disagg-rack-count');
+                var disaggRackCountForOpts = disaggRackEl ? (parseInt(disaggRackEl.value, 10) || 1) : 1;
+                const nodeOptions = getConservativeNodeOptions(clusterType, disaggRackCountForOpts);
                 const maxNodeOption = nodeOptions[nodeOptions.length - 1];
                 const UTIL_THRESHOLD = 90;
                 let attempts = 0;
@@ -5119,33 +5157,40 @@ function calculateRequirements(options) {
                 if (!conservativeSuccess) {
 
                 // --- Prefer disaggregated upgrade over aggressive memory/ratio escalation ---
-                // When we've hit 16-node max on a standard cluster, try adding more nodes
-                // via disaggregated BEFORE resorting to expensive 3-4 TB DIMMs or high ratios.
-                if (clusterType === 'standard' && !_disaggAutoUpgraded && nodeCount >= 16) {
+                // When we've hit the 16-node max on a standard cluster AND the disaggregated
+                // recommendation calls for more than 16 nodes, pivot to disaggregated before
+                // resorting to expensive 3-4 TB DIMMs or high ratios. If disaggregated would
+                // also land at ≤16 nodes, the SAN brings no extra capacity — stay HCI and let
+                // the aggressive memory/ratio escalation below fix the remaining utilisation.
+                if (clusterType === 'standard' && !_disaggAutoUpgraded) {
                     var disaggRec = getRecommendedNodeCount(
                         totalVcpus, totalMemory, totalStorage,
                         hwConfig, resiliencyMultiplier, resiliency, totalGpus
                     );
-                    var estimatedNodes = disaggRec ? Math.max(disaggRec.recommended, nodeCount) : nodeCount;
-                    var minRacks = Math.min(4, Math.max(1, Math.ceil(estimatedNodes / 16)));
+                    var upgradeDecision = shouldUpgradeToDisaggregated(
+                        nodeCount, disaggRec ? disaggRec.recommended : 0
+                    );
+                    if (upgradeDecision.upgrade) {
+                        var minRacks = upgradeDecision.racks;
 
-                    _disaggAutoUpgraded = true;
-                    document.getElementById('cluster-type').value = 'disaggregated';
-                    markAutoScaled('cluster-type');
-                    var rackEl = document.getElementById('disagg-rack-count');
-                    if (rackEl) rackEl.value = String(minRacks);
-                    updateNodeOptionsForClusterType();
-                    updateStorageForClusterType();
-                    updateResiliencyOptions();
-                    updateClusterInfo();
-                    updateDisaggregatedUI(true);
-                    _nodeCountUserSet = false;
+                        _disaggAutoUpgraded = true;
+                        document.getElementById('cluster-type').value = 'disaggregated';
+                        markAutoScaled('cluster-type');
+                        var rackEl = document.getElementById('disagg-rack-count');
+                        if (rackEl) rackEl.value = String(minRacks);
+                        updateNodeOptionsForClusterType();
+                        updateStorageForClusterType();
+                        updateResiliencyOptions();
+                        updateClusterInfo();
+                        updateDisaggregatedUI(true);
+                        _nodeCountUserSet = false;
 
-                    showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
+                        showSizerToast('Workload exceeds 16-node hyperconverged instance capacity \u2014 automatically upgraded to Disaggregated Storage (' + minRacks + (minRacks === 1 ? ' rack' : ' racks') + ').', 'info');
 
-                    isCalculating = false;
-                    calculateRequirements();
-                    return;
+                        isCalculating = false;
+                        calculateRequirements();
+                        return;
+                    }
                 }
 
                 const aggressiveChanged = autoScaleHardware(
