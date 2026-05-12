@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.12] - 2026-05-12
+
+Two bug fixes plus a small wizard quality-of-life feature. Closes [issue #221](https://github.com/Azure/odinforazurelocal/issues/221) (Designer: easier infrastructure-network setup) and [issue #223](https://github.com/Azure/odinforazurelocal/issues/223) (Disaggregated rack diagram: single-rack title / SAN / legend overlap and clipping).
+
+### Added
+
+- **Designer · Step 15 — "🪄 Auto-fill from Node IPs" button** next to the existing *Subnet Calculator*. One click derives the **Infrastructure CIDR**, **Default Gateway**, and **Infra IP Pool start/end** from the Node IPs already entered on Step 12. Behaviour: gateway prefers `.1` (first usable host) and pivots to broadcast-1 (`.254` in /24) **only if** a node already uses `.1`; pool size is fixed at 6 IPs (Cluster IP + 3 ARB + 2 spare) and is placed past the highest node IP with at least 10 IPs of node-growth headroom; any field the user has manually edited (CIDR, gateway, or pool) is silently kept and reported in a toast (e.g. *"Skipped: gateway (kept your manual value)"*). Closes [issue #221](https://github.com/Azure/odinforazurelocal/issues/221).
+- **Designer · Step 15 — live "Infrastructure Subnet Utilisation" diagram.** A horizontal bar diagram now renders inline below the Infrastructure Network inputs as the user types, showing the same colour-coded segments (Default Gateway / Infra IP Pool / Node IPs / Unused) and IP-count counts that already appeared in the PowerPoint export. Re-renders on every change to CIDR / gateway / pool / node IPs.
+- **Configuration Report — "Infrastructure Subnet Utilisation" diagram** is now rendered inline in the *IP, Infrastructure Network & VLAN* section of the on-screen HTML report (was previously only available via the PowerPoint export). Same SVG; consistent visual across wizard, on-screen report, and PPT.
+- **`js/subnet-utilization.js`** — new shared module exposing `window.OdinSubnetUtil.buildInfraSubnetBarSvg(state, options)` that builds the subnet utilisation SVG string from `state.infraCidr` / `infraGateway` / `infra.{start,end}` / `nodeSettings[].ipCidr`. Single source of truth used by the wizard live preview, the configuration report, and the PowerPoint export. Returns `null` when there isn't enough data to render. Loaded by both `index.html` and `report/report.html`.
+- **`state.infraPoolManual`** — new boolean state field tracking whether the user has manually edited the Infra IP Pool start/end inputs. Set on `oninput` of either input; reset on category cascades (scenario / region / localInstanceRegion changes). Used by the Auto-fill button to decide whether to overwrite the pool. Registered in the `tests/index.html` field-inventory tests.
+
+### Fixed
+
+- **Disaggregated rack diagram — single-rack overlap and clipping resolved across both code paths.** Two SVG generators render the same diagram (the wizard preview in `js/disaggregated.js` and the configuration report in `report/rack-svg.js`); both previously sized the SVG canvas based on rack count alone. For a single rack that produced a ~300 px-wide viewBox, which (a) caused the title text to slide under the *Azure Local* brand badge top-right, (b) made the SAN / iSCSI fabric label boxes too narrow for `SAN Storage Array — Fabric A/B` plus the `FC 32G / Connected to FC Switch A in each rack` sub-line, and (c) clipped the legend off the right edge. Both generators now compute a content-aware width floor — `Math.max(naturalWidth, titleMinW, sanLabelMinW, legendMinW)` — and centre the rack column inside the widened canvas; the SAN / iSCSI box pair now spans `(svgWidth − 2·padX)` instead of the narrower rack column. The `max-width: ${svgW}px` style attribute was also removed from both SVG roots so the diagram now uses the entire available container width instead of being clamped to the minimum-content size. Closes [issue #223](https://github.com/Azure/odinforazurelocal/issues/223).
+
+### Changed
+
+- **`report/pptx-export.js` — `buildInfraSubnetBarSvg(s)`** now delegates to `window.OdinSubnetUtil.buildInfraSubnetBarSvg(state, options)` with PPT-specific options (`background: DIAGRAM_BG`, fixed `width: 1600` / `height: 320`, larger fonts). The original 130-line inline implementation is kept as `_legacyBuildInfraSubnetBarSvg(s)` and used as a defensive fallback if the shared module fails to load (e.g. cached older HTML). Safe to remove the legacy fallback once `0.21.12` has shipped in a release.
+- **`js/script.js` — `state.infraPoolManual` is reset** in all three category-cascade reset blocks (scenario, region, localInstanceRegion) and in the inline single-field reset path, alongside the existing `infraGatewayManual` flag. Mirrors the existing manual-flag discipline.
+
+### Tests
+
+- New `infraPoolManual` field registered in all three known-state-field inventories in [`tests/index.html`](tests/index.html) (the *STATE FIELD INVENTORY: All fields documented for import/export* test).
+- Full test suite passes **1,246 / 1,246**. ESLint clean across all browser-facing scopes (zero new warnings); `npx html-validate "**/*.html"` clean.
+
+### Notes
+
+- No new external network calls. No new runtime dependencies. The `subnet-utilization.js` module is loaded as a regular `<script>` on the same surfaces that already render the wizard / report — consistent with the repo's no-bundler architecture.
+- The single-rack diagram fix preserves the existing side-by-side fabric layout (Fabric A | Fabric B) and the existing colour palette / legend ordering — only the canvas width and centring logic changed.
+
+---
+
 ## [0.21.11] - 2026-05-12
 
 **Sizer hardware-options alignment with the Azure Local Solutions Catalog.** A new automated build-time gap check compares every Sizer dropdown against a captured catalog snapshot and writes a gap report after the browser test suite. The Sizer now offers NVIDIA **A100** and **A40** GPUs, **xeon-5th up to 128 cores/socket**, **xeon-6** with **36** and **80** core options added, **40-drive capacity nodes** (single-tier and two-tier), **8 / 12 / 16 / 20 TB capacity drive sizes**, and a **12.8 TB cache** size — matching what Azure Local certified hardware ships today. Closes [issue #226](https://github.com/Azure/odinforazurelocal/issues/226).

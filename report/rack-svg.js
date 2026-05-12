@@ -363,10 +363,47 @@
         var sanH = hasFC ? 50 : (hasIscsi ? 50 : 0);
         var legendH = 50;
         var padX = 20;
-        // Same min-width clamp as the standard rack SVG: title (~220px in
-        // disagg variant due to "(Disaggregated, FC SAN)") + brand badge
-        // (~80px) + padding need ~360px before they overlap.
-        var MIN_SVG_W = 380;
+
+        // ── Issue #223 fix ──
+        // The single-rack disaggregated layout previously clamped svgW to
+        // 380px, which caused three overlapping artefacts:
+        //   1. Title text crossed under the Azure Local brand badge.
+        //   2. SAN/iSCSI fabric labels overflowed their boxes (sanBoxW was
+        //      derived from totalRackWidth = 236 → boxes only 108 px wide).
+        //   3. Legend ran past the right edge.
+        // Compute MIN_SVG_W from the actual content widths (title + brand,
+        // SAN/iSCSI fabric labels, and legend) so single-rack renders stay
+        // readable while preserving the existing side-by-side fabric design.
+        var storageLabel = storageType === 'fc_san' ? 'FC SAN' : (storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC');
+        var titleText = 'Rack Layout — Front View (Disaggregated, ' + storageLabel + ')';
+        // Title font-size 13 ≈ 6.5 px/char; brand badge ≈ 94px (icon + text);
+        // need brand on either side of the centred title without collision,
+        // hence brand width counted twice plus padding.
+        var titleMinW = Math.ceil(titleText.length * 6.6) + 2 * 94 + 2 * padX;
+
+        // SAN/iSCSI fabric labels at font-size 9 (~5.1 px/char) plus a
+        // sub-line at font-size 7 (~3.7 px/char). Each fabric box must fit
+        // the longer of the two; pair has a 20px gap; whole block spans
+        // (svgW - 2*padX) centred.
+        var sanLabelMinW = 0;
+        if (hasFC) {
+            var fcMain = 'SAN Storage Array — Fabric B';
+            var fcSub = 'FC 32G / Connected to FC Switch A in each rack';
+            sanLabelMinW = Math.ceil(Math.max(fcMain.length * 5.1, fcSub.length * 3.7)) + 16; // box padding
+            sanLabelMinW = sanLabelMinW * 2 + 20 + 2 * padX;
+        } else if (hasIscsi) {
+            var iscsiMain = 'iSCSI Storage Array — Target B';
+            var iscsiSub = storageType === 'iscsi_6nic' ? 'Ports 33-48, VLAN 600' : 'Ports 17-32 (shared)';
+            sanLabelMinW = Math.ceil(Math.max(iscsiMain.length * 5.1, iscsiSub.length * 3.7)) + 16;
+            sanLabelMinW = sanLabelMinW * 2 + 20 + 2 * padX;
+        }
+
+        // Legend width — count items conservatively (the loop below repeats
+        // the same formula). 7–9 items at ~13 chars each + swatch overhead.
+        var legendItemCount = 5 + (hasFC ? 2 : 0) + (hasIscsi ? 1 : 0); // server, leaf, bmc, spine, sl + (fc+san) | iscsi
+        var legendMinW = legendItemCount * 110 + 2 * padX;
+
+        var MIN_SVG_W = Math.max(380, titleMinW, sanLabelMinW, legendMinW);
         var svgW = Math.max(totalRackWidth + padX * 2, MIN_SVG_W);
         var svgH = titleH + spineH + rackLabelH + outerRackH + sanH + legendH + 40;
         // Centre the rack/spine block when the SVG was widened.
@@ -375,12 +412,14 @@
         var parts = [];
         // Responsive: viewBox scales to container width. Wide disaggregated
         // layouts (rackCount > ~5) would otherwise overflow the report column.
-        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="width: 100%; max-width: ' + svgW + 'px; height: auto; display: block; margin: 0 auto;" font-family="Segoe UI, sans-serif">');
+        // No max-width: let the SVG fill the report column so single-rack
+        // layouts use the entire available canvas instead of being clamped
+        // to MIN_SVG_W and looking cramped.
+        parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: auto; display: block; margin: 0 auto;" font-family="Segoe UI, sans-serif">');
         parts.push('<rect width="' + svgW + '" height="' + svgH + '" fill="' + C.BACKGROUND + '"/>');
 
         // Title
-        var storageLabel = storageType === 'fc_san' ? 'FC SAN' : (storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC');
-        parts.push('<text x="' + (svgW / 2) + '" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#ccc">Rack Layout — Front View (Disaggregated, ' + esc(storageLabel) + ')</text>');
+        parts.push('<text x="' + (svgW / 2) + '" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#ccc">' + esc(titleText) + '</text>');
 
         // Azure Local brand: icon + text (top-right)
         var brandX = svgW - padX;
@@ -497,12 +536,15 @@
         }
 
         // ── SAN layer ──
+        // Issue #223: span the full SVG width (not the narrow rack column)
+        // so the fabric labels remain readable for single-rack layouts.
         var sanY = racksY + outerRackH + 12;
+        var sanBlockW = svgW - 2 * padX;
         if (hasFC) {
-            var sanBoxW = (totalRackWidth - 20) / 2;
+            var sanBoxW = (sanBlockW - 20) / 2;
             var sanBoxH = 30;
-            var sanX1 = padX + disaggOffsetX;
-            var sanX2 = padX + disaggOffsetX + sanBoxW + 20;
+            var sanX1 = padX;
+            var sanX2 = padX + sanBoxW + 20;
             parts.push('<rect x="' + sanX1 + '" y="' + sanY + '" width="' + sanBoxW + '" height="' + sanBoxH + '" rx="4" fill="' + DC.SAN_ARRAY + '"/>');
             parts.push('<text x="' + (sanX1 + sanBoxW / 2) + '" y="' + (sanY + 13) + '" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">SAN Storage Array — Fabric A</text>');
             parts.push('<text x="' + (sanX1 + sanBoxW / 2) + '" y="' + (sanY + 24) + '" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.5)">FC 32G / Connected to FC Switch A in each rack</text>');
@@ -518,10 +560,10 @@
                 parts.push('<line x1="' + frx + '" y1="' + fcBottomY + '" x2="' + (sanX2 + sanBoxW / 2) + '" y2="' + sanY + '" stroke="#c4b5fd" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.25"/>');
             }
         } else if (hasIscsi) {
-            var iscsiBoxW = (totalRackWidth - 20) / 2;
+            var iscsiBoxW = (sanBlockW - 20) / 2;
             var iscsiBoxH = 30;
-            var iscsiX1 = padX + disaggOffsetX;
-            var iscsiX2 = padX + disaggOffsetX + iscsiBoxW + 20;
+            var iscsiX1 = padX;
+            var iscsiX2 = padX + iscsiBoxW + 20;
             var portLabel = storageType === 'iscsi_6nic' ? 'Ports 33-48, VLAN 500' : 'Ports 17-32 (shared)';
             var port2Label = storageType === 'iscsi_6nic' ? 'Ports 33-48, VLAN 600' : 'Ports 17-32 (shared)';
             parts.push('<rect x="' + iscsiX1 + '" y="' + sanY + '" width="' + iscsiBoxW + '" height="' + iscsiBoxH + '" rx="4" fill="' + DC.ISCSI_ARRAY + '"/>');

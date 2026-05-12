@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.11 - Available here: https://aka.ms/ODIN
+## Version 0.21.12 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,35 +46,33 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.11 - Latest Release
+### 🎉 Version 0.21.12 - Latest Release
 
-> **Sizer hardware-options alignment with the Azure Local Solutions Catalog.** A new automated build-time gap check compares every Sizer dropdown against a captured catalog snapshot and writes a gap report after the browser test suite. The Sizer now offers NVIDIA **A100** and **A40** GPUs, **xeon-5th up to 128 cores/socket**, **xeon-6** with **36** and **80** core options added, **40-drive capacity nodes** (single-tier and two-tier), **8 / 12 / 16 / 20 TB capacity drive sizes**, and a **12.8 TB cache** size — matching what Azure Local certified hardware ships today. Closes [issue #226](https://github.com/Azure/odinforazurelocal/issues/226).
+> **Two bug fixes plus a small wizard quality-of-life feature.** Closes [issue #221](https://github.com/Azure/odinforazurelocal/issues/221) (Designer: easier infrastructure-network setup) and [issue #223](https://github.com/Azure/odinforazurelocal/issues/223) (Disaggregated rack diagram: single-rack title / SAN / legend overlap and clipping).
 
-**Sizer hardware options — new entries**
-- **NVIDIA A40** added — 48 GB GDDR6, 300 W, up to 2 per node, supports Azure Local VMs / AKS / GPU-P, with `validPartitions: ['1', '1/2', '1/4', '1/8', '1/16']` (NVIDIA vGPU software partitioning, up to 16 vGPUs per GPU).
-- **NVIDIA A100** added — 80 GB HBM2e, 300 W, up to 2 per node, supports Azure Local VMs / AKS / GPU-P, with `validPartitions: ['1', '1/2', '1/4', '1/8']`. **A100 uses MIG** (hardware partitioning) with a hard cap of **7 GPU slices** per A100; the dropdown therefore deliberately stops at `1/8` and **does not** include `1/16`. Mis-typing this would let architects oversubscribe A100 hardware — please surface this correctly in any downstream sizing tools you build on top of ODIN.
-- **`xeon-5th`** (Intel® 5th Gen Xeon® / Emerald Rapids) core options extended to `[8, 10, 12, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 80, 96, 128]` (was capped at 64); `maxCores: 128`. Catalog v2026-05 lists top SKUs (e.g. Platinum 8593Q) at 128 cores per socket.
-- **`xeon-6`** (Intel® 6th Gen Xeon® / Granite Rapids · Sierra Forest) core options now include **36** and **80**: `[8, 12, 16, 24, 32, 36, 48, 64, 72, 80, 86, 96, 128, 144, 172]`.
-- **Capacity drive sizes** — `8 TB`, `12 TB`, `16 TB`, and `20 TB` added to both single-tier (`#capacity-disk-size`) and two-tier (`#tiered-capacity-disk-size`) dropdowns.
-- **Cache drive size** — `12.8 TB` added to `#cache-disk-size`.
-- **Capacity disk counts** — extended to **40 per node** for both `#capacity-disk-count` (single-tier) and `#tiered-capacity-disk-count` (two-tier). Catalog now ships solutions with up to 40 capacity drives per node.
+**Designer · Step 15 — "🪄 Auto-fill from Node IPs" button (issue #221)**
+- New green button next to the existing *Subnet Calculator*. One click derives the **Infrastructure CIDR**, **Default Gateway**, and **Infra IP Pool start/end** from the Node IPs already entered on Step 12.
+- Gateway prefers `.1` (first usable host); pivots to broadcast-1 (`.254` in /24) **only if** a node already uses `.1`.
+- Pool size is fixed at 6 IPs (Cluster IP + 3 ARB + 2 spare), placed past the highest node IP with at least 10 IPs of node-growth headroom; if the gateway sits inside the candidate pool range, the pool is shifted past it.
+- Any field already manually edited (CIDR, gateway, or pool) is silently kept and reported in a toast — e.g. *"Skipped: gateway (kept your manual value)"*.
 
-**Automated catalog gap check**
-- **`scripts/catalog-gap-check.js`** — new Node.js tool that loads the captured Azure Local Solutions Catalog snapshot (or fetches a fresh one with `--fetch-live`), walks the Sizer dropdowns and Sizer constants for CPU generations, core counts, memory range, disk counts and sizes, and GPU options, then writes a gap report. Module exports `loadSizerOptions`, `loadSnapshot`, `fetchLiveCatalog`, `slimSnapshot`, `runGapAnalysis`, `formatReport`, and `main` for unit testing and reuse.
-- **`tests/fixtures/catalog-snapshot.json`** + **`tests/fixtures/CATALOG_API.md`** — committed snapshot of the catalog SPA's `POST /api/catalog/default/search` response (24 platforms, 42 configurations) and a short reference describing the API shape, so the gap check runs offline by default and future snapshot refreshes don't have to re-reverse-engineer the API.
-- **`scripts/run-tests.js`** integration — after the 1,171 browser assertions pass, the runner calls `catalogCheck.main([])` and emits `test-results/catalog-gap-report.txt` and `.json`. Informational only; the build only fails if the optional `--strict-catalog-gap` flag is passed.
+**Designer + Configuration Report — live "Infrastructure Subnet Utilisation" diagram**
+- A horizontal bar diagram (Default Gateway / Infra IP Pool / Node IPs / Unused, with counts per segment) now renders inline below the Step 15 inputs as the user types — same SVG that previously only appeared in the PowerPoint export.
+- The same diagram is now also embedded in the *IP, Infrastructure Network & VLAN* section of the on-screen Configuration Report.
+- Single source of truth in new `js/subnet-utilization.js` shared by the wizard live preview, the configuration report, and the PowerPoint export.
+
+**Disaggregated rack diagram — single-rack overlap + clipping resolved (issue #223)**
+- Two SVG generators render the same diagram (the wizard preview in `js/disaggregated.js` and the configuration report in `report/rack-svg.js`); both previously sized the SVG canvas based on rack count alone, which produced a ~300 px-wide viewBox for a single rack and caused the title to slide under the *Azure Local* brand badge top-right, the SAN / iSCSI fabric label boxes to clip their `Connected to FC Switch A in each rack` sub-line, and the legend to run off the right edge.
+- Both generators now compute a content-aware width floor — `Math.max(naturalWidth, titleMinW, sanLabelMinW, legendMinW)` — and centre the rack column inside the widened canvas; the SAN / iSCSI box pair now spans `(svgWidth − 2·padX)` instead of the narrower rack column.
+- `max-width: ${svgW}px` was also removed from both SVG roots so the diagram now uses the entire available container width instead of being clamped to the minimum-content size.
 
 **Tests & quality**
-- 6 new unit assertions added to the `GPU_MODELS` suite covering A40 + A100 (model definition, VRAM/TDP, `maxPerNode`, partition correctness — including the explicit "no `1/16` for A100" guard).
-- The two `_tryAmdCoreUpgrade` auto-scale tests were re-pegged to `xeon-4th` (max 60 cores/socket, unchanged) because the new xeon-5th 128 cores/socket cap makes the 5:1 → 4:1 step-back path unreachable for that generation; same code path is exercised with re-derived vCPU loads.
-- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes **1,171 / 1,171**. The catalog gap report now reports **0 gaps** plus **3 known design exceptions** documented in the script's `KNOWN_DESIGN_EXCEPTIONS` allowlist (see Notes).
+- Full test suite passes **1,246 / 1,246**. ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean.
+- New `state.infraPoolManual` field registered in all three state-field inventories in `tests/index.html` to lock the manual-edit-tracking behaviour.
 
 **Notes**
-- **Memory ceiling intentionally held at 4 TB per node** even though the catalog now lists SKUs supporting up to 8 TB. The gap report classifies this as a **known design exception** (`id=memory-cap-4tb`) — deliberate density / DIMM-cost steering inside the Sizer, not an oversight. `--strict-catalog-gap` no longer fails on it.
-- **Storage drive-size design exceptions** — the catalog also lists minor enterprise SSD sizes (0.8 / 1.2 / 1.5 / 1.6 / 1.8 / 2.4 / 3.2 / 6 / 6.4 / 10 / 12.8 / 14 TB) and cache sizes (0.8 / 1.6 / 3.2 / 6.4 TB) that are not exposed in the Sizer. These are legacy or niche SKUs; the principal density choices (3.84 / 7.68 / 8 / 12 / 15.36 / 16 / 20 TB capacity; 3.84 / 7.68 / 12.8 TB cache) are all covered. Classified as design exceptions `id=capacity-drive-legacy-and-enterprise-skus` and `id=cache-drive-legacy-skus`. Any **new** size outside the documented allowlist will still surface as a real gap.
-- **Design-exception allowlist lives in [`scripts/catalog-gap-check.js`](scripts/catalog-gap-check.js)** (`KNOWN_DESIGN_EXCEPTIONS`). Each entry has a narrow `match(gap)` predicate plus a `reason:` string. The report prints `RESULT: N gap(s) detected` for *real* gaps only and lists design exceptions in a separate "BY DESIGN" section.
-- **3D rack visualization (`sizer/rack3d.js`) unchanged.** Drive slot positions on the front face of each rack-unit remain illustrative; disk counts beyond the drawn slot count do not change the rendered geometry. Power and rack-space totals remain accurate.
-- **No new external network calls at runtime.** The catalog gap check runs only at build time via Node.js; the published site never calls the catalog API.
+- No new external network calls. No new runtime dependencies. The `subnet-utilization.js` module is loaded as a regular `<script>` on the same surfaces that already render the wizard / report — consistent with the repo's no-bundler architecture.
+- The single-rack diagram fix preserves the existing side-by-side fabric layout (Fabric A | Fabric B) and the existing colour palette / legend ordering — only the canvas width and centring logic changed.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -397,7 +395,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.11  
+**Version**: 0.21.12  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -412,6 +410,17 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.11 - Sizer hardware-options alignment with the Azure Local Solutions Catalog (issue #226)
+
+> **Sizer hardware-options alignment with the Azure Local Solutions Catalog.** A new automated build-time gap check compares every Sizer dropdown against a captured catalog snapshot and writes a gap report after the browser test suite. The Sizer now offers NVIDIA **A100** and **A40** GPUs, **xeon-5th up to 128 cores/socket**, **xeon-6** with **36** and **80** core options added, **40-drive capacity nodes** (single-tier and two-tier), **8 / 12 / 16 / 20 TB capacity drive sizes**, and a **12.8 TB cache** size — matching what Azure Local certified hardware ships today. Closes [issue #226](https://github.com/Azure/odinforazurelocal/issues/226).
+
+- **NVIDIA A40** added — 48 GB GDDR6, 300 W, up to 2 per node, supports Azure Local VMs / AKS / GPU-P, with `validPartitions: ['1', '1/2', '1/4', '1/8', '1/16']` (NVIDIA vGPU software partitioning, up to 16 vGPUs per GPU).
+- **NVIDIA A100** added — 80 GB HBM2e, 300 W, up to 2 per node, supports Azure Local VMs / AKS / GPU-P, with `validPartitions: ['1', '1/2', '1/4', '1/8']`. **A100 uses MIG** (hardware partitioning) with a hard cap of **7 GPU slices** per A100; the dropdown therefore deliberately stops at `1/8` and **does not** include `1/16`.
+- **`xeon-5th`** (Intel® 5th Gen Xeon® / Emerald Rapids) core options extended to `[8, 10, 12, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 80, 96, 128]` (was capped at 64); `maxCores: 128`. **`xeon-6`** (Intel® 6th Gen Xeon® / Granite Rapids · Sierra Forest) core options now include **36** and **80**.
+- **Capacity drive sizes** — `8 TB`, `12 TB`, `16 TB`, and `20 TB` added to both single-tier and two-tier dropdowns. **Cache drive size** — `12.8 TB` added. **Capacity disk counts** extended to **40 per node** for both single-tier and two-tier.
+- **`scripts/catalog-gap-check.js`** + **`tests/fixtures/catalog-snapshot.json`** + **`tests/fixtures/CATALOG_API.md`** — new Node.js gap-check tool with a committed snapshot of the Azure Local Solutions Catalog SPA's POST API response (24 platforms, 42 configurations). `scripts/run-tests.js` now emits `test-results/catalog-gap-report.txt` and `.json` after the browser test suite. Informational only by default; `--strict-catalog-gap` will fail the build on real gaps.
+- 6 new GPU_MODELS unit assertions covering A40 + A100 (model definition, VRAM/TDP, `maxPerNode`, partition correctness — including the explicit "no `1/16` for A100" guard). The two `_tryAmdCoreUpgrade` auto-scale tests were re-pegged to `xeon-4th` (max 60 cores/socket, unchanged) because the new xeon-5th 128 cores/socket cap makes the 5:1 → 4:1 step-back path unreachable for that generation. ESLint clean; HTML validation clean; full test suite passes **1,171 / 1,171**. The catalog gap report reports **0 gaps** plus **3 known design exceptions** (memory ceiling deliberately held at 4 TB / per-node; legacy and minor enterprise capacity / cache SKUs deliberately not surfaced).
 
 #### 0.21.10 - Sovereign Private Clouds Reference Architectures: visual polish + PPT export improvements
 

@@ -1091,8 +1091,42 @@ function generateDisaggRackDiagram() {
     const RACK_US = 42;
     const PAD = { top: 120, left: 40, bottom: 100, right: 40 };
 
-    // Calculate total SVG size
-    const totalW = PAD.left + rackCount * RACK_W + (rackCount - 1) * RACK_GAP + PAD.right;
+    // ── Issue #223 fix ──
+    // Single-rack diagrams used to clamp totalW to ~300 px (PAD + 1 rack),
+    // which (a) capped the rendered SVG via max-width:300px even though the
+    // container was much wider, and (b) caused the title, SAN labels, and
+    // legend to overlap or get clipped because the viewBox itself was too
+    // narrow. Compute a content-aware floor based on title + brand badge,
+    // SAN/iSCSI fabric labels, and legend so the wizard preview stays
+    // readable for any rack count.
+    const titleText = `Rack Layout — Front View (Disaggregated, ${hasFc ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC'})`;
+    // Title font-size 14 (~6.9 px/char) centred; brand badge top-right
+    // (~110 px including icon, text, and margins) — count it twice so the
+    // title + brand on either side of centre never collide.
+    const titleMinW = Math.ceil(titleText.length * 6.9) + 2 * 110 + 2 * 40;
+    // SAN/iSCSI labels: main row font-size 10 (~5.5 px/char), sub row
+    // font-size 8 (~4.2 px/char). Two boxes side-by-side with 20 px gap,
+    // each must fit the longer of the two label rows + 16 px box padding.
+    const sanMain = hasFc
+        ? 'SAN Storage Array — Fabric B'
+        : 'iSCSI Storage Target B';
+    const sanSub = hasFc
+        ? 'FC 32G / Connected to FC Switch B in each rack'
+        : 'VLAN ' + (state.disaggVlans && state.disaggVlans.iscsiB ? state.disaggVlans.iscsiB : '600') + ' / Via Leaf ports';
+    const sanBoxMin = Math.ceil(Math.max(sanMain.length * 5.5, sanSub.length * 4.2)) + 16;
+    const sanLabelMinW = sanBoxMin * 2 + 20 + PAD.left + PAD.right;
+    // Legend: 5 base items + (FC ? 1 : 0) + 1 storage item = 6 or 7. Each
+    // slot needs ~110 px to fit the longest label ("SAN Storage", etc.) at
+    // font-size 7 plus its swatch.
+    const legendItemCount = 5 + (hasFc ? 1 : 0) + 1;
+    const legendMinW = legendItemCount * 110 + PAD.left + PAD.right;
+
+    const naturalW = PAD.left + rackCount * RACK_W + (rackCount - 1) * RACK_GAP + PAD.right;
+    const totalW = Math.max(naturalW, titleMinW, sanLabelMinW, legendMinW);
+    // Centre the rack column(s) when the canvas was widened beyond the
+    // natural rack-only width.
+    const rackBlockW = rackCount * RACK_W + (rackCount - 1) * RACK_GAP;
+    const racksStartX = (totalW - rackBlockW) / 2;
     const innerH = RACK_US * U_H;
     const totalH = PAD.top + innerH + 60 + PAD.bottom + (hasFc ? 60 : 40);
 
@@ -1117,7 +1151,7 @@ function generateDisaggRackDiagram() {
         LED_AMBER: '#f59e0b'
     };
 
-    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}" style="width: 100%; max-width: ${totalW}px; background: ${C.BG}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">`;
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalW} ${totalH}" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: auto; display: block; background: ${C.BG}; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">`;
 
     // Title
     svg += `<text x="${totalW/2}" y="20" text-anchor="middle" fill="${C.TEXT}" font-size="14" font-weight="600">Rack Layout — Front View (Disaggregated, ${hasFc ? 'FC SAN' : storageType === 'iscsi_4nic' ? 'iSCSI 4-NIC' : 'iSCSI 6-NIC'})</text>`;
@@ -1155,7 +1189,6 @@ function generateDisaggRackDiagram() {
     const rackXPositions = [];
 
     // ── Racks ──
-    const racksStartX = PAD.left;
     for (let r = 0; r < rackCount; r++) {
         const rx = racksStartX + r * (RACK_W + RACK_GAP);
         rackXPositions.push(rx);

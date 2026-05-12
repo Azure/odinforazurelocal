@@ -7250,6 +7250,16 @@
             + (s.infraCidr ? ('<br><strong>Infra Network:</strong> <span class="summary-value mono">' + escapeHtml(s.infraCidr) + '</span>') : '')
             + (s.infra && s.infra.start && s.infra.end ? ('<br><strong>Infra Range:</strong> <span class="summary-value mono">' + escapeHtml(s.infra.start + ' - ' + s.infra.end) + '</span>') : '')
             + list(mgmtNotes)
+            + (function () {
+                // Embed the same Infrastructure Subnet Utilisation bar that
+                // ships in the PPT export, when we have a valid CIDR + the
+                // shared SVG builder has been loaded.
+                if (!s.infraCidr) return '';
+                if (!window.OdinSubnetUtil || typeof window.OdinSubnetUtil.buildInfraSubnetBarSvg !== 'function') return '';
+                var svg = window.OdinSubnetUtil.buildInfraSubnetBarSvg(s, { width: 1600, height: 320 });
+                if (!svg) return '';
+                return '<div style="margin-top:1rem; padding:0.75rem; background:rgba(11, 18, 32, 0.6); border:1px solid var(--glass-border); border-radius:8px;">' + svg + '</div>';
+            })()
             + renderValidationInline(validations.byArea.Infrastructure)
         ));
 

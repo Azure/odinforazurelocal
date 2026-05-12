@@ -570,7 +570,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.21.11 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.21.12 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -2408,11 +2408,17 @@
                                 reserved infrastructure IP range that you will define below. The Azure Local Infrastructure network cannot overlap with any of the AKS reserved networks required by Arc Resource Bridge (10.96.0.0/12 and 10.244.0.0/16).</p>
                         </div>
                         <div style="margin-bottom:1rem;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:0.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom:0.5rem; flex-wrap: wrap; gap: 0.5rem;">
                                 <label style="display:block; font-size:0.9rem;">Infrastructure Network (CIDR)</label>
-                                <button type="button" onclick="showCidrCalculator()" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;">
-                                    🔢 Subnet Calculator
-                                </button>
+                                <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                                    <button type="button" onclick="autoFillInfraNetworkFromNodes()" title="Calculate CIDR, gateway and IP Pool from your Node IPs. Already-edited fields are kept."
+                                        style="padding: 6px 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); color: #10b981; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;">
+                                        🪄 Auto-fill from Node IPs
+                                    </button>
+                                    <button type="button" onclick="showCidrCalculator()" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-blue); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;">
+                                        🔢 Subnet Calculator
+                                    </button>
+                                </div>
                             </div>
                             <input type="text" id="infra-cidr" placeholder="e.g. 192.168.1.0/24"
                                 title="Enter a valid IPv4 CIDR (e.g. 192.168.1.0/24)"
@@ -2431,6 +2437,7 @@
                                     pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                     title="Enter a valid IPv4 address (e.g. 192.168.1.10)"
                                     style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
+                                    oninput="markInfraPoolManual()"
                                     onchange="updateInfraNetwork()">
                             </div>
                             <div style="flex:1; min-width:200px;">
@@ -2439,6 +2446,7 @@
                                     pattern="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
                                     title="Enter a valid IPv4 address (e.g. 192.168.1.15)"
                                     style="width:100%; padding:0.75rem; background:var(--subtle-bg); border:1px solid var(--glass-border); color:var(--text-primary); border-radius:4px;"
+                                    oninput="markInfraPoolManual()"
                                     onchange="updateInfraNetwork()">
                             </div>
                         </div>
@@ -2464,6 +2472,11 @@
                         </div>
                         <div id="infra-gateway-success" class="hidden"
                             style="margin-top:1rem; color:var(--success); font-size:0.9rem;">✓ Valid Default Gateway</div>
+
+                        <!-- Live subnet utilisation bar (rendered when CIDR is valid) -->
+                        <div id="infra-subnet-bar-wrap" class="hidden" style="margin-top:1.25rem; padding:0.75rem; background:rgba(11, 18, 32, 0.6); border:1px solid var(--glass-border); border-radius:8px;">
+                            <div id="infra-subnet-bar"></div>
+                        </div>
 
                         <!-- Appliance VM IPs (Disconnected Operations - Management Cluster only) -->
                         <div id="appliance-ip-section" class="hidden" style="margin-top: 1.5rem; padding: 1.25rem; background: linear-gradient(135deg, rgba(56, 189, 248, 0.06), rgba(45, 212, 191, 0.06)); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px;">
@@ -3092,6 +3105,7 @@
     <script src="js/validation.js"></script>
     <script src="js/dns.js"></script>
     <script src="js/changelog.js"></script>
+    <script src="js/subnet-utilization.js"></script>
     <!-- html2canvas (MIT) + jsPDF (MIT) for PDF export -->
     <script src="vendor/html2canvas-1.4.1.min.js"></script>
     <script src="vendor/jspdf-4.2.1.umd.min.js"></script>
