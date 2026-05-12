@@ -3962,6 +3962,76 @@
                 Object.values(GPU_MODELS).every(m => m.name && m.vramGB > 0 && m.tdpW > 0))
         ]);
 
+        // --- Pre-save workload validation: AKS DDA must have a GPU VM size ---
+        // Regression guard: previously, if a user added a non-AKS workload with
+        // GPU model = A100 (or A40, H100) and then tried to add an AKS cluster
+        // with GPU Mode = DDA, the "GPU VM Size" dropdown was empty (no AKS
+        // VM SKUs exist for those models) and the workload could still be
+        // saved — leaving the cluster mis-sized. validateWorkloadBeforeSave()
+        // now blocks this case.
+        testSuite('validateWorkloadBeforeSave: AKS DDA requires a GPU VM size', 'sizer.js', [
+            assert(typeof validateWorkloadBeforeSave === 'function',
+                'validateWorkloadBeforeSave is defined', 'function', typeof validateWorkloadBeforeSave),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'dda' });
+                return assert(err !== null && err.code === 'aks-dda-missing-vm-size',
+                    'AKS + DDA + no aksGpuVmSize → returns aks-dda-missing-vm-size error',
+                    'aks-dda-missing-vm-size', err && err.code);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'dda', aksGpuVmSize: '' });
+                return assert(err !== null && err.code === 'aks-dda-missing-vm-size',
+                    'AKS + DDA + empty-string aksGpuVmSize → still blocks',
+                    'aks-dda-missing-vm-size', err && err.code);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'dda', aksGpuVmSize: 'Standard_NC16_L4_1' });
+                return assert(err === null,
+                    'AKS + DDA + valid aksGpuVmSize → no error', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'none' });
+                return assert(err === null,
+                    'AKS + GPU Mode None → no error (no VM size required)', null, err);
+            })(),
+            (() => {
+                // AKS doesn't support GPU-P in the UI, but the validator should
+                // still not require an aksGpuVmSize when mode is not DDA.
+                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'gpu-p' });
+                return assert(err === null,
+                    'AKS + GPU-P (non-DDA) → no error from this validator', null, err);
+            })(),
+            (() => {
+                // Non-AKS workloads must NOT trip the AKS-specific validator
+                // even when they have no aksGpuVmSize (they don't have one).
+                const err = validateWorkloadBeforeSave({ type: 'vm', gpuMode: 'dda', gpuDdaModel: 'a100', gpuDdaCount: 2 });
+                return assert(err === null,
+                    'VM + DDA + A100 → no error (rule is AKS-only)', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'avd', gpuMode: 'dda', gpuDdaModel: 'l4' });
+                return assert(err === null,
+                    'AVD + DDA → no error (rule is AKS-only)', null, err);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'foundry', gpuMode: 'dda', gpuDdaModel: 'l40s' });
+                return assert(err === null,
+                    'Foundry + DDA → no error (Foundry uses DDA path, not aksGpuVmSize)', null, err);
+            })(),
+            (() => {
+                // Defensive: null/undefined/non-object inputs return null, not throw.
+                let threw = false;
+                try { validateWorkloadBeforeSave(null); validateWorkloadBeforeSave(undefined); validateWorkloadBeforeSave('aks'); } catch (_e) { threw = true; }
+                return assert(!threw, 'Non-object inputs return null without throwing', false, threw);
+            })(),
+            (() => {
+                const err = validateWorkloadBeforeSave({ type: 'aks', gpuMode: 'dda' });
+                return assert(typeof err.message === 'string' && err.message.indexOf('GPU VM Size') !== -1,
+                    'Error message mentions "GPU VM Size" so the user knows what to fix',
+                    true, typeof err.message === 'string' && err.message.indexOf('GPU VM Size') !== -1);
+            })()
+        ]);
+
         // --- Feature 4: Intel Xeon D-2700 (intel_edge) CPU generation ---
         testSuite('CPU_GENERATIONS: intel_edge (Xeon D-2700)', 'sizer.js', [
             assert(CPU_GENERATIONS.intel_edge !== undefined, 'intel_edge category exists', true, CPU_GENERATIONS.intel_edge !== undefined),

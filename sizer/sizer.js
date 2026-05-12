@@ -859,6 +859,7 @@ function populateAksGpuVmSizes() {
     vmSizeSelect.innerHTML = '<option value="" selected>Select a GPU VM size...</option>';
     // Check if GPU type is locked by an existing workload
     const lockedType = getLockedGpuType();
+    let optionsAdded = 0;
     // Iterate GPU types — filter to locked type if set
     for (const gpuKey of Object.keys(AKS_GPU_VM_SIZES)) {
         if (lockedType && gpuKey !== lockedType) continue;
@@ -867,11 +868,25 @@ function populateAksGpuVmSizes() {
         const gpuName = gpuModel ? gpuModel.name : gpuKey;
         sizes.forEach(s => {
             vmSizeSelect.innerHTML += `<option value="${s.name}" data-gpu-type="${gpuKey}">${s.name} [${gpuName}] (${s.gpus} GPU, ${s.vcpus} vCPUs, ${s.memoryGB} GB RAM)</option>`;
+            optionsAdded++;
         });
     }
     const infoEl = document.getElementById('wl-gpu-aks-vm-info');
     if (infoEl) {
-        if (lockedType) {
+        if (lockedType && optionsAdded === 0) {
+            // The cluster's GPU type is locked by another workload to a model
+            // that has NO published AKS Arc VM SKUs (e.g. A100, A40, H100).
+            // Warn the user *before* they try to save — addWorkload() will
+            // also block save via validateWorkloadBeforeSave() as a backstop.
+            const lockedModel = GPU_MODELS[lockedType];
+            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            infoEl.innerHTML =
+                '<span style="color: var(--warning);"><strong>⚠ ' + lockedName +
+                ' has no AKS Arc GPU VM SKUs.</strong> Another workload selected ' + lockedName +
+                ', which is not currently supported by AKS Arc node pools. ' +
+                'Either change that workload\'s GPU model to one with AKS VM SKUs ' +
+                '(T4, A2, A16, L4, L40, L40S, RTX Pro 6000), or set this AKS cluster\'s GPU Mode to None.</span>';
+        } else if (lockedType) {
             const lockedModel = GPU_MODELS[lockedType];
             infoEl.textContent = `GPU model locked to ${lockedModel ? lockedModel.name : lockedType} — all nodes must use the same GPU (homogeneous configuration).`;
         } else {
@@ -4151,6 +4166,35 @@ function readWorkloadGpuFields() {
     return result;
 }
 
+// Validate a workload object before it's added/saved. Returns null when the
+// workload is valid, or `{ message: string }` describing the problem so the
+// caller can surface it (the modal flow uses alert()).
+//
+// Factored as a pure-data helper (no DOM access) so unit tests can cover
+// every branch without mocking the workload modal.
+//
+// Current rules:
+//   - AKS Arc workloads with `gpuMode === 'dda'` MUST have an `aksGpuVmSize`
+//     selected. The "GPU VM Size" dropdown can legitimately end up empty when
+//     another workload has locked the cluster's GPU type to a model that has
+//     no AKS Arc VM SKUs (e.g. A100, A40, H100), or when the user simply
+//     forgot to pick one. Without this guard the worker-node sizing math
+//     downstream would silently use the default vCPU/memory values from the
+//     plain (non-GPU) AKS modal fields, mis-sizing the cluster.
+function validateWorkloadBeforeSave(workload) {
+    if (!workload || typeof workload !== 'object') return null;
+    if (workload.type === 'aks' && workload.gpuMode === 'dda' && !workload.aksGpuVmSize) {
+        return {
+            code: 'aks-dda-missing-vm-size',
+            message:
+                'Please select a GPU VM Size for the AKS GPU worker nodes.\n\n' +
+                'AKS Arc requires a supported GPU VM SKU (for example Standard_NC16_L4_1) to run GPU-accelerated worker nodes via DDA. ' +
+                'If the "GPU VM Size" dropdown is empty, the GPU model selected by another workload (such as A100, A40, or H100) is not currently supported by AKS Arc — choose a different GPU model on that workload, or set this cluster\'s GPU Mode to None.',
+        };
+    }
+    return null;
+}
+
 function addWorkload() {
     if (!currentModalType) return;
     
@@ -4224,6 +4268,14 @@ function addWorkload() {
     // Read GPU requirements (common to all workload types)
     const gpuFields = readWorkloadGpuFields();
     Object.assign(workload, gpuFields);
+
+    // Pre-save validation (e.g. AKS+DDA requires a GPU VM size). Helper is
+    // pure-data so it's also covered by unit tests in tests/index.html.
+    const validationError = validateWorkloadBeforeSave(workload);
+    if (validationError) {
+        alert(validationError.message);
+        return;
+    }
 
     // Auto-enable GPUs in hardware config if workload requires them
     if (workload.gpuMode && workload.gpuMode !== 'none') {

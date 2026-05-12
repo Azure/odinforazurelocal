@@ -76,6 +76,10 @@ Polish release for the **Microsoft Sovereign Private Clouds reference architectu
 
 - No new external network calls. No new runtime dependencies. The Microsoft 365 logo SVG is bundled in the repo (the brand file is already public-domain via the Wikimedia Commons rationale `{{PD-textlogo}} + {{Trademark}}`); no runtime fetch from `upload.wikimedia.org`. Designer, Sizer, Switch Configuration generator, ARM templates and Configuration Report PPTX export are unchanged in this release.
 
+### Fixed (post-tag follow-ups in v0.21.11)
+
+- **Sizer · AKS Arc + DDA without a GPU VM Size now blocked.** Previously, if a user added a non-AKS workload that selected a GPU model with no published AKS Arc VM SKUs (e.g. A100, A40, or H100) and then opened "Add AKS Arc Cluster" and chose **GPU Mode = DDA**, the "GPU VM Size" dropdown was empty (the homogeneous-GPU lock filtered out every supported AKS SKU) but the user could still save the cluster — leaving `workload.gpuMode === 'dda'` with no `aksGpuVmSize`, and the worker-node sizing math silently fell back to the plain (non-GPU) modal defaults. A new pure-data helper `validateWorkloadBeforeSave(workload)` in [`sizer/sizer.js`](sizer/sizer.js) now blocks save with a clear `alert()` explaining the problem and the two remediation paths. `populateAksGpuVmSizes()` additionally shows an inline warning underneath the (empty) dropdown — e.g. *"⚠ NVIDIA A100 has no AKS Arc GPU VM SKUs. Either change that workload's GPU model to one with AKS VM SKUs (T4, A2, A16, L4, L40, L40S, RTX Pro 6000), or set this AKS cluster's GPU Mode to None."* — so the user is warned *before* attempting to save. 9 new unit-test assertions in [`tests/index.html`](tests/index.html) cover every branch of the validator (AKS+DDA missing/present/empty-string size, AKS+None, AKS+GPU-P, VM/AVD/Foundry DDA, defensive null/undefined inputs, error-message content).
+
 ---
 
 ## [0.21.09] - 2026-05-12
