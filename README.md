@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.10 - Available here: https://aka.ms/ODIN
+## Version 0.21.11 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,22 +46,34 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.10 - Latest Release
+### 🎉 Version 0.21.11 - Latest Release
 
-> **Sovereign Private Clouds Reference Architectures — visual polish + PPT export improvements.** A focused release on the Knowledge tab's reference-architectures page and its PowerPoint export. The on-screen SVG diagram now aligns strict-vs-logical tenant headers identically, groups SAN-using clusters contiguously inside each band so the SAN cylinder visually anchors them, and shows the official Microsoft 365 logo (vector) for the M365 Local purpose. The PPT export gets shorter scale labels with auto-shrink fonts so long combinations no longer overflow, and a new per-purpose **Scale** panel that lists every selected scale with its full title + description.
+> **Sizer hardware-options alignment with the Azure Local Solutions Catalog.** A new automated build-time gap check compares every Sizer dropdown against a captured catalog snapshot and writes a gap report after the browser test suite. The Sizer now offers NVIDIA **A100** and **A40** GPUs, **xeon-5th up to 128 cores/socket**, **xeon-6** with **36** and **80** core options added, **40-drive capacity nodes** (single-tier and two-tier), **8 / 12 / 16 / 20 TB capacity drive sizes**, and a **12.8 TB cache** size — matching what Azure Local certified hardware ships today. Closes [issue #226](https://github.com/Azure/odinforazurelocal/issues/226).
 
-**Reference Architectures page**
-- **Tenant header alignment unified.** Strict and Logical isolation cards now use the same vertical layout — a small uppercase label (`TENANT — STRICT ISOLATION` / `TENANTS — LOGICAL ISOLATION`) sitting above a dashed-border group that wraps the tenant chips. Strict tenancy synthesizes a single chip from `tenantBadge` so workload areas align byte-for-byte across cards in the same row, regardless of which tenancy was picked. The dashed border no longer overlaps the label.
-- **SAN-using clusters grouped together.** Within each band, a stable sort moves SAN-using clusters (cluster-64, cluster-128, plus single-node / cluster-16 clusters where the user chose `SAN` or `S2D + SAN`) to the left so they sit adjacent to each other and the SAN cylinder is centered across only the SAN-using cards. The Control Plane Appliance card stays pinned to position 0 on disconnected bands.
-- **M365 Local switched to the official Microsoft 365 SVG logo.** Replaces the older Exchange/SharePoint/Skype trio with the official Microsoft 365 (2022) logo (public-domain SVG sourced from Wikimedia Commons, `docs/reference-architectures/icons/sovereign-m365.svg`) — now used on both the on-screen purpose card / footer chip and the PPT hero card.
-- **"RECOMMENDED" badge removed from connectivity options.** The green pill no longer appears on any connectivity card; the `recommendedConnectivity` data field is retained for body copy but no longer drives a visual badge.
+**Sizer hardware options — new entries**
+- **NVIDIA A40** added — 48 GB GDDR6, 300 W, up to 2 per node, supports Azure Local VMs / AKS / GPU-P, with `validPartitions: ['1', '1/2', '1/4', '1/8', '1/16']` (NVIDIA vGPU software partitioning, up to 16 vGPUs per GPU).
+- **NVIDIA A100** added — 80 GB HBM2e, 300 W, up to 2 per node, supports Azure Local VMs / AKS / GPU-P, with `validPartitions: ['1', '1/2', '1/4', '1/8']`. **A100 uses MIG** (hardware partitioning) with a hard cap of **7 GPU slices** per A100; the dropdown therefore deliberately stops at `1/8` and **does not** include `1/16`. Mis-typing this would let architects oversubscribe A100 hardware — please surface this correctly in any downstream sizing tools you build on top of ODIN.
+- **`xeon-5th`** (Intel® 5th Gen Xeon® / Emerald Rapids) core options extended to `[8, 10, 12, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 80, 96, 128]` (was capped at 64); `maxCores: 128`. Catalog v2026-05 lists top SKUs (e.g. Platinum 8593Q) at 128 cores per socket.
+- **`xeon-6`** (Intel® 6th Gen Xeon® / Granite Rapids · Sierra Forest) core options now include **36** and **80**: `[8, 12, 16, 24, 32, 36, 48, 64, 72, 80, 86, 96, 128, 144, 172]`.
+- **Capacity drive sizes** — `8 TB`, `12 TB`, `16 TB`, and `20 TB` added to both single-tier (`#capacity-disk-size`) and two-tier (`#tiered-capacity-disk-size`) dropdowns.
+- **Cache drive size** — `12.8 TB` added to `#cache-disk-size`.
+- **Capacity disk counts** — extended to **40 per node** for both `#capacity-disk-count` (single-tier) and `#tiered-capacity-disk-count` (two-tier). Catalog now ships solutions with up to 40 capacity drives per node.
 
-**PowerPoint export**
-- **Overview slide ("Your selections") — long scale labels now fit.** New compact label set (`Single Node`, `Rack-Aware (2-8)`, `16 nodes`, `64 nodes`, `128 nodes`, `M365 Small`, `M365 Large`) replaces the long titles inside the Scale pill. The pill is widened (3.5″ → 4.55″), and a new `pillFontSize()` helper auto-shrinks the font down to 7 pt if a particular combination still doesn't fit, so multi-scale rows like `64 nodes + 16 nodes + Rack-Aware (2-8)` always render on a single line.
-- **Per-purpose slide — new Scale panel with descriptions.** The "Your configuration" area was restructured: compact `TENANCY` and `STORAGE` tiles stack on the left, and a wide `SCALE` panel on the right lists every selected scale on its own row — bold title (e.g. `Azure Local Cluster up to 16 nodes`) followed by the scale's official description (e.g. *"Standard Azure Local cluster — 2 to 16 nodes in a single rack."*). Font sizes inside the panel scale gracefully (1 scale → 14 / 11 pt, 2 scales → 13 / 10 pt, 3 scales → 11 / 9 pt) so all combinations fit in the 1.95″ panel.
+**Automated catalog gap check**
+- **`scripts/catalog-gap-check.js`** — new Node.js tool that loads the captured Azure Local Solutions Catalog snapshot (or fetches a fresh one with `--fetch-live`), walks the Sizer dropdowns and Sizer constants for CPU generations, core counts, memory range, disk counts and sizes, and GPU options, then writes a gap report. Module exports `loadSizerOptions`, `loadSnapshot`, `fetchLiveCatalog`, `slimSnapshot`, `runGapAnalysis`, `formatReport`, and `main` for unit testing and reuse.
+- **`tests/fixtures/catalog-snapshot.json`** + **`tests/fixtures/CATALOG_API.md`** — committed snapshot of the catalog SPA's `POST /api/catalog/default/search` response (24 platforms, 42 configurations) and a short reference describing the API shape, so the gap check runs offline by default and future snapshot refreshes don't have to re-reverse-engineer the API.
+- **`scripts/run-tests.js`** integration — after the 1,171 browser assertions pass, the runner calls `catalogCheck.main([])` and emits `test-results/catalog-gap-report.txt` and `.json`. Informational only; the build only fails if the optional `--strict-catalog-gap` flag is passed.
 
 **Tests & quality**
-- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes (1,160 / 1,160). Smoke test (`node scripts/smoke-test-pptx.js`) confirms the new builder still produces a valid PPTX.
+- 6 new unit assertions added to the `GPU_MODELS` suite covering A40 + A100 (model definition, VRAM/TDP, `maxPerNode`, partition correctness — including the explicit "no `1/16` for A100" guard).
+- The two `_tryAmdCoreUpgrade` auto-scale tests were re-pegged to `xeon-4th` (max 60 cores/socket, unchanged) because the new xeon-5th 128 cores/socket cap makes the 5:1 → 4:1 step-back path unreachable for that generation; same code path is exercised with re-derived vCPU loads.
+- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes **1,171 / 1,171**. The catalog gap report drops from **9 → 3** remaining items; the 3 are all deliberate (see Notes).
+
+**Notes**
+- **Memory ceiling intentionally held at 4 TB per node** even though the catalog now lists SKUs supporting up to 8 TB. The gap report will continue to flag this as `[memory-max]` — deliberate density / DIMM-cost steering inside the Sizer, not an oversight.
+- **Storage drive-size gap** — the catalog also lists minor enterprise SSD sizes (0.8 / 1.2 / 1.5 / 1.6 / 1.8 / 2.4 / 3.2 / 6 / 6.4 / 10 / 12.8 / 14 TB) and cache sizes (0.8 / 1.6 / 3.2 / 6.4 TB) that are not exposed in the Sizer. These are legacy or niche SKUs; the principal density choices (3.84 / 7.68 / 8 / 12 / 15.36 / 16 / 20 TB capacity; 3.84 / 7.68 / 12.8 TB cache) are all covered.
+- **3D rack visualization (`sizer/rack3d.js`) unchanged.** Drive slot positions on the front face of each rack-unit remain illustrative; disk counts beyond the drawn slot count do not change the rendered geometry. Power and rack-space totals remain accurate.
+- **No new external network calls at runtime.** The catalog gap check runs only at build time via Node.js; the published site never calls the catalog API.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -384,7 +396,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.10  
+**Version**: 0.21.11  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -399,6 +411,18 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.10 - Sovereign Private Clouds Reference Architectures: visual polish + PPT export improvements
+
+> **Sovereign Private Clouds Reference Architectures — visual polish + PPT export improvements.** A focused release on the Knowledge tab's reference-architectures page and its PowerPoint export. The on-screen SVG diagram now aligns strict-vs-logical tenant headers identically, groups SAN-using clusters contiguously inside each band so the SAN cylinder visually anchors them, and shows the official Microsoft 365 logo (vector) for the M365 Local purpose. The PPT export gets shorter scale labels with auto-shrink fonts so long combinations no longer overflow, and a new per-purpose **Scale** panel that lists every selected scale with its full title + description.
+
+- **Tenant header alignment unified.** Strict and Logical isolation cards now use the same vertical layout — a small uppercase label (`TENANT — STRICT ISOLATION` / `TENANTS — LOGICAL ISOLATION`) sitting above a dashed-border group that wraps the tenant chips. Strict tenancy synthesizes a single chip from `tenantBadge` so workload areas align byte-for-byte across cards in the same row, regardless of which tenancy was picked. The dashed border no longer overlaps the label.
+- **SAN-using clusters grouped together.** Within each band, a stable sort moves SAN-using clusters (cluster-64, cluster-128, plus single-node / cluster-16 clusters where the user chose `SAN` or `S2D + SAN`) to the left so they sit adjacent to each other and the SAN cylinder is centered across only the SAN-using cards. The Control Plane Appliance card stays pinned to position 0 on disconnected bands.
+- **M365 Local switched to the official Microsoft 365 SVG logo.** Replaces the older Exchange/SharePoint/Skype trio with the official Microsoft 365 (2022) logo (public-domain SVG sourced from Wikimedia Commons, `docs/reference-architectures/icons/sovereign-m365.svg`) — now used on both the on-screen purpose card / footer chip and the PPT hero card.
+- **"RECOMMENDED" badge removed from connectivity options.** The green pill no longer appears on any connectivity card; the `recommendedConnectivity` data field is retained for body copy but no longer drives a visual badge.
+- **PowerPoint overview slide ("Your selections") — long scale labels now fit.** New compact label set (`Single Node`, `Rack-Aware (2-8)`, `16 nodes`, `64 nodes`, `128 nodes`, `M365 Small`, `M365 Large`) replaces the long titles inside the Scale pill. The pill is widened (3.5″ → 4.55″), and a new `pillFontSize()` helper auto-shrinks the font down to 7 pt if a particular combination still doesn't fit, so multi-scale rows like `64 nodes + 16 nodes + Rack-Aware (2-8)` always render on a single line.
+- **PowerPoint per-purpose slide — new Scale panel with descriptions.** The "Your configuration" area was restructured: compact `TENANCY` and `STORAGE` tiles stack on the left, and a wide `SCALE` panel on the right lists every selected scale on its own row — bold title (e.g. `Azure Local Cluster up to 16 nodes`) followed by the scale's official description (e.g. *"Standard Azure Local cluster — 2 to 16 nodes in a single rack."*). Font sizes inside the panel scale gracefully (1 scale → 14 / 11 pt, 2 scales → 13 / 10 pt, 3 scales → 11 / 9 pt) so all combinations fit in the 1.95″ panel.
+- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes (1,160 / 1,160). Smoke test (`node scripts/smoke-test-pptx.js`) confirms the new builder still produces a valid PPTX.
 
 #### 0.21.09 - Designer Step 16: SAN LUN ID inputs hidden for HCI deployments (issue #222)
 

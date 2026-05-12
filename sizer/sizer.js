@@ -45,8 +45,9 @@ const CPU_GENERATIONS = {
             id: 'xeon-5th',
             name: 'Intel® 5th Gen Xeon® (Emerald Rapids)',
             minCores: 8,
-            maxCores: 64,
-            coreOptions: [8, 12, 16, 24, 32, 48, 64],
+            // Catalog v2026-05: top SKUs (e.g. Platinum 8593Q) ship at 128 cores/socket.
+            maxCores: 128,
+            coreOptions: [8, 10, 12, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 80, 96, 128],
             defaultCores: 24,
             architecture: 'Raptor Cove',
             socket: 'LGA 4677',
@@ -60,7 +61,7 @@ const CPU_GENERATIONS = {
             name: 'Intel® 6th Gen Xeon® (Granite Rapids / Sierra Forest)',
             minCores: 8,
             maxCores: 172,
-            coreOptions: [8, 12, 16, 24, 32, 48, 64, 72, 86, 96, 128, 144, 172],
+            coreOptions: [8, 12, 16, 24, 32, 36, 48, 64, 72, 80, 86, 96, 128, 144, 172],
             defaultCores: 32,
             architecture: 'Lion Cove / Skymont',
             socket: 'LGA 4710',
@@ -148,10 +149,16 @@ const CPU_GENERATIONS = {
 
 // GPU model specifications
 // Ref: https://learn.microsoft.com/en-us/azure/azure-local/manage/gpu-preparation?view=azloc-2602#supported-gpu-models
+// A100 / A40 added in v0.21.11 to reflect OEM SKUs seen in the public Azure Local
+// Solutions catalog (https://azurelocalsolutions.azure.microsoft.com). A100 uses
+// hardware Multi-Instance GPU (MIG) which tops out at 7 slices/board, so it does
+// NOT expose the '1/16' partition Sizer offers for vGPU-software GPUs.
 const GPU_MODELS = {
     t4:        { name: 'NVIDIA T4',              vramGB: 16, tdpW: 70,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: false, validPartitions: [] },
     a2:        { name: 'NVIDIA A2',              vramGB: 16, tdpW: 60,  maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
     a16:       { name: 'NVIDIA A16',             vramGB: 64, tdpW: 250, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
+    a40:       { name: 'NVIDIA A40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
+    a100:      { name: 'NVIDIA A100',            vramGB: 80, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
     l4:        { name: 'NVIDIA L4',              vramGB: 24, tdpW: 72,  maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8'] },
     l40:       { name: 'NVIDIA L40',             vramGB: 48, tdpW: 300, maxPerNode: 2, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },
     l40s:      { name: 'NVIDIA L40S',            vramGB: 48, tdpW: 350, maxPerNode: 4, supportsAzureLocalVMs: true,  supportsAKS: true,  supportsGpuP: true,  validPartitions: ['1', '1/2', '1/4', '1/8', '1/16'] },

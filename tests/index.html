@@ -3908,17 +3908,23 @@
         testSuite('GPU_MODELS constant', 'sizer.js', [
             assert(GPU_MODELS.a2 !== undefined, 'A2 model defined', true, GPU_MODELS.a2 !== undefined),
             assert(GPU_MODELS.a16 !== undefined, 'A16 model defined', true, GPU_MODELS.a16 !== undefined),
+            assert(GPU_MODELS.a40 !== undefined, 'A40 model defined', true, GPU_MODELS.a40 !== undefined),
+            assert(GPU_MODELS.a100 !== undefined, 'A100 model defined', true, GPU_MODELS.a100 !== undefined),
             assert(GPU_MODELS.l4 !== undefined, 'L4 model defined', true, GPU_MODELS.l4 !== undefined),
             assert(GPU_MODELS.l40 !== undefined, 'L40 model defined', true, GPU_MODELS.l40 !== undefined),
             assert(GPU_MODELS.l40s !== undefined, 'L40S model defined', true, GPU_MODELS.l40s !== undefined),
             assert(GPU_MODELS.t4 !== undefined, 'T4 model defined', true, GPU_MODELS.t4 !== undefined),
             assert(GPU_MODELS.rtxpro6000 !== undefined, 'RTX Pro 6000 model defined', true, GPU_MODELS.rtxpro6000 !== undefined),
             assert(GPU_MODELS.h100 !== undefined, 'H100 model defined', true, GPU_MODELS.h100 !== undefined),
-            assert(Object.keys(GPU_MODELS).length === 8, 'GPU_MODELS has exactly 8 models', 8, Object.keys(GPU_MODELS).length),
+            assert(Object.keys(GPU_MODELS).length === 10, 'GPU_MODELS has exactly 10 models', 10, Object.keys(GPU_MODELS).length),
             assert(GPU_MODELS.a2.vramGB === 16, 'A2: 16 GB VRAM', 16, GPU_MODELS.a2.vramGB),
             assert(GPU_MODELS.a2.tdpW === 60, 'A2: 60W TDP', 60, GPU_MODELS.a2.tdpW),
             assert(GPU_MODELS.a16.vramGB === 64, 'A16: 64 GB VRAM', 64, GPU_MODELS.a16.vramGB),
             assert(GPU_MODELS.a16.tdpW === 250, 'A16: 250W TDP', 250, GPU_MODELS.a16.tdpW),
+            assert(GPU_MODELS.a40.vramGB === 48, 'A40: 48 GB VRAM', 48, GPU_MODELS.a40.vramGB),
+            assert(GPU_MODELS.a40.tdpW === 300, 'A40: 300W TDP', 300, GPU_MODELS.a40.tdpW),
+            assert(GPU_MODELS.a100.vramGB === 80, 'A100: 80 GB VRAM', 80, GPU_MODELS.a100.vramGB),
+            assert(GPU_MODELS.a100.tdpW === 300, 'A100: 300W TDP (PCIe variant)', 300, GPU_MODELS.a100.tdpW),
             assert(GPU_MODELS.l4.vramGB === 24, 'L4: 24 GB VRAM', 24, GPU_MODELS.l4.vramGB),
             assert(GPU_MODELS.l4.tdpW === 72, 'L4: 72W TDP', 72, GPU_MODELS.l4.tdpW),
             assert(GPU_MODELS.l40.vramGB === 48, 'L40: 48 GB VRAM', 48, GPU_MODELS.l40.vramGB),
@@ -3937,6 +3943,19 @@
             assert(GPU_MODELS.h100.maxPerNode === 2, 'H100: max 2 per node', 2, GPU_MODELS.h100.maxPerNode),
             assert(GPU_MODELS.rtxpro6000.maxPerNode === 2, 'RTX Pro 6000: max 2 per node', 2, GPU_MODELS.rtxpro6000.maxPerNode),
             assert(GPU_MODELS.a16.maxPerNode === 2, 'A16: max 2 per node', 2, GPU_MODELS.a16.maxPerNode),
+            assert(GPU_MODELS.a40.maxPerNode === 2, 'A40: max 2 per node', 2, GPU_MODELS.a40.maxPerNode),
+            assert(GPU_MODELS.a100.maxPerNode === 2, 'A100: max 2 per node', 2, GPU_MODELS.a100.maxPerNode),
+            // A100 uses MIG (max 7 hardware slices) — must NOT advertise the '1/16' partition
+            assert(!GPU_MODELS.a100.validPartitions.includes('1/16'),
+                'A100: validPartitions excludes 1/16 (MIG hardware limit, max 7 slices)',
+                true, !GPU_MODELS.a100.validPartitions.includes('1/16')),
+            assert(GPU_MODELS.a100.validPartitions.includes('1/8'),
+                'A100: validPartitions includes 1/8 (smallest MIG 1g profile)',
+                true, GPU_MODELS.a100.validPartitions.includes('1/8')),
+            // A40 uses NVIDIA vGPU software (up to 16 partitions per board) — must advertise '1/16'
+            assert(GPU_MODELS.a40.validPartitions.includes('1/16'),
+                'A40: validPartitions includes 1/16 (NVIDIA vGPU software supports up to 16)',
+                true, GPU_MODELS.a40.validPartitions.includes('1/16')),
             // Every model has required fields
             assert(Object.values(GPU_MODELS).every(m => m.name && m.vramGB > 0 && m.tdpW > 0),
                 'All GPU models have name, vramGB, and tdpW', true,
@@ -5306,25 +5325,26 @@
                 document.getElementById('vcpu-ratio').value = '4';
                 document.getElementById('cpu-manufacturer').value = 'intel';
                 document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
-                document.getElementById('cpu-generation').value = 'xeon-5th';
-                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-generation').value = 'xeon-4th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-4th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '60';
                 document.getElementById('cpu-sockets').value = '2';
 
                 const nodeCount = 10;
                 const hwConfig = {
-                    totalPhysicalCores: 128,
+                    totalPhysicalCores: 120,
                     memoryGB: 2048,
                     sockets: 2,
-                    coresPerSocket: 64,
+                    coresPerSocket: 60,
                     storageConfig: 'all-flash',
                     diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
                 };
-                // 6000 vCPUs: at 4:1 → 128×9×4 = 4608 → 130% (maxed at 4), → 5:1 → 128×9×5 = 5760 → 104%
-                // Still ≥90% at 5:1, so should try AMD before going to 6:1
-                // AMD Turin Dense 96×2=192 → 192×9×5 = 8640 → 69% < 90% ✓ → switch!
-                // Then re-check at 4:1: 192×9×4 = 6912 → 87% < 90% ✓ → step ratio back to 4:1
-                autoScaleHardware(6000, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
+                // 5500 vCPUs, xeon-4th maxed at 60c×2=120 phys (xeon-4th unchanged at 60-cores/socket cap):
+                // 4:1 → 120×9×4=4320 → 127% (forces ratio escalation)
+                // 5:1 → 120×9×5=5400 → 102% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
+                // AMD Turin Dense smallest c > 120 (so 96): 96×2×9×5=8640 → 64% < 90% ✓ → switch to 96c.
+                // pctAt4 = 5500/(96×2×9×4) = 5500/6912 → 80% < 90% ✓ → step ratio back to 4:1.
+                autoScaleHardware(5500, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
                     { allowRatioEscalation: true, allowHighMemory: true });
 
                 const resultMfg = document.getElementById('cpu-manufacturer').value;
@@ -5374,23 +5394,26 @@
                 document.getElementById('vcpu-ratio').value = '4';
                 document.getElementById('cpu-manufacturer').value = 'intel';
                 document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
-                document.getElementById('cpu-generation').value = 'xeon-5th';
-                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-                document.getElementById('cpu-cores').value = '64';
+                document.getElementById('cpu-generation').value = 'xeon-4th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-4th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '60';
                 document.getElementById('cpu-sockets').value = '2';
 
                 const nodeCount2 = 10;
                 const hwConfig2 = {
-                    totalPhysicalCores: 128,
+                    totalPhysicalCores: 120,
                     memoryGB: 2048,
                     sockets: 2,
-                    coresPerSocket: 64,
+                    coresPerSocket: 60,
                     storageConfig: 'all-flash',
                     diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
                 };
-                // 6500 vCPUs: at 5:1, AMD 96×2=192 → 192×9×5 = 8640 → 75% < 90% ✓
-                // Re-check at 4:1: 192×9×4 = 6912 → 94% ≥ 90% → stays at 5:1
-                autoScaleHardware(6500, 1000, 10000, nodeCount2, 2, hwConfig2, new Set(),
+                // 7000 vCPUs, xeon-4th maxed at 60c×2=120 phys:
+                // 4:1 → 120×9×4=4320 → 162% → forces ratio escalation.
+                // 5:1 → 120×9×5=5400 → 130% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
+                // AMD smallest c > 120 (so 96): 96×2×9×5=8640 → 81% < 90% ✓ → switch to 96c.
+                // pctAt4 = 7000/(96×2×9×4) = 7000/6912 → 101% ≥ 90% → stays at 5:1.
+                autoScaleHardware(7000, 1000, 10000, nodeCount2, 2, hwConfig2, new Set(),
                     { allowRatioEscalation: true, allowHighMemory: true });
 
                 const resultMfg2 = document.getElementById('cpu-manufacturer').value;

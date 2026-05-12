@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.11] - 2026-05-12
+
+**Sizer hardware-options alignment with the Azure Local Solutions Catalog.** A new automated build-time gap check compares every Sizer dropdown against a captured catalog snapshot and writes a gap report after the browser test suite. The Sizer now offers NVIDIA **A100** and **A40** GPUs, **xeon-5th up to 128 cores/socket**, **xeon-6** with **36** and **80** core options added, **40-drive capacity nodes** (single-tier and two-tier), **8 / 12 / 16 / 20 TB capacity drive sizes**, and a **12.8 TB cache** size — matching what Azure Local certified hardware ships today. Closes [issue #226](https://github.com/Azure/odinforazurelocal/issues/226).
+
+### Added
+
+- **`scripts/catalog-gap-check.js`** — new Node.js tool that loads the captured Azure Local Solutions Catalog snapshot (or fetches a fresh one with `--fetch-live`), walks the Sizer dropdowns (CPU generations / core counts / memory range / disk counts and sizes / GPU options), and writes a gap report. Module exports `loadSizerOptions`, `loadSnapshot`, `fetchLiveCatalog`, `slimSnapshot`, `runGapAnalysis`, `formatReport`, and `main` for unit testing and reuse.
+- **`tests/fixtures/catalog-snapshot.json`** — committed snapshot of the catalog SPA's POST API response (24 platforms, 42 configurations) so the gap check runs offline by default.
+- **`tests/fixtures/CATALOG_API.md`** — short reference describing the SPA's `POST /api/catalog/default/search` shape and field meanings, so future snapshot refreshes don't have to re-reverse-engineer the API.
+- **`scripts/run-tests.js` integration** — after the browser test suite passes, the runner calls `catalogCheck.main([])` and emits `test-results/catalog-gap-report.txt` and `.json`. Informational only; the build only fails if the optional `--strict-catalog-gap` flag is passed.
+- **NVIDIA A40** added to `GPU_MODELS` and the GPU dropdown — 48 GB GDDR6, 300 W, up to 2 per node, supports Azure Local VMs / AKS / GPU-P, `validPartitions: ['1', '1/2', '1/4', '1/8', '1/16']` (NVIDIA vGPU software partitioning, up to 16 vGPUs per GPU).
+- **NVIDIA A100** added to `GPU_MODELS` and the GPU dropdown — 80 GB HBM2e, 300 W, up to 2 per node, supports Azure Local VMs / AKS / GPU-P, `validPartitions: ['1', '1/2', '1/4', '1/8']`. **Critical correctness detail:** A100 uses **MIG (Multi-Instance GPU)** — a hardware partitioning scheme with a maximum of **7** GPU slices per A100. The dropdown therefore deliberately stops at `'1/8'` and **does not** include `'1/16'`. Mis-typing this would let architects oversubscribe A100 hardware.
+- **`sizer/sizer.js` — `xeon-5th` (Intel® 5th Gen Xeon® / Emerald Rapids)** core options extended to `[8, 10, 12, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 80, 96, 128]` (was capped at 64); `maxCores: 128`. Catalog v2026-05 lists top SKUs (e.g. Platinum 8593Q) at 128 cores per socket.
+- **`sizer/sizer.js` — `xeon-6` (Intel® 6th Gen Xeon® / Granite Rapids · Sierra Forest)** core options now include **36** and **80** as well: `[8, 12, 16, 24, 32, 36, 48, 64, 72, 80, 86, 96, 128, 144, 172]`.
+- **`sizer/index.html` — capacity drive sizes** `8 TB`, `12 TB`, `16 TB`, `20 TB` added to both `#capacity-disk-size` (single-tier) and `#tiered-capacity-disk-size` (two-tier).
+- **`sizer/index.html` — cache drive size** `12.8 TB` added to `#cache-disk-size`.
+- **`sizer/index.html` — capacity disk counts** extended to **40 per node** for both the single-tier (`#capacity-disk-count`) and two-tier (`#tiered-capacity-disk-count`) dropdowns. Catalog now ships solutions with up to 40 capacity drives per node.
+- **`tests/index.html` — `GPU_MODELS` suite** — 6 new assertions covering the A40 and A100 model definitions: presence, VRAM, TDP, `maxPerNode`, `validPartitions` (including the explicit A100 "no 1/16" check), and that the dropdown contains both new options. Total assertion count is now 1,171 (was 1,160).
+
+### Changed
+
+- **`tests/index.html` — AMD-switch auto-scale tests re-pegged to `xeon-4th`.** The two `_tryAmdCoreUpgrade` integration tests previously used `xeon-5th` at 64 cores/socket. With the new 128 cores/socket cap, the inner core-escalation loop can absorb the load on Intel before triggering the AMD switch, making the 5:1 → 4:1 step-back path unreachable from that generation. The tests now run against `xeon-4th` (max 60 cores/socket, unchanged) and exercise exactly the same code path with re-derived vCPU loads (5,500 for the step-back case, 7,000 for the stay-at-5:1 case).
+
+### Tests
+
+- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes **1,171 / 1,171**. The catalog gap report drops from **9 → 3** remaining items; all 3 are deliberate (see Notes).
+
+### Notes
+
+- **Memory ceiling intentionally held at 4 TB per node** even though the catalog now lists SKUs supporting up to 8 TB. The gap report will continue to flag this as `[memory-max]` — it's deliberate density / DIMM-cost steering inside the Sizer, not an oversight.
+- **Storage drive-size gap** — the catalog also lists minor enterprise SSD sizes (0.8 / 1.2 / 1.5 / 1.6 / 1.8 / 2.4 / 3.2 / 6 / 6.4 / 10 / 12.8 / 14 TB) and cache sizes (0.8 / 1.6 / 3.2 / 6.4 TB) that are not exposed in the Sizer. These are legacy or niche SKUs; the principal density choices (3.84 / 7.68 / 8 / 12 / 15.36 / 16 / 20 TB capacity; 3.84 / 7.68 / 12.8 TB cache) are now all covered.
+- **3D rack visualization (`sizer/rack3d.js`) unchanged.** Drive slot positions on the front face of each rack-unit remain illustrative; disk counts beyond the drawn slot count do not change the rendered geometry. Power and rack-space totals remain accurate.
+- **No new external network calls at runtime.** The catalog gap check runs only at build time via Node.js; the published site never calls the catalog API.
+
+---
+
 ## [0.21.10] - 2026-05-12
 
 Polish release for the **Microsoft Sovereign Private Clouds reference architectures** page (Knowledge tab) and its PowerPoint export. The on-screen SVG diagram now aligns strict-vs-logical tenant headers identically, groups SAN-using clusters contiguously inside each band so the SAN cylinder visually anchors them, and shows the official Microsoft 365 logo (vector) for the M365 Local purpose. The PPT export gets shorter scale labels with auto-shrink fonts so long combinations no longer overflow the Scale pill, plus a new per-purpose **Scale** panel that lists every selected scale with its full title + description so multi-scale architectures are properly explained in the deck.

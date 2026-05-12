@@ -1,0 +1,5619 @@
+{
+  "capturedAt": "2026-05-12T12:49:00.662Z",
+  "source": "https://azurelocalsolutions.azure.microsoft.com/api/catalog/default/search?",
+  "totalResults": 24,
+  "platforms": [
+    {
+      "platformName": "ThinkAgile MX650 V4",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "24H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD",
+        "HDD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash NVMe and SSD",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              80,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 34359738368,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3840000000000,
+            "storageMaxBytes": 436000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                960000000000,
+                1600000000000,
+                3200000000000,
+                6400000000000,
+                12800000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 40,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.35,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                12800000000000,
+                15350000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4,L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4,L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-6,NVIDIA ConnectX-7,Broadcom NetExtreme-E",
+            "rdmaType": "RoCE,iWarp"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "All NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              80,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 34359738368,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3840000000000,
+            "storageMaxBytes": 436000000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 28,
+              "capacityDriveSizes": [
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.35,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                960000000000,
+                1920000000000,
+                3840000000000,
+                7680000000000,
+                15350000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4,L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4,L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-6,NVIDIA ConnectX-7,Broadcom NetExtreme-E",
+            "rdmaType": "RoCE,iWarp"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "Hybrid",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": false,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              80,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 34359738368,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3840000000000,
+            "storageMaxBytes": 436000000000000,
+            "storageDrives": [
+              "NVMe",
+              "HDD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                960000000000,
+                1600000000000,
+                3200000000000,
+                6400000000000,
+                12800000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "HDD"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 40,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.35,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 16,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1600000000000,
+                1920000000000,
+                2000000000000,
+                3200000000000,
+                3840000000000,
+                4000000000000,
+                6400000000000,
+                7680000000000,
+                8000000000000,
+                12000000000000,
+                12800000000000,
+                15350000000000,
+                16000000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4,L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4,L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-6,NVIDIA ConnectX-7,Broadcom NetExtreme-E",
+            "rdmaType": "RoCE,iWarp"
+          },
+          "solutionCapabilities": [
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "Galleon - Triton",
+      "vendorName": "Armada",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "2602",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN",
+        "DeployableDataCenter"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "Gen 6 All NVMe 1U",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 245760000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations"
+          ]
+        },
+        {
+          "configurationName": "Gen 6 All NVMe 2U",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 245760000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L40S, RTX Pro 6000)"
+            ],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "HPE ProLiant Compute DL380 Gen12 Server Premier Solution",
+      "vendorName": "Hewlett Packard Enterprise",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 64,
+      "lastTestedVersion": "2601",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SAN"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-6",
+          "Broadcom NetXtreme 575xx"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 307200000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 36,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                12800000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4, L40S, RTX PRO 6000)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4, L40S, RTX PRO 6000)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel (E810), NVIDIA (ConnectX-6), Broadcom (NetXtreme 575xx)",
+            "rdmaType": "iWarp+RoCE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "SAN only",
+          "architecture": "Disaggregated",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 64
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 0,
+            "storageMaxBytes": 0,
+            "storageDrives": [
+              "SAN"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4, L40S, RTX PRO 6000)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4, L40S, RTX PRO 6000)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel (E810), NVIDIA (ConnectX-6), Broadcom (NetXtreme 575xx)",
+            "rdmaType": "iWarp+RoCE"
+          },
+          "solutionCapabilities": [
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "HPE ProLiant Compute DL360 Gen12 Server Premier Solution",
+      "vendorName": "Hewlett Packard Enterprise",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 64,
+      "lastTestedVersion": "2601",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SAN"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-6",
+          "Broadcom NetXtreme 575xx"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 307200000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 20,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                12800000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel (E810), NVIDIA (ConnectX-6), Broadcom (NetXtreme 575xx)",
+            "rdmaType": "iWarp+RoCE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "SAN only",
+          "architecture": "Disaggregated",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 64
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 0,
+            "storageMaxBytes": 0,
+            "storageDrives": [
+              "SAN"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel (E810), NVIDIA (ConnectX-6), Broadcom (NetXtreme 575xx)",
+            "rdmaType": "iWarp+RoCE"
+          },
+          "solutionCapabilities": [
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "AX-770",
+      "vendorName": "Dell Technologies",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "2512",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "Dell AX-770 All NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 32,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 245760000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 16,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A16, L4, L40S, RTX Pro 6000)"
+            ],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "AX-670",
+      "vendorName": "Dell Technologies",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "2512",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "Dell AX-670 All NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 32,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 245760000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 16,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4)"
+            ],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "Galleon - Cruiser",
+      "vendorName": "Armada",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "2602",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN",
+        "DeployableDataCenter"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "Gen 6 All NVMe 1U",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 245760000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations"
+          ]
+        },
+        {
+          "configurationName": "Gen 6 All NVMe 2U",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 172,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 245760000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L40S, RTX Pro 6000)"
+            ],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "DataON AZL-8224i Intel Xeon 6",
+      "vendorName": "DataON",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 64,
+      "lastTestedVersion": "24H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": false,
+      "storageDrives": [
+        "NVMe",
+        "SAN"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "AZL-8224i-AF",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              16,
+              24,
+              32
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 549755813888,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              32,
+              64
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 368000000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 24,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA (ConnectX-6)",
+            "rdmaType": "RocE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations"
+          ]
+        },
+        {
+          "configurationName": "AZL-8224i-FC-SAN",
+          "architecture": "Disaggregated",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 64
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 549755813888,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 0,
+            "storageMaxBytes": 0,
+            "storageDrives": [
+              "SAN"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA (ConnectX-6)",
+            "rdmaType": "RocE"
+          },
+          "solutionCapabilities": []
+        }
+      ]
+    },
+    {
+      "platformName": "DataON AZL-8208i Intel Xeon 6",
+      "vendorName": "DataON",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 64,
+      "lastTestedVersion": "24H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": false,
+      "storageDrives": [
+        "NVMe",
+        "SAN"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "AZL-8208i-AF",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              16,
+              24,
+              32
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 549755813888,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              32,
+              64
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 122000000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 24,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA (ConnectX-6)",
+            "rdmaType": "RocE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations"
+          ]
+        },
+        {
+          "configurationName": "AZL-8208i-FC-SAN",
+          "architecture": "Disaggregated",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 64
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 549755813888,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 0,
+            "storageMaxBytes": 0,
+            "storageDrives": [
+              "SAN"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA (ConnectX-6)",
+            "rdmaType": "RocE"
+          },
+          "solutionCapabilities": []
+        }
+      ]
+    },
+    {
+      "platformName": "ThinkAgile MX650a V4",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "24H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              80,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 34359738368,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3840000000000,
+            "storageMaxBytes": 122800000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                960000000000,
+                1600000000000,
+                3200000000000,
+                6400000000000,
+                12800000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 12,
+              "capacityDriveSizes": [
+                {
+                  "amount": 4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 16,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                4000000000000,
+                8000000000000,
+                12000000000000,
+                16000000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4,L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4,L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-6,NVIDIA ConnectX-7,Broadcom NetExtreme-E",
+            "rdmaType": "RoCE,iWarp"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "ThinkAgile MX630 V4",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "24H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "6th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 172,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              86
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 34359738368,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3840000000000,
+            "storageMaxBytes": 184000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                960000000000,
+                1600000000000,
+                3200000000000,
+                6400000000000,
+                12800000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 12,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.35,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                12800000000000,
+                15350000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-6,NVIDIA ConnectX-7,Broadcom NetExtreme-E",
+            "rdmaType": "RoCE,iWarp"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "AX-760",
+      "vendorName": "Dell Technologies",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "23H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "5th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD",
+        "HDD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6",
+          "Intel(R) Ethernet E810"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "Dell AX-760 All-Flash (All-NVMe)",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              20,
+              24,
+              28,
+              32,
+              40,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 32,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 368640000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 24,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A2, A16, L4, L40, L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, A16, L4, L40, L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6,Intel(R) Ethernet E810",
+            "rdmaType": "iWARP+RoCE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "Dell AX-760 All-Flash (SSD)",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              20,
+              24,
+              28,
+              32,
+              40,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 32,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 1600000000000,
+            "storageMaxBytes": 184300000000000,
+            "storageDrives": [
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 24,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1600000000000,
+                1920000000000,
+                3840000000000,
+                7680000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A2, A16, L4, L40, L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, A16, L4, L40, L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6,Intel(R) Ethernet E810",
+            "rdmaType": "iWARP+RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "Dell AX-760 Hybrid (NVMe+HDD)",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": false,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              20,
+              24,
+              28,
+              32,
+              40,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 32,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 8000000000000,
+            "storageMaxBytes": 240000000000000,
+            "storageDrives": [
+              "NVMe",
+              "HDD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                1600000000000,
+                3200000000000,
+                6400000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "HDD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 12,
+              "capacityDriveSizes": [
+                {
+                  "amount": 2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 16,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 20,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                2000000000000,
+                4000000000000,
+                8000000000000,
+                12000000000000,
+                16000000000000,
+                20000000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6,Intel(R) Ethernet E810",
+            "rdmaType": "iWARP+RoCE"
+          },
+          "solutionCapabilities": []
+        },
+        {
+          "configurationName": "Dell AX-760 Hybrid (SSD+HDD)",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": false,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              20,
+              24,
+              28,
+              32,
+              40,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 32,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 8000000000000,
+            "storageMaxBytes": 160000000000000,
+            "storageDrives": [
+              "SSD",
+              "HDD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1600000000000,
+                1920000000000,
+                3840000000000,
+                7680000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "HDD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 8,
+              "capacityDriveSizes": [
+                {
+                  "amount": 2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 16,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 20,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                2000000000000,
+                4000000000000,
+                8000000000000,
+                12000000000000,
+                16000000000000,
+                20000000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6,Intel(R) Ethernet E810",
+            "rdmaType": "iWARP+RoCE"
+          },
+          "solutionCapabilities": []
+        }
+      ]
+    },
+    {
+      "platformName": "HPE ProLiant DL380 Gen11 Server Premier Solution for Azure Local",
+      "vendorName": "Hewlett Packard Enterprise",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 64,
+      "lastTestedVersion": "24H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "5th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD",
+        "SAN"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-6",
+          "Broadcom NetXtreme 575xx"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 1600000000000,
+            "storageMaxBytes": 368600000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 24,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A16, L4, L40, L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (A16, L4, L40, L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel (E810), NVIDIA (ConnectX-6), Broadcom (NetXtreme 575xx)",
+            "rdmaType": "iWarp+RoCE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "All Flash SAS SSD",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              16,
+              32,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 1600000000000,
+            "storageMaxBytes": 368600000000000,
+            "storageDrives": [
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 24,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A16, L4, L40, L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (A16, L4, L40, L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel (E810), NVIDIA (ConnectX-6), Broadcom (NetXtreme 575xx)",
+            "rdmaType": "iWarp+RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "SAN only",
+          "architecture": "Disaggregated",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 64
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 0,
+            "coresPerSocket": []
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 0,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": []
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 0,
+            "storageMaxBytes": 0,
+            "storageDrives": [
+              "SAN"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [],
+              "minimumNumberOfCapacityDrives": 0,
+              "maximumNumberOfCapacityDrives": 0,
+              "capacityDriveSizes": [],
+              "capacityDriveSizesBytes": []
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A16, L4, L40, L40S)"
+            ],
+            "gpuP": [
+              "NVIDIA (A16, L4, L40, L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel (E810), NVIDIA (ConnectX-6), Broadcom (NetXtreme 575xx)",
+            "rdmaType": "iWarp+RoCE"
+          },
+          "solutionCapabilities": [
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "AX-660",
+      "vendorName": "Dell Technologies",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "23H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "5th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-5",
+          "NVIDIA ConnectX-6",
+          "Intel(R) Ethernet E810"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "Dell AX-660 All-Flash (All-NVMe)",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 120,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              20,
+              24,
+              28,
+              32,
+              40,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 32,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              128
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 1920000000000,
+            "storageMaxBytes": 153600000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 10,
+              "capacityDriveSizes": [
+                {
+                  "amount": 920,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                920000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A2, L4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, L4)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Mellanox (ConnectX-5, ConnectX-6), Intel E810",
+            "rdmaType": "iWARP+RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "Dell AX-660 All-Flash (SSD)",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 120,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              12,
+              16,
+              20,
+              24,
+              28,
+              32,
+              40,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 32,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              8,
+              16,
+              32,
+              64,
+              128
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 1600000000000,
+            "storageMaxBytes": 76800000000000,
+            "storageDrives": [
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 10,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1600000000000,
+                1920000000000,
+                3840000000000,
+                7680000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A2, L4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, L4)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Mellanox (ConnectX-5, ConnectX-6), Intel E810",
+            "rdmaType": "iWARP+RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "HPE ProLiant DL145 Gen11 Server Premier Solution",
+      "vendorName": "Hewlett Packard Enterprise",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "23H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "AMD",
+      "cpuModel": "4th Gen EPYC™",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6",
+          "Broadcom NetXtreme 575xx"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 64,
+            "totalSocketsSupported": 1,
+            "coresPerSocket": [
+              16,
+              24,
+              32,
+              48,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 824633720832,
+            "numberOfDimmSlots": 6,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              16,
+              32,
+              64,
+              96,
+              128
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3200000000000,
+            "storageMaxBytes": 92200000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 6,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                12800000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L4)"
+            ],
+            "gpuP": [
+              "NVIDIA (L4, L40S)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 25,
+            "nicVendorModel": "NVIDIA (ConnectX-6), Broadcom (NetXtreme 575xx)",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "ThinkAgile MX455 V3 Edge PR",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 4,
+      "lastTestedVersion": "23H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "AMD",
+      "cpuModel": "4th Gen EPYC™",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 4
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 64,
+            "totalSocketsSupported": 1,
+            "coresPerSocket": [
+              8,
+              16,
+              24,
+              32,
+              48,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 17179869184,
+            "maximumMemoryBytes": 618475290624,
+            "numberOfDimmSlots": 6,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              16,
+              32,
+              48,
+              64,
+              96
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 12800000000000,
+            "storageMaxBytes": 61120000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 4,
+              "capacityDriveSizes": [
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.35,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                960000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000,
+                12800000000000,
+                15350000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A2)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 25,
+            "nicVendorModel": "Intel E810, Mellanox Connectx-6",
+            "rdmaType": "RDMA"
+          },
+          "solutionCapabilities": [
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "AX-4000r/z with AX-4520c",
+      "vendorName": "Dell Technologies",
+      "systemType": "PremierSolution",
+      "formFactor": "Rugged",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "23H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "Xeon® D 27xx",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN",
+        "Rugged"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6",
+          "Intel(R) Ethernet E810",
+          "Intel(R) Ethernet E823"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "Dell AX-4520c All-Flash (All-NVMe)",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 20,
+            "totalSocketsSupported": 1,
+            "coresPerSocket": [
+              8,
+              16,
+              20
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 549755813888,
+            "numberOfDimmSlots": 4,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              16,
+              32,
+              64,
+              128
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 1600000000000,
+            "storageMaxBytes": 46080000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 12,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1920000000000,
+                3840000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A2, L4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, L4)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6,Intel(R) Ethernet E810, Intel(R) Ethernet E823",
+            "rdmaType": "iWARP+RoCE"
+          },
+          "solutionCapabilities": []
+        }
+      ]
+    },
+    {
+      "platformName": "AX-4000r/z with AX-4510c",
+      "vendorName": "Dell Technologies",
+      "systemType": "PremierSolution",
+      "formFactor": "Rugged",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "23H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "Xeon® D 27xx",
+      "isGpuSupported": false,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN",
+        "Rugged"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Intel(R) Ethernet E823"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "Dell AX-4510c All-Flash (All-NVMe)",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 20,
+            "totalSocketsSupported": 1,
+            "coresPerSocket": [
+              8,
+              16,
+              20
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 549755813888,
+            "numberOfDimmSlots": 4,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              16,
+              32,
+              64,
+              128
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 1600000000000,
+            "storageMaxBytes": 15360000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 4,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 960,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                960000000000,
+                1920000000000,
+                3840000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 25,
+            "nicVendorModel": "Intel(R) Ethernet E823",
+            "rdmaType": "iWARP+RoCE"
+          },
+          "solutionCapabilities": []
+        }
+      ]
+    },
+    {
+      "platformName": "DataON AZS-8112a 5th Gen AMD EPYC",
+      "vendorName": "DataON",
+      "systemType": "IntegratedSystem",
+      "formFactor": "Rack",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "2601",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "AMD",
+      "cpuModel": "5th Gen EPYC™",
+      "isGpuSupported": false,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "AZS-8112a All NVMe",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 8,
+            "maximumCores": 48,
+            "totalSocketsSupported": 1,
+            "coresPerSocket": [
+              8,
+              16,
+              24,
+              32,
+              36,
+              48,
+              64,
+              72,
+              96,
+              128,
+              144
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 68719476736,
+            "maximumMemoryBytes": 1649267441664,
+            "numberOfDimmSlots": 24,
+            "isHalfDimmSlotsSupported": true,
+            "dimmSlotSizes": [
+              16,
+              32,
+              64,
+              128
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 184000000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 12,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 15.36,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1920000000000,
+                3840000000000,
+                7680000000000,
+                15360000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": false,
+            "gpuMfgModel": "",
+            "gpuDda": [],
+            "gpuP": []
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Nvidia ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": []
+        }
+      ]
+    },
+    {
+      "platformName": "ThinkAgile MX650 V3 PR Node",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "23H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "5th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 8796093022208,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              16,
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 737000000000000,
+            "storageDrives": [
+              "NVMe"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [],
+              "minimumNumberOfCacheDrives": 0,
+              "maximumNumberOfCacheDrives": 0,
+              "cacheDriveSizes": [],
+              "cacheDriveSizesBytes": []
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCapacityDrives": 2,
+              "maximumNumberOfCapacityDrives": 4,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (L40S, L40, L4)"
+            ],
+            "gpuP": [
+              "NVIDIA (L40S, L40, L4)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "M365Local",
+            "DisconnectedOperations",
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "ThinkAgile MX650 V3 Integrated System",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "22H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "5th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD",
+        "HDD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-4",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 4398046511104,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 76000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 24,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.5,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                1500000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A100, T4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, A40)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-4,NVIDIA ConnectX-6",
+            "rdmaType": "iWARP,RoCE"
+          },
+          "solutionCapabilities": [
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "Hybrid",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": false,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 4398046511104,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 4000000000000,
+            "storageMaxBytes": 140000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD",
+              "HDD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "HDD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 10,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 2.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 10,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 14,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1000000000000,
+                1200000000000,
+                1800000000000,
+                2000000000000,
+                2400000000000,
+                4000000000000,
+                6000000000000,
+                8000000000000,
+                10000000000000,
+                12000000000000,
+                14000000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A100, T4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, A40)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-4,NVIDIA ConnectX-6",
+            "rdmaType": "iWARP,RoCE"
+          },
+          "solutionCapabilities": [
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "ThinkAgile MX630 V3 Integrated System",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "22H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "5th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD",
+        "HDD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-4",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 4398046511104,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 64000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 2,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 16,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.5,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                1500000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A100, T4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-4,NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "AIWorkloads"
+          ]
+        },
+        {
+          "configurationName": "Hybrid",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": false,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 4398046511104,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 4000000000000,
+            "storageMaxBytes": 56000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD",
+              "HDD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 2,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 16,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.5,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                1500000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A100, T4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-4,NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": [
+            "AIWorkloads"
+          ]
+        }
+      ]
+    },
+    {
+      "platformName": "ThinkAgile MX650 V3 CN Node",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 2,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "22H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "5th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD",
+        "HDD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-4",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 4398046511104,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 76000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 24,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.5,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                1500000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A100, T4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, A40)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-4,NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": []
+        },
+        {
+          "configurationName": "Hybrid",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": false,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 4398046511104,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 4000000000000,
+            "storageMaxBytes": 140000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD",
+              "HDD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 4,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "HDD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 10,
+              "capacityDriveSizes": [
+                {
+                  "amount": 1,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 2.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 8,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 10,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 12,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 14,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                1000000000000,
+                1200000000000,
+                1800000000000,
+                2000000000000,
+                2400000000000,
+                4000000000000,
+                6000000000000,
+                8000000000000,
+                10000000000000,
+                12000000000000,
+                14000000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A100, T4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2, A40)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-4,NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": []
+        }
+      ]
+    },
+    {
+      "platformName": "ThinkAgile MX630 V3 CN Node",
+      "vendorName": "Lenovo",
+      "systemType": "PremierSolution",
+      "formFactor": "Rack",
+      "rackUnits": 1,
+      "minimumScale": 1,
+      "maximumScale": 16,
+      "lastTestedVersion": "22H2",
+      "qualificationGeneration": "Current (2026 or later)",
+      "cpuFamily": "Intel®",
+      "cpuModel": "5th Gen Xeon® Scalable Processor",
+      "isGpuSupported": true,
+      "storageDrives": [
+        "NVMe",
+        "SSD",
+        "HDD"
+      ],
+      "featuresSupported": [
+        "SecuredCoreServer",
+        "MicrosoftSDN"
+      ],
+      "sdnNicDetails": {
+        "isSdnNicSupported": true,
+        "sdnNicVendorModels": [
+          "Broadcom NetXtreme 575xx",
+          "Intel(R) Ethernet E810",
+          "NVIDIA ConnectX-4",
+          "NVIDIA ConnectX-6"
+        ]
+      },
+      "configurations": [
+        {
+          "configurationName": "All Flash",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": true,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 4398046511104,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 64000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 2,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "SSD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 16,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.5,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                1500000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A100, T4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-4,NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": []
+        },
+        {
+          "configurationName": "Hybrid",
+          "architecture": "Hyperconverged",
+          "isSingleNodeConfiguration": false,
+          "clusterSize": {
+            "minimum": 1,
+            "maximum": 16
+          },
+          "cpuDetails": {
+            "minimumCores": 16,
+            "maximumCores": 128,
+            "totalSocketsSupported": 2,
+            "coresPerSocket": [
+              8,
+              10,
+              12,
+              16,
+              18,
+              20,
+              24,
+              28,
+              32,
+              36,
+              40,
+              44,
+              48,
+              52,
+              56,
+              60,
+              64
+            ]
+          },
+          "memoryDetails": {
+            "minimumMemoryBytes": 137438953472,
+            "maximumMemoryBytes": 4398046511104,
+            "numberOfDimmSlots": 16,
+            "isHalfDimmSlotsSupported": false,
+            "dimmSlotSizes": [
+              32,
+              48,
+              64,
+              96,
+              128,
+              256
+            ]
+          },
+          "storageDetails": {
+            "minimumStorageBytes": 3000000000000,
+            "storageMaxBytes": 56000000000000,
+            "storageDrives": [
+              "NVMe",
+              "SSD",
+              "HDD"
+            ],
+            "cacheDriveDetails": {
+              "cacheDriveTypes": [
+                "NVMe"
+              ],
+              "minimumNumberOfCacheDrives": 2,
+              "maximumNumberOfCacheDrives": 2,
+              "cacheDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                }
+              ],
+              "cacheDriveSizesBytes": [
+                800000000000,
+                1600000000000,
+                3200000000000
+              ]
+            },
+            "capacityDriveDetails": {
+              "capacityStorageDriveTypes": [
+                "HDD"
+              ],
+              "minimumNumberOfCapacityDrives": 4,
+              "maximumNumberOfCapacityDrives": 16,
+              "capacityDriveSizes": [
+                {
+                  "amount": 800,
+                  "byteUnit": "GB"
+                },
+                {
+                  "amount": 1.5,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.6,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 1.92,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.2,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 3.84,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 6.4,
+                  "byteUnit": "TB"
+                },
+                {
+                  "amount": 7.68,
+                  "byteUnit": "TB"
+                }
+              ],
+              "capacityDriveSizesBytes": [
+                800000000000,
+                1500000000000,
+                1600000000000,
+                1920000000000,
+                3200000000000,
+                3840000000000,
+                6400000000000,
+                7680000000000
+              ]
+            }
+          },
+          "gpuDetails": {
+            "isGpuSupported": true,
+            "gpuMfgModel": "NVIDIA",
+            "gpuDda": [
+              "NVIDIA (A100, T4)"
+            ],
+            "gpuP": [
+              "NVIDIA (A2)"
+            ]
+          },
+          "networkingDetails": {
+            "networkingSpeed": 100,
+            "nicVendorModel": "Intel® E810,NVIDIA ConnectX-4,NVIDIA ConnectX-6",
+            "rdmaType": "RoCE"
+          },
+          "solutionCapabilities": []
+        }
+      ]
+    }
+  ]
+}
