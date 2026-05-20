@@ -166,12 +166,17 @@
                     // hosting Exchange mailbox servers, plus 1 three-node Azure
                     // Local cluster hosting Exchange Edge Transport, SharePoint,
                     // Skype for Business and SQL = 3 clusters / 5 servers total.
+                    // The two single-node mailbox clusters are rendered as ONE
+                    // card (sharing a single "Rack 1" box with both servers
+                    // stacked inside) since they are independent clusters that
+                    // are typically co-located in the same physical rack. The
+                    // 3-node Edge Transport / SharePoint / Skype / SQL cluster
+                    // gets its own card.
                     // Active Directory, Firewall, Load Balancer and the internal
                     // mgmt network router remain infrastructure components on the
                     // management/compute networks — NOT separate Azure Local clusters.
                     clusters: [
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 1'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 2'], serversLabel: 'Server' },
+                        { name: '2 × Azure Local Single Node', nodes: 2, workloads: ['Exchange mailbox servers'], servers: ['Server 1', 'Server 2'], serversLabel: 'Servers' },
                         { name: 'Azure Local Cluster (3 nodes)', nodes: 3, workloads: ['Exchange Edge Transport', 'SharePoint Server', 'Skype for Business', 'SQL Server'], servers: ['Server 3', 'Server 4', 'Server 5'], serversLabel: 'Servers' }
                     ]
                 },
@@ -180,16 +185,21 @@
                     // Clusters 1-4: single-node, Exchange mailbox servers (one per cluster).
                     // Clusters 5-6: single-node, Exchange Edge Transport servers.
                     // Cluster 7:    3-node, SharePoint, Skype for Business and SQL.
+                    // The 4 single-node mailbox clusters are merged into one
+                    // card (Servers 1-4 stacked inside a shared "Rack 1" box),
+                    // and the 2 single-node Edge Transport clusters are merged
+                    // into another card (Servers 5-6 in a shared "Rack 1" box).
+                    // They remain independent Azure Local clusters with their
+                    // own quorum / S2D pool / lifecycle — the card simply
+                    // reflects that operators typically co-locate them in the
+                    // same physical rack. The 3-node SharePoint/Skype/SQL
+                    // cluster gets its own card.
                     // Active Directory, Firewall, Load Balancer and the internal mgmt
                     // network router are infrastructure components on the management /
                     // compute networks — they are NOT separate Azure Local clusters.
                     clusters: [
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 1'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 2'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 3'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 4'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange Edge Transport'], servers: ['Server 5'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange Edge Transport'], servers: ['Server 6'], serversLabel: 'Server' },
+                        { name: '4 × Azure Local Single Node', nodes: 4, workloads: ['Exchange mailbox servers'], servers: ['Server 1', 'Server 2', 'Server 3', 'Server 4'], serversLabel: 'Servers' },
+                        { name: '2 × Azure Local Single Node', nodes: 2, workloads: ['Exchange Edge Transport'], servers: ['Server 5', 'Server 6'], serversLabel: 'Servers' },
                         { name: 'Azure Local Cluster (3 nodes)', nodes: 3, workloads: ['SharePoint Server', 'Skype for Business', 'SQL Server'], servers: ['Server 7', 'Server 8', 'Server 9'], serversLabel: 'Servers' }
                     ]
                 }
@@ -197,8 +207,8 @@
             notes: [
                 'M365 Local runs on Azure Local Premier SKU hardware (see SPC L300 deck slide 69).',
                 'Small-Scale: a single 3-node Azure Local cluster hosts all M365 productivity workload servers (Exchange mailbox, Exchange Edge Transport, SharePoint, Skype for Business, SQL).',
-                'Medium-Scale: 2 single-node Exchange mailbox clusters plus 1 three-node Exchange Edge Transport / SharePoint / Skype / SQL cluster (3 Azure Local clusters / 5 servers total).',
-                'Large-Scale: 4 single-node Exchange mailbox clusters, 2 single-node Exchange Edge Transport clusters, and 1 three-node SharePoint/Skype/SQL cluster (7 Azure Local clusters total).',
+                'Medium-Scale: 2 single-node Exchange mailbox clusters plus 1 three-node Exchange Edge Transport / SharePoint / Skype / SQL cluster (3 Azure Local clusters / 5 servers total). The 2 single-node mailbox clusters are co-located in one shared rack.',
+                'Large-Scale: 4 single-node Exchange mailbox clusters, 2 single-node Exchange Edge Transport clusters, and 1 three-node SharePoint/Skype/SQL cluster (7 Azure Local clusters total). Co-located single-node clusters share a rack on the diagram.',
                 'Active Directory, Firewall, Load Balancer and the internal management network router are infrastructure components on the management/compute networks — not separate Azure Local clusters.',
                 'Strict tenant isolation only — each productivity workload runs on dedicated hardware.',
                 'Disconnected mode adds a Control Plane Appliance (3-node Disconnected Ops Cluster) regardless of scale.'

@@ -48,12 +48,13 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.21.14 - Latest Release
 
-> **Adds the *Microsoft 365 Local &mdash; Medium-Scale* reference architecture** to the *Microsoft Sovereign Private Clouds* page (Knowledge tab). The new option sits between Small-Scale and Large-Scale.
+> **Adds the *Microsoft 365 Local &mdash; Medium-Scale* reference architecture** to the *Microsoft Sovereign Private Clouds* page (Knowledge tab), and visually groups co-located single-node clusters into shared rack cards for both the new Medium variant and the existing Large variant.
 
 **What changed**
 - New scale option **M365 Local &mdash; Medium-Scale** (badge `M`) in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js).
-- Cluster layout: **2 single-node Azure Local clusters** hosting Exchange mailbox servers (Servers 1, 2) + **1 three-node Azure Local cluster** hosting Exchange Edge Transport, SharePoint Server, Skype for Business and SQL Server (Servers 3, 4, 5) &mdash; 3 Azure Local clusters / 5 servers total.
-- Active Directory, Firewall, Load Balancer and the internal management network router remain infrastructure components on the management / compute networks &mdash; not separate Azure Local clusters &mdash; matching how Small-Scale and Large-Scale are modelled.
+- Medium-Scale layout: **2 single-node Azure Local clusters** hosting Exchange mailbox servers (rendered as *one shared rack card* with Servers 1 and 2 stacked inside) + **1 three-node Azure Local cluster** hosting Exchange Edge Transport, SharePoint Server, Skype for Business and SQL Server (Servers 3, 4, 5) &mdash; 3 Azure Local clusters / 5 servers total, drawn as 2 cards.
+- **Large-Scale refinement**: the 4 single-node Exchange mailbox clusters now share a single rack card (Servers 1-4), and the 2 single-node Edge Transport clusters share another (Servers 5-6). The 3-node SharePoint/Skype/SQL cluster keeps its own card. They remain independent Azure Local clusters with their own quorum / S2D pool / lifecycle &mdash; the merged card just reflects that operators typically co-locate them in the same physical rack.
+- Active Directory, Firewall, Load Balancer and the internal management network router remain infrastructure components on the management / compute networks &mdash; not separate Azure Local clusters &mdash; matching how Small-Scale is modelled.
 - The on-screen **SVG diagram** and the **PowerPoint export** (overview slide Scale pill + per-purpose Scale panel + diagram slide) pick up the new variant automatically via the existing `tpl.scaleVariants` code path.
 - Storage is fixed at **S2D (local)** (same constraint as Small / Large); the cluster-count chip is hidden (fixed layout); short PPT label registered as `M365 Medium`.
 
