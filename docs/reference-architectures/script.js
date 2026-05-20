@@ -1705,6 +1705,20 @@
         const isStrict = tenancyId === 'strict';
         const isLogical = tenancyId === 'logical';
         const scales = (scaleIds && scaleIds.length) ? scaleIds.slice() : ['cluster-16'];
+        // When multiple scales are selected for the same purpose, every
+        // workload card gets a small top-right pill identifying which scale
+        // it belongs to (e.g. "M365 Small", "M365 Medium", "M365 Large") so
+        // they can be told apart at a glance.
+        const multiScale = scales.length > 1;
+        function scaleBadgeFor(scaleId) {
+            if (!multiScale) { return null; }
+            const scaleOpt = findScaleItem(scaleId);
+            if (!scaleOpt) { return null; }
+            return {
+                badge: scaleOpt.sizeBadge || '',
+                label: shortScaleLabel(scaleId, scaleOpt)
+            };
+        }
 
         // For a given scale id, decide whether the cluster's servers should display
         // local S2D disk glyphs. Single-node and cluster-16 honor the per-purpose
@@ -1770,6 +1784,7 @@
                         // server / one role / its own quorum + S2D pool). Only
                         // used by the merged M365 Local Medium / Large variants.
                         separateClusters: !!wc.separateClusters,
+                        scaleBadge: scaleBadgeFor(scaleId),
                         departmentChips: null
                     };
                     if (isStrict) {
@@ -1807,6 +1822,7 @@
                     comingSoon: !!v.comingSoon,
                     stack: v.stack || 1,
                     scaleId: v.scaleId,
+                    scaleBadge: scaleBadgeFor(v.scaleId),
                     showLocalDisks: showDisksForScale(v.scaleId),
                     departmentChips: null
                 };
@@ -2606,12 +2622,52 @@
         badgeImg.setAttribute('href', 'icons/sovereign-azure-local-cluster.svg');
         svg.appendChild(badgeImg);
 
+        // Top-right scale pill — only rendered when multiple scales are selected
+        // for the same purpose, so each card clearly shows which scale it belongs
+        // to (e.g. "M365 Small" vs "M365 Medium" vs "M365 Large").
+        let scalePillW = 0;
+        if (card.scaleBadge) {
+            const sbLabel = card.scaleBadge.label || card.scaleBadge.badge || '';
+            const sbFontSz = 10;
+            const sbPadX = 8;
+            const sbH = 18;
+            // Approximate width: ~5.6px per char at 10px Segoe UI Semibold.
+            const sbTextW = Math.max(28, sbLabel.length * 5.6);
+            const sbW = sbTextW + sbPadX * 2;
+            const sbX = x + w - sbW - 10;
+            const sbY = y + 10;
+
+            const sbBg = document.createElementNS(SVG_NS, 'rect');
+            sbBg.setAttribute('x', String(sbX));
+            sbBg.setAttribute('y', String(sbY));
+            sbBg.setAttribute('width', String(sbW));
+            sbBg.setAttribute('height', String(sbH));
+            sbBg.setAttribute('rx', '9');
+            sbBg.setAttribute('fill', '#eef4fb');
+            sbBg.setAttribute('stroke', '#5c7ba0');
+            sbBg.setAttribute('stroke-width', '0.75');
+            svg.appendChild(sbBg);
+
+            const sbText = document.createElementNS(SVG_NS, 'text');
+            sbText.setAttribute('x', String(sbX + sbW / 2));
+            sbText.setAttribute('y', String(sbY + sbH / 2 + 3.5));
+            sbText.setAttribute('fill', '#1f3d6e');
+            sbText.setAttribute('font-family', 'Segoe UI, sans-serif');
+            sbText.setAttribute('font-size', String(sbFontSz));
+            sbText.setAttribute('font-weight', '700');
+            sbText.setAttribute('text-anchor', 'middle');
+            sbText.textContent = sbLabel;
+            svg.appendChild(sbText);
+
+            scalePillW = sbW + 8;
+        }
+
         // Title — leaves room for the badge by reducing the available width.
         let titleText = card.title;
         if (card.tenantLabel) { titleText = card.tenantLabel + ' — ' + card.title; }
         if (card.comingSoon) { titleText += ' *'; }
 
-        const titleAvailW = w - 24 - badgeSize - 8;
+        const titleAvailW = w - 24 - badgeSize - 8 - scalePillW;
         const titleLines = wrapTitle(titleText, titleAvailW, 15);
         const titleLineH = 18;
         const titleStartX = x + (badgeSize + 18) + (w - (badgeSize + 18) - 12) / 2;
