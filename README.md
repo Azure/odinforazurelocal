@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.13 - Available here: https://aka.ms/ODIN
+## Version 0.21.14 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,19 +46,22 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.13 - Latest Release
+### 🎉 Version 0.21.14 - Latest Release
 
-> **Cosmetic fix on the Microsoft Sovereign Private Clouds reference architectures page (Knowledge tab).** The *Azure Local Cluster (up to 128 nodes)* title no longer renders with a misleading `*` (Coming soon) suffix — 128 nodes is documented and supported.
+> **Adds the *Microsoft 365 Local &mdash; Medium-Scale* reference architecture** to the *Microsoft Sovereign Private Clouds* page (Knowledge tab). The new option sits between Small-Scale and Large-Scale.
 
 **What changed**
-- Removed the stray `comingSoon: true` flag from the `cluster-128` entry in `cardForScale()` in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js). Both the on-screen SVG diagram and the PowerPoint export now render the title cleanly without the asterisk.
-- The unrelated `comingSoon: true` flag on the **logical-isolation** tenancy option (which gates the *Coming soon* badge in the picker) was deliberately left untouched.
+- New scale option **M365 Local &mdash; Medium-Scale** (badge `M`) in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js).
+- Cluster layout: **2 single-node Azure Local clusters** hosting Exchange mailbox servers (Servers 1, 2) + **1 three-node Azure Local cluster** hosting Exchange Edge Transport, SharePoint Server, Skype for Business and SQL Server (Servers 3, 4, 5) &mdash; 3 Azure Local clusters / 5 servers total.
+- Active Directory, Firewall, Load Balancer and the internal management network router remain infrastructure components on the management / compute networks &mdash; not separate Azure Local clusters &mdash; matching how Small-Scale and Large-Scale are modelled.
+- The on-screen **SVG diagram** and the **PowerPoint export** (overview slide Scale pill + per-purpose Scale panel + diagram slide) pick up the new variant automatically via the existing `tpl.scaleVariants` code path.
+- Storage is fixed at **S2D (local)** (same constraint as Small / Large); the cluster-count chip is hidden (fixed layout); short PPT label registered as `M365 Medium`.
 
 **Tests & quality**
-- Full test suite passes **1,246 / 1,246**. ESLint clean across all browser-facing scopes; HTML validation clean.
+- ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes.
 
 **Notes**
-- No data, schema, or PPT-template changes. No new external network calls. Single-line change to one card descriptor.
+- No data, schema, or PPT-template changes. No new icons or external network calls.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -381,7 +384,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.13  
+**Version**: 0.21.14  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -396,6 +399,14 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.13 - Reference architectures: drop misleading `*` on `Azure Local Cluster (up to 128 nodes)` title
+
+> **Cosmetic fix on the Microsoft Sovereign Private Clouds reference architectures page (Knowledge tab).** The *Azure Local Cluster (up to 128 nodes)* title no longer renders with a misleading `*` (Coming soon) suffix &mdash; 128 nodes is documented and supported.
+
+- Removed the stray `comingSoon: true` flag from the `cluster-128` entry in `cardForScale()` in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js). Both the on-screen SVG diagram and the PowerPoint export now render the title cleanly without the asterisk.
+- The unrelated `comingSoon: true` flag on the **logical-isolation** tenancy option (which gates the *Coming soon* badge in the picker) was deliberately left untouched.
+- Full test suite passes **1,246 / 1,246**. ESLint clean across all browser-facing scopes; HTML validation clean.
 
 #### 0.21.12 - Designer auto-fill for Infrastructure Network + Disaggregated single-rack overlap fix (issues #221 + #223)
 

@@ -28,9 +28,11 @@
             desc: 'Run Microsoft productivity server workloads on secure, on-premises infrastructure that meets local regulatory requirements. Deploy and operate with confidence through a partner-led deployment based on validated reference architecture.',
             recommendedConnectivity: 'disconnected',
             recommendedScale: 'm365-large',
-            // M365 Local has its own scale options (see SPC L300 deck slides 66-68).
+            // M365 Local has its own scale options (see SPC L300 deck slides 66-68
+            // plus the Medium-Scale reference architecture shared in May 2026).
             scaleOptionsOverride: [
                 { id: 'm365-small', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: 'S', title: 'M365 Local — Small-Scale', desc: 'Single 3-node Azure Local cluster hosting Active Directory, Firewall, Load Balancer, and the M365 Local workload servers.' },
+                { id: 'm365-medium', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: 'M', title: 'M365 Local — Medium-Scale', desc: 'Two single-node Azure Local clusters for Exchange mailbox plus one 3-node Azure Local cluster for Exchange Edge Transport, SharePoint, Skype for Business and SQL (3 clusters total).' },
                 { id: 'm365-large', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: 'L', title: 'M365 Local — Large-Scale', desc: 'Multi-cluster M365 Local deployment with dedicated clusters for Exchange mailbox, Exchange Edge Transport, SharePoint/Skype/SQL, AD, Firewall, and Load Balancer.' }
             ],
             // M365 Local supports strict isolation only — no logical isolation option.
@@ -158,6 +160,21 @@
                         }
                     ]
                 },
+                'm365-medium': {
+                    // Medium-Scale reference architecture (shared May 2026 — sits
+                    // between Small and Large): 2 single-node Azure Local clusters
+                    // hosting Exchange mailbox servers, plus 1 three-node Azure
+                    // Local cluster hosting Exchange Edge Transport, SharePoint,
+                    // Skype for Business and SQL = 3 clusters / 5 servers total.
+                    // Active Directory, Firewall, Load Balancer and the internal
+                    // mgmt network router remain infrastructure components on the
+                    // management/compute networks — NOT separate Azure Local clusters.
+                    clusters: [
+                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 1'], serversLabel: 'Server' },
+                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 2'], serversLabel: 'Server' },
+                        { name: 'Azure Local Cluster (3 nodes)', nodes: 3, workloads: ['Exchange Edge Transport', 'SharePoint Server', 'Skype for Business', 'SQL Server'], servers: ['Server 3', 'Server 4', 'Server 5'], serversLabel: 'Servers' }
+                    ]
+                },
                 'm365-large': {
                     // Slides 66 & 67 — Large-Scale: 7 Azure Local clusters total.
                     // Clusters 1-4: single-node, Exchange mailbox servers (one per cluster).
@@ -180,6 +197,7 @@
             notes: [
                 'M365 Local runs on Azure Local Premier SKU hardware (see SPC L300 deck slide 69).',
                 'Small-Scale: a single 3-node Azure Local cluster hosts all M365 productivity workload servers (Exchange mailbox, Exchange Edge Transport, SharePoint, Skype for Business, SQL).',
+                'Medium-Scale: 2 single-node Exchange mailbox clusters plus 1 three-node Exchange Edge Transport / SharePoint / Skype / SQL cluster (3 Azure Local clusters / 5 servers total).',
                 'Large-Scale: 4 single-node Exchange mailbox clusters, 2 single-node Exchange Edge Transport clusters, and 1 three-node SharePoint/Skype/SQL cluster (7 Azure Local clusters total).',
                 'Active Directory, Firewall, Load Balancer and the internal management network router are infrastructure components on the management/compute networks — not separate Azure Local clusters.',
                 'Strict tenant isolation only — each productivity workload runs on dedicated hardware.',
@@ -902,10 +920,10 @@
             // small/large scales and rack-aware are S2D-only.
             if (item.id === 'cluster-16' || item.id === 'single-node'
                 || item.id === 'cluster-64' || item.id === 'cluster-128'
-                || item.id === 'm365-small' || item.id === 'm365-large'
+                || item.id === 'm365-small' || item.id === 'm365-medium' || item.id === 'm365-large'
                 || item.id === 'rack-aware') {
                 const sanOnly = (item.id === 'cluster-64' || item.id === 'cluster-128');
-                const s2dOnly = (item.id === 'm365-small' || item.id === 'm365-large' || item.id === 'rack-aware');
+                const s2dOnly = (item.id === 'm365-small' || item.id === 'm365-medium' || item.id === 'm365-large' || item.id === 'rack-aware');
                 if (purposesUsingThis.length) {
                     const storageWrap = document.createElement('div');
                     storageWrap.className = 'scale-storage-wrap';
@@ -971,7 +989,7 @@
             // scale to show in the diagram (1 to 4).
             // Exclude M365 Local purposes — they have a fixed cluster layout.
             var purposesForClusterCount = purposesUsingThis.filter(function(p) {
-                return p.id !== 'm365-small' && p.id !== 'm365-large';
+                return p.id !== 'm365-small' && p.id !== 'm365-medium' && p.id !== 'm365-large';
             });
             if (purposesForClusterCount.length) {
                 var clusterCountWrap = document.createElement('div');
@@ -4797,7 +4815,7 @@
         if (!scales || !scales.length) { return 'not set'; }
         // Cluster-64/128 is SAN-only; M365 small/large is S2D-only.
         const has64Plus = scales.indexOf('cluster-64') >= 0 || scales.indexOf('cluster-128') >= 0;
-        const isM365 = scales.indexOf('m365-small') >= 0 || scales.indexOf('m365-large') >= 0;
+        const isM365 = scales.indexOf('m365-small') >= 0 || scales.indexOf('m365-medium') >= 0 || scales.indexOf('m365-large') >= 0;
         if (has64Plus && !isM365) { return 'SAN (required at this scale)'; }
         if (isM365) { return 'S2D (local)'; }
         return storageLabelFor(scales[0], getStorageFor(purposeId, scales[0]));
@@ -4805,7 +4823,7 @@
 
     function storageLabelFor(scaleId, storedChoice) {
         if (scaleId === 'cluster-64' || scaleId === 'cluster-128') { return 'SAN (required)'; }
-        if (scaleId === 'm365-small' || scaleId === 'm365-large') { return 'S2D (local)'; }
+        if (scaleId === 'm365-small' || scaleId === 'm365-medium' || scaleId === 'm365-large') { return 'S2D (local)'; }
         if (storedChoice === 'san') { return 'SAN'; }
         if (storedChoice === 'both') { return 'S2D + SAN'; }
         return 'S2D (local)';
@@ -4821,6 +4839,7 @@
         'cluster-64':   '64 nodes',
         'cluster-128':  '128 nodes',
         'm365-small':   'M365 Small',
+        'm365-medium':  'M365 Medium',
         'm365-large':   'M365 Large'
     };
     function shortScaleLabel(scaleId, scaleOpt) {
