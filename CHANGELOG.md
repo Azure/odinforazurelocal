@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.14] - 2026-05-20
+
+Adds the **Microsoft 365 Local — Medium-Scale** reference architecture to the *Microsoft Sovereign Private Clouds* page (Knowledge tab), and visually groups co-located single-node clusters into shared rack cards for the M365 Medium and Large variants.
+
+### Added
+
+- **M365 Local — Medium-Scale** scale option (`m365-medium`, badge `M`) in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js). New variant sits between Small-Scale (1 collapsed 3-node cluster) and Large-Scale (7 clusters):
+  - **2 single-node Azure Local clusters** hosting Exchange mailbox servers (Servers 1 and 2) — rendered as **one shared rack card** with both servers stacked inside a single `Rack 1` box.
+  - **1 three-node Azure Local cluster** hosting Exchange Edge Transport, SharePoint Server, Skype for Business and SQL Server (Servers 3 / 4 / 5).
+  - 3 Azure Local clusters / 5 servers total (rendered as 2 cards on the diagram).
+- Active Directory, Firewall, Load Balancer and the internal management network router remain infrastructure components on the management / compute networks — not separate Azure Local clusters — matching how Small-Scale and Large-Scale are modelled.
+- Notes panel updated with new Medium-Scale + rack-grouping bullets.
+
+### Changed
+
+- **M365 Local — Large-Scale** diagram: the 4 single-node Exchange mailbox clusters now render as **one shared rack card** (Servers 1-4 stacked in `Rack 1`), and the 2 single-node Exchange Edge Transport clusters render as **one shared rack card** (Servers 5-6 in `Rack 1`). The 3-node SharePoint/Skype/SQL cluster gets its own card. The clusters remain independent Azure Local single-node clusters with their own quorum / S2D pool / lifecycle — the merged card simply reflects that operators typically co-locate them in the same physical rack. The 7-cluster total in the notes is unchanged; only the card count on the diagram drops from 7 to 3.
+- **Per-cluster sub-frames**: inside each merged single-node rack card, every server is now drawn inside its own thin dashed `Cluster N` sub-frame so it's visually obvious that every server is an independent Azure Local single-node cluster (one server / one role / its own quorum + S2D pool). Only applies to the M365 Local Medium / Large merged cards — the 3-node `Azure Local Cluster (3 nodes)` card is unchanged.
+- The on-screen **SVG diagram** and the **PowerPoint export** (overview slide Scale pill + per-purpose Scale panel + diagram slide) pick up the new variant automatically via the existing `tpl.scaleVariants` code path — no new SVG / PPT layout code was needed.
+- Wired `m365-medium` into the existing constraints / labels so the variant behaves identically to the other M365 scales:
+  - **Storage** is fixed at `S2D (local)` (`s2dOnly` check + `storageLabelFor()` + `formatStorageForSummary()`).
+  - **Number-of-clusters** chip is hidden (M365 variants have a fixed cluster layout — same exclusion as Small / Large).
+  - **Short PPT label** registered as `M365 Medium` (`SHORT_SCALE_LABEL`).
+
+### Tests
+
+- ESLint clean across all browser-facing scopes (zero new warnings); HTML validation clean; full test suite passes.
+
+### Notes
+
+- No data, schema, or PPT-template changes. No new icons or external network calls. Single-file change (`docs/reference-architectures/script.js`) plus the standard version-bump fan-out.
+
+---
+
 ## [0.21.13] - 2026-05-12
 
 Cosmetic fix on the **Microsoft Sovereign Private Clouds** reference architectures page (Knowledge tab).

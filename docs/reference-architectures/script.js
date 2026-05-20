@@ -28,9 +28,11 @@
             desc: 'Run Microsoft productivity server workloads on secure, on-premises infrastructure that meets local regulatory requirements. Deploy and operate with confidence through a partner-led deployment based on validated reference architecture.',
             recommendedConnectivity: 'disconnected',
             recommendedScale: 'm365-large',
-            // M365 Local has its own scale options (see SPC L300 deck slides 66-68).
+            // M365 Local has its own scale options (see SPC L300 deck slides 66-68
+            // plus the Medium-Scale reference architecture shared in May 2026).
             scaleOptionsOverride: [
                 { id: 'm365-small', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: 'S', title: 'M365 Local — Small-Scale', desc: 'Single 3-node Azure Local cluster hosting Active Directory, Firewall, Load Balancer, and the M365 Local workload servers.' },
+                { id: 'm365-medium', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: 'M', title: 'M365 Local — Medium-Scale', desc: 'Two single-node Azure Local clusters for Exchange mailbox plus one 3-node Azure Local cluster for Exchange Edge Transport, SharePoint, Skype for Business and SQL (3 clusters total).' },
                 { id: 'm365-large', iconFile: 'icons/sovereign-azure-local-cluster.svg', sizeBadge: 'L', title: 'M365 Local — Large-Scale', desc: 'Multi-cluster M365 Local deployment with dedicated clusters for Exchange mailbox, Exchange Edge Transport, SharePoint/Skype/SQL, AD, Firewall, and Load Balancer.' }
             ],
             // M365 Local supports strict isolation only — no logical isolation option.
@@ -158,21 +160,46 @@
                         }
                     ]
                 },
+                'm365-medium': {
+                    // Medium-Scale reference architecture (shared May 2026 — sits
+                    // between Small and Large): 2 single-node Azure Local clusters
+                    // hosting Exchange mailbox servers, plus 1 three-node Azure
+                    // Local cluster hosting Exchange Edge Transport, SharePoint,
+                    // Skype for Business and SQL = 3 clusters / 5 servers total.
+                    // The two single-node mailbox clusters are rendered as ONE
+                    // card (sharing a single "Rack 1" box with both servers
+                    // stacked inside) since they are independent clusters that
+                    // are typically co-located in the same physical rack. The
+                    // 3-node Edge Transport / SharePoint / Skype / SQL cluster
+                    // gets its own card.
+                    // Active Directory, Firewall, Load Balancer and the internal
+                    // mgmt network router remain infrastructure components on the
+                    // management/compute networks — NOT separate Azure Local clusters.
+                    clusters: [
+                        { name: '2 × Azure Local Single Node', nodes: 2, workloads: ['Exchange mailbox servers'], servers: ['Server 1', 'Server 2'], serversLabel: 'Servers', separateClusters: true },
+                        { name: 'Azure Local Cluster (3 nodes)', nodes: 3, workloads: ['Exchange Edge Transport', 'SharePoint Server', 'Skype for Business', 'SQL Server'], servers: ['Server 3', 'Server 4', 'Server 5'], serversLabel: 'Servers' }
+                    ]
+                },
                 'm365-large': {
                     // Slides 66 & 67 — Large-Scale: 7 Azure Local clusters total.
                     // Clusters 1-4: single-node, Exchange mailbox servers (one per cluster).
                     // Clusters 5-6: single-node, Exchange Edge Transport servers.
                     // Cluster 7:    3-node, SharePoint, Skype for Business and SQL.
+                    // The 4 single-node mailbox clusters are merged into one
+                    // card (Servers 1-4 stacked inside a shared "Rack 1" box),
+                    // and the 2 single-node Edge Transport clusters are merged
+                    // into another card (Servers 5-6 in a shared "Rack 1" box).
+                    // They remain independent Azure Local clusters with their
+                    // own quorum / S2D pool / lifecycle — the card simply
+                    // reflects that operators typically co-locate them in the
+                    // same physical rack. The 3-node SharePoint/Skype/SQL
+                    // cluster gets its own card.
                     // Active Directory, Firewall, Load Balancer and the internal mgmt
                     // network router are infrastructure components on the management /
                     // compute networks — they are NOT separate Azure Local clusters.
                     clusters: [
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 1'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 2'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 3'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange mailbox servers'], servers: ['Server 4'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange Edge Transport'], servers: ['Server 5'], serversLabel: 'Server' },
-                        { name: 'Azure Local Single Node', nodes: 1, workloads: ['Exchange Edge Transport'], servers: ['Server 6'], serversLabel: 'Server' },
+                        { name: '4 × Azure Local Single Node', nodes: 4, workloads: ['Exchange mailbox servers'], servers: ['Server 1', 'Server 2', 'Server 3', 'Server 4'], serversLabel: 'Servers', separateClusters: true },
+                        { name: '2 × Azure Local Single Node', nodes: 2, workloads: ['Exchange Edge Transport'], servers: ['Server 5', 'Server 6'], serversLabel: 'Servers', separateClusters: true },
                         { name: 'Azure Local Cluster (3 nodes)', nodes: 3, workloads: ['SharePoint Server', 'Skype for Business', 'SQL Server'], servers: ['Server 7', 'Server 8', 'Server 9'], serversLabel: 'Servers' }
                     ]
                 }
@@ -180,7 +207,8 @@
             notes: [
                 'M365 Local runs on Azure Local Premier SKU hardware (see SPC L300 deck slide 69).',
                 'Small-Scale: a single 3-node Azure Local cluster hosts all M365 productivity workload servers (Exchange mailbox, Exchange Edge Transport, SharePoint, Skype for Business, SQL).',
-                'Large-Scale: 4 single-node Exchange mailbox clusters, 2 single-node Exchange Edge Transport clusters, and 1 three-node SharePoint/Skype/SQL cluster (7 Azure Local clusters total).',
+                'Medium-Scale: 2 single-node Exchange mailbox clusters plus 1 three-node Exchange Edge Transport / SharePoint / Skype / SQL cluster (3 Azure Local clusters / 5 servers total). The 2 single-node mailbox clusters are co-located in one shared rack and each is drawn inside its own dashed Cluster sub-frame to make the individual single-node clusters visually distinct.',
+                'Large-Scale: 4 single-node Exchange mailbox clusters, 2 single-node Exchange Edge Transport clusters, and 1 three-node SharePoint/Skype/SQL cluster (7 Azure Local clusters total). Co-located single-node clusters share a rack on the diagram and each is drawn inside its own dashed Cluster sub-frame.',
                 'Active Directory, Firewall, Load Balancer and the internal management network router are infrastructure components on the management/compute networks — not separate Azure Local clusters.',
                 'Strict tenant isolation only — each productivity workload runs on dedicated hardware.',
                 'Disconnected mode adds a Control Plane Appliance (3-node Disconnected Ops Cluster) regardless of scale.'
@@ -902,10 +930,10 @@
             // small/large scales and rack-aware are S2D-only.
             if (item.id === 'cluster-16' || item.id === 'single-node'
                 || item.id === 'cluster-64' || item.id === 'cluster-128'
-                || item.id === 'm365-small' || item.id === 'm365-large'
+                || item.id === 'm365-small' || item.id === 'm365-medium' || item.id === 'm365-large'
                 || item.id === 'rack-aware') {
                 const sanOnly = (item.id === 'cluster-64' || item.id === 'cluster-128');
-                const s2dOnly = (item.id === 'm365-small' || item.id === 'm365-large' || item.id === 'rack-aware');
+                const s2dOnly = (item.id === 'm365-small' || item.id === 'm365-medium' || item.id === 'm365-large' || item.id === 'rack-aware');
                 if (purposesUsingThis.length) {
                     const storageWrap = document.createElement('div');
                     storageWrap.className = 'scale-storage-wrap';
@@ -971,7 +999,7 @@
             // scale to show in the diagram (1 to 4).
             // Exclude M365 Local purposes — they have a fixed cluster layout.
             var purposesForClusterCount = purposesUsingThis.filter(function(p) {
-                return p.id !== 'm365-small' && p.id !== 'm365-large';
+                return p.id !== 'm365-small' && p.id !== 'm365-medium' && p.id !== 'm365-large';
             });
             if (purposesForClusterCount.length) {
                 var clusterCountWrap = document.createElement('div');
@@ -1467,10 +1495,19 @@
         const sharedLabelY = sharedSepY + 4;
         const sharedBusY = sharedSepY + 18;
         const cardsY = sharedLabelY + bandLabelH + 24;
-        // Below-cards purpose pill (only rendered when 2+ bands).
+        // Below-cards purpose pill (rendered when 2+ bands, or when any single
+        // band mixes multiple scales — in that case we still want a per-scale
+        // label under each group so users can tell e.g. M365 Small / Medium /
+        // Large clusters apart).
         const pillGap = 16;
         const pillH = 30;
-        const showBandPills = bands.length > 1 && bands.some(function(b) { return b.purpose; });
+        const anyBandMultiScale = bands.some(function(b) {
+            if (!b.cards || !b.cards.length) { return false; }
+            const ids = new Set();
+            b.cards.forEach(function(c) { if (c && c.scaleId) { ids.add(c.scaleId); } });
+            return ids.size > 1;
+        });
+        const showBandPills = (bands.length > 1 || anyBandMultiScale) && bands.some(function(b) { return b.purpose; });
 
         // Per-band SAN requirement: clusters of 64+ nodes must use disaggregated
         // SAN-based storage. Single-node and cluster-16 may also use SAN (or local + SAN)
@@ -1614,57 +1651,115 @@
                 });
             }
 
-            // Per-band purpose pill (icon + text) centered BELOW the card group (only when 2+ bands).
+            // Per-band purpose pill (icon + text) centered BELOW the card group.
+            // When the band mixes multiple scales (e.g. M365 Small + Medium +
+            // Large), we split it into one pill per consecutive scale group and
+            // append the short scale label ("Microsoft 365 Local — Small",
+            // "— Medium", "— Large") so each pill clearly labels the cards above it.
             if (showBandPills && b.purpose) {
-                const groupCx = b.startX + b.cardsTotalW / 2;
                 const pillY = cardsY + rowCardH + sanBlockH + pillGap;
                 const iconSize = 16;
                 const iconGap = 6;
                 const padX = 14;
-                const text = b.purpose.title;
-                const approxTextW = Math.round(text.length * 7.2);
                 const hasIcon = !!(b.purpose.chipIconFile || b.purpose.iconFile || (b.purpose.iconFiles && b.purpose.iconFiles.length));
-                const innerW = (hasIcon ? iconSize + iconGap : 0) + approxTextW;
-                const pillW = innerW + padX * 2;
-                const pillX = Math.round(groupCx - pillW / 2);
+                const iconHref = hasIcon ? (b.purpose.chipIconFile || b.purpose.iconFile || b.purpose.iconFiles[0]) : null;
 
-                const pill = document.createElementNS(SVG_NS, 'rect');
-                pill.setAttribute('x', String(pillX));
-                pill.setAttribute('y', String(pillY));
-                pill.setAttribute('width', String(pillW));
-                pill.setAttribute('height', String(pillH));
-                pill.setAttribute('rx', String(pillH / 2));
-                pill.setAttribute('ry', String(pillH / 2));
-                pill.setAttribute('fill', '#e5e7eb');
-                pill.setAttribute('stroke', '#cbd5e1');
-                pill.setAttribute('stroke-width', '1');
-                svg.appendChild(pill);
+                // Build consecutive scale groups across this band's cards.
+                // A group is { scaleId, startIdx, endIdx } — cards in [startIdx..endIdx]
+                // share the same scaleId. Cards without scaleId form their own
+                // "no-scale" group so the appliance / generic cards still get a
+                // plain purpose pill.
+                const groups = [];
+                b.cards.forEach(function(card, j) {
+                    const sid = card && card.scaleId ? card.scaleId : null;
+                    const last = groups[groups.length - 1];
+                    if (last && last.scaleId === sid) {
+                        last.endIdx = j;
+                    } else {
+                        groups.push({ scaleId: sid, startIdx: j, endIdx: j });
+                    }
+                });
 
-                let cursorX = pillX + padX;
-                const centerY = pillY + pillH / 2;
-                if (hasIcon) {
-                    const iconHref = b.purpose.chipIconFile || b.purpose.iconFile || b.purpose.iconFiles[0];
-                    const img = document.createElementNS(SVG_NS, 'image');
-                    img.setAttribute('x', String(cursorX));
-                    img.setAttribute('y', String(centerY - iconSize / 2));
-                    img.setAttribute('width', String(iconSize));
-                    img.setAttribute('height', String(iconSize));
-                    img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', iconHref);
-                    img.setAttribute('href', iconHref);
-                    svg.appendChild(img);
-                    cursorX += iconSize + iconGap;
+                // If the band only has one scale group, fall back to a single
+                // pill spanning all cards (matches the original layout when
+                // only one scale is selected for the purpose).
+                const useSplit = groups.length > 1;
+
+                const renderPill = function(text, leftIdx, rightIdx) {
+                    const groupLeft = b.startX + leftIdx * (cardW + cardGap);
+                    const groupRight = b.startX + rightIdx * (cardW + cardGap) + cardW;
+                    const groupCx = (groupLeft + groupRight) / 2;
+                    const approxTextW = Math.round(text.length * 7.2);
+                    const innerW = (hasIcon ? iconSize + iconGap : 0) + approxTextW;
+                    const pillW = innerW + padX * 2;
+                    const pillX = Math.round(groupCx - pillW / 2);
+
+                    const pill = document.createElementNS(SVG_NS, 'rect');
+                    pill.setAttribute('x', String(pillX));
+                    pill.setAttribute('y', String(pillY));
+                    pill.setAttribute('width', String(pillW));
+                    pill.setAttribute('height', String(pillH));
+                    pill.setAttribute('rx', String(pillH / 2));
+                    pill.setAttribute('ry', String(pillH / 2));
+                    pill.setAttribute('fill', '#e5e7eb');
+                    pill.setAttribute('stroke', '#cbd5e1');
+                    pill.setAttribute('stroke-width', '1');
+                    svg.appendChild(pill);
+
+                    let cursorX = pillX + padX;
+                    const centerY = pillY + pillH / 2;
+                    if (hasIcon) {
+                        const img = document.createElementNS(SVG_NS, 'image');
+                        img.setAttribute('x', String(cursorX));
+                        img.setAttribute('y', String(centerY - iconSize / 2));
+                        img.setAttribute('width', String(iconSize));
+                        img.setAttribute('height', String(iconSize));
+                        img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', iconHref);
+                        img.setAttribute('href', iconHref);
+                        svg.appendChild(img);
+                        cursorX += iconSize + iconGap;
+                    }
+
+                    const pl = document.createElementNS(SVG_NS, 'text');
+                    pl.setAttribute('x', String(cursorX));
+                    pl.setAttribute('y', String(centerY + 4));
+                    pl.setAttribute('font-family', 'Segoe UI, sans-serif');
+                    pl.setAttribute('font-size', '13');
+                    pl.setAttribute('font-weight', '600');
+                    pl.setAttribute('text-anchor', 'start');
+                    pl.setAttribute('fill', '#1a2733');
+                    pl.textContent = text;
+                    svg.appendChild(pl);
+                };
+
+                if (useSplit) {
+                    groups.forEach(function(g) {
+                        let label = b.purpose.title;
+                        if (g.scaleId) {
+                            const scaleOpt = findScaleItem(g.scaleId);
+                            let shortLbl = shortScaleLabel(g.scaleId, scaleOpt);
+                            // Strip the redundant 'M365 ' prefix so the pill
+                            // reads e.g. "Microsoft 365 Local — Medium" instead
+                            // of "Microsoft 365 Local — M365 Medium".
+                            if (shortLbl) { shortLbl = shortLbl.replace(/^M365\s+/, ''); }
+                            if (shortLbl) { label = b.purpose.title + ' — ' + shortLbl; }
+                        }
+                        renderPill(label, g.startIdx, g.endIdx);
+                    });
+                } else {
+                    // Single group: append the scale label only if a scale is
+                    // identifiable (preserves the original look for purposes
+                    // whose cards don't carry a scaleId, e.g. appliance band).
+                    let label = b.purpose.title;
+                    const onlyScale = groups[0] && groups[0].scaleId;
+                    if (onlyScale) {
+                        const scaleOpt = findScaleItem(onlyScale);
+                        let shortLbl = shortScaleLabel(onlyScale, scaleOpt);
+                        if (shortLbl) { shortLbl = shortLbl.replace(/^M365\s+/, ''); }
+                        if (shortLbl) { label = b.purpose.title + ' — ' + shortLbl; }
+                    }
+                    renderPill(label, 0, b.cards.length - 1);
                 }
-
-                const pl = document.createElementNS(SVG_NS, 'text');
-                pl.setAttribute('x', String(cursorX));
-                pl.setAttribute('y', String(centerY + 4));
-                pl.setAttribute('font-family', 'Segoe UI, sans-serif');
-                pl.setAttribute('font-size', '13');
-                pl.setAttribute('font-weight', '600');
-                pl.setAttribute('text-anchor', 'start');
-                pl.setAttribute('fill', '#1a2733');
-                pl.textContent = text;
-                svg.appendChild(pl);
             }
         });
 
@@ -1736,6 +1831,12 @@
                         // with single-node / cluster-16.
                         singleRack: true,
                         showLocalDisks: true,
+                        // When set, each server inside the shared rack is wrapped
+                        // in its own thin dashed sub-frame to show that it is its
+                        // own independent Azure Local single-node cluster (one
+                        // server / one role / its own quorum + S2D pool). Only
+                        // used by the merged M365 Local Medium / Large variants.
+                        separateClusters: !!wc.separateClusters,
                         departmentChips: null
                     };
                     if (isStrict) {
@@ -1924,10 +2025,20 @@
             const storageH = 30 + 20; // cylinder + label
             serversBlock = zoneH + 8 + storageH + 8;
         } else if (card.singleRack) {
-            // Single rack box height: 12 top pad + title(16) + 8 + servers + 12 bottom pad
-            const sPillH = 22, sPillGap = 4;
+            // Single rack box height: 12 top pad + title(16) + 8 + servers + 12 bottom pad.
+            // When `separateClusters` is set, each server pill is wrapped in its
+            // own thin dashed sub-frame containing a small role chip (icon +
+            // workload name) plus the server pill, so it's visually obvious that
+            // each single-node cluster runs one role on one server.
+            const sPillH = 22;
+            const roleChipH = card.separateClusters ? 18 : 0;
+            const roleChipGap = card.separateClusters ? 4 : 0;
+            const subFrameTopPad = card.separateClusters ? 8 : 0;
+            const subFrameBottomPad = card.separateClusters ? 4 : 0;
+            const subFrameH = sPillH + roleChipH + roleChipGap + subFrameTopPad + subFrameBottomPad;
+            const sPillGap = card.separateClusters ? 8 : 4;
             const serverCount = card.servers.length;
-            const serversInsideH = serverCount * sPillH + Math.max(0, serverCount - 1) * sPillGap;
+            const serversInsideH = serverCount * subFrameH + Math.max(0, serverCount - 1) * sPillGap;
             serversBlock = 12 + 16 + 8 + serversInsideH + 12;
         } else {
             serversBlock = card.servers.length * pillH + (card.servers.length - 1) * pillGap;
@@ -2966,9 +3077,15 @@
         // Single-rack layout: one rack box containing all servers (no availability zone labels)
         if (card.singleRack) {
             const rackW = w - 32;
-            const sPillH = 22, sPillGap = 4;
+            const sPillH = 22;
+            const roleChipH = card.separateClusters ? 18 : 0;
+            const roleChipGap = card.separateClusters ? 4 : 0;
+            const subFrameTopPad = card.separateClusters ? 8 : 0;
+            const subFrameBottomPad = card.separateClusters ? 4 : 0;
+            const subFrameH = sPillH + roleChipH + roleChipGap + subFrameTopPad + subFrameBottomPad;
+            const sPillGap = card.separateClusters ? 8 : 4;
             const serverCount = card.servers.length;
-            const serversInsideH = serverCount * sPillH + Math.max(0, serverCount - 1) * sPillGap;
+            const serversInsideH = serverCount * subFrameH + Math.max(0, serverCount - 1) * sPillGap;
             const rackH = 12 + 16 + 8 + serversInsideH + 12; // pad + title + gap + servers + pad
             const rackX = x + 16;
             const rackY = serverY;
@@ -3001,9 +3118,102 @@
             // Server pills inside the rack
             const serverStartY = rackY + 12 + 16 + 8;
             card.servers.forEach(function(sLabel, si) {
-                const spY = serverStartY + si * (sPillH + sPillGap);
+                const slotY = serverStartY + si * (subFrameH + sPillGap);
+                const spY = slotY + subFrameTopPad + roleChipH + roleChipGap;
                 const spX = rackX + 6;
                 const spW = rackW - 12;
+
+                // Per-cluster sub-frame: a thin dashed border wrapping each
+                // server pill to visually convey that every server inside the
+                // shared rack is its own independent Azure Local single-node
+                // cluster (one server / one role / its own quorum + S2D pool).
+                if (card.separateClusters) {
+                    const subFrame = document.createElementNS(SVG_NS, 'rect');
+                    subFrame.setAttribute('x', String(spX - 4));
+                    subFrame.setAttribute('y', String(slotY));
+                    subFrame.setAttribute('width', String(spW + 8));
+                    subFrame.setAttribute('height', String(subFrameH));
+                    subFrame.setAttribute('rx', '4');
+                    subFrame.setAttribute('fill', 'none');
+                    subFrame.setAttribute('stroke', '#9bb8d6');
+                    subFrame.setAttribute('stroke-width', '1');
+                    subFrame.setAttribute('stroke-dasharray', '3,2');
+                    svg.appendChild(subFrame);
+
+                    // Tiny top-left tag labelling the sub-frame as a single-node cluster.
+                    const tagText = 'Cluster ' + (si + 1);
+                    const tagPadX = 3;
+                    const tagH = 9;
+                    const tagW = tagText.length * 4.2 + tagPadX * 2;
+                    const tagBg = document.createElementNS(SVG_NS, 'rect');
+                    tagBg.setAttribute('x', String(spX));
+                    tagBg.setAttribute('y', String(slotY - tagH / 2));
+                    tagBg.setAttribute('width', String(tagW));
+                    tagBg.setAttribute('height', String(tagH));
+                    tagBg.setAttribute('rx', '2');
+                    tagBg.setAttribute('fill', '#f0f7ff');
+                    tagBg.setAttribute('stroke', '#9bb8d6');
+                    tagBg.setAttribute('stroke-width', '0.5');
+                    svg.appendChild(tagBg);
+
+                    const tag = document.createElementNS(SVG_NS, 'text');
+                    tag.setAttribute('x', String(spX + tagW / 2));
+                    tag.setAttribute('y', String(slotY + 3));
+                    tag.setAttribute('fill', '#1f3d6e');
+                    tag.setAttribute('font-family', 'Segoe UI, sans-serif');
+                    tag.setAttribute('font-size', '7');
+                    tag.setAttribute('font-weight', '700');
+                    tag.setAttribute('text-anchor', 'middle');
+                    tag.textContent = tagText;
+                    svg.appendChild(tag);
+
+                    // Per-cluster role chip: a small horizontal pill above the
+                    // server pill that shows the single workload role this
+                    // single-node cluster runs (icon + label). Makes it visually
+                    // obvious that each cluster is "one server / one role".
+                    const roleWorkload = (card.workloads && card.workloads.length === 1) ? card.workloads[0] : null;
+                    if (roleWorkload) {
+                        const chipX = spX;
+                        const chipY = slotY + subFrameTopPad;
+                        const chipW = spW;
+                        const chipBg = document.createElementNS(SVG_NS, 'rect');
+                        chipBg.setAttribute('x', String(chipX));
+                        chipBg.setAttribute('y', String(chipY));
+                        chipBg.setAttribute('width', String(chipW));
+                        chipBg.setAttribute('height', String(roleChipH));
+                        chipBg.setAttribute('rx', '3');
+                        chipBg.setAttribute('fill', '#eef4fb');
+                        chipBg.setAttribute('stroke', '#bcd1e8');
+                        chipBg.setAttribute('stroke-width', '0.75');
+                        svg.appendChild(chipBg);
+
+                        const iconFile = WORKLOAD_ICON_FILES[roleWorkload];
+                        const iconSize = 12;
+                        const iconLeftPad = 6;
+                        let labelStartX = chipX + iconLeftPad;
+                        if (iconFile) {
+                            const iconImg = document.createElementNS(SVG_NS, 'image');
+                            iconImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', iconFile);
+                            iconImg.setAttribute('href', iconFile);
+                            iconImg.setAttribute('x', String(chipX + iconLeftPad));
+                            iconImg.setAttribute('y', String(chipY + (roleChipH - iconSize) / 2));
+                            iconImg.setAttribute('width', String(iconSize));
+                            iconImg.setAttribute('height', String(iconSize));
+                            svg.appendChild(iconImg);
+                            labelStartX = chipX + iconLeftPad + iconSize + 5;
+                        }
+
+                        const chipLabel = document.createElementNS(SVG_NS, 'text');
+                        chipLabel.setAttribute('x', String(labelStartX));
+                        chipLabel.setAttribute('y', String(chipY + roleChipH / 2 + 3));
+                        chipLabel.setAttribute('fill', '#1f3d6e');
+                        chipLabel.setAttribute('font-family', 'Segoe UI, sans-serif');
+                        chipLabel.setAttribute('font-size', '9.5');
+                        chipLabel.setAttribute('font-weight', '600');
+                        chipLabel.textContent = WORKLOAD_ICON_LABELS[roleWorkload] || roleWorkload;
+                        svg.appendChild(chipLabel);
+                    }
+                }
 
                 const sp = document.createElementNS(SVG_NS, 'rect');
                 sp.setAttribute('x', String(spX));
@@ -4797,7 +5007,7 @@
         if (!scales || !scales.length) { return 'not set'; }
         // Cluster-64/128 is SAN-only; M365 small/large is S2D-only.
         const has64Plus = scales.indexOf('cluster-64') >= 0 || scales.indexOf('cluster-128') >= 0;
-        const isM365 = scales.indexOf('m365-small') >= 0 || scales.indexOf('m365-large') >= 0;
+        const isM365 = scales.indexOf('m365-small') >= 0 || scales.indexOf('m365-medium') >= 0 || scales.indexOf('m365-large') >= 0;
         if (has64Plus && !isM365) { return 'SAN (required at this scale)'; }
         if (isM365) { return 'S2D (local)'; }
         return storageLabelFor(scales[0], getStorageFor(purposeId, scales[0]));
@@ -4805,7 +5015,7 @@
 
     function storageLabelFor(scaleId, storedChoice) {
         if (scaleId === 'cluster-64' || scaleId === 'cluster-128') { return 'SAN (required)'; }
-        if (scaleId === 'm365-small' || scaleId === 'm365-large') { return 'S2D (local)'; }
+        if (scaleId === 'm365-small' || scaleId === 'm365-medium' || scaleId === 'm365-large') { return 'S2D (local)'; }
         if (storedChoice === 'san') { return 'SAN'; }
         if (storedChoice === 'both') { return 'S2D + SAN'; }
         return 'S2D (local)';
@@ -4821,6 +5031,7 @@
         'cluster-64':   '64 nodes',
         'cluster-128':  '128 nodes',
         'm365-small':   'M365 Small',
+        'm365-medium':  'M365 Medium',
         'm365-large':   'M365 Large'
     };
     function shortScaleLabel(scaleId, scaleOpt) {
