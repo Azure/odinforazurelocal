@@ -1960,12 +1960,15 @@
         } else if (card.singleRack) {
             // Single rack box height: 12 top pad + title(16) + 8 + servers + 12 bottom pad.
             // When `separateClusters` is set, each server pill is wrapped in its
-            // own thin dashed sub-frame (6 top pad + pill + 4 bottom pad), and
-            // the inter-server gap is enlarged to visually separate the clusters.
+            // own thin dashed sub-frame containing a small role chip (icon +
+            // workload name) plus the server pill, so it's visually obvious that
+            // each single-node cluster runs one role on one server.
             const sPillH = 22;
-            const subFrameTopPad = card.separateClusters ? 6 : 0;
+            const roleChipH = card.separateClusters ? 18 : 0;
+            const roleChipGap = card.separateClusters ? 4 : 0;
+            const subFrameTopPad = card.separateClusters ? 8 : 0;
             const subFrameBottomPad = card.separateClusters ? 4 : 0;
-            const subFrameH = sPillH + subFrameTopPad + subFrameBottomPad;
+            const subFrameH = sPillH + roleChipH + roleChipGap + subFrameTopPad + subFrameBottomPad;
             const sPillGap = card.separateClusters ? 8 : 4;
             const serverCount = card.servers.length;
             const serversInsideH = serverCount * subFrameH + Math.max(0, serverCount - 1) * sPillGap;
@@ -3008,9 +3011,11 @@
         if (card.singleRack) {
             const rackW = w - 32;
             const sPillH = 22;
-            const subFrameTopPad = card.separateClusters ? 6 : 0;
+            const roleChipH = card.separateClusters ? 18 : 0;
+            const roleChipGap = card.separateClusters ? 4 : 0;
+            const subFrameTopPad = card.separateClusters ? 8 : 0;
             const subFrameBottomPad = card.separateClusters ? 4 : 0;
-            const subFrameH = sPillH + subFrameTopPad + subFrameBottomPad;
+            const subFrameH = sPillH + roleChipH + roleChipGap + subFrameTopPad + subFrameBottomPad;
             const sPillGap = card.separateClusters ? 8 : 4;
             const serverCount = card.servers.length;
             const serversInsideH = serverCount * subFrameH + Math.max(0, serverCount - 1) * sPillGap;
@@ -3047,7 +3052,7 @@
             const serverStartY = rackY + 12 + 16 + 8;
             card.servers.forEach(function(sLabel, si) {
                 const slotY = serverStartY + si * (subFrameH + sPillGap);
-                const spY = slotY + subFrameTopPad;
+                const spY = slotY + subFrameTopPad + roleChipH + roleChipGap;
                 const spX = rackX + 6;
                 const spW = rackW - 12;
 
@@ -3094,6 +3099,53 @@
                     tag.setAttribute('text-anchor', 'middle');
                     tag.textContent = tagText;
                     svg.appendChild(tag);
+
+                    // Per-cluster role chip: a small horizontal pill above the
+                    // server pill that shows the single workload role this
+                    // single-node cluster runs (icon + label). Makes it visually
+                    // obvious that each cluster is "one server / one role".
+                    const roleWorkload = (card.workloads && card.workloads.length === 1) ? card.workloads[0] : null;
+                    if (roleWorkload) {
+                        const chipX = spX;
+                        const chipY = slotY + subFrameTopPad;
+                        const chipW = spW;
+                        const chipBg = document.createElementNS(SVG_NS, 'rect');
+                        chipBg.setAttribute('x', String(chipX));
+                        chipBg.setAttribute('y', String(chipY));
+                        chipBg.setAttribute('width', String(chipW));
+                        chipBg.setAttribute('height', String(roleChipH));
+                        chipBg.setAttribute('rx', '3');
+                        chipBg.setAttribute('fill', '#eef4fb');
+                        chipBg.setAttribute('stroke', '#bcd1e8');
+                        chipBg.setAttribute('stroke-width', '0.75');
+                        svg.appendChild(chipBg);
+
+                        const iconFile = WORKLOAD_ICON_FILES[roleWorkload];
+                        const iconSize = 12;
+                        const iconLeftPad = 6;
+                        let labelStartX = chipX + iconLeftPad;
+                        if (iconFile) {
+                            const iconImg = document.createElementNS(SVG_NS, 'image');
+                            iconImg.setAttributeNS('http://www.w3.org/1999/xlink', 'href', iconFile);
+                            iconImg.setAttribute('href', iconFile);
+                            iconImg.setAttribute('x', String(chipX + iconLeftPad));
+                            iconImg.setAttribute('y', String(chipY + (roleChipH - iconSize) / 2));
+                            iconImg.setAttribute('width', String(iconSize));
+                            iconImg.setAttribute('height', String(iconSize));
+                            svg.appendChild(iconImg);
+                            labelStartX = chipX + iconLeftPad + iconSize + 5;
+                        }
+
+                        const chipLabel = document.createElementNS(SVG_NS, 'text');
+                        chipLabel.setAttribute('x', String(labelStartX));
+                        chipLabel.setAttribute('y', String(chipY + roleChipH / 2 + 3));
+                        chipLabel.setAttribute('fill', '#1f3d6e');
+                        chipLabel.setAttribute('font-family', 'Segoe UI, sans-serif');
+                        chipLabel.setAttribute('font-size', '9.5');
+                        chipLabel.setAttribute('font-weight', '600');
+                        chipLabel.textContent = WORKLOAD_ICON_LABELS[roleWorkload] || roleWorkload;
+                        svg.appendChild(chipLabel);
+                    }
                 }
 
                 const sp = document.createElementNS(SVG_NS, 'rect');
