@@ -1495,10 +1495,19 @@
         const sharedLabelY = sharedSepY + 4;
         const sharedBusY = sharedSepY + 18;
         const cardsY = sharedLabelY + bandLabelH + 24;
-        // Below-cards purpose pill (only rendered when 2+ bands).
+        // Below-cards purpose pill (rendered when 2+ bands, or when any single
+        // band mixes multiple scales — in that case we still want a per-scale
+        // label under each group so users can tell e.g. M365 Small / Medium /
+        // Large clusters apart).
         const pillGap = 16;
         const pillH = 30;
-        const showBandPills = bands.length > 1 && bands.some(function(b) { return b.purpose; });
+        const anyBandMultiScale = bands.some(function(b) {
+            if (!b.cards || !b.cards.length) { return false; }
+            const ids = new Set();
+            b.cards.forEach(function(c) { if (c && c.scaleId) { ids.add(c.scaleId); } });
+            return ids.size > 1;
+        });
+        const showBandPills = (bands.length > 1 || anyBandMultiScale) && bands.some(function(b) { return b.purpose; });
 
         // Per-band SAN requirement: clusters of 64+ nodes must use disaggregated
         // SAN-based storage. Single-node and cluster-16 may also use SAN (or local + SAN)
@@ -1642,57 +1651,110 @@
                 });
             }
 
-            // Per-band purpose pill (icon + text) centered BELOW the card group (only when 2+ bands).
+            // Per-band purpose pill (icon + text) centered BELOW the card group.
+            // When the band mixes multiple scales (e.g. M365 Small + Medium +
+            // Large), we split it into one pill per consecutive scale group and
+            // append the short scale label ("Microsoft 365 Local — Small",
+            // "— Medium", "— Large") so each pill clearly labels the cards above it.
             if (showBandPills && b.purpose) {
-                const groupCx = b.startX + b.cardsTotalW / 2;
                 const pillY = cardsY + rowCardH + sanBlockH + pillGap;
                 const iconSize = 16;
                 const iconGap = 6;
                 const padX = 14;
-                const text = b.purpose.title;
-                const approxTextW = Math.round(text.length * 7.2);
                 const hasIcon = !!(b.purpose.chipIconFile || b.purpose.iconFile || (b.purpose.iconFiles && b.purpose.iconFiles.length));
-                const innerW = (hasIcon ? iconSize + iconGap : 0) + approxTextW;
-                const pillW = innerW + padX * 2;
-                const pillX = Math.round(groupCx - pillW / 2);
+                const iconHref = hasIcon ? (b.purpose.chipIconFile || b.purpose.iconFile || b.purpose.iconFiles[0]) : null;
 
-                const pill = document.createElementNS(SVG_NS, 'rect');
-                pill.setAttribute('x', String(pillX));
-                pill.setAttribute('y', String(pillY));
-                pill.setAttribute('width', String(pillW));
-                pill.setAttribute('height', String(pillH));
-                pill.setAttribute('rx', String(pillH / 2));
-                pill.setAttribute('ry', String(pillH / 2));
-                pill.setAttribute('fill', '#e5e7eb');
-                pill.setAttribute('stroke', '#cbd5e1');
-                pill.setAttribute('stroke-width', '1');
-                svg.appendChild(pill);
+                // Build consecutive scale groups across this band's cards.
+                // A group is { scaleId, startIdx, endIdx } — cards in [startIdx..endIdx]
+                // share the same scaleId. Cards without scaleId form their own
+                // "no-scale" group so the appliance / generic cards still get a
+                // plain purpose pill.
+                const groups = [];
+                b.cards.forEach(function(card, j) {
+                    const sid = card && card.scaleId ? card.scaleId : null;
+                    const last = groups[groups.length - 1];
+                    if (last && last.scaleId === sid) {
+                        last.endIdx = j;
+                    } else {
+                        groups.push({ scaleId: sid, startIdx: j, endIdx: j });
+                    }
+                });
 
-                let cursorX = pillX + padX;
-                const centerY = pillY + pillH / 2;
-                if (hasIcon) {
-                    const iconHref = b.purpose.chipIconFile || b.purpose.iconFile || b.purpose.iconFiles[0];
-                    const img = document.createElementNS(SVG_NS, 'image');
-                    img.setAttribute('x', String(cursorX));
-                    img.setAttribute('y', String(centerY - iconSize / 2));
-                    img.setAttribute('width', String(iconSize));
-                    img.setAttribute('height', String(iconSize));
-                    img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', iconHref);
-                    img.setAttribute('href', iconHref);
-                    svg.appendChild(img);
-                    cursorX += iconSize + iconGap;
+                // If the band only has one scale group, fall back to a single
+                // pill spanning all cards (matches the original layout when
+                // only one scale is selected for the purpose).
+                const useSplit = groups.length > 1;
+
+                const renderPill = function(text, leftIdx, rightIdx) {
+                    const groupLeft = b.startX + leftIdx * (cardW + cardGap);
+                    const groupRight = b.startX + rightIdx * (cardW + cardGap) + cardW;
+                    const groupCx = (groupLeft + groupRight) / 2;
+                    const approxTextW = Math.round(text.length * 7.2);
+                    const innerW = (hasIcon ? iconSize + iconGap : 0) + approxTextW;
+                    const pillW = innerW + padX * 2;
+                    const pillX = Math.round(groupCx - pillW / 2);
+
+                    const pill = document.createElementNS(SVG_NS, 'rect');
+                    pill.setAttribute('x', String(pillX));
+                    pill.setAttribute('y', String(pillY));
+                    pill.setAttribute('width', String(pillW));
+                    pill.setAttribute('height', String(pillH));
+                    pill.setAttribute('rx', String(pillH / 2));
+                    pill.setAttribute('ry', String(pillH / 2));
+                    pill.setAttribute('fill', '#e5e7eb');
+                    pill.setAttribute('stroke', '#cbd5e1');
+                    pill.setAttribute('stroke-width', '1');
+                    svg.appendChild(pill);
+
+                    let cursorX = pillX + padX;
+                    const centerY = pillY + pillH / 2;
+                    if (hasIcon) {
+                        const img = document.createElementNS(SVG_NS, 'image');
+                        img.setAttribute('x', String(cursorX));
+                        img.setAttribute('y', String(centerY - iconSize / 2));
+                        img.setAttribute('width', String(iconSize));
+                        img.setAttribute('height', String(iconSize));
+                        img.setAttributeNS('http://www.w3.org/1999/xlink', 'href', iconHref);
+                        img.setAttribute('href', iconHref);
+                        svg.appendChild(img);
+                        cursorX += iconSize + iconGap;
+                    }
+
+                    const pl = document.createElementNS(SVG_NS, 'text');
+                    pl.setAttribute('x', String(cursorX));
+                    pl.setAttribute('y', String(centerY + 4));
+                    pl.setAttribute('font-family', 'Segoe UI, sans-serif');
+                    pl.setAttribute('font-size', '13');
+                    pl.setAttribute('font-weight', '600');
+                    pl.setAttribute('text-anchor', 'start');
+                    pl.setAttribute('fill', '#1a2733');
+                    pl.textContent = text;
+                    svg.appendChild(pl);
+                };
+
+                if (useSplit) {
+                    groups.forEach(function(g) {
+                        let label = b.purpose.title;
+                        if (g.scaleId) {
+                            const scaleOpt = findScaleItem(g.scaleId);
+                            const shortLbl = shortScaleLabel(g.scaleId, scaleOpt);
+                            if (shortLbl) { label = b.purpose.title + ' — ' + shortLbl; }
+                        }
+                        renderPill(label, g.startIdx, g.endIdx);
+                    });
+                } else {
+                    // Single group: append the scale label only if a scale is
+                    // identifiable (preserves the original look for purposes
+                    // whose cards don't carry a scaleId, e.g. appliance band).
+                    let label = b.purpose.title;
+                    const onlyScale = groups[0] && groups[0].scaleId;
+                    if (onlyScale) {
+                        const scaleOpt = findScaleItem(onlyScale);
+                        const shortLbl = shortScaleLabel(onlyScale, scaleOpt);
+                        if (shortLbl) { label = b.purpose.title + ' — ' + shortLbl; }
+                    }
+                    renderPill(label, 0, b.cards.length - 1);
                 }
-
-                const pl = document.createElementNS(SVG_NS, 'text');
-                pl.setAttribute('x', String(cursorX));
-                pl.setAttribute('y', String(centerY + 4));
-                pl.setAttribute('font-family', 'Segoe UI, sans-serif');
-                pl.setAttribute('font-size', '13');
-                pl.setAttribute('font-weight', '600');
-                pl.setAttribute('text-anchor', 'start');
-                pl.setAttribute('fill', '#1a2733');
-                pl.textContent = text;
-                svg.appendChild(pl);
             }
         });
 
@@ -1705,20 +1767,6 @@
         const isStrict = tenancyId === 'strict';
         const isLogical = tenancyId === 'logical';
         const scales = (scaleIds && scaleIds.length) ? scaleIds.slice() : ['cluster-16'];
-        // When multiple scales are selected for the same purpose, every
-        // workload card gets a small top-right pill identifying which scale
-        // it belongs to (e.g. "M365 Small", "M365 Medium", "M365 Large") so
-        // they can be told apart at a glance.
-        const multiScale = scales.length > 1;
-        function scaleBadgeFor(scaleId) {
-            if (!multiScale) { return null; }
-            const scaleOpt = findScaleItem(scaleId);
-            if (!scaleOpt) { return null; }
-            return {
-                badge: scaleOpt.sizeBadge || '',
-                label: shortScaleLabel(scaleId, scaleOpt)
-            };
-        }
 
         // For a given scale id, decide whether the cluster's servers should display
         // local S2D disk glyphs. Single-node and cluster-16 honor the per-purpose
@@ -1784,7 +1832,6 @@
                         // server / one role / its own quorum + S2D pool). Only
                         // used by the merged M365 Local Medium / Large variants.
                         separateClusters: !!wc.separateClusters,
-                        scaleBadge: scaleBadgeFor(scaleId),
                         departmentChips: null
                     };
                     if (isStrict) {
@@ -1822,7 +1869,6 @@
                     comingSoon: !!v.comingSoon,
                     stack: v.stack || 1,
                     scaleId: v.scaleId,
-                    scaleBadge: scaleBadgeFor(v.scaleId),
                     showLocalDisks: showDisksForScale(v.scaleId),
                     departmentChips: null
                 };
@@ -2622,52 +2668,12 @@
         badgeImg.setAttribute('href', 'icons/sovereign-azure-local-cluster.svg');
         svg.appendChild(badgeImg);
 
-        // Top-right scale pill — only rendered when multiple scales are selected
-        // for the same purpose, so each card clearly shows which scale it belongs
-        // to (e.g. "M365 Small" vs "M365 Medium" vs "M365 Large").
-        let scalePillW = 0;
-        if (card.scaleBadge) {
-            const sbLabel = card.scaleBadge.label || card.scaleBadge.badge || '';
-            const sbFontSz = 10;
-            const sbPadX = 8;
-            const sbH = 18;
-            // Approximate width: ~5.6px per char at 10px Segoe UI Semibold.
-            const sbTextW = Math.max(28, sbLabel.length * 5.6);
-            const sbW = sbTextW + sbPadX * 2;
-            const sbX = x + w - sbW - 10;
-            const sbY = y + 10;
-
-            const sbBg = document.createElementNS(SVG_NS, 'rect');
-            sbBg.setAttribute('x', String(sbX));
-            sbBg.setAttribute('y', String(sbY));
-            sbBg.setAttribute('width', String(sbW));
-            sbBg.setAttribute('height', String(sbH));
-            sbBg.setAttribute('rx', '9');
-            sbBg.setAttribute('fill', '#eef4fb');
-            sbBg.setAttribute('stroke', '#5c7ba0');
-            sbBg.setAttribute('stroke-width', '0.75');
-            svg.appendChild(sbBg);
-
-            const sbText = document.createElementNS(SVG_NS, 'text');
-            sbText.setAttribute('x', String(sbX + sbW / 2));
-            sbText.setAttribute('y', String(sbY + sbH / 2 + 3.5));
-            sbText.setAttribute('fill', '#1f3d6e');
-            sbText.setAttribute('font-family', 'Segoe UI, sans-serif');
-            sbText.setAttribute('font-size', String(sbFontSz));
-            sbText.setAttribute('font-weight', '700');
-            sbText.setAttribute('text-anchor', 'middle');
-            sbText.textContent = sbLabel;
-            svg.appendChild(sbText);
-
-            scalePillW = sbW + 8;
-        }
-
         // Title — leaves room for the badge by reducing the available width.
         let titleText = card.title;
         if (card.tenantLabel) { titleText = card.tenantLabel + ' — ' + card.title; }
         if (card.comingSoon) { titleText += ' *'; }
 
-        const titleAvailW = w - 24 - badgeSize - 8 - scalePillW;
+        const titleAvailW = w - 24 - badgeSize - 8;
         const titleLines = wrapTitle(titleText, titleAvailW, 15);
         const titleLineH = 18;
         const titleStartX = x + (badgeSize + 18) + (w - (badgeSize + 18) - 12) / 2;
