@@ -1737,7 +1737,11 @@
                         let label = b.purpose.title;
                         if (g.scaleId) {
                             const scaleOpt = findScaleItem(g.scaleId);
-                            const shortLbl = shortScaleLabel(g.scaleId, scaleOpt);
+                            let shortLbl = shortScaleLabel(g.scaleId, scaleOpt);
+                            // Strip the redundant 'M365 ' prefix so the pill
+                            // reads e.g. "Microsoft 365 Local — Medium" instead
+                            // of "Microsoft 365 Local — M365 Medium".
+                            if (shortLbl) { shortLbl = shortLbl.replace(/^M365\s+/, ''); }
                             if (shortLbl) { label = b.purpose.title + ' — ' + shortLbl; }
                         }
                         renderPill(label, g.startIdx, g.endIdx);
@@ -1750,7 +1754,8 @@
                     const onlyScale = groups[0] && groups[0].scaleId;
                     if (onlyScale) {
                         const scaleOpt = findScaleItem(onlyScale);
-                        const shortLbl = shortScaleLabel(onlyScale, scaleOpt);
+                        let shortLbl = shortScaleLabel(onlyScale, scaleOpt);
+                        if (shortLbl) { shortLbl = shortLbl.replace(/^M365\s+/, ''); }
                         if (shortLbl) { label = b.purpose.title + ' — ' + shortLbl; }
                     }
                     renderPill(label, 0, b.cards.length - 1);
