@@ -176,7 +176,7 @@
                     // mgmt network router remain infrastructure components on the
                     // management/compute networks — NOT separate Azure Local clusters.
                     clusters: [
-                        { name: '2 × Azure Local Single Node', nodes: 2, workloads: ['Exchange mailbox servers'], servers: ['Server 1', 'Server 2'], serversLabel: 'Servers' },
+                        { name: '2 × Azure Local Single Node', nodes: 2, workloads: ['Exchange mailbox servers'], servers: ['Server 1', 'Server 2'], serversLabel: 'Servers', separateClusters: true },
                         { name: 'Azure Local Cluster (3 nodes)', nodes: 3, workloads: ['Exchange Edge Transport', 'SharePoint Server', 'Skype for Business', 'SQL Server'], servers: ['Server 3', 'Server 4', 'Server 5'], serversLabel: 'Servers' }
                     ]
                 },
@@ -198,8 +198,8 @@
                     // network router are infrastructure components on the management /
                     // compute networks — they are NOT separate Azure Local clusters.
                     clusters: [
-                        { name: '4 × Azure Local Single Node', nodes: 4, workloads: ['Exchange mailbox servers'], servers: ['Server 1', 'Server 2', 'Server 3', 'Server 4'], serversLabel: 'Servers' },
-                        { name: '2 × Azure Local Single Node', nodes: 2, workloads: ['Exchange Edge Transport'], servers: ['Server 5', 'Server 6'], serversLabel: 'Servers' },
+                        { name: '4 × Azure Local Single Node', nodes: 4, workloads: ['Exchange mailbox servers'], servers: ['Server 1', 'Server 2', 'Server 3', 'Server 4'], serversLabel: 'Servers', separateClusters: true },
+                        { name: '2 × Azure Local Single Node', nodes: 2, workloads: ['Exchange Edge Transport'], servers: ['Server 5', 'Server 6'], serversLabel: 'Servers', separateClusters: true },
                         { name: 'Azure Local Cluster (3 nodes)', nodes: 3, workloads: ['SharePoint Server', 'Skype for Business', 'SQL Server'], servers: ['Server 7', 'Server 8', 'Server 9'], serversLabel: 'Servers' }
                     ]
                 }
@@ -207,8 +207,8 @@
             notes: [
                 'M365 Local runs on Azure Local Premier SKU hardware (see SPC L300 deck slide 69).',
                 'Small-Scale: a single 3-node Azure Local cluster hosts all M365 productivity workload servers (Exchange mailbox, Exchange Edge Transport, SharePoint, Skype for Business, SQL).',
-                'Medium-Scale: 2 single-node Exchange mailbox clusters plus 1 three-node Exchange Edge Transport / SharePoint / Skype / SQL cluster (3 Azure Local clusters / 5 servers total). The 2 single-node mailbox clusters are co-located in one shared rack.',
-                'Large-Scale: 4 single-node Exchange mailbox clusters, 2 single-node Exchange Edge Transport clusters, and 1 three-node SharePoint/Skype/SQL cluster (7 Azure Local clusters total). Co-located single-node clusters share a rack on the diagram.',
+                'Medium-Scale: 2 single-node Exchange mailbox clusters plus 1 three-node Exchange Edge Transport / SharePoint / Skype / SQL cluster (3 Azure Local clusters / 5 servers total). The 2 single-node mailbox clusters are co-located in one shared rack and each is drawn inside its own dashed Cluster sub-frame to make the individual single-node clusters visually distinct.',
+                'Large-Scale: 4 single-node Exchange mailbox clusters, 2 single-node Exchange Edge Transport clusters, and 1 three-node SharePoint/Skype/SQL cluster (7 Azure Local clusters total). Co-located single-node clusters share a rack on the diagram and each is drawn inside its own dashed Cluster sub-frame.',
                 'Active Directory, Firewall, Load Balancer and the internal management network router are infrastructure components on the management/compute networks — not separate Azure Local clusters.',
                 'Strict tenant isolation only — each productivity workload runs on dedicated hardware.',
                 'Disconnected mode adds a Control Plane Appliance (3-node Disconnected Ops Cluster) regardless of scale.'
@@ -1764,6 +1764,12 @@
                         // with single-node / cluster-16.
                         singleRack: true,
                         showLocalDisks: true,
+                        // When set, each server inside the shared rack is wrapped
+                        // in its own thin dashed sub-frame to show that it is its
+                        // own independent Azure Local single-node cluster (one
+                        // server / one role / its own quorum + S2D pool). Only
+                        // used by the merged M365 Local Medium / Large variants.
+                        separateClusters: !!wc.separateClusters,
                         departmentChips: null
                     };
                     if (isStrict) {
@@ -1952,10 +1958,17 @@
             const storageH = 30 + 20; // cylinder + label
             serversBlock = zoneH + 8 + storageH + 8;
         } else if (card.singleRack) {
-            // Single rack box height: 12 top pad + title(16) + 8 + servers + 12 bottom pad
-            const sPillH = 22, sPillGap = 4;
+            // Single rack box height: 12 top pad + title(16) + 8 + servers + 12 bottom pad.
+            // When `separateClusters` is set, each server pill is wrapped in its
+            // own thin dashed sub-frame (6 top pad + pill + 4 bottom pad), and
+            // the inter-server gap is enlarged to visually separate the clusters.
+            const sPillH = 22;
+            const subFrameTopPad = card.separateClusters ? 6 : 0;
+            const subFrameBottomPad = card.separateClusters ? 4 : 0;
+            const subFrameH = sPillH + subFrameTopPad + subFrameBottomPad;
+            const sPillGap = card.separateClusters ? 8 : 4;
             const serverCount = card.servers.length;
-            const serversInsideH = serverCount * sPillH + Math.max(0, serverCount - 1) * sPillGap;
+            const serversInsideH = serverCount * subFrameH + Math.max(0, serverCount - 1) * sPillGap;
             serversBlock = 12 + 16 + 8 + serversInsideH + 12;
         } else {
             serversBlock = card.servers.length * pillH + (card.servers.length - 1) * pillGap;
@@ -2994,9 +3007,13 @@
         // Single-rack layout: one rack box containing all servers (no availability zone labels)
         if (card.singleRack) {
             const rackW = w - 32;
-            const sPillH = 22, sPillGap = 4;
+            const sPillH = 22;
+            const subFrameTopPad = card.separateClusters ? 6 : 0;
+            const subFrameBottomPad = card.separateClusters ? 4 : 0;
+            const subFrameH = sPillH + subFrameTopPad + subFrameBottomPad;
+            const sPillGap = card.separateClusters ? 8 : 4;
             const serverCount = card.servers.length;
-            const serversInsideH = serverCount * sPillH + Math.max(0, serverCount - 1) * sPillGap;
+            const serversInsideH = serverCount * subFrameH + Math.max(0, serverCount - 1) * sPillGap;
             const rackH = 12 + 16 + 8 + serversInsideH + 12; // pad + title + gap + servers + pad
             const rackX = x + 16;
             const rackY = serverY;
@@ -3029,9 +3046,55 @@
             // Server pills inside the rack
             const serverStartY = rackY + 12 + 16 + 8;
             card.servers.forEach(function(sLabel, si) {
-                const spY = serverStartY + si * (sPillH + sPillGap);
+                const slotY = serverStartY + si * (subFrameH + sPillGap);
+                const spY = slotY + subFrameTopPad;
                 const spX = rackX + 6;
                 const spW = rackW - 12;
+
+                // Per-cluster sub-frame: a thin dashed border wrapping each
+                // server pill to visually convey that every server inside the
+                // shared rack is its own independent Azure Local single-node
+                // cluster (one server / one role / its own quorum + S2D pool).
+                if (card.separateClusters) {
+                    const subFrame = document.createElementNS(SVG_NS, 'rect');
+                    subFrame.setAttribute('x', String(spX - 4));
+                    subFrame.setAttribute('y', String(slotY));
+                    subFrame.setAttribute('width', String(spW + 8));
+                    subFrame.setAttribute('height', String(subFrameH));
+                    subFrame.setAttribute('rx', '4');
+                    subFrame.setAttribute('fill', 'none');
+                    subFrame.setAttribute('stroke', '#9bb8d6');
+                    subFrame.setAttribute('stroke-width', '1');
+                    subFrame.setAttribute('stroke-dasharray', '3,2');
+                    svg.appendChild(subFrame);
+
+                    // Tiny top-left tag labelling the sub-frame as a single-node cluster.
+                    const tagText = 'Cluster ' + (si + 1);
+                    const tagPadX = 3;
+                    const tagH = 9;
+                    const tagW = tagText.length * 4.2 + tagPadX * 2;
+                    const tagBg = document.createElementNS(SVG_NS, 'rect');
+                    tagBg.setAttribute('x', String(spX));
+                    tagBg.setAttribute('y', String(slotY - tagH / 2));
+                    tagBg.setAttribute('width', String(tagW));
+                    tagBg.setAttribute('height', String(tagH));
+                    tagBg.setAttribute('rx', '2');
+                    tagBg.setAttribute('fill', '#f0f7ff');
+                    tagBg.setAttribute('stroke', '#9bb8d6');
+                    tagBg.setAttribute('stroke-width', '0.5');
+                    svg.appendChild(tagBg);
+
+                    const tag = document.createElementNS(SVG_NS, 'text');
+                    tag.setAttribute('x', String(spX + tagW / 2));
+                    tag.setAttribute('y', String(slotY + 3));
+                    tag.setAttribute('fill', '#1f3d6e');
+                    tag.setAttribute('font-family', 'Segoe UI, sans-serif');
+                    tag.setAttribute('font-size', '7');
+                    tag.setAttribute('font-weight', '700');
+                    tag.setAttribute('text-anchor', 'middle');
+                    tag.textContent = tagText;
+                    svg.appendChild(tag);
+                }
 
                 const sp = document.createElementNS(SVG_NS, 'rect');
                 sp.setAttribute('x', String(spX));
