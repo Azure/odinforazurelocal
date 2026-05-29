@@ -45,8 +45,3 @@ docs/Temp/
 scripts/*.txt
 docs/drawio-structure-analysis.txt
 docs/disconnected-operations/*.json
-
-# Local-only planning / scratch notes for in-flight features.
-# Contents may reference customer data, internal docs, or unreleased
-# decisions and must never be committed.
-Module_Planning/
