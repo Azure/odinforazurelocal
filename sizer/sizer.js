@@ -7979,7 +7979,7 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     var postOverlay = document.getElementById('post-import-overlay');
     if (postOverlay) postOverlay.style.display = 'flex';
 
-    showToast('"' + cfg.clusterName + '" imported (' + actualNodeCount + ' machines) — configure storage and add workloads', 'success');
+    showToast('"' + escapeHtml(cfg.clusterName) + '" imported (' + actualNodeCount + ' machines) — configure storage and add workloads', 'success');
 }
 
 function closePostImportOverlay() { // eslint-disable-line no-unused-vars
