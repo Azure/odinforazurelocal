@@ -51,6 +51,10 @@ the importer will:
 
 ### RVTools schema (public, stable)
 
+**Source of truth:** the official RVTools manual —
+[RVTools 4.7.1, October 3, 2024 (Dell)](https://downloads.dell.com/rvtools/rvtools.pdf).
+All sheet/column names and units below were validated end-to-end against this document.
+
 Standard "all" export has ~30 sheets. ODIN's importer reads **only** these columns:
 
 | Sheet | Columns read | Used for |
