@@ -56,8 +56,17 @@ Standard "all" export has ~30 sheets. ODIN's importer reads **only** these colum
 | Sheet | Columns read | Used for |
 |---|---|---|
 | **`vInfo`** | `VM` (name — *not stored*), `Powerstate`, `Template`, `CPUs`, `Memory` (MiB), `Provisioned MiB`, `In Use MiB`, `Cluster`, `Host`, `Datacenter` | Per-VM workload pool |
-| **`vCluster`** | `Name`, `Datacenter`, `# Hosts`, `# Effective CPU cores`, `# Effective Memory (MiB)`, `# VMs`, `# vCPUs`, `# vMemory (MiB)` | Per-source-cluster picker / summary banner |
-| **`vHost`** *(optional)* | `Host`, `Cluster`, `# CPU`, `# Cores`, `# Sockets`, `CPU Model`, `Speed`, `# Memory (MiB)` | "Suggested Azure Local CPU generation" hint (best-effort match) |
+| **`vCluster`** *(optional, context only)* | `Name`, `NumHosts`, `NumCpuCores`, `NumCpuThreads`, `TotalCpu` (MHz), `Effective Cpu`, `TotalMemory` (MiB), `Effective Memory` (MiB) | Per-source-cluster *capacity* banner (source headroom). **Not** required for grouping. |
+| **`vHost`** *(optional, context only)* | `Host`, `Cluster`, `CPU Model`, `Speed`, `# CPU` (sockets), `Cores per CPU`, `# Cores`, `# Memory` (KiB) | Best-effort "suggested Azure Local CPU generation" hint from host model/speed |
+
+> **Key simplification:** `vInfo` itself
+> carries the `Cluster`, `Host` and `Datacenter` of every VM, so **per-cluster grouping
+> and the cluster picker can be built from `vInfo` alone**. `vCluster` does **not** expose
+> per-cluster VM / vCPU / vMemory totals (it only has source-side host/CPU/memory
+> *capacity*), so those totals are **derived client-side by grouping `vInfo` on its
+> `Cluster` column** — we never depend on `vCluster` being present. `vCluster` and
+> `vHost` are read only when present, purely to enrich the summary banner; a workbook
+> with just `vInfo` imports fully.
 
 Everything else (IPs, MACs, OS strings beyond presence, tags, custom attributes,
 annotations, folder paths, network labels, datastore names, snapshot info, etc.) is
@@ -69,7 +78,8 @@ annotations, folder paths, network labels, datastore names, snapshot info, etc.)
    are not strictly needed are **never read or stored**. Cluster names are held only in
    browser memory for the picker and **never persisted** into Sizer config.
 2. Only **powered-on, non-template** rows imported by default (checkbox to include
-   powered-off).
+   powered-off). Filter on `Powerstate == "poweredOn"` and `Template == "False"` — note
+   `Template` is an RVTools **boolean** (is-this-a-template), *not* a size classification.
 3. File is read entirely client-side (FileReader → SheetJS). No upload, no telemetry,
    no analytics event carrying column values — only an anonymous counter
    ("RVTools import used: 1").
@@ -169,7 +179,7 @@ Proceed — risk is low-to-moderate and well-contained.
   + SHA-256 in `vendor/README.md`, and update the expected hash in test (A).
 - **(C) Parser smoke test (functional, separate from integrity).** Covered under the main
   test plan (synthetic `vInfo` + `vCluster` fixture): MiB→GB conversion, powered-off /
-  template filtering, vCPU sum, per-cluster grouping, "VM template" banding, and the
+  template filtering, vCPU sum, per-cluster grouping, VM size-class banding, and the
   malformed / encrypted-file error path. These validate *our* parsing code, not the
   library blob.
 
@@ -241,9 +251,10 @@ icon + modal title carry the "import" meaning, and it sits next to `📂 Import`
    fan-out (see open question 4).
 6. **VM consolidation strategy** (radio):
    - **One workload per VM** — verbatim, best fidelity, but unwieldy with 1,000+ VMs.
-   - **Grouped by "VM template"** — heuristic: cluster VMs into bands by
+   - **Grouped by VM size class** — heuristic: cluster VMs into bands by
      (round vCPU, round RAM GB) and create a single VM-group workload per band with a
-     `count`. Matches the *Average VM Size* sidebar in RVTools summary views.
+     `count`. This is **our own banding** of the VM pool (not an RVTools `Template`
+     field), conceptually like the *Average VM Size* view in RVTools summaries.
    - **One row per source cluster** (sum / avg) — coarsest, fastest.
    - See open question 5 on default.
 7. **Storage**: use `Provisioned MiB` by default (worst-case planning), with toggle for
@@ -274,7 +285,7 @@ icon + modal title carry the "import" meaning, and it sits next to `📂 Import`
    de-flexed / wrapping import tab strip.
 5. **`tests/index.html`** + **`tests/fixtures/`** — small synthetic RVTools fixture (a
    tiny SheetJS-shaped object built in-test). Cases: powered-off filter, template
-   filter, MiB → GB conversion, vCPU sum, per-cluster grouping, "VM template" banding,
+   filter, MiB → GB conversion, vCPU sum, per-cluster grouping, VM size-class banding,
    malformed-file error path.
 6. **`CHANGELOG.md` / version-bump fan-out / README "What's New"** — own version bump
    for the #230 PR (separate from the 0.21.55 #232 + #233 release).
