@@ -761,7 +761,7 @@ function populateDdaModels() {
             // pick a GPU without breaking homogeneity, so show the actionable
             // warning instead of the bland "Filtered to..." note.
             const lockedModel = GPU_MODELS[lockedType];
-            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            const lockedName = escapeHtmlSizer(lockedModel ? lockedModel.name : lockedType);
             infoEl.innerHTML =
                 '<span style="color: var(--warning);"><strong>⚠ ' + lockedName +
                 ' is not supported on AKS Arc.</strong> Another workload selected ' + lockedName +
@@ -777,7 +777,7 @@ function populateDdaModels() {
             // (e.g. the workload's locked GPU has supportsAzureLocalVMs=false).
             // Defensive — shouldn't happen with current data but covers the case.
             const lockedModel = GPU_MODELS[lockedType];
-            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            const lockedName = escapeHtmlSizer(lockedModel ? lockedModel.name : lockedType);
             infoEl.innerHTML =
                 '<span style="color: var(--warning);"><strong>⚠ GPU model conflict.</strong> Another workload selected ' + lockedName +
                 ', which is not available for this workload type. Remove or change that workload first.</span>';
@@ -977,7 +977,7 @@ function populateAksGpuVmSizes() {
             // Warn the user *before* they try to save — addWorkload() will
             // also block save via validateWorkloadBeforeSave() as a backstop.
             const lockedModel = GPU_MODELS[lockedType];
-            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            const lockedName = escapeHtmlSizer(lockedModel ? lockedModel.name : lockedType);
             infoEl.innerHTML =
                 '<span style="color: var(--warning);"><strong>⚠ ' + lockedName +
                 ' has no AKS Arc GPU VM SKUs.</strong> Another workload selected ' + lockedName +

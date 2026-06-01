@@ -1980,14 +1980,14 @@
             // CodeQL js/remote-property-injection (#17): use a Map so
             // user-controlled NIC speed strings are stored as explicit
             // key/value pairs with safe dictionary semantics.
-            var bySpeed = new Map();
+            var disaggBySpeed = new Map();
             var rdmaCount = 0;
             keys.forEach(function (k) {
                 var sp = (pc[k].speed) || (s.disaggPortSpeeds && s.disaggPortSpeeds[k.split('_')[0]]) || 'unknown';
-                bySpeed.set(sp, (bySpeed.get(sp) || 0) + 1);
+                disaggBySpeed.set(sp, (disaggBySpeed.get(sp) || 0) + 1);
                 if (pc[k].rdma === true) rdmaCount += 1;
             });
-            var speedParts = Array.from(bySpeed.entries()).map(function (entry) {
+            var speedParts = Array.from(disaggBySpeed.entries()).map(function (entry) {
                 return entry[1] + '× ' + entry[0];
             });
             if (speedParts.length) out.push('Port speeds: ' + speedParts.join(', '));
@@ -2006,14 +2006,14 @@
         // CodeQL js/remote-property-injection (#16): use a Map so
         // user-controlled NIC speed strings are stored as explicit
         // key/value pairs with safe dictionary semantics.
-        var bySpeed2 = new Map();
+        var hciBySpeed = new Map();
         var rdma = 0;
         cfg.forEach(function (p) {
             var sp = (p && p.speed) || 'unknown';
-            bySpeed2.set(sp, (bySpeed2.get(sp) || 0) + 1);
+            hciBySpeed.set(sp, (hciBySpeed.get(sp) || 0) + 1);
             if (p && p.rdma === true) rdma += 1;
         });
-        var sp2 = Array.from(bySpeed2.entries()).map(function (entry) { return entry[1] + '× ' + entry[0]; });
+        var sp2 = Array.from(hciBySpeed.entries()).map(function (entry) { return entry[1] + '× ' + entry[0]; });
         if (sp2.length) out.push('Port speeds: ' + sp2.join(', '));
         out.push('RDMA-capable ports: ' + rdma + ' / ' + cfg.length);
         return out;
