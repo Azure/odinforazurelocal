@@ -9,8 +9,8 @@
 > on 2026-06-01 when #232 was paired with #233 for the **0.21.55** release.
 >
 > **Target release:** a **separate, later PR** (its own version bump). #230 is
-> **not** part of the 0.21.55 (#232 + #233) release — see
-> [`issues-232-233-plan.md`](issues-232-233-plan.md).
+> **not** part of the 0.22.01 (#232 + #233) release — see
+> [`complete/issues-232-233-plan.md`](complete/issues-232-233-plan.md).
 
 ---
 
