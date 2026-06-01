@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.21.15] - 2026-05-21
+
+Improves the Sizer's **physical-host compute reserve / overhead** model (issue #232) and reorients the **rack-layout diagrams** to fill bottom-up with real node names (issue #233).
+
+### Added
+
+- **S2D-aware host compute reserve helpers** in [`sizer/sizer.js`](sizer/sizer.js): `getCacheTBPerNode()`, `getHostMemoryReservedGB(hwConfig, clusterType)`, and `getHostCpuReservedCores(hwConfig, clusterType)`. The reserve now varies by cluster type and storage shape instead of a single flat percentage:
+  - **CPU**: ALDO management → `max(ceil(20%), 2)`; disaggregated / low-capacity → `max(ceil(10%), 1)`; standard S2D → `max(ceil(15%), 2)` physical cores per node.
+  - **Memory**: base `32 GB` (S2D) or `24 GB` (disaggregated) + S2D cache-metadata `ceil(4 GB × cacheTB)` + `64 GB` when ALDO management is hosted, floored at `8%` of host RAM.
+- **Collapsible "Physical host compute overhead — assumptions & math" section** below the Sizer sizing notes. `updateHostOverheadBreakdown()` renders the memory and CPU reserve math as tables (highlighting the winning term), lists the assumptions, and links to the public Hyper-V performance-tuning, S2D hardware-requirements, and Azure Local system-requirements docs.
+
+### Changed
+
+- **Host reserve is now applied consistently** across node-count recommendation, the AMD core-upgrade path, hardware auto-scaling, the capacity bar, sizing notes, the host-overhead summary note, and the growth projection — all routed through the new helpers so usable vCPU / memory reflect the S2D-aware reserve.
+- **Rack-layout diagrams fill bottom-up (issue #233).** All four generators in [`report/rack-svg.js`](report/rack-svg.js) (HCI SVG, disaggregated SVG, HCI Draw.io, disaggregated Draw.io), the 3D view in [`sizer/rack3d.js`](sizer/rack3d.js), and the wizard preview in [`js/disaggregated.js`](js/disaggregated.js) now stack server nodes from the bottom of the rack upward, with ToR / leaf / BMC switches kept at the top and FC switches (when present) at U1-U2 — matching common datacentre practice and keeping the 2D and 3D views consistent.
+- **Real Designer node names surface in the rack diagrams.** New `getRackNodeLabel()` / `getRackTorLabel()` helpers resolve a node's display name (indexed by global node order across multi-rack layouts) from the saved config's `nodeSettings`, falling back to `Node N` / `ToR N` when unset. Wired into all four `report/rack-svg.js` generators via [`report/report.js`](report/report.js).
+
+### Tests
+
+- Added a **Rack layout — bottom-up fill + real labels** suite (`rack-svg.js`) asserting bottom-up fill order (Node 1 below the top node) for the HCI and disaggregated SVGs, custom-name surfacing, blank/unset fallback, global multi-rack indexing, and ToR-label fallback. Added coverage for the S2D-aware host-overhead helpers. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,271 / 1,271**.
+
+### Notes
+
+- No data, schema, or PPT-template changes. No new external network calls. Switches remain top-of-rack; only the server stack moves bottom-up.
+
+---
+
 ## [0.21.14] - 2026-05-20
 
 Adds the **Microsoft 365 Local — Medium-Scale** reference architecture to the *Microsoft Sovereign Private Clouds* page (Knowledge tab), and visually groups co-located single-node clusters into shared rack cards for the M365 Medium and Large variants.

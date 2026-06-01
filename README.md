@@ -1,6 +1,6 @@
 # ODIN for Azure Local
 
-## Version 0.21.14 - Available here: https://aka.ms/ODIN
+## Version 0.21.15 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,24 +46,24 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.21.14 - Latest Release
+### 🎉 Version 0.21.15 - Latest Release
 
-> **Adds the *Microsoft 365 Local &mdash; Medium-Scale* reference architecture** to the *Microsoft Sovereign Private Clouds* page (Knowledge tab), and visually groups co-located single-node clusters into shared rack cards for both the new Medium variant and the existing Large variant.
+> **Improves the Sizer's physical-host compute reserve / overhead model** (issue #232) and **reorients the rack-layout diagrams** to fill bottom-up with real node names (issue #233).
 
 **What changed**
-- New scale option **M365 Local &mdash; Medium-Scale** (badge `M`) in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js).
-- Medium-Scale layout: **2 single-node Azure Local clusters** hosting Exchange mailbox servers (rendered as *one shared rack card* with Servers 1 and 2 stacked inside) + **1 three-node Azure Local cluster** hosting Exchange Edge Transport, SharePoint Server, Skype for Business and SQL Server (Servers 3, 4, 5) &mdash; 3 Azure Local clusters / 5 servers total, drawn as 2 cards.
-- **Large-Scale refinement**: the 4 single-node Exchange mailbox clusters now share a single rack card (Servers 1-4), and the 2 single-node Edge Transport clusters share another (Servers 5-6). The 3-node SharePoint/Skype/SQL cluster keeps its own card. They remain independent Azure Local clusters with their own quorum / S2D pool / lifecycle &mdash; the merged card just reflects that operators typically co-locate them in the same physical rack.
-- **Per-cluster sub-frames**: inside each merged single-node rack card, every server is now drawn inside its own thin dashed *Cluster N* sub-frame, making it visually obvious that every server is an independent Azure Local single-node cluster (one server / one role / its own quorum + S2D pool). Only applies to the M365 Local Medium / Large merged cards.
-- Active Directory, Firewall, Load Balancer and the internal management network router remain infrastructure components on the management / compute networks &mdash; not separate Azure Local clusters &mdash; matching how Small-Scale is modelled.
-- The on-screen **SVG diagram** and the **PowerPoint export** (overview slide Scale pill + per-purpose Scale panel + diagram slide) pick up the new variant automatically via the existing `tpl.scaleVariants` code path.
-- Storage is fixed at **S2D (local)** (same constraint as Small / Large); the cluster-count chip is hidden (fixed layout); short PPT label registered as `M365 Medium`.
+- **S2D-aware host compute reserve (issue #232)** &mdash; the Sizer no longer applies a single flat percentage for host overhead. New helpers in [`sizer/sizer.js`](sizer/sizer.js) size the reserve by cluster type and storage shape:
+  - **CPU**: ALDO management `max(ceil(20%), 2)`; disaggregated / low-capacity `max(ceil(10%), 1)`; standard S2D `max(ceil(15%), 2)` physical cores per node.
+  - **Memory**: base **32 GB** (S2D) or **24 GB** (disaggregated) + S2D cache-metadata `ceil(4 GB × cacheTB)` + **64 GB** when ALDO management is hosted, floored at **8 %** of host RAM.
+- The reserve is now applied consistently across node-count recommendation, the AMD core-upgrade path, hardware auto-scaling, the capacity bar, sizing notes, and the growth projection.
+- A new collapsible **"Physical host compute overhead &mdash; assumptions & math"** section under the Sizer notes shows the memory and CPU reserve math as tables, lists the assumptions, and links to the public Hyper-V / S2D / Azure Local system-requirements docs.
+- **Rack-layout diagrams now fill bottom-up (issue #233)** &mdash; all four generators in [`report/rack-svg.js`](report/rack-svg.js), the 3D view in [`sizer/rack3d.js`](sizer/rack3d.js), and the wizard preview in [`js/disaggregated.js`](js/disaggregated.js) stack servers from the bottom of the rack upward, with ToR / leaf / BMC switches kept at the top (FC switches at U1-U2). The 2D report and 3D view stay consistent.
+- **Real Designer node names surface in the diagrams** &mdash; new `getRackNodeLabel()` / `getRackTorLabel()` helpers resolve each node's display name (by global index across multi-rack layouts) from the saved config's `nodeSettings`, falling back to `Node N` / `ToR N` when unset.
 
 **Tests & quality**
-- ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes.
+- New *Rack layout — bottom-up fill + real labels* test suite plus host-overhead helper coverage. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,271 / 1,271**.
 
 **Notes**
-- No data, schema, or PPT-template changes. No new icons or external network calls.
+- No data, schema, or PPT-template changes. No new external network calls. Switches remain top-of-rack; only the server stack moves bottom-up.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -386,7 +386,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.21.14  
+**Version**: 0.21.15  
 **Last Updated**: May 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -401,6 +401,15 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.21.x Series (May 2026)
+
+#### 0.21.14 - Microsoft 365 Local — Medium-Scale reference architecture + shared rack cards for co-located single-node clusters
+
+> **Adds the *Microsoft 365 Local &mdash; Medium-Scale* reference architecture** to the *Microsoft Sovereign Private Clouds* page (Knowledge tab), and visually groups co-located single-node clusters into shared rack cards for both the new Medium variant and the existing Large variant.
+
+- New scale option **M365 Local &mdash; Medium-Scale** (badge `M`) in [`docs/reference-architectures/script.js`](docs/reference-architectures/script.js). Medium-Scale layout: **2 single-node Azure Local clusters** hosting Exchange mailbox servers (rendered as *one shared rack card* with Servers 1 and 2 stacked inside) + **1 three-node Azure Local cluster** hosting Exchange Edge Transport, SharePoint Server, Skype for Business and SQL Server (Servers 3, 4, 5) &mdash; 3 Azure Local clusters / 5 servers total, drawn as 2 cards.
+- **Large-Scale refinement**: the 4 single-node Exchange mailbox clusters now share a single rack card (Servers 1-4), and the 2 single-node Edge Transport clusters share another (Servers 5-6). The 3-node SharePoint/Skype/SQL cluster keeps its own card. They remain independent Azure Local clusters with their own quorum / S2D pool / lifecycle &mdash; the merged card just reflects that operators typically co-locate them in the same physical rack.
+- **Per-cluster sub-frames**: inside each merged single-node rack card, every server is now drawn inside its own thin dashed *Cluster N* sub-frame, making it visually obvious that every server is an independent Azure Local single-node cluster (one server / one role / its own quorum + S2D pool). Only applies to the M365 Local Medium / Large merged cards.
+- The on-screen **SVG diagram** and the **PowerPoint export** pick up the new variant automatically via the existing `tpl.scaleVariants` code path. Storage is fixed at **S2D (local)** (same constraint as Small / Large); the cluster-count chip is hidden (fixed layout); short PPT label registered as `M365 Medium`. ESLint clean; HTML validation clean; full test suite passes.
 
 #### 0.21.13 - Reference architectures: drop misleading `*` on `Azure Local Cluster (up to 128 nodes)` title
 
