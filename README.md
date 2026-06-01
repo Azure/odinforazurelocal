@@ -66,6 +66,9 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 **Tests & quality**
 - New *Rack layout — bottom-up fill + real labels* test suite plus host-overhead helper, ratio-escalation decoupling, Disaggregated import, and Parse & Preview coverage; all Low Capacity suites removed. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,240 / 1,240**.
 
+**Security & hardening**
+- Cleared CodeQL alerts #37–#39 (`js/xss-through-dom`) by escaping DOM-derived GPU model names in three Sizer warning messages, and (from the end-to-end review for this release) escaped the imported `clusterName` in the cluster-import toast in [`sizer/sizer.js`](sizer/sizer.js) to close a DOM-XSS gap on the JSON-import path. Bumped the transitive dev-only `brace-expansion` (5.x) override to `>= 5.0.6` (CVE-2026-45149) using a version-selector form that keeps CI's `npm ci` stable across npm 10/11. No runtime or shipped-site impact.
+
 **Notes**
 - No data, schema, or PPT-template changes. No new external network calls. Switches remain top-of-rack; only the server stack moves bottom-up.
 
