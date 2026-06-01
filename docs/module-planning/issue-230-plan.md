@@ -92,7 +92,91 @@ Need a JS xlsx reader. Both Apache 2.0:
 | **SheetJS Community (`xlsx.full.min.js`)** | ~890 KB minified | Industry standard. Vendored to `vendor/xlsx-0.20.x.min.js`. Loaded **only** on the Sizer page when the RVTools tab is opened (lazy `<script>` injection). |
 | `exceljs` UMD | ~1.1 MB | Slightly heavier. |
 
-Recommendation: **SheetJS**, vendored. See open question 3.
+Recommendation: **SheetJS**, vendored. See decision record below.
+
+---
+
+### DECISION (Q1, RESOLVED 2026-06-01): vendor SheetJS Community Edition
+
+**Decision:** Vendor SheetJS Community Edition (`xlsx.full.min.js`, Apache-2.0) into
+`vendor/`, lazy-loaded, SHA-256-pinned, with a unit test asserting the pinned hash.
+Proceed — risk is low-to-moderate and well-contained.
+
+#### Why SheetJS over alternatives
+
+- It is the de-facto standard browser `.xlsx` reader and reads the RVTools "all" export
+  (multi-sheet `.xlsx`) without server help.
+- Apache-2.0 — compatible with this repo and with the "no copyleft" posture of the other
+  vendored libraries (`three.js` MIT, `jspdf` MIT, `jszip` MIT, `html2canvas` MIT).
+- `exceljs` is heavier (~1.1 MB) and oriented at *writing* workbooks; we only need to
+  *read*, so its extra surface buys us nothing here.
+
+#### Concerns and mitigations
+
+1. **Size (~890 KB minified) — the largest single asset in the repo.**
+   - Today's largest vendored asset is `three-0.128.0.min.js` (~600 KB); SheetJS would
+     exceed it.
+   - **Mitigation — lazy-load.** Do **not** add a static `<script>` tag to
+     `sizer/index.html`. Inject the `<script>` only the first time the user opens the
+     **📊 RVTools** import tab (guarded so it is injected at most once per page load).
+     Users who never touch RVTools never download it; initial Sizer page weight is
+     unchanged.
+
+2. **Distribution channel — `xlsx` is no longer on the public npm registry.**
+   - SheetJS **delisted the `xlsx` package from npmjs.com in 2023**; official releases
+     are now self-hosted at `cdn.sheetjs.com` (and mirrored on their GitHub).
+   - Consequence: we **cannot** `npm install xlsx`, and Dependabot will **not** track it
+     (it is not in `package.json`). This is fine — we vendor the prebuilt file directly,
+     exactly like the other `vendor/` libraries.
+   - **Mitigation — record provenance.** In `vendor/README.md` record: exact version
+     (e.g. `0.20.3`), the official source URL it was downloaded from, the download date,
+     the licence (Apache-2.0), and the **SHA-256** of the committed file. Do **not** add
+     a CDN `<script src>` — the file must be served from the repo itself (offline /
+     clone-and-open requirement, and the repo policy of no new external `<script>` tags).
+
+3. **Security surface — a complex binary parser handling untrusted files.**
+   - `.xlsx` is a ZIP of XML; the RVTools file may also be an OLE2 / MIP-encrypted blob
+     (see *File handling notes* — the inspected sample was MIP-encrypted, magic bytes
+     `D0 CF 11 E0`). SheetJS has had historical advisories, e.g.
+     **CVE-2023-30533** (prototype pollution via crafted workbook, fixed in 0.19.3) and
+     a **ReDoS** in older `xlsx` releases.
+   - **Mitigation — pin a current release.** Vendor a current **0.20.x** build that is
+     past those advisories. Parsing stays **100% client-side**, we never `eval` cell
+     content, and we never write a workbook back, so the blast radius is limited to the
+     importing user's own browser tab. Encrypted / sensitivity-labelled files are caught
+     by SheetJS throwing on open → we show the "save an unprotected copy" message rather
+     than attempting to decrypt.
+
+4. **Supply-chain — trusting a prebuilt minified blob.**
+   - We are committing a third-party minified artifact we did not build from source.
+   - **Mitigation — SHA-256 pin + integrity test** (see below). The pin makes any
+     post-commit modification of the blob (accidental or malicious) fail CI.
+
+#### Tests to add for the vendored library
+
+- **(A) Integrity / hash-pin test (ship this).** A unit test in `tests/index.html` (or a
+  small Node check under `scripts/`) reads `vendor/xlsx-0.20.x.min.js`, computes its
+  **SHA-256**, and asserts it equals a hard-coded expected hash. This catches accidental
+  corruption or a tampered/swapped vendored blob. Mirrors the existing vendor discipline
+  (pinned, provenance-tracked files).
+- **(B) Version-tracking note — manual, NOT an automated upstream check.** Record the
+  pinned version + source URL + SHA-256 in `vendor/README.md` and review on a manual
+  cadence. **Deliberately do not** add a test that calls SheetJS / the network to ask
+  "is there a newer version?" — that would (i) break the offline / clone-and-open model,
+  (ii) make CI non-deterministic and network-dependent, and (iii) Dependabot can't help
+  here anyway since the package isn't on npm. Upstream version bumps are a manual,
+  reviewed action: download the new official release, update the file, update the version
+  + SHA-256 in `vendor/README.md`, and update the expected hash in test (A).
+- **(C) Parser smoke test (functional, separate from integrity).** Covered under the main
+  test plan (synthetic `vInfo` + `vCluster` fixture): MiB→GB conversion, powered-off /
+  template filtering, vCPU sum, per-cluster grouping, "VM template" banding, and the
+  malformed / encrypted-file error path. These validate *our* parsing code, not the
+  library blob.
+
+#### Net
+
+Low-to-moderate risk, contained by **lazy-load + client-side-only + SHA-256 pin +
+integrity test + provenance in `vendor/README.md`**. **Proceed with vendoring SheetJS.**
 
 ### UI / flow
 
@@ -163,8 +247,12 @@ Recommendation: **SheetJS**, vendored. See open question 3.
 
 ## Open decision questions (need answers before implementation)
 
-1. **SheetJS vendoring** — OK to vendor `xlsx.full.min.js` (~890 KB, Apache 2.0) into
-   `vendor/`? Only sensible way to read `.xlsx` in-browser without a CDN call.
+1. ~~**SheetJS vendoring** — OK to vendor `xlsx.full.min.js` (~890 KB, Apache 2.0) into
+   `vendor/`?~~ **RESOLVED (2026-06-01): yes — vendor SheetJS Community Edition,
+   lazy-loaded, SHA-256-pinned, with an integrity test.** See the full *DECISION (Q1)*
+   record under **Excel parsing — dependency** above (size / lazy-load, npm-delisting /
+   provenance, security surface, supply-chain, and the hash-pin vs. no-network-version-
+   check test split).
 2. **Multi-cluster UX** — keep all **three** target-choice radios (combined / pick-one /
    identical fan-out) or trim to just **pick-one + identical fan-out** for simplicity?
 3. **Default VM consolidation** — default to **"Grouped by VM template"** (5–10 rows)
