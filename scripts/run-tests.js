@@ -5,8 +5,48 @@
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const outputFormat = process.argv.includes('--junit') ? 'junit' : 'nunit';
+
+// ---------------------------------------------------------------------------
+// Vendored-blob integrity pins (issue #230 — SheetJS for RVTools import).
+// The browser test harness runs over file://, which is not a secure context,
+// so window.crypto.subtle is unavailable there. The SHA-256 pin for large
+// vendored binaries is therefore enforced here, Node-side, as a fail-fast gate
+// before the browser tests run. Catches accidental corruption or a tampered /
+// swapped vendored blob. To upgrade SheetJS, update vendor/README.md and the
+// expected hash below in the same commit. Hashes are lower-case hex.
+// ---------------------------------------------------------------------------
+const VENDOR_INTEGRITY_PINS = [
+    {
+        file: path.join('vendor', 'xlsx-0.20.3.min.js'),
+        sha256: 'cc015130aa8521e7f088f88898eba949ccdcbfb38df0bd129b44b7273c3a6f41',
+        label: 'SheetJS Community 0.20.3 (RVTools import)'
+    }
+];
+
+function checkVendorIntegrity() {
+    let allOk = true;
+    VENDOR_INTEGRITY_PINS.forEach(pin => {
+        const absPath = path.resolve(process.cwd(), pin.file);
+        if (!fs.existsSync(absPath)) {
+            console.error(`❌ Vendored file missing: ${pin.file} (${pin.label})`);
+            allOk = false;
+            return;
+        }
+        const actual = crypto.createHash('sha256').update(fs.readFileSync(absPath)).digest('hex');
+        if (actual !== pin.sha256) {
+            console.error(`❌ SHA-256 mismatch for ${pin.file} (${pin.label})`);
+            console.error(`     Expected: ${pin.sha256}`);
+            console.error(`     Actual:   ${actual}`);
+            allOk = false;
+        } else {
+            console.log(`✅ Vendor integrity OK: ${pin.file} (${pin.label})`);
+        }
+    });
+    return allOk;
+}
 
 function generateNUnitXML(results, passed, failed, total) {
     const timestamp = new Date().toISOString();
@@ -108,6 +148,13 @@ function generateJUnitXML(results, passed, failed, total) {
 
 (async () => {
     try {
+        // Fail fast on any vendored-blob integrity mismatch before spending
+        // time launching the browser (issue #230 — SheetJS SHA-256 pin).
+        if (!checkVendorIntegrity()) {
+            console.error('\n❌ Vendored library integrity check failed.');
+            process.exit(1);
+        }
+
         console.log('Launching browser...');
         const browser = await puppeteer.launch({
             headless: 'new',
