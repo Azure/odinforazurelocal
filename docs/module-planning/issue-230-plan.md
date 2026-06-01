@@ -81,6 +81,10 @@ annotations, folder paths, network labels, datastore names, snapshot info, etc.)
    consolidation mode (off by default, see *DECISION (Q3)*), VM names are read in to name
    each workload row. Even then everything stays **client-side only** and is **never sent
    to telemetry/analytics**; the default grouped mode reads no VM names at all.
+   **Second scoped exception:** the optional **target Cluster Name** field (see *DECISION
+   (Cluster Name)*) seeds from the selected source cluster name, sanitised and editable,
+   and is carried Sizer→Designer→ARM — still never sent to telemetry, only the local
+   handoff + the downloaded ARM parameter file.
 2. Only **powered-on, non-template** rows imported by default (checkbox to include
    powered-off). Filter on `Powerstate == "poweredOn"` and `Template == "False"` — note
    `Template` is an RVTools **boolean** (is-this-a-template), *not* a size classification.
@@ -271,8 +275,72 @@ justified by the user explicitly asking for one-to-one name fidelity.
 - This applies to the Workload Scenarios list **generally** (not only RVTools imports) —
   any scenario with 6+ workloads benefits — but RVTools grouped imports are the main
   driver since they routinely produce many rows at once.
+- **Worst-case guard:** the *one-workload-per-VM* opt-in can add **hundreds** of rows
+  (e.g. 300+ individual VMs from a single source cluster). The fixed ~5-row cap +
+  internal scroll keeps the box a bounded height no matter how many workloads exist, so
+  the list never grows "crazy long" and push the calculate/results area off-screen.
 - Must remain keyboard-accessible (scroll container focusable / rows reachable by Tab)
   and work in both light and dark themes using existing CSS variables.
+
+### DECISION (Cluster Name, RESOLVED 2026-06-01): add an optional target Cluster Name carried Sizer → Designer → ARM
+
+**Decision:** Add an optional **target Azure Local cluster name** field to the Sizer,
+carried end-to-end (Sizer → Designer → ARM parameter file) **as part of #230**. RVTools
+import **sanitises and pre-fills** it from the selected source cluster's name; the field
+stays editable. It is also available (optional, blank by default) for non-RVTools manual
+scenarios.
+
+**Why:** the ARM page already consumes a cluster name — `arm/arm.html` has
+`#input-cluster-name` ("Max 15 characters, letters/numbers/hyphens") and `arm/arm.js`
+substitutes it via the `REPLACE_WITH_CLUSTER_NAME` placeholder / `clusterName` ARM
+parameter. Today the user must retype it at the ARM stage. Capturing it once in the Sizer
+(or auto-deriving it from RVTools) and carrying it forward removes that re-entry and makes
+the RVTools import flow continuous through to deployment.
+
+**This is the *target* Azure Local cluster name, not the VMware name.** For RVTools it is
+merely *seeded* from the source cluster name as a convenience; the user can overwrite it.
+
+**Privacy note — this is a deliberate, scoped reversal of the "cluster names never
+persisted" stance.** The base privacy stance says source cluster names live only in
+browser memory for the picker and are never persisted into Sizer config. Pre-filling this
+field from the selected cluster, then persisting/carrying it, reverses that for **one
+field the user can see and edit**. Mitigations: (a) only the **single selected** cluster's
+name is seeded (not the whole list); (b) it is **sanitised** to the cluster-name rules on
+seed; (c) it stays **visible and editable** so the user is aware and in control; (d) it is
+still **never transmitted to telemetry/analytics** — it only rides the existing
+local-storage handoff and lands in the ARM parameter file the user downloads. Default
+grouped imports that don't use per-VM naming still expose no VM names.
+
+**Validation (shared with the ARM field — single validator, not a second ruleset):**
+Windows failover cluster / NetBIOS name rules —
+- length **1–15** characters;
+- allowed characters **letters, numbers, hyphen** only;
+- **not** all-numeric; no leading or trailing hyphen;
+- strip/reject the usual illegal characters (`` ` ~ ! @ # $ % ^ & * ( ) = + [ ] { } \ | ;
+  : . ' " , < > / ? `` and whitespace).
+
+The **sanitiser** (used on RVTools seed) maps a raw VMware cluster name to a valid
+candidate: replace illegal characters with `-`, collapse repeats, trim hyphens, truncate
+to 15. The **validator** (used on the editable field) enforces the rules and shows an
+inline error; an invalid value blocks the carry but never silently mangles user input.
+
+**Flow / plumbing (uses the existing handoff, no new transport):**
+- **Sizer**: new optional `clusterName` captured in `getSizerState()` (so it
+  saves/resumes) and added to the `sizerPayload` written to `localStorage`
+  (`odinSizerToDesigner`) in the Sizer → Designer handoff. A small labelled text input in
+  the Sizer UI (near the cluster-type / node-count controls), with inline validation.
+- **Designer**: reads `clusterName` from the `odinSizerToDesigner` payload and carries it
+  as a pass-through value (no new visible Designer control required — it pre-populates the
+  already-editable ARM field downstream). Treated like the existing carried-through values
+  (e.g. spine/port counts) that the Designer holds without its own UI.
+- **ARM**: the carried `clusterName` pre-fills the existing `#input-cluster-name`
+  (`arm/arm.js` already supports pre-population at `params.clusterName.value`). The field
+  remains user-editable at the ARM stage, so a carried value is never silently wrong.
+
+**Naming consistency:** because the ARM field exists and is editable at the final stage,
+the carried value is a *default*, not a lock — we intentionally do **not** hide it at all
+three surfaces. Sizer shows it (editable), Designer carries it (hidden/pass-through is OK
+*because* ARM re-exposes it), ARM shows it (editable).
 
 ### UI / flow
 
@@ -304,7 +372,9 @@ justified by the user explicitly asking for one-to-one name fidelity.
    and only that cluster's VMs are imported. There is **no** "single combined" or
    "identical fan-out" option — a user who wants to size-one-and-replicate just sizes the
    one cluster and replicates the node count themselves; combining all clusters into one
-   undifferentiated pool was judged not meaningful.
+   undifferentiated pool was judged not meaningful. On selection, the **target Cluster
+   Name** field is seeded by running the chosen cluster's name through
+   `sanitiseClusterName()` (editable; see *DECISION (Cluster Name)*).
 8. **VM consolidation strategy** (radio — see *DECISION (Q3)*):
    - **Grouped by VM size class** *(default)* — heuristic: cluster the selected
      cluster's VMs into bands by (round vCPU, round RAM GB) and create a single VM-group
@@ -357,6 +427,23 @@ justified by the user explicitly asking for one-to-one name fidelity.
    when > 5 workloads are present.
 6. **`CHANGELOG.md` / version-bump fan-out / README "What's New"** — own version bump
    for the #230 PR (separate from the 0.21.55 #232 + #233 release).
+7. **Cluster Name carry (Sizer → Designer → ARM):**
+   - **`sizer/index.html`** — a small labelled **Cluster Name** text input near the
+     cluster-type / node-count controls, with inline validation hint.
+   - **`sizer/sizer.js`** — add `clusterName` to `getSizerState()` (save/resume) and to
+     the `sizerPayload` written to `odinSizerToDesigner`; a shared
+     `sanitiseClusterName()` (RVTools seed) + `isValidClusterName()` (editable-field
+     validation, 1–15 chars, letters/numbers/hyphen, not all-numeric, no leading/trailing
+     hyphen). RVTools import pre-fills the field from the selected cluster via the
+     sanitiser.
+   - **Designer side** (`js/` — the module that reads `odinSizerToDesigner`) — carry
+     `clusterName` through as a pass-through value (no new visible control).
+   - **`arm/arm.js`** — already pre-populates `#input-cluster-name` from
+     `params.clusterName.value`; ensure the Designer-carried value reaches that path so
+     the ARM field is seeded (field stays user-editable).
+   - **`tests/`** — unit tests for `sanitiseClusterName()` / `isValidClusterName()`
+     (illegal-char stripping, 15-char truncation, all-numeric rejection, hyphen trim) and
+     a carry round-trip assertion (Sizer state → payload → retained).
 
 ### Out of scope for this PR
 
