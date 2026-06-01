@@ -377,7 +377,7 @@ metadata) is not present on a SAN-backed cluster, and it is disclosed in the new
    switch-config already captures ToR make + per-switch names in state. If not present,
    fall back to `ToR N` (no net-new input fields in #233).
 6. **Version bump** — ~~0.21.15 (patch) or 0.22.0 (minor)?~~ **RESOLVED (2026-06-01):
-   0.21.55.** (Combined #232 + #233 release; user-chosen.)
+   0.22.01.** (Combined #232 + #233 release; user-chosen.)
 7. **PR strategy** — ~~one combined PR (both issues) or two sequential PRs?~~
    **RESOLVED (2026-06-01): combined PR for #232 + #233** (host-overhead math +
    rack-diagram improvements), single Release-branch → main. **#230 (RVTools) is NOT in

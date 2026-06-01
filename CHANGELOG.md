@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.21.15] - 2026-05-21
+## [0.22.01] - 2026-06-01
 
 Improves the Sizer's **physical-host compute reserve / overhead** model (issue #232) and reorients the **rack-layout diagrams** to fill bottom-up with real node names (issue #233).
 
