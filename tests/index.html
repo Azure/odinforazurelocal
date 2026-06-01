@@ -5782,11 +5782,15 @@
                     storageConfig: 'all-flash',
                     diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
                 };
-                // 5500 vCPUs, xeon-4th maxed at 60c×2=120 phys (xeon-4th unchanged at 60-cores/socket cap):
-                // 4:1 → 120×9×4=4320 → 127% (forces ratio escalation)
-                // 5:1 → 120×9×5=5400 → 102% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
-                // AMD Turin Dense smallest c > 120 (so 96): 96×2×9×5=8640 → 64% < 90% ✓ → switch to 96c.
-                // pctAt4 = 5500/(96×2×9×4) = 5500/6912 → 80% < 90% ✓ → step ratio back to 4:1.
+                // cluster-type=standard → host CPU reserve = max(ceil(15%×phys), 2).
+                const ctEl1 = document.getElementById('cluster-type');
+                const savedClusterType1 = ctEl1 ? ctEl1.value : null;
+                if (ctEl1) ctEl1.value = 'standard';
+                // 5500 vCPUs, xeon-4th maxed at 60c×2=120 phys; reserve(120)=18 → usable 102:
+                // 4:1 → 102×9×4=3672 → 150% (forces ratio escalation)
+                // 5:1 → 102×9×5=4590 → 120% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
+                // AMD Turin Dense smallest c>120 (96): reserve(192)=29 → usable 163; 163×9×5=7335 → 75% < 90% ✓ → 96c.
+                // pctAt4 = 5500/(163×9×4)=5500/5868 → 94% ≥ 90% → ratio stays at 5:1.
                 autoScaleHardware(5500, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
                     { allowRatioEscalation: true, allowHighMemory: true });
 
@@ -5801,16 +5805,17 @@
                 document.getElementById('cpu-cores').value = savedCores;
                 document.getElementById('cpu-sockets').value = savedSockets;
                 document.getElementById('vcpu-ratio').value = savedRatio;
+                if (ctEl1 && savedClusterType1 !== null) ctEl1.value = savedClusterType1;
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
                 _diskSizeUserSet = savedDiskSizeFlag;
                 _diskCountUserSet = savedDiskCountFlag;
 
-                // Should have switched to AMD and stepped ratio back to 4:1
-                return assert(resultMfg === 'amd' && resultRatio === 4,
-                    'AMD switch allows ratio to step back from 5:1 to 4:1',
-                    'amd @ 4:1', resultMfg + ' @ ' + resultRatio + ':1');
+                // Should have switched to AMD; ratio stays at 5:1 (4:1 would be ≥90% after host reserve)
+                return assert(resultMfg === 'amd' && resultRatio === 5,
+                    'AMD switch keeps ratio at 5:1 when host reserve makes 4:1 exceed threshold',
+                    'amd @ 5:1', resultMfg + ' @ ' + resultRatio + ':1');
             })(),
             (() => {
                 // Integration: AMD switch keeps 5:1 when 4:1 would still exceed threshold
@@ -5851,11 +5856,16 @@
                     storageConfig: 'all-flash',
                     diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
                 };
-                // 7000 vCPUs, xeon-4th maxed at 60c×2=120 phys:
-                // 4:1 → 120×9×4=4320 → 162% → forces ratio escalation.
-                // 5:1 → 120×9×5=5400 → 130% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
-                // AMD smallest c > 120 (so 96): 96×2×9×5=8640 → 81% < 90% ✓ → switch to 96c.
-                // pctAt4 = 7000/(96×2×9×4) = 7000/6912 → 101% ≥ 90% → stays at 5:1.
+                // cluster-type=standard → host CPU reserve = max(ceil(15%×phys), 2).
+                const ctEl2 = document.getElementById('cluster-type');
+                const savedClusterType2 = ctEl2 ? ctEl2.value : null;
+                if (ctEl2) ctEl2.value = 'standard';
+                // 7000 vCPUs, xeon-4th maxed at 60c×2=120 phys; reserve(120)=18 → usable 102:
+                // 4:1 → 102×9×4=3672 → 191% → forces ratio escalation.
+                // 5:1 → 102×9×5=4590 → 153% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
+                // AMD c=96: reserve(192)=29 → usable 163; 163×9×5=7335 → 95% ≥ 90% → try larger.
+                // AMD c=128: reserve(256)=39 → usable 217; 217×9×5=9765 → 72% < 90% ✓ → switch to 128c.
+                // pctAt4 = 7000/(217×9×4)=7000/7812 → 90% ≥ 90% → stays at 5:1.
                 autoScaleHardware(7000, 1000, 10000, nodeCount2, 2, hwConfig2, new Set(),
                     { allowRatioEscalation: true, allowHighMemory: true });
 
@@ -5870,13 +5880,14 @@
                 document.getElementById('cpu-cores').value = savedCores;
                 document.getElementById('cpu-sockets').value = savedSockets;
                 document.getElementById('vcpu-ratio').value = savedRatio;
+                if (ctEl2 && savedClusterType2 !== null) ctEl2.value = savedClusterType2;
                 _memoryUserSet = savedMemFlag;
                 _vcpuRatioUserSet = savedRatioFlag;
                 _cpuConfigUserSet = savedCpuFlag;
                 _diskSizeUserSet = savedDiskSizeFlag;
                 _diskCountUserSet = savedDiskCountFlag;
 
-                // Should have switched to AMD but kept ratio at 5:1 (4:1 would be ≥90%)
+                // Should have switched to AMD (128c) but kept ratio at 5:1 (4:1 would be ≥90%)
                 return assert(resultMfg2 === 'amd' && resultRatio2 === 5,
                     'AMD switch keeps 5:1 when 4:1 would exceed threshold',
                     'amd @ 5:1', resultMfg2 + ' @ ' + resultRatio2 + ':1');

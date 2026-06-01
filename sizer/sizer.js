@@ -1177,10 +1177,13 @@ function getGrowthFactor() {
 // Calculate recommended node count based on workload demands and per-node hardware
 function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwConfig, resiliencyMultiplier, resiliency, totalGpus) {
     const vcpuToCore = getVcpuRatio(); // configurable overcommit ratio
-    const hostOverheadMemoryGB = 32; // Azure Local host OS + management overhead per node
+    const ctEl = document.getElementById('cluster-type');
+    const clusterTypeForOverhead = ctEl ? ctEl.value : 'standard';
+    const hostOverheadMemoryGB = getHostMemoryReservedGB(hwConfig, clusterTypeForOverhead);
+    const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterTypeForOverhead);
 
-    // Available capacity per node from hardware config
-    const vcpusPerNode = (hwConfig.totalPhysicalCores || 0) * vcpuToCore;
+    // Available capacity per node from hardware config (host CPU reserve excluded)
+    const vcpusPerNode = Math.max((hwConfig.totalPhysicalCores || 0) - hostReservedCores, 0) * vcpuToCore;
     const usableMemoryPerNode = Math.max((hwConfig.memoryGB || 0) - hostOverheadMemoryGB, 0);
 
     // For storage node calculation, use MAX possible disk count per node
@@ -1460,6 +1463,58 @@ const LOW_CAPACITY_MAX_GPU_VRAM_GB = 192;       // Maximum 192 GB GPU memory per
 const LOW_CAPACITY_MAX_DISK_COUNT = 2;          // Maximum 2 data disks per node
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
+
+// ── Physical host (root partition) compute overhead — Issue #232 ──
+// Per-node memory and CPU reserved for the Azure Local management OS / Hyper-V
+// root partition, Failover Clustering / CSV, the S2D stack (Software Storage Bus,
+// pool/ReFS runtime, CSV in-memory read cache, cache-drive metadata), Arc/AMA/ATC/
+// Defender agents, and live-migration / repair / patching headroom. See
+// docs/module-planning/issues-232-233-plan.md for the model and citations.
+const HOST_MEM_BASE_S2D_GB = 32;            // S2D deployment types baseline
+const HOST_MEM_BASE_DISAGGREGATED_GB = 24;  // Disaggregated (external SAN — no S2D stack)
+const HOST_MEM_CACHE_METADATA_GB_PER_TB = 4; // S2D cache-drive metadata: 4 GB per TB of cache
+const HOST_MEM_HOST_RAM_FRACTION = 0.08;    // Hyper-V root-partition reserve scaling term (8% of host RAM)
+
+// Cache TB per node from a hardware config's disk layout (tiered S2D only; 0 otherwise).
+function getCacheTBPerNode(hwConfig) {
+    if (!hwConfig || !hwConfig.diskConfig) return 0;
+    const dc = hwConfig.diskConfig;
+    if (dc.isTiered && dc.cache) {
+        return (dc.cache.count * dc.cache.sizeGB) / 1024;
+    }
+    return 0;
+}
+
+// Per-node host memory reservation (GB), S2D-aware.
+//   S2D types:      max( 32 + (tiered ? 4 × cacheTB : 0) + aldo, ceil(0.08 × hostMemGB) )
+//   Disaggregated:  max( 24 + aldo,                              ceil(0.08 × hostMemGB) )
+// Cache metadata is forced to 0 for disaggregated (no S2D) and for non-tiered configs.
+function getHostMemoryReservedGB(hwConfig, clusterType) {
+    const isDisaggregated = clusterType === 'disaggregated';
+    const base = isDisaggregated ? HOST_MEM_BASE_DISAGGREGATED_GB : HOST_MEM_BASE_S2D_GB;
+    const cacheMetadataGB = isDisaggregated ? 0 : Math.ceil(getCacheTBPerNode(hwConfig) * HOST_MEM_CACHE_METADATA_GB_PER_TB);
+    const aldo = clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0;
+    const hostMemGB = (hwConfig && hwConfig.memoryGB) || 0;
+    const ramFractionGB = Math.ceil(HOST_MEM_HOST_RAM_FRACTION * hostMemGB);
+    return Math.max(base + cacheMetadataGB + aldo, ramFractionGB);
+}
+
+// Per-node host CPU reservation (physical cores) for the root partition.
+//   Disaggregated / Low-Capacity (all-flash): max(10%, 1 core)
+//   Standard / S2D with ARB (default):        max(15%, 2 cores)
+//   ALDO-mgmt:                                max(20%, 2 cores)
+function getHostCpuReservedCores(hwConfig, clusterType) {
+    const physicalCores = (hwConfig && hwConfig.totalPhysicalCores) || 0;
+    let pct, floor;
+    if (clusterType === 'aldo-mgmt') {
+        pct = 0.20; floor = 2;
+    } else if (clusterType === 'disaggregated' || clusterType === 'low-capacity') {
+        pct = 0.10; floor = 1;
+    } else {
+        pct = 0.15; floor = 2;
+    }
+    return Math.max(Math.ceil(pct * physicalCores), floor);
+}
 
 // ALDO Infrastructure Requirement VM (IRVM1) — auto-added when ALDO Management Cluster is selected
 const ALDO_IRVM = {
@@ -1870,10 +1925,13 @@ function _tryAmdCoreUpgrade(totalVcpus, effectiveNodes, currentRatio, currentCor
 
     // Find the smallest core option in the best AMD gen that resolves pressure
     const MAX_SOCKETS = 2;
+    const ctEl = document.getElementById('cluster-type');
+    const clusterTypeForOverhead = ctEl ? ctEl.value : 'standard';
+    const usableCap = (physCores, ratio) => Math.max(physCores - getHostCpuReservedCores({ totalPhysicalCores: physCores }, clusterTypeForOverhead), 0) * effectiveNodes * ratio;
     let targetCores = null;
     for (const c of bestGen.coreOptions) {
         if (c * MAX_SOCKETS <= currentPhysCores) continue; // must exceed current config
-        const candidateCap = c * MAX_SOCKETS * effectiveNodes * currentRatio;
+        const candidateCap = usableCap(c * MAX_SOCKETS, currentRatio);
         const candidatePct = candidateCap > 0 ? Math.round(totalVcpus / candidateCap * 100) : 100;
         if (candidatePct < threshold) {
             targetCores = c;
@@ -1883,7 +1941,7 @@ function _tryAmdCoreUpgrade(totalVcpus, effectiveNodes, currentRatio, currentCor
     // If no single option resolves it, use max cores (still better than 6:1)
     if (!targetCores) {
         const maxCoresOption = bestGen.coreOptions[bestGen.coreOptions.length - 1];
-        const maxCap = maxCoresOption * MAX_SOCKETS * effectiveNodes * currentRatio;
+        const maxCap = usableCap(maxCoresOption * MAX_SOCKETS, currentRatio);
         const maxPct = maxCap > 0 ? Math.round(totalVcpus / maxCap * 100) : 100;
         if (maxPct >= threshold) return null; // even max AMD cores won't help at this ratio
         targetCores = maxCoresOption;
@@ -1940,7 +1998,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Note: _vcpuRatioAutoEscalated is reset once per calculateRequirements() call,
     // NOT per autoScaleHardware() call, so the flag survives multiple auto-scale passes.
     const clusterTypeForOverhead = document.getElementById('cluster-type').value;
-    const hostOverheadMemoryGB = 32 + (clusterTypeForOverhead === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
+    const hostOverheadMemoryGB = getHostMemoryReservedGB(hwConfig, clusterTypeForOverhead);
+    const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterTypeForOverhead);
     const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
     let changed = false;
@@ -1956,7 +2015,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // exceed the deployment type's max.
     const gpuCountPerNodeForCpu = parseInt((document.getElementById('gpu-count') || {}).value, 10) || 0;
     const gpuMinCores = (!isLowCapacity && nodeCount > 1 && gpuCountPerNodeForCpu > 0) ? GPU_MIN_CORES_PER_NODE : 0;
-    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores, gpuMinCores);
+    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore) + hostReservedCores, aldoMinCores, gpuMinCores);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
     const SOCKET_OPTIONS = isLowCapacity ? [1] : [1, 2];
@@ -2222,7 +2281,9 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     if (manufacturer && genId && !_cpuConfigUserSet) {
         const gen = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
         if (gen) {
-            let cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+            // Usable vCPU capacity per cluster, excluding the per-node host CPU reserve.
+            const usableVcpuCap = (coresPerNode, ratio) => Math.max(coresPerNode - getHostCpuReservedCores({ totalPhysicalCores: coresPerNode }, clusterTypeForOverhead), 0) * effectiveNodes * (ratio || vcpuToCore);
+            let cpuCap = usableVcpuCap(hrCores * hrSockets);
             let cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
             let safety = 0;
             while (cpuPct > HEADROOM_THRESHOLD && safety < 20) {
@@ -2246,7 +2307,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 } else {
                     break; // maxed out on both cores and sockets
                 }
-                cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+                cpuCap = usableVcpuCap(hrCores * hrSockets);
                 cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
             }
 
@@ -2280,12 +2341,12 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                             hrCores = amdSwitch.cores;
                             hrSockets = amdSwitch.sockets;
                             changed = true;
-                            cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+                            cpuCap = usableVcpuCap(hrCores * hrSockets);
                             cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
                             if (cpuPct < VCPU_ESCALATION_THRESHOLD) {
                                 // AMD cores resolved pressure at 5:1 — check if we can
                                 // step back to 4:1 and still stay under threshold
-                                const pctAt4 = Math.round(totalVcpus / (hrCores * hrSockets * effectiveNodes * 4) * 100);
+                                const pctAt4 = Math.round(totalVcpus / usableVcpuCap(hrCores * hrSockets, 4) * 100);
                                 if (pctAt4 < VCPU_ESCALATION_THRESHOLD) {
                                     document.getElementById('vcpu-ratio').value = 4;
                                     // Ratio back at default — no auto-escalation badge needed
@@ -2301,7 +2362,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                     changed = true;
                     markAutoScaled('vcpu-ratio');
                     _vcpuRatioAutoEscalated = true;
-                    cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+                    cpuCap = usableVcpuCap(hrCores * hrSockets);
                     cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
                     if (cpuPct < VCPU_ESCALATION_THRESHOLD) break;
                 }
@@ -5501,8 +5562,9 @@ function calculateRequirements(options) {
         }
         const rawStoragePerNodeTB = rawStoragePerNodeGB / 1024 || DEFAULT_RAW_TB_PER_NODE;
 
-        const totalAvailableVcpus = physicalCoresPerNode * effectiveNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
-        const hostOverheadGB = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0); // Azure Local host OS + management overhead per node (+ ALDO appliance)
+        const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
+        const totalAvailableVcpus = Math.max(physicalCoresPerNode - hostReservedCores, 0) * effectiveNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
+        const hostOverheadGB = getHostMemoryReservedGB(hwConfig, clusterType); // Azure Local host OS + management overhead per node (S2D-aware + ALDO appliance)
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
         // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
         const infraVolumeUsableTB = 0.25; // 256 GB
@@ -6031,10 +6093,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Memory recommendation
         if (totalMemory > 0) {
             const memPerNode = Math.ceil(totalMemory / (nodeCount > 1 ? nodeCount - 1 : 1));
-            const totalOverheadPerNode = 32; // host OS overhead per node
+            const totalOverheadPerNode = getHostMemoryReservedGB(hwConfig, clusterType); // host reservation per node (see Physical Host Compute Overhead section)
             const arbSharePerNode = Math.ceil(ARB_MEMORY_OVERHEAD_GB / (nodeCount > 1 ? nodeCount - 1 : 1));
             if (hwConfig && memPerNode + arbSharePerNode > hwConfig.memoryGB - totalOverheadPerNode) {
-                notes.push(`⚠️ Workload memory (${memPerNode} GB/node + ${ARB_MEMORY_OVERHEAD_GB} GB ARB per cluster) approaches or exceeds usable node memory (${hwConfig.memoryGB - totalOverheadPerNode} GB after ${totalOverheadPerNode} GB host overhead). Consider increasing memory or adding nodes.`);
+                notes.push(`⚠️ Workload memory (${memPerNode} GB/node + ${ARB_MEMORY_OVERHEAD_GB} GB ARB per cluster) approaches or exceeds usable node memory (${hwConfig.memoryGB - totalOverheadPerNode} GB after ${totalOverheadPerNode} GB host reservation — see breakdown below). Consider increasing memory or adding nodes.`);
             }
         }
         
@@ -6042,9 +6104,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (hwConfig && hwConfig.totalPhysicalCores > 0 && totalVcpus > 0) {
             const vcpuToCore = getVcpuRatio();
             const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
-            const requiredCoresPerNode = Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore);
+            const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
+            const requiredCoresPerNode = Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore) + hostReservedCores;
             if (requiredCoresPerNode > hwConfig.totalPhysicalCores) {
-                notes.push(`⚠️ Required cores per node (${requiredCoresPerNode}) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional nodes.`);
+                notes.push(`⚠️ Required cores per node (${requiredCoresPerNode}, including ${hostReservedCores} reserved for the host root partition) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional nodes.`);
             }
 
             // AMD suggestion when Intel cores are maxed out and compute ≥80% at 4:1.
@@ -6119,18 +6182,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // Storage metadata memory overhead note (4 GB per TB of cache drive capacity) — S2D only
-        if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig) {
-            const dc = hwConfig.diskConfig;
-            let cacheTB = 0;
-            if (dc.isTiered && dc.cache) {
-                cacheTB = (dc.cache.count * dc.cache.sizeGB) / 1024;
-            }
-            if (cacheTB > 0) {
-                const metadataGB = Math.ceil(cacheTB * 4);
-                notes.push(`ℹ️ Storage Spaces Direct metadata: ~${metadataGB} GB memory reserved per node for cache drives (4 GB per TB of cache capacity). Not included in workload memory calculations.`);
-            }
-        }
+        // Storage Spaces Direct cache-drive metadata (4 GB per TB of cache) is now
+        // included in the host-memory reservation and detailed in the "Physical Host
+        // Compute Overhead" section below — no separate flat note here.
 
         // 400 TB per-machine storage validation (S2D only)
         let storageLimitExceeded = false;
@@ -6140,16 +6194,18 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         var _vmExceedsNode = false;
         if (hwConfig) {
             var singleVmVcpuRatio = getVcpuRatio();
-            var usableMemPerNode = hwConfig.memoryGB - 32;
-            var maxVcpuPerNode = hwConfig.totalPhysicalCores * singleVmVcpuRatio;
+            var hostMemReservedGB = getHostMemoryReservedGB(hwConfig, clusterType);
+            var hostCoresReserved = getHostCpuReservedCores(hwConfig, clusterType);
+            var usableMemPerNode = hwConfig.memoryGB - hostMemReservedGB;
+            var maxVcpuPerNode = Math.max(hwConfig.totalPhysicalCores - hostCoresReserved, 0) * singleVmVcpuRatio;
             workloads.forEach(function(w) {
                 if (w.type === 'vm') {
                     if (w.vcpus > maxVcpuPerNode) {
-                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.vcpus + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + hwConfig.totalPhysicalCores + ' physical cores). This VM cannot be placed on a single machine.');
+                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.vcpus + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + (hwConfig.totalPhysicalCores - hostCoresReserved) + ' usable cores after a ' + hostCoresReserved + '-core host reservation). This VM cannot be placed on a single machine.');
                         _vmExceedsNode = true;
                     }
                     if (w.memory > usableMemPerNode) {
-                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.memory + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after 32 GB host overhead). This VM cannot be placed on a single machine.');
+                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.memory + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after a ' + hostMemReservedGB + ' GB host reservation — see breakdown below). This VM cannot be placed on a single machine.');
                         _vmExceedsNode = true;
                     }
                 }
@@ -6236,8 +6292,12 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`💡 Disk bay optimization: ${info.originalCount} × ${info.originalSizeTB} TB capacity disks would use ${Math.round(info.originalCount / info.maxBays * 100)}% of available disk bays (${info.maxBays} max). Auto-scaled to ${info.newCount} × ${info.newSizeTB} TB disks instead, freeing ${info.baysFreed} bay${info.baysFreed > 1 ? 's' : ''} per node for future expansion. Note: Disk size and number can be edited, if you prefer a larger number of smaller capacity disks.`);
         }
 
-        // Host overhead note
-        notes.push('ℹ️ Host overhead: 32 GB memory reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
+        // Host overhead note — concise summary; full math in the collapsed section below
+        if (hwConfig) {
+            const hostMemReserved = getHostMemoryReservedGB(hwConfig, clusterType);
+            const hostCoresReserved = getHostCpuReservedCores(hwConfig, clusterType);
+            notes.push(`ℹ️ Host (root partition) reservation: ${hostMemReserved} GB memory and ${hostCoresReserved} physical core${hostCoresReserved === 1 ? '' : 's'} reserved per node for Azure Local OS, Hyper-V root partition, clustering and the S2D stack — excluded from workload-available capacity. See "Physical Host Compute Overhead — Assumptions &amp; Math" below for the breakdown.`);
+        }
 
         // Network note
         if (clusterType === 'disaggregated') {
@@ -6284,11 +6344,12 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
 
     // Calculate capacity ceilings
     var vcpuRatio = getVcpuRatio();
-    var totalVcpuCap = hwConfig.totalPhysicalCores * effectiveNodes * vcpuRatio;
-    var usableMemPerNode = hwConfig.memoryGB - 32;
+    var clusterType = document.getElementById('cluster-type').value;
+    var hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
+    var totalVcpuCap = Math.max(hwConfig.totalPhysicalCores - hostReservedCores, 0) * effectiveNodes * vcpuRatio;
+    var usableMemPerNode = hwConfig.memoryGB - getHostMemoryReservedGB(hwConfig, clusterType);
     var totalMemCap = usableMemPerNode * effectiveNodes;
     var totalStorageCap = 0;
-    var clusterType = document.getElementById('cluster-type').value;
     if (clusterType !== 'disaggregated') {
         var usableStorageEl = document.getElementById('usable-storage');
         if (usableStorageEl) {
