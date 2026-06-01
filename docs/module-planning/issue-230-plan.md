@@ -68,6 +68,15 @@ Standard "all" export has ~30 sheets. ODIN's importer reads **only** these colum
 > `vHost` are read only when present, purely to enrich the summary banner; a workbook
 > with just `vInfo` imports fully.
 
+> **Schema validated against the RVTools 4.7.1 manual (Oct 2024), reviewed end-to-end.**
+> `vInfo` / `vCluster` / `vHost` column names above match the official field
+> definitions. Two parse-time notes: (a) all memory/storage values are **MiB** (the doc
+> is explicit — `Memory`, `Provisioned MiB`, `In Use MiB`, `TotalMemory`, host `# Memory`
+> are all mebibytes), so convert MiB→GiB consistently; (b) the manual documents host
+> `# Memory` as **MiB**, but some real exports have been seen labelling it KiB — since
+> `vHost` is banner-only, detect/normalise its unit defensively and never let it feed
+> sizing math.
+
 Everything else (IPs, MACs, OS strings beyond presence, tags, custom attributes,
 annotations, folder paths, network labels, datastore names, snapshot info, etc.) is
 **ignored even if present**.
@@ -455,6 +464,22 @@ three surfaces. Sizer shows it (editable), Designer carries it (hidden/pass-thro
 - Importing VMware host hardware specs directly into the Azure Local hardware shape
   (we can *suggest* CPU generation from `vHost` model strings but won't auto-apply).
 - Mapping VMware datastores / RDMs into S2D layouts (workload-only translation).
+- **GPU / accelerator sizing.** Confirmed against the RVTools 4.7.1 manual (reviewed
+  end-to-end during planning): RVTools has **no GPU/vGPU tab and no GPU columns** on any
+  sheet. The terms that look GPU-adjacent are unrelated — `-passthroughAuth` is a
+  RVTools *login* option; "Fixed Passthru HotPlug" (`vInfo`) is only a boolean
+  *can-this-VM-hot-add-passthrough-devices* capability flag; "DirectPath I/O" is a
+  **`vNetwork` (NIC)** column; "PCI ID" columns describe NICs/HBAs. So GPU requirements
+  **cannot** be seeded from RVTools and must be set manually in the Sizer after import.
+- **Workload role / application classification.** RVTools is infrastructure inventory
+  only. It reports guest **OS name** (`OS according to config file` / `…VMware Tools`)
+  but nothing about what the VM *runs* (SQL, AVD, web, AI/ML…). We deliberately don't
+  read the OS strings; size-class banding stays purely numeric (vCPU/RAM).
+- **Right-sizing from observed usage.** The `vCpu`, `vMemory` and `vDisk` sheets carry
+  per-VM *actuals* (`Active`/`Consumed` memory, `In Use` storage, CPU `Reservation`/
+  `Limit`) that could one day drive usage-based right-sizing. v1 intentionally does a
+  like-for-like translation from `vInfo` allocated values (`CPUs`, `Memory`,
+  `Provisioned MiB` / `In Use MiB`) and ignores those extra sheets.
 
 ---
 
