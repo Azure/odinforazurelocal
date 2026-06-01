@@ -1487,12 +1487,13 @@ function renderRack3D(config) {
             camTargetY = RACK.OUTER_HEIGHT * 0.6;
             _rack3d.camera.position.set(1.2, routerTopY * 0.8, -camDist);
         } else {
-            // 2 racks (rack-aware). Nodes now fill bottom-up, so pull the
-            // camera back and aim lower so the whole rack — including the
-            // bottom server nodes — stays in frame by default.
-            camDist = 2.7;
-            camTargetY = RACK.OUTER_HEIGHT * 0.5;
-            _rack3d.camera.position.set(0.65, routerTopY * 0.92, -camDist);
+            // 2 racks (rack-aware). Nodes now fill bottom-up, so zoom out and
+            // raise the look-at target so the whole rack — bottom server nodes
+            // through the core switch above the rack — sits in frame on load,
+            // with a flatter (more eye-level) tilt.
+            camDist = 2.9;
+            camTargetY = RACK.OUTER_HEIGHT * 0.62;
+            _rack3d.camera.position.set(1.5, routerTopY * 1.0, -camDist);
         }
         // Bump camera distance for 4-spine to fit the taller stack
         if (spCount >= 4) camDist += 0.3;
@@ -1510,8 +1511,8 @@ function renderRack3D(config) {
         } else {
             camDist = 3.0;
         }
-        camTargetY = RACK.OUTER_HEIGHT * 0.5;
-        _rack3d.camera.position.set(0.55, stdRouterTopY * 0.92, -camDist * 0.82);
+        camTargetY = RACK.OUTER_HEIGHT * 0.62;
+        _rack3d.camera.position.set(1.4, stdRouterTopY * 1.0, -camDist * 0.92);
     }
     _rack3d.controls.target.set(0, camTargetY, 0);
     _rack3d.controls.update();
