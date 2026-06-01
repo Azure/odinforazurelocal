@@ -461,6 +461,75 @@ three surfaces. Sizer shows it (editable), Designer carries it (hidden/pass-thro
      (illegal-char stripping, 15-char truncation, all-numeric rejection, hyphen trim) and
      a carry round-trip assertion (Sizer state → payload → retained).
 
+### Test plan (tests to add — one checklist to tick off)
+
+All tests live in `tests/index.html` (the existing `testSuite()` harness, run headless
+via `node scripts/run-tests.js`) unless noted. To keep parsing testable without a real
+`.xlsx`, the RVTools parse logic is split into a **pure transform** —
+`transformRVToolsRows(sheets, options)` — that takes already-extracted plain-JS sheet
+arrays (the shape SheetJS' `sheet_to_json` returns) and returns
+`{ clusters, workloads, totals, warnings }`. SheetJS itself (the binary→rows step) is
+**not** unit-tested (it's third-party); we test our transform on synthetic row arrays.
+
+**A. SheetJS vendored-blob integrity**
+1. `vendor/xlsx-0.20.x.min.js` exists and its **SHA-256 matches the pinned hash**
+   (Node-side check in the test runner; fails on tamper/corruption/swapped blob).
+
+**B. RVTools transform — parsing & filtering** (`transformRVToolsRows`)
+2. Powered-off VMs excluded by default (`Powerstate !== "poweredOn"` dropped).
+3. Template VMs excluded by default (`Template === "True"` dropped).
+4. "Include powered-off" option overrides (2) and keeps powered-off rows.
+5. MiB→GiB conversion correct for memory (`Memory`) and storage
+   (`Provisioned MiB` / `In Use MiB`) — exact rounding behaviour pinned.
+6. Storage source toggle: `Provisioned MiB` (default) vs `In Use MiB`.
+7. vCPU total = sum of `CPUs` over included rows.
+8. Per-cluster grouping built from `vInfo.Cluster` alone (no `vCluster` sheet present).
+9. Per-cluster totals (VM count, vCPU, RAM, storage) computed client-side and correct.
+10. Selecting one cluster imports **only** that cluster's VMs (Q2 — pick-one).
+
+**C. Size-class banding & naming** (Q3 default path)
+11. VMs banded by (rounded vCPU, rounded RAM GB); identical sizes collapse into one row
+    with the correct `count`.
+12. Grouped workload **name** is the characteristic string (e.g. `2 vCPU / 8 GB ×245`)
+    and exposes **no** VM name.
+13. Banding rounds vCPU/RAM into the expected buckets (boundary cases pinned).
+
+**D. Per-VM naming** (Q3 opt-in path)
+14. One-workload-per-VM produces one `{type:'vm'}` workload per included VM.
+15. Each per-VM workload's `name` equals the source `vInfo.VM` value (1:1 map).
+16. Per-VM mode still honours the powered-off/template filters from (B).
+
+**E. Error / edge paths**
+17. Missing `vInfo` sheet → returns a clean warning/throw (caught by caller → friendly
+    "couldn't find a vInfo sheet" message), never an uncaught exception.
+18. Empty `vInfo` (headers only) → zero workloads, no crash.
+19. Encrypted/sensitivity-labelled file → SheetJS throw is caught and surfaced as the
+    "save an unprotected copy" message (caller-level test with a stub that throws).
+
+**F. Cluster Name — sanitiser & validator**
+20. `sanitiseClusterName()` replaces illegal characters with `-`, collapses repeats,
+    trims leading/trailing hyphens, truncates to 15 chars.
+21. `sanitiseClusterName()` on a typical VMware cluster name yields a valid candidate.
+22. `isValidClusterName()` accepts 1–15 char letters/numbers/hyphen names.
+23. `isValidClusterName()` rejects: empty, >15 chars, all-numeric, leading/trailing
+    hyphen, and names containing illegal characters/whitespace.
+24. Sanitise-then-validate round-trip: any sanitiser output passes the validator.
+
+**G. Cluster Name — carry round-trip**
+25. `getSizerState()` includes `clusterName`; `resumeSizerState()` restores it.
+26. The Sizer→Designer payload (`sizerPayload` / `odinSizerToDesigner`) carries
+    `clusterName` end-to-end (state → payload → retained), assertable without a live
+    Designer/ARM page.
+
+**H. Workload Scenarios list cap/compact**
+27. The workload-list renderer applies the **compact** class (and the scroll-cap
+    container state) when more than five workloads are present, and not at ≤5.
+
+> **Privacy assertions baked into tests:** the grouped-default tests (12) assert no VM
+> name string appears in any produced workload `name`; the per-VM tests (15) assert the
+> name *is* the VM name only in that explicit mode. This locks the privacy contract so a
+> future refactor can't silently start leaking VM names into the default path.
+
 ### Out of scope for this PR
 
 - True asymmetric multi-cluster sizing (one Sizer view representing N differently-sized
