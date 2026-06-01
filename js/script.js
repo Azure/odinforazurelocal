@@ -256,7 +256,7 @@ function getInitialWizardState() {
     portConfig: null,
     portConfigConfirmed: false,
     storage: null,
-    torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged/Low Capacity
+    torSwitchCount: null, // 'single' or 'dual' - only for Storage Switched + Hyperconverged
     switchlessLinkMode: null,
     storagePoolConfiguration: null,
     // SAN LUN IDs — only populated when storagePoolConfiguration === 'InfraOnly'
@@ -856,7 +856,7 @@ function getReportReadiness() {
     }
 
     // Step 07: Port Configuration validation
-    // Unless Low Capacity, require a minimum number of RDMA-capable ports (varies by topology).
+    // Require a minimum number of RDMA-capable ports (varies by topology).
     try {
         const requiredRdma = getRequiredRdmaPortCount();
         const cfg = Array.isArray(state.portConfig) ? state.portConfig : null;
@@ -919,7 +919,6 @@ function getReportReadiness() {
             const rdmaOnStorage = rdmaEnabledIndices.filter(i => storageSet.has(i)).length;
 
             // Custom intent helper: do not allow assigning Storage traffic to non-RDMA adapters.
-            // Exception: Low Capacity scenarios do not require RDMA for storage intent.
             if (state.intent === 'custom' && requiredRdma > 0) {
                 const storageOnNonRdma = storageIndices.filter(i => {
                     const pc = cfg[i - 1];
@@ -992,7 +991,7 @@ function getMgmtComputeNicAssignment(portCount) {
         };
     }
 
-    // Prefer Mgmt+Compute on non-RDMA ports (applies to all scales including Low Capacity).
+    // Prefer Mgmt+Compute on non-RDMA ports.
     // If there are at least 2 non-RDMA ports, assign them to Mgmt+Compute so RDMA
     // ports stay available for Storage traffic.
     if (nonRdma.length >= 2) {
@@ -4032,7 +4031,7 @@ function updateUI() {
             // Show architecture explanation
             if (state.architecture === 'hyperconverged' && archExp) {
                 archExp.innerHTML = `<strong style="color: var(--accent-blue);">Hyperconverged Infrastructure</strong>
-        S2D storage with RDMA, 2-switch TOR pair, up to 16 nodes per rack. Supports Low Capacity and Standard Scale configurations.`;
+        S2D storage with RDMA, 2-switch TOR pair, up to 16 nodes per rack. Supports Standard Scale configurations.`;
                 archExp.classList.add('visible');
             } else if (state.architecture === 'disaggregated' && archExp) {
                 archExp.innerHTML = `<strong style="color: var(--accent-purple);">Disaggregated Architecture</strong>
@@ -4231,9 +4230,7 @@ function updateUI() {
         if (!state.scale) {
             isDisabled = true;
         } else {
-            if (state.scale === 'low_capacity') {
-                if (parseInt(valueStr) > 3 || valueStr === '16+') isDisabled = true;
-            } else if (state.scale === 'medium') {
+            if (state.scale === 'medium') {
                 if (valueStr === '16+') isDisabled = true;
             } else if (state.scale === 'rack_aware') {
                 if (!['2', '4', '6', '8'].includes(valueStr)) isDisabled = true;
@@ -4294,7 +4291,6 @@ function updateUI() {
             'us_gov_virginia': document.querySelector('[data-value="us_gov_virginia"][onclick*="localInstanceRegion"]')
         },
         scale: {
-            'low_capacity': document.querySelector('[data-value="low_capacity"]'),
             'medium': document.querySelector('[data-value="medium"]'),
             'rack_aware': document.querySelector('[data-value="rack_aware"]')
         },
@@ -4428,9 +4424,6 @@ function updateUI() {
 
     // Disconnected Logic -> Constraints on Scale
     if (state.scenario === 'disconnected') {
-        // Only allow Medium (Standard)
-        if (cards.scale.low_capacity) cards.scale.low_capacity.classList.add('disabled');
-
         // Management cluster: fixed at 3 nodes — rack_aware requires 2/4/6/8, so disable it
         if (state.clusterRole === 'management') {
             if (cards.scale.rack_aware) cards.scale.rack_aware.classList.add('disabled');
@@ -4446,19 +4439,15 @@ function updateUI() {
             }
         }
 
-        // Auto-select Medium? The requirement says "only allow to select".
-        // If Low is selected, deselect it.
-        if (state.scale === 'low_capacity') state.scale = null;
     }
 
     // M365 Local Logic -> Constraints on Scale
     if (state.scenario === 'm365local') {
-        // Only allow Medium (Standard) - block Low Capacity and Rack Aware
-        if (cards.scale.low_capacity) cards.scale.low_capacity.classList.add('disabled');
+        // Only allow Medium (Standard) - block Rack Aware
         if (cards.scale.rack_aware) cards.scale.rack_aware.classList.add('disabled');
 
         // If invalid scale is selected, deselect it
-        if (state.scale === 'low_capacity' || state.scale === 'rack_aware') state.scale = null;
+        if (state.scale === 'rack_aware') state.scale = null;
     }
 
     // Step 1 -> Region -> Scale
@@ -5034,24 +5023,15 @@ function updateUI() {
         contextDiv.classList.remove('visible');
     }
 
-    // Conditional UI: 3-node + Low Capacity + Switchless -> Link Mode (Single/Dual)
+    // Conditional UI: switchless link-mode block is no longer shown (was Low Capacity only).
     (function updateSwitchlessLinkModeUi() {
         const linkModeBlock = document.getElementById('switchless-link-mode');
         if (!linkModeBlock) return;
-
-        const n = state.nodes ? parseInt(state.nodes, 10) : NaN;
-        const shouldShow = (n === 3) && (state.scale === 'low_capacity') && (state.storage === 'switchless');
-
-        if (shouldShow) {
-            linkModeBlock.classList.remove('hidden');
-            if (!state.switchlessLinkMode) state.switchlessLinkMode = 'dual_link';
-        } else {
-            linkModeBlock.classList.add('hidden');
-            state.switchlessLinkMode = null;
-        }
+        linkModeBlock.classList.add('hidden');
+        state.switchlessLinkMode = null;
     })();
 
-    // Conditional UI: Storage Switched + Hyperconverged/Low Capacity -> ToR Switch Count (Single/Dual)
+    // Conditional UI: Storage Switched + Hyperconverged -> ToR Switch Count (Single/Dual)
     // Also show for 1-node clusters (using implicit switched storage)
     (function updateTorSwitchCountUi() {
         const torBlock = document.getElementById('tor-switch-count');
@@ -5059,11 +5039,11 @@ function updateUI() {
 
         const n = state.nodes ? parseInt(state.nodes, 10) : NaN;
         const isStorageSwitched = state.storage === 'switched';
-        const isHyperconvergedOrLowCap = state.scale === 'medium' || state.scale === 'low_capacity';
+        const isHyperconverged = state.scale === 'medium';
         const isSingleNode = n === 1;
 
-        // Show ToR selection for: 1-node clusters OR (storage switched + hyperconverged/low cap)
-        const shouldShow = (isSingleNode && isHyperconvergedOrLowCap) || (isStorageSwitched && isHyperconvergedOrLowCap && !isNaN(n) && n >= 1);
+        // Show ToR selection for: 1-node clusters OR (storage switched + hyperconverged)
+        const shouldShow = (isSingleNode && isHyperconverged) || (isStorageSwitched && isHyperconverged && !isNaN(n) && n >= 1);
 
         const singleOption = document.getElementById('tor-single-option');
         const dualOption = document.getElementById('tor-dual-option');
@@ -5124,65 +5104,20 @@ function updateUI() {
     // New Rule: Storage (Switchless) -> Ports Constraints
     if (state.storage === 'switchless' && state.nodes) {
         const n = parseInt(state.nodes);
-        if (n === 1) {
-            // Low Capacity requirement: with 1 node + switchless, only 2 and 4 ports are allowed.
-            if (state.scale === 'low_capacity') {
-                cards.ports['1'].classList.add('disabled');
-                cards.ports['6'].classList.add('disabled');
-                cards.ports['8'].classList.add('disabled');
-                if (state.ports === '1' || state.ports === '6' || state.ports === '8') state.ports = null;
-            }
-        } else if (n === 2) {
+        if (n === 2) {
             cards.ports['1'].classList.add('disabled');
-            if (state.scale !== 'low_capacity') {
-                cards.ports['2'].classList.add('disabled');
-                if (state.ports === '2') state.ports = null;
-            } else {
-                // Low Capacity + 2 nodes + switchless: only 4 ports are valid.
-                cards.ports['2'].classList.add('disabled');
-                cards.ports['6'].classList.add('disabled');
-                cards.ports['8'].classList.add('disabled');
-                if (state.ports === '2' || state.ports === '6' || state.ports === '8') state.ports = null;
-
-                // UX: Since only one option remains valid, auto-select it.
-                if (state.ports !== '4') {
-                    const card4 = cards.ports['4'];
-                    if (card4 && !card4.classList.contains('disabled')) {
-                        state.ports = '4';
-                    }
-                }
-            }
+            cards.ports['2'].classList.add('disabled');
+            if (state.ports === '2') state.ports = null;
             if (state.ports === '1') state.ports = null;
         } else if (n === 3) {
-            const isSingleLink = (state.scale === 'low_capacity') && (state.switchlessLinkMode === 'single_link');
-
-            if (isSingleLink) {
-                // 3-node switchless (single-link) requires 2 teamed ports (mgmt/compute) + 2 standalone RDMA ports (storage) = 4 physical ports.
-                // Therefore, only 4 ports is valid for this topology.
-                cards.ports['1'].classList.add('disabled');
-                cards.ports['2'].classList.add('disabled');
-                cards.ports['6'].classList.add('disabled');
-                cards.ports['8'].classList.add('disabled');
-                if (state.ports === '1' || state.ports === '2' || state.ports === '6' || state.ports === '8') state.ports = null;
-
-                // UX: Since only one option remains valid, auto-select it.
-                if (state.ports !== '4') {
-                    // Ensure the 4-port card isn't disabled by other rules.
-                    const card4 = cards.ports['4'];
-                    if (card4 && !card4.classList.contains('disabled')) {
-                        state.ports = '4';
-                    }
-                }
-            } else {
-                // 3-node switchless (dual-link) requires 2 teamed ports (mgmt/compute) + 4 standalone RDMA ports (storage) = 6 physical ports.
-                // Therefore, 2 and 4 ports are never valid for this topology.
-                cards.ports['1'].classList.add('disabled');
-                cards.ports['2'].classList.add('disabled');
-                cards.ports['4'].classList.add('disabled');
-                // Only 6 ports is valid for 3-node switchless (dual-link).
-                cards.ports['8'].classList.add('disabled');
-                if (state.ports === '1' || state.ports === '2' || state.ports === '4' || state.ports === '8') state.ports = null;
-            }
+            // 3-node switchless requires 2 teamed ports (mgmt/compute) + 4 standalone RDMA ports (storage) = 6 physical ports.
+            // Therefore, 2 and 4 ports are never valid for this topology.
+            cards.ports['1'].classList.add('disabled');
+            cards.ports['2'].classList.add('disabled');
+            cards.ports['4'].classList.add('disabled');
+            // Only 6 ports is valid for 3-node switchless.
+            cards.ports['8'].classList.add('disabled');
+            if (state.ports === '1' || state.ports === '2' || state.ports === '4' || state.ports === '8') state.ports = null;
         } else if (n === 4) {
             // Require 8+ ports
             cards.ports['1'].classList.add('disabled');
@@ -5193,43 +5128,18 @@ function updateUI() {
         }
     }
 
-    // Recommendation Rule: Low Capacity + Switched -> Recommend 4 Ports
-    // Also: 2+ nodes + Storage Switched -> Recommend 4 Ports
+    // Recommendation Rule: 2+ nodes + Storage Switched -> Recommend 4 Ports
     const port4Card = cards.ports['4'];
     const badgeClass = 'badge-recommended';
     const portsBadgeSelector = `.${badgeClass}[data-source="ports"]`;
     const existingPortsBadge = port4Card ? port4Card.querySelector(portsBadgeSelector) : null;
 
     const nForPortsBadge = state.nodes ? parseInt(state.nodes, 10) : NaN;
-    const isSwitchless2NodeLowCapacityPortsRequired =
-        state.scale === 'low_capacity' &&
-        state.storage === 'switchless' &&
-        nForPortsBadge === 2;
 
     // Show "Recommended" for 2+ nodes with Storage Switched
     const isMultiNodeSwitched = !isNaN(nForPortsBadge) && nForPortsBadge >= 2 && state.storage === 'switched';
 
-    if (isSwitchless2NodeLowCapacityPortsRequired) {
-        if (!existingPortsBadge && port4Card && !port4Card.classList.contains('disabled')) {
-            const badge = document.createElement('div');
-            badge.className = badgeClass;
-            badge.dataset.source = 'ports';
-            port4Card.appendChild(badge);
-        }
-        if (port4Card && !port4Card.classList.contains('disabled')) {
-            (port4Card.querySelector(portsBadgeSelector)).innerText = 'Required';
-        }
-    } else if (state.scale === 'low_capacity' && state.storage === 'switched') {
-        if (!existingPortsBadge && port4Card && !port4Card.classList.contains('disabled')) {
-            const badge = document.createElement('div');
-            badge.className = badgeClass;
-            badge.dataset.source = 'ports';
-            port4Card.appendChild(badge);
-        }
-        if (port4Card && !port4Card.classList.contains('disabled')) {
-            (port4Card.querySelector(portsBadgeSelector)).innerText = 'Recommended';
-        }
-    } else if (isMultiNodeSwitched) {
+    if (isMultiNodeSwitched) {
         // 2+ nodes with Storage Switched: recommend 4 ports
         if (!existingPortsBadge && port4Card && !port4Card.classList.contains('disabled')) {
             const badge = document.createElement('div');
@@ -5252,28 +5162,8 @@ function updateUI() {
         const selector = `.${badgeClass}[data-source="intent"]`;
         let intentBadge = mgmtComputeCard.querySelector(selector);
 
-        const nForIntentBadge = parseInt(state.nodes, 10);
-        const isSwitchless3NodeIntentRequired =
-            state.storage === 'switchless' &&
-            state.scale === 'low_capacity' &&
-            nForIntentBadge === 3 &&
-            (state.switchlessLinkMode === 'dual_link' || state.switchlessLinkMode === 'single_link');
-
-        const isSwitchless2NodeLowCapacityIntentRequired =
-            state.storage === 'switchless' &&
-            state.scale === 'low_capacity' &&
-            nForIntentBadge === 2;
-
-        // Required takes precedence over Recommended.
-        if (isSwitchless3NodeIntentRequired || isSwitchless2NodeLowCapacityIntentRequired) {
-            if (!intentBadge) {
-                intentBadge = document.createElement('div');
-                intentBadge.className = badgeClass;
-                intentBadge.dataset.source = 'intent';
-                mgmtComputeCard.appendChild(intentBadge);
-            }
-            intentBadge.innerText = 'Required';
-        } else if (state.ports === '4') {
+        // Recommend Mgmt + Compute intent when 4 ports are selected.
+        if (state.ports === '4') {
             if (!intentBadge) {
                 intentBadge = document.createElement('div');
                 intentBadge.className = badgeClass;
@@ -5314,10 +5204,7 @@ function updateUI() {
             if (isSwitchless && (n === 3 || n === 4)) {
                 includeRdmaSentence = false;
                 if (n === 3) {
-                    const isSingleLink = (state.scale === 'low_capacity') && (state.switchlessLinkMode === 'single_link');
-                    topologySentence = isSingleLink
-                        ? 'For a 3-node Switchless (Single-Link) deployment, you need 4 physical ports per node: two teamed ports for management/compute plus two standalone RDMA ports for storage.'
-                        : 'For a 3-node Switchless (Dual-Link) deployment, you need at least 6 physical ports per node: two teamed ports for management/compute plus four standalone RDMA ports for storage.';
+                    topologySentence = 'For a 3-node Switchless deployment, you need at least 6 physical ports per node: two teamed ports for management/compute plus four standalone RDMA ports for storage.';
                 } else {
                     topologySentence = 'For a 4-node Switchless deployment, you need 8 physical ports per node: two teamed ports for management/compute plus six standalone RDMA ports for storage.';
                 }
@@ -5342,7 +5229,6 @@ function updateUI() {
         // We need to persist config though.
         // Initial setup of state.portConfig if null
         if (!state.portConfig || state.portConfig.length !== pCount) {
-            const isLowCapacity = state.scale === 'low_capacity';
             const isStandard = state.scale === 'medium';
             const isSingleNode = state.nodes === '1';
 
@@ -5351,11 +5237,10 @@ function updateUI() {
                 state.storage === 'switchless' &&
                 parseInt(state.nodes, 10) === 3;
 
-            // RDMA disabled only for Low Capacity; single-node non-low-capacity requires RDMA for storage intent
-            const defaultRdmaEnabled = isLowCapacity ? false : true;
-            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
-            // Single-node defaults to 10GbE, Low Capacity to 1GbE, otherwise 25GbE
-            const defaultPortSpeed = isSingleNode ? '10GbE' : (isLowCapacity ? '1GbE' : '25GbE');
+            const defaultRdmaEnabled = true;
+            const defaultRdmaMode = 'RoCEv2';
+            // Single-node defaults to 10GbE, otherwise 25GbE
+            const defaultPortSpeed = isSingleNode ? '10GbE' : '25GbE';
 
             // Preserve existing port configs (including custom names) when count changes
             const existingConfig = Array.isArray(state.portConfig) ? state.portConfig : [];
@@ -5387,35 +5272,23 @@ function updateUI() {
         } else {
             // If the user changes earlier choices (scale/nodes/storage) after portConfig was created,
             // keep the defaults aligned for 3-node switchless standard unless the user manually changed a port.
-            const isLowCapacity = state.scale === 'low_capacity';
             const isStandard = state.scale === 'medium';
             const isSingleNode = state.nodes === '1';
             const isSwitchless3NodeStandard =
                 isStandard &&
                 state.storage === 'switchless' &&
                 parseInt(state.nodes, 10) === 3;
-            // RDMA disabled only for Low Capacity; single-node non-low-capacity requires RDMA for storage intent
-            const defaultRdmaEnabled = isLowCapacity ? false : true;
-            const defaultRdmaMode = isLowCapacity ? 'Disabled' : 'RoCEv2';
+            const defaultRdmaEnabled = true;
+            const defaultRdmaMode = 'RoCEv2';
 
             // Single-node default RDMA alignment (speed is NOT overridden — user may change it).
-            if (isSingleNode && !isLowCapacity) {
+            if (isSingleNode) {
                 for (let idx = 0; idx < pCount; idx++) {
                     const pc = state.portConfig[idx];
                     if (!pc) continue;
                     if (!pc.rdmaManual) {
                         pc.rdma = true;
                         pc.rdmaMode = 'RoCEv2';
-                    }
-                }
-            } else if (isSingleNode && isLowCapacity) {
-                // Single-node Low Capacity: no RDMA (speed is NOT overridden).
-                for (let idx = 0; idx < pCount; idx++) {
-                    const pc = state.portConfig[idx];
-                    if (!pc) continue;
-                    if (!pc.rdmaManual) {
-                        pc.rdma = false;
-                        pc.rdmaMode = 'Disabled';
                     }
                 }
             }
@@ -5435,7 +5308,7 @@ function updateUI() {
 
         renderPortConfiguration(pCount);
 
-        // Step 07 validation: Unless Low Capacity, require a minimum number of RDMA ports.
+        // Step 07 validation: require a minimum number of RDMA ports.
         if (rdmaWarn) {
             const requiredRdma = getRequiredRdmaPortCount();
             const cfg = Array.isArray(state.portConfig) ? state.portConfig : [];
@@ -5446,7 +5319,7 @@ function updateUI() {
                 rdmaWarn.classList.add('visible');
                 state.rdmaGuardMessage = null;
             } else if (requiredRdma > 0 && rdmaEnabled < requiredRdma) {
-                rdmaWarn.innerHTML = '<strong style="color:#ffc107;">⚠ Not supported</strong><br>At least ' + escapeHtml(String(requiredRdma)) + ' port(s) must be RDMA capable unless you selected Low Capacity. Update Port Configuration to enable RDMA on at least ' + escapeHtml(String(requiredRdma)) + ' port(s).';
+                rdmaWarn.innerHTML = '<strong style="color:#ffc107;">⚠ Not supported</strong><br>At least ' + escapeHtml(String(requiredRdma)) + ' port(s) must be RDMA capable. Update Port Configuration to enable RDMA on at least ' + escapeHtml(String(requiredRdma)) + ' port(s).';
                 rdmaWarn.classList.remove('hidden');
                 rdmaWarn.classList.add('visible');
             } else {
@@ -5530,44 +5403,22 @@ function updateUI() {
 
         // Intent rules for 1 port
         // Default: All Traffic (and Custom) only.
-        // Low Capacity special case (1 node + switched + 1 port): allow Group All OR Mgmt + Compute only.
-        const isLowCapSingleNodeSwitched =
-            state.scale === 'low_capacity' &&
-            state.nodes === '1' &&
-            state.storage === 'switched';
-
         cards.intent['compute_storage'].classList.add('disabled');
 
-        if (isLowCapSingleNodeSwitched) {
-            // Keep mgmt_compute available, remove Custom.
-            cards.intent['custom'].classList.add('disabled');
-            if (state.intent !== 'all_traffic' && state.intent !== 'mgmt_compute') state.intent = null;
-        } else {
-            cards.intent['mgmt_compute'].classList.add('disabled');
-            // Allow All Traffic (Converged) and Custom.
-            if (state.intent !== 'all_traffic' && state.intent !== 'custom') state.intent = null;
-        }
+        cards.intent['mgmt_compute'].classList.add('disabled');
+        // Allow All Traffic (Converged) and Custom.
+        if (state.intent !== 'all_traffic' && state.intent !== 'custom') state.intent = null;
     }
 
     if (state.ports === '2') {
-        if (state.scale !== 'low_capacity') {
-            cards.storage['switchless'].classList.add('disabled');
-            if (state.storage === 'switchless') state.storage = null;
-        }
+        cards.storage['switchless'].classList.add('disabled');
+        if (state.storage === 'switchless') state.storage = null;
 
         cards.intent['compute_storage'].classList.add('disabled');
         cards.intent['custom'].classList.add('disabled');
 
-        if (state.scale === 'low_capacity') {
-            // Low Capacity: only allow Mgmt + Compute
-            cards.intent['all_traffic'].classList.add('disabled');
-            if (state.intent === 'all_traffic') state.intent = null;
-
-            if (state.intent !== 'mgmt_compute') state.intent = null;
-        } else {
-            cards.intent['mgmt_compute'].classList.add('disabled');
-            if (state.intent !== 'all_traffic') state.intent = null;
-        }
+        cards.intent['mgmt_compute'].classList.add('disabled');
+        if (state.intent !== 'all_traffic') state.intent = null;
     }
     if (state.ports === '4') {
         // NOTE: Single-node clusters can use Custom intent with 4+ ports, so skip this for them
@@ -5575,57 +5426,20 @@ function updateUI() {
             cards.intent['custom'].classList.add('disabled');
             if (state.intent === 'custom') state.intent = null;
         }
-
-        // Low Capacity: only allow Mgmt + Compute
-        if (state.scale === 'low_capacity') {
-            cards.intent['all_traffic'].classList.add('disabled');
-            cards.intent['compute_storage'].classList.add('disabled');
-
-            if (state.intent === 'all_traffic' || state.intent === 'compute_storage') state.intent = null;
-            // Single-node can use Custom, so don't reset it
-            if (state.nodes !== '1' && state.intent !== 'mgmt_compute') state.intent = null;
-        }
     }
 
     // RULE 4: Outbound -> Arc & Proxy
     if (state.storage === 'switchless') {
-        // User request: 3-node switchless (dual-link) forces Mgmt + Compute intent and disables other intent options.
         const nSwitchless = parseInt(state.nodes, 10);
-        const isSwitchless3NodeDualLink = (nSwitchless === 3) && (state.switchlessLinkMode === 'dual_link');
-        if (isSwitchless3NodeDualLink) {
-            cards.intent['custom'].classList.add('disabled');
-            cards.intent['all_traffic'].classList.add('disabled');
-            cards.intent['compute_storage'].classList.add('disabled');
-            if (state.intent !== 'mgmt_compute') {
-                state.intent = 'mgmt_compute';
-                state.customIntentConfirmed = false;
-            }
-        }
 
-        if (state.scale !== 'low_capacity') {
-            cards.intent['all_traffic'].classList.add('disabled');
-            if (state.intent === 'all_traffic') state.intent = null;
-        }
+        cards.intent['all_traffic'].classList.add('disabled');
+        if (state.intent === 'all_traffic') state.intent = null;
         cards.intent['compute_storage'].classList.add('disabled');
         if (state.intent === 'compute_storage') state.intent = null;
 
         // Switchless 4-node uses all 8 ports for the required topology.
         // In this scenario, only Mgmt + Compute intent is allowed.
         if (nSwitchless === 4 && state.ports === '8') {
-            cards.intent['custom'].classList.add('disabled');
-            cards.intent['all_traffic'].classList.add('disabled');
-            cards.intent['compute_storage'].classList.add('disabled');
-            if (state.intent !== 'mgmt_compute') {
-                state.intent = 'mgmt_compute';
-                state.customIntentConfirmed = false;
-            }
-        }
-
-        // Low Capacity + 2 nodes + switchless: only Mgmt + Compute intent is allowed.
-        const isSwitchless2NodeLowCapacity =
-            (nSwitchless === 2) &&
-            (state.scale === 'low_capacity');
-        if (isSwitchless2NodeLowCapacity) {
             cards.intent['custom'].classList.add('disabled');
             cards.intent['all_traffic'].classList.add('disabled');
             cards.intent['compute_storage'].classList.add('disabled');
@@ -6074,7 +5888,7 @@ function getIntentNicGroups(intent, portCount) {
 function ensureDefaultOverridesForGroups(groups) {
     if (!state.intentOverrides || typeof state.intentOverrides !== 'object') state.intentOverrides = {};
 
-    const defaultRdmaMode = state.scale === 'low_capacity' ? 'Disabled' : 'RoCEv2';
+    const defaultRdmaMode = 'RoCEv2';
     const defaultJumbo = '1514';
 
     for (const g of groups) {
@@ -7401,9 +7215,6 @@ function renderDiagram() {
 // NOTE: capitalize() moved to js/utils.js
 
 function getRequiredRdmaPortCount() {
-    // Low Capacity is exempt from minimum RDMA port requirements in this wizard.
-    if (state.scale === 'low_capacity') return 0;
-
     const n = parseInt(state.nodes, 10);
 
     // Standard (Hyperconverged) + Switchless topologies require more RDMA ports.
@@ -7556,7 +7367,7 @@ function updatePortConfig(index, key, value) {
             return;
         }
 
-        // Guardrail: enforce minimum RDMA-enabled ports (unless Low Capacity).
+        // Guardrail: enforce minimum RDMA-enabled ports.
         // If the user attempts to disable RDMA and it would drop below the minimum, block the change.
         try {
             const requiredRdma = getRequiredRdmaPortCount();
@@ -7569,7 +7380,7 @@ function updatePortConfig(index, key, value) {
                     (key === 'rdmaMode' && String(value) === 'Disabled' && state.portConfig[index].rdma === true);
 
                 if (isDisablingRdma && (currentRdmaEnabled - 1) < requiredRdma) {
-                    state.rdmaGuardMessage = '⚠ Not supported: At least ' + String(requiredRdma) + ' port(s) must remain RDMA capable unless you selected Low Capacity.';
+                    state.rdmaGuardMessage = '⚠ Not supported: At least ' + String(requiredRdma) + ' port(s) must remain RDMA capable.';
                     updateUI();
                     return;
                 }
@@ -7587,7 +7398,7 @@ function updatePortConfig(index, key, value) {
                 state.portConfig[index].rdmaMode = 'Disabled';
             } else {
                 if (!state.portConfig[index].rdmaMode || state.portConfig[index].rdmaMode === 'Disabled') {
-                    state.portConfig[index].rdmaMode = (state.scale === 'low_capacity') ? 'RoCEv2' : 'RoCEv2';
+                    state.portConfig[index].rdmaMode = 'RoCEv2';
                 }
             }
         }
@@ -8568,8 +8379,8 @@ function isWitnessTypeLocked() {
         return true;
     }
 
-    // 2-node clusters (Standard/Medium or Low Capacity) must use Cloud witness
-    if (state.nodes === '2' && (state.scale === 'medium' || state.scale === 'low_capacity')) {
+    // 2-node clusters (Standard/Medium) must use Cloud witness
+    if (state.nodes === '2' && state.scale === 'medium') {
         return true;
     }
 
@@ -9100,8 +8911,7 @@ function parseArmTemplateToState(armTemplate) {
     if (!result.region) result.region = 'azure_commercial';
     if (!result.localInstanceRegion) result.localInstanceRegion = 'east_us';
     if (!result.scale) {
-        // Always default to Hyperconverged (medium), not Low Capacity (Issue #74)
-        // Users must explicitly select Low Capacity if that's what they want
+        // Always default to Hyperconverged (medium) (Issue #74)
         result.scale = 'medium';
     }
     if (!result.outbound) result.outbound = 'public';
@@ -9712,8 +9522,6 @@ function mapDesignerToSizerClusterType() {
     if (state.architecture === 'disaggregated') return 'disaggregated';
     // Rack-aware scale
     if (state.scale === 'rack_aware') return 'rack-aware';
-    // Low Capacity hardware
-    if (state.scale === 'low_capacity') return 'low-capacity';
     // Single node
     if (state.nodes === '1') return 'single';
     // Default: standard cluster
@@ -10707,49 +10515,6 @@ function showTemplates() {
                 securityConfiguration: 'recommended',
                 sdnEnabled: 'no'
             }
-        },
-        {
-            name: 'Edge 2-Node Switchless',
-            description: 'Cost-optimized edge deployment without storage switches',
-            config: {
-                scenario: 'connected',
-                architecture: 'hyperconverged',
-                region: 'azure_commercial',
-                localInstanceRegion: 'east_us',
-                scale: 'low_capacity',
-                nodes: '2',
-                witnessType: 'Cloud',
-                ports: '4',
-                portConfig: [
-                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
-                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
-                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true },
-                    { speed: '10GbE', rdma: false, rdmaMode: 'Disabled', rdmaManual: true }
-                ],
-                storage: 'switchless',
-                storagePoolConfiguration: 'Express',
-                intent: 'mgmt_compute',
-                storageAutoIp: 'enabled',
-                outbound: 'public',
-                arc: 'arc_gateway',
-                proxy: 'no_proxy',
-                ip: 'static',
-                infraCidr: '192.168.100.0/24',
-                infra: { start: '192.168.100.50', end: '192.168.100.60' },
-                nodeSettings: [
-                    { name: 'edge1', ipCidr: '192.168.100.11/24' },
-                    { name: 'edge2', ipCidr: '192.168.100.12/24' }
-                ],
-                infraGateway: '192.168.100.1',
-                infraVlan: 'default',
-                activeDirectory: 'azure_ad',
-                adDomain: 'edge.contoso.com',
-                adOuPath: 'OU=AzureLocal,DC=edge,DC=contoso,DC=com',
-                dnsServers: ['192.168.100.1'],
-                privateEndpoints: 'pe_disabled',
-                securityConfiguration: 'recommended',
-                sdnEnabled: 'no'
-            }
         }
     ];
 
@@ -11412,7 +11177,7 @@ function exportToPDF() {
             scenario: { connected: 'Connected', disconnected: 'Disconnected', m365local: 'Microsoft 365 Local', rackscale: 'Multi-Rack' },
             architecture: { hyperconverged: 'Hyperconverged', disaggregated: 'Disaggregated' },
             region: { azure_commercial: 'Azure Commercial', azure_government: 'Azure Government', azure_china: 'Azure China' },
-            scale: { low_capacity: 'Low Capacity Hardware (Hyperconverged)', medium: 'Hyperconverged', rack_aware: 'Rack-Aware Cluster (Hyperconverged)' },
+            scale: { medium: 'Hyperconverged', rack_aware: 'Rack-Aware Cluster (Hyperconverged)' },
             storage: { switched: 'Switched Storage', switchless: 'Switchless Storage' },
             witnessType: { cloud: 'Cloud Witness', fileshare: 'File Share Witness', none: 'No Witness' },
             ip: { static: 'Static IP', dhcp: 'DHCP' },
@@ -11714,11 +11479,9 @@ function initializeAdapterMapping() {
 
 function getIntentZonesForIntent(intent) {
     // Returns the available zones for a given intent type
-    // Minimum adapters: 2 for standard scenarios, 1 for Low Capacity
+    // Minimum adapters: 2 for standard scenarios
     const zones = [];
-    const isLowCapacity = state.scale === 'low_capacity';
     const minStandard = 2;
-    const minLowCap = 1;
 
     if (intent === 'all_traffic') {
         zones.push({
@@ -11726,9 +11489,9 @@ function getIntentZonesForIntent(intent) {
             title: 'Group All Traffic',
             titleClass: '',
             description: 'Management, Compute, and Storage traffic share these adapters.',
-            badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
+            badge: 'Min 2 Adapters (RDMA)',
             badgeClass: 'rdma-required',
-            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            minAdapters: minStandard,
             requiresRdma: true
         });
     } else if (intent === 'mgmt_compute') {
@@ -11737,9 +11500,9 @@ function getIntentZonesForIntent(intent) {
             title: 'Management + Compute',
             titleClass: 'mgmt',
             description: 'Shared traffic for management and compute workloads.',
-            badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters',
+            badge: 'Min 2 Adapters',
             badgeClass: 'required',
-            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            minAdapters: minStandard,
             requiresRdma: false
         });
         // Storage zone is available for all node counts (including single-node)
@@ -11748,10 +11511,10 @@ function getIntentZonesForIntent(intent) {
             title: 'Storage',
             titleClass: 'storage',
             description: 'Dedicated storage traffic (SMB Direct).',
-            badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters (RDMA)',
-            badgeClass: isLowCapacity ? 'required' : 'rdma-required',
-            minAdapters: isLowCapacity ? minLowCap : minStandard,
-            requiresRdma: !isLowCapacity
+            badge: 'Min 2 Adapters (RDMA)',
+            badgeClass: 'rdma-required',
+            minAdapters: minStandard,
+            requiresRdma: true
         });
     } else if (intent === 'compute_storage') {
         zones.push({
@@ -11759,9 +11522,9 @@ function getIntentZonesForIntent(intent) {
             title: 'Management',
             titleClass: 'mgmt',
             description: 'Dedicated management traffic.',
-            badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters',
+            badge: 'Min 2 Adapters',
             badgeClass: 'required',
-            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            minAdapters: minStandard,
             requiresRdma: false
         });
         zones.push({
@@ -11769,9 +11532,9 @@ function getIntentZonesForIntent(intent) {
             title: 'Compute + Storage',
             titleClass: 'storage',
             description: 'Shared compute and storage traffic.',
-            badge: isLowCapacity ? 'Min 1 Adapter (RDMA)' : 'Min 2 Adapters (RDMA)',
+            badge: 'Min 2 Adapters (RDMA)',
             badgeClass: 'rdma-required',
-            minAdapters: isLowCapacity ? minLowCap : minStandard,
+            minAdapters: minStandard,
             requiresRdma: true
         });
     } else if (intent === 'custom') {
@@ -11785,9 +11548,9 @@ function getIntentZonesForIntent(intent) {
                 title: 'Management + Compute',
                 titleClass: 'mgmt',
                 description: 'Shared management and compute.',
-                badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters',
+                badge: 'Min 2 Adapters',
                 badgeClass: 'required',
-                minAdapters: isLowCapacity ? minLowCap : minStandard,
+                minAdapters: minStandard,
                 requiresRdma: false
             });
             zones.push({
@@ -11815,10 +11578,10 @@ function getIntentZonesForIntent(intent) {
                 title: 'Storage',
                 titleClass: 'storage',
                 description: 'Storage traffic (SMB Direct).',
-                badge: isLowCapacity ? 'Min 1 Adapter' : 'Min 2 Adapters (RDMA)',
-                badgeClass: isLowCapacity ? 'required' : 'rdma-required',
-                minAdapters: isLowCapacity ? minLowCap : minStandard,
-                requiresRdma: !isLowCapacity
+                badge: 'Min 2 Adapters (RDMA)',
+                badgeClass: 'rdma-required',
+                minAdapters: minStandard,
+                requiresRdma: true
             });
         } else {
             // < 8 ports: All zones available, all optional
@@ -11848,10 +11611,10 @@ function getIntentZonesForIntent(intent) {
                 title: 'Storage',
                 titleClass: 'storage',
                 description: 'Storage traffic (SMB Direct).',
-                badge: isLowCapacity ? 'Optional' : 'RDMA Required',
-                badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
+                badge: 'RDMA Required',
+                badgeClass: 'rdma-required',
                 minAdapters: 0,
-                requiresRdma: !isLowCapacity
+                requiresRdma: true
             });
             zones.push({
                 key: 'mgmt_compute',
@@ -11869,10 +11632,10 @@ function getIntentZonesForIntent(intent) {
                 title: 'Compute + Storage',
                 titleClass: 'storage',
                 description: 'Shared compute and storage.',
-                badge: isLowCapacity ? 'Optional' : 'RDMA Required',
-                badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
+                badge: 'RDMA Required',
+                badgeClass: 'rdma-required',
                 minAdapters: 0,
-                requiresRdma: !isLowCapacity
+                requiresRdma: true
             });
             // Group All Traffic zone
             zones.push({
@@ -11880,10 +11643,10 @@ function getIntentZonesForIntent(intent) {
                 title: 'Group All Traffic',
                 titleClass: '',
                 description: 'All traffic types combined.',
-                badge: isLowCapacity ? 'Optional' : 'RDMA Required',
-                badgeClass: isLowCapacity ? 'optional' : 'rdma-required',
+                badge: 'RDMA Required',
+                badgeClass: 'rdma-required',
                 minAdapters: 0,
-                requiresRdma: !isLowCapacity
+                requiresRdma: true
             });
         }
     }
