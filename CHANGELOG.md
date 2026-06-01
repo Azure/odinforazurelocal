@@ -9,24 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.22.01] - 2026-06-01
 
-Improves the Sizer's **physical-host compute reserve / overhead** model (issue #232) and reorients the **rack-layout diagrams** to fill bottom-up with real node names (issue #233).
+Improves the Sizer's **physical-host compute reserve / overhead** model (issue #232), reorients the **rack-layout diagrams** to fill bottom-up with real node names (issue #233), **removes the deprecated Low Capacity deployment type** (issue #234), and refines the **imported Azure Local instance** experience in the Sizer (issue #235).
 
 ### Added
 
 - **S2D-aware host compute reserve helpers** in [`sizer/sizer.js`](sizer/sizer.js): `getCacheTBPerNode()`, `getHostMemoryReservedGB(hwConfig, clusterType)`, and `getHostCpuReservedCores(hwConfig, clusterType)`. The reserve now varies by cluster type and storage shape instead of a single flat percentage:
-  - **CPU**: ALDO management → `max(ceil(20%), 2)`; disaggregated / low-capacity → `max(ceil(10%), 1)`; standard S2D → `max(ceil(15%), 2)` physical cores per node.
+  - **CPU**: ALDO management → `max(ceil(20%), 2)`; disaggregated → `max(ceil(10%), 1)`; standard S2D → `max(ceil(10%), 2)` physical cores per node.
   - **Memory**: base `32 GB` (S2D) or `24 GB` (disaggregated) + S2D cache-metadata `ceil(4 GB × cacheTB)` + `64 GB` when ALDO management is hosted, floored at `8%` of host RAM.
 - **Collapsible "Physical host compute overhead — assumptions & math" section** below the Sizer sizing notes. `updateHostOverheadBreakdown()` renders the memory and CPU reserve math as tables (highlighting the winning term), lists the assumptions, and links to the public Hyper-V performance-tuning, S2D hardware-requirements, and Azure Local system-requirements docs.
+- **Disaggregated Storage import option (issue #235).** The *Azure Local Instance* JSON import preview now offers a third deployment-type radio — **Disaggregated Storage** — alongside Hyperconverged and Rack-Aware Cluster. When chosen, the S2D capacity-disk picker is greyed out (external SAN — no S2D disks), the disk choices are dropped from the equation, and the imported cluster is set to the `disaggregated` deployment type.
 
 ### Changed
 
 - **Host reserve is now applied consistently** across node-count recommendation, the AMD core-upgrade path, hardware auto-scaling, the capacity bar, sizing notes, the host-overhead summary note, and the growth projection — all routed through the new helpers so usable vCPU / memory reflect the S2D-aware reserve.
 - **Rack-layout diagrams fill bottom-up (issue #233).** All four generators in [`report/rack-svg.js`](report/rack-svg.js) (HCI SVG, disaggregated SVG, HCI Draw.io, disaggregated Draw.io), the 3D view in [`sizer/rack3d.js`](sizer/rack3d.js), and the wizard preview in [`js/disaggregated.js`](js/disaggregated.js) now stack server nodes from the bottom of the rack upward, with ToR / leaf / BMC switches kept at the top and FC switches (when present) at U1-U2 — matching common datacentre practice and keeping the 2D and 3D views consistent.
 - **Real Designer node names surface in the rack diagrams.** New `getRackNodeLabel()` / `getRackTorLabel()` helpers resolve a node's display name (indexed by global node order across multi-rack layouts) from the saved config's `nodeSettings`, falling back to `Node N` / `ToR N` when unset. Wired into all four `report/rack-svg.js` generators via [`report/report.js`](report/report.js).
+- **Imported instance hardware is locked to MANUAL (issue #235).** An imported Azure Local instance has fixed hardware, so `applyClusterJSONImport()` now sets the `_cpuConfigUserSet`, `_memoryUserSet`, `_diskCountUserSet`, `_diskSizeUserSet`, and `_nodeCountUserSet` auto-scaler flags — the auto-scaler can no longer silently change the imported CPU, memory, disk count/size, or node count.
+- **vCPU overcommit ratio escalation is decoupled from the physical-CPU lock (issue #235).** The overcommit ratio is not a physical property, so it now continues to auto-escalate (4→5→6) to fit excess workload even when an imported / fixed cluster's cores and sockets are locked. The AMD core-upgrade sub-step still only runs when the physical CPU is unlocked, and a user-pinned ratio (MANUAL) still suppresses escalation.
+- **Import S2D capacity-disk size dropdown aligned with the main Sizer (issue #235).** The *Capacity per disk* picker in the import preview now lists the same sizes as the Sizer's *Capacity per Disk* selector (adds 8, 12, 16, and 20 TB).
+- **Parse & Preview button hidden after a clean import parse (issue #235).** Once the pasted JSON parses cleanly and the physical-node preview loads, the *Parse & Preview* button is hidden so only *Load Cluster Configuration* remains as the next step; reopening the import dialog restores it.
+
+### Removed
+
+- **Low Capacity deployment type (issue #234).** The deprecated *Low Capacity* deployment type has been removed from the Designer and Sizer UI (the Designer template list now offers 5 templates) and from the cluster-type mapping helpers (`mapDesignerToSizerClusterType`, `mapSizerToDesignerScale`, `getConservativeNodeOptions`, `snapToAvailableNodeCount`). The host-reserve helpers retain backward-compatible handling of a legacy `low-capacity` value so older saved configs still size correctly.
 
 ### Tests
 
-- Added a **Rack layout — bottom-up fill + real labels** suite (`rack-svg.js`) asserting bottom-up fill order (Node 1 below the top node) for the HCI and disaggregated SVGs, custom-name surfacing, blank/unset fallback, global multi-rack indexing, and ToR-label fallback. Added coverage for the S2D-aware host-overhead helpers. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,271 / 1,271**.
+- Added a **Rack layout — bottom-up fill + real labels** suite (`rack-svg.js`) asserting bottom-up fill order (Node 1 below the top node) for the HCI and disaggregated SVGs, custom-name surfacing, blank/unset fallback, global multi-rack indexing, and ToR-label fallback. Added coverage for the S2D-aware host-overhead helpers, the vCPU ratio-escalation decoupling (locked CPU still escalates ratio; pinned ratio does not), the Disaggregated Storage import option (button enabled + S2D row greyed out + re-enabled on switch-back), and the Parse & Preview hide/restore behaviour. Removed all Low Capacity suites and scattered references. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,240 / 1,240**.
 
 ### Notes
 

@@ -48,19 +48,21 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.22.01 - Latest Release
 
-> **Improves the Sizer's physical-host compute reserve / overhead model** (issue #232) and **reorients the rack-layout diagrams** to fill bottom-up with real node names (issue #233).
+> **Improves the Sizer's physical-host compute reserve / overhead model** (issue #232), **reorients the rack-layout diagrams** to fill bottom-up with real node names (issue #233), **removes the deprecated Low Capacity deployment type** (issue #234), and **refines the imported Azure Local instance experience** in the Sizer (issue #235).
 
 **What changed**
 - **S2D-aware host compute reserve (issue #232)** &mdash; the Sizer no longer applies a single flat percentage for host overhead. New helpers in [`sizer/sizer.js`](sizer/sizer.js) size the reserve by cluster type and storage shape:
-  - **CPU**: ALDO management `max(ceil(20%), 2)`; disaggregated / low-capacity `max(ceil(10%), 1)`; standard S2D `max(ceil(15%), 2)` physical cores per node.
+  - **CPU**: ALDO management `max(ceil(20%), 2)`; disaggregated `max(ceil(10%), 1)`; standard S2D `max(ceil(10%), 2)` physical cores per node.
   - **Memory**: base **32 GB** (S2D) or **24 GB** (disaggregated) + S2D cache-metadata `ceil(4 GB × cacheTB)` + **64 GB** when ALDO management is hosted, floored at **8 %** of host RAM.
 - The reserve is now applied consistently across node-count recommendation, the AMD core-upgrade path, hardware auto-scaling, the capacity bar, sizing notes, and the growth projection.
 - A new collapsible **"Physical host compute overhead &mdash; assumptions & math"** section under the Sizer notes shows the memory and CPU reserve math as tables, lists the assumptions, and links to the public Hyper-V / S2D / Azure Local system-requirements docs.
 - **Rack-layout diagrams now fill bottom-up (issue #233)** &mdash; all four generators in [`report/rack-svg.js`](report/rack-svg.js), the 3D view in [`sizer/rack3d.js`](sizer/rack3d.js), and the wizard preview in [`js/disaggregated.js`](js/disaggregated.js) stack servers from the bottom of the rack upward, with ToR / leaf / BMC switches kept at the top (FC switches at U1-U2). The 2D report and 3D view stay consistent.
 - **Real Designer node names surface in the diagrams** &mdash; new `getRackNodeLabel()` / `getRackTorLabel()` helpers resolve each node's display name (by global index across multi-rack layouts) from the saved config's `nodeSettings`, falling back to `Node N` / `ToR N` when unset.
+- **Low Capacity deployment type removed (issue #234)** &mdash; the deprecated *Low Capacity* type is gone from the Designer and Sizer (Designer now offers 5 templates); the cluster-type mapping helpers no longer reference it.
+- **Imported Azure Local instance refinements (issue #235)** &mdash; imported hardware (CPU, memory, disk count/size, node count) is now locked to **MANUAL** so auto-scaling can't silently change it; the vCPU overcommit ratio is decoupled from the physical-CPU lock so it still escalates (4→5→6) to fit excess workload on a fixed cluster; a new **Disaggregated Storage** import deployment-type option greys out the S2D capacity-disk picker and drops disks from the equation; the import *Capacity per disk* dropdown now matches the Sizer's (adds 8 / 12 / 16 / 20 TB); and the *Parse & Preview* button is hidden after a clean parse so only *Load Cluster Configuration* remains.
 
 **Tests & quality**
-- New *Rack layout — bottom-up fill + real labels* test suite plus host-overhead helper coverage. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,271 / 1,271**.
+- New *Rack layout — bottom-up fill + real labels* test suite plus host-overhead helper, ratio-escalation decoupling, Disaggregated import, and Parse & Preview coverage; all Low Capacity suites removed. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,240 / 1,240**.
 
 **Notes**
 - No data, schema, or PPT-template changes. No new external network calls. Switches remain top-of-rack; only the server stack moves bottom-up.

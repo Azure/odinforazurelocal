@@ -98,7 +98,7 @@ Effects:
 | Cluster profile | Reservation |
 |---|---|
 | Disaggregated / Low-Capacity, all-flash | `max(10%, 1 core)` |
-| Standard / S2D (default) with ARB | `max(15%, 2 cores)` |
+| Standard / S2D (default) with ARB | `max(10%, 2 cores)` |
 | ALDO-mgmt | `max(20%, 2 cores)` |
 
 Becomes a new helper `getHostCpuReservedCores(hwConfig, clusterType)` → applied
