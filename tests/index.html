@@ -2771,13 +2771,6 @@
         testSuite('mapDesignerToSizerClusterType()', 'script.js', [
             (() => {
                 const origState = { scenario: state.scenario, scale: state.scale, nodes: state.nodes, architecture: state.architecture, clusterRole: state.clusterRole };
-                state.scenario = 'connected'; state.scale = 'low_capacity'; state.nodes = '2'; state.architecture = 'hyperconverged';
-                const result = mapDesignerToSizerClusterType();
-                Object.assign(state, origState);
-                return assert(result === 'low-capacity', 'low_capacity scale → low-capacity', 'low-capacity', result);
-            })(),
-            (() => {
-                const origState = { scenario: state.scenario, scale: state.scale, nodes: state.nodes, architecture: state.architecture, clusterRole: state.clusterRole };
                 state.scenario = 'connected'; state.scale = 'rack_aware'; state.nodes = '4'; state.architecture = 'hyperconverged';
                 const result = mapDesignerToSizerClusterType();
                 Object.assign(state, origState);
@@ -3053,11 +3046,6 @@
                     "'rack-aware' → [2,4,6,8]", '[2,4,6,8]', JSON.stringify(o));
             })(),
             (() => {
-                const o = getConservativeNodeOptions('low-capacity');
-                return assert(JSON.stringify(o) === JSON.stringify([1,2,3]),
-                    "'low-capacity' → [1,2,3]", '[1,2,3]', JSON.stringify(o));
-            })(),
-            (() => {
                 const o = getConservativeNodeOptions('disaggregated', 1);
                 return assert(JSON.stringify(o) === JSON.stringify([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]),
                     "'disaggregated' rackCount=1 → [1..16]", '[1..16]', JSON.stringify(o));
@@ -3176,8 +3164,7 @@
         testSuite('mapSizerToDesignerScale()', 'sizer.js', [
             assert(mapSizerToDesignerScale('rack-aware') === 'rack_aware', 'rack-aware → rack_aware', 'rack_aware', mapSizerToDesignerScale('rack-aware')),
             assert(mapSizerToDesignerScale('standard') === 'medium', 'standard → medium', 'medium', mapSizerToDesignerScale('standard')),
-            assert(mapSizerToDesignerScale('single') === 'medium', 'single → medium', 'medium', mapSizerToDesignerScale('single')),
-            assert(mapSizerToDesignerScale('low-capacity') === 'low_capacity', 'low-capacity → low_capacity', 'low_capacity', mapSizerToDesignerScale('low-capacity'))
+            assert(mapSizerToDesignerScale('single') === 'medium', 'single → medium', 'medium', mapSizerToDesignerScale('single'))
         ]);
 
         // --- calculateWorkloadRequirements() ---
@@ -3559,24 +3546,6 @@
             (() => {
                 document.getElementById('cluster-type').value = 'rack-aware';
                 return assert(snapToAvailableNodeCount(100) === 8, 'Rack-aware: snap 100 → 8 (capped at max)', 8, snapToAvailableNodeCount(100));
-            })(),
-            (() => {
-                document.getElementById('cluster-type').value = 'low-capacity';
-                return assert(snapToAvailableNodeCount(1) === 1, 'Low Capacity: snap 1 → 1 (exact match)', 1, snapToAvailableNodeCount(1));
-            })(),
-            (() => {
-                document.getElementById('cluster-type').value = 'low-capacity';
-                return assert(snapToAvailableNodeCount(2) === 2, 'Low Capacity: snap 2 → 2 (exact match)', 2, snapToAvailableNodeCount(2));
-            })(),
-            (() => {
-                document.getElementById('cluster-type').value = 'low-capacity';
-                return assert(snapToAvailableNodeCount(3) === 3, 'Low Capacity: snap 3 → 3 (exact match)', 3, snapToAvailableNodeCount(3));
-            })(),
-            (() => {
-                document.getElementById('cluster-type').value = 'low-capacity';
-                const result = snapToAvailableNodeCount(100);
-                document.getElementById('cluster-type').value = 'standard';
-                return assert(result === 3, 'Low Capacity: snap 100 → 3 (capped at max)', 3, result);
             })()
         ]);
 
@@ -4487,308 +4456,6 @@
             })()
         ]);
 
-        // --- Low Capacity Deployment Type ---
-        // Ensure low-capacity option exists in cluster-type stub
-        (() => {
-            const ctStub = document.getElementById('cluster-type');
-            if (ctStub && !ctStub.querySelector('option[value="low-capacity"]')) {
-                const opt = document.createElement('option');
-                opt.value = 'low-capacity';
-                opt.text = 'low-capacity';
-                ctStub.appendChild(opt);
-            }
-        })();
-
-        // Create stub DOM elements needed for Low Capacity tests
-        (() => {
-            const stubs = [
-                { id: 'node-memory', tag: 'select', values: MEMORY_OPTIONS_GB.map(String), defaultVal: '512' },
-                { id: 'cpu-sockets', tag: 'select', values: ['1', '2'], defaultVal: '2' },
-                { id: 'cpu-cores', tag: 'select', values: ['8', '12', '16', '24', '32', '48', '64'], defaultVal: '24' },
-                { id: 'cpu-manufacturer', tag: 'select', values: ['intel', 'amd', 'intel_edge'], defaultVal: 'intel' },
-                { id: 'cpu-generation', tag: 'select', values: ['xeon-5th'], defaultVal: 'xeon-5th' },
-                { id: 'gpu-count', tag: 'select', values: ['0', '1', '2', '3', '4'], defaultVal: '0' },
-                { id: 'gpu-type', tag: 'select', values: ['t4', 'a2', 'a16', 'l4', 'l40', 'l40s', 'rtxpro6000', 'h100'], defaultVal: 'a2' },
-                { id: 'capacity-disk-count', tag: 'select', values: Array.from({length: 23}, (_, i) => String(i + 2)), defaultVal: '4' }
-            ];
-            stubs.forEach(cfg => {
-                let el = document.getElementById(cfg.id);
-                if (!el) {
-                    el = document.createElement(cfg.tag);
-                    el.id = cfg.id;
-                    el.style.display = 'none';
-                    if (cfg.values) {
-                        cfg.values.forEach(v => {
-                            const opt = document.createElement('option');
-                            opt.value = v;
-                            opt.text = v;
-                            el.appendChild(opt);
-                        });
-                    }
-                    document.body.appendChild(el);
-                }
-                if (cfg.defaultVal) el.value = cfg.defaultVal;
-            });
-        })();
-
-        testSuite('Low Capacity: getMaxNodeCap()', 'sizer.js', [
-            (() => {
-                document.getElementById('cluster-type').value = 'low-capacity';
-                const cap = getMaxNodeCap();
-                document.getElementById('cluster-type').value = 'standard';
-                return assert(cap === 3, 'Low Capacity max node cap is 3', 3, cap);
-            })()
-        ]);
-
-        testSuite('Low Capacity: updateNodeOptionsForClusterType()', 'sizer.js', [
-            (() => {
-                const nodeSelect = document.getElementById('node-count');
-                document.getElementById('cluster-type').value = 'low-capacity';
-                updateNodeOptionsForClusterType();
-                const opts = Array.from(nodeSelect.options).map(o => o.value);
-                const enabled = !nodeSelect.disabled;
-                document.getElementById('cluster-type').value = 'standard';
-                updateNodeOptionsForClusterType();
-                return assert(JSON.stringify(opts) === '["1","2","3"]' && enabled,
-                    'Low Capacity: 1-3 nodes available, dropdown enabled',
-                    '["1","2","3"] + enabled',
-                    JSON.stringify(opts) + ' + ' + (enabled ? 'enabled' : 'disabled'));
-            })(),
-            (() => {
-                // Switching away re-enables full node range
-                const nodeSelect = document.getElementById('node-count');
-                document.getElementById('cluster-type').value = 'low-capacity';
-                updateNodeOptionsForClusterType();
-                document.getElementById('cluster-type').value = 'standard';
-                updateNodeOptionsForClusterType();
-                const opts = Array.from(nodeSelect.options).map(o => o.value);
-                return assert(opts.length >= 15, 'Standard cluster restores full node range',
-                    '>=15 options', opts.length + ' options');
-            })()
-        ]);
-
-        testSuite('Low Capacity: All-Flash only (updateStorageForClusterType)', 'sizer.js', [
-            (() => {
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('storage-config').value = 'hybrid';
-                updateStorageForClusterType();
-                const storageVal = document.getElementById('storage-config').value;
-                const disabled = document.getElementById('storage-config').disabled;
-                document.getElementById('cluster-type').value = 'standard';
-                updateStorageForClusterType();
-                return assert(storageVal === 'all-flash' && disabled === true,
-                    'Low Capacity forces all-flash and disables storage dropdown',
-                    'all-flash + disabled', storageVal + ' + ' + (disabled ? 'disabled' : 'enabled'));
-            })()
-        ]);
-
-        testSuite('Low Capacity: resiliency options', 'sizer.js', [
-            (() => {
-                // 1-node low-capacity: simple + 2-way mirror (same as single node)
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('node-count').value = '1';
-                updateResiliencyOptions();
-                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
-                const defaultVal = document.getElementById('resiliency').value;
-                document.getElementById('cluster-type').value = 'standard';
-                document.getElementById('node-count').value = '3';
-                updateResiliencyOptions();
-                return assert(opts.includes('simple') && opts.includes('2way') && defaultVal === '2way',
-                    '1-node low-capacity: simple + 2-way options, defaults to 2-way',
-                    '["simple","2way"] default=2way',
-                    JSON.stringify(opts) + ' default=' + defaultVal);
-            })(),
-            (() => {
-                // 2-node low-capacity: 2-way mirror only
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('node-count').value = '2';
-                updateResiliencyOptions();
-                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
-                document.getElementById('cluster-type').value = 'standard';
-                document.getElementById('node-count').value = '3';
-                updateResiliencyOptions();
-                return assert(opts.length === 1 && opts[0] === '2way',
-                    '2-node low-capacity: 2-way mirror only', '["2way"]', JSON.stringify(opts));
-            })(),
-            (() => {
-                // 3-node low-capacity: 3-way mirror only
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('node-count').value = '3';
-                updateResiliencyOptions();
-                const opts = Array.from(document.getElementById('resiliency').options).map(o => o.value);
-                document.getElementById('cluster-type').value = 'standard';
-                document.getElementById('node-count').value = '3';
-                updateResiliencyOptions();
-                return assert(opts.length === 1 && opts[0] === '3way',
-                    '3-node low-capacity: 3-way mirror only', '["3way"]', JSON.stringify(opts));
-            })()
-        ]);
-
-        testSuite('Low Capacity: enforceLowCapacityLimits()', 'sizer.js', [
-            (() => {
-                // Memory dropdown filtered to 64-128 GB options only
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('node-memory').value = '512';
-                enforceLowCapacityLimits();
-                const opts = Array.from(document.getElementById('node-memory').options).map(o => parseInt(o.value));
-                const allValid = opts.every(m => m >= LOW_CAPACITY_MIN_MEMORY_GB && m <= LOW_CAPACITY_MAX_MEMORY_GB);
-                const mem = parseInt(document.getElementById('node-memory').value);
-                // Restore
-                document.getElementById('cluster-type').value = 'standard';
-                enforceLowCapacityLimits();
-                return assert(allValid && mem <= 128,
-                    'Memory dropdown filtered to 32-128 GB, value capped at 128',
-                    'all valid + <=128', (allValid ? 'all valid' : 'has invalid') + ' + ' + mem);
-            })(),
-            (() => {
-                // Memory at 64 GB (smallest MEMORY_OPTIONS_GB) is valid for Low Capacity
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('node-memory').value = '64';
-                enforceLowCapacityLimits();
-                const mem = parseInt(document.getElementById('node-memory').value);
-                document.getElementById('cluster-type').value = 'standard';
-                enforceLowCapacityLimits();
-                return assert(mem === 64,
-                    'Memory at 64 GB is valid for Low Capacity', 64, mem);
-            })(),
-            (() => {
-                // Sockets locked at 1 and disabled
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('cpu-sockets').value = '2';
-                enforceLowCapacityLimits();
-                const sockets = parseInt(document.getElementById('cpu-sockets').value);
-                const disabled = document.getElementById('cpu-sockets').disabled;
-                document.getElementById('cluster-type').value = 'standard';
-                enforceLowCapacityLimits();
-                return assert(sockets === 1 && disabled === true,
-                    'Sockets locked at 1 and disabled for Low Capacity',
-                    '1 + disabled', sockets + ' + ' + (disabled ? 'disabled' : 'enabled'));
-            })(),
-            (() => {
-                // Sockets re-enabled when switching away from Low Capacity
-                document.getElementById('cluster-type').value = 'low-capacity';
-                enforceLowCapacityLimits();
-                document.getElementById('cluster-type').value = 'standard';
-                enforceLowCapacityLimits();
-                const disabled = document.getElementById('cpu-sockets').disabled;
-                return assert(disabled === false,
-                    'Sockets re-enabled for Standard', false, disabled);
-            })(),
-            (() => {
-                // CPU cores filtered: only <=14 core options shown (Xeon 5th gen has 8,12,16,...)
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('cpu-manufacturer').value = 'intel';
-                document.getElementById('cpu-generation').value = 'xeon-5th';
-                // Populate full core options first
-                var gen = CPU_GENERATIONS['intel'].find(g => g.id === 'xeon-5th');
-                document.getElementById('cpu-cores').innerHTML = gen.coreOptions.map(c => '<option value="' + c + '">' + c + ' cores</option>').join('');
-                document.getElementById('cpu-cores').value = '24';
-                enforceLowCapacityLimits();
-                const coreOpts = Array.from(document.getElementById('cpu-cores').options).map(o => parseInt(o.value));
-                const allUnder14 = coreOpts.every(c => c <= 14);
-                const cores = parseInt(document.getElementById('cpu-cores').value);
-                document.getElementById('cluster-type').value = 'standard';
-                enforceLowCapacityLimits();
-                return assert(allUnder14 && cores <= 14,
-                    'CPU cores dropdown filtered to <=14 only',
-                    'all <=14 + value <=14',
-                    (allUnder14 ? 'all <=14' : 'has >14: ' + JSON.stringify(coreOpts)) + ' + value=' + cores);
-            })(),
-            (() => {
-                // Disk count capped at 2 for Low Capacity
-                document.getElementById('cluster-type').value = 'low-capacity';
-                document.getElementById('capacity-disk-count').value = '8';
-                enforceLowCapacityLimits();
-                const diskOpts = Array.from(document.getElementById('capacity-disk-count').options).map(o => parseInt(o.value));
-                const maxOpt = Math.max(...diskOpts);
-                const diskCount = parseInt(document.getElementById('capacity-disk-count').value);
-                document.getElementById('cluster-type').value = 'standard';
-                enforceLowCapacityLimits();
-                return assert(maxOpt === 2 && diskCount <= 2,
-                    'Disk count dropdown capped at 2 for Low Capacity',
-                    'max=2 + count<=2', 'max=' + maxOpt + ' + count=' + diskCount);
-            })(),
-            (() => {
-                // Disk count restored to full range when switching away
-                document.getElementById('cluster-type').value = 'low-capacity';
-                enforceLowCapacityLimits();
-                document.getElementById('cluster-type').value = 'standard';
-                enforceLowCapacityLimits();
-                const diskOpts = Array.from(document.getElementById('capacity-disk-count').options).map(o => parseInt(o.value));
-                const maxOpt = Math.max(...diskOpts);
-                return assert(maxOpt === 24,
-                    'Disk count restored to max 24 for Standard', 24, maxOpt);
-            })(),
-            (() => {
-                // Memory dropdown restored to full range when switching away
-                document.getElementById('cluster-type').value = 'low-capacity';
-                enforceLowCapacityLimits();
-                document.getElementById('cluster-type').value = 'standard';
-                enforceLowCapacityLimits();
-                const memOpts = Array.from(document.getElementById('node-memory').options).map(o => parseInt(o.value));
-                return assert(memOpts.length === MEMORY_OPTIONS_GB.length,
-                    'Memory dropdown restored to full range for Standard',
-                    MEMORY_OPTIONS_GB.length + ' options', memOpts.length + ' options');
-            })(),
-            (() => {
-                // Non-low-capacity type: no limits enforced
-                document.getElementById('cluster-type').value = 'standard';
-                document.getElementById('node-memory').value = '512';
-                document.getElementById('cpu-sockets').value = '2';
-                enforceLowCapacityLimits();
-                const mem = parseInt(document.getElementById('node-memory').value);
-                const sockets = parseInt(document.getElementById('cpu-sockets').value);
-                return assert(mem === 512 && sockets === 2,
-                    'Standard cluster: no Low Capacity limits enforced',
-                    '512 GB + 2 sockets', mem + ' GB + ' + sockets + ' sockets');
-            })()
-        ]);
-
-        testSuite('Low Capacity: buildMaxHardwareConfig() constraints', 'sizer.js', [
-            (() => {
-                // Low Capacity: max hardware should respect 14-core and 1-socket cap
-                document.getElementById('cluster-type').value = 'low-capacity';
-                const hw = {
-                    coresPerSocket: 8,
-                    sockets: 1,
-                    totalPhysicalCores: 8,
-                    memoryGB: 64,
-                    generation: { coreOptions: [8, 12, 16, 24, 32, 48, 64] },
-                    diskConfig: { isTiered: false, capacity: { count: 2, sizeGB: 3584, type: 'NVMe' } }
-                };
-                const maxHw = buildMaxHardwareConfig(hw);
-                document.getElementById('cluster-type').value = 'standard';
-                return assert(maxHw.totalPhysicalCores <= 14 && maxHw.sockets === 1,
-                    'Low Capacity: max cores \u226414, single socket',
-                    '\u226414 cores + 1 socket', maxHw.totalPhysicalCores + ' cores + ' + maxHw.sockets + ' socket');
-            })(),
-            (() => {
-                // Low Capacity: max memory capped at 128 GB
-                document.getElementById('cluster-type').value = 'low-capacity';
-                const hw = {
-                    coresPerSocket: 8,
-                    sockets: 1,
-                    memoryGB: 64,
-                    generation: { coreOptions: [8, 12] },
-                    diskConfig: { isTiered: false, capacity: { count: 2, sizeGB: 3584, type: 'NVMe' } }
-                };
-                const maxHw = buildMaxHardwareConfig(hw);
-                document.getElementById('cluster-type').value = 'standard';
-                return assert(maxHw.memoryGB === 128,
-                    'Low Capacity: max memory capped at 128 GB', 128, maxHw.memoryGB);
-            })()
-        ]);
-
-        testSuite('Low Capacity: constants defined', 'sizer.js', [
-            assert(LOW_CAPACITY_MAX_NODES === 3, 'LOW_CAPACITY_MAX_NODES = 3', 3, LOW_CAPACITY_MAX_NODES),
-            assert(LOW_CAPACITY_MAX_CORES_PER_NODE === 14, 'LOW_CAPACITY_MAX_CORES_PER_NODE = 14', 14, LOW_CAPACITY_MAX_CORES_PER_NODE),
-            assert(LOW_CAPACITY_MAX_SOCKETS === 1, 'LOW_CAPACITY_MAX_SOCKETS = 1', 1, LOW_CAPACITY_MAX_SOCKETS),
-            assert(LOW_CAPACITY_MIN_MEMORY_GB === 32, 'LOW_CAPACITY_MIN_MEMORY_GB = 32', 32, LOW_CAPACITY_MIN_MEMORY_GB),
-            assert(LOW_CAPACITY_MAX_MEMORY_GB === 128, 'LOW_CAPACITY_MAX_MEMORY_GB = 128', 128, LOW_CAPACITY_MAX_MEMORY_GB),
-            assert(LOW_CAPACITY_MAX_GPU_VRAM_GB === 192, 'LOW_CAPACITY_MAX_GPU_VRAM_GB = 192', 192, LOW_CAPACITY_MAX_GPU_VRAM_GB),
-            assert(LOW_CAPACITY_MAX_DISK_COUNT === 2, 'LOW_CAPACITY_MAX_DISK_COUNT = 2', 2, LOW_CAPACITY_MAX_DISK_COUNT)
-        ]);
-
         testSuite('clearSingleManualOverride() - cluster-type dismiss', 'sizer.js', [
             (() => {
                 // cluster-type should be in _MANUAL_FIELD_TO_FLAG mapping
@@ -5336,8 +5003,8 @@
         testSuite('getHostCpuReservedCores()', 'sizer.js', [
             (() => {
                 const hw = { totalPhysicalCores: 120 };
-                return assert(getHostCpuReservedCores(hw, 'standard') === 18,
-                    'Standard 120 cores → ceil(15%) = 18 cores', 18, getHostCpuReservedCores(hw, 'standard'));
+                return assert(getHostCpuReservedCores(hw, 'standard') === 12,
+                    'Standard 120 cores → ceil(10%) = 12 cores', 12, getHostCpuReservedCores(hw, 'standard'));
             })(),
             (() => {
                 const hw = { totalPhysicalCores: 4 };
@@ -5720,6 +5387,137 @@
             })()
         ]);
 
+        // --- Issue #235: vCPU ratio escalation decoupled from locked physical CPU ---
+        // An imported / fixed cluster locks cores & sockets (_cpuConfigUserSet = true).
+        // The vCPU overcommit ratio is NOT physical, so it MUST still auto-escalate to
+        // fit excess workload — unless the user pinned the ratio (_vcpuRatioUserSet).
+        testSuite('Issue #235: vCPU ratio escalates even when physical CPU is locked', 'sizer.js', [
+            (() => {
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedRatio = document.getElementById('vcpu-ratio').value;
+
+                _memoryUserSet = true;
+                _vcpuRatioUserSet = false;   // ratio NOT pinned
+                _cpuConfigUserSet = true;    // imported cluster: physical CPU locked
+                _diskSizeUserSet = true;
+                _diskCountUserSet = true;
+                _vcpuRatioAutoEscalated = false;
+
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '32';
+                document.getElementById('cpu-sockets').value = '2';
+
+                const nodeCount = 4;
+                const hwConfig = {
+                    totalPhysicalCores: 64,
+                    memoryGB: 512,
+                    sockets: 2,
+                    coresPerSocket: 32,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                // Demand far exceeds 4:1 capacity but cores/sockets are locked → ratio must climb.
+                autoScaleHardware(6000, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
+                    { allowRatioEscalation: true, allowHighMemory: true });
+
+                const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
+                const resultCores = parseInt(document.getElementById('cpu-cores').value);
+                const resultSockets = parseInt(document.getElementById('cpu-sockets').value);
+
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+                document.getElementById('vcpu-ratio').value = savedRatio;
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
+
+                // Ratio must escalate above 4:1, AND physical cores/sockets must stay locked.
+                return assert(resultRatio > 4 && resultCores === 32 && resultSockets === 2,
+                    'Locked physical CPU still escalates ratio above 4:1 (cores/sockets unchanged)',
+                    '> 4 @ 32c/2s', resultRatio + ' @ ' + resultCores + 'c/' + resultSockets + 's');
+            })(),
+            (() => {
+                // Counterpart: when the user PINS the ratio too, it must NOT escalate.
+                const savedMemFlag = _memoryUserSet;
+                const savedRatioFlag = _vcpuRatioUserSet;
+                const savedCpuFlag = _cpuConfigUserSet;
+                const savedDiskSizeFlag = _diskSizeUserSet;
+                const savedDiskCountFlag = _diskCountUserSet;
+                const savedGenHtml = document.getElementById('cpu-generation').innerHTML;
+                const savedCoresHtml = document.getElementById('cpu-cores').innerHTML;
+                const savedMfg = document.getElementById('cpu-manufacturer').value;
+                const savedGen = document.getElementById('cpu-generation').value;
+                const savedCores = document.getElementById('cpu-cores').value;
+                const savedSockets = document.getElementById('cpu-sockets').value;
+                const savedRatio = document.getElementById('vcpu-ratio').value;
+
+                _memoryUserSet = true;
+                _vcpuRatioUserSet = true;    // ratio pinned → MANUAL
+                _cpuConfigUserSet = true;    // physical CPU locked
+                _diskSizeUserSet = true;
+                _diskCountUserSet = true;
+                _vcpuRatioAutoEscalated = false;
+
+                document.getElementById('vcpu-ratio').value = '4';
+                document.getElementById('cpu-manufacturer').value = 'intel';
+                document.getElementById('cpu-generation').innerHTML = CPU_GENERATIONS.intel.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+                document.getElementById('cpu-generation').value = 'xeon-5th';
+                document.getElementById('cpu-cores').innerHTML = CPU_GENERATIONS.intel.find(g => g.id === 'xeon-5th').coreOptions.map(c => '<option value="' + c + '">' + c + '</option>').join('');
+                document.getElementById('cpu-cores').value = '32';
+                document.getElementById('cpu-sockets').value = '2';
+
+                const nodeCount = 4;
+                const hwConfig = {
+                    totalPhysicalCores: 64,
+                    memoryGB: 512,
+                    sockets: 2,
+                    coresPerSocket: 32,
+                    storageConfig: 'all-flash',
+                    diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
+                };
+                autoScaleHardware(6000, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
+                    { allowRatioEscalation: true, allowHighMemory: true });
+
+                const resultRatio = parseInt(document.getElementById('vcpu-ratio').value);
+
+                document.getElementById('cpu-generation').innerHTML = savedGenHtml;
+                document.getElementById('cpu-cores').innerHTML = savedCoresHtml;
+                document.getElementById('cpu-manufacturer').value = savedMfg;
+                document.getElementById('cpu-generation').value = savedGen;
+                document.getElementById('cpu-cores').value = savedCores;
+                document.getElementById('cpu-sockets').value = savedSockets;
+                document.getElementById('vcpu-ratio').value = savedRatio;
+                _memoryUserSet = savedMemFlag;
+                _vcpuRatioUserSet = savedRatioFlag;
+                _cpuConfigUserSet = savedCpuFlag;
+                _diskSizeUserSet = savedDiskSizeFlag;
+                _diskCountUserSet = savedDiskCountFlag;
+
+                return assert(resultRatio === 4,
+                    'Pinned ratio (MANUAL) does not escalate even when over capacity', 4, resultRatio);
+            })()
+        ]);
+
         // --- _tryAmdCoreUpgrade: AMD auto-switch before 6:1 ---
         testSuite('_tryAmdCoreUpgrade() - AMD auto-switch before 6:1 ratio', 'sizer.js', [
             (() => {
@@ -5868,16 +5666,16 @@
                     storageConfig: 'all-flash',
                     diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
                 };
-                // cluster-type=standard → host CPU reserve = max(ceil(15%×phys), 2).
+                // cluster-type=standard → host CPU reserve = max(ceil(10%×phys), 2).
                 const ctEl1 = document.getElementById('cluster-type');
                 const savedClusterType1 = ctEl1 ? ctEl1.value : null;
                 if (ctEl1) ctEl1.value = 'standard';
-                // 5500 vCPUs, xeon-4th maxed at 60c×2=120 phys; reserve(120)=18 → usable 102:
-                // 4:1 → 102×9×4=3672 → 150% (forces ratio escalation)
-                // 5:1 → 102×9×5=4590 → 120% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
-                // AMD Turin Dense smallest c>120 (96): reserve(192)=29 → usable 163; 163×9×5=7335 → 75% < 90% ✓ → 96c.
-                // pctAt4 = 5500/(163×9×4)=5500/5868 → 94% ≥ 90% → ratio stays at 5:1.
-                autoScaleHardware(5500, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
+                // 5700 vCPUs, xeon-4th maxed at 60c×2=120 phys; reserve(120)=12 → usable 108:
+                // 4:1 → 108×9×4=3888 → 147% (forces ratio escalation)
+                // 5:1 → 108×9×5=4860 → 117% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
+                // AMD Turin Dense smallest c>120 (96): reserve(192)=20 → usable 172; 172×9×5=7740 → 74% < 90% ✓ → 96c.
+                // pctAt4 = 5700/(172×9×4)=5700/6192 → 92% ≥ 90% → ratio stays at 5:1.
+                autoScaleHardware(5700, 1000, 10000, nodeCount, 2, hwConfig, new Set(),
                     { allowRatioEscalation: true, allowHighMemory: true });
 
                 const resultMfg = document.getElementById('cpu-manufacturer').value;
@@ -5942,17 +5740,17 @@
                     storageConfig: 'all-flash',
                     diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3932.16, type: 'NVMe' } }
                 };
-                // cluster-type=standard → host CPU reserve = max(ceil(15%×phys), 2).
+                // cluster-type=standard → host CPU reserve = max(ceil(10%×phys), 2).
                 const ctEl2 = document.getElementById('cluster-type');
                 const savedClusterType2 = ctEl2 ? ctEl2.value : null;
                 if (ctEl2) ctEl2.value = 'standard';
-                // 7000 vCPUs, xeon-4th maxed at 60c×2=120 phys; reserve(120)=18 → usable 102:
-                // 4:1 → 102×9×4=3672 → 191% → forces ratio escalation.
-                // 5:1 → 102×9×5=4590 → 153% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
-                // AMD c=96: reserve(192)=29 → usable 163; 163×9×5=7335 → 95% ≥ 90% → try larger.
-                // AMD c=128: reserve(256)=39 → usable 217; 217×9×5=9765 → 72% < 90% ✓ → switch to 128c.
-                // pctAt4 = 7000/(217×9×4)=7000/7812 → 90% ≥ 90% → stays at 5:1.
-                autoScaleHardware(7000, 1000, 10000, nodeCount2, 2, hwConfig2, new Set(),
+                // 7600 vCPUs, xeon-4th maxed at 60c×2=120 phys; reserve(120)=12 → usable 108:
+                // 4:1 → 108×9×4=3888 → 195% → forces ratio escalation.
+                // 5:1 → 108×9×5=4860 → 156% ≥ 90% → loop continues, nextRatio=6 attempts AMD switch.
+                // AMD c=96: reserve(192)=20 → usable 172; 172×9×5=7740 → 98% ≥ 90% → try larger.
+                // AMD c=128: reserve(256)=26 → usable 230; 230×9×5=10350 → 73% < 90% ✓ → switch to 128c.
+                // pctAt4 = 7600/(230×9×4)=7600/8280 → 92% ≥ 90% → stays at 5:1.
+                autoScaleHardware(7600, 1000, 10000, nodeCount2, 2, hwConfig2, new Set(),
                     { allowRatioEscalation: true, allowHighMemory: true });
 
                 const resultMfg2 = document.getElementById('cpu-manufacturer').value;
@@ -6272,7 +6070,7 @@
         testSuite('Template Data Completeness', 'script.js', [
             (() => {
                 const templates = window.configTemplates || [];
-                return assert(templates.length === 6, 'showTemplates() provides exactly 6 templates', 6, templates.length);
+                return assert(templates.length === 5, 'showTemplates() provides exactly 5 templates', 5, templates.length);
             })(),
             (() => {
                 const requiredFields = [
@@ -9771,6 +9569,79 @@
             return results;
         })());
 
+        testSuite('parseAndPreviewClusterJSON: Parse button hidden after clean parse, restored on reopen', 'sizer.js', (() => {
+            var results = [];
+
+            function makeStub3() {
+                var ids = ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview',
+                    'cluster-import-apply-btn', 'cluster-import-parse-btn'];
+                ids.forEach(function (id) {
+                    if (!document.getElementById(id)) {
+                        var el = document.createElement(
+                            id === 'cluster-json-input' ? 'textarea'
+                                : (id === 'cluster-import-apply-btn' || id === 'cluster-import-parse-btn') ? 'button' : 'div');
+                        el.id = id;
+                        document.body.appendChild(el);
+                    }
+                });
+            }
+            function cleanup3() {
+                ['cluster-json-input', 'cluster-json-error', 'cluster-json-preview',
+                    'cluster-import-apply-btn', 'cluster-import-parse-btn', 'import-modal-overlay',
+                    'import-panel-sizer', 'import-panel-cluster', 'import-tab-sizer', 'import-tab-cluster'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                delete window._pendingClusterImport;
+            }
+
+            makeStub3();
+            document.getElementById('cluster-json-input').value = JSON.stringify({
+                type: 'Microsoft.HybridCompute/machines',
+                name: 'node-01',
+                properties: {
+                    displayName: 'Parse Btn Test',
+                    hardwareProfile: {
+                        numberOfCpuSockets: 2,
+                        totalPhysicalMemoryInBytes: 512 * 1024 * 1024 * 1024,
+                        processors: [{ name: 'Intel Xeon Gold 6354', numberOfCores: 36 }]
+                    },
+                    detectedProperties: { manufacturer: 'Dell', model: 'PE R760', processorCount: '2', coreCount: '36' }
+                }
+            });
+            try { parseAndPreviewClusterJSON(); } catch (e) { /* preview formatting may throw on light stubs */ }
+
+            // After a clean parse, the Parse & Preview button is hidden and the
+            // Load Cluster Configuration button is shown.
+            results.push(assert(
+                document.getElementById('cluster-import-parse-btn').style.display === 'none',
+                'Parse & Preview button hidden after a clean parse',
+                'none', document.getElementById('cluster-import-parse-btn').style.display));
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').style.display === '',
+                'Load Cluster Configuration button shown after a clean parse',
+                '', document.getElementById('cluster-import-apply-btn').style.display));
+
+            // Reopening the import modal restores the Parse & Preview button.
+            var overlay = document.createElement('div');
+            overlay.id = 'import-modal-overlay';
+            document.body.appendChild(overlay);
+            ['import-panel-sizer', 'import-panel-cluster'].forEach(function (id) {
+                var p = document.createElement('div'); p.id = id; document.body.appendChild(p);
+            });
+            ['import-tab-sizer', 'import-tab-cluster'].forEach(function (id) {
+                var t = document.createElement('button'); t.id = id; document.body.appendChild(t);
+            });
+            try { showImportModal(); } catch (e) { /* light stub */ }
+            results.push(assert(
+                document.getElementById('cluster-import-parse-btn').style.display === '',
+                'Reopening the import modal restores the Parse & Preview button',
+                '', document.getElementById('cluster-import-parse-btn').style.display));
+
+            cleanup3();
+            return results;
+        })());
+
         testSuite('applyClusterJSONImport: deployment type, single-node, resiliency (#207)', 'sizer.js', (() => {
             var results = [];
 
@@ -9956,8 +9827,20 @@
                 m.style.display = 'none';
                 document.body.appendChild(m);
 
+                // S2D capacity-disk row + selects (greyed out for disaggregated)
+                var s2d = document.createElement('span');
+                s2d.id = 'cluster-import-s2d-row';
+                s2d.style.display = 'none';
+                document.body.appendChild(s2d);
+                ['cluster-import-disk-count', 'cluster-import-disk-size'].forEach(function (id) {
+                    var sel = document.createElement('select');
+                    sel.id = id;
+                    sel.style.display = 'none';
+                    document.body.appendChild(sel);
+                });
+
                 // deployment-type radios
-                ['standard', 'rack-aware'].forEach(function (v) {
+                ['standard', 'rack-aware', 'disaggregated'].forEach(function (v) {
                     var r = document.createElement('input');
                     r.type = 'radio'; r.name = 'cluster-import-deploy-type'; r.value = v;
                     if (v === opts.deployType) r.checked = true;
@@ -9966,7 +9849,8 @@
                 });
             }
             function cleanupValidationStub() {
-                ['cluster-node-count-input', 'cluster-import-apply-btn', 'cluster-import-validation'].forEach(function (id) {
+                ['cluster-node-count-input', 'cluster-import-apply-btn', 'cluster-import-validation',
+                    'cluster-import-s2d-row', 'cluster-import-disk-count', 'cluster-import-disk-size'].forEach(function (id) {
                     var el = document.getElementById(id);
                     if (el && el.parentNode) el.parentNode.removeChild(el);
                 });
@@ -10031,6 +9915,36 @@
                 document.getElementById('cluster-import-apply-btn').disabled === false,
                 'Rack-Aware + 1 machine → button enabled (auto-promoted to Single Node on apply)',
                 false, document.getElementById('cluster-import-apply-btn').disabled));
+            cleanupValidationStub();
+
+            // Issue #235: Disaggregated Storage → valid AND S2D disk row greyed out + selects disabled
+            makeValidationStub({ deployType: 'disaggregated', nodeCount: 4 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-apply-btn').disabled === false,
+                'Disaggregated + 4 machines → button enabled',
+                false, document.getElementById('cluster-import-apply-btn').disabled));
+            results.push(assert(
+                document.getElementById('cluster-import-s2d-row').style.opacity === '0.4'
+                && document.getElementById('cluster-import-disk-count').disabled === true
+                && document.getElementById('cluster-import-disk-size').disabled === true,
+                'Disaggregated → S2D capacity-disk row greyed out and selects disabled',
+                true,
+                document.getElementById('cluster-import-s2d-row').style.opacity === '0.4'
+                && document.getElementById('cluster-import-disk-count').disabled === true
+                && document.getElementById('cluster-import-disk-size').disabled === true));
+            cleanupValidationStub();
+
+            // Issue #235: switching back to Hyperconverged re-enables the S2D row
+            makeValidationStub({ deployType: 'standard', nodeCount: 4 });
+            validateClusterImportSelection();
+            results.push(assert(
+                document.getElementById('cluster-import-s2d-row').style.opacity !== '0.4'
+                && document.getElementById('cluster-import-disk-count').disabled === false,
+                'Hyperconverged → S2D capacity-disk row re-enabled',
+                true,
+                document.getElementById('cluster-import-s2d-row').style.opacity !== '0.4'
+                && document.getElementById('cluster-import-disk-count').disabled === false));
             cleanupValidationStub();
 
             return results;
