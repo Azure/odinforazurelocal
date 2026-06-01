@@ -257,11 +257,13 @@ real export can yield 1,000+ VMs across ~75 distinct size bands — one-row-per-
 flood the Workload Scenarios list.
 
 **Opt-in one-workload-per-VM (named):** offered as an explicit radio. When selected, each
-VM becomes its own workload **named with the source VM name**. This is the *only* path
-that reads VM names into Sizer state; it stays **client-side only**, is **never persisted
-to telemetry/analytics**, and is surfaced as a deliberate user choice (off by default).
-This is a sanctioned, scoped exception to the "VM names never stored" privacy stance,
-justified by the user explicitly asking for one-to-one name fidelity.
+VM becomes its own **Azure Local VM** workload, and the workload's **"Workload Name"
+field is set directly to the source VM name** — i.e. the `VM` column from the `vInfo`
+sheet maps 1:1 onto the workload name shown in the Workload Scenarios list. This is the
+*only* path that reads VM names into Sizer state; it stays **client-side only**, is
+**never persisted to telemetry/analytics**, and is surfaced as a deliberate user choice
+(off by default). This is a sanctioned, scoped exception to the "VM names never stored"
+privacy stance, justified by the user explicitly asking for one-to-one name fidelity.
 
 **Workload Scenarios list UI change (motivated by large grouped imports):** the existing
 *Workload Scenarios* list currently grows unbounded as rows are added. Change it so:
@@ -383,7 +385,8 @@ three surfaces. Sizer shows it (editable), Designer carries it (hidden/pass-thro
      summaries. Each grouped workload is **named after its characteristics** (e.g.
      `2 vCPU / 8 GB ×245`) so the row is self-describing without exposing VM names.
    - **One workload per VM** *(opt-in)* — verbatim, best fidelity, but unwieldy with
-     1,000+ VMs. When chosen, each workload **is named with the source VM name** (the one
+     1,000+ VMs. When chosen, each **Azure Local VM** workload's **"Workload Name" field
+     is set to the source VM name** (the `vInfo` `VM` column → workload name, 1:1; the one
      place VM names are read into Sizer state). This is an explicit, user-initiated
      choice; it is **off by default** and called out in the UI because it pulls VM names
      in (still client-side only, still never persisted to telemetry). See the privacy
