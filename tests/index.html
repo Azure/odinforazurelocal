@@ -131,6 +131,8 @@
     <script src="../switch-config/templates/dell-os10.js"></script>
     <script src="../switch-config/qos-audit.js"></script>
     <script src="../switch-config/switch-config.js"></script>
+    <!-- Rack diagram generators (#233 rack-layout tests) -->
+    <script src="../report/rack-svg.js"></script>
     <script>
         // ========================================================================
         // TEST FRAMEWORK
@@ -6742,6 +6744,51 @@
                     'All BMC model entries have key and label', true, allHaveKey && allHaveLabel);
             })()
         ]);
+
+        // ── Rack layout diagram (#233) ──
+        testSuite('Rack layout — bottom-up fill + real labels', 'rack-svg.js', (() => {
+            const results = [];
+
+            // Helper: extract the y of the <text> element for an exact label.
+            const labelY = (svg, label) => {
+                const re = new RegExp('<text[^>]*\\sy="([0-9.]+)"[^>]*>' + label + '<');
+                const m = svg.match(re);
+                return m ? parseFloat(m[1]) : null;
+            };
+
+            // (a) Bottom-up: Node 1 sits physically LOWER (larger y) than the top node.
+            const hciSvg = generateRackSvg({ clusterType: 'standard', nodeCount: 4, hasGpu: false });
+            const y1 = labelY(hciSvg, 'Node 1');
+            const y4 = labelY(hciSvg, 'Node 4');
+            results.push(assert(y1 !== null && y4 !== null, 'HCI SVG renders Node 1 and Node 4 labels', true, y1 !== null && y4 !== null));
+            results.push(assert(y1 > y4, 'HCI SVG fills bottom-up (Node 1 below Node 4)', true, y1 > y4));
+
+            // (b) Custom Designer node names surface in the diagram.
+            const namedSvg = generateRackSvg({ clusterType: 'standard', nodeCount: 2, hasGpu: false, nodeNames: ['AZL-HOST-A', 'AZL-HOST-B'] });
+            results.push(assert(namedSvg.indexOf('AZL-HOST-A') !== -1, 'Custom node name AZL-HOST-A appears in SVG', true, namedSvg.indexOf('AZL-HOST-A') !== -1));
+            results.push(assert(namedSvg.indexOf('AZL-HOST-B') !== -1, 'Custom node name AZL-HOST-B appears in SVG', true, namedSvg.indexOf('AZL-HOST-B') !== -1));
+
+            // (c) getRackNodeLabel fallback when names unset / blank.
+            results.push(assert(getRackNodeLabel({}, 0) === 'Node 1', 'getRackNodeLabel falls back to Node 1', 'Node 1', getRackNodeLabel({}, 0)));
+            results.push(assert(getRackNodeLabel({ nodeNames: ['  '] }, 0) === 'Node 1', 'getRackNodeLabel ignores blank custom name', 'Node 1', getRackNodeLabel({ nodeNames: ['  '] }, 0)));
+            results.push(assert(getRackNodeLabel({ nodeNames: ['Host-X'] }, 0) === 'Host-X', 'getRackNodeLabel surfaces custom name', 'Host-X', getRackNodeLabel({ nodeNames: ['Host-X'] }, 0)));
+
+            // (d) Global node index across multi-rack.
+            const cfg = { nodeNames: ['n0', 'n1', 'n2', 'n3'] };
+            results.push(assert(getRackNodeLabel(cfg, 3) === 'n3', 'getRackNodeLabel uses global index (4th node)', 'n3', getRackNodeLabel(cfg, 3)));
+
+            // (e) ToR label surfacing + fallback.
+            results.push(assert(getRackTorLabel({}, 0) === 'ToR 1', 'getRackTorLabel falls back to ToR 1', 'ToR 1', getRackTorLabel({}, 0)));
+            results.push(assert(getRackTorLabel({ torLabels: ['Cisco 93180YC-FX'] }, 0) === 'Cisco 93180YC-FX', 'getRackTorLabel surfaces custom label', 'Cisco 93180YC-FX', getRackTorLabel({ torLabels: ['Cisco 93180YC-FX'] }, 0)));
+
+            // (f) Disaggregated SVG also fills bottom-up.
+            const disSvg = generateDisaggregatedRackSvg({ storageType: 'fc_san', rackCount: 1, nodesPerRack: 4, spineCount: 2 });
+            const d1 = labelY(disSvg, 'Node 1');
+            const d4 = labelY(disSvg, 'Node 4');
+            results.push(assert(d1 !== null && d4 !== null && d1 > d4, 'Disaggregated SVG fills bottom-up (Node 1 below Node 4)', true, d1 !== null && d4 !== null && d1 > d4));
+
+            return results;
+        })());
 
         testSuite('Cisco TOR Firmware Consistency', 'models.js', (() => {
             const results = [];

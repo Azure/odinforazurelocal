@@ -1742,14 +1742,16 @@ function renderRack3D(config) {
             placeSanAppliance(_rack3d.scene, rack.group, rack.baseY, 1, 'SAN Appliance');
         }
 
-        // Place server nodes below switches, from top down
-        var topServerU = RACK.TOTAL_U - rackInfo.tor - 1 - fcSwitchCount; // first available U below switches + BMC + FC
+        // Place server nodes filling the rack bottom-up (datacentre practice —
+        // heavy servers low, switches stay at the top). The first node sits at the
+        // lowest free U above any SAN appliance and each node stacks upward.
+        var topServerU = RACK.TOTAL_U - rackInfo.tor - 1 - fcSwitchCount; // highest U below switches + BMC + FC
         var bottomLimit = sanApplianceU + 1; // don't overlap SAN appliance at bottom
         var nodeOffset = 0;
         for (let pr = 0; pr < rackIndex; pr++) { nodeOffset += racks[pr].nodes; }
         for (let n = 0; n < rackInfo.nodes; n++) {
-            var serverStartU = topServerU - (n * 2); // 2U per server, top-down
-            if (serverStartU < bottomLimit) break;
+            var serverStartU = bottomLimit + (n * 2); // 2U per server, bottom-up
+            if (serverStartU > topServerU) break;
             var color = COLORS.SERVER;
             var nodeLabel = 'Node ' + (nodeOffset + n + 1);
             placeServer(_rack3d.scene, rack.group, rack.baseY, serverStartU - 1, color,

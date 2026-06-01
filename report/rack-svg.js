@@ -39,6 +39,29 @@
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // ── Label resolvers (#233) ──
+    // Surface real Designer node names / ToR switch labels when provided via
+    // config; fall back to generic 'Node N' / 'ToR N'. nodeNames / torLabels are
+    // resolved by the caller (report.js) from the saved config's nodeSettings /
+    // switch state and indexed by GLOBAL node / ToR index across all racks.
+    function getRackNodeLabel(config, globalNodeIndex) {
+        var names = config && config.nodeNames;
+        if (Array.isArray(names) && names[globalNodeIndex]) {
+            var nm = String(names[globalNodeIndex]).trim();
+            if (nm) return nm;
+        }
+        return 'Node ' + (globalNodeIndex + 1);
+    }
+
+    function getRackTorLabel(config, torIndex) {
+        var labels = config && config.torLabels;
+        if (Array.isArray(labels) && labels[torIndex]) {
+            var lb = String(labels[torIndex]).trim();
+            if (lb) return lb;
+        }
+        return 'ToR ' + (torIndex + 1);
+    }
+
     // ── Draw a single rack frame (returns SVG group string) ──
     function drawRackFrame(ox, oy, rackLabel) {
         var innerH = TOTAL_U * U_H;
@@ -257,7 +280,7 @@
             for (var t = 0; t < rackInfo.tor; t++) {
                 var torU = TOTAL_U - t; // 42, 41
                 var torNum = isRackAware ? (rackIndex * 2 + t + 1) : (t + 1);
-                var torLabel = 'ToR ' + torNum;
+                var torLabel = getRackTorLabel(config, torNum - 1);
                 parts.push(drawSwitch(ox, oy, torU, torLabel, C.TOR_SWITCH, C.LABEL_LIGHT));
             }
 
@@ -268,14 +291,16 @@
                 parts.push(drawSwitch(ox, oy, bmcU, 'BMC ' + bmcNum, C.BMC_SWITCH, C.LABEL_LIGHT));
             }
 
-            // Place server nodes below BMC, from top down (2U each)
-            var topServerU = TOTAL_U - rackInfo.tor - bmcPerRack;
+            // Place server nodes filling the rack bottom-up (datacentre practice —
+            // heavy servers low, switches stay at the top for cabling clarity). The
+            // first node sits at the lowest U and each subsequent node stacks upward.
             var nodeOffset = 0;
             for (var pr = 0; pr < rackIndex; pr++) { nodeOffset += racks[pr].nodes; }
+            var topServerU = TOTAL_U - rackInfo.tor - bmcPerRack; // highest U available to servers
             for (var n = 0; n < rackInfo.nodes; n++) {
-                var serverStartU = topServerU - (n * 2) - 1;
-                if (serverStartU < 1) break;
-                var nodeLabel = 'Node ' + (nodeOffset + n + 1);
+                var serverStartU = 1 + (n * 2); // bottom-up: node 1 at U1-2, node 2 at U3-4, …
+                if (serverStartU + 1 > topServerU) break; // would overlap the switch zone
+                var nodeLabel = getRackNodeLabel(config, nodeOffset + n);
                 parts.push(drawServer(ox, oy, serverStartU, nodeLabel, hasGpu));
             }
         }
@@ -489,13 +514,16 @@
                 parts.push('<circle cx="' + (ledBaseX + bled * 6) + '" cy="' + (bmcDy + (U_H - 2) / 2) + '" r="2" fill="#00ff66" opacity="0.7"/>');
             }
 
-            // Server nodes starting from U38, going down (2U each)
-            // Note: drawDevice for 2U extends upward by 1U, so U38 occupies U38-U39 visually
+            // Server nodes fill bottom-up (2U each). FC switches (when present)
+            // occupy U1-U2, so servers start just above them and stack upward,
+            // stopping before the BMC switch at U40.
+            // Note: drawDevice for 2U extends upward by 1U, so uPos occupies uPos..uPos+1.
             var nodeStart = r * nodesPerRack + 1;
+            var lowestServerU = hasFC ? 3 : 1; // above the FC switches when present
             for (var n = 0; n < nodesPerRack; n++) {
-                var uPos = 38 - n * 2;
-                if (uPos < 3) break;  // Don't overlap with FC switches
-                var nodeLabel = 'Node ' + (nodeStart + n);
+                var uPos = lowestServerU + n * 2;
+                if (uPos + 1 >= 40) break;  // don't overlap the BMC / leaf switch zone
+                var nodeLabel = getRackNodeLabel(config, nodeStart + n - 1);
                 parts.push(drawDevice(rx, racksY, uPos, 2, C.SERVER, nodeLabel, C.LABEL_LIGHT));
 
                 // Drive bays (left side of node)
@@ -715,7 +743,7 @@
                 var torU = 42 - t;
                 var torY = ry + 10 + (42 - torU) * uH;
                 var torNum = isRackAware ? (r * 2 + t + 1) : (t + 1);
-                addCell('ToR ' + torNum, devX, torY + 1, devW, uH - 2,
+                addCell(getRackTorLabel(config, torNum - 1), devX, torY + 1, devW, uH - 2,
                     'rounded=1;whiteSpace=wrap;html=1;fillColor=#444444;strokeColor=#666666;fontColor=#FFFFFF;fontSize=10;fontStyle=1;arcSize=15;');
             }
 
@@ -726,18 +754,20 @@
             addCell('BMC ' + bmcNum, devX, bmcY + 1, devW, uH - 2,
                 'rounded=1;whiteSpace=wrap;html=1;fillColor=#3b82f6;strokeColor=#2563eb;fontColor=#FFFFFF;fontSize=10;fontStyle=1;arcSize=15;');
 
-            // Server nodes (2U each)
+            // Server nodes (2U each) — fill bottom-up; switches stay at the top.
+            // serverU is the TOP U of each 2U device, so the device covers
+            // serverU and serverU-1. Node 1 sits at U2-U1, then stacks upward.
             var topServerU = 42 - rackInfo.tor - bmcPerRack;
             var nodeOffset = 0;
             for (var pr = 0; pr < r; pr++) { nodeOffset += racks[pr].nodes; }
             for (var n = 0; n < rackInfo.nodes; n++) {
-                var serverU = topServerU - n * 2;
-                if (serverU < 1) break;
+                var serverU = 2 + n * 2;
+                if (serverU > topServerU) break;
                 var serverY = ry + 10 + (42 - serverU) * uH;
                 var serverColor = hasGpu ? '#d97706' : '#aaaaaa';
                 var serverStroke = hasGpu ? '#b45309' : '#888888';
                 var serverFontColor = hasGpu ? '#FFFFFF' : '#333333';
-                addCell('Node ' + (nodeOffset + n + 1), devX, serverY + 1, devW, 2 * uH - 2,
+                addCell(getRackNodeLabel(config, nodeOffset + n), devX, serverY + 1, devW, 2 * uH - 2,
                     'rounded=1;whiteSpace=wrap;html=1;fillColor=' + serverColor + ';strokeColor=' + serverStroke + ';fontColor=' + serverFontColor + ';fontSize=10;fontStyle=1;arcSize=8;');
             }
         }
@@ -913,13 +943,16 @@
             addCell('BMC Switch ' + (r + 1), devX, ry + 10 + 2 * uH + 1, devW, uH - 2,
                 'rounded=1;whiteSpace=wrap;html=1;fillColor=#3b82f6;strokeColor=#2563eb;fontColor=#FFFFFF;fontSize=9;fontStyle=1;arcSize=15;');
 
-            // Server nodes (2U each, starting U38 down)
+            // Server nodes (2U each) — fill bottom-up; switches stay at the top,
+            // FC switches (when present) occupy U1-U2. uPos is the TOP U of each
+            // 2U device (covers uPos and uPos-1).
             var nodeStart = r * nodesPerRack + 1;
+            var lowestUPos = hasFC ? 4 : 2; // just above the FC switch zone
             for (var n = 0; n < nodesPerRack; n++) {
-                var uPos = 38 - n * 2;
-                if (uPos < 3) break;
+                var uPos = lowestUPos + n * 2;
+                if (uPos > 39) break; // don't overlap the BMC / leaf switch zone
                 var serverY = ry + 10 + (42 - uPos) * uH;
-                addCell('Node ' + (nodeStart + n), devX, serverY + 1, devW, 2 * uH - 2,
+                addCell(getRackNodeLabel(config, nodeStart + n - 1), devX, serverY + 1, devW, 2 * uH - 2,
                     'rounded=1;whiteSpace=wrap;html=1;fillColor=#aaaaaa;strokeColor=#888888;fontColor=#333333;fontSize=9;fontStyle=1;arcSize=8;');
             }
 
@@ -1018,4 +1051,6 @@
     window.generateDisaggregatedRackSvg = generateDisaggregatedRackSvg;
     window.generateRackDrawio = generateRackDrawio;
     window.generateDisaggregatedRackDrawio = generateDisaggregatedRackDrawio;
+    window.getRackNodeLabel = getRackNodeLabel;
+    window.getRackTorLabel = getRackTorLabel;
 })();

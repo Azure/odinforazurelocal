@@ -8442,6 +8442,13 @@
             if (rackSection && rackContainer) {
                 var svgStr;
 
+                // Resolve real node display names (#233) from the saved config's
+                // nodeSettings, indexed by global node order. Falls back to
+                // 'Node N' inside the generators when a name is blank/unset.
+                var rackNodeNames = (Array.isArray(s.nodeSettings) ? s.nodeSettings : []).map(function (node) {
+                    return node && node.name ? String(node.name).trim() : '';
+                });
+
                 if (s.architecture === 'disaggregated' && typeof generateDisaggregatedRackSvg === 'function') {
                     // Disaggregated: use dynamic Clos topology diagram
                     svgStr = generateDisaggregatedRackSvg({
@@ -8449,7 +8456,8 @@
                         backupEnabled: s.disaggBackupEnabled || false,
                         rackCount: parseInt(s.disaggRackCount, 10) || 4,
                         nodesPerRack: parseInt(s.disaggNodesPerRack, 10) || 16,
-                        spineCount: parseInt(s.disaggSpineCount, 10) || 2
+                        spineCount: parseInt(s.disaggSpineCount, 10) || 2,
+                        nodeNames: rackNodeNames
                     });
                 } else {
                     // HCI: existing rack diagram
@@ -8469,7 +8477,8 @@
                     svgStr = generateRackSvg({
                         clusterType: rackClusterType,
                         nodeCount: rackNodeCount,
-                        hasGpu: rackHasGpu
+                        hasGpu: rackHasGpu,
+                        nodeNames: rackNodeNames
                     });
                 }
 
@@ -8509,7 +8518,8 @@
                                 backupEnabled: s.disaggBackupEnabled || false,
                                 rackCount: parseInt(s.disaggRackCount, 10) || 4,
                                 nodesPerRack: parseInt(s.disaggNodesPerRack, 10) || 16,
-                                spineCount: parseInt(s.disaggSpineCount, 10) || 2
+                                spineCount: parseInt(s.disaggSpineCount, 10) || 2,
+                                nodeNames: rackNodeNames
                             });
                         } else if (typeof generateRackDrawio === 'function') {
                             var hw2 = s.sizerHardware || {};
@@ -8519,7 +8529,7 @@
                             if (hw2.clusterType) { ct2 = hw2.clusterType; }
                             else if (s.scale === 'rack_aware') { ct2 = 'rack-aware'; }
                             else if (s.scale === 'low_capacity' && rn2 === 1) { ct2 = 'single'; }
-                            drawioXml = generateRackDrawio({ clusterType: ct2, nodeCount: rn2, hasGpu: gpu2 });
+                            drawioXml = generateRackDrawio({ clusterType: ct2, nodeCount: rn2, hasGpu: gpu2, nodeNames: rackNodeNames });
                         }
                         if (!drawioXml) return;
                         var blob2 = new Blob([drawioXml], { type: 'application/xml' });

@@ -1222,10 +1222,13 @@ function generateDisaggRackDiagram() {
         // BMC Switch: U40-U39 (2U for visibility)
         drawDev(40, 2, `BMC Switch ${r+1}`, C.BMC);
 
-        // Server nodes: U38 downward
+        // Server nodes fill bottom-up; switches stay at the top and FC switches
+        // (when present) occupy U1-U2. nodeU is the TOP U of each 2U device, so it
+        // covers nodeU and nodeU-1. Node 1 sits just above the FC switch zone.
+        const lowestNodeU = hasFc ? 4 : 2;
         for (let n = 0; n < nodesPerRack; n++) {
-            const nodeU = 38 - n * 2;
-            if (nodeU < 1) break;
+            const nodeU = lowestNodeU + n * 2;
+            if (nodeU > 38) break; // don't overlap the BMC / leaf switch zone
             const nodeNum = r * nodesPerRack + n + 1;
             const pad = 6;
             const w = RACK_W - 2 * pad;
