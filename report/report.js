@@ -1401,16 +1401,17 @@
             md.push('| Setting | Value |');
             md.push('|---------|-------|');
             md.push('| Configuration | ' + (s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized') + ' |');
-            if (s.securityConfiguration === 'customized' && s.securitySettings) {
-                var sec = s.securitySettings;
-                if (sec.wdacEnforced !== undefined) md.push('| WDAC | ' + (sec.wdacEnforced ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.credentialGuardEnforced !== undefined) md.push('| Credential Guard | ' + (sec.credentialGuardEnforced ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.driftControlEnforced !== undefined) md.push('| Drift Control | ' + (sec.driftControlEnforced ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.smbSigningEnforced !== undefined) md.push('| SMB Signing | ' + (sec.smbSigningEnforced ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.smbClusterEncryption !== undefined) md.push('| SMB Cluster Encryption | ' + (sec.smbClusterEncryption ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.bitlockerBootVolume !== undefined) md.push('| BitLocker Boot Volume | ' + (sec.bitlockerBootVolume ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.bitlockerDataVolumes !== undefined) md.push('| BitLocker Data Volumes | ' + (sec.bitlockerDataVolumes ? 'Enabled' : 'Disabled') + ' |');
-            }
+            // Always list all 7 controls. Recommended mode = all enforced (matches wizard
+            // defaults); Customized mode reflects the user's per-control selections.
+            var sec = (s.securityConfiguration === 'customized' && s.securitySettings) ? s.securitySettings : null;
+            var secOn = function (key) { return sec ? (sec[key] !== undefined ? sec[key] : true) : true; };
+            md.push('| WDAC | ' + (secOn('wdacEnforced') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| Credential Guard | ' + (secOn('credentialGuardEnforced') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| Drift Control | ' + (secOn('driftControlEnforced') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| SMB Signing | ' + (secOn('smbSigningEnforced') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| SMB Cluster Encryption | ' + (secOn('smbClusterEncryption') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| BitLocker Boot Volume | ' + (secOn('bitlockerBootVolume') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| BitLocker Data Volumes | ' + (secOn('bitlockerDataVolumes') ? 'Enabled' : 'Disabled') + ' |');
             md.push('');
         }
 
@@ -8131,16 +8132,19 @@
 
         // Step 16: Security Configuration
         var securityRows = '';
-        if (s.securityConfiguration) securityRows += row('Configuration', s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized');
-        if (s.securityConfiguration === 'customized' && s.securitySettings) {
-            var secSettings = s.securitySettings;
-            if (secSettings.wdacEnforced !== undefined) securityRows += row('WDAC', secSettings.wdacEnforced ? 'Enabled' : 'Disabled');
-            if (secSettings.credentialGuardEnforced !== undefined) securityRows += row('Credential Guard', secSettings.credentialGuardEnforced ? 'Enabled' : 'Disabled');
-            if (secSettings.driftControlEnforced !== undefined) securityRows += row('Drift Control', secSettings.driftControlEnforced ? 'Enabled' : 'Disabled');
-            if (secSettings.smbSigningEnforced !== undefined) securityRows += row('SMB Signing', secSettings.smbSigningEnforced ? 'Enabled' : 'Disabled');
-            if (secSettings.smbClusterEncryption !== undefined) securityRows += row('SMB Cluster Encryption', secSettings.smbClusterEncryption ? 'Enabled' : 'Disabled');
-            if (secSettings.bitlockerBootVolume !== undefined) securityRows += row('BitLocker Boot Volume', secSettings.bitlockerBootVolume ? 'Enabled' : 'Disabled');
-            if (secSettings.bitlockerDataVolumes !== undefined) securityRows += row('BitLocker Data Volumes', secSettings.bitlockerDataVolumes ? 'Enabled' : 'Disabled');
+        if (s.securityConfiguration) {
+            securityRows += row('Configuration', s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized');
+            // Always list all 7 controls. Recommended mode = all enforced (matches wizard
+            // defaults); Customized mode reflects the user's per-control selections.
+            var secSettings = (s.securityConfiguration === 'customized' && s.securitySettings) ? s.securitySettings : null;
+            var secOn = function (key) { return secSettings ? (secSettings[key] !== undefined ? secSettings[key] : true) : true; };
+            securityRows += row('WDAC', secOn('wdacEnforced') ? 'Enabled' : 'Disabled');
+            securityRows += row('Credential Guard', secOn('credentialGuardEnforced') ? 'Enabled' : 'Disabled');
+            securityRows += row('Drift Control', secOn('driftControlEnforced') ? 'Enabled' : 'Disabled');
+            securityRows += row('SMB Signing', secOn('smbSigningEnforced') ? 'Enabled' : 'Disabled');
+            securityRows += row('SMB Cluster Encryption', secOn('smbClusterEncryption') ? 'Enabled' : 'Disabled');
+            securityRows += row('BitLocker Boot Volume', secOn('bitlockerBootVolume') ? 'Enabled' : 'Disabled');
+            securityRows += row('BitLocker Data Volumes', secOn('bitlockerDataVolumes') ? 'Enabled' : 'Disabled');
         }
 
         // Step 17: Software Defined Networking
@@ -8442,6 +8446,13 @@
             if (rackSection && rackContainer) {
                 var svgStr;
 
+                // Resolve real node display names (#233) from the saved config's
+                // nodeSettings, indexed by global node order. Falls back to
+                // 'Node N' inside the generators when a name is blank/unset.
+                var rackNodeNames = (Array.isArray(s.nodeSettings) ? s.nodeSettings : []).map(function (node) {
+                    return node && node.name ? String(node.name).trim() : '';
+                });
+
                 if (s.architecture === 'disaggregated' && typeof generateDisaggregatedRackSvg === 'function') {
                     // Disaggregated: use dynamic Clos topology diagram
                     svgStr = generateDisaggregatedRackSvg({
@@ -8449,7 +8460,8 @@
                         backupEnabled: s.disaggBackupEnabled || false,
                         rackCount: parseInt(s.disaggRackCount, 10) || 4,
                         nodesPerRack: parseInt(s.disaggNodesPerRack, 10) || 16,
-                        spineCount: parseInt(s.disaggSpineCount, 10) || 2
+                        spineCount: parseInt(s.disaggSpineCount, 10) || 2,
+                        nodeNames: rackNodeNames
                     });
                 } else {
                     // HCI: existing rack diagram
@@ -8469,7 +8481,8 @@
                     svgStr = generateRackSvg({
                         clusterType: rackClusterType,
                         nodeCount: rackNodeCount,
-                        hasGpu: rackHasGpu
+                        hasGpu: rackHasGpu,
+                        nodeNames: rackNodeNames
                     });
                 }
 
@@ -8509,7 +8522,8 @@
                                 backupEnabled: s.disaggBackupEnabled || false,
                                 rackCount: parseInt(s.disaggRackCount, 10) || 4,
                                 nodesPerRack: parseInt(s.disaggNodesPerRack, 10) || 16,
-                                spineCount: parseInt(s.disaggSpineCount, 10) || 2
+                                spineCount: parseInt(s.disaggSpineCount, 10) || 2,
+                                nodeNames: rackNodeNames
                             });
                         } else if (typeof generateRackDrawio === 'function') {
                             var hw2 = s.sizerHardware || {};
@@ -8519,7 +8533,7 @@
                             if (hw2.clusterType) { ct2 = hw2.clusterType; }
                             else if (s.scale === 'rack_aware') { ct2 = 'rack-aware'; }
                             else if (s.scale === 'low_capacity' && rn2 === 1) { ct2 = 'single'; }
-                            drawioXml = generateRackDrawio({ clusterType: ct2, nodeCount: rn2, hasGpu: gpu2 });
+                            drawioXml = generateRackDrawio({ clusterType: ct2, nodeCount: rn2, hasGpu: gpu2, nodeNames: rackNodeNames });
                         }
                         if (!drawioXml) return;
                         var blob2 = new Blob([drawioXml], { type: 'application/xml' });

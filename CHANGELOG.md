@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.01] - 2026-06-01
+
+Improves the Sizer's **physical-host compute reserve / overhead** model (issue #232), reorients the **rack-layout diagrams** to fill bottom-up with real node names (issue #233), **removes the deprecated Low Capacity deployment type** (issue #234), and refines the **imported Azure Local instance** experience in the Sizer (issue #235).
+
+### Added
+
+- **S2D-aware host compute reserve helpers** in [`sizer/sizer.js`](sizer/sizer.js): `getCacheTBPerNode()`, `getHostMemoryReservedGB(hwConfig, clusterType)`, and `getHostCpuReservedCores(hwConfig, clusterType)`. The reserve now varies by cluster type and storage shape instead of a single flat percentage:
+  - **CPU**: ALDO management → `max(ceil(20%), 2)`; disaggregated → `max(ceil(10%), 1)`; standard S2D → `max(ceil(10%), 2)` physical cores per node.
+  - **Memory**: base `32 GB` (S2D) or `24 GB` (disaggregated) + S2D cache-metadata `ceil(4 GB × cacheTB)` + `64 GB` when ALDO management is hosted, floored at `8%` of host RAM.
+- **Collapsible "Physical host compute overhead — assumptions & math" section** below the Sizer sizing notes. `updateHostOverheadBreakdown()` renders the memory and CPU reserve math as tables (highlighting the winning term), lists the assumptions, and links to the public Hyper-V performance-tuning, S2D hardware-requirements, and Azure Local system-requirements docs.
+- **Disaggregated Storage import option (issue #235).** The *Azure Local Instance* JSON import preview now offers a third deployment-type radio — **Disaggregated Storage** — alongside Hyperconverged and Rack-Aware Cluster. When chosen, the S2D capacity-disk picker is greyed out (external SAN — no S2D disks), the disk choices are dropped from the equation, and the imported cluster is set to the `disaggregated` deployment type.
+
+### Changed
+
+- **Host reserve is now applied consistently** across node-count recommendation, the AMD core-upgrade path, hardware auto-scaling, the capacity bar, sizing notes, the host-overhead summary note, and the growth projection — all routed through the new helpers so usable vCPU / memory reflect the S2D-aware reserve.
+- **Rack-layout diagrams fill bottom-up (issue #233).** All four generators in [`report/rack-svg.js`](report/rack-svg.js) (HCI SVG, disaggregated SVG, HCI Draw.io, disaggregated Draw.io), the 3D view in [`sizer/rack3d.js`](sizer/rack3d.js), and the wizard preview in [`js/disaggregated.js`](js/disaggregated.js) now stack server nodes from the bottom of the rack upward, with ToR / leaf / BMC switches kept at the top and FC switches (when present) at U1-U2 — matching common datacentre practice and keeping the 2D and 3D views consistent.
+- **Real Designer node names surface in the rack diagrams.** New `getRackNodeLabel()` / `getRackTorLabel()` helpers resolve a node's display name (indexed by global node order across multi-rack layouts) from the saved config's `nodeSettings`, falling back to `Node N` / `ToR N` when unset. Wired into all four `report/rack-svg.js` generators via [`report/report.js`](report/report.js).
+- **3D Hardware Visualization default view re-framed for bottom-up nodes (issue #233).** Now that server nodes fill from the bottom of the rack upward, the default camera in [`sizer/rack3d.js`](sizer/rack3d.js) aimed too high and cropped the lower nodes. The single-rack and rack-aware default look-at target was lowered toward rack centre and the camera pulled back a little, so the full rack — including the bottom-mounted nodes — is in frame on load. Users can still orbit / zoom freely.
+- **Single-rack diagram header spacing fixed.** The minimum SVG width for the HCI rack-layout diagram in [`report/rack-svg.js`](report/rack-svg.js) was raised from 380 to 470px so the centred *Rack Layout — Front View* title no longer crowds the *Azure Local* brand badge on single-rack diagrams. The 2-rack and 4-rack layouts (already wide enough) are unchanged, keeping the brand consistently positioned across all rack counts.
+- **Imported instance hardware is locked to MANUAL (issue #235).** An imported Azure Local instance has fixed hardware, so `applyClusterJSONImport()` now sets the `_cpuConfigUserSet`, `_memoryUserSet`, `_diskCountUserSet`, `_diskSizeUserSet`, and `_nodeCountUserSet` auto-scaler flags — the auto-scaler can no longer silently change the imported CPU, memory, disk count/size, or node count.
+- **vCPU overcommit ratio escalation is decoupled from the physical-CPU lock (issue #235).** The overcommit ratio is not a physical property, so it now continues to auto-escalate (4→5→6) to fit excess workload even when an imported / fixed cluster's cores and sockets are locked. The AMD core-upgrade sub-step still only runs when the physical CPU is unlocked, and a user-pinned ratio (MANUAL) still suppresses escalation.
+- **Import S2D capacity-disk size dropdown aligned with the main Sizer (issue #235).** The *Capacity per disk* picker in the import preview now lists the same sizes as the Sizer's *Capacity per Disk* selector (adds 8, 12, 16, and 20 TB).
+- **Parse & Preview button hidden after a clean import parse (issue #235).** Once the pasted JSON parses cleanly and the physical-node preview loads, the *Parse & Preview* button is hidden so only *Load Cluster Configuration* remains as the next step; reopening the import dialog restores it.
+- **Report now always lists all 7 security controls.** The *Security Configuration* section of the report (HTML summary and Markdown export) always lists the seven controls — Drift Control, WDAC, Credential Guard, SMB Signing, SMB Cluster Encryption, BitLocker Boot Volume, BitLocker Data Volumes — with each shown as Enabled / Disabled. When *Recommended* is selected in the Designer all seven show Enabled (matching the wizard defaults); when *Customized* is selected each reflects the user's per-control choice. Previously the individual controls were only listed for *Customized*.
+
+### Removed
+
+- **Low Capacity deployment type (issue #234).** The deprecated *Low Capacity* deployment type has been removed from the Designer and Sizer UI (the Designer template list now offers 5 templates) and from the cluster-type mapping helpers (`mapDesignerToSizerClusterType`, `mapSizerToDesignerScale`, `getConservativeNodeOptions`, `snapToAvailableNodeCount`). The host-reserve helpers retain backward-compatible handling of a legacy `low-capacity` value so older saved configs still size correctly.
+
+### Security
+
+- **Escaped DOM-derived GPU model names in three Sizer warning messages** to clear CodeQL alerts #37–#39 (`js/xss-through-dom`, High). The cross-workload GPU-lock warnings in [`sizer/sizer.js`](sizer/sizer.js) (AKS-Arc-unsupported, no-AKS-VM-SKU, and generic GPU-conflict notices) built their HTML by concatenating a locked GPU model name into `innerHTML`. The name now passes through the existing `escapeHtmlSizer()` helper before insertion, so DOM-sourced text can no longer be reinterpreted as markup.
+- **Escaped the imported `clusterName` in the cluster-import toast** in [`sizer/sizer.js`](sizer/sizer.js). After an *Azure Local Instance* JSON import, the success toast interpolated `cfg.clusterName` straight into `toast.innerHTML` while the adjacent summary banner already escaped it — so a crafted cluster name could inject markup on the import path. The toast now routes the name through `escapeHtml()` to match the banner, closing the DOM-XSS gap (found during the end-to-end review for this release).
+- **Bumped the transitive `brace-expansion` (5.x) dev dependency to `>= 5.0.6`** to clear Dependabot alert #16 (GHSA-jxxr-4gwj-5jf2 / CVE-2026-45149). Versions `>= 5.0.0, < 5.0.6` apply the `max` DoS guard too late, so a large numeric range like `{1..10000000}` still allocates ~505 MB before truncation. Pulled in transitively via `html-validate → glob → minimatch → brace-expansion@5`. The override in [`package.json`](package.json) uses a **version-selector** form — `"brace-expansion@>=5.0.0 <6.0.0": "5.0.6"` — that pins only the vulnerable 5.x line while leaving the unaffected `brace-expansion@1.x` line (used by `minimatch@3` in the eslint toolchain) untouched. The selector form resolves identically under npm 10 (CI's Node 22) and npm 11 (local Node 24), avoiding the divergent lockfiles a name-nested override produced (which broke CI's `npm ci`). No runtime or shipped-site impact — `brace-expansion` is build/test tooling only.
+
+### Tests
+
+- Added a **Rack layout — bottom-up fill + real labels** suite (`rack-svg.js`) asserting bottom-up fill order (Node 1 below the top node) for the HCI and disaggregated SVGs, custom-name surfacing, blank/unset fallback, global multi-rack indexing, and ToR-label fallback. Added coverage for the S2D-aware host-overhead helpers, the vCPU ratio-escalation decoupling (locked CPU still escalates ratio; pinned ratio does not), the Disaggregated Storage import option (button enabled + S2D row greyed out + re-enabled on switch-back), and the Parse & Preview hide/restore behaviour. Removed all Low Capacity suites and scattered references. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,240 / 1,240**.
+
+### Notes
+
+- No data, schema, or PPT-template changes. No new external network calls. Switches remain top-of-rack; only the server stack moves bottom-up.
+
+---
+
 ## [0.21.14] - 2026-05-20
 
 Adds the **Microsoft 365 Local — Medium-Scale** reference architecture to the *Microsoft Sovereign Private Clouds* page (Knowledge tab), and visually groups co-located single-node clusters into shared rack cards for the M365 Medium and Large variants.

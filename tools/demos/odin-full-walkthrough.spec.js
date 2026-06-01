@@ -35,6 +35,32 @@ function readNonNegativeNumberEnv(name, fallback) {
 const demoSlowMo = readNonNegativeNumberEnv('ODIN_DEMO_SLOWMO', 120);
 test.use({ launchOptions: { slowMo: demoSlowMo } });
 
+/**
+ * Find a workload button using the stable data attribute first, then fallback
+ * to a text match for compatibility with older builds.
+ */
+async function findWorkloadButton(page, type, textPattern) {
+    let button = page.locator(`button.workload-type-btn[data-workload-type='${type}']`).first();
+    if (await button.count() === 0) {
+        button = page.locator('button.workload-type-btn').filter({ hasText: textPattern }).first();
+    }
+    return button;
+}
+
+/**
+ * Select the last option in a <select> element and fire a bubbling change event.
+ * Used for dynamically-populated dropdowns where "highest" is the final option.
+ */
+async function selectLastOption(page, elementId) {
+    await page.evaluate((id) => {
+        const sel = /** @type {HTMLSelectElement|null} */ (document.getElementById(id));
+        if (sel && sel.options.length > 0) {
+            sel.selectedIndex = sel.options.length - 1;
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }, elementId);
+}
+
 /** Show an on-screen annotation box in the top-right of the page. */
 async function annotate(page, text) {
     await page.evaluate((label) => {
@@ -88,7 +114,10 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
     page.on('dialog', (d) => {
         // eslint-disable-next-line no-console
         console.log(`[dialog ${d.type()}] ${d.message()}`);
-        d.accept().catch(() => {});
+        d.accept().catch((err) => {
+            // eslint-disable-next-line no-console
+            console.log(`[dialog accept failed] ${err && err.message ? err.message : String(err)}`);
+        });
     });
     page.on('pageerror', (err) => {
         // eslint-disable-next-line no-console
@@ -99,7 +128,18 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
     // handoff stays in the recorded page instead of opening a second tab.
     await context.addInitScript(() => {
         // @ts-ignore
-        window.open = (url) => { if (url) { window.location.href = String(url); } return null; };
+        window.open = (url) => {
+            if (!url) return null;
+            try {
+                const parsed = new URL(String(url), window.location.href);
+                if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                    window.location.href = parsed.href;
+                }
+            } catch (e) {
+                // ignore malformed URLs in demo automation
+            }
+            return null;
+        };
         // Dismiss first-run welcome overlays on both Sizer and Designer so they don't
         // block clicks during the recording.
         try {
@@ -119,10 +159,7 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
     // Prefer the stable `data-workload-type` attribute (added v0.21.11). Fall
     // back to a visible-text filter only if the attribute is missing in an
     // older build, so the demo keeps working against earlier site versions.
-    let aksButton = page.locator("button.workload-type-btn[data-workload-type='aks']").first();
-    if (await aksButton.count() === 0) {
-        aksButton = page.locator('button.workload-type-btn').filter({ hasText: /aks|arc/i }).first();
-    }
+    const aksButton = await findWorkloadButton(page, 'aks', /aks|arc/i);
     await aksButton.click();
     await page.waitForTimeout(200);
     await page.locator('#aks-cluster-count').fill('10');
@@ -132,10 +169,7 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
 
     // -- 3. Add 1000 Azure Local VMs ----------------------
     await annotate(page, 'Add 1,000 Azure Local VMs');
-    let vmButton = page.locator("button.workload-type-btn[data-workload-type='vm']").first();
-    if (await vmButton.count() === 0) {
-        vmButton = page.locator('button.workload-type-btn').filter({ hasText: /\bvm/i }).first();
-    }
+    const vmButton = await findWorkloadButton(page, 'vm', /\bvm/i);
     await vmButton.click();
     await page.waitForTimeout(200);
     await page.locator('#vm-count').fill('1000');
@@ -160,13 +194,7 @@ test('ODIN full walkthrough - Sizer to Switch Config', async ({ page, context })
     await page.locator('#cpu-cores').scrollIntoViewIfNeeded();
     // The #cpu-cores dropdown is populated dynamically based on generation.
     // Pick the last (highest) option so the demo showcases the top-SKU choice.
-    await page.evaluate(() => {
-        const sel = /** @type {HTMLSelectElement|null} */ (document.getElementById('cpu-cores'));
-        if (sel && sel.options.length > 0) {
-            sel.selectedIndex = sel.options.length - 1;
-            sel.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-    });
+    await selectLastOption(page, 'cpu-cores');
     await page.waitForTimeout(900);
 
     // -- 6. GPUs: 2x NVIDIA RTX Pro 6000 per node -------------

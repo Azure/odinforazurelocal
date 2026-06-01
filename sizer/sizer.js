@@ -307,9 +307,6 @@ function onCpuGenerationChange() {
     ).join('');
     coresSelect.disabled = false;
 
-    // Filter core options for Low Capacity (must be called after populating)
-    enforceLowCapacityLimits();
-
     _cpuConfigUserSet = true;
     markManualSet('cpu-generation');
     onHardwareConfigChange();
@@ -419,7 +416,6 @@ function onVcpuRatioChange() {
 function onMemoryChange() {
     _memoryUserSet = true;
     markManualSet('node-memory');
-    enforceLowCapacityLimits();
     onHardwareConfigChange();
 }
 
@@ -428,7 +424,6 @@ function onCpuConfigChange() {
     _cpuConfigUserSet = true;
     markManualSet('cpu-cores');
     markManualSet('cpu-sockets');
-    enforceLowCapacityLimits();
     onHardwareConfigChange();
 }
 
@@ -766,7 +761,7 @@ function populateDdaModels() {
             // pick a GPU without breaking homogeneity, so show the actionable
             // warning instead of the bland "Filtered to..." note.
             const lockedModel = GPU_MODELS[lockedType];
-            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            const lockedName = escapeHtmlSizer(lockedModel ? lockedModel.name : lockedType);
             infoEl.innerHTML =
                 '<span style="color: var(--warning);"><strong>⚠ ' + lockedName +
                 ' is not supported on AKS Arc.</strong> Another workload selected ' + lockedName +
@@ -782,7 +777,7 @@ function populateDdaModels() {
             // (e.g. the workload's locked GPU has supportsAzureLocalVMs=false).
             // Defensive — shouldn't happen with current data but covers the case.
             const lockedModel = GPU_MODELS[lockedType];
-            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            const lockedName = escapeHtmlSizer(lockedModel ? lockedModel.name : lockedType);
             infoEl.innerHTML =
                 '<span style="color: var(--warning);"><strong>⚠ GPU model conflict.</strong> Another workload selected ' + lockedName +
                 ', which is not available for this workload type. Remove or change that workload first.</span>';
@@ -982,7 +977,7 @@ function populateAksGpuVmSizes() {
             // Warn the user *before* they try to save — addWorkload() will
             // also block save via validateWorkloadBeforeSave() as a backstop.
             const lockedModel = GPU_MODELS[lockedType];
-            const lockedName = lockedModel ? lockedModel.name : lockedType;
+            const lockedName = escapeHtmlSizer(lockedModel ? lockedModel.name : lockedType);
             infoEl.innerHTML =
                 '<span style="color: var(--warning);"><strong>⚠ ' + lockedName +
                 ' has no AKS Arc GPU VM SKUs.</strong> Another workload selected ' + lockedName +
@@ -1124,13 +1119,6 @@ function buildMaxHardwareConfig(hwConfig) {
     // Use max 2 sockets — Azure Local certified hardware supports 1 or 2 sockets only
     var MAX_SOCKETS = 2;
 
-    // Low Capacity: constrain max hardware to deployment limits
-    var currentClusterType = document.getElementById('cluster-type').value;
-    if (currentClusterType === 'low-capacity') {
-        maxCoresPerSocket = Math.min(maxCoresPerSocket, LOW_CAPACITY_MAX_CORES_PER_NODE);
-        MAX_SOCKETS = LOW_CAPACITY_MAX_SOCKETS;
-    }
-
     // Use a fixed per-node memory cap (1.5 TB) for node estimation to prefer adding
     // nodes over expensive high-capacity DIMMs. This cap must NOT depend on the current
     // node count displayed in the DOM, because that value is stale from the previous
@@ -1144,11 +1132,7 @@ function buildMaxHardwareConfig(hwConfig) {
         ? Math.max(NODE_WEIGHT_PREFERRED_MEMORY_GB, hwConfig.memoryGB || 0)
         : NODE_WEIGHT_PREFERRED_MEMORY_GB;
 
-    // Low Capacity: cap memory at deployment limit
     var effectiveMaxMemory = PREFERRED_MAX_MEMORY_GB;
-    if (currentClusterType === 'low-capacity') {
-        effectiveMaxMemory = Math.min(effectiveMaxMemory, LOW_CAPACITY_MAX_MEMORY_GB);
-    }
 
     // Use max disk size (15.36 TB) for node recommendation — favour scaling up disk size before adding nodes
     const maxDiskSizeGB = DISK_SIZE_OPTIONS_TB[DISK_SIZE_OPTIONS_TB.length - 1] * 1024;
@@ -1177,10 +1161,13 @@ function getGrowthFactor() {
 // Calculate recommended node count based on workload demands and per-node hardware
 function getRecommendedNodeCount(totalVcpus, totalMemoryGB, totalStorageGB, hwConfig, resiliencyMultiplier, resiliency, totalGpus) {
     const vcpuToCore = getVcpuRatio(); // configurable overcommit ratio
-    const hostOverheadMemoryGB = 32; // Azure Local host OS + management overhead per node
+    const ctEl = document.getElementById('cluster-type');
+    const clusterTypeForOverhead = ctEl ? ctEl.value : 'standard';
+    const hostOverheadMemoryGB = getHostMemoryReservedGB(hwConfig, clusterTypeForOverhead);
+    const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterTypeForOverhead);
 
-    // Available capacity per node from hardware config
-    const vcpusPerNode = (hwConfig.totalPhysicalCores || 0) * vcpuToCore;
+    // Available capacity per node from hardware config (host CPU reserve excluded)
+    const vcpusPerNode = Math.max((hwConfig.totalPhysicalCores || 0) - hostReservedCores, 0) * vcpuToCore;
     const usableMemoryPerNode = Math.max((hwConfig.memoryGB || 0) - hostOverheadMemoryGB, 0);
 
     // For storage node calculation, use MAX possible disk count per node
@@ -1267,13 +1254,11 @@ function getDisaggMaxNodesPerRack(rackCount) {
 
 // Conservative auto-scale node-count options for a given cluster type.
 // - 'rack-aware': [2,4,6,8] (must stay even for balanced rack distribution)
-// - 'low-capacity': [1,2,3]
 // - 'disaggregated': multiples of rackCount up to maxPerRack*rackCount, so the
 //   loop can scale past the HCI 16-node cap (disagg supports up to 64 nodes).
 // - everything else (standard HCI): [2..16]
 function getConservativeNodeOptions(clusterType, rackCount) {
     if (clusterType === 'rack-aware') return [2, 4, 6, 8];
-    if (clusterType === 'low-capacity') return [1, 2, 3];
     if (clusterType === 'disaggregated') {
         var rc = parseInt(rackCount, 10) || 1;
         if (rc < 1) rc = 1;
@@ -1311,7 +1296,6 @@ function getMaxNodeCap() {
     if (ct === 'rack-aware') return 8;
     if (ct === 'single') return 1;
     if (ct === 'aldo-mgmt') return 3;
-    if (ct === 'low-capacity') return LOW_CAPACITY_MAX_NODES;
     return 16;
 }
 
@@ -1320,13 +1304,6 @@ function snapToAvailableNodeCount(recommended) {
     const clusterType = document.getElementById('cluster-type').value;
     if (clusterType === 'single') return 1;
     if (clusterType === 'aldo-mgmt') return 3;
-    if (clusterType === 'low-capacity') {
-        const options = [1, 2, 3];
-        for (const opt of options) {
-            if (opt >= recommended) return opt;
-        }
-        return 3;
-    }
     if (clusterType === 'disaggregated') {
         var rackCountEl = document.getElementById('disagg-rack-count');
         var rackCount = rackCountEl ? parseInt(rackCountEl.value) || 2 : 2;
@@ -1449,17 +1426,60 @@ const ALDO_APPLIANCE_OVERHEAD_GB = 64;  // Disconnected operations appliance VM 
 // specific reason to (e.g. low-throughput inference workloads).
 const GPU_MIN_CORES_PER_NODE = 24;
 
-// Low Capacity deployment type hardware limits
-// Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
-const LOW_CAPACITY_MAX_NODES = 3;               // 1–3 nodes supported
-const LOW_CAPACITY_MAX_CORES_PER_NODE = 14;     // Up to 14 physical cores
-const LOW_CAPACITY_MAX_SOCKETS = 1;             // Single socket only
-const LOW_CAPACITY_MIN_MEMORY_GB = 32;          // Minimum 32 GB per node
-const LOW_CAPACITY_MAX_MEMORY_GB = 128;         // Maximum 128 GB per node
-const LOW_CAPACITY_MAX_GPU_VRAM_GB = 192;       // Maximum 192 GB GPU memory per node
-const LOW_CAPACITY_MAX_DISK_COUNT = 2;          // Maximum 2 data disks per node
 const ARB_MEMORY_OVERHEAD_GB = 8;       // Azure Resource Bridge (ARB) appliance VM memory per cluster
 const ARB_VCPU_OVERHEAD = 4;            // Azure Resource Bridge (ARB) appliance VM vCPUs per cluster
+
+// ── Physical host (root partition) compute overhead — Issue #232 ──
+// Per-node memory and CPU reserved for the Azure Local management OS / Hyper-V
+// root partition, Failover Clustering / CSV, the S2D stack (Software Storage Bus,
+// pool/ReFS runtime, CSV in-memory read cache, cache-drive metadata), Arc/AMA/ATC/
+// Defender agents, and live-migration / repair / patching headroom. See
+// docs/module-planning/issues-232-233-plan.md for the model and citations.
+const HOST_MEM_BASE_S2D_GB = 32;            // S2D deployment types baseline
+const HOST_MEM_BASE_DISAGGREGATED_GB = 24;  // Disaggregated (external SAN — no S2D stack)
+const HOST_MEM_CACHE_METADATA_GB_PER_TB = 4; // S2D cache-drive metadata: 4 GB per TB of cache
+const HOST_MEM_HOST_RAM_FRACTION = 0.08;    // Hyper-V root-partition reserve scaling term (8% of host RAM)
+
+// Cache TB per node from a hardware config's disk layout (tiered S2D only; 0 otherwise).
+function getCacheTBPerNode(hwConfig) {
+    if (!hwConfig || !hwConfig.diskConfig) return 0;
+    const dc = hwConfig.diskConfig;
+    if (dc.isTiered && dc.cache) {
+        return (dc.cache.count * dc.cache.sizeGB) / 1024;
+    }
+    return 0;
+}
+
+// Per-node host memory reservation (GB), S2D-aware.
+//   S2D types:      max( 32 + (tiered ? 4 × cacheTB : 0) + aldo, ceil(0.08 × hostMemGB) )
+//   Disaggregated:  max( 24 + aldo,                              ceil(0.08 × hostMemGB) )
+// Cache metadata is forced to 0 for disaggregated (no S2D) and for non-tiered configs.
+function getHostMemoryReservedGB(hwConfig, clusterType) {
+    const isDisaggregated = clusterType === 'disaggregated';
+    const base = isDisaggregated ? HOST_MEM_BASE_DISAGGREGATED_GB : HOST_MEM_BASE_S2D_GB;
+    const cacheMetadataGB = isDisaggregated ? 0 : Math.ceil(getCacheTBPerNode(hwConfig) * HOST_MEM_CACHE_METADATA_GB_PER_TB);
+    const aldo = clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0;
+    const hostMemGB = (hwConfig && hwConfig.memoryGB) || 0;
+    const ramFractionGB = Math.ceil(HOST_MEM_HOST_RAM_FRACTION * hostMemGB);
+    return Math.max(base + cacheMetadataGB + aldo, ramFractionGB);
+}
+
+// Per-node host CPU reservation (physical cores) for the root partition.
+//   Disaggregated (all-flash): max(10%, 1 core)
+//   Standard / S2D with ARB (default):        max(10%, 2 cores)
+//   ALDO-mgmt:                                max(20%, 2 cores)
+function getHostCpuReservedCores(hwConfig, clusterType) {
+    const physicalCores = (hwConfig && hwConfig.totalPhysicalCores) || 0;
+    let pct, floor;
+    if (clusterType === 'aldo-mgmt') {
+        pct = 0.20; floor = 2;
+    } else if (clusterType === 'disaggregated') {
+        pct = 0.10; floor = 1;
+    } else {
+        pct = 0.10; floor = 2;
+    }
+    return Math.max(Math.ceil(pct * physicalCores), floor);
+}
 
 // ALDO Infrastructure Requirement VM (IRVM1) — auto-added when ALDO Management Cluster is selected
 const ALDO_IRVM = {
@@ -1870,10 +1890,13 @@ function _tryAmdCoreUpgrade(totalVcpus, effectiveNodes, currentRatio, currentCor
 
     // Find the smallest core option in the best AMD gen that resolves pressure
     const MAX_SOCKETS = 2;
+    const ctEl = document.getElementById('cluster-type');
+    const clusterTypeForOverhead = ctEl ? ctEl.value : 'standard';
+    const usableCap = (physCores, ratio) => Math.max(physCores - getHostCpuReservedCores({ totalPhysicalCores: physCores }, clusterTypeForOverhead), 0) * effectiveNodes * ratio;
     let targetCores = null;
     for (const c of bestGen.coreOptions) {
         if (c * MAX_SOCKETS <= currentPhysCores) continue; // must exceed current config
-        const candidateCap = c * MAX_SOCKETS * effectiveNodes * currentRatio;
+        const candidateCap = usableCap(c * MAX_SOCKETS, currentRatio);
         const candidatePct = candidateCap > 0 ? Math.round(totalVcpus / candidateCap * 100) : 100;
         if (candidatePct < threshold) {
             targetCores = c;
@@ -1883,7 +1906,7 @@ function _tryAmdCoreUpgrade(totalVcpus, effectiveNodes, currentRatio, currentCor
     // If no single option resolves it, use max cores (still better than 6:1)
     if (!targetCores) {
         const maxCoresOption = bestGen.coreOptions[bestGen.coreOptions.length - 1];
-        const maxCap = maxCoresOption * MAX_SOCKETS * effectiveNodes * currentRatio;
+        const maxCap = usableCap(maxCoresOption * MAX_SOCKETS, currentRatio);
         const maxPct = maxCap > 0 ? Math.round(totalVcpus / maxCap * 100) : 100;
         if (maxPct >= threshold) return null; // even max AMD cores won't help at this ratio
         targetCores = maxCoresOption;
@@ -1940,7 +1963,8 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // Note: _vcpuRatioAutoEscalated is reset once per calculateRequirements() call,
     // NOT per autoScaleHardware() call, so the flag survives multiple auto-scale passes.
     const clusterTypeForOverhead = document.getElementById('cluster-type').value;
-    const hostOverheadMemoryGB = 32 + (clusterTypeForOverhead === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
+    const hostOverheadMemoryGB = getHostMemoryReservedGB(hwConfig, clusterTypeForOverhead);
+    const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterTypeForOverhead);
     const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
 
     let changed = false;
@@ -1948,25 +1972,15 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     // --- Auto-scale CPU cores (and sockets if needed) ---
     // Skip when the user has manually set CPU cores/sockets (respect user override).
     // For ALDO management clusters, enforce minimum 24 physical cores per node
-    const isLowCapacity = clusterTypeForOverhead === 'low-capacity';
     const aldoMinCores = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_CORES_PER_NODE : 0;
     // Multi-node GPU clusters: enforce a minimum cores-per-node floor so AUTO
-    // doesn't pick e.g. 8-core CPUs that will starve the GPU. Skipped in Low
-    // Capacity (single-socket, capped at 14 cores) where the floor would
-    // exceed the deployment type's max.
+    // doesn't pick e.g. 8-core CPUs that will starve the GPU.
     const gpuCountPerNodeForCpu = parseInt((document.getElementById('gpu-count') || {}).value, 10) || 0;
-    const gpuMinCores = (!isLowCapacity && nodeCount > 1 && gpuCountPerNodeForCpu > 0) ? GPU_MIN_CORES_PER_NODE : 0;
-    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore), aldoMinCores, gpuMinCores);
+    const gpuMinCores = (nodeCount > 1 && gpuCountPerNodeForCpu > 0) ? GPU_MIN_CORES_PER_NODE : 0;
+    const requiredCoresPerNode = Math.max(Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore) + hostReservedCores, aldoMinCores, gpuMinCores);
     let sockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     const socketsSelect = document.getElementById('cpu-sockets');
-    const SOCKET_OPTIONS = isLowCapacity ? [1] : [1, 2];
-
-    // Low Capacity: force single socket
-    if (isLowCapacity && sockets > LOW_CAPACITY_MAX_SOCKETS) {
-        sockets = LOW_CAPACITY_MAX_SOCKETS;
-        socketsSelect.value = LOW_CAPACITY_MAX_SOCKETS;
-        changed = true;
-    }
+    const SOCKET_OPTIONS = [1, 2];
 
     let manufacturer = document.getElementById('cpu-manufacturer').value;
     let genId = document.getElementById('cpu-generation').value;
@@ -2008,17 +2022,11 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
             // If still no option is big enough, pick max cores and max sockets
             if (targetCores === null) {
                 targetCores = maxCoresForGen;
-                if (sockets < 2 && !isLowCapacity) {
+                if (sockets < 2) {
                     socketsSelect.value = 2;
                     changed = true;
                     markAutoScaled('cpu-sockets');
                 }
-            }
-
-            // Low Capacity: cap cores at maximum allowed
-            if (isLowCapacity && targetCores > LOW_CAPACITY_MAX_CORES_PER_NODE) {
-                const validCores = generation.coreOptions.filter(c => c <= LOW_CAPACITY_MAX_CORES_PER_NODE);
-                targetCores = validCores.length > 0 ? validCores[validCores.length - 1] : generation.coreOptions[0];
             }
 
             if (targetCores !== currentCores) {
@@ -2045,15 +2053,10 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         // In conservative mode (default), cap at 2 TB and let node scaling add nodes instead.
         // For ALDO management clusters, enforce minimum 96 GB per node
         const aldoMinMem = (clusterTypeForOverhead === 'aldo-mgmt') ? ALDO_MIN_MEMORY_GB : 0;
-        const lowCapMinMem = isLowCapacity ? LOW_CAPACITY_MIN_MEMORY_GB : 0;
-        const effectiveMinMem = Math.max(requiredMemPerNode, aldoMinMem, lowCapMinMem);
+        const effectiveMinMem = Math.max(requiredMemPerNode, aldoMinMem);
         let targetMem = MEMORY_OPTIONS_GB.find(m => m >= effectiveMinMem) || MAX_MEMORY_GB;
         if (!allowHighMemory && targetMem > PREFERRED_MEM_CAP_GB) {
             targetMem = PREFERRED_MEM_CAP_GB;
-        }
-        // Low Capacity: enforce maximum memory cap
-        if (isLowCapacity && targetMem > LOW_CAPACITY_MAX_MEMORY_GB) {
-            targetMem = LOW_CAPACITY_MAX_MEMORY_GB;
         }
         if (targetMem !== currentMem) {
             memInput.value = targetMem;
@@ -2100,9 +2103,7 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
 
         // Set disk count to the required amount, clamped between min (2) and max for storage type
         let maxDisksForType = isTieredCapped ? MAX_TIERED_CAPACITY_DISK_COUNT : MAX_DISK_COUNT;
-        // Low Capacity: enforce reduced disk count cap
-        if (isLowCapacity) maxDisksForType = Math.min(maxDisksForType, LOW_CAPACITY_MAX_DISK_COUNT);
-        const minDisksForType = isLowCapacity ? 1 : MIN_DISK_COUNT;
+        const minDisksForType = MIN_DISK_COUNT;
         let targetDisks = Math.max(minDisksForType, Math.min(disksNeeded, maxDisksForType));
 
         // --- Disk bay consolidation ---
@@ -2214,15 +2215,23 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     let hrSockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     let hrMemory = parseInt(document.getElementById('node-memory').value) || 512;
 
-    // CPU headroom — bump cores first, then sockets
-    // Skip when the user has manually set CPU config (respect user override).
-    // Re-read manufacturer/genId in case AMD auto-switch changed them
+    // Usable vCPU capacity per cluster, excluding the per-node host CPU reserve.
+    // Declared at function scope so both the physical core/socket scaling pass and
+    // the vCPU-ratio escalation pass (which may run even when cores are locked) can use it.
+    const usableVcpuCap = (coresPerNode, ratio) => Math.max(coresPerNode - getHostCpuReservedCores({ totalPhysicalCores: coresPerNode }, clusterTypeForOverhead), 0) * effectiveNodes * (ratio || vcpuToCore);
+
+    // CPU headroom — bump cores first, then sockets.
+    // Skip the PHYSICAL core/socket scaling when the user has manually set (or
+    // imported) the CPU config — physical silicon cannot be changed on a fixed
+    // cluster. The vCPU overcommit ratio is NOT a physical property and is handled
+    // separately below so it can still escalate even when cores/sockets are locked.
+    // Re-read manufacturer/genId in case AMD auto-switch changed them.
     manufacturer = document.getElementById('cpu-manufacturer').value;
     genId = document.getElementById('cpu-generation').value;
     if (manufacturer && genId && !_cpuConfigUserSet) {
         const gen = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
         if (gen) {
-            let cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+            let cpuCap = usableVcpuCap(hrCores * hrSockets);
             let cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
             let safety = 0;
             while (cpuPct > HEADROOM_THRESHOLD && safety < 20) {
@@ -2246,70 +2255,78 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 } else {
                     break; // maxed out on both cores and sockets
                 }
-                cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
+                cpuCap = usableVcpuCap(hrCores * hrSockets);
                 cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
             }
+        }
+    }
 
-            // vCPU ratio auto-escalation — when cores & sockets are maxed and compute ≥90%,
-            // bump the overcommit ratio (4→5→6) to reduce over-threshold pressure.
-            // Only auto-escalate from default (4) or a previously auto-escalated value (5).
-            // Skip if the user has manually set the ratio (respect user override).
-            // In conservative mode (default), skip ratio escalation entirely — prefer adding
-            // nodes first. Only allow escalation in the final aggressive pass when nodes are maxed.
-            //
-            // Before escalating from 5→6, try switching to an AMD generation with more
-            // physical cores (e.g. AMD Turin Dense with 192 cores/socket = 384 cores dual-socket).
-            // This keeps the overcommit ratio lower (5:1) by adding real physical cores.
-            const VCPU_ESCALATION_THRESHOLD = 90;
-            const VCPU_RATIO_STEPS = [5, 6];
-            if (allowRatioEscalation && !_vcpuRatioUserSet && cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
-                for (const nextRatio of VCPU_RATIO_STEPS) {
-                    if (nextRatio <= vcpuToCore) continue; // skip ratios we're already at or past
+    // vCPU ratio auto-escalation — when compute ≥90%, bump the overcommit ratio
+    // (4→5→6) to reduce over-threshold pressure.
+    // Decoupled from the physical CPU lock (_cpuConfigUserSet): the overcommit
+    // ratio is NOT a physical property, so it must still escalate on a fixed /
+    // imported cluster whose cores & sockets are locked. It is gated ONLY by the
+    // user manually pinning the ratio (_vcpuRatioUserSet → shows MANUAL).
+    // Only auto-escalate from default (4) or a previously auto-escalated value (5).
+    // In conservative mode (default), skip ratio escalation entirely — prefer adding
+    // nodes first. Only allow escalation in the final aggressive pass when nodes are maxed.
+    //
+    // Before escalating from 5→6, try switching to an AMD generation with more
+    // physical cores (e.g. AMD Turin Dense with 192 cores/socket = 384 cores dual-socket).
+    // This keeps the overcommit ratio lower (5:1) by adding real physical cores — but
+    // ONLY when the physical CPU is not locked, since that step changes the silicon.
+    if (manufacturer && genId) {
+        // Use the current cores/sockets (possibly just scaled above, or locked).
+        let cpuCap = usableVcpuCap(hrCores * hrSockets);
+        let cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+        const VCPU_ESCALATION_THRESHOLD = 90;
+        const VCPU_RATIO_STEPS = [5, 6];
+        if (allowRatioEscalation && !_vcpuRatioUserSet && cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
+            for (const nextRatio of VCPU_RATIO_STEPS) {
+                if (nextRatio <= vcpuToCore) continue; // skip ratios we're already at or past
 
-                    // Before jumping to 6:1, try switching to AMD with higher core counts
-                    // at the current ratio. Only attempt when currently on Intel or an AMD
-                    // generation whose max cores are lower than what's available in other
-                    // AMD generations.
-                    if (nextRatio === 6) {
-                        const amdSwitch = _tryAmdCoreUpgrade(
-                            totalVcpus, effectiveNodes, vcpuToCore,
-                            hrCores, hrSockets, VCPU_ESCALATION_THRESHOLD
-                        );
-                        if (amdSwitch) {
-                            // AMD switch resolved compute pressure — apply the change
-                            hrCores = amdSwitch.cores;
-                            hrSockets = amdSwitch.sockets;
-                            changed = true;
-                            cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
-                            cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
-                            if (cpuPct < VCPU_ESCALATION_THRESHOLD) {
-                                // AMD cores resolved pressure at 5:1 — check if we can
-                                // step back to 4:1 and still stay under threshold
-                                const pctAt4 = Math.round(totalVcpus / (hrCores * hrSockets * effectiveNodes * 4) * 100);
-                                if (pctAt4 < VCPU_ESCALATION_THRESHOLD) {
-                                    document.getElementById('vcpu-ratio').value = 4;
-                                    // Ratio back at default — no auto-escalation badge needed
-                                    _vcpuRatioAutoEscalated = false;
-                                }
-                                break; // resolved, skip 6:1
+                // Before jumping to 6:1, try switching to AMD with higher core counts
+                // at the current ratio — but only when the physical CPU is not locked
+                // (an imported/fixed cluster cannot swap silicon).
+                if (nextRatio === 6 && !_cpuConfigUserSet) {
+                    const amdSwitch = _tryAmdCoreUpgrade(
+                        totalVcpus, effectiveNodes, vcpuToCore,
+                        hrCores, hrSockets, VCPU_ESCALATION_THRESHOLD
+                    );
+                    if (amdSwitch) {
+                        // AMD switch resolved compute pressure — apply the change
+                        hrCores = amdSwitch.cores;
+                        hrSockets = amdSwitch.sockets;
+                        changed = true;
+                        cpuCap = usableVcpuCap(hrCores * hrSockets);
+                        cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+                        if (cpuPct < VCPU_ESCALATION_THRESHOLD) {
+                            // AMD cores resolved pressure at 5:1 — check if we can
+                            // step back to 4:1 and still stay under threshold
+                            const pctAt4 = Math.round(totalVcpus / usableVcpuCap(hrCores * hrSockets, 4) * 100);
+                            if (pctAt4 < VCPU_ESCALATION_THRESHOLD) {
+                                document.getElementById('vcpu-ratio').value = 4;
+                                // Ratio back at default — no auto-escalation badge needed
+                                _vcpuRatioAutoEscalated = false;
                             }
+                            break; // resolved, skip 6:1
                         }
                     }
-
-                    vcpuToCore = nextRatio;
-                    document.getElementById('vcpu-ratio').value = nextRatio;
-                    changed = true;
-                    markAutoScaled('vcpu-ratio');
-                    _vcpuRatioAutoEscalated = true;
-                    cpuCap = hrCores * hrSockets * effectiveNodes * vcpuToCore;
-                    cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
-                    if (cpuPct < VCPU_ESCALATION_THRESHOLD) break;
                 }
-            } else if (previouslyAutoScaled && previouslyAutoScaled.has('vcpu-ratio')) {
-                // Ratio was auto-escalated in a prior cycle and is still adequate — re-apply badge
+
+                vcpuToCore = nextRatio;
+                document.getElementById('vcpu-ratio').value = nextRatio;
+                changed = true;
                 markAutoScaled('vcpu-ratio');
                 _vcpuRatioAutoEscalated = true;
+                cpuCap = usableVcpuCap(hrCores * hrSockets);
+                cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+                if (cpuPct < VCPU_ESCALATION_THRESHOLD) break;
             }
+        } else if (previouslyAutoScaled && previouslyAutoScaled.has('vcpu-ratio')) {
+            // Ratio was auto-escalated in a prior cycle and is still adequate — re-apply badge
+            markAutoScaled('vcpu-ratio');
+            _vcpuRatioAutoEscalated = true;
         }
     }
 
@@ -2325,8 +2342,6 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
         let memCapLimit = nodeCount < NODE_WEIGHT_LARGE_CLUSTER_THRESHOLD
             ? Math.min(NODE_WEIGHT_PREFERRED_MEMORY_GB, baseMemCap)
             : baseMemCap;
-        // Low Capacity: enforce hard memory cap
-        if (isLowCapacity) memCapLimit = Math.min(memCapLimit, LOW_CAPACITY_MAX_MEMORY_GB);
         let memCap = (hrMemory - hostOverheadMemoryGB) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
         let memPct = memCap > 0 ? Math.round(totalMemoryGB / memCap * 100) : 0;
         let memIdx = MEMORY_OPTIONS_GB.indexOf(hrMemory);
@@ -2535,7 +2550,6 @@ function checkForDesignerImport() {
         if (isDisaggImport) updateDisaggregatedUI(true);
         updateResiliencyOptions();
         updateAldoWorkloadButtons();
-        enforceLowCapacityLimits();
 
         // Store physical port count from Designer for 3D rack visualization
         if (payload.ports) {
@@ -2592,7 +2606,6 @@ function checkForDesignerImport() {
         const clusterLabels = {
             'single': 'Single Node',
             'standard': 'Hyperconverged',
-            'low-capacity': 'Low Capacity',
             'rack-aware': 'Rack-Aware Instance',
             'disaggregated': 'Disaggregated Storage',
             'aldo-mgmt': 'ALDO Management Cluster'
@@ -2817,7 +2830,6 @@ function resumeSizerState() {
 
     // Update UI
     updateAldoWorkloadButtons();
-    enforceLowCapacityLimits();
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
@@ -3128,7 +3140,6 @@ function onClusterTypeChange() {
     updateResiliencyRecommendation();
     updateClusterInfo();
     enforceAldoMinimums();
-    enforceLowCapacityLimits();
     calculateRequirements();
 }
 
@@ -3196,11 +3207,8 @@ function updateDisaggregatedUI(isDisagg) {
     // Update HA/DR tip for disaggregated
     var hadrTip = document.getElementById('hadr-tip');
     if (hadrTip) {
-        var currentClusterType = document.getElementById('cluster-type').value;
         if (isDisagg) {
             hadrTip.querySelector('span').textContent = 'Disaggregated storage: compute nodes use external SAN storage (Fibre Channel or iSCSI). Storage Spaces Direct is not used. Configure up to 4 racks with up to 16 nodes each (64 nodes maximum).';
-        } else if (currentClusterType === 'low-capacity') {
-            hadrTip.querySelector('span').textContent = 'Low Capacity: supports 1\u20133 nodes with reduced hardware (max 14 CPU cores, 32\u2013128 GB memory per node). All-flash storage only, no caching. RDMA is optional. See Azure Local documentation for low capacity hardware requirements.';
         } else {
             hadrTip.querySelector('span').textContent = 'Tip: For business or mission-critical workloads, it is recommended to implement two separate Azure Local clusters, to enable workload HA/DR capabilities between two locations, or consider a Rack-Aware Cluster Deployment Type.';
         }
@@ -3284,139 +3292,13 @@ function enforceAldoMinimums() {
     }
 }
 
-// Enforce Low Capacity deployment type hardware limits
-// Source: https://learn.microsoft.com/en-gb/azure/azure-local/concepts/system-requirements-small-23h2
-// This function both restricts dropdown options AND clamps current values.
-function enforceLowCapacityLimits() {
-    const clusterType = document.getElementById('cluster-type').value;
-    const isLowCap = clusterType === 'low-capacity';
-
-    // --- CPU Sockets: lock at 1, or restore ---
-    const socketsSelect = document.getElementById('cpu-sockets');
-    if (socketsSelect) {
-        if (isLowCap) {
-            socketsSelect.value = String(LOW_CAPACITY_MAX_SOCKETS);
-            socketsSelect.disabled = true;
-        } else {
-            socketsSelect.disabled = false;
-        }
-    }
-
-    // --- CPU Cores: filter dropdown to ≤14, or restore full list ---
-    const coresSelect = document.getElementById('cpu-cores');
-    if (coresSelect && coresSelect.options.length > 0) {
-        const manufacturer = document.getElementById('cpu-manufacturer').value;
-        const genId = document.getElementById('cpu-generation').value;
-        if (manufacturer && genId) {
-            const generation = CPU_GENERATIONS[manufacturer] &&
-                CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
-            if (generation) {
-                const currentCores = parseInt(coresSelect.value) || 0;
-                const allowedCores = isLowCap
-                    ? generation.coreOptions.filter(c => c <= LOW_CAPACITY_MAX_CORES_PER_NODE)
-                    : generation.coreOptions;
-
-                coresSelect.innerHTML = allowedCores.map(c =>
-                    '<option value="' + c + '">' + c + ' cores</option>'
-                ).join('');
-
-                // Preserve current value if still valid, otherwise pick largest valid
-                if (allowedCores.includes(currentCores)) {
-                    coresSelect.value = currentCores;
-                } else if (allowedCores.length > 0) {
-                    coresSelect.value = allowedCores[allowedCores.length - 1];
-                }
-            }
-        }
-    }
-
-    // --- Memory: filter dropdown to 32–128 GB, or restore full list ---
-    const memSelect = document.getElementById('node-memory');
-    if (memSelect) {
-        const currentMem = parseInt(memSelect.value) || 512;
-        if (isLowCap) {
-            const allowedMem = MEMORY_OPTIONS_GB.filter(
-                m => m >= LOW_CAPACITY_MIN_MEMORY_GB && m <= LOW_CAPACITY_MAX_MEMORY_GB
-            );
-            memSelect.innerHTML = allowedMem.map(m =>
-                '<option value="' + m + '">' + m + ' GB</option>'
-            ).join('');
-            // Pick closest valid value
-            if (allowedMem.includes(currentMem)) {
-                memSelect.value = currentMem;
-            } else {
-                memSelect.value = allowedMem[allowedMem.length - 1]; // default to max allowed
-            }
-        } else {
-            // Restore full memory options (only if currently restricted)
-            if (memSelect.options.length < MEMORY_OPTIONS_GB.length) {
-                memSelect.innerHTML = MEMORY_OPTIONS_GB.map(m =>
-                    '<option value="' + m + '"' + (m === 512 ? ' selected' : '') + '>' + m + ' GB</option>'
-                ).join('');
-                // Preserve current value if it's a valid option
-                if (MEMORY_OPTIONS_GB.includes(currentMem)) {
-                    memSelect.value = currentMem;
-                }
-            }
-        }
-    }
-
-    // --- Disk Count: filter dropdown to 1–2, or restore full list ---
-    const diskCountSelect = document.getElementById('capacity-disk-count');
-    if (diskCountSelect) {
-        const currentCount = parseInt(diskCountSelect.value) || 4;
-        if (isLowCap) {
-            const maxCount = LOW_CAPACITY_MAX_DISK_COUNT;
-            var diskOpts = '';
-            for (var d = 1; d <= maxCount; d++) {
-                diskOpts += '<option value="' + d + '">' + d + '</option>';
-            }
-            diskCountSelect.innerHTML = diskOpts;
-            diskCountSelect.value = Math.min(currentCount, maxCount);
-            if (!diskCountSelect.value || diskCountSelect.selectedIndex < 0) {
-                diskCountSelect.value = maxCount;
-            }
-        } else {
-            // Restore full disk count options (only if currently restricted)
-            if (diskCountSelect.options.length < (MAX_DISK_COUNT - MIN_DISK_COUNT + 1)) {
-                var fullDiskOpts = '';
-                for (var d2 = MIN_DISK_COUNT; d2 <= MAX_DISK_COUNT; d2++) {
-                    fullDiskOpts += '<option value="' + d2 + '"' + (d2 === 4 ? ' selected' : '') + '>' + d2 + '</option>';
-                }
-                diskCountSelect.innerHTML = fullDiskOpts;
-                if (currentCount >= MIN_DISK_COUNT && currentCount <= MAX_DISK_COUNT) {
-                    diskCountSelect.value = currentCount;
-                }
-            }
-        }
-    }
-
-    if (!isLowCap) return;
-
-    // --- GPU VRAM limit (192 GB per node) ---
-    const gpuCountEl = document.getElementById('gpu-count');
-    const gpuTypeEl = document.getElementById('gpu-type');
-    if (gpuCountEl && gpuTypeEl) {
-        const gpuCount = parseInt(gpuCountEl.value) || 0;
-        const gpuType = gpuTypeEl.value;
-        const gpuModel = GPU_MODELS[gpuType];
-        if (gpuModel && gpuCount > 0) {
-            const totalVram = gpuModel.vramGB * gpuCount;
-            if (totalVram > LOW_CAPACITY_MAX_GPU_VRAM_GB) {
-                const maxGpus = Math.floor(LOW_CAPACITY_MAX_GPU_VRAM_GB / gpuModel.vramGB);
-                gpuCountEl.value = Math.max(0, maxGpus);
-            }
-        }
-    }
-}
-
 // Enforce storage constraints based on cluster type
 function updateStorageForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const storageSelect = document.getElementById('storage-config');
     if (!storageSelect) return; // Guard for test harness
-    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt' || clusterType === 'disaggregated' || clusterType === 'low-capacity') {
-        // Rack-aware, single-node, low-capacity, ALDO management, and disaggregated require all-flash (or external SAN)
+    if (clusterType === 'rack-aware' || clusterType === 'single' || clusterType === 'aldo-mgmt' || clusterType === 'disaggregated') {
+        // Rack-aware, single-node, ALDO management, and disaggregated require all-flash (or external SAN)
         storageSelect.value = 'all-flash';
         storageSelect.disabled = true;
         onStorageConfigChange();
@@ -3508,23 +3390,6 @@ function updateNodeOptionsForClusterType() {
         // Update label to say "Nodes per Rack"
         var nodeLabel = document.querySelector('label[for="node-count"]');
         if (nodeLabel) nodeLabel.textContent = 'Nodes per Rack';
-    } else if (clusterType === 'low-capacity') {
-        // Low Capacity: 1-3 nodes
-        nodeSelect.disabled = false;
-        const nodeOptions = [1, 2, 3];
-        nodeSelect.innerHTML = nodeOptions.map(n => {
-            let label = `${n} Node${n > 1 ? 's' : ''}`;
-            if (n === 1) label += ' (Minimum)';
-            if (n === 3) label += ' (Maximum for Low Capacity)';
-            return `<option value="${n}">${label}</option>`;
-        }).join('');
-
-        // Preserve current value if valid, otherwise default to 1
-        if (nodeOptions.includes(currentValue)) {
-            nodeSelect.value = currentValue;
-        } else {
-            nodeSelect.value = currentValue > 3 ? 3 : 1;
-        }
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
@@ -3556,7 +3421,7 @@ function updateResiliencyOptions() {
     // Build resiliency options based on cluster type and node count
     let options = '';
     
-    if (clusterType === 'single' || (clusterType === 'low-capacity' && nodeCount === 1)) {
+    if (clusterType === 'single') {
         // Single node: only simple and 2-way mirror available
         options = `
             <option value="simple">Simple (No Fault Tolerance - 1 drive)</option>
@@ -3602,7 +3467,7 @@ function updateResiliencyOptions() {
     const validOptions = Array.from(resiliencySelect.options).map(o => o.value);
     if (clusterType === 'rack-aware') {
         // Rack-aware has only one option per node count — already selected
-    } else if (clusterType === 'single' || (clusterType === 'low-capacity' && nodeCount === 1)) {
+    } else if (clusterType === 'single') {
         // Single node: default to 2-way mirror for fault tolerance
         resiliencySelect.value = '2way';
     } else if (clusterType === 'aldo-mgmt') {
@@ -3628,7 +3493,7 @@ function updateClusterInfo() {
     let showWarning = false;
     let message = '';
     
-    if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && clusterType !== 'low-capacity' && resiliency === '3way' && nodeCount < config.minNodes) {
+    if (clusterType !== 'single' && clusterType !== 'rack-aware' && clusterType !== 'aldo-mgmt' && resiliency === '3way' && nodeCount < config.minNodes) {
         showWarning = true;
         message = `Warning: Three-way Mirror requires minimum ${config.minNodes} fault domains (nodes). Current configuration has only ${nodeCount} nodes.`;
     }
@@ -3650,8 +3515,6 @@ function updateNodeTip() {
         tipText.textContent = 'Tip: Single node instances will always incur workload downtime during updates. No N+1 capacity is available.';
     } else if (clusterType === 'aldo-mgmt') {
         tipText.textContent = 'Tip: ALDO Management Cluster is fixed at 3 nodes. N+1 capacity is reserved for maintenance (2 effective nodes during servicing).';
-    } else if (clusterType === 'low-capacity') {
-        tipText.textContent = 'Tip: Low Capacity supports 1\u20133 nodes with reduced hardware specifications (max 14 CPU cores, max 128 GB memory per node). Single node deployments will incur workload downtime during updates.';
     } else {
         tipText.textContent = 'Tip: Minimum N+1 capacity must be reserved for Compute and Memory when applying updates (ability to drain a node). Single Node instances will always incur workload downtime during updates.';
     }
@@ -5466,8 +5329,6 @@ function calculateRequirements(options) {
             MAX_NODES = 8;
         } else if (clusterType === 'single') {
             MAX_NODES = 1;
-        } else if (clusterType === 'low-capacity') {
-            MAX_NODES = 3; // Low Capacity supports 1-3 nodes only
         } else if (clusterType === 'aldo-mgmt') {
             MAX_NODES = 3;
         } else {
@@ -5480,8 +5341,6 @@ function calculateRequirements(options) {
         if (nodesBarLabel) {
             if (clusterType === 'disaggregated') {
                 nodesBarLabel.textContent = 'Azure Local disaggregated instance size';
-            } else if (clusterType === 'low-capacity') {
-                nodesBarLabel.textContent = 'Azure Local low capacity instance size';
             } else {
                 nodesBarLabel.textContent = 'Azure Local hyperconverged instance size';
             }
@@ -5501,8 +5360,9 @@ function calculateRequirements(options) {
         }
         const rawStoragePerNodeTB = rawStoragePerNodeGB / 1024 || DEFAULT_RAW_TB_PER_NODE;
 
-        const totalAvailableVcpus = physicalCoresPerNode * effectiveNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
-        const hostOverheadGB = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0); // Azure Local host OS + management overhead per node (+ ALDO appliance)
+        const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
+        const totalAvailableVcpus = Math.max(physicalCoresPerNode - hostReservedCores, 0) * effectiveNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
+        const hostOverheadGB = getHostMemoryReservedGB(hwConfig, clusterType); // Azure Local host OS + management overhead per node (S2D-aware + ALDO appliance)
         const totalAvailableMemory = Math.max((memoryPerNode - hostOverheadGB), 0) * effectiveNodes - ARB_MEMORY_OVERHEAD_GB;
         // Infrastructure_1 volume: 256 GB usable reserved by Storage Spaces Direct on all clusters
         const infraVolumeUsableTB = 0.25; // 256 GB
@@ -5691,18 +5551,6 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         infraPowerNote = torCount + '× ToR (' + torSwitchPower + 'W), ' + bmcCount + '× BMC (' + bmcSwitchPower + 'W)';
         if (fcCount > 0) infraPowerNote += ', ' + fcCount + '× FC (' + fcSwitchPower + 'W)';
         infraPowerNote += ', ' + spineCount + '× Spine (' + spineSwitchPower + 'W)';
-    } else if (clusterType === 'low-capacity') {
-        // Low Capacity: compact edge appliances (NOT server-class 2U hardware) +
-        // at most 1 small edge switch shared by management/compute/storage traffic.
-        // No BMC switch (BMC ports go straight to the same edge switch via the
-        // out-of-band management VLAN). Per Microsoft docs:
-        // https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements
-        // 2-node switchless and 3-node switchless can run with NO switch at all
-        // (direct/full-mesh storage cabling), but the Sizer doesn't model the
-        // switchless variant separately — the conservative assumption here is
-        // 1 switch for any multi-node low-capacity deployment.
-        // Edge switch: ~50W (small managed L2/L3 switch, e.g. Cisco CBS350).
-        infraPowerW = (nodeCount > 1) ? 50 : 0;
     } else if (nodeCount > 1) {
         // Standard HCI: 1 rack × (2 × ToR + 1 × BMC)
         // Rack-Aware: 2 racks × (2 × ToR + 1 × BMC)
@@ -5725,9 +5573,6 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     // The breakdown text appears below the value when the user clicks the
     // expand toggle (▸). Always populated; the cell stays collapsed by default.
     var rackUnitsBreakdown = '';
-    // Low Capacity is a tabletop edge deployment, not a rack-mounted one, so
-    // we relabel the cell entirely and skip the breakdown chevron.
-    var rackUnitsIsLowCapacity = (clusterType === 'low-capacity');
     if (clusterType === 'disaggregated') {
         var torPerRack = 2; // 2 × 1U leaf/ToR switches per rack
         var bmcPerRack = 1; // 1 × 1U BMC switch per rack
@@ -5744,18 +5589,6 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             drc + ' \u00d7 BMC (1U)' +
             (fcPerRack > 0 ? ', ' + (drc * fcPerRack) + ' \u00d7 FC (1U)' : '') +
             '. External SAN storage appliance(s) are not counted \u2014 consult your SAN vendor for actual rack-U.';
-    } else if (clusterType === 'low-capacity') {
-        // Low Capacity: compact edge appliances on a tabletop, not rack-mounted.
-        // No BMC switch. At most 1 small edge switch (multi-node only).
-        // Per Microsoft docs, low-capacity systems do NOT require server-class
-        // racks or BMC switches:
-        // https://learn.microsoft.com/azure/azure-local/concepts/system-requirements-small-23h2#networking-requirements
-        rackUnits = 0; // not meaningful for tabletop / non-datacenter deployments
-        if (nodeCount > 1) {
-            rackUnitLabel = 'Tabletop &mdash; ' + nodeCount + ' appliances + 1 switch';
-        } else {
-            rackUnitLabel = 'Tabletop &mdash; standalone appliance';
-        }
     } else {
         // Standard / Rack-Aware / Single-node HCI:
         //   - Single-node (1):       0 × ToR + 1 × BMC = 1U of switches (matches 3D viz)
@@ -5816,15 +5649,11 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     // Update rack units label
     var rackUnitsLabelEl = document.getElementById('rack-units-label');
     if (rackUnitsLabelEl) {
-        rackUnitsLabelEl.textContent = rackUnitsIsLowCapacity ? 'Hardware Footprint' : 'Rack Units (est.)';
-    }
-    var rackUnitsCellEl = document.getElementById('rack-units-cell');
-    if (rackUnitsCellEl) {
-        rackUnitsCellEl.classList.toggle('low-capacity-mode', rackUnitsIsLowCapacity);
+        rackUnitsLabelEl.textContent = 'Rack Units (est.)';
     }
 
     // Populate the inline expandable breakdown beneath the value, and toggle
-    // the chevron's visibility (Low Capacity has no rack-unit breakdown).
+    // the chevron's visibility.
     var rackUnitsToggleEl = document.getElementById('rack-units-toggle');
     var rackUnitsDetailEl = document.getElementById('rack-units-detail');
     if (rackUnitsToggleEl && rackUnitsDetailEl) {
@@ -5890,9 +5719,6 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
                 }
                 lines.push('Spine switches: ' + spineCount + ' × ' + spineSwitchPower + 'W = ' + (spineCount * spineSwitchPower).toLocaleString() + 'W');
                 lines.push('Network infrastructure total: <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
-            } else if (clusterType === 'low-capacity') {
-                // Low Capacity: 1 small edge switch (multi-node only), no BMC, no second ToR.
-                lines.push('Edge switch: 1 × 50W = <strong>' + infraPowerW.toLocaleString() + 'W</strong>');
             } else if (nodeCount > 1) {
                 // Standard HCI (1 rack) or Rack-Aware (2 racks): 2 × ToR + 1 × BMC per rack
                 var racksLbl = (clusterType === 'rack-aware') ? 2 : 1;
@@ -5923,7 +5749,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         lines.push('• Boot: 2 × M.2 boot drives at ~8W each');
         lines.push('• Base overhead: ~100W per node (fans, motherboard chipset, NICs, BMC)');
         lines.push('• PSU: 80 Plus Titanium rated, ~96% efficient at 50% load');
-        lines.push('• ToR switch: ~250W (48-port 25GbE class), BMC switch: ~150W, Spine: ~350W, FC: ~200W, Low-capacity edge switch: ~50W');
+        lines.push('• ToR switch: ~250W (48-port 25GbE class), BMC switch: ~150W, Spine: ~350W, FC: ~200W');
         lines.push('• Actual power varies by OEM hardware, workload intensity, ambient temperature, and PSU load point');
         detailEl.innerHTML = lines.join('<br>');
     }
@@ -6031,10 +5857,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         // Memory recommendation
         if (totalMemory > 0) {
             const memPerNode = Math.ceil(totalMemory / (nodeCount > 1 ? nodeCount - 1 : 1));
-            const totalOverheadPerNode = 32; // host OS overhead per node
+            const totalOverheadPerNode = getHostMemoryReservedGB(hwConfig, clusterType); // host reservation per node (see Physical Host Compute Overhead section)
             const arbSharePerNode = Math.ceil(ARB_MEMORY_OVERHEAD_GB / (nodeCount > 1 ? nodeCount - 1 : 1));
             if (hwConfig && memPerNode + arbSharePerNode > hwConfig.memoryGB - totalOverheadPerNode) {
-                notes.push(`⚠️ Workload memory (${memPerNode} GB/node + ${ARB_MEMORY_OVERHEAD_GB} GB ARB per cluster) approaches or exceeds usable node memory (${hwConfig.memoryGB - totalOverheadPerNode} GB after ${totalOverheadPerNode} GB host overhead). Consider increasing memory or adding nodes.`);
+                notes.push(`⚠️ Workload memory (${memPerNode} GB/node + ${ARB_MEMORY_OVERHEAD_GB} GB ARB per cluster) approaches or exceeds usable node memory (${hwConfig.memoryGB - totalOverheadPerNode} GB after ${totalOverheadPerNode} GB host reservation — see breakdown below). Consider increasing memory or adding nodes.`);
             }
         }
         
@@ -6042,9 +5868,10 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         if (hwConfig && hwConfig.totalPhysicalCores > 0 && totalVcpus > 0) {
             const vcpuToCore = getVcpuRatio();
             const effectiveNodes = nodeCount > 1 ? nodeCount - 1 : 1;
-            const requiredCoresPerNode = Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore);
+            const hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
+            const requiredCoresPerNode = Math.ceil((totalVcpus + ARB_VCPU_OVERHEAD) / effectiveNodes / vcpuToCore) + hostReservedCores;
             if (requiredCoresPerNode > hwConfig.totalPhysicalCores) {
-                notes.push(`⚠️ Required cores per node (${requiredCoresPerNode}) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional nodes.`);
+                notes.push(`⚠️ Required cores per node (${requiredCoresPerNode}, including ${hostReservedCores} reserved for the host root partition) exceed configured physical cores (${hwConfig.totalPhysicalCores}). Consider more cores or additional nodes.`);
             }
 
             // AMD suggestion when Intel cores are maxed out and compute ≥80% at 4:1.
@@ -6119,18 +5946,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             }
         }
 
-        // Storage metadata memory overhead note (4 GB per TB of cache drive capacity) — S2D only
-        if (clusterType !== 'disaggregated' && hwConfig && hwConfig.diskConfig) {
-            const dc = hwConfig.diskConfig;
-            let cacheTB = 0;
-            if (dc.isTiered && dc.cache) {
-                cacheTB = (dc.cache.count * dc.cache.sizeGB) / 1024;
-            }
-            if (cacheTB > 0) {
-                const metadataGB = Math.ceil(cacheTB * 4);
-                notes.push(`ℹ️ Storage Spaces Direct metadata: ~${metadataGB} GB memory reserved per node for cache drives (4 GB per TB of cache capacity). Not included in workload memory calculations.`);
-            }
-        }
+        // Storage Spaces Direct cache-drive metadata (4 GB per TB of cache) is now
+        // included in the host-memory reservation and detailed in the "Physical Host
+        // Compute Overhead" section below — no separate flat note here.
 
         // 400 TB per-machine storage validation (S2D only)
         let storageLimitExceeded = false;
@@ -6140,16 +5958,18 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
         var _vmExceedsNode = false;
         if (hwConfig) {
             var singleVmVcpuRatio = getVcpuRatio();
-            var usableMemPerNode = hwConfig.memoryGB - 32;
-            var maxVcpuPerNode = hwConfig.totalPhysicalCores * singleVmVcpuRatio;
+            var hostMemReservedGB = getHostMemoryReservedGB(hwConfig, clusterType);
+            var hostCoresReserved = getHostCpuReservedCores(hwConfig, clusterType);
+            var usableMemPerNode = hwConfig.memoryGB - hostMemReservedGB;
+            var maxVcpuPerNode = Math.max(hwConfig.totalPhysicalCores - hostCoresReserved, 0) * singleVmVcpuRatio;
             workloads.forEach(function(w) {
                 if (w.type === 'vm') {
                     if (w.vcpus > maxVcpuPerNode) {
-                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.vcpus + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + hwConfig.totalPhysicalCores + ' physical cores). This VM cannot be placed on a single machine.');
+                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.vcpus + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + (hwConfig.totalPhysicalCores - hostCoresReserved) + ' usable cores after a ' + hostCoresReserved + '-core host reservation). This VM cannot be placed on a single machine.');
                         _vmExceedsNode = true;
                     }
                     if (w.memory > usableMemPerNode) {
-                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.memory + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after 32 GB host overhead). This VM cannot be placed on a single machine.');
+                        notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.memory + ' GB memory per VM, which exceeds usable per-machine memory (' + usableMemPerNode + ' GB after a ' + hostMemReservedGB + ' GB host reservation — see breakdown below). This VM cannot be placed on a single machine.');
                         _vmExceedsNode = true;
                     }
                 }
@@ -6236,8 +6056,12 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             notes.push(`💡 Disk bay optimization: ${info.originalCount} × ${info.originalSizeTB} TB capacity disks would use ${Math.round(info.originalCount / info.maxBays * 100)}% of available disk bays (${info.maxBays} max). Auto-scaled to ${info.newCount} × ${info.newSizeTB} TB disks instead, freeing ${info.baysFreed} bay${info.baysFreed > 1 ? 's' : ''} per node for future expansion. Note: Disk size and number can be edited, if you prefer a larger number of smaller capacity disks.`);
         }
 
-        // Host overhead note
-        notes.push('ℹ️ Host overhead: 32 GB memory reserved per node for Azure Local OS and management — excluded from workload-available memory in capacity calculations.');
+        // Host overhead note — concise summary; full math in the collapsed section below
+        if (hwConfig) {
+            const hostMemReserved = getHostMemoryReservedGB(hwConfig, clusterType);
+            const hostCoresReserved = getHostCpuReservedCores(hwConfig, clusterType);
+            notes.push(`ℹ️ Host (root partition) reservation: ${hostMemReserved} GB memory and ${hostCoresReserved} physical core${hostCoresReserved === 1 ? '' : 's'} reserved per node for Azure Local OS, Hyper-V root partition, clustering and the S2D stack — excluded from workload-available capacity. See "Physical Host Compute Overhead — Assumptions &amp; Math" below for the breakdown.`);
+        }
 
         // Network note
         if (clusterType === 'disaggregated') {
@@ -6255,11 +6079,108 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     const notesList = document.getElementById('sizing-notes');
     notesList.innerHTML = notes.map(n => `<li>${n}</li>`).join('');
 
+    // Populate the collapsed "Physical Host Compute Overhead" breakdown
+    updateHostOverheadBreakdown(hwConfig, clusterType);
+
     // Show/hide "Configure in Designer" button
     updateDesignerActionVisibility();
 
     // Update multi-instance summary if visible
     updateMultiInstanceSummary();
+}
+
+// ── Physical Host Compute Overhead — Assumptions & Math (Issue #232) ──
+// Renders the collapsed breakdown beneath the sizing notes showing exactly how the
+// per-node host memory and CPU reservations are derived for the current deployment.
+function updateHostOverheadBreakdown(hwConfig, clusterType) {
+    const section = document.getElementById('host-overhead-section');
+    const content = document.getElementById('host-overhead-content');
+    if (!section || !content) return;
+
+    if (!hwConfig) {
+        section.style.display = 'none';
+        content.innerHTML = '';
+        return;
+    }
+
+    const isDisaggregated = clusterType === 'disaggregated';
+    const isAldo = clusterType === 'aldo-mgmt';
+    const hostMemGB = hwConfig.memoryGB || 0;
+    const physicalCores = hwConfig.totalPhysicalCores || 0;
+
+    // Memory terms
+    const base = isDisaggregated ? HOST_MEM_BASE_DISAGGREGATED_GB : HOST_MEM_BASE_S2D_GB;
+    const cacheTB = getCacheTBPerNode(hwConfig);
+    const cacheMetadataGB = isDisaggregated ? 0 : Math.ceil(cacheTB * HOST_MEM_CACHE_METADATA_GB_PER_TB);
+    const aldoGB = isAldo ? ALDO_APPLIANCE_OVERHEAD_GB : 0;
+    const fixedSum = base + cacheMetadataGB + aldoGB;
+    const ramFractionGB = Math.ceil(HOST_MEM_HOST_RAM_FRACTION * hostMemGB);
+    const memReserved = Math.max(fixedSum, ramFractionGB);
+    const ramFractionWins = ramFractionGB > fixedSum;
+
+    // CPU terms
+    let cpuPct, cpuFloor;
+    if (isAldo) { cpuPct = 0.20; cpuFloor = 2; }
+    else if (isDisaggregated) { cpuPct = 0.10; cpuFloor = 1; }
+    else { cpuPct = 0.10; cpuFloor = 2; }
+    const cpuPctCores = Math.ceil(cpuPct * physicalCores);
+    const coresReserved = Math.max(cpuPctCores, cpuFloor);
+    const cpuFloorWins = cpuFloor > cpuPctCores;
+
+    const deployLabel = isDisaggregated ? 'Disaggregated (external SAN — no local S2D stack)'
+        : isAldo ? 'Azure Local Disconnected Operations (ALDO) management cluster'
+        : 'Standard hyperconverged (Storage Spaces Direct)';
+    const s2dInUse = !isDisaggregated;
+    const win = (active) => active
+        ? 'color: var(--accent-blue); font-weight: 600;'
+        : 'color: var(--text-secondary);';
+
+    let html = '';
+    html += `<div style="margin-bottom: 8px;"><strong>Deployment type:</strong> ${deployLabel}. `;
+    html += s2dInUse
+        ? 'Storage Spaces Direct (S2D) <strong>is</strong> in use, so the host reserves memory for the storage stack and (on tiered configs) cache-drive metadata.'
+        : 'S2D is <strong>not</strong> in use on these hosts, so the storage-stack memory reservation is reduced.';
+    html += '</div>';
+
+    // Memory table
+    html += '<div style="font-weight: 600; margin: 8px 0 4px;">Per-node memory reservation</div>';
+    html += '<table style="border-collapse: collapse; font-size: 12px; width: 100%; max-width: 520px;">';
+    html += `<tr><td style="padding: 2px 8px 2px 0;">Base (${isDisaggregated ? 'disaggregated, no S2D' : 'S2D host OS + storage stack'})</td><td style="text-align: right; padding: 2px 0;">${base} GB</td></tr>`;
+    if (!isDisaggregated) {
+        html += `<tr><td style="padding: 2px 8px 2px 0;">S2D cache metadata${cacheTB > 0 ? ` (${cacheTB.toFixed(1)} TB cache × ${HOST_MEM_CACHE_METADATA_GB_PER_TB} GB/TB)` : ' (no cache tier)'}</td><td style="text-align: right; padding: 2px 0;">${cacheMetadataGB} GB</td></tr>`;
+    }
+    if (isAldo) {
+        html += `<tr><td style="padding: 2px 8px 2px 0;">ALDO appliance reservation</td><td style="text-align: right; padding: 2px 0;">${aldoGB} GB</td></tr>`;
+    }
+    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; ${win(!ramFractionWins)}">Fixed-term subtotal</td><td style="text-align: right; padding: 4px 0 2px; ${win(!ramFractionWins)}">${fixedSum} GB</td></tr>`;
+    html += `<tr><td style="padding: 2px 8px 2px 0; ${win(ramFractionWins)}">Host-RAM scaling term (${Math.round(HOST_MEM_HOST_RAM_FRACTION * 100)}% × ${hostMemGB} GB)</td><td style="text-align: right; padding: 2px 0; ${win(ramFractionWins)}">${ramFractionGB} GB</td></tr>`;
+    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; font-weight: 600;">Reserved per node = max(of the two)</td><td style="text-align: right; padding: 4px 0 2px; font-weight: 600;">${memReserved} GB</td></tr>`;
+    html += '</table>';
+    html += `<div style="font-size: 11px; margin-top: 2px;">The <span style="${win(ramFractionWins)}">highlighted</span> term wins because it is the larger of the fixed subtotal and the 8%-of-host-RAM scaling term.</div>`;
+
+    // CPU table
+    html += '<div style="font-weight: 600; margin: 10px 0 4px;">Per-node CPU reservation (physical cores)</div>';
+    html += '<table style="border-collapse: collapse; font-size: 12px; width: 100%; max-width: 520px;">';
+    html += `<tr><td style="padding: 2px 8px 2px 0; ${win(!cpuFloorWins)}">Percentage term (${Math.round(cpuPct * 100)}% × ${physicalCores} cores, rounded up)</td><td style="text-align: right; padding: 2px 0; ${win(!cpuFloorWins)}">${cpuPctCores} core${cpuPctCores === 1 ? '' : 's'}</td></tr>`;
+    html += `<tr><td style="padding: 2px 8px 2px 0; ${win(cpuFloorWins)}">Minimum floor</td><td style="text-align: right; padding: 2px 0; ${win(cpuFloorWins)}">${cpuFloor} core${cpuFloor === 1 ? '' : 's'}</td></tr>`;
+    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; font-weight: 600;">Reserved per node = max(of the two)</td><td style="text-align: right; padding: 4px 0 2px; font-weight: 600;">${coresReserved} core${coresReserved === 1 ? '' : 's'}</td></tr>`;
+    html += '</table>';
+
+    // Assumptions + public references
+    html += '<div style="font-weight: 600; margin: 10px 0 4px;">Assumptions</div>';
+    html += '<ul style="margin: 0 0 4px 16px; padding: 0; font-size: 12px;">';
+    html += '<li>Reservations cover the Hyper-V root partition, Failover Clustering / CSV, the S2D stack (Software Storage Bus, pool/ReFS runtime, CSV in-memory read cache), Arc/AMA/ATC/Defender agents, and live-migration / repair / patching headroom.</li>';
+    html += '<li>The 8%-of-host-RAM term scales the reservation on large-memory nodes where fixed terms alone under-provision the root partition.</li>';
+    html += '<li>Reserved capacity is excluded from workload-available vCPU and memory in all sizing calculations on this page.</li>';
+    html += '</ul>';
+    html += '<div style="font-size: 11px; margin-top: 4px;">References: ';
+    html += '<a href="https://learn.microsoft.com/windows-server/virtualization/hyper-v/manage/performance-tuning-for-hyper-v-servers" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">Hyper-V performance tuning</a>, ';
+    html += '<a href="https://learn.microsoft.com/windows-server/storage/storage-spaces/storage-spaces-direct-hardware-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">S2D hardware requirements</a>, ';
+    html += '<a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">Azure Local system requirements</a>.';
+    html += '</div>';
+
+    content.innerHTML = html;
+    section.style.display = '';
 }
 
 // ── Capacity Runway — Year-over-Year Growth Projection ──
@@ -6284,11 +6205,12 @@ function updateGrowthProjection(baseVcpus, baseMemory, baseStorage, baseGpus, no
 
     // Calculate capacity ceilings
     var vcpuRatio = getVcpuRatio();
-    var totalVcpuCap = hwConfig.totalPhysicalCores * effectiveNodes * vcpuRatio;
-    var usableMemPerNode = hwConfig.memoryGB - 32;
+    var clusterType = document.getElementById('cluster-type').value;
+    var hostReservedCores = getHostCpuReservedCores(hwConfig, clusterType);
+    var totalVcpuCap = Math.max(hwConfig.totalPhysicalCores - hostReservedCores, 0) * effectiveNodes * vcpuRatio;
+    var usableMemPerNode = hwConfig.memoryGB - getHostMemoryReservedGB(hwConfig, clusterType);
     var totalMemCap = usableMemPerNode * effectiveNodes;
     var totalStorageCap = 0;
-    var clusterType = document.getElementById('cluster-type').value;
     if (clusterType !== 'disaggregated') {
         var usableStorageEl = document.getElementById('usable-storage');
         if (usableStorageEl) {
@@ -6496,7 +6418,6 @@ function updateDesignerActionVisibility() {
 // Map sizer cluster type to Designer scale value
 function mapSizerToDesignerScale(clusterType) {
     if (clusterType === 'rack-aware') return 'rack_aware';
-    if (clusterType === 'low-capacity') return 'low_capacity';
     if (clusterType === 'aldo-mgmt') return 'medium';
     if (clusterType === 'disaggregated') return 'medium';
     // Both 'single' and 'standard' map to 'medium' (Hyperconverged)
@@ -6808,21 +6729,6 @@ function configureInDesigner() {
             fqdnModal.classList.add('active');
             fqdnOverlay.classList.add('active');
             if (fqdnInput) fqdnInput.focus();
-        }
-        return;
-    }
-
-    // Low Capacity: always connected — skip connectivity choice, go straight to region picker
-    if (clusterType === 'low-capacity') {
-        window._sizerConnectivityChoice = 'connected';
-        var modal = document.getElementById('region-picker-modal');
-        var regionOverlay = document.getElementById('region-modal-overlay');
-        if (modal && regionOverlay) {
-            var commercialRadio = document.querySelector('input[name="region-cloud"][value="azure_commercial"]');
-            if (commercialRadio) commercialRadio.checked = true;
-            updateRegionOptions();
-            modal.classList.add('active');
-            regionOverlay.classList.add('active');
         }
         return;
     }
@@ -7426,6 +7332,9 @@ function showImportModal() {
         if (preview) preview.style.display = 'none';
         var applyBtn = document.getElementById('cluster-import-apply-btn');
         if (applyBtn) applyBtn.style.display = 'none';
+        // Restore the Parse & Preview button (hidden after a successful parse).
+        var parseBtn = document.getElementById('cluster-import-parse-btn');
+        if (parseBtn) parseBtn.style.display = '';
         window._pendingClusterImport = null;
     }
 }
@@ -7652,10 +7561,12 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         + '<span>Deployment type:</span>'
         + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="standard" checked onchange="validateClusterImportSelection()"> Hyperconverged</label>'
         + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="rack-aware" onchange="validateClusterImportSelection()"> Rack-Aware Cluster</label>'
+        + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="disaggregated" onchange="validateClusterImportSelection()"> Disaggregated Storage</label>'
         + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(auto-switches to <strong>Single Node</strong> if you set machines = 1)</span>'
         + '</span>';
     // Storage (S2D capacity disks per node) — not in the JSON, must be supplied by the user.
-    previewHTML += '<span style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
+    // Issue #235: hidden when Disaggregated Storage is chosen (external SAN — no S2D disks).
+    previewHTML += '<span id="cluster-import-s2d-row" style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
         + '<span>S2D capacity disks per machine:</span>'
         + '<select id="cluster-import-disk-count" style="background: var(--card-bg); border: 1px solid var(--accent-green, #22c55e); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600;">'
         +   '<option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>'
@@ -7669,7 +7580,11 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         +   '<option value="3.84" selected>3.84 TB</option>'
         +   '<option value="5.68">5.68 TB</option>'
         +   '<option value="7.68">7.68 TB</option>'
+        +   '<option value="8">8 TB</option>'
+        +   '<option value="12">12 TB</option>'
         +   '<option value="15.36">15.36 TB</option>'
+        +   '<option value="16">16 TB</option>'
+        +   '<option value="20">20 TB</option>'
         + '</select>'
         + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(not in the JSON — supply for accurate sizing)</span>'
         + '</span>';
@@ -7701,6 +7616,12 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     previewDiv.style.display = '';
     applyBtn.style.display = '';
 
+    // The data parsed cleanly and the physical-node preview is shown — hide the
+    // Parse & Preview button so only "Load Cluster Configuration" remains as the
+    // next step. To parse again, the user closes and reopens the import dialog
+    // (showImportModal restores the button).
+    var parseBtn = document.getElementById('cluster-import-parse-btn');
+    if (parseBtn) parseBtn.style.display = 'none';
     // Issue #207 follow-up: restore any user-modified selections that were
     // captured at the top of this function so an accidental re-click of
     // Parse & Preview does not silently reset the user's choices.
@@ -7764,6 +7685,20 @@ function validateClusterImportSelection() { // eslint-disable-line no-unused-var
     var nodeCount = parseInt(nodeInput.value, 10);
     var deployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
     var deployType = deployRadio ? deployRadio.value : 'standard';
+
+    // Issue #235: Disaggregated Storage uses an external SAN — the S2D capacity-disk
+    // picker is irrelevant, so grey it out (and ignore it on apply).
+    var s2dRow = document.getElementById('cluster-import-s2d-row');
+    if (s2dRow) {
+        var isDisagg = (deployType === 'disaggregated');
+        s2dRow.style.opacity = isDisagg ? '0.4' : '';
+        s2dRow.style.pointerEvents = isDisagg ? 'none' : '';
+        s2dRow.title = isDisagg ? 'External SAN storage is used — S2D capacity disks do not apply' : '';
+        var s2dCountEl = document.getElementById('cluster-import-disk-count');
+        var s2dSizeEl = document.getElementById('cluster-import-disk-size');
+        if (s2dCountEl) s2dCountEl.disabled = isDisagg;
+        if (s2dSizeEl) s2dSizeEl.disabled = isDisagg;
+    }
 
     var errors = [];
     if (isNaN(nodeCount) || nodeCount < 1 || nodeCount > 16) {
@@ -7843,6 +7778,13 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     // Bug #207 fix: a 1-node cluster MUST be Single Node, not Hyperconverged.
     var resolvedClusterType = (actualNodeCount === 1) ? 'single' : chosenDeployType;
 
+    // Issue #235: Disaggregated Storage uses an external SAN — there are no S2D
+    // capacity disks to apply, so drop any disk choices from the equation.
+    if (resolvedClusterType === 'disaggregated') {
+        chosenDiskCount = null;
+        chosenDiskSizeTB = null;
+    }
+
     // Set node-count BEFORE cluster-type so that onClusterTypeChange() →
     // updateResiliencyOptions() sees the correct node count and produces the
     // right set of <option> entries (otherwise the resiliency select can be
@@ -7910,6 +7852,10 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     }
     markManualSet('cpu-manufacturer');
     markManualSet('cpu-generation');
+    // Issue #235: an imported Azure Local instance has fixed hardware — lock CPU
+    // so auto-scaling cannot silently change it (markManualSet only paints the
+    // badge; the auto-scaler checks the _*UserSet flags).
+    _cpuConfigUserSet = true;
 
     var cpuCoresEl = document.getElementById('cpu-cores');
     if (cpuCoresEl) {
@@ -7970,6 +7916,8 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
         memEl.value = String(cfg.memoryGB);
     }
     markManualSet('node-memory');
+    // Issue #235: lock imported memory so it does not auto-scale.
+    _memoryUserSet = true;
 
     // Apply S2D capacity-disk choices supplied in the import preview to BOTH
     // the single-tier (capacity-disk-*) and tiered (tiered-capacity-disk-*)
@@ -7985,6 +7933,8 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
                 markManualSet(id);
             }
         });
+        // Issue #235: lock imported capacity-disk count so it does not auto-scale.
+        _diskCountUserSet = true;
     }
     if (chosenDiskSizeTB !== null) {
         ['capacity-disk-size', 'tiered-capacity-disk-size'].forEach(function (id) {
@@ -7998,6 +7948,8 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
                 markManualSet(id);
             }
         });
+        // Issue #235: lock imported capacity-disk size so it does not auto-scale.
+        _diskSizeUserSet = true;
     }
 
     calculateRequirements({ skipAutoNodeRecommend: true });
@@ -8007,7 +7959,8 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     if (summary) {
         var deployTypeLabel = resolvedClusterType === 'single' ? 'Single Node'
             : resolvedClusterType === 'rack-aware' ? 'Rack-Aware Cluster'
-                : 'Hyperconverged';
+                : resolvedClusterType === 'disaggregated' ? 'Disaggregated Storage'
+                    : 'Hyperconverged';
         var resiliencyLabel = '';
         if (resolvedClusterType !== 'single' && resolvedClusterType !== 'disaggregated') {
             resiliencyLabel = (actualNodeCount >= 3)
@@ -8026,7 +7979,7 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     var postOverlay = document.getElementById('post-import-overlay');
     if (postOverlay) postOverlay.style.display = 'flex';
 
-    showToast('"' + cfg.clusterName + '" imported (' + actualNodeCount + ' machines) — configure storage and add workloads', 'success');
+    showToast('"' + escapeHtml(cfg.clusterName) + '" imported (' + actualNodeCount + ' machines) — configure storage and add workloads', 'success');
 }
 
 function closePostImportOverlay() { // eslint-disable-line no-unused-vars
@@ -8238,7 +8191,6 @@ function applyImportedSizerState(d) {
 
     // Update UI
     updateAldoWorkloadButtons();
-    enforceLowCapacityLimits();
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();

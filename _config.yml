@@ -29,6 +29,10 @@ exclude:
   # Historical / archived markdown documentation (not linked from the site)
   - docs/archive/
 
+  # In-flight and completed feature planning notes — visible on github.com
+  # but not user-facing documentation; kept off the live site.
+  - docs/module-planning/
+
   # Local working folder for source decks / extracted PPTX content / internal
   # reference material (also git-ignored — defence-in-depth in case it ever
   # appears in the working tree).
