@@ -178,11 +178,63 @@ Proceed — risk is low-to-moderate and well-contained.
 Low-to-moderate risk, contained by **lazy-load + client-side-only + SHA-256 pin +
 integrity test + provenance in `vendor/README.md`**. **Proceed with vendoring SheetJS.**
 
+### DECISION (UI, RESOLVED 2026-06-01): dedicated toolbar button → shared modal (option B)
+
+**Decision:** Add a **dedicated `📊 RVTools` button** to the Sizer *Workload Scenarios*
+toolbar, **immediately after `📂 Import`** and before `📤 Export`. The button opens the
+**existing** Import Configuration modal pre-selected on a new **RVTools tab** (**option
+B**), rather than opening a separate standalone modal (option A). The modal tab strip is
+changed from `flex: 1` to content-width + wrap to accommodate the third tab on mobile.
+
+**Why a dedicated button (not only a third tab):**
+- RVTools import is a marquee capability, not a sub-option users should have to hunt for
+  inside a modal. A top-level button gives it the prominence it deserves.
+- The toolbar row (`.section-header-actions`, `sizer/index.html` ~L62) uses `btn btn-sm`
+  buttons that size to content — it is **not** `flex: 1`, so adding a fourth button there
+  is cheap and does **not** trigger the squish problem. The `flex: 1` crowding only
+  affects the **tab strip inside** the modal.
+
+**Why option B (shared modal) over option A (standalone modal):**
+- Option B reuses the modal shell, the open/close + overlay + escape-key handlers, the
+  lazy-load hook, and the post-import banner — least code, most visual consistency.
+- Option A would duplicate the modal shell and a second privacy/error/preview block,
+  i.e. more code to keep in sync and more drift risk.
+- RVTools *is* conceptually an import, so it belongs in the import modal; the dedicated
+  button is just a prominent shortcut straight to its tab.
+
+**Crowding mitigation:** because most users reach RVTools via the dedicated button
+(already on that tab), the three-narrow-tabs issue is largely sidestepped. For the
+minority who tab across inside the modal, de-flexing the strip (`flex: 0 0 auto` +
+`flex-wrap: wrap`) lets the three tabs wrap to a second row on small screens instead of
+truncating.
+
+**Naming / placement (user-confirmed):** button label is **`📊 RVTools`** (compact — the
+icon + modal title carry the "import" meaning, and it sits next to `📂 Import`); placed
+**after `📂 Import`** so the two "data-in" actions stay adjacent.
+
 ### UI / flow
 
-1. New tab in the existing import modal: **📊 RVTools (VMware Inventory)**.
-2. File picker (`accept=".xlsx"`) → reads file client-side (FileReader → SheetJS).
-3. Privacy disclaimer block (see above).
+1. **Dedicated `📊 RVTools` toolbar button** in the Sizer's *Workload Scenarios*
+   header-actions row, placed **immediately after the existing `📂 Import` button**
+   (before `📤 Export`). See the *DECISION (UI)* record below for why this is a
+   top-level button rather than only a third tab. The button opens the **existing**
+   `📂 Import Configuration` modal pre-selected on the RVTools tab
+   (`openImportModal('rvtools')`) — **option B**, so we reuse the modal shell, overlay /
+   escape-key / close plumbing, and the post-import banner rather than duplicating a
+   second modal.
+2. Inside that modal, RVTools is the **third tab** (`📊 RVTools`), alongside
+   `📤 Sizer Configuration` and `☁️ Azure Local Instance`. Because most users arrive via
+   the dedicated toolbar button (already on this tab), the three-tab crowding is largely
+   avoided; users who open via `📂 Import` can still reach it. The lazy SheetJS `<script>`
+   is injected when the RVTools tab is **first activated** (inside the tab switch), not
+   when the modal opens — so users of the other two tabs never download the ~890 KB blob.
+3. **Tab-strip responsiveness**: the modal tab strip currently sets `flex: 1` on each of
+   the two buttons (`sizer/index.html` ~L1024–L1025). With a third tab that squishes on
+   mobile, so change the strip to **content-width tabs that wrap** (`flex: 0 0 auto` +
+   `flex-wrap: wrap` on the container) instead of `flex: 1`, so the three tabs wrap to a
+   second row on small screens rather than truncating.
+4. File picker (`accept=".xlsx"`) → reads file client-side (FileReader → SheetJS).
+5. Privacy disclaimer block (see above).
 4. **Detection preview**: totals (X source clusters, Y hosts, Z powered-on VMs, total
    vCPU, total RAM, total provisioned storage TB) + per-cluster table.
 5. **Target choice** (radio): single combined / pick one source cluster / identical
@@ -206,13 +258,20 @@ integrity test + provenance in `vendor/README.md`**. **Proceed with vendoring Sh
 
 1. **`vendor/`** — new `xlsx-0.20.x.min.js` (vendored SheetJS) + line in
    `vendor/README.md`.
-2. **`sizer/index.html`** — third tab (📊 RVTools) in the import modal + its panel
-   (file picker + preview + radios). Lazy `<script>` tag injected on first open.
-3. **`sizer/sizer.js`** — three new functions: `openRVToolsTab()`,
-   `parseRVToolsXLSX(file)`, `applyRVToolsImport(parsed, options)`. They build workload
-   objects and call the existing `workloads.push()` path. Banner integrated with the
-   existing post-import banner.
-4. **`sizer/sizer.css`** — minimal styling for the per-cluster picker table.
+2. **`sizer/index.html`** — (a) new **`📊 RVTools` toolbar button** in the
+   *Workload Scenarios* `.section-header-actions` row, right after `📂 Import`
+   (`onclick="openImportModal('rvtools')"`); (b) the **third tab** (`📊 RVTools`) in the
+   import modal tab strip + its panel (file picker + preview + radios); (c) change the
+   tab strip from `flex: 1` per-button to content-width + `flex-wrap: wrap`. Lazy
+   `<script>` for SheetJS injected when the RVTools tab is first activated.
+3. **`sizer/sizer.js`** — `openImportModal()` accepts an optional initial-tab argument
+   (defaults to current behaviour) so the toolbar button can open straight onto the
+   RVTools tab; plus new functions `switchImportTab('rvtools')` handling (lazy-load +
+   panel show), `parseRVToolsXLSX(file)`, and `applyRVToolsImport(parsed, options)`. They
+   build workload objects and call the existing `workloads.push()` path. Banner
+   integrated with the existing post-import banner.
+4. **`sizer/sizer.css`** — minimal styling for the per-cluster picker table and the
+   de-flexed / wrapping import tab strip.
 5. **`tests/index.html`** + **`tests/fixtures/`** — small synthetic RVTools fixture (a
    tiny SheetJS-shaped object built in-test). Cases: powered-off filter, template
    filter, MiB → GB conversion, vCPU sum, per-cluster grouping, "VM template" banding,
