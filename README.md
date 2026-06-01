@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/odin-logo.png" alt="ODIN for Azure Local Logo" width="200">
+</p>
+
 # ODIN for Azure Local
 
 ## Version 0.22.01 - Available here: https://aka.ms/ODIN
