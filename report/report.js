@@ -1401,16 +1401,17 @@
             md.push('| Setting | Value |');
             md.push('|---------|-------|');
             md.push('| Configuration | ' + (s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized') + ' |');
-            if (s.securityConfiguration === 'customized' && s.securitySettings) {
-                var sec = s.securitySettings;
-                if (sec.wdacEnforced !== undefined) md.push('| WDAC | ' + (sec.wdacEnforced ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.credentialGuardEnforced !== undefined) md.push('| Credential Guard | ' + (sec.credentialGuardEnforced ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.driftControlEnforced !== undefined) md.push('| Drift Control | ' + (sec.driftControlEnforced ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.smbSigningEnforced !== undefined) md.push('| SMB Signing | ' + (sec.smbSigningEnforced ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.smbClusterEncryption !== undefined) md.push('| SMB Cluster Encryption | ' + (sec.smbClusterEncryption ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.bitlockerBootVolume !== undefined) md.push('| BitLocker Boot Volume | ' + (sec.bitlockerBootVolume ? 'Enabled' : 'Disabled') + ' |');
-                if (sec.bitlockerDataVolumes !== undefined) md.push('| BitLocker Data Volumes | ' + (sec.bitlockerDataVolumes ? 'Enabled' : 'Disabled') + ' |');
-            }
+            // Always list all 7 controls. Recommended mode = all enforced (matches wizard
+            // defaults); Customized mode reflects the user's per-control selections.
+            var sec = (s.securityConfiguration === 'customized' && s.securitySettings) ? s.securitySettings : null;
+            var secOn = function (key) { return sec ? (sec[key] !== undefined ? sec[key] : true) : true; };
+            md.push('| WDAC | ' + (secOn('wdacEnforced') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| Credential Guard | ' + (secOn('credentialGuardEnforced') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| Drift Control | ' + (secOn('driftControlEnforced') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| SMB Signing | ' + (secOn('smbSigningEnforced') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| SMB Cluster Encryption | ' + (secOn('smbClusterEncryption') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| BitLocker Boot Volume | ' + (secOn('bitlockerBootVolume') ? 'Enabled' : 'Disabled') + ' |');
+            md.push('| BitLocker Data Volumes | ' + (secOn('bitlockerDataVolumes') ? 'Enabled' : 'Disabled') + ' |');
             md.push('');
         }
 
@@ -8131,16 +8132,19 @@
 
         // Step 16: Security Configuration
         var securityRows = '';
-        if (s.securityConfiguration) securityRows += row('Configuration', s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized');
-        if (s.securityConfiguration === 'customized' && s.securitySettings) {
-            var secSettings = s.securitySettings;
-            if (secSettings.wdacEnforced !== undefined) securityRows += row('WDAC', secSettings.wdacEnforced ? 'Enabled' : 'Disabled');
-            if (secSettings.credentialGuardEnforced !== undefined) securityRows += row('Credential Guard', secSettings.credentialGuardEnforced ? 'Enabled' : 'Disabled');
-            if (secSettings.driftControlEnforced !== undefined) securityRows += row('Drift Control', secSettings.driftControlEnforced ? 'Enabled' : 'Disabled');
-            if (secSettings.smbSigningEnforced !== undefined) securityRows += row('SMB Signing', secSettings.smbSigningEnforced ? 'Enabled' : 'Disabled');
-            if (secSettings.smbClusterEncryption !== undefined) securityRows += row('SMB Cluster Encryption', secSettings.smbClusterEncryption ? 'Enabled' : 'Disabled');
-            if (secSettings.bitlockerBootVolume !== undefined) securityRows += row('BitLocker Boot Volume', secSettings.bitlockerBootVolume ? 'Enabled' : 'Disabled');
-            if (secSettings.bitlockerDataVolumes !== undefined) securityRows += row('BitLocker Data Volumes', secSettings.bitlockerDataVolumes ? 'Enabled' : 'Disabled');
+        if (s.securityConfiguration) {
+            securityRows += row('Configuration', s.securityConfiguration === 'recommended' ? 'Recommended' : 'Customized');
+            // Always list all 7 controls. Recommended mode = all enforced (matches wizard
+            // defaults); Customized mode reflects the user's per-control selections.
+            var secSettings = (s.securityConfiguration === 'customized' && s.securitySettings) ? s.securitySettings : null;
+            var secOn = function (key) { return secSettings ? (secSettings[key] !== undefined ? secSettings[key] : true) : true; };
+            securityRows += row('WDAC', secOn('wdacEnforced') ? 'Enabled' : 'Disabled');
+            securityRows += row('Credential Guard', secOn('credentialGuardEnforced') ? 'Enabled' : 'Disabled');
+            securityRows += row('Drift Control', secOn('driftControlEnforced') ? 'Enabled' : 'Disabled');
+            securityRows += row('SMB Signing', secOn('smbSigningEnforced') ? 'Enabled' : 'Disabled');
+            securityRows += row('SMB Cluster Encryption', secOn('smbClusterEncryption') ? 'Enabled' : 'Disabled');
+            securityRows += row('BitLocker Boot Volume', secOn('bitlockerBootVolume') ? 'Enabled' : 'Disabled');
+            securityRows += row('BitLocker Data Volumes', secOn('bitlockerDataVolumes') ? 'Enabled' : 'Disabled');
         }
 
         // Step 17: Software Defined Networking
