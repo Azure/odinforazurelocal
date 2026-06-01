@@ -5280,6 +5280,90 @@
             })()
         ]);
 
+        // --- Feature 12b: S2D-aware host memory + CPU reserve helpers (#232) ---
+        testSuite('getCacheTBPerNode()', 'sizer.js', [
+            (() => {
+                const hw = { diskConfig: { isTiered: true, cache: { count: 2, sizeGB: 1600 }, capacity: { count: 8, sizeGB: 3584 } } };
+                return assert(Math.abs(getCacheTBPerNode(hw) - 3.125) < 1e-9,
+                    'Tiered cache 2 × 1600 GB = 3.125 TB', 3.125, getCacheTBPerNode(hw));
+            })(),
+            (() => {
+                const hw = { diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                return assert(getCacheTBPerNode(hw) === 0,
+                    'Non-tiered config has no cache tier → 0 TB', 0, getCacheTBPerNode(hw));
+            })(),
+            (() => {
+                return assert(getCacheTBPerNode({}) === 0,
+                    'Missing diskConfig → 0 TB', 0, getCacheTBPerNode({}));
+            })()
+        ]);
+
+        testSuite('getHostMemoryReservedGB()', 'sizer.js', [
+            (() => {
+                // All-flash S2D (non-tiered), 256 GB → base 32, no cache metadata, 8% = 21 → 32
+                const hw = { totalPhysicalCores: 64, memoryGB: 256, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                return assert(getHostMemoryReservedGB(hw, 'standard') === 32,
+                    'All-flash S2D 256 GB → 32 GB (base, 8% term lower)', 32, getHostMemoryReservedGB(hw, 'standard'));
+            })(),
+            (() => {
+                // Tiered S2D, 3.125 TB cache → 32 + ceil(4×3.125)=13 = 45; 8% of 256 = 21 → 45
+                const hw = { totalPhysicalCores: 64, memoryGB: 256, diskConfig: { isTiered: true, cache: { count: 2, sizeGB: 1600 }, capacity: { count: 8, sizeGB: 3584 } } };
+                return assert(getHostMemoryReservedGB(hw, 'standard') === 45,
+                    'Tiered S2D adds cache metadata: 32 + 13 = 45 GB', 45, getHostMemoryReservedGB(hw, 'standard'));
+            })(),
+            (() => {
+                // Disaggregated forces cache metadata to 0 and uses 24 GB base, even with tiered disks
+                const hw = { totalPhysicalCores: 64, memoryGB: 256, diskConfig: { isTiered: true, cache: { count: 2, sizeGB: 1600 }, capacity: { count: 8, sizeGB: 3584 } } };
+                return assert(getHostMemoryReservedGB(hw, 'disaggregated') === 24,
+                    'Disaggregated: 24 GB base, cache metadata forced to 0', 24, getHostMemoryReservedGB(hw, 'disaggregated'));
+            })(),
+            (() => {
+                // ALDO adds the appliance reservation: 32 + 64 = 96; 8% of 256 = 21 → 96
+                const hw = { totalPhysicalCores: 64, memoryGB: 256, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                return assert(getHostMemoryReservedGB(hw, 'aldo-mgmt') === 96,
+                    'ALDO-mgmt adds 64 GB appliance: 32 + 64 = 96 GB', 96, getHostMemoryReservedGB(hw, 'aldo-mgmt'));
+            })(),
+            (() => {
+                // Large memory: 8% scaling term wins → ceil(0.08 × 2048) = 164
+                const hw = { totalPhysicalCores: 128, memoryGB: 2048, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                return assert(getHostMemoryReservedGB(hw, 'standard') === 164,
+                    'Large-RAM node: 8% term wins → ceil(0.08 × 2048) = 164 GB', 164, getHostMemoryReservedGB(hw, 'standard'));
+            })()
+        ]);
+
+        testSuite('getHostCpuReservedCores()', 'sizer.js', [
+            (() => {
+                const hw = { totalPhysicalCores: 120 };
+                return assert(getHostCpuReservedCores(hw, 'standard') === 18,
+                    'Standard 120 cores → ceil(15%) = 18 cores', 18, getHostCpuReservedCores(hw, 'standard'));
+            })(),
+            (() => {
+                const hw = { totalPhysicalCores: 4 };
+                return assert(getHostCpuReservedCores(hw, 'standard') === 2,
+                    'Standard 4 cores → floor of 2 wins', 2, getHostCpuReservedCores(hw, 'standard'));
+            })(),
+            (() => {
+                const hw = { totalPhysicalCores: 120 };
+                return assert(getHostCpuReservedCores(hw, 'disaggregated') === 12,
+                    'Disaggregated 120 cores → ceil(10%) = 12 cores', 12, getHostCpuReservedCores(hw, 'disaggregated'));
+            })(),
+            (() => {
+                const hw = { totalPhysicalCores: 4 };
+                return assert(getHostCpuReservedCores(hw, 'disaggregated') === 1,
+                    'Disaggregated 4 cores → floor of 1 wins', 1, getHostCpuReservedCores(hw, 'disaggregated'));
+            })(),
+            (() => {
+                const hw = { totalPhysicalCores: 20 };
+                return assert(getHostCpuReservedCores(hw, 'low-capacity') === 2,
+                    'Low-capacity 20 cores → ceil(10%) = 2 cores', 2, getHostCpuReservedCores(hw, 'low-capacity'));
+            })(),
+            (() => {
+                const hw = { totalPhysicalCores: 64 };
+                return assert(getHostCpuReservedCores(hw, 'aldo-mgmt') === 13,
+                    'ALDO-mgmt 64 cores → ceil(20%) = 13 cores', 13, getHostCpuReservedCores(hw, 'aldo-mgmt'));
+            })()
+        ]);
+
         // --- Feature 1 revisited: getVcpuRatio() affects getRecommendedNodeCount ---
         testSuite('vCPU ratio affects node recommendations', 'sizer.js', [
             (() => {
