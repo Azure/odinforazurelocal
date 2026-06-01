@@ -1,103 +1,16 @@
-# ODIN — Planning Notes for Issues #230 and #232
+# ODIN — Planning Notes for Issue #230 (RVTools Excel import)
 
 > **In-flight planning document.** Lives in `docs/module-planning/` and is
 > committed to the repository so contributors and reviewers can see the
 > intended design before the work lands. Once the work ships, move this
 > file to `docs/module-planning/complete/`.
 >
-> Captured: 2026-05-22.
-> Target release: next ODIN version (TBD — see open question 6).
-
----
-
-## Issue #232 — Improve host compute reserve / overhead calculations
-
-### Current state (verified in code on `Release` branch)
-
-| Aspect | Today |
-|---|---|
-| Host **memory** overhead | Flat `hostOverheadMemoryGB = 32` (+ `ALDO_APPLIANCE_OVERHEAD_GB` when `cluster-type === 'aldo-mgmt'`). Hard-coded at ~8 sites in `sizer/sizer.js`: node-count recommendation, auto-scale loop, capacity bars, growth projection, headroom while-loops, per-VM "exceeds node" check, and the sizing note itself. |
-| Host **CPU** overhead | **None.** vCPU capacity = `cores × (N−1) × ratio − ARB_VCPU_OVERHEAD`. No parent-partition reserve. |
-| S2D cache metadata (4 GB/TB) | Already mentioned in Sizing Notes ("ℹ️ Storage Spaces Direct metadata… Not included in workload memory calculations"). Informational only — not subtracted from capacity. |
-| Sizing Notes UI | `<ul id="sizing-notes">` in `sizer/index.html`; populated by `updateSizingNotes()` in `sizer/sizer.js`. Flat list, no collapsed sections. |
-
-### Proposed model
-
-**Memory reservation per node = base infra floor + S2D-cache metadata + management add-ons**
-
-| Component | Default | Driven by |
-|---|---|---|
-| Parent partition OS + Hyper-V + agents (infra floor) | **16 GB** | always |
-| S2D / SBL / ReFS metadata | **4 GB × cache TB per node** | tiered storage only (`hwConfig.diskConfig.isTiered && cache`) |
-| ARB appliance VM (already modelled) | `ARB_MEMORY_OVERHEAD_GB` per **cluster** (unchanged) | always |
-| AKS hybrid management add-on | **+8 GB / node** | new toggle (default off) |
-| SDN / Network Controller add-on | **+12 GB / node** | new toggle (default off) |
-| ALDO appliance | unchanged (`ALDO_APPLIANCE_OVERHEAD_GB`) | `aldo-mgmt` cluster type |
-
-- Minimum **16 GB** reservation.
-- Optional soft warning if computed reservation < 24 GB on Arc-enabled deployments.
-- Default path (all-NVMe, no SDN, no AKS) → 16 GB (less than today's 32 GB) → may shrink recommended nodes by 1 in some memory-bound all-NVMe cases. See open question 1.
-- Hybrid w/ 4 × 3.2 TB cache → 16 + 4 × 12.8 = ~67 GB (more accurate, larger than today).
-
-**CPU reservation per node = max(percentage, physical-core floor)**
-
-| Cluster profile | Reservation |
-|---|---|
-| Small / Low-Capacity, all-flash, no add-ons | `max(10%, 1 core)` |
-| Standard (default) with ARB | `max(15%, 2 cores)` |
-| All-NVMe + SDN and/or AKS | `max(20%, 2 cores)` |
-| ALDO-mgmt | `max(20%, 2 cores)` |
-| Heavy / latency-sensitive (optional toggle) | `max(20%, 4 cores)` |
-
-Becomes a new helper `getHostCpuReservedCores(hwConfig, clusterType, addons)` → applied
-in `getRecommendedNodeCount`, `autoScaleHardware` (vCPU branch), the capacity-bar block,
-headroom loops, and the per-VM "exceeds node" check. vCPU available per node becomes
-`(physicalCores − getHostCpuReservedCores(...)) × vcpuRatio`.
-
-### Files touched
-
-1. **`sizer/sizer.js`** — two new helpers near the top:
-   ```js
-   function getHostMemoryReservedGB(hwConfig, clusterType, addons) { … }
-   function getHostCpuReservedCores(hwConfig, clusterType, addons) { … }
-   ```
-   Replace every literal `32` host-overhead site (see "Current state" table).
-2. **`sizer/index.html`** — two optional toggles near cluster-type controls:
-   `host-addon-aks` and `host-addon-sdn` (checkboxes). Possibly third toggle for
-   "Heavy / latency-sensitive" (see open question 2).
-3. **`sizer/sizer.css`** — minimal styling for a `<details>` block in `#sizing-notes`.
-4. **New collapsed "Host Overhead — Assumptions & Math" section** inside `#sizing-notes`,
-   rendered by `updateSizingNotes()` as a single `<li>` containing
-   `<details><summary>…</summary>…</details>`. Collapsed by default. Content:
-   - Memory math table — each component with the GB it contributed *for the current
-     configuration* (live values, not just formula).
-   - CPU math table — chosen percentage / core-floor and resulting reserved cores.
-   - Bullet list of assumptions (cache TB × 4 GB; 16 GB infra floor; ARB per cluster;
-     add-on toggles; PerfMon counters to validate post-deployment).
-   - Link to the S2D hardware requirements doc (only external link — no new scripts).
-5. **Existing "ℹ️ Storage Spaces Direct metadata" note** — keep wording but flip
-   "Not included in workload memory calculations" → "**Included** in the host-memory
-   reservation shown in the breakdown below" so behaviour and disclosure match.
-6. **`tests/index.html`** — extend "Feature 12" suite with cases:
-   - hybrid cache (16 + 4 × TB)
-   - all-flash (16 baseline)
-   - SDN / AKS toggles add 12 / 8
-   - ALDO-mgmt path
-   - CPU reservation floor and percentage paths
-   - per-VM-exceeds-node check using the new reservation
-7. **`CHANGELOG.md` / `README.md` / `index.html` + `sizer/index.html` version strings /
-   "What's New" JS block** — single coordinated version bump.
-
-### Behavioural / backwards-compat note
-For an all-NVMe / hyperconverged cluster with no add-ons, the new memory reservation
-(16 GB) is **lower** than today's flat 32 GB. That will *reduce* recommended node counts
-by 1 in some edge cases (memory-driven sizings on small clusters).
-
-- **Option A** — ship the honest 16 GB infra floor. Note it as "may reduce recommended
-  nodes by 1 for memory-bound all-NVMe configs" in CHANGELOG. **Recommended.**
-- **Option B** — keep an effective floor of **24 GB** so existing customer sizings never
-  decrease, even though the math could justify 16. Hybrid/SDN/AKS configs would still go
-  up.
+> Captured: 2026-05-22. Split out of the original `issues-230-232-plan.md`
+> on 2026-06-01 when #232 was paired with #233 for the **0.21.55** release.
+>
+> **Target release:** a **separate, later PR** (its own version bump). #230 is
+> **not** part of the 0.21.55 (#232 + #233) release — see
+> [`issues-232-233-plan.md`](issues-232-233-plan.md).
 
 ---
 
@@ -220,8 +133,8 @@ Recommendation: **SheetJS**, vendored. See open question 3.
    tiny SheetJS-shaped object built in-test). Cases: powered-off filter, template
    filter, MiB → GB conversion, vCPU sum, per-cluster grouping, "VM template" banding,
    malformed-file error path.
-6. **`CHANGELOG.md` / version-bump fan-out / README "What's New"** — combined with the
-   #232 entry.
+6. **`CHANGELOG.md` / version-bump fan-out / README "What's New"** — own version bump
+   for the #230 PR (separate from the 0.21.55 #232 + #233 release).
 
 ### Out of scope for this PR
 
@@ -248,53 +161,14 @@ Recommendation: **SheetJS**, vendored. See open question 3.
 
 ---
 
-## Combined version-bump fan-out (both issues, single release)
-
-- `README.md` header + appendix anchor (move 0.21.14 to Appendix A)
-- `CHANGELOG.md` new `## [<version>]` section
-- `index.html` + `sizer/index.html` + `switch-config/index.html` visible version strings
-- "What's New" JS block in `index.html`
-
----
-
 ## Open decision questions (need answers before implementation)
 
-1. **#232 behaviour** — keep a 24 GB minimum floor (Option B — no existing sizing
-   decreases) or ship the honest 16 GB infra floor (Option A — sizings may shrink by 1
-   node in some all-NVMe cases)? **Recommendation: A.**
-2. **#232 add-on toggles** — are **AKS hybrid** (+8 GB/node) and **SDN / Network
-   Controller** (+12 GB/node) the right two? Add a third "Heavy / latency-sensitive
-   (SQL/RDS/VDI)" toggle that bumps CPU reservation to 4 cores?
-3. **#230 SheetJS vendoring** — OK to vendor `xlsx.full.min.js` (~890 KB, Apache 2.0)
-   into `vendor/`? Only sensible way to read `.xlsx` in-browser without a CDN call.
-4. **#230 multi-cluster UX** — keep all **three** target-choice radios (combined /
-   pick-one / identical fan-out) or trim to just **pick-one + identical fan-out** for
-   simplicity?
-5. **#230 default VM consolidation** — default to **"Grouped by VM template"** (5–10
-   rows) for any import > 50 VMs, with "One per VM" behind an advanced toggle? Or
-   always default to one-per-VM?
-6. **Version bump** — 0.21.15 (patch) or 0.22.0 (minor — new feature)?
-   **Recommendation: 0.22.0** (RVTools is a meaningful new capability).
-7. **PR strategy** — one combined PR (both issues, single Release-branch → main) or two
-   sequential PRs?
-
----
-
-## Implementation order (once decisions are made)
-
-1. **Phase 1 — #232 (smaller blast radius, foundation):**
-   - Add helpers + replace flat-32 sites.
-   - Add add-on toggles to UI.
-   - Add collapsed "Host Overhead — Assumptions & Math" section in Sizing Notes.
-   - Extend Feature 12 tests.
-   - Verify ESLint + html-validate + full test suite still pass.
-2. **Phase 2 — #230 (built on top):**
-   - Vendor SheetJS.
-   - Add RVTools tab + parser + apply logic.
-   - Add per-cluster picker and consolidation strategy radios.
-   - Add synthetic test fixture + parser tests.
-   - Verify ESLint + html-validate + full test suite still pass.
-3. **Phase 3 — release:**
-   - Coordinate version-bump fan-out.
-   - Update CHANGELOG + README appendix + "What's New".
-   - Open PR (combined or sequential per decision 7).
+1. **SheetJS vendoring** — OK to vendor `xlsx.full.min.js` (~890 KB, Apache 2.0) into
+   `vendor/`? Only sensible way to read `.xlsx` in-browser without a CDN call.
+2. **Multi-cluster UX** — keep all **three** target-choice radios (combined / pick-one /
+   identical fan-out) or trim to just **pick-one + identical fan-out** for simplicity?
+3. **Default VM consolidation** — default to **"Grouped by VM template"** (5–10 rows)
+   for any import > 50 VMs, with "One per VM" behind an advanced toggle? Or always
+   default to one-per-VM?
+4. **Version bump / PR** — own patch/minor bump for the standalone #230 PR (decide at
+   implementation time, after the 0.21.55 release has shipped).
