@@ -19,13 +19,11 @@
   "dependencies": {
     "html-validate": "^10.7.0"
   },
-  "//": "Security overrides: NEVER downgrade these. basic-ftp <=5.2.2 has DoS in Client.list() (GHSA-rp42-5vxx-qpwr). ip-address <=10.1.0 has XSS in Address6 HTML-emitting methods (GHSA-v2v4-37r5-5v8g / CVE-2026-42338) — pulled in transitively via puppeteer -> @puppeteer/browsers -> proxy-agent -> socks-proxy-agent -> socks. fast-uri <=3.1.1 has path traversal via percent-encoded dot segments (GHSA-q3j6-qgpj-74h6 / CVE-2026-6321) and host confusion via percent-encoded authority delimiters (GHSA-v39h-62p7-jpjc / CVE-2026-6322) — pulled in transitively via html-validate -> ajv and stylelint -> table -> ajv. brace-expansion 5.0.0-5.0.5 applies its `max` DoS guard too late, so a large numeric range like {1..10000000} still allocates ~505 MB before truncation (GHSA-jxxr-4gwj-5jf2 / CVE-2026-45149) — pulled in transitively via html-validate -> glob -> minimatch -> brace-expansion@5; scoped to html-validate because the unaffected 1.x line (used by minimatch@3) must stay on ^1.1.x.",
+  "//": "Security overrides: NEVER downgrade these. basic-ftp <=5.2.2 has DoS in Client.list() (GHSA-rp42-5vxx-qpwr). ip-address <=10.1.0 has XSS in Address6 HTML-emitting methods (GHSA-v2v4-37r5-5v8g / CVE-2026-42338) — pulled in transitively via puppeteer -> @puppeteer/browsers -> proxy-agent -> socks-proxy-agent -> socks. fast-uri <=3.1.1 has path traversal via percent-encoded dot segments (GHSA-q3j6-qgpj-74h6 / CVE-2026-6321) and host confusion via percent-encoded authority delimiters (GHSA-v39h-62p7-jpjc / CVE-2026-6322) — pulled in transitively via html-validate -> ajv and stylelint -> table -> ajv. brace-expansion 5.0.0-5.0.5 applies its `max` DoS guard too late, so a large numeric range like {1..10000000} still allocates ~505 MB before truncation (GHSA-jxxr-4gwj-5jf2 / CVE-2026-45149) — pulled in transitively via html-validate -> glob -> minimatch -> brace-expansion@5; pinned via a VERSION-SELECTOR override (brace-expansion@>=5.0.0 <6.0.0 -> 5.0.6) so only the vulnerable 5.x line is bumped while the unaffected 1.x line (used by minimatch@3 in the eslint toolchain) is left untouched. A selector override (not a name-nested one) is required because npm 10 and npm 11 resolve nested/scoped overrides differently, producing divergent lockfiles that break `npm ci` across Node versions.",
   "overrides": {
     "basic-ftp": ">=5.3.1",
     "ip-address": ">=10.1.1",
     "fast-uri": ">=3.1.2",
-    "html-validate": {
-      "brace-expansion": ">=5.0.6"
-    }
+    "brace-expansion@>=5.0.0 <6.0.0": "5.0.6"
   }
 }
