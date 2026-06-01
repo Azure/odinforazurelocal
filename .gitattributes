@@ -1,0 +1,5 @@
+# Hash-pinned vendored binaries must never have their line endings converted,
+# otherwise their SHA-256 (pinned by the test suite) would differ between a
+# Linux CI checkout (LF) and a Windows checkout with core.autocrlf=true (CRLF).
+# Issue #230 — SheetJS integrity pin in scripts/run-tests.js.
+vendor/xlsx-0.20.3.min.js -text
