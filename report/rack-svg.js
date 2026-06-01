@@ -212,9 +212,13 @@
         // Title (centered) and the "Azure Local" brand badge in the top-right
         // need their own horizontal space — without a minimum width they
         // overlap on narrow single-rack diagrams (the title slides under the
-        // "Azure Local" text). Title text is ~180px, brand icon+label is
-        // ~92px, plus 20px padding each side → 360px minimum.
-        var MIN_SVG_W = 380;
+        // "Azure Local" text). Because the title is CENTERED (not left-aligned),
+        // its right edge sits at svgW/2 + ~87px (title ≈ 173px wide), while the
+        // brand block occupies the right ~112px. To keep a comfortable ~36px gap
+        // between them we need svgW ≥ 2 × (87 + 36 + 112) ≈ 470px. This only
+        // affects the single-rack diagram (2+ rack layouts are already wider);
+        // it keeps the brand consistently top-right across 1- and 2-rack views.
+        var MIN_SVG_W = 470;
         var svgW = Math.max(totalWidth + 40, MIN_SVG_W);
         var svgH = titleH + coreH + coreGap + outerRackH + bottomPad + legendH + 10;
         // Centre the rack content if the SVG was widened to satisfy the
