@@ -75,8 +75,12 @@ annotations, folder paths, network labels, datastore names, snapshot info, etc.)
 ### Privacy stance (encoded into the importer)
 
 1. VM names, hostnames, IP/MAC addresses, OS strings, datacenter / cluster names that
-   are not strictly needed are **never read or stored**. Cluster names are held only in
-   browser memory for the picker and **never persisted** into Sizer config.
+   are not strictly needed are **never read or stored** *by default*. Cluster names are
+   held only in browser memory for the picker and **never persisted** into Sizer config.
+   **Single exception (opt-in):** if the user explicitly chooses the *one-workload-per-VM*
+   consolidation mode (off by default, see *DECISION (Q3)*), VM names are read in to name
+   each workload row. Even then everything stays **client-side only** and is **never sent
+   to telemetry/analytics**; the default grouped mode reads no VM names at all.
 2. Only **powered-on, non-template** rows imported by default (checkbox to include
    powered-off). Filter on `Powerstate == "poweredOn"` and `Template == "False"` — note
    `Template` is an RVTools **boolean** (is-this-a-template), *not* a size classification.
@@ -90,8 +94,10 @@ annotations, folder paths, network labels, datastore names, snapshot info, etc.)
    > 🔒 **Privacy:** All processing is performed entirely in your browser. Only
    > aggregate VM counts and per-VM CPU / RAM / storage values are read. VM names,
    > hostnames, IP/MAC addresses, OS strings, datacenter / cluster names, datastore
-   > names, tags, custom attributes and annotations are **never read or stored**. No
-   > data is transmitted to any external service.
+   > names, tags, custom attributes and annotations are **never read or stored** —
+   > unless you explicitly turn on *one workload per VM*, which reads VM names purely to
+   > label the workload rows (still in-browser, never transmitted). No data is
+   > transmitted to any external service.
 
 ### Excel parsing — dependency
 
@@ -222,6 +228,52 @@ truncating.
 icon + modal title carry the "import" meaning, and it sits next to `📂 Import`); placed
 **after `📂 Import`** so the two "data-in" actions stay adjacent.
 
+### DECISION (Q2, RESOLVED 2026-06-01): target = pick one source cluster (only mode)
+
+The RVTools import targets **exactly one source cluster**, chosen from the per-cluster
+preview table. The two other options that were on the table are **dropped**:
+
+- **"Single combined" (merge all clusters into one pool) — dropped.** Collapsing
+  differently-shaped clusters into one undifferentiated workload pool doesn't map to a
+  meaningful Azure Local sizing target.
+- **"Identical fan-out" (size one, replicate to N) — dropped as a distinct mode.** It
+  adds nothing: a user who wants that simply sizes the single cluster and replicates the
+  resulting node count themselves. No dedicated UI is warranted.
+
+Net: simpler UI (no target radio at all — the cluster picker *is* the selection), and the
+output always represents one real source cluster.
+
+### DECISION (Q3, RESOLVED 2026-06-01): default grouped-by-size-class + opt-in per-VM naming + Workload Scenarios list cap
+
+**Consolidation default:** **"Grouped by VM size class"** is the default. VMs in the
+selected cluster are banded by (rounded vCPU, rounded RAM GB); each band becomes one
+workload with a `count`, **named after its characteristics** (e.g. `2 vCPU / 8 GB ×245`)
+so the row is self-describing and exposes **no** VM names. Chosen as default because a
+real export can yield 1,000+ VMs across ~75 distinct size bands — one-row-per-VM would
+flood the Workload Scenarios list.
+
+**Opt-in one-workload-per-VM (named):** offered as an explicit radio. When selected, each
+VM becomes its own workload **named with the source VM name**. This is the *only* path
+that reads VM names into Sizer state; it stays **client-side only**, is **never persisted
+to telemetry/analytics**, and is surfaced as a deliberate user choice (off by default).
+This is a sanctioned, scoped exception to the "VM names never stored" privacy stance,
+justified by the user explicitly asking for one-to-one name fidelity.
+
+**Workload Scenarios list UI change (motivated by large grouped imports):** the existing
+*Workload Scenarios* list currently grows unbounded as rows are added. Change it so:
+
+- **Cap the visible height at ~5 workload rows.** Beyond five, the list does **not** keep
+  growing — instead it becomes **internally scrollable** (vertical scrollbar) so rows 6+
+  are reachable by scrolling rather than pushing the rest of the page down.
+- **Compact mode when > 5 rows.** When more than five workloads are present, render
+  **smaller list entries** (reduce the top/bottom padding used in the ≤5 "comfortable"
+  layout) so more rows fit per scroll viewport.
+- This applies to the Workload Scenarios list **generally** (not only RVTools imports) —
+  any scenario with 6+ workloads benefits — but RVTools grouped imports are the main
+  driver since they routinely produce many rows at once.
+- Must remain keyboard-accessible (scroll container focusable / rows reachable by Tab)
+  and work in both light and dark themes using existing CSS variables.
+
 ### UI / flow
 
 1. **Dedicated `📊 RVTools` toolbar button** in the Sizer's *Workload Scenarios*
@@ -245,24 +297,33 @@ icon + modal title carry the "import" meaning, and it sits next to `📂 Import`
    second row on small screens rather than truncating.
 4. File picker (`accept=".xlsx"`) → reads file client-side (FileReader → SheetJS).
 5. Privacy disclaimer block (see above).
-4. **Detection preview**: totals (X source clusters, Y hosts, Z powered-on VMs, total
+6. **Detection preview**: totals (X source clusters, Y hosts, Z powered-on VMs, total
    vCPU, total RAM, total provisioned storage TB) + per-cluster table.
-5. **Target choice** (radio): single combined / pick one source cluster / identical
-   fan-out (see open question 4).
-6. **VM consolidation strategy** (radio):
-   - **One workload per VM** — verbatim, best fidelity, but unwieldy with 1,000+ VMs.
-   - **Grouped by VM size class** — heuristic: cluster VMs into bands by
-     (round vCPU, round RAM GB) and create a single VM-group workload per band with a
-     `count`. This is **our own banding** of the VM pool (not an RVTools `Template`
-     field), conceptually like the *Average VM Size* view in RVTools summaries.
-   - **One row per source cluster** (sum / avg) — coarsest, fastest.
-   - See open question 5 on default.
-7. **Storage**: use `Provisioned MiB` by default (worst-case planning), with toggle for
+7. **Target = pick one source cluster** (the *only* mode — see *DECISION (Q2)*). The
+   per-cluster table doubles as the picker: the user selects exactly one source cluster
+   and only that cluster's VMs are imported. There is **no** "single combined" or
+   "identical fan-out" option — a user who wants to size-one-and-replicate just sizes the
+   one cluster and replicates the node count themselves; combining all clusters into one
+   undifferentiated pool was judged not meaningful.
+8. **VM consolidation strategy** (radio — see *DECISION (Q3)*):
+   - **Grouped by VM size class** *(default)* — heuristic: cluster the selected
+     cluster's VMs into bands by (round vCPU, round RAM GB) and create a single VM-group
+     workload per band with a `count`. This is **our own banding** of the VM pool (not an
+     RVTools `Template` field), conceptually like the *Average VM Size* view in RVTools
+     summaries. Each grouped workload is **named after its characteristics** (e.g.
+     `2 vCPU / 8 GB ×245`) so the row is self-describing without exposing VM names.
+   - **One workload per VM** *(opt-in)* — verbatim, best fidelity, but unwieldy with
+     1,000+ VMs. When chosen, each workload **is named with the source VM name** (the one
+     place VM names are read into Sizer state). This is an explicit, user-initiated
+     choice; it is **off by default** and called out in the UI because it pulls VM names
+     in (still client-side only, still never persisted to telemetry). See the privacy
+     note under *DECISION (Q3)*.
+9. **Storage**: use `Provisioned MiB` by default (worst-case planning), with toggle for
    "Use *In Use* instead" (right-sized planning). Convert MiB → GB.
-8. **Memory**: from `Memory` column (MiB → GB).
-9. **vCPU**: from `CPUs` column. **No overcommit applied at import** — the user's
-   existing `vcpu-ratio` control then governs how many physical cores are needed.
-10. After "Load" → close modal → workloads list populated → existing
+10. **Memory**: from `Memory` column (MiB → GB).
+11. **vCPU**: from `CPUs` column. **No overcommit applied at import** — the user's
+    existing `vcpu-ratio` control then governs how many physical cores are needed.
+12. After "Load" → close modal → workloads list populated → existing
     `calculateRequirements()` runs → user iterates as normal.
 
 ### Files touched
@@ -280,13 +341,20 @@ icon + modal title carry the "import" meaning, and it sits next to `📂 Import`
    RVTools tab; plus new functions `switchImportTab('rvtools')` handling (lazy-load +
    panel show), `parseRVToolsXLSX(file)`, and `applyRVToolsImport(parsed, options)`. They
    build workload objects and call the existing `workloads.push()` path. Banner
-   integrated with the existing post-import banner.
-4. **`sizer/sizer.css`** — minimal styling for the per-cluster picker table and the
-   de-flexed / wrapping import tab strip.
+   integrated with the existing post-import banner. Grouped-by-size-class builds
+   characteristic-named rows (e.g. `2 vCPU / 8 GB ×N`); per-VM mode (opt-in) names each
+   row with the source VM name. The workload-list renderer toggles a **compact CSS class**
+   when the list holds more than five rows.
+4. **`sizer/sizer.css`** — styling for the per-cluster picker table, the de-flexed /
+   wrapping import tab strip, **and the Workload Scenarios list cap**: max-height of
+   ~5 rows + `overflow-y: auto` on the list container, plus a `.compact` variant that
+   trims per-row top/bottom padding when > 5 workloads are present.
 5. **`tests/index.html`** + **`tests/fixtures/`** — small synthetic RVTools fixture (a
    tiny SheetJS-shaped object built in-test). Cases: powered-off filter, template
    filter, MiB → GB conversion, vCPU sum, per-cluster grouping, VM size-class banding,
-   malformed-file error path.
+   characteristic row-naming, per-VM naming (opt-in), and the malformed-file error path.
+   Plus a test that the Workload Scenarios list applies the compact class / scroll cap
+   when > 5 workloads are present.
 6. **`CHANGELOG.md` / version-bump fan-out / README "What's New"** — own version bump
    for the #230 PR (separate from the 0.21.55 #232 + #233 release).
 
@@ -323,10 +391,20 @@ icon + modal title carry the "import" meaning, and it sits next to `📂 Import`
    record under **Excel parsing — dependency** above (size / lazy-load, npm-delisting /
    provenance, security surface, supply-chain, and the hash-pin vs. no-network-version-
    check test split).
-2. **Multi-cluster UX** — keep all **three** target-choice radios (combined / pick-one /
-   identical fan-out) or trim to just **pick-one + identical fan-out** for simplicity?
-3. **Default VM consolidation** — default to **"Grouped by VM template"** (5–10 rows)
-   for any import > 50 VMs, with "One per VM" behind an advanced toggle? Or always
-   default to one-per-VM?
+2. ~~**Multi-cluster UX** — keep all **three** target-choice radios (combined / pick-one /
+   identical fan-out) or trim?~~ **RESOLVED (2026-06-01): pick one source cluster is the
+   ONLY mode.** Drop "single combined" (one undifferentiated pool across clusters was not
+   meaningful for sizing) and drop "identical fan-out" (a user who wants
+   size-one-and-replicate just sizes the single cluster and replicates node count
+   manually — no extra UI needed). The per-cluster preview table is itself the picker.
+3. ~~**Default VM consolidation** — default to grouped or one-per-VM?~~ **RESOLVED
+   (2026-06-01): default = "Grouped by VM size class"**, with grouped rows named after
+   their characteristics (e.g. `2 vCPU / 8 GB ×N`). **"One workload per VM" is an opt-in**
+   radio; when selected, each workload is named with the **source VM name** — the single
+   path where VM names enter Sizer state (client-side only, never persisted to telemetry,
+   surfaced as an explicit choice in the UI). Grouping is preferred by default because a
+   real export can produce 1,000+ VMs / ~75 distinct size bands, which is unwieldy as
+   one-row-per-VM. See *DECISION (Q3)* below for the Workload Scenarios list UI change
+   (cap visible rows at 5 + scroll + compact mode) that this motivates.
 4. **Version bump / PR** — own patch/minor bump for the standalone #230 PR (decide at
    implementation time, after the 0.21.55 release has shipped).
