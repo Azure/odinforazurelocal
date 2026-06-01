@@ -476,6 +476,29 @@ header .header-description {
         color: #111 !important;
     }
 
+    /* Show host-overhead breakdown in print */
+    #host-overhead-section {
+        display: block !important;
+    }
+
+    #host-overhead-section[open] summary {
+        color: #111 !important;
+    }
+
+    #host-overhead-content {
+        background: #f9fafb !important;
+        border-color: #d1d5db !important;
+        color: #111 !important;
+    }
+
+    #host-overhead-content table {
+        color: #111 !important;
+    }
+
+    #host-overhead-content td {
+        border-color: #d1d5db !important;
+    }
+
     #growth-projection-content table {
         color: #111 !important;
     }

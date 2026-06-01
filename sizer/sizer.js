@@ -6315,11 +6315,110 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
     const notesList = document.getElementById('sizing-notes');
     notesList.innerHTML = notes.map(n => `<li>${n}</li>`).join('');
 
+    // Populate the collapsed "Physical Host Compute Overhead" breakdown
+    updateHostOverheadBreakdown(hwConfig, clusterType);
+
     // Show/hide "Configure in Designer" button
     updateDesignerActionVisibility();
 
     // Update multi-instance summary if visible
     updateMultiInstanceSummary();
+}
+
+// ── Physical Host Compute Overhead — Assumptions & Math (Issue #232) ──
+// Renders the collapsed breakdown beneath the sizing notes showing exactly how the
+// per-node host memory and CPU reservations are derived for the current deployment.
+function updateHostOverheadBreakdown(hwConfig, clusterType) {
+    const section = document.getElementById('host-overhead-section');
+    const content = document.getElementById('host-overhead-content');
+    if (!section || !content) return;
+
+    if (!hwConfig) {
+        section.style.display = 'none';
+        content.innerHTML = '';
+        return;
+    }
+
+    const isDisaggregated = clusterType === 'disaggregated';
+    const isAldo = clusterType === 'aldo-mgmt';
+    const isLowCapacity = clusterType === 'low-capacity';
+    const hostMemGB = hwConfig.memoryGB || 0;
+    const physicalCores = hwConfig.totalPhysicalCores || 0;
+
+    // Memory terms
+    const base = isDisaggregated ? HOST_MEM_BASE_DISAGGREGATED_GB : HOST_MEM_BASE_S2D_GB;
+    const cacheTB = getCacheTBPerNode(hwConfig);
+    const cacheMetadataGB = isDisaggregated ? 0 : Math.ceil(cacheTB * HOST_MEM_CACHE_METADATA_GB_PER_TB);
+    const aldoGB = isAldo ? ALDO_APPLIANCE_OVERHEAD_GB : 0;
+    const fixedSum = base + cacheMetadataGB + aldoGB;
+    const ramFractionGB = Math.ceil(HOST_MEM_HOST_RAM_FRACTION * hostMemGB);
+    const memReserved = Math.max(fixedSum, ramFractionGB);
+    const ramFractionWins = ramFractionGB > fixedSum;
+
+    // CPU terms
+    let cpuPct, cpuFloor;
+    if (isAldo) { cpuPct = 0.20; cpuFloor = 2; }
+    else if (isDisaggregated || isLowCapacity) { cpuPct = 0.10; cpuFloor = 1; }
+    else { cpuPct = 0.15; cpuFloor = 2; }
+    const cpuPctCores = Math.ceil(cpuPct * physicalCores);
+    const coresReserved = Math.max(cpuPctCores, cpuFloor);
+    const cpuFloorWins = cpuFloor > cpuPctCores;
+
+    const deployLabel = isDisaggregated ? 'Disaggregated (external SAN — no local S2D stack)'
+        : isAldo ? 'Azure Local Disconnected Operations (ALDO) management cluster'
+        : isLowCapacity ? 'Low-capacity (all-flash, single/two-node)'
+        : 'Standard hyperconverged (Storage Spaces Direct)';
+    const s2dInUse = !isDisaggregated;
+    const win = (active) => active
+        ? 'color: var(--accent-blue); font-weight: 600;'
+        : 'color: var(--text-secondary);';
+
+    let html = '';
+    html += `<div style="margin-bottom: 8px;"><strong>Deployment type:</strong> ${deployLabel}. `;
+    html += s2dInUse
+        ? 'Storage Spaces Direct (S2D) <strong>is</strong> in use, so the host reserves memory for the storage stack and (on tiered configs) cache-drive metadata.'
+        : 'S2D is <strong>not</strong> in use on these hosts, so the storage-stack memory reservation is reduced.';
+    html += '</div>';
+
+    // Memory table
+    html += '<div style="font-weight: 600; margin: 8px 0 4px;">Per-node memory reservation</div>';
+    html += '<table style="border-collapse: collapse; font-size: 12px; width: 100%; max-width: 520px;">';
+    html += `<tr><td style="padding: 2px 8px 2px 0;">Base (${isDisaggregated ? 'disaggregated, no S2D' : 'S2D host OS + storage stack'})</td><td style="text-align: right; padding: 2px 0;">${base} GB</td></tr>`;
+    if (!isDisaggregated) {
+        html += `<tr><td style="padding: 2px 8px 2px 0;">S2D cache metadata${cacheTB > 0 ? ` (${cacheTB.toFixed(1)} TB cache × ${HOST_MEM_CACHE_METADATA_GB_PER_TB} GB/TB)` : ' (no cache tier)'}</td><td style="text-align: right; padding: 2px 0;">${cacheMetadataGB} GB</td></tr>`;
+    }
+    if (isAldo) {
+        html += `<tr><td style="padding: 2px 8px 2px 0;">ALDO appliance reservation</td><td style="text-align: right; padding: 2px 0;">${aldoGB} GB</td></tr>`;
+    }
+    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; ${win(!ramFractionWins)}">Fixed-term subtotal</td><td style="text-align: right; padding: 4px 0 2px; ${win(!ramFractionWins)}">${fixedSum} GB</td></tr>`;
+    html += `<tr><td style="padding: 2px 8px 2px 0; ${win(ramFractionWins)}">Host-RAM scaling term (${Math.round(HOST_MEM_HOST_RAM_FRACTION * 100)}% × ${hostMemGB} GB)</td><td style="text-align: right; padding: 2px 0; ${win(ramFractionWins)}">${ramFractionGB} GB</td></tr>`;
+    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; font-weight: 600;">Reserved per node = max(of the two)</td><td style="text-align: right; padding: 4px 0 2px; font-weight: 600;">${memReserved} GB</td></tr>`;
+    html += '</table>';
+    html += `<div style="font-size: 11px; margin-top: 2px;">The <span style="${win(ramFractionWins)}">highlighted</span> term wins because it is the larger of the fixed subtotal and the 8%-of-host-RAM scaling term.</div>`;
+
+    // CPU table
+    html += '<div style="font-weight: 600; margin: 10px 0 4px;">Per-node CPU reservation (physical cores)</div>';
+    html += '<table style="border-collapse: collapse; font-size: 12px; width: 100%; max-width: 520px;">';
+    html += `<tr><td style="padding: 2px 8px 2px 0; ${win(!cpuFloorWins)}">Percentage term (${Math.round(cpuPct * 100)}% × ${physicalCores} cores, rounded up)</td><td style="text-align: right; padding: 2px 0; ${win(!cpuFloorWins)}">${cpuPctCores} core${cpuPctCores === 1 ? '' : 's'}</td></tr>`;
+    html += `<tr><td style="padding: 2px 8px 2px 0; ${win(cpuFloorWins)}">Minimum floor</td><td style="text-align: right; padding: 2px 0; ${win(cpuFloorWins)}">${cpuFloor} core${cpuFloor === 1 ? '' : 's'}</td></tr>`;
+    html += `<tr style="border-top: 1px solid rgba(148,163,184,0.3);"><td style="padding: 4px 8px 2px 0; font-weight: 600;">Reserved per node = max(of the two)</td><td style="text-align: right; padding: 4px 0 2px; font-weight: 600;">${coresReserved} core${coresReserved === 1 ? '' : 's'}</td></tr>`;
+    html += '</table>';
+
+    // Assumptions + public references
+    html += '<div style="font-weight: 600; margin: 10px 0 4px;">Assumptions</div>';
+    html += '<ul style="margin: 0 0 4px 16px; padding: 0; font-size: 12px;">';
+    html += '<li>Reservations cover the Hyper-V root partition, Failover Clustering / CSV, the S2D stack (Software Storage Bus, pool/ReFS runtime, CSV in-memory read cache), Arc/AMA/ATC/Defender agents, and live-migration / repair / patching headroom.</li>';
+    html += '<li>The 8%-of-host-RAM term scales the reservation on large-memory nodes where fixed terms alone under-provision the root partition.</li>';
+    html += '<li>Reserved capacity is excluded from workload-available vCPU and memory in all sizing calculations on this page.</li>';
+    html += '</ul>';
+    html += '<div style="font-size: 11px; margin-top: 4px;">References: ';
+    html += '<a href="https://learn.microsoft.com/windows-server/virtualization/hyper-v/manage/performance-tuning-for-hyper-v-servers" target="_blank" rel="noopener noreferrer">Hyper-V performance tuning</a>, ';
+    html += '<a href="https://learn.microsoft.com/windows-server/storage/storage-spaces/storage-spaces-direct-hardware-requirements" target="_blank" rel="noopener noreferrer">S2D hardware requirements</a>, ';
+    html += '<a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements" target="_blank" rel="noopener noreferrer">Azure Local system requirements</a>.';
+    html += '</div>';
+
+    content.innerHTML = html;
+    section.style.display = '';
 }
 
 // ── Capacity Runway — Year-over-Year Growth Projection ──
