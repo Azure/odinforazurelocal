@@ -778,7 +778,7 @@
                             <span class="value" id="power-total">—</span>
                         </div>
                         <div class="power-rack-item">
-                            <span class="label">Total <a href="https://en.wikipedia.org/wiki/British_thermal_unit" target="_blank" rel="noopener noreferrer">BTU</a>/hr (est.)</span>
+                            <span class="label">Total <a href="https://en.wikipedia.org/wiki/British_thermal_unit" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">BTU</a>/hr (est.)</span>
                             <span class="value" id="power-btu">—</span>
                         </div>
                         <div class="power-rack-item rack-units-item" id="rack-units-cell">
@@ -908,9 +908,7 @@
                     </div>
                     <div class="rack-viz-legend">
                         <span class="legend-item" id="legend-server-node"><span class="legend-swatch" style="background:#aaaaaa;"></span> Server Node</span>
-                        <span class="legend-item" id="legend-edge-appliance" style="display:none;"><span class="legend-swatch" style="background:#888888;"></span> Edge Appliance</span>
                         <span class="legend-item" id="legend-tor-switch"><span class="legend-swatch" style="background:#444444;"></span> ToR Switch</span>
-                        <span class="legend-item" id="legend-edge-switch" style="display:none;"><span class="legend-swatch" style="background:#333333;"></span> Edge Switch</span>
                         <span class="legend-item" id="legend-bmc-switch"><span class="legend-swatch" style="background:#e0e0e0;"></span> BMC Switch</span>
                         <span class="legend-item" id="legend-core-router"><span class="legend-swatch" style="background:#1a6fc4;"></span> Core Router / Firewall</span>
                         <span class="legend-item" id="legend-mgmt-compute"><span class="legend-swatch" style="background:#3399ff;"></span> Mgmt/Compute</span>
@@ -1062,7 +1060,7 @@
                 <div id="cluster-json-error" style="display: none; margin-top: 8px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: var(--danger); font-size: 12px;"></div>
                 <div id="cluster-json-preview" style="display: none; margin-top: 8px; padding: 10px 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; font-size: 13px;"></div>
                 <div style="text-align: center; margin-top: 12px;">
-                    <button class="onboarding-btn onboarding-btn-primary" onclick="parseAndPreviewClusterJSON()">Parse &amp; Preview</button>
+                    <button id="cluster-import-parse-btn" class="onboarding-btn onboarding-btn-primary" onclick="parseAndPreviewClusterJSON()">Parse &amp; Preview</button>
                     <button id="cluster-import-apply-btn" class="onboarding-btn onboarding-btn-primary" onclick="applyClusterJSONImport()" style="display: none; margin-left: 8px;">Load Cluster Configuration</button>
                 </div>
             </div>

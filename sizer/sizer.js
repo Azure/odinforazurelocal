@@ -1466,7 +1466,7 @@ function getHostMemoryReservedGB(hwConfig, clusterType) {
 
 // Per-node host CPU reservation (physical cores) for the root partition.
 //   Disaggregated (all-flash): max(10%, 1 core)
-//   Standard / S2D with ARB (default):        max(15%, 2 cores)
+//   Standard / S2D with ARB (default):        max(10%, 2 cores)
 //   ALDO-mgmt:                                max(20%, 2 cores)
 function getHostCpuReservedCores(hwConfig, clusterType) {
     const physicalCores = (hwConfig && hwConfig.totalPhysicalCores) || 0;
@@ -1476,7 +1476,7 @@ function getHostCpuReservedCores(hwConfig, clusterType) {
     } else if (clusterType === 'disaggregated') {
         pct = 0.10; floor = 1;
     } else {
-        pct = 0.15; floor = 2;
+        pct = 0.10; floor = 2;
     }
     return Math.max(Math.ceil(pct * physicalCores), floor);
 }
@@ -2215,16 +2215,22 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
     let hrSockets = parseInt(document.getElementById('cpu-sockets').value) || 2;
     let hrMemory = parseInt(document.getElementById('node-memory').value) || 512;
 
-    // CPU headroom — bump cores first, then sockets
-    // Skip when the user has manually set CPU config (respect user override).
-    // Re-read manufacturer/genId in case AMD auto-switch changed them
+    // Usable vCPU capacity per cluster, excluding the per-node host CPU reserve.
+    // Declared at function scope so both the physical core/socket scaling pass and
+    // the vCPU-ratio escalation pass (which may run even when cores are locked) can use it.
+    const usableVcpuCap = (coresPerNode, ratio) => Math.max(coresPerNode - getHostCpuReservedCores({ totalPhysicalCores: coresPerNode }, clusterTypeForOverhead), 0) * effectiveNodes * (ratio || vcpuToCore);
+
+    // CPU headroom — bump cores first, then sockets.
+    // Skip the PHYSICAL core/socket scaling when the user has manually set (or
+    // imported) the CPU config — physical silicon cannot be changed on a fixed
+    // cluster. The vCPU overcommit ratio is NOT a physical property and is handled
+    // separately below so it can still escalate even when cores/sockets are locked.
+    // Re-read manufacturer/genId in case AMD auto-switch changed them.
     manufacturer = document.getElementById('cpu-manufacturer').value;
     genId = document.getElementById('cpu-generation').value;
     if (manufacturer && genId && !_cpuConfigUserSet) {
         const gen = CPU_GENERATIONS[manufacturer].find(g => g.id === genId);
         if (gen) {
-            // Usable vCPU capacity per cluster, excluding the per-node host CPU reserve.
-            const usableVcpuCap = (coresPerNode, ratio) => Math.max(coresPerNode - getHostCpuReservedCores({ totalPhysicalCores: coresPerNode }, clusterTypeForOverhead), 0) * effectiveNodes * (ratio || vcpuToCore);
             let cpuCap = usableVcpuCap(hrCores * hrSockets);
             let cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
             let safety = 0;
@@ -2252,67 +2258,75 @@ function autoScaleHardware(totalVcpus, totalMemoryGB, totalStorageGB, nodeCount,
                 cpuCap = usableVcpuCap(hrCores * hrSockets);
                 cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
             }
+        }
+    }
 
-            // vCPU ratio auto-escalation — when cores & sockets are maxed and compute ≥90%,
-            // bump the overcommit ratio (4→5→6) to reduce over-threshold pressure.
-            // Only auto-escalate from default (4) or a previously auto-escalated value (5).
-            // Skip if the user has manually set the ratio (respect user override).
-            // In conservative mode (default), skip ratio escalation entirely — prefer adding
-            // nodes first. Only allow escalation in the final aggressive pass when nodes are maxed.
-            //
-            // Before escalating from 5→6, try switching to an AMD generation with more
-            // physical cores (e.g. AMD Turin Dense with 192 cores/socket = 384 cores dual-socket).
-            // This keeps the overcommit ratio lower (5:1) by adding real physical cores.
-            const VCPU_ESCALATION_THRESHOLD = 90;
-            const VCPU_RATIO_STEPS = [5, 6];
-            if (allowRatioEscalation && !_vcpuRatioUserSet && cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
-                for (const nextRatio of VCPU_RATIO_STEPS) {
-                    if (nextRatio <= vcpuToCore) continue; // skip ratios we're already at or past
+    // vCPU ratio auto-escalation — when compute ≥90%, bump the overcommit ratio
+    // (4→5→6) to reduce over-threshold pressure.
+    // Decoupled from the physical CPU lock (_cpuConfigUserSet): the overcommit
+    // ratio is NOT a physical property, so it must still escalate on a fixed /
+    // imported cluster whose cores & sockets are locked. It is gated ONLY by the
+    // user manually pinning the ratio (_vcpuRatioUserSet → shows MANUAL).
+    // Only auto-escalate from default (4) or a previously auto-escalated value (5).
+    // In conservative mode (default), skip ratio escalation entirely — prefer adding
+    // nodes first. Only allow escalation in the final aggressive pass when nodes are maxed.
+    //
+    // Before escalating from 5→6, try switching to an AMD generation with more
+    // physical cores (e.g. AMD Turin Dense with 192 cores/socket = 384 cores dual-socket).
+    // This keeps the overcommit ratio lower (5:1) by adding real physical cores — but
+    // ONLY when the physical CPU is not locked, since that step changes the silicon.
+    if (manufacturer && genId) {
+        // Use the current cores/sockets (possibly just scaled above, or locked).
+        let cpuCap = usableVcpuCap(hrCores * hrSockets);
+        let cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+        const VCPU_ESCALATION_THRESHOLD = 90;
+        const VCPU_RATIO_STEPS = [5, 6];
+        if (allowRatioEscalation && !_vcpuRatioUserSet && cpuPct >= VCPU_ESCALATION_THRESHOLD && vcpuToCore >= 4 && vcpuToCore < 6) {
+            for (const nextRatio of VCPU_RATIO_STEPS) {
+                if (nextRatio <= vcpuToCore) continue; // skip ratios we're already at or past
 
-                    // Before jumping to 6:1, try switching to AMD with higher core counts
-                    // at the current ratio. Only attempt when currently on Intel or an AMD
-                    // generation whose max cores are lower than what's available in other
-                    // AMD generations.
-                    if (nextRatio === 6) {
-                        const amdSwitch = _tryAmdCoreUpgrade(
-                            totalVcpus, effectiveNodes, vcpuToCore,
-                            hrCores, hrSockets, VCPU_ESCALATION_THRESHOLD
-                        );
-                        if (amdSwitch) {
-                            // AMD switch resolved compute pressure — apply the change
-                            hrCores = amdSwitch.cores;
-                            hrSockets = amdSwitch.sockets;
-                            changed = true;
-                            cpuCap = usableVcpuCap(hrCores * hrSockets);
-                            cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
-                            if (cpuPct < VCPU_ESCALATION_THRESHOLD) {
-                                // AMD cores resolved pressure at 5:1 — check if we can
-                                // step back to 4:1 and still stay under threshold
-                                const pctAt4 = Math.round(totalVcpus / usableVcpuCap(hrCores * hrSockets, 4) * 100);
-                                if (pctAt4 < VCPU_ESCALATION_THRESHOLD) {
-                                    document.getElementById('vcpu-ratio').value = 4;
-                                    // Ratio back at default — no auto-escalation badge needed
-                                    _vcpuRatioAutoEscalated = false;
-                                }
-                                break; // resolved, skip 6:1
+                // Before jumping to 6:1, try switching to AMD with higher core counts
+                // at the current ratio — but only when the physical CPU is not locked
+                // (an imported/fixed cluster cannot swap silicon).
+                if (nextRatio === 6 && !_cpuConfigUserSet) {
+                    const amdSwitch = _tryAmdCoreUpgrade(
+                        totalVcpus, effectiveNodes, vcpuToCore,
+                        hrCores, hrSockets, VCPU_ESCALATION_THRESHOLD
+                    );
+                    if (amdSwitch) {
+                        // AMD switch resolved compute pressure — apply the change
+                        hrCores = amdSwitch.cores;
+                        hrSockets = amdSwitch.sockets;
+                        changed = true;
+                        cpuCap = usableVcpuCap(hrCores * hrSockets);
+                        cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+                        if (cpuPct < VCPU_ESCALATION_THRESHOLD) {
+                            // AMD cores resolved pressure at 5:1 — check if we can
+                            // step back to 4:1 and still stay under threshold
+                            const pctAt4 = Math.round(totalVcpus / usableVcpuCap(hrCores * hrSockets, 4) * 100);
+                            if (pctAt4 < VCPU_ESCALATION_THRESHOLD) {
+                                document.getElementById('vcpu-ratio').value = 4;
+                                // Ratio back at default — no auto-escalation badge needed
+                                _vcpuRatioAutoEscalated = false;
                             }
+                            break; // resolved, skip 6:1
                         }
                     }
-
-                    vcpuToCore = nextRatio;
-                    document.getElementById('vcpu-ratio').value = nextRatio;
-                    changed = true;
-                    markAutoScaled('vcpu-ratio');
-                    _vcpuRatioAutoEscalated = true;
-                    cpuCap = usableVcpuCap(hrCores * hrSockets);
-                    cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
-                    if (cpuPct < VCPU_ESCALATION_THRESHOLD) break;
                 }
-            } else if (previouslyAutoScaled && previouslyAutoScaled.has('vcpu-ratio')) {
-                // Ratio was auto-escalated in a prior cycle and is still adequate — re-apply badge
+
+                vcpuToCore = nextRatio;
+                document.getElementById('vcpu-ratio').value = nextRatio;
+                changed = true;
                 markAutoScaled('vcpu-ratio');
                 _vcpuRatioAutoEscalated = true;
+                cpuCap = usableVcpuCap(hrCores * hrSockets);
+                cpuPct = cpuCap > 0 ? Math.round(totalVcpus / cpuCap * 100) : 0;
+                if (cpuPct < VCPU_ESCALATION_THRESHOLD) break;
             }
+        } else if (previouslyAutoScaled && previouslyAutoScaled.has('vcpu-ratio')) {
+            // Ratio was auto-escalated in a prior cycle and is still adequate — re-apply badge
+            markAutoScaled('vcpu-ratio');
+            _vcpuRatioAutoEscalated = true;
         }
     }
 
@@ -6108,7 +6122,7 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
     let cpuPct, cpuFloor;
     if (isAldo) { cpuPct = 0.20; cpuFloor = 2; }
     else if (isDisaggregated) { cpuPct = 0.10; cpuFloor = 1; }
-    else { cpuPct = 0.15; cpuFloor = 2; }
+    else { cpuPct = 0.10; cpuFloor = 2; }
     const cpuPctCores = Math.ceil(cpuPct * physicalCores);
     const coresReserved = Math.max(cpuPctCores, cpuFloor);
     const cpuFloorWins = cpuFloor > cpuPctCores;
@@ -6160,9 +6174,9 @@ function updateHostOverheadBreakdown(hwConfig, clusterType) {
     html += '<li>Reserved capacity is excluded from workload-available vCPU and memory in all sizing calculations on this page.</li>';
     html += '</ul>';
     html += '<div style="font-size: 11px; margin-top: 4px;">References: ';
-    html += '<a href="https://learn.microsoft.com/windows-server/virtualization/hyper-v/manage/performance-tuning-for-hyper-v-servers" target="_blank" rel="noopener noreferrer">Hyper-V performance tuning</a>, ';
-    html += '<a href="https://learn.microsoft.com/windows-server/storage/storage-spaces/storage-spaces-direct-hardware-requirements" target="_blank" rel="noopener noreferrer">S2D hardware requirements</a>, ';
-    html += '<a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements" target="_blank" rel="noopener noreferrer">Azure Local system requirements</a>.';
+    html += '<a href="https://learn.microsoft.com/windows-server/virtualization/hyper-v/manage/performance-tuning-for-hyper-v-servers" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">Hyper-V performance tuning</a>, ';
+    html += '<a href="https://learn.microsoft.com/windows-server/storage/storage-spaces/storage-spaces-direct-hardware-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">S2D hardware requirements</a>, ';
+    html += '<a href="https://learn.microsoft.com/azure/azure-local/concepts/system-requirements" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">Azure Local system requirements</a>.';
     html += '</div>';
 
     content.innerHTML = html;
@@ -7318,6 +7332,9 @@ function showImportModal() {
         if (preview) preview.style.display = 'none';
         var applyBtn = document.getElementById('cluster-import-apply-btn');
         if (applyBtn) applyBtn.style.display = 'none';
+        // Restore the Parse & Preview button (hidden after a successful parse).
+        var parseBtn = document.getElementById('cluster-import-parse-btn');
+        if (parseBtn) parseBtn.style.display = '';
         window._pendingClusterImport = null;
     }
 }
@@ -7544,10 +7561,12 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         + '<span>Deployment type:</span>'
         + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="standard" checked onchange="validateClusterImportSelection()"> Hyperconverged</label>'
         + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="rack-aware" onchange="validateClusterImportSelection()"> Rack-Aware Cluster</label>'
+        + '<label style="font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;"><input type="radio" name="cluster-import-deploy-type" value="disaggregated" onchange="validateClusterImportSelection()"> Disaggregated Storage</label>'
         + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(auto-switches to <strong>Single Node</strong> if you set machines = 1)</span>'
         + '</span>';
     // Storage (S2D capacity disks per node) — not in the JSON, must be supplied by the user.
-    previewHTML += '<span style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
+    // Issue #235: hidden when Disaggregated Storage is chosen (external SAN — no S2D disks).
+    previewHTML += '<span id="cluster-import-s2d-row" style="grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; font-size: 13px; font-weight: 600; margin-bottom: 4px;">'
         + '<span>S2D capacity disks per machine:</span>'
         + '<select id="cluster-import-disk-count" style="background: var(--card-bg); border: 1px solid var(--accent-green, #22c55e); color: var(--text-primary); border-radius: 6px; padding: 4px 8px; font-size: 13px; font-weight: 600;">'
         +   '<option value="2">2</option><option value="3">3</option><option value="4" selected>4</option>'
@@ -7561,7 +7580,11 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
         +   '<option value="3.84" selected>3.84 TB</option>'
         +   '<option value="5.68">5.68 TB</option>'
         +   '<option value="7.68">7.68 TB</option>'
+        +   '<option value="8">8 TB</option>'
+        +   '<option value="12">12 TB</option>'
         +   '<option value="15.36">15.36 TB</option>'
+        +   '<option value="16">16 TB</option>'
+        +   '<option value="20">20 TB</option>'
         + '</select>'
         + '<span style="font-weight: 400; color: var(--text-secondary); font-size: 11px;">(not in the JSON — supply for accurate sizing)</span>'
         + '</span>';
@@ -7593,6 +7616,12 @@ function parseAndPreviewClusterJSON() { // eslint-disable-line no-unused-vars
     previewDiv.style.display = '';
     applyBtn.style.display = '';
 
+    // The data parsed cleanly and the physical-node preview is shown — hide the
+    // Parse & Preview button so only "Load Cluster Configuration" remains as the
+    // next step. To parse again, the user closes and reopens the import dialog
+    // (showImportModal restores the button).
+    var parseBtn = document.getElementById('cluster-import-parse-btn');
+    if (parseBtn) parseBtn.style.display = 'none';
     // Issue #207 follow-up: restore any user-modified selections that were
     // captured at the top of this function so an accidental re-click of
     // Parse & Preview does not silently reset the user's choices.
@@ -7656,6 +7685,20 @@ function validateClusterImportSelection() { // eslint-disable-line no-unused-var
     var nodeCount = parseInt(nodeInput.value, 10);
     var deployRadio = document.querySelector('input[name="cluster-import-deploy-type"]:checked');
     var deployType = deployRadio ? deployRadio.value : 'standard';
+
+    // Issue #235: Disaggregated Storage uses an external SAN — the S2D capacity-disk
+    // picker is irrelevant, so grey it out (and ignore it on apply).
+    var s2dRow = document.getElementById('cluster-import-s2d-row');
+    if (s2dRow) {
+        var isDisagg = (deployType === 'disaggregated');
+        s2dRow.style.opacity = isDisagg ? '0.4' : '';
+        s2dRow.style.pointerEvents = isDisagg ? 'none' : '';
+        s2dRow.title = isDisagg ? 'External SAN storage is used — S2D capacity disks do not apply' : '';
+        var s2dCountEl = document.getElementById('cluster-import-disk-count');
+        var s2dSizeEl = document.getElementById('cluster-import-disk-size');
+        if (s2dCountEl) s2dCountEl.disabled = isDisagg;
+        if (s2dSizeEl) s2dSizeEl.disabled = isDisagg;
+    }
 
     var errors = [];
     if (isNaN(nodeCount) || nodeCount < 1 || nodeCount > 16) {
@@ -7734,6 +7777,13 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
 
     // Bug #207 fix: a 1-node cluster MUST be Single Node, not Hyperconverged.
     var resolvedClusterType = (actualNodeCount === 1) ? 'single' : chosenDeployType;
+
+    // Issue #235: Disaggregated Storage uses an external SAN — there are no S2D
+    // capacity disks to apply, so drop any disk choices from the equation.
+    if (resolvedClusterType === 'disaggregated') {
+        chosenDiskCount = null;
+        chosenDiskSizeTB = null;
+    }
 
     // Set node-count BEFORE cluster-type so that onClusterTypeChange() →
     // updateResiliencyOptions() sees the correct node count and produces the
@@ -7909,7 +7959,8 @@ function applyClusterJSONImport() { // eslint-disable-line no-unused-vars
     if (summary) {
         var deployTypeLabel = resolvedClusterType === 'single' ? 'Single Node'
             : resolvedClusterType === 'rack-aware' ? 'Rack-Aware Cluster'
-                : 'Hyperconverged';
+                : resolvedClusterType === 'disaggregated' ? 'Disaggregated Storage'
+                    : 'Hyperconverged';
         var resiliencyLabel = '';
         if (resolvedClusterType !== 'single' && resolvedClusterType !== 'disaggregated') {
             resiliencyLabel = (actualNodeCount >= 3)
