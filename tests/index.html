@@ -5000,6 +5000,41 @@
             })()
         ]);
 
+        // --- Regression: conservative node loop overhead alignment (Cluster014, RVTools import) ---
+        // The conservative node-increment loop in calculateRequirements() must use the SAME
+        // host-reservation math as the capacity bars / >90% banner. Previously it used a
+        // hardcoded 32 GB host overhead, so it stopped at 2 nodes (~89%) while the banner
+        // showed 95% (invalid). With getHostMemoryReservedGB() (123 GB for 1536 GB nodes via
+        // the 8%-of-RAM term, #232), the loop must reject 2 nodes and accept 3.
+        testSuite('Node loop overhead alignment (Cluster014 regression)', 'sizer.js', [
+            (() => {
+                // Cluster014: 1536 GB/node all-flash, 1328 GB workload memory demand.
+                const hw = { totalPhysicalCores: 128, memoryGB: 1536, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                const hostOverhead = getHostMemoryReservedGB(hw, 'standard');
+                return assert(hostOverhead === 123,
+                    '1536 GB node host reservation = ceil(0.08 × 1536) = 123 GB (8% term wins)', 123, hostOverhead);
+            })(),
+            (() => {
+                // 2 nodes → effNodes = 1; availMem = (1536-123)×1 - 8 = 1405; 1328/1405 = 95% → >=90 (must bump)
+                const hw = { totalPhysicalCores: 128, memoryGB: 1536, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                const hostOverhead = getHostMemoryReservedGB(hw, 'standard');
+                const availMem = Math.max(hw.memoryGB - hostOverhead, 0) * 1 - ARB_MEMORY_OVERHEAD_GB;
+                const memPct = Math.round((1328 / availMem) * 100);
+                return assert(memPct >= 90,
+                    '2 nodes (effNodes 1): 1328 GB / 1405 usable = 95% — loop must reject (>=90%)', '>=90', memPct);
+            })(),
+            (() => {
+                // 3 nodes → effNodes = 2; availMem = (1536-123)×2 - 8 = 2818; 1328/2818 = 47% → <90 (accept)
+                const hw = { totalPhysicalCores: 128, memoryGB: 1536, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                const hostOverhead = getHostMemoryReservedGB(hw, 'standard');
+                const availMem = Math.max(hw.memoryGB - hostOverhead, 0) * 2 - ARB_MEMORY_OVERHEAD_GB;
+                const memPct = Math.round((1328 / availMem) * 100);
+                return assert(memPct < 90,
+                    '3 nodes (effNodes 2): 1328 GB / 2818 usable = 47% — loop must accept (<90%)', '<90', memPct);
+            })()
+        ]);
+
+
         testSuite('getHostCpuReservedCores()', 'sizer.js', [
             (() => {
                 const hw = { totalPhysicalCores: 120 };
@@ -10106,6 +10141,533 @@
                 'Imported 5.68 TB disk → capacity-disk-size DOM = 5.68 (Designer payload.sizerHardware.storage)',
                 5.68, parseFloat(document.getElementById('capacity-disk-size').value)));
             cleanupChainStub();
+
+            return results;
+        })());
+
+        // ========================================================================
+        // RVTools Excel Import (Issue #230)
+        // ========================================================================
+        sectionHeader('RVTools Excel Import (Issue #230)');
+
+        // Shared synthetic vInfo fixture (fake VM/cluster/host names — no real data).
+        // MiB→GB conversions used below:
+        //   Memory: 8192→8, 32768→32, 4096→4
+        //   Provisioned MiB: 102400→100, 512000→500, 81920→80, 40960→40
+        //   In Use MiB: 51200→50, 40960→40, 256000→250, 20480→20
+        function rvtFixture() {
+            return [
+                { VM: 'app-01', Powerstate: 'poweredOn', Template: false, CPUs: 4, Memory: 8192, 'Provisioned MiB': 102400, 'In Use MiB': 51200, Cluster: 'ProdCluster', Host: 'esx-01' },
+                { VM: 'app-02', Powerstate: 'poweredOn', Template: false, CPUs: 4, Memory: 8192, 'Provisioned MiB': 102400, 'In Use MiB': 40960, Cluster: 'ProdCluster', Host: 'esx-01' },
+                { VM: 'db-01', Powerstate: 'poweredOn', Template: false, CPUs: 8, Memory: 32768, 'Provisioned MiB': 512000, 'In Use MiB': 256000, Cluster: 'ProdCluster', Host: 'esx-02' },
+                { VM: 'tmpl-base', Powerstate: 'poweredOff', Template: true, CPUs: 2, Memory: 4096, 'Provisioned MiB': 40960, 'In Use MiB': 0, Cluster: 'ProdCluster', Host: 'esx-02' },
+                { VM: 'old-vm', Powerstate: 'poweredOff', Template: false, CPUs: 2, Memory: 4096, 'Provisioned MiB': 40960, 'In Use MiB': 0, Cluster: 'DevCluster', Host: 'esx-03' },
+                { VM: 'dev-01', Powerstate: 'poweredOn', Template: false, CPUs: 2, Memory: 4096, 'Provisioned MiB': 81920, 'In Use MiB': 20480, Cluster: 'DevCluster', Host: 'esx-03' }
+            ];
+        }
+
+        // Group A — vendored SheetJS integrity. The SHA-256 pin of
+        // vendor/xlsx-0.20.3.min.js is verified Node-side in scripts/run-tests.js
+        // (checkVendorIntegrity gate) on every test run; this in-browser suite only
+        // sanity-checks that the lazy-loader helper is wired up.
+        testSuite('RVTools: SheetJS lazy-loader wired (Group A)', 'sizer.js', (() => {
+            var results = [];
+            results.push(assert(
+                typeof ensureSheetJSLoaded === 'function',
+                'ensureSheetJSLoaded() is exposed as a function (lazy-loads vendored SheetJS)',
+                'function', typeof ensureSheetJSLoaded));
+            results.push(assert(
+                typeof transformRVToolsRows === 'function',
+                'transformRVToolsRows() is exposed as a function',
+                'function', typeof transformRVToolsRows));
+            return results;
+        })());
+
+        // Group B — pure transform: parse / filter / totals
+        testSuite('RVTools: transform parse, filter & totals (Group B)', 'sizer.js', (() => {
+            var results = [];
+
+            // 2. MiB→GB conversion
+            results.push(assert(rvtoolsMiBToGB(8192) === 8, 'rvtoolsMiBToGB(8192) → 8 GB', 8, rvtoolsMiBToGB(8192)));
+            results.push(assert(rvtoolsMiBToGB(0) === 0, 'rvtoolsMiBToGB(0) → 0 GB', 0, rvtoolsMiBToGB(0)));
+            results.push(assert(rvtoolsMiBToGB(-5) === 0, 'rvtoolsMiBToGB(negative) → 0 GB (clamped)', 0, rvtoolsMiBToGB(-5)));
+            results.push(assert(rvtoolsMiBToGB('not-a-number') === 0, 'rvtoolsMiBToGB(non-numeric) → 0 GB', 0, rvtoolsMiBToGB('not-a-number')));
+
+            // 3. template detection (reads row.Template)
+            results.push(assert(rvtoolsIsTemplate({ Template: true }) === true && rvtoolsIsTemplate({ Template: 'True' }) === true && rvtoolsIsTemplate({ Template: 'true' }) === true,
+                'rvtoolsIsTemplate(row.Template true/"True"/"true") → true', true, rvtoolsIsTemplate({ Template: true }) && rvtoolsIsTemplate({ Template: 'True' }) && rvtoolsIsTemplate({ Template: 'true' })));
+            results.push(assert(rvtoolsIsTemplate({ Template: false }) === false && rvtoolsIsTemplate({ Template: 'False' }) === false && rvtoolsIsTemplate({ Template: '' }) === false,
+                'rvtoolsIsTemplate(row.Template false/"False"/"") → false', false, rvtoolsIsTemplate({ Template: false }) || rvtoolsIsTemplate({ Template: 'False' }) || rvtoolsIsTemplate({ Template: '' })));
+
+            // 4. power-state detection (reads row.Powerstate)
+            results.push(assert(rvtoolsIsPoweredOn({ Powerstate: 'poweredOn' }) === true && rvtoolsIsPoweredOn({ Powerstate: 'PoweredOn' }) === true,
+                'rvtoolsIsPoweredOn(row.Powerstate "poweredOn"/"PoweredOn") → true', true, rvtoolsIsPoweredOn({ Powerstate: 'poweredOn' }) && rvtoolsIsPoweredOn({ Powerstate: 'PoweredOn' })));
+            results.push(assert(rvtoolsIsPoweredOn({ Powerstate: 'poweredOff' }) === false,
+                'rvtoolsIsPoweredOn(row.Powerstate "poweredOff") → false', false, rvtoolsIsPoweredOn({ Powerstate: 'poweredOff' })));
+
+            // 6. templates always filtered out (tmpl-base excluded) — default grouped, powered-off excluded
+            var rDefault = transformRVToolsRows({ vInfo: rvtFixture() }, { storageSource: 'provisioned', mode: 'grouped', includePoweredOff: false });
+            results.push(assert(rDefault.totals.vmCount === 4,
+                'Default options → 4 VMs counted (template + powered-off excluded)', 4, rDefault.totals.vmCount));
+
+            // 7. powered-off excluded by default (old-vm gone → DevCluster has only dev-01)
+            var devDefault = rDefault.clusters.filter(function (c) { return c.name === 'DevCluster'; })[0];
+            results.push(assert(devDefault && devDefault.vmCount === 1,
+                'Default → DevCluster has 1 VM (powered-off old-vm excluded)', 1, devDefault && devDefault.vmCount));
+
+            // 8. includePoweredOff:true brings old-vm back (DevCluster → 2)
+            var rOff = transformRVToolsRows({ vInfo: rvtFixture() }, { storageSource: 'provisioned', mode: 'grouped', includePoweredOff: true });
+            var devOff = rOff.clusters.filter(function (c) { return c.name === 'DevCluster'; })[0];
+            results.push(assert(devOff && devOff.vmCount === 2,
+                'includePoweredOff:true → DevCluster has 2 VMs (template still excluded)', 2, devOff && devOff.vmCount));
+            results.push(assert(rOff.totals.vmCount === 5,
+                'includePoweredOff:true → 5 VMs total (template still excluded)', 5, rOff.totals.vmCount));
+
+            // 9. cluster grouping counts
+            var prod = rDefault.clusters.filter(function (c) { return c.name === 'ProdCluster'; })[0];
+            results.push(assert(prod && prod.vmCount === 3,
+                'ProdCluster groups 3 powered-on non-template VMs', 3, prod && prod.vmCount));
+
+            // 10. totals: vcpus / memory / storage (provisioned) / host count
+            results.push(assert(rDefault.totals.vcpus === 18,
+                'Totals vCPUs = 16 (Prod) + 2 (Dev) = 18', 18, rDefault.totals.vcpus));
+            results.push(assert(rDefault.totals.memoryGB === 52,
+                'Totals memory = 48 GB (Prod) + 4 GB (Dev) = 52 GB', 52, rDefault.totals.memoryGB));
+            results.push(assert(rDefault.totals.storageGB === 780,
+                'Totals provisioned storage = 700 GB (Prod) + 80 GB (Dev) = 780 GB', 780, rDefault.totals.storageGB));
+            results.push(assert(rDefault.totals.hostCount === 3,
+                'Totals host count = 3 distinct ESX hosts', 3, rDefault.totals.hostCount));
+
+            return results;
+        })());
+
+        // Group C — grouped banding & naming (privacy)
+        testSuite('RVTools: grouped banding & naming (Group C)', 'sizer.js', (() => {
+            var results = [];
+            var r = transformRVToolsRows({ vInfo: rvtFixture() }, { storageSource: 'provisioned', mode: 'grouped', cluster: 'ProdCluster', includePoweredOff: false });
+
+            // 11. ProdCluster grouped → two bands: 4vCPU/8GB ×2 and 8vCPU/32GB ×1
+            results.push(assert(r.workloads.length === 2,
+                'ProdCluster grouped → 2 distinct vCPU/RAM bands', 2, r.workloads.length));
+
+            var band48 = r.workloads.filter(function (w) { return w.vcpus === 4 && w.memory === 8; })[0];
+            var band832 = r.workloads.filter(function (w) { return w.vcpus === 8 && w.memory === 32; })[0];
+            results.push(assert(band48 && band48.count === 2,
+                'Band 4 vCPU / 8 GB → count 2 (app-01, app-02 consolidated)', 2, band48 && band48.count));
+            results.push(assert(band832 && band832.count === 1,
+                'Band 8 vCPU / 32 GB → count 1 (db-01)', 1, band832 && band832.count));
+
+            // 12. grouped names must NOT leak individual VM names (privacy)
+            var leaks = r.workloads.some(function (w) {
+                return /app-01|app-02|db-01/.test(w.name || '');
+            });
+            results.push(assert(leaks === false,
+                'Grouped workload names contain NO individual VM names (privacy)', false, leaks));
+            results.push(assert(band48 && /4 vCPU/.test(band48.name) && /8 GB/.test(band48.name) && /2/.test(band48.name),
+                'Grouped band name describes spec + count (e.g. "4 vCPU / 8 GB \u00d72")', true,
+                !!(band48 && /4 vCPU/.test(band48.name) && /8 GB/.test(band48.name) && /2/.test(band48.name))));
+
+            // 13. grouped per-VM storage = band average (Band 4/8 → (100+100)/2 = 100)
+            results.push(assert(band48 && band48.storage === 100,
+                'Band 4/8 per-VM storage = 100 GB (average of 100 + 100)', 100, band48 && band48.storage));
+
+            return results;
+        })());
+
+        // Group D — per-VM mode naming & storage source
+        testSuite('RVTools: per-VM mode naming & storage (Group D)', 'sizer.js', (() => {
+            var results = [];
+
+            // 14. per-VM → ProdCluster produces one workload per VM (3), each count 1
+            var rProv = transformRVToolsRows({ vInfo: rvtFixture() }, { storageSource: 'provisioned', mode: 'per-vm', cluster: 'ProdCluster', includePoweredOff: false });
+            results.push(assert(rProv.workloads.length === 3,
+                'per-VM → ProdCluster yields 3 individual workloads', 3, rProv.workloads.length));
+            results.push(assert(rProv.workloads.every(function (w) { return w.count === 1; }),
+                'per-VM → every workload has count 1', true, rProv.workloads.every(function (w) { return w.count === 1; })));
+
+            // 15. per-VM names ARE the VM names (only place VM names are surfaced)
+            var app01 = rProv.workloads.filter(function (w) { return w.name === 'app-01'; })[0];
+            results.push(assert(!!app01,
+                'per-VM → workload name is the VM name ("app-01")', true, !!app01));
+            results.push(assert(app01 && app01.vcpus === 4 && app01.memory === 8,
+                'per-VM app-01 → 4 vCPU / 8 GB', '4/8', app01 && (app01.vcpus + '/' + app01.memory)));
+
+            // 16. storageSource switches provisioned ↔ in-use
+            results.push(assert(app01 && app01.storage === 100,
+                'per-VM provisioned → app-01 storage = 100 GB', 100, app01 && app01.storage));
+            var rInuse = transformRVToolsRows({ vInfo: rvtFixture() }, { storageSource: 'inuse', mode: 'per-vm', cluster: 'ProdCluster', includePoweredOff: false });
+            var app01InUse = rInuse.workloads.filter(function (w) { return w.name === 'app-01'; })[0];
+            results.push(assert(app01InUse && app01InUse.storage === 50,
+                'per-VM in-use → app-01 storage = 50 GB (In Use MiB)', 50, app01InUse && app01InUse.storage));
+
+            return results;
+        })());
+
+        // Group D2 — multi-cluster consolidation (clusters: array)
+        testSuite('RVTools: multi-cluster consolidation (Group D2)', 'sizer.js', (() => {
+            var results = [];
+
+            // grouped, ProdCluster + DevCluster → bands merge across clusters:
+            // 4/8 ×2 (app-01, app-02), 8/32 ×1 (db-01), 2/4 ×1 (dev-01) = 3 bands
+            var rg = transformRVToolsRows({ vInfo: rvtFixture() },
+                { storageSource: 'provisioned', mode: 'grouped', clusters: ['ProdCluster', 'DevCluster'], includePoweredOff: false });
+            results.push(assert(rg.workloads.length === 3,
+                'multi-cluster grouped → 3 merged bands (4/8, 8/32, 2/4)', 3, rg.workloads.length));
+            var mBand48 = rg.workloads.filter(function (w) { return w.vcpus === 4 && w.memory === 8; })[0];
+            results.push(assert(mBand48 && mBand48.count === 2,
+                'multi-cluster grouped → 4/8 band still count 2 (Prod app-01/app-02)', 2, mBand48 && mBand48.count));
+            var mBand24 = rg.workloads.filter(function (w) { return w.vcpus === 2 && w.memory === 4; })[0];
+            results.push(assert(!!mBand24,
+                'multi-cluster grouped → DevCluster 2/4 band present', true, !!mBand24));
+
+            // per-VM, both clusters → 4 individual workloads (app-01/02, db-01, dev-01)
+            var rp = transformRVToolsRows({ vInfo: rvtFixture() },
+                { storageSource: 'provisioned', mode: 'per-vm', clusters: ['ProdCluster', 'DevCluster'], includePoweredOff: false });
+            results.push(assert(rp.workloads.length === 4,
+                'multi-cluster per-VM → 4 workloads concatenated', 4, rp.workloads.length));
+            results.push(assert(rp.workloads.some(function (w) { return w.name === 'dev-01'; })
+                && rp.workloads.some(function (w) { return w.name === 'app-01'; }),
+                'multi-cluster per-VM → includes VMs from both clusters', true,
+                rp.workloads.some(function (w) { return w.name === 'dev-01'; })
+                && rp.workloads.some(function (w) { return w.name === 'app-01'; })));
+
+            // single-element clusters array matches legacy `cluster` string behaviour
+            var rOne = transformRVToolsRows({ vInfo: rvtFixture() },
+                { storageSource: 'provisioned', mode: 'grouped', clusters: ['DevCluster'], includePoweredOff: false });
+            results.push(assert(rOne.workloads.length === 1,
+                'clusters: ["DevCluster"] → 1 band (2/4), excludes ProdCluster', 1, rOne.workloads.length));
+
+            // empty clusters array → falls back to all included rows (no filter)
+            var rAll = transformRVToolsRows({ vInfo: rvtFixture() },
+                { storageSource: 'provisioned', mode: 'per-vm', clusters: [], includePoweredOff: false });
+            results.push(assert(rAll.workloads.length === 4,
+                'clusters: [] → no filter, all 4 powered-on non-template VMs', 4, rAll.workloads.length));
+
+            return results;
+        })());
+
+        // Group E — error / edge paths
+        testSuite('RVTools: error & edge paths (Group E)', 'sizer.js', (() => {
+            var results = [];
+
+            // 17. missing vInfo sheet → warning + empty result
+            var rNo = transformRVToolsRows({}, { storageSource: 'provisioned', mode: 'grouped' });
+            results.push(assert(rNo.warnings.indexOf('missing-vinfo') !== -1,
+                'Missing vInfo sheet → warnings includes "missing-vinfo"', true, rNo.warnings.indexOf('missing-vinfo') !== -1));
+            results.push(assert(rNo.workloads.length === 0 && rNo.clusters.length === 0,
+                'Missing vInfo → empty workloads & clusters', true, rNo.workloads.length === 0 && rNo.clusters.length === 0));
+
+            // 18. empty vInfo array → zero totals, no missing-vinfo warning
+            var rEmpty = transformRVToolsRows({ vInfo: [] }, { storageSource: 'provisioned', mode: 'grouped' });
+            results.push(assert(rEmpty.totals.vmCount === 0 && rEmpty.clusters.length === 0,
+                'Empty vInfo array → zero VMs, no clusters', true, rEmpty.totals.vmCount === 0 && rEmpty.clusters.length === 0));
+            results.push(assert(rEmpty.warnings.indexOf('missing-vinfo') === -1,
+                'Empty vInfo array (present but empty) → no "missing-vinfo" warning', true, rEmpty.warnings.indexOf('missing-vinfo') === -1));
+
+            // 19. rows with no Cluster column → grouped under "(no cluster)"
+            var rNoCluster = transformRVToolsRows({
+                vInfo: [
+                    { VM: 'x1', Powerstate: 'poweredOn', Template: false, CPUs: 2, Memory: 4096, 'Provisioned MiB': 40960, 'In Use MiB': 10240 }
+                ]
+            }, { storageSource: 'provisioned', mode: 'grouped' });
+            results.push(assert(rNoCluster.clusters.length === 1 && rNoCluster.clusters[0].name === '(no cluster)',
+                'Rows with no Cluster → grouped under "(no cluster)"', '(no cluster)',
+                rNoCluster.clusters.length === 1 && rNoCluster.clusters[0].name));
+
+            return results;
+        })());
+
+        // Group F — cluster-name sanitiser & validator
+        testSuite('RVTools: cluster-name sanitiser & validator (Group F)', 'sizer.js', (() => {
+            var results = [];
+
+            // 20. sanitise spaces/illegal chars → hyphen, trimmed
+            results.push(assert(sanitiseClusterName('Prod Cluster!') === 'Prod-Cluster',
+                'sanitiseClusterName("Prod Cluster!") → "Prod-Cluster"', 'Prod-Cluster', sanitiseClusterName('Prod Cluster!')));
+
+            // 21. truncate to 15 chars (NetBIOS/failover-cluster limit)
+            results.push(assert(sanitiseClusterName('ThisIsAVeryLongClusterName').length <= 15,
+                'sanitiseClusterName truncates to ≤15 characters', true, sanitiseClusterName('ThisIsAVeryLongClusterName').length <= 15));
+
+            // 22. all-illegal input → empty string
+            results.push(assert(sanitiseClusterName('___') === '',
+                'sanitiseClusterName("___") → no alphanumerics → empty string', '', sanitiseClusterName('___')));
+
+            // 23. validator accepts a good name
+            results.push(assert(isValidClusterName('AzL-Cluster01') === true,
+                'isValidClusterName("AzL-Cluster01") → true', true, isValidClusterName('AzL-Cluster01')));
+
+            // 24. validator rejects bad names
+            results.push(assert(isValidClusterName('12345') === false,
+                'isValidClusterName("12345") → false (all-numeric not allowed)', false, isValidClusterName('12345')));
+            results.push(assert(isValidClusterName('') === false,
+                'isValidClusterName("") → false (empty)', false, isValidClusterName('')));
+            results.push(assert(isValidClusterName('ThisNameIsWayTooLong') === false,
+                'isValidClusterName(>15 chars) → false', false, isValidClusterName('ThisNameIsWayTooLong')));
+            results.push(assert(isValidClusterName('-LeadingHyphen') === false,
+                'isValidClusterName("-LeadingHyphen") → false', false, isValidClusterName('-LeadingHyphen')));
+
+            return results;
+        })());
+
+        // Group G — sanitiser→validator carry invariant + field UI
+        testSuite('RVTools: cluster-name carry invariant & field UI (Group G)', 'sizer.js', (() => {
+            var results = [];
+
+            // 25. sanitiseClusterName output is ALWAYS valid-or-empty — this is the
+            //     invariant relied on when applyRVToolsImport seeds #cluster-name.
+            var rawNames = ['Prod Cluster!', 'my.cluster.fqdn', '   spaced   ', 'A', 'all__illegal__', '123Cluster', 'Über-Cluster'];
+            var invariantHeld = rawNames.every(function (n) {
+                var s = sanitiseClusterName(n);
+                return s === '' || isValidClusterName(s);
+            });
+            results.push(assert(invariantHeld === true,
+                'sanitiseClusterName output is always empty or passes isValidClusterName (seed invariant)', true, invariantHeld));
+
+            // 26. onClusterNameInput toggles .invalid class + hint visibility
+            var input = document.createElement('input');
+            input.type = 'text'; input.id = 'cluster-name';
+            document.body.appendChild(input);
+            var hint = document.createElement('div'); hint.id = 'cluster-name-hint'; hint.style.display = 'none';
+            document.body.appendChild(hint);
+            var hintText = document.createElement('span'); hintText.id = 'cluster-name-hint-text';
+            hint.appendChild(hintText);
+
+            input.value = '-bad-name';
+            try { onClusterNameInput(); } catch (e) { /* light stub */ }
+            results.push(assert(input.classList.contains('invalid') === true,
+                'onClusterNameInput → invalid name marks field .invalid', true, input.classList.contains('invalid')));
+
+            input.value = 'Good-Name01';
+            try { onClusterNameInput(); } catch (e) { /* light stub */ }
+            results.push(assert(input.classList.contains('invalid') === false,
+                'onClusterNameInput → valid name clears .invalid', false, input.classList.contains('invalid')));
+
+            input.value = '';
+            try { onClusterNameInput(); } catch (e) { /* light stub */ }
+            results.push(assert(input.classList.contains('invalid') === false,
+                'onClusterNameInput → empty name is not marked invalid (optional field)', false, input.classList.contains('invalid')));
+
+            [input, hint].forEach(function (el) { if (el.parentNode) el.parentNode.removeChild(el); });
+            return results;
+        })());
+
+        // Group H — workloads list compaction when many imported VMs
+        testSuite('RVTools: workloads list compaction (Group H)', 'sizer.js', (() => {
+            var results = [];
+
+            var container = document.createElement('div');
+            container.id = 'workloads-list';
+            document.body.appendChild(container);
+
+            // Snapshot and replace the global workloads array in place.
+            var saved = workloads.splice(0, workloads.length);
+
+            function fakeVm(i) {
+                return { id: 1000 + i, type: 'vm', name: 'vm-' + i, inputMode: 'per-vm', vcpus: 2, memory: 4, storage: 50, count: 1 };
+            }
+
+            // 27a. >5 workloads → container gets .compact
+            for (var i = 0; i < 6; i++) workloads.push(fakeVm(i));
+            try { renderWorkloads(); } catch (e) { /* downstream calc may throw on stubs */ }
+            results.push(assert(container.classList.contains('compact') === true,
+                'renderWorkloads → >5 workloads adds .compact to #workloads-list', true, container.classList.contains('compact')));
+
+            // 27b. ≤5 workloads → .compact removed
+            workloads.splice(0, workloads.length);
+            for (var j = 0; j < 3; j++) workloads.push(fakeVm(j));
+            try { renderWorkloads(); } catch (e) { /* see above */ }
+            results.push(assert(container.classList.contains('compact') === false,
+                'renderWorkloads → ≤5 workloads removes .compact from #workloads-list', false, container.classList.contains('compact')));
+
+            // Restore global state.
+            workloads.splice(0, workloads.length);
+            saved.forEach(function (w) { workloads.push(w); });
+            if (container.parentNode) container.parentNode.removeChild(container);
+
+            return results;
+        })());
+
+        // Group I — applyRVToolsImport defaults the growth buffer to 10%
+        testSuite('RVTools: import defaults growth buffer to 10% (Group I)', 'sizer.js', (() => {
+            var results = [];
+
+            // A shared #future-growth stub already exists (created for the
+            // autoScaleHardware suites). Reuse it rather than creating a second
+            // element, otherwise getElementById would return the wrong one.
+            var growthEl = document.getElementById('future-growth');
+            var savedGrowth = growthEl ? growthEl.value : null;
+
+            // IDs created/removed per run. NOTE: future-growth is intentionally
+            // NOT in this list — it is the shared stub above.
+            var stubIds = ['workloads-list', 'cluster-name', 'rvtools-post-import-overlay',
+                'rvtools-post-import-summary', 'rvtools-apply-btn', 'rvtools-preview',
+                'rvtools-status', 'rvtools-error', 'import-modal-overlay', 'rvtools-powered-off'];
+
+            // Minimal DOM the function reads before it would later throw on the
+            // full calculateRequirements stub (which is wrapped in try/catch).
+            function makeImportStub(growthValue) {
+                stubIds.forEach(function (id) {
+                    var el = document.createElement(
+                        id === 'cluster-name' ? 'input' : (id === 'rvtools-powered-off' ? 'input' : 'div'));
+                    el.id = id;
+                    if (id === 'rvtools-powered-off') { el.type = 'checkbox'; el.checked = false; }
+                    document.body.appendChild(el);
+                });
+                if (growthEl) growthEl.value = growthValue;
+                // Selection radios read by readRVToolsOptions().
+                function radio(name, value) {
+                    var r = document.createElement('input');
+                    r.type = 'radio'; r.name = name; r.value = value; r.checked = true;
+                    document.body.appendChild(r);
+                    return r;
+                }
+                radio('rvtools-cluster', 'ProdCluster');
+                radio('rvtools-mode', 'grouped');
+                radio('rvtools-storage', 'provisioned');
+
+                // Sheets the importer consumes (held on the global set by the file reader).
+                window._rvtoolsSheets = {
+                    vInfo: [
+                        { VM: 'a1', Powerstate: 'poweredOn', Template: false, CPUs: 4, Memory: 8192, 'Provisioned MiB': 102400, 'In Use MiB': 51200, Cluster: 'ProdCluster', Host: 'h1' },
+                        { VM: 'a2', Powerstate: 'poweredOn', Template: false, CPUs: 8, Memory: 16384, 'Provisioned MiB': 204800, 'In Use MiB': 102400, Cluster: 'ProdCluster', Host: 'h2' }
+                    ]
+                };
+            }
+            function cleanupImportStub() {
+                stubIds.forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                ['rvtools-cluster', 'rvtools-mode', 'rvtools-storage'].forEach(function (n) {
+                    document.querySelectorAll('input[name="' + n + '"]').forEach(function (r) {
+                        if (r.parentNode) r.parentNode.removeChild(r);
+                    });
+                });
+                window._rvtoolsSheets = null;
+            }
+
+            var savedW = workloads.splice(0, workloads.length);
+
+            // 28. fresh import (growth on default "0") → bumped to "10"
+            makeImportStub('0');
+            try { applyRVToolsImport(); } catch (e) { /* full calc stub may throw, runs after growth set */ }
+            results.push(assert(
+                document.getElementById('future-growth').value === '10',
+                'applyRVToolsImport → growth buffer defaulted to "10" when left at "0"',
+                '10', document.getElementById('future-growth').value));
+            cleanupImportStub();
+            workloads.splice(0, workloads.length);
+
+            // 29. user already chose 30% → kept, not overwritten
+            makeImportStub('30');
+            try { applyRVToolsImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('future-growth').value === '30',
+                'applyRVToolsImport → existing growth choice (30) preserved, not overwritten',
+                '30', document.getElementById('future-growth').value));
+            cleanupImportStub();
+
+            // Restore global state.
+            workloads.splice(0, workloads.length);
+            savedW.forEach(function (w) { workloads.push(w); });
+            if (growthEl && savedGrowth !== null) growthEl.value = savedGrowth;
+
+            return results;
+        })());
+
+        // Group J — totals-banner capacity formatter (GB → TB rollover)
+        testSuite('RVTools: capacity formatter rolls GB over 10000 to TB (Group J)', 'sizer.js', (() => {
+            var results = [];
+
+            // 30. small figure stays in GB
+            results.push(assert(rvtoolsFormatCapacity(5000) === '<strong>5000</strong> GB',
+                'rvtoolsFormatCapacity(5000) → "<strong>5000</strong> GB"', '<strong>5000</strong> GB', rvtoolsFormatCapacity(5000)));
+
+            // 31. exactly 10000 stays in GB (threshold is strictly greater-than)
+            results.push(assert(rvtoolsFormatCapacity(10000) === '<strong>10000</strong> GB',
+                'rvtoolsFormatCapacity(10000) → still GB (boundary)', '<strong>10000</strong> GB', rvtoolsFormatCapacity(10000)));
+
+            // 32. above 10000 rolls down to whole TB (floor)
+            results.push(assert(rvtoolsFormatCapacity(31434) === '<strong>30</strong> TB',
+                'rvtoolsFormatCapacity(31434) → "<strong>30</strong> TB" (floored)', '<strong>30</strong> TB', rvtoolsFormatCapacity(31434)));
+
+            // 33. just over the threshold still converts
+            results.push(assert(rvtoolsFormatCapacity(10241) === '<strong>10</strong> TB',
+                'rvtoolsFormatCapacity(10241) → "<strong>10</strong> TB"', '<strong>10</strong> TB', rvtoolsFormatCapacity(10241)));
+
+            // 34. non-numeric / zero → 0 GB
+            results.push(assert(rvtoolsFormatCapacity(undefined) === '<strong>0</strong> GB',
+                'rvtoolsFormatCapacity(undefined) → "<strong>0</strong> GB"', '<strong>0</strong> GB', rvtoolsFormatCapacity(undefined)));
+
+            // 35. GB→TB cell helper: 2116 GB storage → ~2.07 TB
+            results.push(assert(rvtoolsGBtoTB(2116).toFixed(2) === '2.07',
+                'rvtoolsGBtoTB(2116).toFixed(2) → "2.07"', '2.07', rvtoolsGBtoTB(2116).toFixed(2)));
+
+            // 36. GB→TB cell helper: small storage stays non-zero (928 GB → 0.91 TB)
+            results.push(assert(rvtoolsGBtoTB(928).toFixed(2) === '0.91',
+                'rvtoolsGBtoTB(928).toFixed(2) → "0.91"', '0.91', rvtoolsGBtoTB(928).toFixed(2)));
+
+            // 37. GB→TB cell helper: non-numeric → 0
+            results.push(assert(rvtoolsGBtoTB(undefined) === 0,
+                'rvtoolsGBtoTB(undefined) → 0', 0, rvtoolsGBtoTB(undefined)));
+
+            return results;
+        })());
+
+        // Group K — resetRVToolsImport clears lingering preview/state
+        testSuite('RVTools: resetRVToolsImport clears preview & state (Group K)', 'sizer.js', (() => {
+            var results = [];
+
+            // Stub the import DOM and simulate a held workbook + visible preview.
+            var ids = ['rvtools-preview', 'rvtools-status', 'rvtools-error'];
+            ids.forEach(function (id) {
+                var el = document.createElement('div');
+                el.id = id;
+                document.body.appendChild(el);
+            });
+            var fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.id = 'rvtools-file';
+            document.body.appendChild(fileInput);
+            var applyBtn = document.createElement('button');
+            applyBtn.id = 'rvtools-apply-btn';
+            document.body.appendChild(applyBtn);
+
+            var preview = document.getElementById('rvtools-preview');
+            preview.innerHTML = '<table>previous import</table>';
+            preview.style.display = '';
+            applyBtn.style.display = '';
+            document.getElementById('rvtools-status').textContent = 'Reading...';
+            window._rvtoolsSheets = { vInfo: [{ VM: 'x' }] };
+            window._rvtoolsAutoClusterName = 'Cluster003';
+
+            resetRVToolsImport();
+
+            // 38. preview emptied and hidden
+            results.push(assert(preview.innerHTML === '' && preview.style.display === 'none',
+                'resetRVToolsImport → preview cleared and hidden', true,
+                preview.innerHTML === '' && preview.style.display === 'none'));
+
+            // 39. apply button hidden
+            results.push(assert(applyBtn.style.display === 'none',
+                'resetRVToolsImport → apply button hidden', 'none', applyBtn.style.display));
+
+            // 40. held workbook discarded
+            results.push(assert(window._rvtoolsSheets === null,
+                'resetRVToolsImport → _rvtoolsSheets cleared', null, window._rvtoolsSheets));
+
+            // 41. auto-populated cluster-name tracking cleared
+            results.push(assert(window._rvtoolsAutoClusterName === '',
+                'resetRVToolsImport → _rvtoolsAutoClusterName cleared', '', window._rvtoolsAutoClusterName));
+
+            // Clean up stub DOM.
+            ids.forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el && el.parentNode) el.parentNode.removeChild(el);
+            });
+            if (fileInput.parentNode) fileInput.parentNode.removeChild(fileInput);
+            if (applyBtn.parentNode) applyBtn.parentNode.removeChild(applyBtn);
 
             return results;
         })());

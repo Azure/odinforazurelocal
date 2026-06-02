@@ -2270,6 +2270,19 @@ function generateArmParameters() {
             return { name, ipv4Address: ip };
         });
 
+        // Cluster name carried from the Sizer (optional). Use it only when it
+        // satisfies the failover-cluster naming rules (1–15 chars, letters/
+        // numbers/hyphen, not all-numeric, no edge hyphen); otherwise keep the
+        // REPLACE_WITH_CLUSTER_NAME placeholder.
+        const clusterNameForArm = (function () {
+            const n = (state.clusterName || '').trim();
+            if (n.length < 1 || n.length > 15) return 'REPLACE_WITH_CLUSTER_NAME';
+            if (!/^[A-Za-z0-9-]+$/.test(n)) return 'REPLACE_WITH_CLUSTER_NAME';
+            if (/^[0-9]+$/.test(n)) return 'REPLACE_WITH_CLUSTER_NAME';
+            if (n.charAt(0) === '-' || n.charAt(n.length - 1) === '-') return 'REPLACE_WITH_CLUSTER_NAME';
+            return n;
+        })();
+
         const parameters = (() => {
             // Disaggregated → create-cluster-san quickstart. Replaces storageNetworkList
             // with sanNetworkList (object, not array), drops enableStorageAutoIp
@@ -2684,6 +2697,13 @@ function generateArmParameters() {
 
             return base;
         })();
+
+        // Apply the carried cluster name to whichever template branch was built
+        // (each branch seeds clusterName with the REPLACE_WITH_CLUSTER_NAME
+        // placeholder; override it when a valid name came through from the Sizer).
+        if (clusterNameForArm !== 'REPLACE_WITH_CLUSTER_NAME') {
+            parameters.clusterName.value = clusterNameForArm;
+        }
 
         const file = {
             $schema: 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
@@ -9365,6 +9385,11 @@ function checkForSizerImport() {
         // Store individual workload details (transparent pass-through to Report)
         if (payload.sizerWorkloads) {
             state.sizerWorkloads = payload.sizerWorkloads;
+        }
+
+        // Cluster name (pass-through Sizer → Designer → ARM). Optional.
+        if (typeof payload.clusterName === 'string' && payload.clusterName) {
+            state.clusterName = payload.clusterName;
         }
 
         // Step 01: Scenario (Disconnected for ALDO, Connected for others)

@@ -1,6 +1,10 @@
+<p align="center">
+  <img src="images/odin-logo.png" alt="ODIN for Azure Local Logo" width="200">
+</p>
+
 # ODIN for Azure Local
 
-## Version 0.22.01 - Available here: https://aka.ms/ODIN
+## Version 0.22.55 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -46,31 +50,28 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.22.01 - Latest Release
+### 🎉 Version 0.22.55 - Latest Release
 
-> **Improves the Sizer's physical-host compute reserve / overhead model** (issue #232), **reorients the rack-layout diagrams** to fill bottom-up with real node names (issue #233), **removes the deprecated Low Capacity deployment type** (issue #234), and **refines the imported Azure Local instance experience** in the Sizer (issue #235).
+> **Adds RVTools Excel import to the Sizer** (issue #230) — turn a VMware [RVTools](https://www.robware.net/rvtools/) `.xlsx` export into Sizer workloads in a few clicks, entirely client-side — and **fixes a node-count sizing bug** where the auto-scale loops disagreed with the >90% capacity banner on high-memory nodes.
 
 **What changed**
-- **S2D-aware host compute reserve (issue #232)** &mdash; the Sizer no longer applies a single flat percentage for host overhead. New helpers in [`sizer/sizer.js`](sizer/sizer.js) size the reserve by cluster type and storage shape:
-  - **CPU**: ALDO management `max(ceil(20%), 2)`; disaggregated `max(ceil(10%), 1)`; standard S2D `max(ceil(10%), 2)` physical cores per node.
-  - **Memory**: base **32 GB** (S2D) or **24 GB** (disaggregated) + S2D cache-metadata `ceil(4 GB × cacheTB)` + **64 GB** when ALDO management is hosted, floored at **8 %** of host RAM.
-- The reserve is now applied consistently across node-count recommendation, the AMD core-upgrade path, hardware auto-scaling, the capacity bar, sizing notes, and the growth projection.
-- A new collapsible **"Physical host compute overhead &mdash; assumptions & math"** section under the Sizer notes shows the memory and CPU reserve math as tables, lists the assumptions, and links to the public Hyper-V / S2D / Azure Local system-requirements docs.
-- **Rack-layout diagrams now fill bottom-up (issue #233)** &mdash; all four generators in [`report/rack-svg.js`](report/rack-svg.js), the 3D view in [`sizer/rack3d.js`](sizer/rack3d.js), and the wizard preview in [`js/disaggregated.js`](js/disaggregated.js) stack servers from the bottom of the rack upward, with ToR / leaf / BMC switches kept at the top (FC switches at U1-U2). The 2D report and 3D view stay consistent.
-- **Real Designer node names surface in the diagrams** &mdash; new `getRackNodeLabel()` / `getRackTorLabel()` helpers resolve each node's display name (by global index across multi-rack layouts) from the saved config's `nodeSettings`, falling back to `Node N` / `ToR N` when unset.
-- **Single-rack diagram header spacing fixed** &mdash; the HCI rack-layout minimum SVG width was raised from 380 to 470px so the centred *Rack Layout — Front View* title no longer crowds the *Azure Local* brand badge on single-rack diagrams (2-rack and 4-rack layouts are unchanged).
-- **Low Capacity deployment type removed (issue #234)** &mdash; the deprecated *Low Capacity* type is gone from the Designer and Sizer (Designer now offers 5 templates); the cluster-type mapping helpers no longer reference it.
-- **Imported Azure Local instance refinements (issue #235)** &mdash; imported hardware (CPU, memory, disk count/size, node count) is now locked to **MANUAL** so auto-scaling can't silently change it; the vCPU overcommit ratio is decoupled from the physical-CPU lock so it still escalates (4→5→6) to fit excess workload on a fixed cluster; a new **Disaggregated Storage** import deployment-type option greys out the S2D capacity-disk picker and drops disks from the equation; the import *Capacity per disk* dropdown now matches the Sizer's (adds 8 / 12 / 16 / 20 TB); and the *Parse & Preview* button is hidden after a clean parse so only *Load Cluster Configuration* remains.
-- **Report always lists all 7 security controls** &mdash; the *Security Configuration* section now always lists Drift Control, WDAC, Credential Guard, SMB Signing, SMB Cluster Encryption, BitLocker Boot Volume, and BitLocker Data Volumes as Enabled / Disabled. *Recommended* shows all seven Enabled (wizard defaults); *Customized* reflects each per-control choice. Previously the individual controls appeared only for *Customized*.
+- **New RVTools import tab + toolbar button** in the Sizer ([`sizer/index.html`](sizer/index.html), [`sizer/sizer.js`](sizer/sizer.js)). A third tab in the Import dialog (and a dedicated **📊 RVTools** toolbar button) accepts a standard RVTools *all* export (`.xlsx`).
+- **Excel parsing is vendored, not CDN** — [SheetJS Community 0.20.3](https://sheetjs.com/) is added under [`vendor/`](vendor/) and **lazy-loaded** only when the RVTools tab is first opened, so the rest of the site is unaffected. Its SHA-256 is pinned and verified by the test harness on every run.
+- **Per-cluster preview + pick-one-or-more import** — the importer reads the `vInfo` (and, when present, `vCluster` / `vHost`) sheets, summarises each detected source cluster (VM count, vCPU, memory, storage, host count), and lets you import **one or more** clusters into the single-cluster Sizer. Selecting several **consolidates their VMs into one cluster** (grouped bands merge across clusters; per-VM lists concatenate), and the Cluster Name field is seeded with a generic *Consolidated* placeholder. A totals banner shows the full file's scope.
+- **Two consolidation modes** — **Grouped** (default) bands VMs by size class (vCPU / RAM) into one workload per band, while **Per-VM** creates one workload per source VM. **Privacy:** individual VM names are surfaced **only** in Per-VM mode; Grouped names describe the band (e.g. *4 vCPU / 8 GB ×12*) and never a VM name.
+- **Storage source + power-state options** — choose **Provisioned** or **In Use** disk as the storage basis, and optionally include powered-off VMs. RVTools templates are always excluded.
+- **Editable Cluster Name field** — a new optional *Cluster Name* input in the Sizer (validated against Windows failover-cluster / NetBIOS rules: 1–15 chars, letters/numbers/hyphen, not all-numeric, no edge hyphen) is seeded from the imported source-cluster name and **carries through Sizer → Designer → ARM parameters** so the generated deployment uses your name.
+- **Denser workloads list for large imports** — when a per-VM import adds many workloads the list switches to a compact, scrollable layout so it stays scannable.
+- **Clearer Sizer labels** — workload summary boxes relabelled (*Total* → *Required*, plus a *Number of Workloads* box) and the capacity-usage heading reworded, and a centered Odin dark logo added above this README's title. The per-node requirements heading now also states the active vCPU overcommit ratio, e.g. *Workload Per-Node Requirements (with N+1) and 4:1 vCPU Overcommit Ratio*.
+
+**Fixed**
+- **Auto-scale node count now agrees with the >90% capacity banner.** The Sizer's conservative node-increment and node-reduction loops used a hardcoded 32 GB host-memory overhead and reserved no host CPU cores, while the capacity bars and the *>90% invalid* banner use the S2D-aware host-reserve model (issue #232). On high-memory nodes (≈ ≥ 512 GB/node, where the 8%-of-RAM reserve exceeds 32 GB) the loops stopped adding nodes at ~89% while the banner showed >90% — so the recommended configuration tripped its own *not recommended* warning (e.g. 1536 GB/node was recommended at **2 nodes / 95% memory**). Both loops now use the same reserve math, so the recommended node count can no longer trip the banner (the same case now correctly recommends 3 nodes). This was general to any auto-recommended node count with large per-node memory, not specific to RVTools imports.
+
+**Privacy & security**
+- All parsing happens **in the browser**; no RVTools data, VM names, or cluster names are ever transmitted. No new external network calls.
 
 **Tests & quality**
-- New *Rack layout — bottom-up fill + real labels* test suite plus host-overhead helper, ratio-escalation decoupling, Disaggregated import, and Parse & Preview coverage; all Low Capacity suites removed. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,240 / 1,240**.
-
-**Security & hardening**
-- Cleared CodeQL alerts #37–#39 (`js/xss-through-dom`) by escaping DOM-derived GPU model names in three Sizer warning messages, and (from the end-to-end review for this release) escaped the imported `clusterName` in the cluster-import toast in [`sizer/sizer.js`](sizer/sizer.js) to close a DOM-XSS gap on the JSON-import path. Bumped the transitive dev-only `brace-expansion` (5.x) override to `>= 5.0.6` (CVE-2026-45149) using a version-selector form that keeps CI's `npm ci` stable across npm 10/11. No runtime or shipped-site impact.
-
-**Notes**
-- No data, schema, or PPT-template changes. No new external network calls. Switches remain top-of-rack; only the server stack moves bottom-up.
+- New *RVTools Excel Import* test suite — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through, list compaction) plus a multi-cluster consolidation group, a Node-side vendor-integrity gate, and a new *Node loop overhead alignment* regression suite. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,314 / 1,314**.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -393,7 +394,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.22.01  
+**Version**: 0.22.55  
 **Last Updated**: June 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -406,6 +407,18 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 ## Appendix A - Version History
 
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
+
+### Version 0.22.x Series (June 2026)
+
+#### 0.22.01 - Sizer host compute reserve model + bottom-up rack diagrams + Low Capacity removal + imported-instance refinements
+
+> **Improves the Sizer's physical-host compute reserve / overhead model** (issue #232), **reorients the rack-layout diagrams** to fill bottom-up with real node names (issue #233), **removes the deprecated Low Capacity deployment type** (issue #234), and **refines the imported Azure Local instance experience** in the Sizer (issue #235).
+
+- **S2D-aware host compute reserve (issue #232)** &mdash; the Sizer no longer applies a single flat percentage for host overhead. New helpers in [`sizer/sizer.js`](sizer/sizer.js) size the reserve by cluster type and storage shape: CPU is ALDO management `max(ceil(20%), 2)`, disaggregated `max(ceil(10%), 1)`, standard S2D `max(ceil(10%), 2)` physical cores per node; memory is base **32 GB** (S2D) or **24 GB** (disaggregated) + S2D cache-metadata `ceil(4 GB × cacheTB)` + **64 GB** when ALDO management is hosted, floored at **8 %** of host RAM. Applied consistently across node-count recommendation, the AMD core-upgrade path, auto-scaling, the capacity bar, sizing notes, and the growth projection, with a new collapsible *Physical host compute overhead — assumptions & math* section.
+- **Rack-layout diagrams now fill bottom-up (issue #233)** &mdash; all four generators in [`report/rack-svg.js`](report/rack-svg.js), the 3D view in [`sizer/rack3d.js`](sizer/rack3d.js), and the wizard preview in [`js/disaggregated.js`](js/disaggregated.js) stack servers from the bottom of the rack upward, with switches kept at the top. New `getRackNodeLabel()` / `getRackTorLabel()` helpers surface real Designer node names. Single-rack diagram header spacing fixed (min SVG width 380→470px).
+- **Low Capacity deployment type removed (issue #234)** &mdash; the deprecated *Low Capacity* type is gone from the Designer and Sizer (Designer now offers 5 templates); the cluster-type mapping helpers no longer reference it.
+- **Imported Azure Local instance refinements (issue #235)** &mdash; imported hardware is locked to **MANUAL** so auto-scaling can't silently change it; the vCPU overcommit ratio is decoupled from the physical-CPU lock so it still escalates (4→5→6); a new **Disaggregated Storage** import option greys out the S2D capacity-disk picker; the import *Capacity per disk* dropdown matches the Sizer's; and the *Parse & Preview* button is hidden after a clean parse.
+- **Report always lists all 7 security controls** &mdash; the *Security Configuration* section always lists Drift Control, WDAC, Credential Guard, SMB Signing, SMB Cluster Encryption, BitLocker Boot Volume, and BitLocker Data Volumes as Enabled / Disabled. Cleared CodeQL alerts #37–#39 (DOM XSS) and bumped the dev-only `brace-expansion` (5.x) override to `>= 5.0.6` (CVE-2026-45149). Full test suite passes **1,240 / 1,240**.
 
 ### Version 0.21.x Series (May 2026)
 

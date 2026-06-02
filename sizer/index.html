@@ -35,7 +35,7 @@
                 <div class="header-logo-wrapper">
                     <img id="odin-logo" src="../images/odin-logo.png" alt="Odin for Azure Local Logo">
                     <div class="header-version">
-                        Version 0.22.01 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
+                        Version 0.22.55 | <button type="button" onclick="showChangelog();" class="whats-new-link">What's New</button>
                     </div>
                 </div>
             </div>
@@ -62,6 +62,9 @@
                         <div class="section-header-actions">
                             <button class="btn btn-secondary btn-sm" onclick="importSizerJSON()" title="Import configuration from a JSON file">
                                 📂 Import
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="openImportModal('rvtools')" title="Import your VMware inventory from an RVTools Excel export">
+                                📊 RVTools
                             </button>
                             <button class="btn btn-secondary btn-sm" onclick="exportSizerJSON()" title="Export configuration as a JSON file">
                                 📤 Export
@@ -168,6 +171,17 @@
                             <option value="disaggregated">Disaggregated Storage</option>
                             <option value="aldo-mgmt">ALDO Management Cluster</option>
                         </select>
+                    </div>
+                    <div class="config-row cluster-setting">
+                        <label for="cluster-name">Cluster Name <span style="font-weight: 400; font-size: 13px; color: var(--text-secondary);">(optional)</span></label>
+                        <input type="text" id="cluster-name" class="cluster-name-input" maxlength="15" autocomplete="off" placeholder="e.g. AzL-Cluster01" oninput="onClusterNameInput()" aria-describedby="cluster-name-hint">
+                    </div>
+                    <div class="config-info config-info-subtle" id="cluster-name-hint" style="display: none;">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 16v-4M12 8h.01"/>
+                        </svg>
+                        <span id="cluster-name-hint-text"></span>
                     </div>
                     <div class="config-row cluster-setting" id="disagg-rack-count-row" style="display: none;">
                         <label for="disagg-rack-count">Number of Racks</label>
@@ -610,7 +624,7 @@
                             </svg>
                         </div>
                         <div class="req-content">
-                            <span class="req-label">Total vCPUs</span>
+                            <span class="req-label">Required vCPUs</span>
                             <span class="req-value" id="total-vcpus">0</span>
                         </div>
                     </div>
@@ -622,7 +636,7 @@
                             </svg>
                         </div>
                         <div class="req-content">
-                            <span class="req-label">Total Memory</span>
+                            <span class="req-label">Required Memory</span>
                             <span class="req-value" id="total-memory">0 GB</span>
                         </div>
                     </div>
@@ -635,7 +649,7 @@
                             </svg>
                         </div>
                         <div class="req-content">
-                            <span class="req-label" id="total-storage-label">Total Storage</span>
+                            <span class="req-label" id="total-storage-label">Required Storage</span>
                             <span class="req-value" id="total-storage">0 TB</span>
                         </div>
                     </div>
@@ -646,7 +660,7 @@
                             </svg>
                         </div>
                         <div class="req-content">
-                            <span class="req-label">Total Workloads</span>
+                            <span class="req-label">Number of Workloads</span>
                             <span class="req-value" id="total-workloads">0</span>
                         </div>
                     </div>
@@ -654,7 +668,7 @@
 
                 <!-- Per-Node Requirements -->
                 <div class="per-node-section">
-                    <h3>Workload Per-Node Requirements (with N+1)</h3>
+                    <h3 id="per-node-title">Workload Per-Node Requirements (with N+1)</h3>
                     <div class="per-node-grid">
                         <div class="per-node-item">
                             <span class="label">Physical Cores</span>
@@ -677,7 +691,7 @@
 
                 <!-- Capacity Usage for Workload -->
                 <div class="capacity-breakdown">
-                    <h3>Capacity Usage for Workload</h3>
+                    <h3>Percentage capacity used/available for defined workloads:</h3>
                     <div class="breakdown-bars">
                         <div class="breakdown-item">
                             <div class="breakdown-header">
@@ -1020,9 +1034,10 @@
             </div>
 
             <!-- Tab Buttons -->
-            <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
-                <button id="import-tab-sizer" onclick="switchImportTab('sizer')" class="onboarding-btn onboarding-btn-primary" style="flex: 1;">📤 Sizer Configuration</button>
-                <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary" style="flex: 1;">☁️ Azure Local Instance</button>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 12px;">
+                <button id="import-tab-sizer" onclick="switchImportTab('sizer')" class="onboarding-btn onboarding-btn-primary" style="flex: 0 0 auto;">📤 Sizer Configuration</button>
+                <button id="import-tab-cluster" onclick="switchImportTab('cluster')" class="onboarding-btn onboarding-btn-secondary" style="flex: 0 0 auto;">☁️ Azure Local Instance</button>
+                <button id="import-tab-rvtools" onclick="switchImportTab('rvtools')" class="onboarding-btn onboarding-btn-secondary" style="flex: 0 0 auto;">📊 RVTools</button>
             </div>
 
             <!-- Tab 1: Sizer Config Import -->
@@ -1062,6 +1077,33 @@
                 <div style="text-align: center; margin-top: 12px;">
                     <button id="cluster-import-parse-btn" class="onboarding-btn onboarding-btn-primary" onclick="parseAndPreviewClusterJSON()">Parse &amp; Preview</button>
                     <button id="cluster-import-apply-btn" class="onboarding-btn onboarding-btn-primary" onclick="applyClusterJSONImport()" style="display: none; margin-left: 8px;">Load Cluster Configuration</button>
+                </div>
+            </div>
+
+            <!-- Tab 3: RVTools Excel Import (issue #230) -->
+            <div id="import-panel-rvtools" style="display: none;">
+                <div class="onboarding-features" style="grid-template-columns: 1fr; margin-bottom: 16px;">
+                    <div class="onboarding-feature">
+                        <span class="onboarding-feature-icon">📊</span>
+                        <div class="onboarding-feature-text">
+                            <strong>Import your VMware inventory from an RVTools export</strong>
+                            Select the RVTools <code>.xlsx</code> "all" export. ODIN reads the <code>vInfo</code> sheet (and, if present, <code>vCluster</code> / <code>vHost</code> for context), detects your source clusters, and turns the chosen cluster's VMs into Sizer workloads.
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 6px; margin-bottom: 12px;">
+                    <span>🔒</span>
+                    <span><strong>Privacy:</strong> All processing is performed entirely in your browser. Only aggregate VM counts, VM names, and per-VM CPU / RAM / storage values are read (VM names are used purely to label the workload rows). Hostnames, IP/MAC addresses, OS strings, datacenter / cluster names, datastore names, tags, custom attributes and annotations are <strong>never read or stored</strong>. If you'd prefer VM names are not read at all, choose the <em>one entry per VM size</em> option. No data is transmitted to any external service.</span>
+                </div>
+                <div style="text-align: center;">
+                    <button class="onboarding-btn onboarding-btn-primary" onclick="triggerRVToolsFilePicker()">Select RVTools .xlsx File</button>
+                    <input type="file" id="rvtools-file" accept=".xlsx" style="display: none;" onchange="handleRVToolsFile(event)" aria-label="RVTools Excel file">
+                </div>
+                <div id="rvtools-status" style="display: none; margin-top: 12px; text-align: center; font-size: 12px; color: var(--text-secondary);"></div>
+                <div id="rvtools-error" style="display: none; margin-top: 12px; padding: 8px 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: var(--danger); font-size: 12px;"></div>
+                <div id="rvtools-preview" style="display: none; margin-top: 12px;"></div>
+                <div style="text-align: center; margin-top: 12px;">
+                    <button id="rvtools-apply-btn" class="onboarding-btn onboarding-btn-primary" onclick="applyRVToolsImport()" style="display: none;">Load Selected Cluster</button>
                 </div>
             </div>
         </div>
@@ -1107,6 +1149,50 @@
 
             <div class="onboarding-buttons">
                 <button class="onboarding-btn onboarding-btn-primary" onclick="closePostImportOverlay()">Got it — Let's Configure</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post-Import Instructions Modal (shown after an RVTools Excel import) -->
+    <div class="onboarding-overlay" id="rvtools-post-import-overlay" style="display: none;">
+        <div class="onboarding-card" style="max-width: 760px;">
+            <div class="onboarding-icon">📊</div>
+            <h2 class="onboarding-title">RVTools Import Complete</h2>
+            <p class="onboarding-description" id="rvtools-post-import-summary"></p>
+
+            <div class="onboarding-features">
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">📈</span>
+                    <div class="onboarding-feature-text">
+                        <strong>10% Growth Buffer Applied</strong>
+                        <em>Allow for Future Growth</em> was set to 10% to leave headroom on the sized hardware. Change it any time in the configuration panel.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">💾</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Set Your Storage</strong>
+                        RVTools reports VMs virtual hard disk usage, not your source cluster's physical storage size. Check the storage configuration, (data disk count, disk size, and storage type (NVMe, SSD)), to ensure these match your current and future workload storage requirements.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">🔢</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Estimates, Not a Quote</strong>
+                        Imported workloads are derived from the RVTools snapshot (templates excluded; powered-off VMs only if you opted in). If the source VMs requirements change, import updated workload data again, before relying on the cluster sizing examples.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">📊</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Review Capacity</strong>
+                        Check the utilization bars, and the node processor core count and memory recommendations. Review the Sizing Notes to see how your imported workloads fit into the example cluster hardware configuration.
+                    </div>
+                </div>
+            </div>
+
+            <div class="onboarding-buttons">
+                <button class="onboarding-btn onboarding-btn-primary" onclick="closeRVToolsPostImport()">Got it — Let's Configure</button>
             </div>
         </div>
     </div>

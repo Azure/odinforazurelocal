@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.55] - 2026-06-02
+
+Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTools `.xlsx` export into Sizer workloads, entirely client-side — and **fixes a node-count sizing bug** where the Sizer's auto-scale loops disagreed with the >90% capacity banner on high-memory nodes, causing the recommended configuration to trip its own warning.
+
+### Added
+
+- **RVTools import tab + toolbar button** in the Sizer ([`sizer/index.html`](sizer/index.html), [`sizer/sizer.js`](sizer/sizer.js)). A third tab in the Import dialog and a dedicated **📊 RVTools** toolbar button accept a standard RVTools *all* export (`.xlsx`).
+- **Vendored SheetJS Community 0.20.3** under [`vendor/`](vendor/) for reading `.xlsx`. It is **lazy-loaded** only when the RVTools tab is first opened (never a static `<script>` on the live site), and its SHA-256 is pinned and verified Node-side by [`scripts/run-tests.js`](scripts/run-tests.js) on every run.
+- **Pure RVTools transform** in [`sizer/sizer.js`](sizer/sizer.js): `transformRVToolsRows(sheets, options)` plus helpers `rvtoolsMiBToGB()`, `rvtoolsIsTemplate()`, `rvtoolsIsPoweredOn()`, `buildGroupedWorkloads()`, `buildPerVMWorkloads()`, `sanitiseClusterName()`, and `isValidClusterName()`. Reads `vInfo` (and `vCluster` / `vHost` when present), summarises each detected source cluster (VM count, vCPU, memory, storage, host count), and lets the user import **one or more** clusters into the single-cluster Sizer with a totals banner for the full file.
+- **Multi-cluster consolidation** — the source-cluster picker uses checkboxes, so selecting two or more clusters **combines their VMs into one Sizer cluster** (`transformRVToolsRows` takes a `clusters` array). In Grouped mode, matching size classes merge across clusters into a single banded workload; in Per-VM mode the lists concatenate. When several clusters are consolidated, the Cluster Name field is seeded with a generic **`Consolidated`** placeholder instead of a single source name.
+- **Two consolidation modes** — **Grouped** (default) bands VMs by size class (vCPU / RAM) into one workload per band; **Per-VM** creates one workload per source VM. Individual VM names are surfaced **only** in Per-VM mode; Grouped band names describe the spec (e.g. *4 vCPU / 8 GB ×12*) and never a VM name.
+- **Storage source + power-state options** — choose **Provisioned** or **In Use** disk as the storage basis and optionally include powered-off VMs; RVTools templates are always excluded.
+- **Editable Cluster Name field** in the Sizer (`#cluster-name`, validated by `isValidClusterName()` / `onClusterNameInput()`). Seeded from the imported source-cluster name (sanitised to failover-cluster / NetBIOS rules) and carried through **Sizer → Designer → ARM** (`getSizerState`, `sizerPayload`, [`js/script.js`](js/script.js) `generateArmParameters()`, read back by [`arm/arm.js`](arm/arm.js)).
+
+### Changed
+
+- **Workloads list switches to a denser, scrollable layout** when more than 5 workloads are present (e.g. after a per-VM import) so it stays scannable — `renderWorkloads()` toggles a `.compact` class.
+- **Sizer summary-box and capacity headings clarified** — the workload summary boxes are relabelled (*Total* → *Required*, plus a *Number of Workloads* box) and the capacity-usage heading reworded, so the right-hand panel reads consistently after a multi-workload import.
+- **Per-node requirements heading now states the overcommit ratio** — the *Hardware Requirements Summary* heading reads *Workload Per-Node Requirements (with N+1) and X:1 vCPU Overcommit Ratio*, where `X:1` reflects the ratio currently set in Advanced Settings (also carried into the report/Markdown export).
+- **Centered Odin dark logo added above the README title** for clearer project branding.
+
+### Fixed
+
+- **Sizer auto-scale node loops now agree with the >90% capacity banner.** The conservative node-increment loop and the node-reduction loop in `calculateRequirements()` ([`sizer/sizer.js`](sizer/sizer.js)) computed memory headroom from a hardcoded **32 GB** host overhead and reserved **no** host CPU cores, while the capacity bars and the *>90% invalid* banner use the S2D-aware `getHostMemoryReservedGB()` / `getHostCpuReservedCores()` helpers (#232). For high-memory nodes — roughly **≥ 512 GB/node**, where the `8%`-of-RAM term exceeds the old flat 32 GB — the loops stopped adding nodes at ~89% while the banner showed >90%, so the recommended configuration tripped its own *not recommended* warning (e.g. 1536 GB/node was recommended at **2 nodes / 95% memory**). Both loops now route through the same helpers, so the recommended node count can no longer trip the banner (the same case now correctly recommends 3 nodes). Not RVTools-specific — it affected any auto-recommended node count with large per-node memory.
+
+### Security
+
+- All RVTools parsing happens **in the browser**; no RVTools data, VM names, or cluster names are transmitted. No new external network calls.
+
+### Tests
+
+- New *RVTools Excel Import* suite in [`tests/index.html`](tests/index.html) — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through invariant + field UI, list compaction) plus a multi-cluster consolidation group and the Node-side vendor-integrity gate.
+- New *Node loop overhead alignment (Cluster014 regression)* suite locking the high-memory host-reservation math (123 GB reserve at 1536 GB/node; 2 nodes rejected at 95%, 3 nodes accepted at 47%).
+- ESLint clean; HTML validation clean; full suite passes **1,314 / 1,314**.
+
+---
+
 ## [0.22.01] - 2026-06-01
 
 Improves the Sizer's **physical-host compute reserve / overhead** model (issue #232), reorients the **rack-layout diagrams** to fill bottom-up with real node names (issue #233), **removes the deprecated Low Capacity deployment type** (issue #234), and refines the **imported Azure Local instance** experience in the Sizer (issue #235).

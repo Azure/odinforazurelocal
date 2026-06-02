@@ -6,7 +6,7 @@
 > file to `docs/module-planning/complete/`.
 >
 > Captured: 2026-05-22. Split on 2026-06-01: #230 (RVTools import) moved to its
-> own [`issue-230-plan.md`](issue-230-plan.md); this file now covers the paired
+> own [`issue-230-plan.md`](../issue-230-plan.md); this file now covers the paired
 > **#232** (host compute reserve / overhead) + **#233** (rack-diagram improvements).
 > Target release: **0.21.55** — both ship in a single combined PR (Release → main).
 
@@ -381,7 +381,7 @@ metadata) is not present on a SAN-backed cluster, and it is disclosed in the new
 7. **PR strategy** — ~~one combined PR (both issues) or two sequential PRs?~~
    **RESOLVED (2026-06-01): combined PR for #232 + #233** (host-overhead math +
    rack-diagram improvements), single Release-branch → main. **#230 (RVTools) is NOT in
-   this PR** — it ships separately in a later PR; see [`issue-230-plan.md`](issue-230-plan.md).
+   this PR** — it ships separately in a later PR; see [`issue-230-plan.md`](../issue-230-plan.md).
 
 ---
 
@@ -410,5 +410,5 @@ metadata) is not present on a SAN-backed cluster, and it is disclosed in the new
    - Open **one combined PR** (#232 + #233), Release → main.
 
 > **#230 (RVTools import)** is tracked separately in
-> [`issue-230-plan.md`](issue-230-plan.md) and ships in its own later PR with its own
+> [`issue-230-plan.md`](../issue-230-plan.md) and ships in its own later PR with its own
 > version bump — not part of 0.21.55.
