@@ -8581,7 +8581,7 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
             + ' (<strong>' + impVms + '</strong> VM' + (impVms !== 1 ? 's' : '') + ', ' + modeLabel + ')'
             + ' from ' + sourceLabel + '.'
             + '<br>Totals: <strong>' + impVcpus + '</strong> vCPU, <strong>' + impMemGB + '</strong> GB RAM, <strong>'
-            + impStorageGB + '</strong> GB ' + storageLabel + ' storage.'
+            + (impStorageGB / 1000).toFixed(2) + '</strong> TB ' + storageLabel + ' storage.'
             + (growthApplied
                 ? '<br><br><em>Allow for Future Growth</em> has been set to <strong>10%</strong> for this import.'
                 : '<br><br>Your existing <em>Allow for Future Growth</em> setting was kept.');
