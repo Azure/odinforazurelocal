@@ -26,6 +26,7 @@ Documents ODIN's export/import format as machine-readable **JSON Schemas** and h
 ### Fixed
 
 - **Sizer Reset left disaggregated controls behind** — clicking **🔄 Reset** from a **Disaggregated Storage** configuration correctly restored the Deployment Type to **Hyperconverged** and node count to **2**, but the disaggregated-only **Number of Racks** and **Storage Connectivity** rows stayed visible (and the S2D storage fields stayed disabled). `resetScenario()` now calls `updateDisaggregatedUI(false)` and restores those controls to their defaults, matching the normal cluster-type-change path.
+- **RVTools picker forced one cluster selected** — after parsing an RVTools export, the source-cluster picker auto-selected the first cluster and, because of a selection-preserving refresh, you could not clear the last ticked cluster without selecting another (un-ticking it sprang straight back). The picker now starts with **nothing selected** and respects an empty selection on refresh, so you choose exactly which clusters to import (Apply still errors clearly if none are selected).
 
 ---
 

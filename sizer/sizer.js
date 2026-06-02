@@ -8435,9 +8435,12 @@ function renderRVToolsPreview(result, keepSelection) {
     if (!previewDiv) return;
 
     var prev = keepSelection ? readRVToolsOptions() : null;
-    var selectedClusters = prev && prev.clusters && prev.clusters.length
-        ? prev.clusters
-        : (result.clusters[0] ? [result.clusters[0].name] : []);
+    // Selection rules: on a refresh (prev is set) respect the user's CURRENT
+    // selection exactly — including an empty one — so the last-ticked cluster
+    // can be cleared without it springing back. On the first render (prev is
+    // null) start with nothing selected rather than auto-selecting the first
+    // cluster, so the user is never stuck with a default they can't clear.
+    var selectedClusters = prev ? (prev.clusters || []) : [];
     var storageSource = prev ? prev.storageSource : 'provisioned';
     var mode = prev ? prev.mode : 'per-vm';
     var includePoweredOff = prev ? prev.includePoweredOff : false;
