@@ -125,6 +125,17 @@ with the Designer schema.
    schema, and assert each schema's declared `$id`/version stays in sync with its source-of-truth
    constant where one applies. (NB: this guards *structure* drift; the envelope `version` /
    `SIZER_VERSION` are free-form metadata and intentionally NOT asserted against the app version.)
+   - **SHIPPED (v0.22.61):** implemented Node-side in `scripts/run-tests.js` as `checkSchemaDrift()`,
+     a fail-fast gate that runs in CI before the browser suite (mirrors the existing
+     `checkVendorIntegrity()` pattern). Brace-aware `extractTopLevelObjectKeys()` parses the
+     top-level keys of each state object literal (handles nested objects/arrays/strings/comments)
+     and compares them both directions against the published schema's property map
+     (`properties.state.properties` for Designer, `definitions.sizerState.properties` for Sizer).
+     Building it immediately caught two real bugs in the just-published Designer schema: 63 state
+     fields were undocumented and a phantom `clusterName` (a Sizer-only field) was present — both
+     fixed in the same change. Fixture-export validation against the schemas (needs a JSON-Schema
+     validator) deferred to avoid adding a runtime/dev dependency; the key-parity gate is the
+     high-value enforcement.
 4. **Import hardening** — apply to BOTH importers:
    - **Designer** (`importConfiguration()`): prototype-pollution guard — reject/skip
      `__proto__`/`constructor`/`prototype` in the "copy extra keys" loop (currently assigns arbitrary
