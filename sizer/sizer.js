@@ -5361,7 +5361,7 @@ function calculateRequirements(options) {
         const isDisaggregated = clusterType === 'disaggregated';
         var storageLabelEl = document.getElementById('total-storage-label');
         if (storageLabelEl) {
-            storageLabelEl.textContent = isDisaggregated ? 'External SAN Storage Required' : 'Total Storage';
+            storageLabelEl.textContent = isDisaggregated ? 'External SAN Storage Required' : 'Required Storage';
         }
 
         const physicalCoresPerNode = hwConfig.totalPhysicalCores || DEFAULT_PHYSICAL_CORES_PER_NODE;
