@@ -1343,6 +1343,60 @@ header .header-description {
     color: var(--text-primary);
 }
 
+/* Optional electricity-price input + computed running cost share the cell's
+   value side. Keep the label on the left and push the input + cost to the
+   right edge of the cell (stacked, right-aligned). */
+.power-cost-item {
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.power-cost-item .value-with-toggle {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.power-price-input-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.power-input-hint {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.power-price-help {
+    margin-left: 5px;
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-size: 13px;
+    cursor: help;
+}
+
+.power-price-help:hover,
+.power-price-help:focus {
+    text-decoration: underline;
+}
+
+.power-price-input {
+    width: 72px;
+    padding: 4px 6px;
+    font-size: 13px;
+    text-align: right;
+    color: var(--text-primary);
+    background: var(--input-bg, var(--card-bg));
+    border: 1px solid var(--glass-border);
+    border-radius: 6px;
+}
+
+.power-price-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
 /* Rack-units cell: special two-row layout so the breakdown can expand below
    the value without overlapping or stretching the cell when collapsed. */
 .power-rack-item.rack-units-item {

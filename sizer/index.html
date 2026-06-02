@@ -792,6 +792,23 @@
                             <span class="value" id="power-total">—</span>
                         </div>
                         <div class="power-rack-item">
+                            <span class="label">Annual Energy (est.)</span>
+                            <span class="value" id="power-kwh">—</span>
+                        </div>
+                        <div class="power-rack-item power-cost-item">
+                            <span class="label">
+                                <label for="power-price-input">Electricity Price<br>(per kWh)</label>
+                                <span class="power-price-help" role="img" aria-label="Help: this field is currency-agnostic. Enter your electricity price per kWh in any currency and the running cost is shown in the same currency." title="Optional and currency-agnostic. Enter your electricity unit price per kilowatt-hour (kWh) in any currency (e.g. USD, GBP, EUR) — the estimated annual running cost is shown in that same currency.">ⓘ</span>
+                            </span>
+                            <span class="value-with-toggle">
+                                <span class="power-price-input-row">
+                                    <span class="power-input-hint">Input:</span>
+                                    <input type="number" id="power-price-input" class="power-price-input" min="0" step="0.01" inputmode="decimal" placeholder="0.15" aria-label="Electricity unit price per kilowatt-hour, in your local currency" oninput="updateRunningCost()">
+                                </span>
+                                <span class="value" id="power-cost">—</span>
+                            </span>
+                        </div>
+                        <div class="power-rack-item">
                             <span class="label">Total <a href="https://en.wikipedia.org/wiki/British_thermal_unit" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: underline;">BTU</a>/hr (est.)</span>
                             <span class="value" id="power-btu">—</span>
                         </div>
