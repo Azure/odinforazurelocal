@@ -8435,9 +8435,12 @@ function renderRVToolsPreview(result, keepSelection) {
     if (!previewDiv) return;
 
     var prev = keepSelection ? readRVToolsOptions() : null;
-    var selectedClusters = prev && prev.clusters && prev.clusters.length
-        ? prev.clusters
-        : (result.clusters[0] ? [result.clusters[0].name] : []);
+    // Selection rules: on a refresh (prev is set) respect the user's CURRENT
+    // selection exactly — including an empty one — so the last-ticked cluster
+    // can be cleared without it springing back. On the first render (prev is
+    // null) start with nothing selected rather than auto-selecting the first
+    // cluster, so the user is never stuck with a default they can't clear.
+    var selectedClusters = prev ? (prev.clusters || []) : [];
     var storageSource = prev ? prev.storageSource : 'provisioned';
     var mode = prev ? prev.mode : 'per-vm';
     var includePoweredOff = prev ? prev.includePoweredOff : false;
@@ -8668,6 +8671,24 @@ function handleSizerFileImport(event) {
             // Apply via the same restore logic used by resumeSizerState
             applyImportedSizerState(d);
 
+            // Confirm success, mirroring the Azure Local Instance and RVTools
+            // import flows (which both end with a success toast). Without this,
+            // importing a Sizer Configuration JSON gave zero feedback. Issue
+            // raised: the file-based import felt inconsistent with the other two
+            // import options. Use the post-apply workload count so the message
+            // reflects what actually loaded.
+            if (typeof showToast === 'function') {
+                var importedWlCount = Array.isArray(workloads) ? workloads.length : 0;
+                var importedName = (d.clusterName || '').toString().trim();
+                var toastMsg = importedName
+                    ? 'Imported "' + escapeHtml(importedName) + '"'
+                    : 'Sizer configuration imported';
+                if (importedWlCount > 0) {
+                    toastMsg += ' — ' + importedWlCount + ' workload' + (importedWlCount !== 1 ? 's' : '');
+                }
+                showToast(toastMsg, 'success');
+            }
+
         } catch (err) {
             console.error('Import parse error:', err);
             alert('Failed to parse the JSON file. Please ensure it is a valid ODIN Sizer export.');
@@ -8678,6 +8699,38 @@ function handleSizerFileImport(event) {
 
 // Apply an imported sizer state object to the UI (mirrors resumeSizerState)
 function applyImportedSizerState(d) {
+    // Import hardening (#237): the Sizer reads named properties off `d` rather
+    // than bulk-copying into a target, so it is not directly prototype-pollutable;
+    // but strip dangerous keys defensively in case future code iterates `d`, and
+    // validate the workloads[] array shape before trusting it (a hand-edited or
+    // malformed file could carry non-objects / unknown types that break the
+    // renderer and calculator). Invalid entries are dropped with a soft warning —
+    // the rest of the import still applies.
+    if (d && typeof d === 'object') {
+        ['__proto__', 'constructor', 'prototype'].forEach(function (k) {
+            if (Object.prototype.hasOwnProperty.call(d, k)) {
+                try { delete d[k]; } catch (e) { /* non-configurable — leave it, named reads ignore it */ }
+            }
+        });
+    }
+    var VALID_WORKLOAD_TYPES = ['vm', 'aks', 'avd', 'foundry', 'edgerag', 'videoindexer'];
+    if (d && d.workloads !== undefined && d.workloads !== null) {
+        if (!Array.isArray(d.workloads)) {
+            console.warn('Import: workloads was not an array — ignoring it.');
+            d.workloads = [];
+        } else {
+            var originalCount = d.workloads.length;
+            d.workloads = d.workloads.filter(function (w) {
+                return w && typeof w === 'object' && !Array.isArray(w) &&
+                    typeof w.type === 'string' && VALID_WORKLOAD_TYPES.indexOf(w.type) !== -1;
+            });
+            if (d.workloads.length !== originalCount) {
+                console.warn('Import: dropped ' + (originalCount - d.workloads.length) +
+                    ' invalid workload entr' + ((originalCount - d.workloads.length) === 1 ? 'y' : 'ies') + '.');
+            }
+        }
+    }
+
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
     var clusterNameEl = document.getElementById('cluster-name');
@@ -8900,6 +8953,19 @@ function resetScenario() {
     document.getElementById('cluster-type').value = 'standard';
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
+    // Hide the disaggregated-only rows (Number of Racks, Storage Connectivity)
+    // and re-enable the S2D storage fields. resetScenario() sets cluster-type
+    // back to 'standard' directly rather than going through onClusterTypeChange(),
+    // so without this the disaggregated UI stays visible after a reset from a
+    // Disaggregated Storage configuration.
+    updateDisaggregatedUI(false);
+    // Restore the disaggregated controls to their HTML defaults so a later
+    // switch back to Disaggregated Storage starts clean rather than carrying
+    // the previous rack count / storage connectivity.
+    var disaggRackEl = document.getElementById('disagg-rack-count');
+    if (disaggRackEl) disaggRackEl.value = '2';
+    var disaggStorageEl = document.getElementById('disagg-storage-type');
+    if (disaggStorageEl) disaggStorageEl.value = 'fc_san';
     document.getElementById('node-count').value = '2';
     updateResiliencyOptions();
     document.getElementById('resiliency').value = '2way';

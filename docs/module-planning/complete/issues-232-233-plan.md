@@ -6,7 +6,7 @@
 > file to `docs/module-planning/complete/`.
 >
 > Captured: 2026-05-22. Split on 2026-06-01: #230 (RVTools import) moved to its
-> own [`issue-230-plan.md`](../issue-230-plan.md); this file now covers the paired
+> own [`issue-230-plan.md`](issue-230-plan.md); this file now covers the paired
 > **#232** (host compute reserve / overhead) + **#233** (rack-diagram improvements).
 > Target release: **0.21.55** — both ship in a single combined PR (Release → main).
 
@@ -268,14 +268,14 @@ metadata) is not present on a SAN-backed cluster, and it is disclosed in the new
 
 | Aspect | Today |
 |---|---|
-| U→pixel placement | [`report/rack-svg.js`](../../report/rack-svg.js) `drawDevice()` (~L73–L99) maps a 1-based `uStart` (from the bottom) to pixels: higher U = physically higher. The **fill order** is what's wrong, not the coordinate system. |
+| U→pixel placement | [`report/rack-svg.js`](../../../report/rack-svg.js) `drawDevice()` (~L73–L99) maps a 1-based `uStart` (from the bottom) to pixels: higher U = physically higher. The **fill order** is what's wrong, not the coordinate system. |
 | Node fill order (HCI SVG) | `generateRackSvg()` (~L157–L285): ToR at `TOTAL_U − t` (U42/U41), BMC below, then nodes computed **top-down** (`topServerU = TOTAL_U − tor − bmcPerRack`; `serverStartU = topServerU − n*2 − 1`). |
 | Node fill order (disaggregated SVG) | (~L471–L520): servers `uPos = 38 − n*2` (top-down). |
 | Draw.io generators | HCI (~L713–L740) and disaggregated (~L906–L922) mirror the same top-down math. |
 | Node labels | Hardcoded `'Node ' + (nodeOffset + n + 1)` / `'Node ' + (nodeStart + n)` in all four generators. |
 | ToR labels | Hardcoded `'ToR ' + torNum` (HCI) / `'Leaf '+…`, `'FC Switch '+…` (disaggregated). |
-| 3D Sizer | [`sizer/rack3d.js`](../../sizer/rack3d.js): switches placed at "ToR 1 (U42) / ToR 2 (U41)" (~L795–L810); ToR labels/cabling hardcoded `ToR 1/2/3/4` (~L920–L940, ~L1085–L1095). Server boxes stacked top-down to match the SVG. |
-| Designer node names | Stored in state under **`physicalNodesSettings`** (and `state.nodeSettings`); each entry has a `.name`. Example read: [`js/disaggregated.js`](../../js/disaggregated.js) ~L2872 `state.nodeSettings[0].name` with `'Node 1'` fallback. Originate from the Step 10/12 "Node N Name" inputs ([`js/script.js`](../../js/script.js) ~L1064–L1251, name→index map ~L9072). |
+| 3D Sizer | [`sizer/rack3d.js`](../../../sizer/rack3d.js): switches placed at "ToR 1 (U42) / ToR 2 (U41)" (~L795–L810); ToR labels/cabling hardcoded `ToR 1/2/3/4` (~L920–L940, ~L1085–L1095). Server boxes stacked top-down to match the SVG. |
+| Designer node names | Stored in state under **`physicalNodesSettings`** (and `state.nodeSettings`); each entry has a `.name`. Example read: [`js/disaggregated.js`](../../../js/disaggregated.js) ~L2872 `state.nodeSettings[0].name` with `'Node 1'` fallback. Originate from the Step 10/12 "Node N Name" inputs ([`js/script.js`](../../../js/script.js) ~L1064–L1251, name→index map ~L9072). |
 | Designer ToR switch make/names | **To confirm during implementation** — check whether the Designer/switch-config captures a ToR make + per-switch name in state; if not present, fall back to the existing `ToR N` label (no regression). |
 
 ### Proposed change
@@ -381,7 +381,7 @@ metadata) is not present on a SAN-backed cluster, and it is disclosed in the new
 7. **PR strategy** — ~~one combined PR (both issues) or two sequential PRs?~~
    **RESOLVED (2026-06-01): combined PR for #232 + #233** (host-overhead math +
    rack-diagram improvements), single Release-branch → main. **#230 (RVTools) is NOT in
-   this PR** — it ships separately in a later PR; see [`issue-230-plan.md`](../issue-230-plan.md).
+   this PR** — it ships separately in a later PR; see [`issue-230-plan.md`](issue-230-plan.md).
 
 ---
 
@@ -410,5 +410,5 @@ metadata) is not present on a SAN-backed cluster, and it is disclosed in the new
    - Open **one combined PR** (#232 + #233), Release → main.
 
 > **#230 (RVTools import)** is tracked separately in
-> [`issue-230-plan.md`](../issue-230-plan.md) and ships in its own later PR with its own
+> [`issue-230-plan.md`](issue-230-plan.md) and ships in its own later PR with its own
 > version bump — not part of 0.21.55.

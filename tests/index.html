@@ -10673,6 +10673,62 @@
         })());
 
         // ========================================================================
+        // IMPORT HARDENING (#237) — Sizer applyImportedSizerState() guards
+        // ========================================================================
+        // The dangerous-key strip and workloads[] shape validation run at the very
+        // top of applyImportedSizerState(d), BEFORE the first getElementById. The
+        // test page has no Sizer form, so the call throws partway through — but the
+        // guards have already mutated `d` in place by then, so we inspect `d` after
+        // catching the (expected) DOM error.
+        sectionHeader('🛡️ Import Hardening (#237) - sizer.js');
+        testSuite('applyImportedSizerState() input guards', 'sizer.js', (function () {
+            var out = [];
+            if (typeof applyImportedSizerState !== 'function') {
+                out.push(assert(false, 'applyImportedSizerState() is exposed', 'function', typeof applyImportedSizerState));
+                return out;
+            }
+
+            // Malicious / malformed payload: dangerous own-key + mixed workloads.
+            var payload = JSON.parse('{"clusterType":"standard","__proto__":{"polluted":true},"workloads":[{"type":"vm","id":1},{"type":"evil"},"notanobject",null,[1,2],{"type":"aks","id":2}]}');
+
+            try { applyImportedSizerState(payload); } catch (e) { /* expected: Sizer DOM absent in test page */ }
+
+            // 1. __proto__ own property stripped from the payload
+            out.push(assert(
+                Object.prototype.hasOwnProperty.call(payload, '__proto__') === false,
+                'Strips __proto__ own-key from imported payload',
+                false,
+                Object.prototype.hasOwnProperty.call(payload, '__proto__')));
+
+            // 2. Object.prototype not polluted
+            out.push(assert(
+                ({}).polluted === undefined,
+                'Import does not pollute Object.prototype',
+                undefined,
+                ({}).polluted));
+
+            // 3. Invalid workload entries dropped; valid ones (known type) kept
+            var keptTypes = Array.isArray(payload.workloads) ? payload.workloads.map(function (w) { return w.type; }) : null;
+            out.push(assert(
+                Array.isArray(payload.workloads) && payload.workloads.length === 2 &&
+                keptTypes[0] === 'vm' && keptTypes[1] === 'aks',
+                'Filters workloads[] to valid-typed objects only',
+                'vm,aks (2 entries)',
+                keptTypes ? keptTypes.join(',') + ' (' + payload.workloads.length + ' entries)' : 'not-an-array'));
+
+            // 4. Non-array workloads coerced to empty array
+            var badWl = { clusterType: 'standard', workloads: 'totally-not-an-array' };
+            try { applyImportedSizerState(badWl); } catch (e) { /* expected */ }
+            out.push(assert(
+                Array.isArray(badWl.workloads) && badWl.workloads.length === 0,
+                'Coerces non-array workloads to []',
+                '[] (0 entries)',
+                JSON.stringify(badWl.workloads)));
+
+            return out;
+        })());
+
+        // ========================================================================
         // FINAL SUMMARY
         // ========================================================================
         updateTestSummary();

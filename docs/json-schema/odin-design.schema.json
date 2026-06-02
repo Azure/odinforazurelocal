@@ -1,0 +1,228 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://azure.github.io/odinforazurelocal/docs/json-schema/odin-design.schema.json",
+  "title": "ODIN for Azure Local — Design Export",
+  "description": "Schema for the JSON file produced by the ODIN Designer 'Export Configuration' button and consumed by 'Import Configuration'. Source of truth for `state` is getInitialWizardState() in js/script.js. Intentionally permissive (forward-compatible) — newer ODIN releases may add fields. The envelope `version`/`exportedAt` are free-form metadata and are NOT pinned to the app's WIZARD_VERSION.",
+  "type": "object",
+  "required": ["state"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "App version that produced the file (WIZARD_VERSION). Metadata only — not validated against and not read on import."
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp the file was exported. Metadata only."
+    },
+    "state": {
+      "type": "object",
+      "description": "The Designer wizard state. Most fields are nullable until the corresponding step is completed. additionalProperties is true to preserve forward-compatibility with newer ODIN releases; unknown fields are accepted on import (dangerous keys such as __proto__/constructor/prototype are rejected by the importer).",
+      "additionalProperties": true,
+      "properties": {
+        "scenario": {
+          "type": ["string", "null"],
+          "enum": ["connected", "disconnected", "rackscale", "m365local", null],
+          "description": "Top-level deployment scenario (Step 1)."
+        },
+        "architecture": {
+          "type": ["string", "null"],
+          "enum": ["hyperconverged", "disaggregated", null],
+          "description": "Cluster architecture (Step 1b)."
+        },
+        "region": { "type": ["string", "null"] },
+        "localInstanceRegion": { "type": ["string", "null"] },
+        "scale": { "type": ["string", "null"] },
+        "nodes": {
+          "type": ["string", "null"],
+          "description": "Node count, stored as a string (e.g. \"3\")."
+        },
+        "witnessType": {
+          "type": ["string", "null"],
+          "enum": ["Cloud", "NoWitness", null],
+          "description": "Cluster witness type."
+        },
+        "theme": {
+          "type": ["string", "null"],
+          "enum": ["dark", "light", null],
+          "description": "UI preference — not part of the cluster design."
+        },
+        "fontSize": {
+          "type": ["string", "null"],
+          "enum": ["small", "medium", "large", null],
+          "description": "UI preference — not part of the cluster design."
+        },
+        "storage": {
+          "type": ["string", "null"],
+          "enum": ["switched", "switchless", null],
+          "description": "Storage connectivity (hyperconverged only)."
+        },
+        "storagePoolConfiguration": {
+          "type": ["string", "null"],
+          "enum": ["Express", "InfraOnly", "KeepStorage", null],
+          "description": "Storage pool deployment mode. Auto-locked to InfraOnly when architecture === 'disaggregated'."
+        },
+        "infraVolLunId": { "type": ["string", "integer", "null"], "description": "SAN LUN id — only when storagePoolConfiguration === 'InfraOnly'." },
+        "infraPerfLunId": { "type": ["string", "integer", "null"], "description": "SAN LUN id — only when storagePoolConfiguration === 'InfraOnly'." },
+        "activeDirectory": {
+          "type": ["string", "null"],
+          "enum": ["azure_ad", "local_identity", null]
+        },
+        "adDomain": { "type": ["string", "null"], "description": "AD domain FQDN." },
+        "adOuPath": { "type": ["string", "null"] },
+        "adfsServerName": { "type": ["string", "null"] },
+        "dnsServers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "DNS server IP addresses."
+        },
+        "localDnsZone": { "type": ["string", "null"] },
+        "nodeSettings": {
+          "type": "array",
+          "description": "Per-node settings.",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "name": { "type": "string" },
+              "ipCidr": { "type": "string", "description": "e.g. 192.168.1.10/24" }
+            }
+          }
+        },
+        "infra": {
+          "type": ["object", "null"],
+          "description": "Infrastructure IP pool.",
+          "additionalProperties": true,
+          "properties": {
+            "start": { "type": "string" },
+            "end": { "type": "string" }
+          }
+        },
+        "infraCidr": { "type": ["string", "null"], "description": "e.g. 192.168.1.0/24" },
+        "infraGateway": { "type": ["string", "null"] },
+        "infraVlanId": { "type": ["string", "integer", "null"] },
+        "customStorageSubnets": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "securityConfiguration": {
+          "type": ["string", "null"],
+          "enum": ["recommended", "customized", null]
+        },
+        "securitySettings": {
+          "type": "object",
+          "description": "Seven boolean security controls. All true under 'recommended'.",
+          "additionalProperties": false,
+          "properties": {
+            "driftControlEnforced": { "type": "boolean" },
+            "bitlockerBootVolume": { "type": "boolean" },
+            "bitlockerDataVolumes": { "type": "boolean" },
+            "wdacEnforced": { "type": "boolean" },
+            "credentialGuardEnforced": { "type": "boolean" },
+            "smbSigningEnforced": { "type": "boolean" },
+            "smbClusterEncryption": { "type": "boolean" }
+          }
+        },
+        "privateEndpoints": {
+          "type": ["string", "null"],
+          "enum": ["pe_enabled", "pe_disabled", null]
+        },
+        "privateEndpointsList": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["keyvault", "storage", "acr", "asr", "backup", "sql", "defender"]
+          }
+        },
+        "clusterRole": {
+          "type": ["string", "null"],
+          "enum": ["management", "workload", null],
+          "description": "Disconnected (ALDO) deployment role."
+        },
+        "autonomousCloudFqdn": { "type": ["string", "null"], "description": "Air-gapped cloud FQDN (disconnected)." },
+        "disaggStorageType": {
+          "type": ["string", "null"],
+          "enum": ["fc_san", "iscsi_4nic", "iscsi_6nic", null]
+        },
+        "disaggVlans": { "type": ["object", "null"], "additionalProperties": true },
+        "disaggVnis": { "type": ["object", "null"], "additionalProperties": true },
+        "disaggSubnets": { "type": ["object", "null"], "additionalProperties": true },
+        "disaggNicNames": { "type": ["object", "null"], "additionalProperties": true },
+        "sizerHardware": {
+          "type": ["object", "null"],
+          "additionalProperties": true,
+          "description": "Hidden: hardware config handed off from the Sizer (CPU, memory, disks, workload summary)."
+        },
+        "sizerWorkloads": {
+          "type": ["array", "object", "null"],
+          "description": "Hidden: individual workload details handed off from the Sizer."
+        },
+        "ports": { "type": ["integer", "string", "null"], "description": "Selected NIC port count per node." },
+        "portConfig": { "type": ["object", "null"], "additionalProperties": true, "description": "Per-port configuration (HCI)." },
+        "portConfigConfirmed": { "type": "boolean" },
+        "torSwitchCount": {
+          "type": ["string", "null"],
+          "enum": ["single", "dual", null],
+          "description": "ToR switch count (Storage Switched + Hyperconverged)."
+        },
+        "switchlessLinkMode": { "type": ["string", "null"], "description": "Storage switchless link topology." },
+        "rackAwareZones": { "type": ["string", "boolean", "null"], "description": "Rack-aware (multi-zone) cluster toggle." },
+        "rackAwareZonesConfirmed": { "type": "boolean" },
+        "rackAwareZoneSwapSelection": { "type": ["string", "null"] },
+        "rackAwareTorsPerRoom": { "type": ["string", "integer", "null"] },
+        "rackAwareTorArchitecture": { "type": ["string", "null"] },
+        "intent": { "type": ["string", "null"], "description": "Network intent selection." },
+        "customIntentConfirmed": { "type": "boolean" },
+        "fqdnConfirmed": { "type": "boolean" },
+        "outbound": { "type": ["string", "null"], "description": "Outbound connectivity mode." },
+        "arc": { "type": ["string", "null"], "description": "Azure Arc connectivity mode." },
+        "proxy": { "type": ["string", "object", "null"], "description": "Proxy configuration." },
+        "ip": { "type": ["string", "null"], "description": "IP allocation mode." },
+        "infraCidrAuto": { "type": "boolean", "description": "Whether the infrastructure CIDR is auto-derived." },
+        "infraGateway": { "type": ["string", "null"] },
+        "infraGatewayManual": { "type": "boolean" },
+        "infraPoolManual": { "type": "boolean" },
+        "infraVlan": { "type": ["string", "boolean", "null"], "description": "Infrastructure VLAN toggle." },
+        "storageAutoIp": { "type": ["string", "boolean", "null"], "description": "Storage Auto-IP toggle." },
+        "customStorageSubnetsConfirmed": { "type": "boolean" },
+        "dnsServiceExisting": { "type": ["string", "boolean", "null"] },
+        "sdnEnabled": { "type": ["boolean", "string", "null"], "description": "Software Defined Networking toggle." },
+        "sdnFeatures": { "type": "array", "items": { "type": "string" } },
+        "sdnManagement": { "type": ["string", "null"] },
+        "intentOverrides": { "type": ["object", "null"], "additionalProperties": true, "description": "Per-intent RDMA/Jumbo/SR-IOV overrides (HCI)." },
+        "customIntents": { "type": ["object", "null"], "additionalProperties": true },
+        "adapterMapping": { "type": ["object", "null"], "additionalProperties": true, "description": "NIC-to-intent adapter mapping (HCI)." },
+        "adapterMappingConfirmed": { "type": "boolean" },
+        "adapterMappingSelection": { "type": ["string", "null"] },
+        "overridesConfirmed": { "type": "boolean" },
+        "rdmaGuardMessage": { "type": ["string", "null"], "description": "Transient UI warning — not part of the cluster design." },
+        "disaggBackupEnabled": { "type": "boolean", "description": "Disaggregated: dedicated backup network enabled." },
+        "disaggPortCount": { "type": ["string", "integer", "null"] },
+        "disaggRackCount": { "type": ["string", "integer", "null"], "description": "Disaggregated: number of racks." },
+        "disaggNodesPerRack": { "type": ["string", "integer", "null"] },
+        "disaggSpineCount": { "type": ["string", "integer", "null"] },
+        "disaggMgmtVlanMode": { "type": ["string", "null"], "enum": ["access", "trunk", null] },
+        "disaggClusterVlanMode": { "type": ["object", "null"], "additionalProperties": true, "description": "Per-cluster-network VLAN mode (access/trunk)." },
+        "disaggClusterNetworkNames": { "type": ["object", "null"], "additionalProperties": true },
+        "disaggVrfName": { "type": ["string", "null"] },
+        "disaggVrfMode": { "type": ["string", "null"], "enum": ["single", "multi", null] },
+        "disaggIscsiTargets": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+        "disaggQosCustomized": { "type": "boolean" },
+        "disaggPortSpeeds": { "type": ["object", "null"], "additionalProperties": true, "description": "Per-NIC-slot link speeds." },
+        "disaggIntentMapping": { "type": ["object", "null"], "additionalProperties": true, "description": "Port-to-intent mapping (SET team)." },
+        "disaggClusterPortMapping": { "type": ["object", "null"], "additionalProperties": true, "description": "Standalone port-to-VLAN mapping." },
+        "disaggNicNamesConfirmed": { "type": "boolean" },
+        "disaggNicConfigConfirmed": { "type": "boolean" },
+        "disaggPortConfig": { "type": ["object", "null"], "additionalProperties": true },
+        "disaggPortConfigConfirmed": { "type": "boolean" },
+        "disaggAdapterMapping": { "type": ["object", "null"], "additionalProperties": true },
+        "disaggAdapterMappingConfirmed": { "type": "boolean" },
+        "disaggIntentOverrides": { "type": ["object", "null"], "additionalProperties": true },
+        "disaggOverridesConfirmed": { "type": "boolean" },
+        "disaggClusterSubnet1": { "type": ["string", "null"] },
+        "disaggClusterSubnet2": { "type": ["string", "null"] },
+        "disaggIscsiSubnet1": { "type": ["string", "null"] },
+        "disaggIscsiSubnet2": { "type": ["string", "null"] },
+        "disaggBackupSubnet": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

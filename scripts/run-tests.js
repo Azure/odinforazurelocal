@@ -48,6 +48,150 @@ function checkVendorIntegrity() {
     return allOk;
 }
 
+// ---------------------------------------------------------------------------
+// Schema drift guard (issue #237 — JSON Schemas for Designer + Sizer).
+// The two published JSON Schemas in docs/json-schema/ must stay in lock-step
+// with the in-app state objects they describe:
+//   - getInitialWizardState() in js/script.js  ↔  odin-design.schema.json
+//     (properties.state.properties.*)
+//   - getSizerState()        in sizer/sizer.js  ↔  odin-sizer.schema.json
+//     (definitions.sizerState.properties.*)
+// This gate compares the TOP-LEVEL keys of each state object against the
+// schema's documented property set in BOTH directions. The moment a state
+// field is added, renamed, or removed without updating the matching schema
+// (or vice-versa), this check fails — forcing the schema to be revved in the
+// same PR. It guards STRUCTURE drift (key parity), not value-level enum
+// exhaustiveness, and does not assert envelope versions against the app
+// version. Runs Node-side, fail-fast, before the browser tests (the harness
+// runs over file:// where the schema JSON cannot be fetched).
+// ---------------------------------------------------------------------------
+
+// Extract the top-level keys of the object literal returned by `function fnName`.
+// Brace/bracket/string/comment aware so nested objects, arrays, and inline
+// comments don't pollute the key set. Only bare-identifier keys are captured
+// (neither state object uses quoted top-level keys); a quoted key would be
+// missed and surface as a (loud, fail-safe) drift mismatch rather than silently
+// passing.
+function extractTopLevelObjectKeys(src, fnName) {
+    const fnIdx = src.indexOf('function ' + fnName);
+    if (fnIdx === -1) throw new Error(`Could not find function ${fnName} in source`);
+    const retIdx = src.indexOf('return {', fnIdx);
+    if (retIdx === -1) throw new Error(`Could not find 'return {' for ${fnName}`);
+
+    const keys = [];
+    let depth = 0;
+    let inString = false, stringChar = '';
+    let inLineComment = false, inBlockComment = false;
+    let expectKey = false;
+
+    for (let i = src.indexOf('{', retIdx); i < src.length; i++) {
+        const c = src[i];
+        const next = src[i + 1];
+
+        if (inLineComment) { if (c === '\n') inLineComment = false; continue; }
+        if (inBlockComment) { if (c === '*' && next === '/') { inBlockComment = false; i++; } continue; }
+        if (inString) {
+            if (c === '\\') { i++; continue; }      // skip escaped char
+            if (c === stringChar) inString = false;
+            continue;
+        }
+
+        if (c === '/' && next === '/') { inLineComment = true; i++; continue; }
+        if (c === '/' && next === '*') { inBlockComment = true; i++; continue; }
+        if (c === '"' || c === "'" || c === '`') { inString = true; stringChar = c; continue; }
+
+        if (c === '{' || c === '[') {
+            depth++;
+            if (c === '{' && depth === 1) expectKey = true;   // entered the top-level object
+            continue;
+        }
+        if (c === '}' || c === ']') {
+            depth--;
+            if (depth === 0) break;                            // closed the top-level object
+            continue;
+        }
+
+        if (depth === 1) {
+            if (c === ',') { expectKey = true; continue; }
+            if (expectKey && !/\s/.test(c)) {
+                let key = '', j = i;
+                while (j < src.length && /[\w$]/.test(src[j])) { key += src[j]; j++; }
+                while (j < src.length && /\s/.test(src[j])) j++;
+                if (src[j] === ':' && key) {
+                    keys.push(key);
+                    i = j;                                     // resume after the colon
+                }
+                expectKey = false;
+                continue;
+            }
+        }
+    }
+    return keys;
+}
+
+function checkSchemaDrift() {
+    const cases = [
+        {
+            label: 'Designer (getInitialWizardState ↔ odin-design.schema.json)',
+            sourceFile: path.join('js', 'script.js'),
+            fnName: 'getInitialWizardState',
+            schemaFile: path.join('docs', 'json-schema', 'odin-design.schema.json'),
+            schemaProps: schema => schema.properties.state.properties
+        },
+        {
+            label: 'Sizer (getSizerState ↔ odin-sizer.schema.json)',
+            sourceFile: path.join('sizer', 'sizer.js'),
+            fnName: 'getSizerState',
+            schemaFile: path.join('docs', 'json-schema', 'odin-sizer.schema.json'),
+            schemaProps: schema => schema.definitions.sizerState.properties
+        }
+    ];
+
+    let allOk = true;
+
+    cases.forEach(c => {
+        try {
+            const src = fs.readFileSync(path.resolve(process.cwd(), c.sourceFile), 'utf8');
+            const stateKeys = extractTopLevelObjectKeys(src, c.fnName);
+
+            const schema = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), c.schemaFile), 'utf8'));
+            const props = c.schemaProps(schema);
+            if (!props || typeof props !== 'object') {
+                throw new Error(`Schema property map not found in ${c.schemaFile}`);
+            }
+            const schemaKeys = Object.keys(props);
+
+            const stateSet = new Set(stateKeys);
+            const schemaSet = new Set(schemaKeys);
+
+            // Direction 1: every state field must be documented in the schema.
+            const missingFromSchema = stateKeys.filter(k => !schemaSet.has(k));
+            // Direction 2: every schema property must still exist in the state.
+            const missingFromState = schemaKeys.filter(k => !stateSet.has(k));
+
+            if (missingFromSchema.length === 0 && missingFromState.length === 0) {
+                console.log(`✅ Schema drift OK: ${c.label} (${stateKeys.length} fields in sync)`);
+            } else {
+                allOk = false;
+                console.error(`❌ Schema drift detected: ${c.label}`);
+                if (missingFromSchema.length) {
+                    console.error(`     State fields missing from schema (add them to ${c.schemaFile}):`);
+                    missingFromSchema.forEach(k => console.error(`       + ${k}`));
+                }
+                if (missingFromState.length) {
+                    console.error(`     Schema properties no longer in state (remove from schema or restore in ${c.sourceFile}):`);
+                    missingFromState.forEach(k => console.error(`       - ${k}`));
+                }
+            }
+        } catch (err) {
+            allOk = false;
+            console.error(`❌ Schema drift check failed for ${c.label}: ${err.message}`);
+        }
+    });
+
+    return allOk;
+}
+
 function generateNUnitXML(results, passed, failed, total) {
     const timestamp = new Date().toISOString();
     const result = failed > 0 ? 'Failed' : 'Passed';
@@ -152,6 +296,13 @@ function generateJUnitXML(results, passed, failed, total) {
         // time launching the browser (issue #230 — SheetJS SHA-256 pin).
         if (!checkVendorIntegrity()) {
             console.error('\n❌ Vendored library integrity check failed.');
+            process.exit(1);
+        }
+
+        // Fail fast on schema drift before launching the browser (issue #237 —
+        // keep docs/json-schema/ in lock-step with the in-app state objects).
+        if (!checkSchemaDrift()) {
+            console.error('\n❌ Schema drift check failed — update docs/json-schema/ to match the state object(s) in the same PR.');
             process.exit(1);
         }
 

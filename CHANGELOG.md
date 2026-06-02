@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.61] - 2026-06-02
+
+Documents ODIN's export/import format as machine-readable **JSON Schemas** and hardens the importers (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 schemas plus import hardening and schema-drift tests, all offline and dependency-free. Also bundles a handful of Sizer import/reset UX fixes found while testing.
+
+### Added
+
+- **Two JSON Schemas (draft-07)** under `docs/json-schema/` — `odin-design.schema.json` (Designer `{ version, exportedAt, state }` envelope + `state`) and `odin-sizer.schema.json` (Sizer `{ _meta, data }` envelope + `data`, with a `workloads[]` model discriminated by workload `type`). Permissive/forward-compatible, with rich `title`/`description` so each schema doubles as documentation. Reverse-engineered draft schemas staged in [`docs/module-planning/`](docs/module-planning/) ([`odin-design.schema.draft.json`](docs/module-planning/odin-design.schema.draft.json), [`odin-sizer.schema.draft.json`](docs/module-planning/odin-sizer.schema.draft.json)).
+- **Format documentation** (`docs/json-schema/README.md`) — both envelopes side by side, required vs optional fields, an annotated example each, and how to validate an ODIN export from CI / Terraform / any language (ajv, python-jsonschema, VS Code `$schema`) with no ODIN code required.
+- **Schema-drift CI tests** — assert every Designer `getInitialWizardState()` key matches `odin-design` `state.properties.*`, and every Sizer `getSizerState()` key matches `odin-sizer` `data.properties.*` (both directions), so the schemas can't silently rot as ODIN evolves; plus fixture-export validation against each schema.
+
+### Changed
+
+- **Import hardening** — prototype-pollution guard in the Designer importer (`importConfiguration()`), dangerous-key guard + `workloads[]` shape validation in the Sizer importer (`applyImportedSizerState()`), with non-blocking warnings for unknown fields so existing files keep working (forward-compatible, no hard reject).
+- **Sizer JSON-import confirmation** — importing a **Sizer Configuration** JSON file now shows a success toast (with the cluster name and workload count) on completion, matching the **Azure Local Instance** and **RVTools** import flows. Previously the file-based import applied silently with zero feedback, which felt inconsistent with the other two import options.
+- **Version-constant sync** — bumps the stale `WIZARD_VERSION` and adds both `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift again (`SIZER_VERSION` remains an integer payload-format version, not a release version).
+
+### Fixed
+
+- **Sizer Reset left disaggregated controls behind** — clicking **🔄 Reset** from a **Disaggregated Storage** configuration correctly restored the Deployment Type to **Hyperconverged** and node count to **2**, but the disaggregated-only **Number of Racks** and **Storage Connectivity** rows stayed visible (and the S2D storage fields stayed disabled). `resetScenario()` now calls `updateDisaggregatedUI(false)` and restores those controls to their defaults, matching the normal cluster-type-change path.
+- **RVTools picker forced one cluster selected** — after parsing an RVTools export, the source-cluster picker auto-selected the first cluster and, because of a selection-preserving refresh, you could not clear the last ticked cluster without selecting another (un-ticking it sprang straight back). The picker now starts with **nothing selected** and respects an empty selection on refresh, so you choose exactly which clusters to import (Apply still errors clearly if none are selected).
+
+---
+
 ## [0.22.55] - 2026-06-02
 
 Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTools `.xlsx` export into Sizer workloads, entirely client-side — and **fixes a node-count sizing bug** where the Sizer's auto-scale loops disagreed with the >90% capacity banner on high-memory nodes, causing the recommended configuration to trip its own warning.

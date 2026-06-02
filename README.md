@@ -4,7 +4,7 @@
 
 <h1 align="center">ODIN for Azure Local</h1>
 
-## Version 0.22.55 - Available here: https://aka.ms/ODIN
+## Version 0.22.61 - Available here: https://aka.ms/ODIN
 
 A comprehensive web-based wizard to help design and configure Azure Local (formerly Azure Stack HCI) architectures. This tool guides users through deployment scenarios, network topology decisions, security configuration, and generates a cluster design document and an ARM parameter file that can be used for automated deployments. The Sizer Tool can be used to provide example cluster hardware configurations, based on your workload scenarios and capacity requirements, and it includes a 3D visualization of the hardware.
 
@@ -50,28 +50,19 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **ARM Parameters Generation**: Export Azure Resource Manager parameters JSON
 
 
-### 🎉 Version 0.22.55 - Latest Release
+### 🎉 Version 0.22.61 - Latest Release
 
-> **Adds RVTools Excel import to the Sizer** (issue #230) — turn a VMware [RVTools](https://www.robware.net/rvtools/) `.xlsx` export into Sizer workloads in a few clicks, entirely client-side — and **fixes a node-count sizing bug** where the auto-scale loops disagreed with the >90% capacity banner on high-memory nodes.
+> **Documents ODIN's export/import format as machine-readable JSON Schemas and hardens the importers** (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 JSON Schemas plus import-side hardening and schema-drift tests, all offline and dependency-free. Also bundles a handful of Sizer import/reset UX fixes found while testing.
 
-**What changed**
-- **New RVTools import tab + toolbar button** in the Sizer ([`sizer/index.html`](sizer/index.html), [`sizer/sizer.js`](sizer/sizer.js)). A third tab in the Import dialog (and a dedicated **📊 RVTools** toolbar button) accepts a standard RVTools *all* export (`.xlsx`).
-- **Excel parsing is vendored, not CDN** — [SheetJS Community 0.20.3](https://sheetjs.com/) is added under [`vendor/`](vendor/) and **lazy-loaded** only when the RVTools tab is first opened, so the rest of the site is unaffected. Its SHA-256 is pinned and verified by the test harness on every run.
-- **Per-cluster preview + pick-one-or-more import** — the importer reads the `vInfo` (and, when present, `vCluster` / `vHost`) sheets, summarises each detected source cluster (VM count, vCPU, memory, storage, host count), and lets you import **one or more** clusters into the single-cluster Sizer. Selecting several **consolidates their VMs into one cluster** (grouped bands merge across clusters; per-VM lists concatenate), and the Cluster Name field is seeded with a generic *Consolidated* placeholder. A **select-all** checkbox in the picker header ticks every cluster at once, and a totals banner shows the full file's scope.
-- **Two consolidation modes** — **Grouped** (default) bands VMs by size class (vCPU / RAM) into one workload per band, while **Per-VM** creates one workload per source VM. **Privacy:** individual VM names are surfaced **only** in Per-VM mode; Grouped names describe the band (e.g. *4 vCPU / 8 GB ×12*) and never a VM name.
-- **Storage source + power-state options** — choose **Provisioned** or **In Use** disk as the storage basis, and optionally include powered-off VMs. RVTools templates are always excluded.
-- **Editable Cluster Name field** — a new optional *Cluster Name* input in the Sizer (validated against Windows failover-cluster / NetBIOS rules: 1–15 chars, letters/numbers/hyphen, not all-numeric, no edge hyphen) is seeded from the imported source-cluster name and **carries through Sizer → Designer → ARM parameters** so the generated deployment uses your name.
-- **Denser workloads list for large imports** — when a per-VM import adds many workloads the list switches to a compact, scrollable layout so it stays scannable.
-- **Clearer Sizer labels** — workload summary boxes relabelled (*Total* → *Required*, plus a *Number of Workloads* box) and the capacity-usage heading reworded, and a centered Odin dark logo added above this README's title. The per-node requirements heading now also states the active vCPU overcommit ratio, e.g. *Workload Per-Node Requirements (with N+1) and 4:1 vCPU Overcommit Ratio*.
-
-**Fixed**
-- **Auto-scale node count now agrees with the >90% capacity banner.** The Sizer's conservative node-increment and node-reduction loops used a hardcoded 32 GB host-memory overhead and reserved no host CPU cores, while the capacity bars and the *>90% invalid* banner use the S2D-aware host-reserve model (issue #232). On high-memory nodes (≈ ≥ 512 GB/node, where the 8%-of-RAM reserve exceeds 32 GB) the loops stopped adding nodes at ~89% while the banner showed >90% — so the recommended configuration tripped its own *not recommended* warning (e.g. 1536 GB/node was recommended at **2 nodes / 95% memory**). Both loops now use the same reserve math, so the recommended node count can no longer trip the banner (the same case now correctly recommends 3 nodes). This was general to any auto-recommended node count with large per-node memory, not specific to RVTools imports.
-
-**Privacy & security**
-- All parsing happens **in the browser**; no RVTools data, VM names, or cluster names are ever transmitted. No new external network calls.
-
-**Tests & quality**
-- New *RVTools Excel Import* test suite — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through, list compaction) plus a multi-cluster consolidation group, a Node-side vendor-integrity gate, and a new *Node loop overhead alignment* regression suite. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,314 / 1,314**.
+**What's new**
+- **Two JSON Schemas** under `docs/json-schema/` — `odin-design.schema.json` (Designer `{ version, exportedAt, state }`) and `odin-sizer.schema.json` (Sizer `{ _meta, data }`, with a `workloads[]` model discriminated by workload `type`). Both are draft-07, permissive/forward-compatible, with rich `title`/`description` so each schema doubles as documentation. Published on GitHub Pages so they can be referenced by URL in a `"$schema"` key.
+- **Format docs** (`docs/json-schema/README.md`) — both envelopes side by side, required vs optional fields, an annotated example each, and how to validate an ODIN export from CI / Terraform / any language (ajv, python-jsonschema, or VS Code `$schema`) with no ODIN code required.
+- **Schema-drift CI tests** — assert every Designer `getInitialWizardState()` key and every Sizer `getSizerState()` key matches its schema (both directions), so the schemas can't silently rot as ODIN evolves.
+- **Import hardening** — prototype-pollution guard in the Designer importer, dangerous-key guard + `workloads[]` shape validation in the Sizer importer, with non-blocking warnings for unknown fields so existing files keep working.
+- **Sizer JSON-import confirmation** — importing a Sizer Configuration JSON file now shows a success toast (cluster name + workload count), matching the Azure Local Instance and RVTools import flows that previously were the only ones giving feedback.
+- **RVTools picker no longer forces a selection** — after parsing an RVTools export, the cluster picker starts with nothing selected and lets you clear the last ticked cluster (it used to auto-select the first cluster and spring back).
+- **Sizer Reset fully clears Disaggregated Storage** — resetting from a Disaggregated Storage config now hides the *Number of Racks* / *Storage Connectivity* rows and re-enables the S2D fields instead of leaving them behind.
+- **Version-constant sync** — bumps the stale `WIZARD_VERSION` and adds both `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
@@ -237,6 +228,12 @@ Disaggregated deployments use a separate intent model with external SAN storage 
 - Includes timestamp and metadata
 - Can be re-imported to restore session
 
+### JSON Schemas (validate exports before import)
+- Machine-readable [JSON Schema](https://json-schema.org/) (draft-07) definitions for both export surfaces, so you can generate and **validate** ODIN JSON outside the UI (CI/CD, Terraform, scripts) before importing it
+- **Designer**: [`docs/json-schema/odin-design.schema.json`](docs/json-schema/odin-design.schema.json) — published at `https://azure.github.io/odinforazurelocal/docs/json-schema/odin-design.schema.json`
+- **Sizer**: [`docs/json-schema/odin-sizer.schema.json`](docs/json-schema/odin-sizer.schema.json) — published at `https://azure.github.io/odinforazurelocal/docs/json-schema/odin-sizer.schema.json`
+- See the **[JSON Schema reference & examples](docs/json-schema/README.md)** for both envelopes side by side, required vs optional fields, and how to validate from any language (ajv, python-jsonschema, or VS Code `$schema`)
+
 ### Configuration Report
 - Comprehensive configuration report covering deployment scenario, network, intents, IP plan, identity, security, and SDN options
 - Download as **Word** (DOCX-compatible), **Markdown** (with embedded diagrams), or **PowerPoint** (template-driven `.pptx` deck)
@@ -382,6 +379,11 @@ The [`tools/`](tools/) folder contains scripted [Playwright](https://playwright.
 - [Azure Arc - TechCommunity](https://techcommunity.microsoft.com/category/azure/blog/azurearcblog)
 - [Azure Local - GitHub Supportability Forum](https://github.com/Azure/AzureLocal-Supportability)
 
+### For Developers & Automation
+- [JSON Schema reference & examples](docs/json-schema/README.md) — validate ODIN exports outside the UI (CI/CD, Terraform, scripts)
+- [`odin-design.schema.json`](docs/json-schema/odin-design.schema.json) — Designer export schema (draft-07)
+- [`odin-sizer.schema.json`](docs/json-schema/odin-sizer.schema.json) — Sizer export schema (draft-07)
+
 ---
 
 ## License
@@ -394,7 +396,7 @@ Published under [MIT License](/LICENSE). This project is provided as-is, without
 
 Built for the Azure Local community to simplify network architecture planning and deployment configuration.
 
-**Version**: 0.22.55  
+**Version**: 0.22.61  
 **Last Updated**: June 2026  
 **Compatibility**: Azure Local 2506+
 
@@ -409,6 +411,16 @@ For questions, feedback, or support, please visit the [GitHub repository](https:
 For detailed changelog information, see [CHANGELOG.md](CHANGELOG.md).
 
 ### Version 0.22.x Series (June 2026)
+
+#### 0.22.55 - RVTools Excel import for the Sizer + auto-scale node-count fix
+
+> **Adds RVTools Excel import to the Sizer** (issue #230) — turn a VMware [RVTools](https://www.robware.net/rvtools/) `.xlsx` export into Sizer workloads in a few clicks, entirely client-side — and **fixes a node-count sizing bug** where the auto-scale loops disagreed with the >90% capacity banner on high-memory nodes.
+
+- **New RVTools import tab + 📊 toolbar button** in the Sizer ([`sizer/index.html`](sizer/index.html), [`sizer/sizer.js`](sizer/sizer.js)) accepting a standard RVTools *all* export (`.xlsx`). Excel parsing via [SheetJS Community 0.20.3](https://sheetjs.com/), vendored under [`vendor/`](vendor/) and **lazy-loaded** only when the tab is first opened, with a pinned SHA-256 verified by the test harness.
+- **Per-cluster preview + pick-one-or-more import** — reads `vInfo` (and `vCluster` / `vHost` when present), summarises each detected source cluster, and imports one or more into the single-cluster Sizer. Selecting several **consolidates their VMs into one cluster** (grouped bands merge; per-VM lists concatenate), seeding a generic *Consolidated* name; a **select-all** checkbox ticks every cluster at once and a totals banner shows the full file's scope.
+- **Two consolidation modes** — **Grouped** (default, bands by vCPU / RAM size class) and **Per-VM** (one workload per VM). Privacy: VM names surface **only** in Per-VM mode and never leave the browser. **Storage source + power-state options** (Provisioned / In Use, optionally include powered-off; templates always excluded).
+- **Editable Cluster Name field** (validated to Windows failover-cluster / NetBIOS rules) seeded from the imported source-cluster name and **carried through Sizer → Designer → ARM parameters**. Denser, scrollable workloads list for large imports; clearer summary-box/capacity labels (*Total* → *Required*); per-node heading now states the active vCPU overcommit ratio.
+- **Fixed**: the auto-scale node-increment / node-reduction loops now use the same S2D-aware host-reserve model as the *>90% capacity* banner (issue #232), so a recommended configuration can no longer trip its own *not recommended* warning on high-memory nodes (e.g. 1536 GB/node now recommends 3 nodes, not 2 at 95%). All parsing in-browser; no new external network calls. Full test suite passes **1,314 / 1,314**.
 
 #### 0.22.01 - Sizer host compute reserve model + bottom-up rack diagrams + Low Capacity removal + imported-instance refinements
 

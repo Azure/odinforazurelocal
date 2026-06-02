@@ -1,5 +1,5 @@
 // Odin for Azure Local - version for tracking changes
-const WIZARD_VERSION = '0.20.08';
+const WIZARD_VERSION = '0.22.61';
 const WIZARD_STATE_KEY = 'azureLocalWizardState';
 const WIZARD_TIMESTAMP_KEY = 'azureLocalWizardTimestamp';
 
@@ -9309,9 +9309,19 @@ function importConfiguration() {
                     // Use setTimeout to prevent blocking and allow UI to update
                     setTimeout(() => {
                         try {
+                            // Keys that could pollute Object.prototype if assigned via
+                            // bracket notation. JSON.parse makes __proto__ an OWN
+                            // enumerable property, so it survives into the loops below —
+                            // reject it (and constructor/prototype) defensively. This is
+                            // a hard skip, not a hard reject: the rest of the (valid)
+                            // import still applies. (#237 import hardening)
+                            const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
+                            const skippedDangerous = [];
+
                             // Apply imported state safely - only copy known properties
                             const safeKeys = Object.keys(state);
                             safeKeys.forEach(key => {
+                                if (DANGEROUS_KEYS.includes(key)) return;
                                 if (Object.prototype.hasOwnProperty.call(imported.state, key)) {
                                     state[key] = imported.state[key];
                                 }
@@ -9319,10 +9329,18 @@ function importConfiguration() {
 
                             // Also copy any additional properties from import
                             Object.keys(imported.state).forEach(key => {
+                                if (DANGEROUS_KEYS.includes(key)) {
+                                    skippedDangerous.push(key);
+                                    return;
+                                }
                                 if (!safeKeys.includes(key)) {
                                     state[key] = imported.state[key];
                                 }
                             });
+
+                            if (skippedDangerous.length > 0) {
+                                console.warn('Import: skipped unsafe key(s):', skippedDangerous.join(', '));
+                            }
 
                             // Update UI with error handling
                             try {

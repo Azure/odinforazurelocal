@@ -10,7 +10,7 @@
 >
 > **Target release:** a **separate, later PR** (its own version bump). #230 is
 > **not** part of the 0.22.01 (#232 + #233) release — see
-> [`complete/issues-232-233-plan.md`](complete/issues-232-233-plan.md).
+> [`issues-232-233-plan.md`](issues-232-233-plan.md).
 
 ---
 
