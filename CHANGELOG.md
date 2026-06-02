@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.22.55] - 2026-06-02
 
-Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTools `.xlsx` export into Sizer workloads, entirely client-side.
+Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTools `.xlsx` export into Sizer workloads, entirely client-side — and **fixes a node-count sizing bug** where the Sizer's auto-scale loops disagreed with the >90% capacity banner on high-memory nodes, causing the recommended configuration to trip its own warning.
 
 ### Added
 
@@ -23,6 +23,12 @@ Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTool
 ### Changed
 
 - **Workloads list switches to a denser, scrollable layout** when more than 5 workloads are present (e.g. after a per-VM import) so it stays scannable — `renderWorkloads()` toggles a `.compact` class.
+- **Sizer summary-box and capacity headings clarified** — the workload summary boxes are relabelled (*Total* → *Required*, plus a *Number of Workloads* box) and the capacity-usage heading reworded, so the right-hand panel reads consistently after a multi-workload import.
+- **Centered Odin dark logo added above the README title** for clearer project branding.
+
+### Fixed
+
+- **Sizer auto-scale node loops now agree with the >90% capacity banner.** The conservative node-increment loop and the node-reduction loop in `calculateRequirements()` ([`sizer/sizer.js`](sizer/sizer.js)) computed memory headroom from a hardcoded **32 GB** host overhead and reserved **no** host CPU cores, while the capacity bars and the *>90% invalid* banner use the S2D-aware `getHostMemoryReservedGB()` / `getHostCpuReservedCores()` helpers (#232). For high-memory nodes — roughly **≥ 512 GB/node**, where the `8%`-of-RAM term exceeds the old flat 32 GB — the loops stopped adding nodes at ~89% while the banner showed >90%, so the recommended configuration tripped its own *not recommended* warning (e.g. 1536 GB/node was recommended at **2 nodes / 95% memory**). Both loops now route through the same helpers, so the recommended node count can no longer trip the banner (the same case now correctly recommends 3 nodes). Not RVTools-specific — it affected any auto-recommended node count with large per-node memory.
 
 ### Security
 
@@ -30,7 +36,9 @@ Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTool
 
 ### Tests
 
-- New *RVTools Excel Import* suite in [`tests/index.html`](tests/index.html) — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through invariant + field UI, list compaction) plus the Node-side vendor-integrity gate. ESLint clean; HTML validation clean; full suite passes **1,290 / 1,290**.
+- New *RVTools Excel Import* suite in [`tests/index.html`](tests/index.html) — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through invariant + field UI, list compaction) plus the Node-side vendor-integrity gate.
+- New *Node loop overhead alignment (Cluster014 regression)* suite locking the high-memory host-reservation math (123 GB reserve at 1536 GB/node; 2 nodes rejected at 95%, 3 nodes accepted at 47%).
+- ESLint clean; HTML validation clean; full suite passes **1,307 / 1,307**.
 
 ---
 

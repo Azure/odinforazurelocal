@@ -52,7 +52,7 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.22.55 - Latest Release
 
-> **Adds RVTools Excel import to the Sizer** (issue #230) — turn a VMware [RVTools](https://www.robware.net/rvtools/) `.xlsx` export into Sizer workloads in a few clicks, entirely client-side.
+> **Adds RVTools Excel import to the Sizer** (issue #230) — turn a VMware [RVTools](https://www.robware.net/rvtools/) `.xlsx` export into Sizer workloads in a few clicks, entirely client-side — and **fixes a node-count sizing bug** where the auto-scale loops disagreed with the >90% capacity banner on high-memory nodes.
 
 **What changed**
 - **New RVTools import tab + toolbar button** in the Sizer ([`sizer/index.html`](sizer/index.html), [`sizer/sizer.js`](sizer/sizer.js)). A third tab in the Import dialog (and a dedicated **📊 RVTools** toolbar button) accepts a standard RVTools *all* export (`.xlsx`).
@@ -62,12 +62,16 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 - **Storage source + power-state options** — choose **Provisioned** or **In Use** disk as the storage basis, and optionally include powered-off VMs. RVTools templates are always excluded.
 - **Editable Cluster Name field** — a new optional *Cluster Name* input in the Sizer (validated against Windows failover-cluster / NetBIOS rules: 1–15 chars, letters/numbers/hyphen, not all-numeric, no edge hyphen) is seeded from the imported source-cluster name and **carries through Sizer → Designer → ARM parameters** so the generated deployment uses your name.
 - **Denser workloads list for large imports** — when a per-VM import adds many workloads the list switches to a compact, scrollable layout so it stays scannable.
+- **Clearer Sizer labels** — workload summary boxes relabelled (*Total* → *Required*, plus a *Number of Workloads* box) and the capacity-usage heading reworded, and a centered Odin dark logo added above this README's title.
+
+**Fixed**
+- **Auto-scale node count now agrees with the >90% capacity banner.** The Sizer's conservative node-increment and node-reduction loops used a hardcoded 32 GB host-memory overhead and reserved no host CPU cores, while the capacity bars and the *>90% invalid* banner use the S2D-aware host-reserve model (issue #232). On high-memory nodes (≈ ≥ 512 GB/node, where the 8%-of-RAM reserve exceeds 32 GB) the loops stopped adding nodes at ~89% while the banner showed >90% — so the recommended configuration tripped its own *not recommended* warning (e.g. 1536 GB/node was recommended at **2 nodes / 95% memory**). Both loops now use the same reserve math, so the recommended node count can no longer trip the banner (the same case now correctly recommends 3 nodes). This was general to any auto-recommended node count with large per-node memory, not specific to RVTools imports.
 
 **Privacy & security**
 - All parsing happens **in the browser**; no RVTools data, VM names, or cluster names are ever transmitted. No new external network calls.
 
 **Tests & quality**
-- New *RVTools Excel Import* test suite — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through, list compaction) plus a Node-side vendor-integrity gate. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,290 / 1,290**.
+- New *RVTools Excel Import* test suite — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through, list compaction) plus a Node-side vendor-integrity gate, and a new *Node loop overhead alignment* regression suite. ESLint clean across all browser-facing scopes; HTML validation clean; full test suite passes **1,307 / 1,307**.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.
 
