@@ -8523,13 +8523,13 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     var importedCount = result.workloads.length;
     var clusterLabel = opts.cluster;
 
-    // Default the growth buffer to 20% for RVTools imports so the sized hardware
+    // Default the growth buffer to 10% for RVTools imports so the sized hardware
     // carries headroom — but only if the user hasn't already chosen a value
     // (i.e. it's still on the "No additional growth" default). Issue #230.
     var growthSel = document.getElementById('future-growth');
     var growthApplied = false;
     if (growthSel && (growthSel.value === '0' || growthSel.value === '')) {
-        growthSel.value = '20';
+        growthSel.value = '10';
         growthApplied = true;
     }
 
@@ -8561,7 +8561,7 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
             + '<br>Totals: <strong>' + impVcpus + '</strong> vCPU, <strong>' + impMemGB + '</strong> GB RAM, <strong>'
             + impStorageGB + '</strong> GB ' + storageLabel + ' storage.'
             + (growthApplied
-                ? '<br><br><em>Allow for Future Growth</em> has been set to <strong>20%</strong> for this import.'
+                ? '<br><br><em>Allow for Future Growth</em> has been set to <strong>10%</strong> for this import.'
                 : '<br><br>Your existing <em>Allow for Future Growth</em> setting was kept.');
     }
     var postOverlay = document.getElementById('rvtools-post-import-overlay');

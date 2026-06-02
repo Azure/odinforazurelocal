@@ -10445,8 +10445,8 @@
             return results;
         })());
 
-        // Group I — applyRVToolsImport defaults the growth buffer to 20%
-        testSuite('RVTools: import defaults growth buffer to 20% (Group I)', 'sizer.js', (() => {
+        // Group I — applyRVToolsImport defaults the growth buffer to 10%
+        testSuite('RVTools: import defaults growth buffer to 10% (Group I)', 'sizer.js', (() => {
             var results = [];
 
             // A shared #future-growth stub already exists (created for the
@@ -10506,13 +10506,13 @@
 
             var savedW = workloads.splice(0, workloads.length);
 
-            // 28. fresh import (growth on default "0") → bumped to "20"
+            // 28. fresh import (growth on default "0") → bumped to "10"
             makeImportStub('0');
             try { applyRVToolsImport(); } catch (e) { /* full calc stub may throw, runs after growth set */ }
             results.push(assert(
-                document.getElementById('future-growth').value === '20',
-                'applyRVToolsImport → growth buffer defaulted to "20" when left at "0"',
-                '20', document.getElementById('future-growth').value));
+                document.getElementById('future-growth').value === '10',
+                'applyRVToolsImport → growth buffer defaulted to "10" when left at "0"',
+                '10', document.getElementById('future-growth').value));
             cleanupImportStub();
             workloads.splice(0, workloads.length);
 
