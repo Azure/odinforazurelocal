@@ -8407,6 +8407,13 @@ function refreshRVToolsPreview() { // eslint-disable-line no-unused-vars
     renderRVToolsPreview(result, true);
 }
 
+// Select or clear every cluster checkbox in the picker table, then refresh.
+function toggleAllRVToolsClusters(headerCheckbox) { // eslint-disable-line no-unused-vars
+    var checks = document.querySelectorAll('input[name="rvtools-cluster"]');
+    Array.prototype.forEach.call(checks, function(el) { el.checked = headerCheckbox.checked; });
+    refreshRVToolsPreview();
+}
+
 function readRVToolsOptions() {
     var storageRadio = document.querySelector('input[name="rvtools-storage"]:checked');
     var modeRadio = document.querySelector('input[name="rvtools-mode"]:checked');
@@ -8443,8 +8450,9 @@ function renderRVToolsPreview(result, keepSelection) {
         + ' — <strong>' + t.vcpus + '</strong> vCPU, ' + rvtoolsFormatCapacity(t.memoryGB) + ' RAM, ' + rvtoolsFormatCapacity(t.storageGB) + ' storage total.'
         + '<br><span style="color: var(--text-secondary);">Pick one or more source clusters to size below — selecting several consolidates their workloads into one cluster.</span></div>';
 
+    var allSelected = result.clusters.length > 0 && result.clusters.every(function(c) { return selectedClusters.indexOf(c.name) !== -1; });
     html += '<div class="rvtools-table-wrap"><table class="rvtools-table"><thead><tr>'
-        + '<th></th><th>Source cluster</th><th class="num">VMs</th><th class="num">Hosts</th>'
+        + '<th><input type="checkbox" id="rvtools-select-all" title="Select all clusters" aria-label="Select all clusters"' + (allSelected ? ' checked' : '') + ' onchange="toggleAllRVToolsClusters(this)"></th><th>Source cluster</th><th class="num">VMs</th><th class="num">Hosts</th>'
         + '<th class="num">vCPU</th><th class="num">Memory (GB)</th><th class="num">Storage (TB)</th>'
         + '</tr></thead><tbody>';
     result.clusters.forEach(function(c, i) {
@@ -8476,6 +8484,11 @@ function renderRVToolsPreview(result, keepSelection) {
 
     previewDiv.innerHTML = html;
     previewDiv.style.display = '';
+    var selectAll = document.getElementById('rvtools-select-all');
+    if (selectAll) {
+        var selCount = result.clusters.filter(function(c) { return selectedClusters.indexOf(c.name) !== -1; }).length;
+        selectAll.indeterminate = selCount > 0 && selCount < result.clusters.length;
+    }
     var applyBtn = document.getElementById('rvtools-apply-btn');
     if (applyBtn) applyBtn.style.display = result.clusters.length ? '' : 'none';
 }
