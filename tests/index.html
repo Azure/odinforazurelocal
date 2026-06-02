@@ -10522,6 +10522,18 @@
             results.push(assert(rvtoolsFormatCapacity(undefined) === '<strong>0</strong> GB',
                 'rvtoolsFormatCapacity(undefined) → "<strong>0</strong> GB"', '<strong>0</strong> GB', rvtoolsFormatCapacity(undefined)));
 
+            // 35. GB→TB cell helper: 2116 GB → ~2.07 TB
+            results.push(assert(rvtoolsGBtoTB(2116).toFixed(2) === '2.07',
+                'rvtoolsGBtoTB(2116).toFixed(2) → "2.07"', '2.07', rvtoolsGBtoTB(2116).toFixed(2)));
+
+            // 36. GB→TB cell helper: small cluster stays non-zero (928 GB → 0.91 TB)
+            results.push(assert(rvtoolsGBtoTB(928).toFixed(2) === '0.91',
+                'rvtoolsGBtoTB(928).toFixed(2) → "0.91"', '0.91', rvtoolsGBtoTB(928).toFixed(2)));
+
+            // 37. GB→TB cell helper: non-numeric → 0
+            results.push(assert(rvtoolsGBtoTB(undefined) === 0,
+                'rvtoolsGBtoTB(undefined) → 0', 0, rvtoolsGBtoTB(undefined)));
+
             return results;
         })());
 

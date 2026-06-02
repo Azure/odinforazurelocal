@@ -7368,6 +7368,12 @@ function rvtoolsFormatCapacity(gb) {
     return '<strong>' + n + '</strong> GB';
 }
 
+// Convert a GB figure to TB for the source-cluster table cells. Rounded to two
+// decimals so small clusters still show a meaningful (non-zero) value.
+function rvtoolsGBtoTB(gb) {
+    return (Number(gb) || 0) / 1024;
+}
+
 // Pure transform: take extracted RVTools sheets + options, return a structured
 // result the UI applies. Never throws on a missing vInfo — it returns a warning
 // the caller surfaces as a friendly message.
@@ -8396,7 +8402,7 @@ function renderRVToolsPreview(result, keepSelection) {
 
     html += '<div class="rvtools-table-wrap"><table class="rvtools-table"><thead><tr>'
         + '<th></th><th>Source cluster</th><th class="num">VMs</th><th class="num">Hosts</th>'
-        + '<th class="num">vCPU</th><th class="num">RAM (GB)</th><th class="num">Storage (GB)</th>'
+        + '<th class="num">vCPU</th><th class="num">Memory (TB)</th><th class="num">Storage (TB)</th>'
         + '</tr></thead><tbody>';
     result.clusters.forEach(function(c, i) {
         var id = 'rvtools-cluster-' + i;
@@ -8407,8 +8413,8 @@ function renderRVToolsPreview(result, keepSelection) {
             + '<td class="num">' + c.vmCount + '</td>'
             + '<td class="num">' + (c.hostCount || '—') + '</td>'
             + '<td class="num">' + c.vcpus + '</td>'
-            + '<td class="num">' + c.memoryGB + '</td>'
-            + '<td class="num">' + c.storageGB + '</td>'
+            + '<td class="num">' + rvtoolsGBtoTB(c.memoryGB).toFixed(2) + '</td>'
+            + '<td class="num">' + rvtoolsGBtoTB(c.storageGB).toFixed(2) + '</td>'
             + '</tr>';
     });
     html += '</tbody></table></div>';
