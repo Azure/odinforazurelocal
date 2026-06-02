@@ -5814,9 +5814,10 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 }
 
 // Update the optional annual running-cost figure from the user-supplied
-// electricity unit price (USD/kWh) × the last computed annual energy (kWh/yr).
-// Leaving the price box empty (or entering 0 / an invalid value) clears the
-// estimate back to a dash — the input is entirely optional.
+// electricity unit price (per kWh) × the last computed annual energy (kWh/yr).
+// The price is currency-agnostic — the cost is shown in whatever currency the
+// user enters. Leaving the price box empty (or entering 0 / an invalid value)
+// clears the estimate back to a dash — the input is entirely optional.
 function updateRunningCost() {
     var costEl = document.getElementById('power-cost');
     var priceEl = document.getElementById('power-price-input');
@@ -5829,8 +5830,6 @@ function updateRunningCost() {
     }
     var annualCost = annualKwh * price;
     costEl.textContent = annualCost.toLocaleString(undefined, {
-        style: 'currency',
-        currency: 'USD',
         maximumFractionDigits: 0
     }) + '/yr';
 }
