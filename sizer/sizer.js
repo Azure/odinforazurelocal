@@ -5322,6 +5322,12 @@ function calculateRequirements(options) {
         document.getElementById('per-node-cores').textContent = perNodeCores || 0;
         document.getElementById('per-node-memory').textContent = (perNodeMemory || 0) + ' GB';
 
+        // Reflect the current vCPU overcommit ratio in the per-node heading
+        var perNodeTitleEl = document.getElementById('per-node-title');
+        if (perNodeTitleEl) {
+            perNodeTitleEl.textContent = 'Workload Per-Node Requirements (with N+1) and ' + getVcpuRatio() + ':1 vCPU Overcommit Ratio';
+        }
+
         // For disaggregated, show SAN storage requirement instead of per-node raw/usable
         var perNodeStorageLabel = document.getElementById('per-node-storage-label');
         var perNodeUsableLabel = document.getElementById('per-node-usable-label');
@@ -6668,7 +6674,7 @@ function exportSizerWord() {
     html += '</div>';
 
     // Per-Node Requirements
-    html += '<h3>Workload Per-Node Requirements (with N+1)</h3>';
+    html += '<h3>Workload Per-Node Requirements (with N+1) and ' + getVcpuRatio() + ':1 vCPU Overcommit Ratio</h3>';
     html += '<table class="kv-table"><tbody>';
     html += '<tr><td>Physical Cores</td><td>' + perNodeCores + '</td></tr>';
     html += '<tr><td>Memory</td><td>' + perNodeMemory + '</td></tr>';
