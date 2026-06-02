@@ -20,6 +20,7 @@ Documents ODIN's export/import format as machine-readable **JSON Schemas** and h
 ### Changed
 
 - **Import hardening** — prototype-pollution guard in the Designer importer (`importConfiguration()`), dangerous-key guard + `workloads[]` shape validation in the Sizer importer (`applyImportedSizerState()`), with non-blocking warnings for unknown fields so existing files keep working (forward-compatible, no hard reject).
+- **Sizer JSON-import confirmation** — importing a **Sizer Configuration** JSON file now shows a success toast (with the cluster name and workload count) on completion, matching the **Azure Local Instance** and **RVTools** import flows. Previously the file-based import applied silently with zero feedback, which felt inconsistent with the other two import options.
 - **Version-constant sync** — bumps the stale `WIZARD_VERSION` and adds both `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift again (`SIZER_VERSION` remains an integer payload-format version, not a release version).
 
 ---

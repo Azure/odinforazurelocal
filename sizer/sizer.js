@@ -8668,6 +8668,24 @@ function handleSizerFileImport(event) {
             // Apply via the same restore logic used by resumeSizerState
             applyImportedSizerState(d);
 
+            // Confirm success, mirroring the Azure Local Instance and RVTools
+            // import flows (which both end with a success toast). Without this,
+            // importing a Sizer Configuration JSON gave zero feedback. Issue
+            // raised: the file-based import felt inconsistent with the other two
+            // import options. Use the post-apply workload count so the message
+            // reflects what actually loaded.
+            if (typeof showToast === 'function') {
+                var importedWlCount = Array.isArray(workloads) ? workloads.length : 0;
+                var importedName = (d.clusterName || '').toString().trim();
+                var toastMsg = importedName
+                    ? 'Imported "' + escapeHtml(importedName) + '"'
+                    : 'Sizer configuration imported';
+                if (importedWlCount > 0) {
+                    toastMsg += ' — ' + importedWlCount + ' workload' + (importedWlCount !== 1 ? 's' : '');
+                }
+                showToast(toastMsg, 'success');
+            }
+
         } catch (err) {
             console.error('Import parse error:', err);
             alert('Failed to parse the JSON file. Please ensure it is a valid ODIN Sizer export.');
