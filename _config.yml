@@ -50,3 +50,12 @@ exclude:
   - .stylelintrc.json
   - .stylelintignore
   - CONTRIBUTING.md
+
+# Files to keep verbatim in the published output. The machine-readable JSON
+# Schemas under docs/json-schema/ are intentionally PUBLISHED (they are
+# end-user content — external tooling fetches them by URL via `$schema`), so
+# they must NOT be added to `exclude:` above. `keep_files` ensures Jekyll
+# serves the raw .json untouched.
+keep_files:
+  - docs/json-schema/odin-design.schema.json
+  - docs/json-schema/odin-sizer.schema.json

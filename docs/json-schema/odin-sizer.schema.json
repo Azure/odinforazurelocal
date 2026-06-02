@@ -1,0 +1,199 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://azure.github.io/odinforazurelocal/docs/json-schema/odin-sizer.schema.json",
+  "title": "ODIN for Azure Local — Sizer Export",
+  "description": "Schema for the JSON file produced by the ODIN Sizer 'Export JSON' button and consumed by 'Import JSON'. This is a SEPARATE format from the Designer export (see odin-design.schema.json). Source of truth for `data` is getSizerState() in sizer/sizer.js; per-workload shapes come from addWorkload(). Intentionally permissive (forward-compatible). The Sizer importer accepts EITHER the wrapped { _meta, data } form OR a bare state object (`data || parsed`), so this schema models the wrapped envelope but `data`'s shape is the bare-state shape too.",
+  "type": "object",
+  "oneOf": [
+    {
+      "description": "Wrapped form produced by exportSizerJSON().",
+      "type": "object",
+      "required": ["data"],
+      "additionalProperties": true,
+      "properties": {
+        "_meta": {
+          "type": "object",
+          "description": "Export metadata. NOT read on import; informational only.",
+          "additionalProperties": true,
+          "properties": {
+            "tool": { "type": "string", "description": "Always 'ODIN Sizer for Azure Local'." },
+            "version": {
+              "type": ["integer", "string"],
+              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 1), NOT a release/semver version. Only bumps when the Sizer payload shape changes."
+            },
+            "exportedAt": { "type": "string", "format": "date-time" },
+            "url": { "type": "string", "description": "The Sizer page URL at export time." }
+          }
+        },
+        "data": { "$ref": "#/definitions/sizerState" }
+      }
+    },
+    {
+      "description": "Bare state form (no envelope) — also accepted by the importer.",
+      "$ref": "#/definitions/sizerState"
+    }
+  ],
+  "definitions": {
+    "sizerState": {
+      "type": "object",
+      "description": "Sizer cluster + hardware + workload configuration. The importer duck-types validity by requiring at least `clusterType` OR `workloads`. additionalProperties is true for forward-compatibility; dangerous keys (__proto__/constructor/prototype) are rejected by the importer.",
+      "additionalProperties": true,
+      "anyOf": [
+        { "required": ["clusterType"] },
+        { "required": ["workloads"] }
+      ],
+      "properties": {
+        "clusterType": {
+          "type": ["string", "null"],
+          "enum": ["single", "standard", "rack-aware", "disaggregated", "aldo-mgmt", null],
+          "description": "Cluster topology. 'standard' = Hyperconverged. Default 'standard'."
+        },
+        "clusterName": {
+          "type": ["string", "null"],
+          "description": "Optional cluster name (1–15 chars; letters/digits/hyphens; not all-numeric; no leading/trailing hyphen). Flows Sizer → Designer → ARM."
+        },
+        "disaggRackCount": { "type": ["string", "integer", "null"], "description": "1–8. Only for clusterType 'disaggregated'." },
+        "disaggStorageType": {
+          "type": ["string", "null"],
+          "enum": ["fc_san", "iscsi_4nic", "iscsi_6nic", null]
+        },
+        "disaggSpineCount": { "type": ["integer", "null"], "description": "Spine switch count (default 2)." },
+        "nodeCount": { "type": ["string", "integer", "null"], "description": "Node count, stored as a string in the UI (e.g. \"3\")." },
+        "nodeCountUserSet": { "type": "boolean", "description": "True if the user overrode the auto-calculated node count. Preserve on round-trip." },
+        "futureGrowth": { "type": ["string", "integer", "null"], "enum": ["0", "10", "20", "30", "50", 0, 10, 20, 30, 50, null], "description": "Growth buffer percentage." },
+        "resiliency": { "type": ["string", "null"], "enum": ["2way", "3way", null], "description": "Storage resiliency (two/three-way mirror)." },
+        "cpuManufacturer": { "type": ["string", "null"], "enum": ["intel", "amd", "intel_edge", null] },
+        "cpuGeneration": { "type": ["string", "null"], "description": "CPU generation id; valid values depend on cpuManufacturer (see CPU_GENERATIONS)." },
+        "cpuCores": { "type": ["string", "integer", "null"], "description": "Physical cores per socket." },
+        "cpuSockets": { "type": ["string", "integer", "null"], "enum": ["1", "2", 1, 2, null] },
+        "cpuConfigUserSet": { "type": "boolean" },
+        "nodeMemory": { "type": ["string", "integer", "null"], "description": "RAM per node in GB (64–4096)." },
+        "memoryUserSet": { "type": "boolean" },
+        "gpuCount": { "type": ["string", "integer", "null"], "description": "Physical GPUs per node (0–4)." },
+        "gpuType": {
+          "type": ["string", "null"],
+          "enum": ["t4", "a2", "a16", "a40", "a100", "l4", "l40", "l40s", "rtxpro6000", "h100", null]
+        },
+        "vcpuRatio": { "type": ["string", "integer", "null"], "enum": ["1", "2", "3", "4", "5", "6", 1, 2, 3, 4, 5, 6, null], "description": "vCPU:pCPU overcommit ratio." },
+        "vcpuRatioUserSet": { "type": "boolean" },
+        "storageConfig": { "type": ["string", "null"], "enum": ["all-flash", "mixed-flash", "hybrid", null] },
+        "storageTiering": {
+          "type": ["string", "null"],
+          "description": "Cache/capacity tiering option. The available values are dynamic (depend on storageConfig); known all-flash values: 'nvme-capacity', 'ssd-capacity'. Left as a free string because mixed-flash/hybrid inject cache-tier options at runtime."
+        },
+        "capacityDiskCount": { "type": ["string", "integer", "null"] },
+        "capacityDiskSize": { "type": ["string", "number", "null"], "description": "TB per capacity disk (e.g. 3.84, 7.68, 8, 16, 20)." },
+        "cacheDiskCount": { "type": ["string", "integer", "null"] },
+        "cacheDiskSize": { "type": ["string", "number", "null"] },
+        "tieredCapacityDiskCount": { "type": ["string", "integer", "null"] },
+        "tieredCapacityDiskSize": { "type": ["string", "number", "null"] },
+        "diskSizeUserSet": { "type": "boolean" },
+        "diskCountUserSet": { "type": "boolean" },
+        "repairDiskCount": { "type": ["string", "integer", "null"] },
+        "repairDisksUserSet": { "type": "boolean" },
+        "importedProcessorName": { "type": ["string", "null"], "description": "Set when CPU was imported from an Azure Local instance JSON; injected as a generation option." },
+        "importedCoresPerSocket": { "type": ["integer", "null"] },
+        "workloadIdCounter": { "type": ["integer", "null"], "description": "High-water mark for workload ids." },
+        "workloads": {
+          "type": "array",
+          "description": "The workloads to size. Each item is discriminated by `type`.",
+          "items": { "$ref": "#/definitions/workload" }
+        }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": true,
+      "description": "A single workload. The non-common fields depend on `type` (oneOf below). Common fields: id, type, name, and optional GPU fields (gpuMode, gpu DDA count, etc.).",
+      "properties": {
+        "id": { "type": ["integer", "string"], "description": "Unique workload id (int counter in practice)." },
+        "type": {
+          "type": "string",
+          "enum": ["vm", "aks", "avd", "foundry", "edgerag", "videoindexer"]
+        },
+        "name": { "type": "string" },
+        "gpuMode": {
+          "type": ["string", "null"],
+          "enum": ["none", "dda", null],
+          "description": "GPU assignment mode. 'dda' = Discrete Device Assignment. vLLM/Edge-RAG GPU mode force 'dda'."
+        }
+      },
+      "oneOf": [
+        {
+          "title": "VM workload",
+          "properties": {
+            "type": { "const": "vm" },
+            "inputMode": { "type": "string", "enum": ["per-vm", "total"], "description": "'per-vm' multiplies by count; 'total' enters aggregate totals (count forced to 1)." },
+            "vcpus": { "type": "integer", "minimum": 1 },
+            "memory": { "type": "integer", "minimum": 1, "description": "GB." },
+            "storage": { "type": "integer", "minimum": 1, "description": "GB." },
+            "count": { "type": "integer", "minimum": 1 }
+          },
+          "required": ["type", "vcpus", "memory", "storage"]
+        },
+        {
+          "title": "AKS workload",
+          "properties": {
+            "type": { "const": "aks" },
+            "clusterCount": { "type": "integer", "minimum": 1 },
+            "controlPlaneNodes": { "type": "integer", "enum": [1, 3, 5] },
+            "controlPlaneVcpus": { "type": "integer", "minimum": 2 },
+            "controlPlaneMemory": { "type": "integer", "minimum": 4 },
+            "workerNodes": { "type": "integer", "minimum": 1 },
+            "workerVcpus": { "type": "integer", "minimum": 2 },
+            "workerMemory": { "type": "integer", "minimum": 4 },
+            "workerStorage": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["type", "workerNodes", "workerVcpus", "workerMemory"]
+        },
+        {
+          "title": "AVD workload",
+          "properties": {
+            "type": { "const": "avd" },
+            "profile": { "type": "string", "enum": ["light", "medium", "heavy", "power", "custom"] },
+            "userCount": { "type": "integer", "minimum": 1 },
+            "sessionType": { "type": "string", "enum": ["multi", "single"] },
+            "concurrency": { "type": "integer", "minimum": 1, "maximum": 100 },
+            "fslogix": { "type": "boolean" },
+            "fslogixSize": { "type": "integer", "minimum": 0, "description": "GB per user (when fslogix true)." },
+            "customVcpus": { "type": "number", "description": "Only when profile === 'custom'." },
+            "customMemory": { "type": "number", "description": "GB. Only when profile === 'custom'." },
+            "customStorage": { "type": "number", "description": "GB. Only when profile === 'custom'." }
+          },
+          "required": ["type", "profile", "userCount"]
+        },
+        {
+          "title": "Foundry Local workload",
+          "properties": {
+            "type": { "const": "foundry" },
+            "modelClass": { "type": "string", "enum": ["small", "medium", "large", "custom"] },
+            "replicas": { "type": "integer", "minimum": 1 },
+            "engine": { "type": "string", "enum": ["onnx-genai", "vllm"], "description": "vLLM is GPU-only (forces gpuMode 'dda')." },
+            "customVcpus": { "type": "integer", "description": "Only when modelClass === 'custom'." },
+            "customMemory": { "type": "integer", "description": "GB. Only when modelClass === 'custom'." },
+            "customStorage": { "type": "integer", "description": "GB. Only when modelClass === 'custom'." }
+          },
+          "required": ["type", "modelClass", "replicas", "engine"]
+        },
+        {
+          "title": "Edge RAG workload",
+          "properties": {
+            "type": { "const": "edgerag" },
+            "computeMode": { "type": "string", "enum": ["gpu", "cpu"], "description": "'gpu' deploys 4 GPU VMs (forces gpuMode 'dda'); 'cpu' deploys 4 CPU-only VMs." },
+            "corpusGB": { "type": "integer", "minimum": 1, "description": "Document corpus size in GB; drives vector-DB storage estimate." }
+          },
+          "required": ["type", "computeMode", "corpusGB"]
+        },
+        {
+          "title": "AI Video Indexer workload",
+          "properties": {
+            "type": { "const": "videoindexer" },
+            "configuration": { "type": "string", "enum": ["minimum", "recommended"], "description": "Microsoft's published cluster-wide sizing tiers." }
+          },
+          "required": ["type", "configuration"]
+        }
+      ]
+    }
+  }
+}
