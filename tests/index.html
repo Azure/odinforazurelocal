@@ -10498,6 +10498,33 @@
             return results;
         })());
 
+        // Group J — totals-banner capacity formatter (GB → TB rollover)
+        testSuite('RVTools: capacity formatter rolls GB over 10000 to TB (Group J)', 'sizer.js', (() => {
+            var results = [];
+
+            // 30. small figure stays in GB
+            results.push(assert(rvtoolsFormatCapacity(5000) === '<strong>5000</strong> GB',
+                'rvtoolsFormatCapacity(5000) → "<strong>5000</strong> GB"', '<strong>5000</strong> GB', rvtoolsFormatCapacity(5000)));
+
+            // 31. exactly 10000 stays in GB (threshold is strictly greater-than)
+            results.push(assert(rvtoolsFormatCapacity(10000) === '<strong>10000</strong> GB',
+                'rvtoolsFormatCapacity(10000) → still GB (boundary)', '<strong>10000</strong> GB', rvtoolsFormatCapacity(10000)));
+
+            // 32. above 10000 rolls down to whole TB (floor)
+            results.push(assert(rvtoolsFormatCapacity(31434) === '<strong>30</strong> TB',
+                'rvtoolsFormatCapacity(31434) → "<strong>30</strong> TB" (floored)', '<strong>30</strong> TB', rvtoolsFormatCapacity(31434)));
+
+            // 33. just over the threshold still converts
+            results.push(assert(rvtoolsFormatCapacity(10241) === '<strong>10</strong> TB',
+                'rvtoolsFormatCapacity(10241) → "<strong>10</strong> TB"', '<strong>10</strong> TB', rvtoolsFormatCapacity(10241)));
+
+            // 34. non-numeric / zero → 0 GB
+            results.push(assert(rvtoolsFormatCapacity(undefined) === '<strong>0</strong> GB',
+                'rvtoolsFormatCapacity(undefined) → "<strong>0</strong> GB"', '<strong>0</strong> GB', rvtoolsFormatCapacity(undefined)));
+
+            return results;
+        })());
+
         // ========================================================================
         // FINAL SUMMARY
         // ========================================================================

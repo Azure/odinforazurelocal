@@ -7357,6 +7357,17 @@ function rvtoolsIsPoweredOn(row) {
     return String(row.Powerstate).trim().toLowerCase() === 'poweredon';
 }
 
+// Format an aggregate capacity (GB) for the totals banner. Large figures
+// (> 10000 GB) are rolled down to whole TB for readability; smaller figures
+// stay in GB. Returns a bold-wrapped value plus its unit.
+function rvtoolsFormatCapacity(gb) {
+    var n = Number(gb) || 0;
+    if (n > 10000) {
+        return '<strong>' + Math.floor(n / 1024) + '</strong> TB';
+    }
+    return '<strong>' + n + '</strong> GB';
+}
+
 // Pure transform: take extracted RVTools sheets + options, return a structured
 // result the UI applies. Never throws on a missing vInfo — it returns a warning
 // the caller surfaces as a friendly message.
@@ -8356,7 +8367,7 @@ function readRVToolsOptions() {
     var clusterRadio = document.querySelector('input[name="rvtools-cluster"]:checked');
     return {
         storageSource: storageRadio ? storageRadio.value : 'provisioned',
-        mode: modeRadio ? modeRadio.value : 'grouped',
+        mode: modeRadio ? modeRadio.value : 'per-vm',
         includePoweredOff: !!(poweredOff && poweredOff.checked),
         cluster: clusterRadio ? clusterRadio.value : null
     };
@@ -8372,7 +8383,7 @@ function renderRVToolsPreview(result, keepSelection) {
     var prev = keepSelection ? readRVToolsOptions() : null;
     var selectedCluster = prev && prev.cluster ? prev.cluster : (result.clusters[0] ? result.clusters[0].name : null);
     var storageSource = prev ? prev.storageSource : 'provisioned';
-    var mode = prev ? prev.mode : 'grouped';
+    var mode = prev ? prev.mode : 'per-vm';
     var includePoweredOff = prev ? prev.includePoweredOff : false;
 
     var t = result.totals;
@@ -8380,7 +8391,7 @@ function renderRVToolsPreview(result, keepSelection) {
     html += '<div class="rvtools-totals">Found <strong>' + t.vmCount + '</strong> VM' + (t.vmCount !== 1 ? 's' : '')
         + ' across <strong>' + t.clusterCount + '</strong> cluster' + (t.clusterCount !== 1 ? 's' : '')
         + (t.hostCount ? ' / <strong>' + t.hostCount + '</strong> host' + (t.hostCount !== 1 ? 's' : '') : '')
-        + ' — <strong>' + t.vcpus + '</strong> vCPU, <strong>' + t.memoryGB + '</strong> GB RAM, <strong>' + t.storageGB + '</strong> GB storage total.'
+        + ' — <strong>' + t.vcpus + '</strong> vCPU, ' + rvtoolsFormatCapacity(t.memoryGB) + ' RAM, ' + rvtoolsFormatCapacity(t.storageGB) + ' storage total.'
         + '<br><span style="color: var(--text-secondary);">Pick one source cluster to size below.</span></div>';
 
     html += '<div class="rvtools-table-wrap"><table class="rvtools-table"><thead><tr>'
@@ -8403,9 +8414,9 @@ function renderRVToolsPreview(result, keepSelection) {
     html += '</tbody></table></div>';
 
     html += '<div class="rvtools-options">'
-        + '<fieldset><legend>Consolidation</legend>'
-        + '<label><input type="radio" name="rvtools-mode" value="grouped"' + (mode === 'grouped' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> Group by VM size (recommended)</label>'
+        + '<fieldset><legend>Workload Entries - Consolidation</legend>'
         + '<label><input type="radio" name="rvtools-mode" value="per-vm"' + (mode === 'per-vm' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> One workload per VM <span style="color: var(--text-secondary);">(reads VM names)</span></label>'
+        + '<label><input type="radio" name="rvtools-mode" value="grouped"' + (mode === 'grouped' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> One entry per VM size <span style="color: var(--text-secondary);">(grouped)</span></label>'
         + '</fieldset>'
         + '<fieldset><legend>Storage figure</legend>'
         + '<label><input type="radio" name="rvtools-storage" value="provisioned"' + (storageSource === 'provisioned' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> Provisioned</label>'
