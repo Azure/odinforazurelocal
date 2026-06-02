@@ -10303,6 +10303,49 @@
             return results;
         })());
 
+        // Group D2 — multi-cluster consolidation (clusters: array)
+        testSuite('RVTools: multi-cluster consolidation (Group D2)', 'sizer.js', (() => {
+            var results = [];
+
+            // grouped, ProdCluster + DevCluster → bands merge across clusters:
+            // 4/8 ×2 (app-01, app-02), 8/32 ×1 (db-01), 2/4 ×1 (dev-01) = 3 bands
+            var rg = transformRVToolsRows({ vInfo: rvtFixture() },
+                { storageSource: 'provisioned', mode: 'grouped', clusters: ['ProdCluster', 'DevCluster'], includePoweredOff: false });
+            results.push(assert(rg.workloads.length === 3,
+                'multi-cluster grouped → 3 merged bands (4/8, 8/32, 2/4)', 3, rg.workloads.length));
+            var mBand48 = rg.workloads.filter(function (w) { return w.vcpus === 4 && w.memory === 8; })[0];
+            results.push(assert(mBand48 && mBand48.count === 2,
+                'multi-cluster grouped → 4/8 band still count 2 (Prod app-01/app-02)', 2, mBand48 && mBand48.count));
+            var mBand24 = rg.workloads.filter(function (w) { return w.vcpus === 2 && w.memory === 4; })[0];
+            results.push(assert(!!mBand24,
+                'multi-cluster grouped → DevCluster 2/4 band present', true, !!mBand24));
+
+            // per-VM, both clusters → 4 individual workloads (app-01/02, db-01, dev-01)
+            var rp = transformRVToolsRows({ vInfo: rvtFixture() },
+                { storageSource: 'provisioned', mode: 'per-vm', clusters: ['ProdCluster', 'DevCluster'], includePoweredOff: false });
+            results.push(assert(rp.workloads.length === 4,
+                'multi-cluster per-VM → 4 workloads concatenated', 4, rp.workloads.length));
+            results.push(assert(rp.workloads.some(function (w) { return w.name === 'dev-01'; })
+                && rp.workloads.some(function (w) { return w.name === 'app-01'; }),
+                'multi-cluster per-VM → includes VMs from both clusters', true,
+                rp.workloads.some(function (w) { return w.name === 'dev-01'; })
+                && rp.workloads.some(function (w) { return w.name === 'app-01'; })));
+
+            // single-element clusters array matches legacy `cluster` string behaviour
+            var rOne = transformRVToolsRows({ vInfo: rvtFixture() },
+                { storageSource: 'provisioned', mode: 'grouped', clusters: ['DevCluster'], includePoweredOff: false });
+            results.push(assert(rOne.workloads.length === 1,
+                'clusters: ["DevCluster"] → 1 band (2/4), excludes ProdCluster', 1, rOne.workloads.length));
+
+            // empty clusters array → falls back to all included rows (no filter)
+            var rAll = transformRVToolsRows({ vInfo: rvtFixture() },
+                { storageSource: 'provisioned', mode: 'per-vm', clusters: [], includePoweredOff: false });
+            results.push(assert(rAll.workloads.length === 4,
+                'clusters: [] → no filter, all 4 powered-on non-template VMs', 4, rAll.workloads.length));
+
+            return results;
+        })());
+
         // Group E — error / edge paths
         testSuite('RVTools: error & edge paths (Group E)', 'sizer.js', (() => {
             var results = [];

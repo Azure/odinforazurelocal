@@ -15,7 +15,8 @@ Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTool
 
 - **RVTools import tab + toolbar button** in the Sizer ([`sizer/index.html`](sizer/index.html), [`sizer/sizer.js`](sizer/sizer.js)). A third tab in the Import dialog and a dedicated **📊 RVTools** toolbar button accept a standard RVTools *all* export (`.xlsx`).
 - **Vendored SheetJS Community 0.20.3** under [`vendor/`](vendor/) for reading `.xlsx`. It is **lazy-loaded** only when the RVTools tab is first opened (never a static `<script>` on the live site), and its SHA-256 is pinned and verified Node-side by [`scripts/run-tests.js`](scripts/run-tests.js) on every run.
-- **Pure RVTools transform** in [`sizer/sizer.js`](sizer/sizer.js): `transformRVToolsRows(sheets, options)` plus helpers `rvtoolsMiBToGB()`, `rvtoolsIsTemplate()`, `rvtoolsIsPoweredOn()`, `buildGroupedWorkloads()`, `buildPerVMWorkloads()`, `sanitiseClusterName()`, and `isValidClusterName()`. Reads `vInfo` (and `vCluster` / `vHost` when present), summarises each detected source cluster (VM count, vCPU, memory, storage, host count), and lets the user import **one** cluster into the single-cluster Sizer with a totals banner for the full file.
+- **Pure RVTools transform** in [`sizer/sizer.js`](sizer/sizer.js): `transformRVToolsRows(sheets, options)` plus helpers `rvtoolsMiBToGB()`, `rvtoolsIsTemplate()`, `rvtoolsIsPoweredOn()`, `buildGroupedWorkloads()`, `buildPerVMWorkloads()`, `sanitiseClusterName()`, and `isValidClusterName()`. Reads `vInfo` (and `vCluster` / `vHost` when present), summarises each detected source cluster (VM count, vCPU, memory, storage, host count), and lets the user import **one or more** clusters into the single-cluster Sizer with a totals banner for the full file.
+- **Multi-cluster consolidation** — the source-cluster picker uses checkboxes, so selecting two or more clusters **combines their VMs into one Sizer cluster** (`transformRVToolsRows` takes a `clusters` array). In Grouped mode, matching size classes merge across clusters into a single banded workload; in Per-VM mode the lists concatenate. When several clusters are consolidated, the Cluster Name field is seeded with a generic **`Consolidated`** placeholder instead of a single source name.
 - **Two consolidation modes** — **Grouped** (default) bands VMs by size class (vCPU / RAM) into one workload per band; **Per-VM** creates one workload per source VM. Individual VM names are surfaced **only** in Per-VM mode; Grouped band names describe the spec (e.g. *4 vCPU / 8 GB ×12*) and never a VM name.
 - **Storage source + power-state options** — choose **Provisioned** or **In Use** disk as the storage basis and optionally include powered-off VMs; RVTools templates are always excluded.
 - **Editable Cluster Name field** in the Sizer (`#cluster-name`, validated by `isValidClusterName()` / `onClusterNameInput()`). Seeded from the imported source-cluster name (sanitised to failover-cluster / NetBIOS rules) and carried through **Sizer → Designer → ARM** (`getSizerState`, `sizerPayload`, [`js/script.js`](js/script.js) `generateArmParameters()`, read back by [`arm/arm.js`](arm/arm.js)).
@@ -37,9 +38,9 @@ Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTool
 
 ### Tests
 
-- New *RVTools Excel Import* suite in [`tests/index.html`](tests/index.html) — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through invariant + field UI, list compaction) plus the Node-side vendor-integrity gate.
+- New *RVTools Excel Import* suite in [`tests/index.html`](tests/index.html) — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through invariant + field UI, list compaction) plus a multi-cluster consolidation group and the Node-side vendor-integrity gate.
 - New *Node loop overhead alignment (Cluster014 regression)* suite locking the high-memory host-reservation math (123 GB reserve at 1536 GB/node; 2 nodes rejected at 95%, 3 nodes accepted at 47%).
-- ESLint clean; HTML validation clean; full suite passes **1,307 / 1,307**.
+- ESLint clean; HTML validation clean; full suite passes **1,314 / 1,314**.
 
 ---
 

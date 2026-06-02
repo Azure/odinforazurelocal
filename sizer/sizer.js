@@ -7402,7 +7402,13 @@ function transformRVToolsRows(sheets, options) {
     var includePoweredOff = !!options.includePoweredOff;
     var storageKey = options.storageSource === 'inuse' ? 'In Use MiB' : 'Provisioned MiB';
     var mode = options.mode === 'per-vm' ? 'per-vm' : 'grouped';
-    var selectedCluster = (typeof options.cluster === 'string' && options.cluster) ? options.cluster : null;
+    // Accept either `clusters` (array, multi-select) or legacy `cluster` (string).
+    var selectedClusters = null;
+    if (Array.isArray(options.clusters) && options.clusters.length) {
+        selectedClusters = options.clusters.slice();
+    } else if (typeof options.cluster === 'string' && options.cluster) {
+        selectedClusters = [options.cluster];
+    }
 
     var warnings = [];
     var vInfo = sheets && sheets.vInfo;
@@ -7464,14 +7470,15 @@ function transformRVToolsRows(sheets, options) {
         storageGB: clusters.reduce(function(s, c) { return s + c.storageGB; }, 0)
     };
 
-    // Rows that become workloads: only the selected cluster's VMs (pick-one).
-    // If no cluster is selected, fall back to all included rows (used by tests
-    // and the combined preview), matching the UI which always selects one.
-    var workloadRows = selectedCluster
+    // Rows that become workloads: VMs from the selected cluster(s). Two or more
+    // clusters are consolidated into a single Sizer cluster (grouped bands merge
+    // by size class; per-VM lists concatenate). If nothing is selected, fall back
+    // to all included rows (used by tests and the combined preview).
+    var workloadRows = selectedClusters
         ? included.filter(function(row) {
             var cname = (row.Cluster === undefined || row.Cluster === null || row.Cluster === '')
                 ? '(no cluster)' : String(row.Cluster);
-            return cname === selectedCluster;
+            return selectedClusters.indexOf(cname) !== -1;
         })
         : included;
 
@@ -8404,12 +8411,12 @@ function readRVToolsOptions() {
     var storageRadio = document.querySelector('input[name="rvtools-storage"]:checked');
     var modeRadio = document.querySelector('input[name="rvtools-mode"]:checked');
     var poweredOff = document.getElementById('rvtools-powered-off');
-    var clusterRadio = document.querySelector('input[name="rvtools-cluster"]:checked');
+    var clusterChecks = document.querySelectorAll('input[name="rvtools-cluster"]:checked');
     return {
         storageSource: storageRadio ? storageRadio.value : 'provisioned',
         mode: modeRadio ? modeRadio.value : 'per-vm',
         includePoweredOff: !!(poweredOff && poweredOff.checked),
-        cluster: clusterRadio ? clusterRadio.value : null
+        clusters: Array.prototype.map.call(clusterChecks, function(el) { return el.value; })
     };
 }
 
@@ -8421,7 +8428,9 @@ function renderRVToolsPreview(result, keepSelection) {
     if (!previewDiv) return;
 
     var prev = keepSelection ? readRVToolsOptions() : null;
-    var selectedCluster = prev && prev.cluster ? prev.cluster : (result.clusters[0] ? result.clusters[0].name : null);
+    var selectedClusters = prev && prev.clusters && prev.clusters.length
+        ? prev.clusters
+        : (result.clusters[0] ? [result.clusters[0].name] : []);
     var storageSource = prev ? prev.storageSource : 'provisioned';
     var mode = prev ? prev.mode : 'per-vm';
     var includePoweredOff = prev ? prev.includePoweredOff : false;
@@ -8432,7 +8441,7 @@ function renderRVToolsPreview(result, keepSelection) {
         + ' across <strong>' + t.clusterCount + '</strong> cluster' + (t.clusterCount !== 1 ? 's' : '')
         + (t.hostCount ? ' / <strong>' + t.hostCount + '</strong> host' + (t.hostCount !== 1 ? 's' : '') : '')
         + ' — <strong>' + t.vcpus + '</strong> vCPU, ' + rvtoolsFormatCapacity(t.memoryGB) + ' RAM, ' + rvtoolsFormatCapacity(t.storageGB) + ' storage total.'
-        + '<br><span style="color: var(--text-secondary);">Pick one source cluster to size below.</span></div>';
+        + '<br><span style="color: var(--text-secondary);">Pick one or more source clusters to size below — selecting several consolidates their workloads into one cluster.</span></div>';
 
     html += '<div class="rvtools-table-wrap"><table class="rvtools-table"><thead><tr>'
         + '<th></th><th>Source cluster</th><th class="num">VMs</th><th class="num">Hosts</th>'
@@ -8440,9 +8449,9 @@ function renderRVToolsPreview(result, keepSelection) {
         + '</tr></thead><tbody>';
     result.clusters.forEach(function(c, i) {
         var id = 'rvtools-cluster-' + i;
-        var checked = (c.name === selectedCluster) ? ' checked' : '';
+        var checked = (selectedClusters.indexOf(c.name) !== -1) ? ' checked' : '';
         html += '<tr>'
-            + '<td><input type="radio" name="rvtools-cluster" id="' + id + '" value="' + escapeHtml(c.name) + '"' + checked + '></td>'
+            + '<td><input type="checkbox" name="rvtools-cluster" id="' + id + '" value="' + escapeHtml(c.name) + '"' + checked + ' onchange="refreshRVToolsPreview()"></td>'
             + '<td><label for="' + id + '">' + escapeHtml(c.name) + '</label></td>'
             + '<td class="num">' + c.vmCount + '</td>'
             + '<td class="num">' + (c.hostCount || '—') + '</td>'
@@ -8476,18 +8485,18 @@ function renderRVToolsPreview(result, keepSelection) {
 function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     if (!_rvtoolsSheets) return;
     var opts = readRVToolsOptions();
-    if (!opts.cluster) {
-        _showRVToolsError('Select a source cluster to import.');
+    if (!opts.clusters.length) {
+        _showRVToolsError('Select at least one source cluster to import.');
         return;
     }
     var result = transformRVToolsRows(_rvtoolsSheets, {
         mode: opts.mode,
         storageSource: opts.storageSource,
         includePoweredOff: opts.includePoweredOff,
-        cluster: opts.cluster
+        clusters: opts.clusters
     });
     if (!result.workloads.length) {
-        _showRVToolsError('The selected cluster has no VMs to import with the current options.');
+        _showRVToolsError('The selected cluster' + (opts.clusters.length !== 1 ? 's have' : ' has') + ' no VMs to import with the current options.');
         return;
     }
 
@@ -8502,26 +8511,35 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
         trackFormCompletion('sizerCalculation');
     }
 
-    // Seed the cluster-name field from the source cluster name (sanitised to
-    // the failover-cluster naming rules). Fill it when blank, or refresh it when
-    // it still holds a value WE auto-populated from a previous import — but never
-    // clobber a name the user typed themselves. Issue #230.
+    // Seed the cluster-name field. For a single source cluster, use its name
+    // (sanitised to failover-cluster rules); for a multi-cluster consolidation
+    // use a generic "Consolidated" placeholder. Fill it when blank, or refresh it
+    // when it still holds a value WE auto-populated from a previous import — but
+    // never clobber a name the user typed themselves. Issue #230.
     var nameInput = document.getElementById('cluster-name');
-    if (nameInput && opts.cluster !== '(no cluster)') {
-        var currentName = nameInput.value.trim();
-        var ourPriorAutoName = _rvtoolsAutoClusterName;
-        if (currentName === '' || currentName === ourPriorAutoName) {
-            var candidate = sanitiseClusterName(opts.cluster);
-            if (candidate) {
-                nameInput.value = candidate;
-                _rvtoolsAutoClusterName = candidate;
-                onClusterNameInput();
+    if (nameInput) {
+        var seedSource = null;
+        if (opts.clusters.length === 1 && opts.clusters[0] !== '(no cluster)') {
+            seedSource = opts.clusters[0];
+        } else if (opts.clusters.length > 1) {
+            seedSource = 'Consolidated';
+        }
+        if (seedSource) {
+            var currentName = nameInput.value.trim();
+            var ourPriorAutoName = _rvtoolsAutoClusterName;
+            if (currentName === '' || currentName === ourPriorAutoName) {
+                var candidate = sanitiseClusterName(seedSource);
+                if (candidate) {
+                    nameInput.value = candidate;
+                    _rvtoolsAutoClusterName = candidate;
+                    onClusterNameInput();
+                }
             }
         }
     }
 
     var importedCount = result.workloads.length;
-    var clusterLabel = opts.cluster;
+    var clusterLabel = opts.clusters.join(', ');
 
     // Default the growth buffer to 10% for RVTools imports so the sized hardware
     // carries headroom — but only if the user hasn't already chosen a value
@@ -8555,9 +8573,13 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     if (summary) {
         var modeLabel = opts.mode === 'per-vm' ? 'one workload per VM' : 'grouped by VM size';
         var storageLabel = opts.storageSource === 'inuse' ? 'in-use' : 'provisioned';
+        var clusterCount = opts.clusters.length;
+        var sourceLabel = clusterCount > 1
+            ? clusterCount + ' source clusters consolidated (<strong>"' + escapeHtml(clusterLabel) + '"</strong>)'
+            : 'source cluster <strong>"' + escapeHtml(clusterLabel) + '"</strong>';
         summary.innerHTML = 'Imported <strong>' + importedCount + '</strong> workload' + (importedCount !== 1 ? 's' : '')
             + ' (<strong>' + impVms + '</strong> VM' + (impVms !== 1 ? 's' : '') + ', ' + modeLabel + ')'
-            + ' from <strong>"' + escapeHtml(clusterLabel) + '"</strong>.'
+            + ' from ' + sourceLabel + '.'
             + '<br>Totals: <strong>' + impVcpus + '</strong> vCPU, <strong>' + impMemGB + '</strong> GB RAM, <strong>'
             + impStorageGB + '</strong> GB ' + storageLabel + ' storage.'
             + (growthApplied
@@ -8568,7 +8590,7 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     if (postOverlay) postOverlay.style.display = 'flex';
 
     showToast('Imported ' + importedCount + ' workload' + (importedCount !== 1 ? 's' : '')
-        + ' from "' + escapeHtml(clusterLabel) + '"', 'success');
+        + ' from ' + (opts.clusters.length > 1 ? opts.clusters.length + ' clusters' : '"' + escapeHtml(clusterLabel) + '"'), 'success');
 }
 
 function closeRVToolsPostImport() { // eslint-disable-line no-unused-vars
