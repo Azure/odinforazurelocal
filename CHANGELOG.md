@@ -24,6 +24,7 @@ Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTool
 
 - **Workloads list switches to a denser, scrollable layout** when more than 5 workloads are present (e.g. after a per-VM import) so it stays scannable — `renderWorkloads()` toggles a `.compact` class.
 - **Sizer summary-box and capacity headings clarified** — the workload summary boxes are relabelled (*Total* → *Required*, plus a *Number of Workloads* box) and the capacity-usage heading reworded, so the right-hand panel reads consistently after a multi-workload import.
+- **Per-node requirements heading now states the overcommit ratio** — the *Hardware Requirements Summary* heading reads *Workload Per-Node Requirements (with N+1) and X:1 vCPU Overcommit Ratio*, where `X:1` reflects the ratio currently set in Advanced Settings (also carried into the report/Markdown export).
 - **Centered Odin dark logo added above the README title** for clearer project branding.
 
 ### Fixed
