@@ -2701,7 +2701,7 @@ function generateArmParameters() {
         // Apply the carried cluster name to whichever template branch was built
         // (each branch seeds clusterName with the REPLACE_WITH_CLUSTER_NAME
         // placeholder; override it when a valid name came through from the Sizer).
-        if (parameters && parameters.clusterName && clusterNameForArm !== 'REPLACE_WITH_CLUSTER_NAME') {
+        if (clusterNameForArm !== 'REPLACE_WITH_CLUSTER_NAME') {
             parameters.clusterName.value = clusterNameForArm;
         }
 
