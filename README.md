@@ -52,15 +52,16 @@ A comprehensive web-based wizard to help design and configure Azure Local (forme
 
 ### 🎉 Version 0.22.61 - Latest Release
 
-> **Documents ODIN's export/import format as machine-readable JSON Schemas and hardens the importers** (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 JSON Schemas plus import-side hardening and schema-drift tests, all offline and dependency-free.
+> **Documents ODIN's export/import format as machine-readable JSON Schemas and hardens the importers** (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 JSON Schemas plus import-side hardening and schema-drift tests, all offline and dependency-free. Also bundles a handful of Sizer import/reset UX fixes found while testing.
 
-> **In progress** — this release is being built out. The items below describe the planned scope.
-
-**What's planned**
-- **Two JSON Schemas** under `docs/json-schema/` — `odin-design.schema.json` (Designer `{ version, exportedAt, state }`) and `odin-sizer.schema.json` (Sizer `{ _meta, data }`, with a `workloads[]` model discriminated by workload `type`). Both are draft-07, permissive/forward-compatible, with rich `title`/`description` so each schema doubles as documentation.
+**What's new**
+- **Two JSON Schemas** under `docs/json-schema/` — `odin-design.schema.json` (Designer `{ version, exportedAt, state }`) and `odin-sizer.schema.json` (Sizer `{ _meta, data }`, with a `workloads[]` model discriminated by workload `type`). Both are draft-07, permissive/forward-compatible, with rich `title`/`description` so each schema doubles as documentation. Published on GitHub Pages so they can be referenced by URL in a `"$schema"` key.
 - **Format docs** (`docs/json-schema/README.md`) — both envelopes side by side, required vs optional fields, an annotated example each, and how to validate an ODIN export from CI / Terraform / any language (ajv, python-jsonschema, or VS Code `$schema`) with no ODIN code required.
 - **Schema-drift CI tests** — assert every Designer `getInitialWizardState()` key and every Sizer `getSizerState()` key matches its schema (both directions), so the schemas can't silently rot as ODIN evolves.
 - **Import hardening** — prototype-pollution guard in the Designer importer, dangerous-key guard + `workloads[]` shape validation in the Sizer importer, with non-blocking warnings for unknown fields so existing files keep working.
+- **Sizer JSON-import confirmation** — importing a Sizer Configuration JSON file now shows a success toast (cluster name + workload count), matching the Azure Local Instance and RVTools import flows that previously were the only ones giving feedback.
+- **RVTools picker no longer forces a selection** — after parsing an RVTools export, the cluster picker starts with nothing selected and lets you clear the last ticked cluster (it used to auto-select the first cluster and spring back).
+- **Sizer Reset fully clears Disaggregated Storage** — resetting from a Disaggregated Storage config now hides the *Number of Racks* / *Storage Connectivity* rows and re-enables the S2D fields instead of leaving them behind.
 - **Version-constant sync** — bumps the stale `WIZARD_VERSION` and adds both `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift.
 
 > **Full Version History**: See [Appendix A - Version History](#appendix-a---version-history) for complete release notes.

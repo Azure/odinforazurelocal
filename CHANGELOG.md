@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.22.61] - 2026-06-02
 
-Documents ODIN's export/import format as machine-readable **JSON Schemas** and hardens the importers (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 schemas plus import hardening and schema-drift tests, all offline and dependency-free. *In progress — scope below.*
+Documents ODIN's export/import format as machine-readable **JSON Schemas** and hardens the importers (issue #237). ODIN has two independent export/import surfaces — the **Designer** and the **Sizer** — each with its own envelope and payload, so this adds **two** draft-07 schemas plus import hardening and schema-drift tests, all offline and dependency-free. Also bundles a handful of Sizer import/reset UX fixes found while testing.
 
 ### Added
 
