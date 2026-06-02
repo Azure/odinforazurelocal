@@ -10562,6 +10562,7 @@
             applyBtn.style.display = '';
             document.getElementById('rvtools-status').textContent = 'Reading...';
             window._rvtoolsSheets = { vInfo: [{ VM: 'x' }] };
+            window._rvtoolsAutoClusterName = 'Cluster003';
 
             resetRVToolsImport();
 
@@ -10577,6 +10578,10 @@
             // 40. held workbook discarded
             results.push(assert(window._rvtoolsSheets === null,
                 'resetRVToolsImport → _rvtoolsSheets cleared', null, window._rvtoolsSheets));
+
+            // 41. auto-populated cluster-name tracking cleared
+            results.push(assert(window._rvtoolsAutoClusterName === '',
+                'resetRVToolsImport → _rvtoolsAutoClusterName cleared', '', window._rvtoolsAutoClusterName));
 
             // Clean up stub DOM.
             ids.forEach(function (id) {

@@ -8269,6 +8269,11 @@ function closePostImportOverlay() { // eslint-disable-line no-unused-vars
 // apply. Never persisted.
 var _rvtoolsSheets = null;
 
+// Last cluster-name value WE auto-populated from an RVTools import. Lets a
+// subsequent import refresh the field to the newly-selected cluster, while
+// still never clobbering a name the user typed themselves. Issue #230.
+var _rvtoolsAutoClusterName = '';
+
 function triggerRVToolsFilePicker() { // eslint-disable-line no-unused-vars
     var input = document.getElementById('rvtools-file');
     if (input) {
@@ -8281,6 +8286,7 @@ function triggerRVToolsFilePicker() { // eslint-disable-line no-unused-vars
 // preview never lingers (e.g. after the Reset button or a fresh import).
 function resetRVToolsImport() {
     _rvtoolsSheets = null;
+    _rvtoolsAutoClusterName = '';
     var input = document.getElementById('rvtools-file');
     if (input) input.value = '';
     var previewDiv = document.getElementById('rvtools-preview');
@@ -8485,14 +8491,20 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     }
 
     // Seed the cluster-name field from the source cluster name (sanitised to
-    // the failover-cluster naming rules). Only fill it if currently blank so we
-    // never clobber a name the user already typed.
+    // the failover-cluster naming rules). Fill it when blank, or refresh it when
+    // it still holds a value WE auto-populated from a previous import — but never
+    // clobber a name the user typed themselves. Issue #230.
     var nameInput = document.getElementById('cluster-name');
-    if (nameInput && !nameInput.value.trim() && opts.cluster !== '(no cluster)') {
-        var candidate = sanitiseClusterName(opts.cluster);
-        if (candidate) {
-            nameInput.value = candidate;
-            onClusterNameInput();
+    if (nameInput && opts.cluster !== '(no cluster)') {
+        var currentName = nameInput.value.trim();
+        var ourPriorAutoName = _rvtoolsAutoClusterName;
+        if (currentName === '' || currentName === ourPriorAutoName) {
+            var candidate = sanitiseClusterName(opts.cluster);
+            if (candidate) {
+                nameInput.value = candidate;
+                _rvtoolsAutoClusterName = candidate;
+                onClusterNameInput();
+            }
         }
     }
 
@@ -8847,6 +8859,13 @@ function resetScenario() {
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
+
+    // Clear the editable cluster-name field and its inline validation hint.
+    var clusterNameInput = document.getElementById('cluster-name');
+    if (clusterNameInput) {
+        clusterNameInput.value = '';
+        onClusterNameInput();
+    }
 
     // Clear any lingering RVTools import preview/state.
     resetRVToolsImport();
