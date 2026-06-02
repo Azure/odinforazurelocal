@@ -771,6 +771,21 @@ header .header-description {
     margin-bottom: 24px;
 }
 
+/* Issue #230: dense, scrollable variant used when there are many workload rows
+   (e.g. a one-workload-per-VM RVTools import). Keeps the list from pushing the
+   rest of the page far below the fold. */
+.workloads-list.compact {
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.workloads-list.compact .workload-card {
+    padding: 8px 12px;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
 .empty-state {
     display: flex;
     flex-direction: column;
@@ -1028,6 +1043,29 @@ header .header-description {
     opacity: 0.5;
     cursor: not-allowed;
     background: var(--select-disabled-bg, #0d0d0d);
+}
+
+/* Cluster Name text input — matches the select styling in this panel
+   (issue #230, carried Sizer → Designer → ARM). */
+.config-row input.cluster-name-input {
+    padding: 8px 12px;
+    background: var(--select-bg, #1a1a1a);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    min-width: 180px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.config-row input.cluster-name-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.config-row input.cluster-name-input.invalid {
+    border-color: var(--danger);
 }
 
 .config-row select option {
@@ -2151,4 +2189,85 @@ header .header-description {
     height: 14px;
     stroke: var(--accent-green);
     flex-shrink: 0;
+}
+
+/* RVTools import preview (issue #230) */
+.rvtools-totals {
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.rvtools-table-wrap {
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+}
+
+.rvtools-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.rvtools-table th,
+.rvtools-table td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.rvtools-table th {
+    position: sticky;
+    top: 0;
+    background: var(--subtle-bg);
+    color: var(--text-secondary);
+    font-weight: 600;
+    z-index: 1;
+}
+
+.rvtools-table td.num,
+.rvtools-table th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.rvtools-table tr:last-child td {
+    border-bottom: none;
+}
+
+.rvtools-options {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.rvtools-options fieldset {
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 0;
+}
+
+.rvtools-options legend {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0 6px;
+}
+
+.rvtools-options label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 16px;
+    cursor: pointer;
 }

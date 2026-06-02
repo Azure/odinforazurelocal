@@ -2435,6 +2435,7 @@ let isCalculating = false;
 function getSizerState() {
     return {
         clusterType: document.getElementById('cluster-type').value,
+        clusterName: (document.getElementById('cluster-name') || {}).value || '',
         disaggRackCount: (document.getElementById('disagg-rack-count') || {}).value || null,
         disaggStorageType: (document.getElementById('disagg-storage-type') || {}).value || null,
         disaggSpineCount: _designerSpineCount || 2,
@@ -2700,6 +2701,11 @@ function resumeSizerState() {
 
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
+    var clusterNameEl = document.getElementById('cluster-name');
+    if (clusterNameEl) {
+        clusterNameEl.value = d.clusterName || '';
+        if (typeof onClusterNameInput === 'function') onClusterNameInput();
+    }
     // Restore disaggregated rack count before updating node options
     if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
         var rackEl = document.getElementById('disagg-rack-count');
@@ -4592,6 +4598,13 @@ function renderWorkloads() {
     });
     
     container.innerHTML = html;
+    // Issue #230: when the list grows large (e.g. after an RVTools per-VM import),
+    // cap its height and switch to a denser layout so it stays scannable.
+    if (workloads.length > 5) {
+        container.classList.add('compact');
+    } else {
+        container.classList.remove('compact');
+    }
     updateHwGpuTypeLock();
 }
 
@@ -6927,6 +6940,8 @@ function selectRegionAndConfigure(region, cloud) {
     const sizerPayload = {
         source: 'sizer',
         timestamp: new Date().toISOString(),
+        // Cluster name (carried Sizer → Designer → ARM). Optional; may be ''.
+        clusterName: (document.getElementById('cluster-name') || {}).value || '',
         // Scenario: disconnected when ALDO or user chose disconnected
         scenario: isDisconnected ? 'disconnected' : 'connected',
         // Architecture: disaggregated or hyperconverged
@@ -7312,17 +7327,229 @@ function loadSizerFromURL() {
     return false;
 }
 
+// ============================================================================
+// RVTools import (issue #230) — pure transform + cluster-name helpers
+// ============================================================================
+// These functions are deliberately pure (no DOM, no globals) so they are unit
+// tested directly in tests/index.html. SheetJS turns the .xlsx binary into
+// plain row arrays (the `sheet_to_json` shape); everything below operates on
+// those already-extracted rows. Privacy: VM names are read ONLY in 'per-vm'
+// mode (opt-in); the default 'grouped' mode never puts a VM name anywhere.
+
+// Convert a mebibyte (MiB) value to whole gigabytes for Sizer workloads.
+// RVTools reports Memory / Provisioned MiB / In Use MiB in MiB. We divide by
+// 1024 and round to the nearest whole GB (minimum 1 so a workload is never 0).
+function rvtoolsMiBToGB(mib) {
+    var n = parseFloat(mib);
+    if (!isFinite(n) || n <= 0) return 0;
+    return Math.max(1, Math.round(n / 1024));
+}
+
+// Is this vInfo row an RVTools template? `Template` is an RVTools boolean
+// (is-this-a-template), surfaced as boolean true or the string "True".
+function rvtoolsIsTemplate(row) {
+    var t = row.Template;
+    return t === true || String(t).trim().toLowerCase() === 'true';
+}
+
+// Is this vInfo row powered on? RVTools uses "poweredOn" / "poweredOff".
+function rvtoolsIsPoweredOn(row) {
+    return String(row.Powerstate).trim().toLowerCase() === 'poweredon';
+}
+
+// Pure transform: take extracted RVTools sheets + options, return a structured
+// result the UI applies. Never throws on a missing vInfo — it returns a warning
+// the caller surfaces as a friendly message.
+//
+//   sheets  = { vInfo: [ {VM, Powerstate, Template, CPUs, Memory,
+//                         'Provisioned MiB', 'In Use MiB', Cluster, Host,
+//                         Datacenter}, ... ], vCluster?: [...], vHost?: [...] }
+//   options = { includePoweredOff: false, storageSource: 'provisioned'|'inuse',
+//               mode: 'grouped'|'per-vm', cluster: '<name>'|null }
+//
+// Returns { clusters, workloads, totals, warnings }.
+function transformRVToolsRows(sheets, options) {
+    options = options || {};
+    var includePoweredOff = !!options.includePoweredOff;
+    var storageKey = options.storageSource === 'inuse' ? 'In Use MiB' : 'Provisioned MiB';
+    var mode = options.mode === 'per-vm' ? 'per-vm' : 'grouped';
+    var selectedCluster = (typeof options.cluster === 'string' && options.cluster) ? options.cluster : null;
+
+    var warnings = [];
+    var vInfo = sheets && sheets.vInfo;
+    if (!Array.isArray(vInfo)) {
+        warnings.push('missing-vinfo');
+        return { clusters: [], workloads: [], totals: emptyRVToolsTotals(), warnings: warnings };
+    }
+
+    // Filter: drop templates always; drop powered-off unless asked to include.
+    var included = vInfo.filter(function(row) {
+        if (rvtoolsIsTemplate(row)) return false;
+        if (!includePoweredOff && !rvtoolsIsPoweredOn(row)) return false;
+        return true;
+    });
+
+    // Per-cluster summary (built from vInfo.Cluster alone — never depends on a
+    // vCluster sheet being present). Drives the preview table / picker.
+    var byCluster = {};
+    var clusterOrder = [];
+    included.forEach(function(row) {
+        var cname = (row.Cluster === undefined || row.Cluster === null || row.Cluster === '')
+            ? '(no cluster)' : String(row.Cluster);
+        if (!byCluster[cname]) {
+            byCluster[cname] = { name: cname, vmCount: 0, vcpus: 0, memoryGB: 0, storageGB: 0, hosts: {} };
+            clusterOrder.push(cname);
+        }
+        var c = byCluster[cname];
+        c.vmCount += 1;
+        c.vcpus += parseInt(row.CPUs, 10) || 0;
+        c.memoryGB += rvtoolsMiBToGB(row.Memory);
+        c.storageGB += rvtoolsMiBToGB(row[storageKey]);
+        if (row.Host !== undefined && row.Host !== null && row.Host !== '') {
+            c.hosts[String(row.Host)] = true;
+        }
+    });
+    var clusters = clusterOrder.map(function(name) {
+        var c = byCluster[name];
+        return {
+            name: c.name,
+            vmCount: c.vmCount,
+            vcpus: c.vcpus,
+            memoryGB: c.memoryGB,
+            storageGB: c.storageGB,
+            hostCount: Object.keys(c.hosts).length
+        };
+    });
+
+    // Totals across all included VMs (banner), independent of the selection.
+    var allHosts = {};
+    included.forEach(function(row) {
+        if (row.Host !== undefined && row.Host !== null && row.Host !== '') allHosts[String(row.Host)] = true;
+    });
+    var totals = {
+        clusterCount: clusters.length,
+        hostCount: Object.keys(allHosts).length,
+        vmCount: included.length,
+        vcpus: clusters.reduce(function(s, c) { return s + c.vcpus; }, 0),
+        memoryGB: clusters.reduce(function(s, c) { return s + c.memoryGB; }, 0),
+        storageGB: clusters.reduce(function(s, c) { return s + c.storageGB; }, 0)
+    };
+
+    // Rows that become workloads: only the selected cluster's VMs (pick-one).
+    // If no cluster is selected, fall back to all included rows (used by tests
+    // and the combined preview), matching the UI which always selects one.
+    var workloadRows = selectedCluster
+        ? included.filter(function(row) {
+            var cname = (row.Cluster === undefined || row.Cluster === null || row.Cluster === '')
+                ? '(no cluster)' : String(row.Cluster);
+            return cname === selectedCluster;
+        })
+        : included;
+
+    var workloads = mode === 'per-vm'
+        ? buildPerVMWorkloads(workloadRows, storageKey)
+        : buildGroupedWorkloads(workloadRows, storageKey);
+
+    return { clusters: clusters, workloads: workloads, totals: totals, warnings: warnings };
+}
+
+function emptyRVToolsTotals() {
+    return { clusterCount: 0, hostCount: 0, vmCount: 0, vcpus: 0, memoryGB: 0, storageGB: 0 };
+}
+
+// One workload per VM (opt-in). The workload NAME is the source VM name — the
+// single place VM names are read into Sizer state. Stays client-side only.
+function buildPerVMWorkloads(rows, storageKey) {
+    return rows.map(function(row) {
+        return {
+            type: 'vm',
+            name: String(row.VM === undefined || row.VM === null ? '' : row.VM),
+            inputMode: 'per-vm',
+            vcpus: parseInt(row.CPUs, 10) || 1,
+            memory: rvtoolsMiBToGB(row.Memory),
+            storage: rvtoolsMiBToGB(row[storageKey]),
+            count: 1
+        };
+    });
+}
+
+// Grouped by VM size class (default). VMs band by (vCPU, RAM GB); each band is
+// one workload named after its characteristics — never a VM name. Storage per
+// VM is the band average (rounded) so count × storage ≈ band total.
+function buildGroupedWorkloads(rows, storageKey) {
+    var bands = {};
+    var order = [];
+    rows.forEach(function(row) {
+        var vcpus = parseInt(row.CPUs, 10) || 1;
+        var memGB = rvtoolsMiBToGB(row.Memory);
+        var key = vcpus + '|' + memGB;
+        if (!bands[key]) {
+            bands[key] = { vcpus: vcpus, memory: memGB, count: 0, storageTotal: 0 };
+            order.push(key);
+        }
+        bands[key].count += 1;
+        bands[key].storageTotal += rvtoolsMiBToGB(row[storageKey]);
+    });
+    return order.map(function(key) {
+        var b = bands[key];
+        var perVMStorage = Math.max(1, Math.round(b.storageTotal / b.count));
+        return {
+            type: 'vm',
+            name: b.vcpus + ' vCPU / ' + b.memory + ' GB \u00d7' + b.count,
+            inputMode: 'per-vm',
+            vcpus: b.vcpus,
+            memory: b.memory,
+            storage: perVMStorage,
+            count: b.count
+        };
+    });
+}
+
+// --- Cluster name sanitiser + validator (shared with the ARM field) ---------
+// Windows failover cluster / NetBIOS rules: 1–15 chars, letters/numbers/hyphen,
+// not all-numeric, no leading/trailing hyphen.
+
+// Map a raw (e.g. VMware) cluster name to a valid candidate: replace illegal
+// chars with '-', collapse repeats, trim hyphens, truncate to 15, trim again.
+// May return '' if the input has no usable characters — the caller then leaves
+// the field blank rather than inventing a name.
+function sanitiseClusterName(raw) {
+    if (typeof raw !== 'string') return '';
+    var s = raw.replace(/[^A-Za-z0-9-]/g, '-'); // illegal -> hyphen
+    s = s.replace(/-+/g, '-');                  // collapse repeats
+    s = s.replace(/^-+|-+$/g, '');              // trim hyphens
+    if (s.length > 15) s = s.slice(0, 15);
+    s = s.replace(/-+$/g, '');                  // truncation may leave a trailing hyphen
+    return s;
+}
+
+// Validate the editable cluster-name field. Returns boolean.
+function isValidClusterName(name) {
+    if (typeof name !== 'string') return false;
+    if (name.length < 1 || name.length > 15) return false;
+    if (!/^[A-Za-z0-9-]+$/.test(name)) return false; // letters/numbers/hyphen only
+    if (/^[0-9]+$/.test(name)) return false;          // not all-numeric
+    if (name.charAt(0) === '-' || name.charAt(name.length - 1) === '-') return false; // no edge hyphen
+    return true;
+}
+
 // Trigger file picker for JSON import
 function importSizerJSON() { // eslint-disable-line no-unused-vars
     showImportModal();
 }
 
+// Open the import modal, optionally jumping straight to a named tab. The
+// dedicated 📊 RVTools toolbar button calls openImportModal('rvtools').
+function openImportModal(initialTab) { // eslint-disable-line no-unused-vars
+    showImportModal(initialTab);
+}
+
 // Show the import modal
-function showImportModal() {
+function showImportModal(initialTab) {
     var overlay = document.getElementById('import-modal-overlay');
     if (overlay) {
         overlay.style.display = 'flex';
-        switchImportTab('sizer');
+        switchImportTab(initialTab || 'sizer');
         // Clear previous state
         var textarea = document.getElementById('cluster-json-input');
         if (textarea) textarea.value = '';
@@ -7345,21 +7572,47 @@ function closeImportModal() { // eslint-disable-line no-unused-vars
 }
 
 function switchImportTab(tab) { // eslint-disable-line no-unused-vars
-    var sizerPanel = document.getElementById('import-panel-sizer');
-    var clusterPanel = document.getElementById('import-panel-cluster');
-    var sizerTab = document.getElementById('import-tab-sizer');
-    var clusterTab = document.getElementById('import-tab-cluster');
-    if (tab === 'sizer') {
-        if (sizerPanel) sizerPanel.style.display = '';
-        if (clusterPanel) clusterPanel.style.display = 'none';
-        if (sizerTab) { sizerTab.className = 'onboarding-btn onboarding-btn-primary'; }
-        if (clusterTab) { clusterTab.className = 'onboarding-btn onboarding-btn-secondary'; }
-    } else {
-        if (sizerPanel) sizerPanel.style.display = 'none';
-        if (clusterPanel) clusterPanel.style.display = '';
-        if (sizerTab) { sizerTab.className = 'onboarding-btn onboarding-btn-secondary'; }
-        if (clusterTab) { clusterTab.className = 'onboarding-btn onboarding-btn-primary'; }
-    }
+    var panels = {
+        sizer: document.getElementById('import-panel-sizer'),
+        cluster: document.getElementById('import-panel-cluster'),
+        rvtools: document.getElementById('import-panel-rvtools')
+    };
+    var tabs = {
+        sizer: document.getElementById('import-tab-sizer'),
+        cluster: document.getElementById('import-tab-cluster'),
+        rvtools: document.getElementById('import-tab-rvtools')
+    };
+    if (tab !== 'sizer' && tab !== 'cluster' && tab !== 'rvtools') tab = 'sizer';
+    Object.keys(panels).forEach(function(key) {
+        if (panels[key]) panels[key].style.display = (key === tab) ? '' : 'none';
+        if (tabs[key]) {
+            tabs[key].className = 'onboarding-btn ' +
+                (key === tab ? 'onboarding-btn-primary' : 'onboarding-btn-secondary');
+        }
+    });
+    // Lazy-load the ~930 KB SheetJS blob only when the RVTools tab is first
+    // activated — users of the other two tabs never download it.
+    if (tab === 'rvtools') ensureSheetJSLoaded();
+}
+
+// Inject the vendored SheetJS <script> at most once per page load. Returns a
+// Promise that resolves when XLSX is available (or rejects on load failure).
+var _sheetJSPromise = null;
+function ensureSheetJSLoaded() {
+    if (typeof window.XLSX !== 'undefined') return Promise.resolve();
+    if (_sheetJSPromise) return _sheetJSPromise;
+    _sheetJSPromise = new Promise(function(resolve, reject) {
+        var s = document.createElement('script');
+        s.src = '../vendor/xlsx-0.20.3.min.js';
+        s.async = true;
+        s.onload = function() { resolve(); };
+        s.onerror = function() {
+            _sheetJSPromise = null;
+            reject(new Error('Failed to load the Excel reader (vendor/xlsx-0.20.3.min.js).'));
+        };
+        document.head.appendChild(s);
+    });
+    return _sheetJSPromise;
 }
 
 function importSizerJSONFromModal() { // eslint-disable-line no-unused-vars
@@ -7987,6 +8240,259 @@ function closePostImportOverlay() { // eslint-disable-line no-unused-vars
     if (overlay) overlay.style.display = 'none';
 }
 
+// ============================================================================
+// RVTools import — UI handlers (issue #230)
+// ============================================================================
+// These wire the pure transform above to the modal: pick a file, read it with
+// the lazily-loaded SheetJS, preview per-cluster totals, then apply the chosen
+// cluster's VMs as Sizer workloads. The parsed sheets are held only in memory
+// for the life of the modal interaction and discarded on close.
+
+// Holds the extracted { vInfo, vCluster, vHost } row arrays between parse and
+// apply. Never persisted.
+var _rvtoolsSheets = null;
+
+function triggerRVToolsFilePicker() { // eslint-disable-line no-unused-vars
+    var input = document.getElementById('rvtools-file');
+    if (input) {
+        input.value = '';
+        input.click();
+    }
+}
+
+function _showRVToolsError(msg) {
+    var err = document.getElementById('rvtools-error');
+    if (err) {
+        err.textContent = msg;
+        err.style.display = '';
+    }
+    var status = document.getElementById('rvtools-status');
+    if (status) status.style.display = 'none';
+}
+
+// Read the selected .xlsx, extract the relevant sheets, and render the preview.
+function handleRVToolsFile(event) { // eslint-disable-line no-unused-vars
+    var file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    var errDiv = document.getElementById('rvtools-error');
+    if (errDiv) errDiv.style.display = 'none';
+    var previewDiv = document.getElementById('rvtools-preview');
+    if (previewDiv) { previewDiv.style.display = 'none'; previewDiv.innerHTML = ''; }
+    var applyBtn = document.getElementById('rvtools-apply-btn');
+    if (applyBtn) applyBtn.style.display = 'none';
+    _rvtoolsSheets = null;
+
+    if (!/\.xlsx$/i.test(file.name)) {
+        _showRVToolsError('Please select an RVTools .xlsx export (the "all" workbook).');
+        return;
+    }
+
+    var status = document.getElementById('rvtools-status');
+    if (status) { status.textContent = 'Reading "' + file.name + '"…'; status.style.display = ''; }
+
+    ensureSheetJSLoaded().then(function() {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var data = new Uint8Array(e.target.result);
+                var workbook = window.XLSX.read(data, { type: 'array' });
+                _rvtoolsSheets = extractRVToolsSheets(workbook);
+                var result = transformRVToolsRows(_rvtoolsSheets, { mode: 'grouped', storageSource: 'provisioned', includePoweredOff: false });
+                if (result.warnings.indexOf('missing-vinfo') !== -1) {
+                    _showRVToolsError('Could not find a "vInfo" sheet in this workbook. Export the full RVTools "all" workbook (it must include the vInfo tab).');
+                    _rvtoolsSheets = null;
+                    return;
+                }
+                if (status) status.style.display = 'none';
+                renderRVToolsPreview(result);
+            } catch (parseErr) {
+                console.error('RVTools parse failed:', parseErr);
+                _showRVToolsError('Could not read this file. If it is password-protected, open it in Excel and save an unprotected copy, then try again.');
+                _rvtoolsSheets = null;
+            }
+        };
+        reader.onerror = function() {
+            _showRVToolsError('Could not read the file from disk. Please try again.');
+            _rvtoolsSheets = null;
+        };
+        reader.readAsArrayBuffer(file);
+    }).catch(function(loadErr) {
+        console.error(loadErr);
+        _showRVToolsError('Could not load the Excel reader. Check your connection to the page assets and try again.');
+    });
+}
+
+// Pull the sheets we care about out of a SheetJS workbook as row-object arrays.
+// Sheet names are matched case-insensitively (vInfo / vCluster / vHost).
+function extractRVToolsSheets(workbook) {
+    function sheetRows(target) {
+        var match = workbook.SheetNames.filter(function(n) {
+            return String(n).trim().toLowerCase() === target;
+        })[0];
+        if (!match) return null;
+        return window.XLSX.utils.sheet_to_json(workbook.Sheets[match], { defval: '' });
+    }
+    return {
+        vInfo: sheetRows('vinfo'),
+        vCluster: sheetRows('vcluster'),
+        vHost: sheetRows('vhost')
+    };
+}
+
+// Re-run the transform with the currently selected options and update the
+// totals banner. Called when the user flips storage source / powered-off.
+function refreshRVToolsPreview() { // eslint-disable-line no-unused-vars
+    if (!_rvtoolsSheets) return;
+    var opts = readRVToolsOptions();
+    var result = transformRVToolsRows(_rvtoolsSheets, { mode: opts.mode, storageSource: opts.storageSource, includePoweredOff: opts.includePoweredOff });
+    renderRVToolsPreview(result, true);
+}
+
+function readRVToolsOptions() {
+    var storageRadio = document.querySelector('input[name="rvtools-storage"]:checked');
+    var modeRadio = document.querySelector('input[name="rvtools-mode"]:checked');
+    var poweredOff = document.getElementById('rvtools-powered-off');
+    var clusterRadio = document.querySelector('input[name="rvtools-cluster"]:checked');
+    return {
+        storageSource: storageRadio ? storageRadio.value : 'provisioned',
+        mode: modeRadio ? modeRadio.value : 'grouped',
+        includePoweredOff: !!(poweredOff && poweredOff.checked),
+        cluster: clusterRadio ? clusterRadio.value : null
+    };
+}
+
+// Build the preview UI: totals banner, a per-cluster picker table, and the
+// consolidation / storage / powered-off options. When `keepSelection` is true
+// the existing cluster/option selections are preserved across a refresh.
+function renderRVToolsPreview(result, keepSelection) {
+    var previewDiv = document.getElementById('rvtools-preview');
+    if (!previewDiv) return;
+
+    var prev = keepSelection ? readRVToolsOptions() : null;
+    var selectedCluster = prev && prev.cluster ? prev.cluster : (result.clusters[0] ? result.clusters[0].name : null);
+    var storageSource = prev ? prev.storageSource : 'provisioned';
+    var mode = prev ? prev.mode : 'grouped';
+    var includePoweredOff = prev ? prev.includePoweredOff : false;
+
+    var t = result.totals;
+    var html = '';
+    html += '<div class="rvtools-totals">Found <strong>' + t.vmCount + '</strong> VM' + (t.vmCount !== 1 ? 's' : '')
+        + ' across <strong>' + t.clusterCount + '</strong> cluster' + (t.clusterCount !== 1 ? 's' : '')
+        + (t.hostCount ? ' / <strong>' + t.hostCount + '</strong> host' + (t.hostCount !== 1 ? 's' : '') : '')
+        + ' — <strong>' + t.vcpus + '</strong> vCPU, <strong>' + t.memoryGB + '</strong> GB RAM, <strong>' + t.storageGB + '</strong> GB storage total.'
+        + '<br><span style="color: var(--text-secondary);">Pick one source cluster to size below.</span></div>';
+
+    html += '<div class="rvtools-table-wrap"><table class="rvtools-table"><thead><tr>'
+        + '<th></th><th>Source cluster</th><th class="num">VMs</th><th class="num">Hosts</th>'
+        + '<th class="num">vCPU</th><th class="num">RAM (GB)</th><th class="num">Storage (GB)</th>'
+        + '</tr></thead><tbody>';
+    result.clusters.forEach(function(c, i) {
+        var id = 'rvtools-cluster-' + i;
+        var checked = (c.name === selectedCluster) ? ' checked' : '';
+        html += '<tr>'
+            + '<td><input type="radio" name="rvtools-cluster" id="' + id + '" value="' + escapeHtml(c.name) + '"' + checked + '></td>'
+            + '<td><label for="' + id + '">' + escapeHtml(c.name) + '</label></td>'
+            + '<td class="num">' + c.vmCount + '</td>'
+            + '<td class="num">' + (c.hostCount || '—') + '</td>'
+            + '<td class="num">' + c.vcpus + '</td>'
+            + '<td class="num">' + c.memoryGB + '</td>'
+            + '<td class="num">' + c.storageGB + '</td>'
+            + '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    html += '<div class="rvtools-options">'
+        + '<fieldset><legend>Consolidation</legend>'
+        + '<label><input type="radio" name="rvtools-mode" value="grouped"' + (mode === 'grouped' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> Group by VM size (recommended)</label>'
+        + '<label><input type="radio" name="rvtools-mode" value="per-vm"' + (mode === 'per-vm' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> One workload per VM <span style="color: var(--text-secondary);">(reads VM names)</span></label>'
+        + '</fieldset>'
+        + '<fieldset><legend>Storage figure</legend>'
+        + '<label><input type="radio" name="rvtools-storage" value="provisioned"' + (storageSource === 'provisioned' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> Provisioned</label>'
+        + '<label><input type="radio" name="rvtools-storage" value="inuse"' + (storageSource === 'inuse' ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> In use</label>'
+        + '</fieldset>'
+        + '<label><input type="checkbox" id="rvtools-powered-off"' + (includePoweredOff ? ' checked' : '') + ' onchange="refreshRVToolsPreview()"> Include powered-off VMs</label>'
+        + '</div>';
+
+    previewDiv.innerHTML = html;
+    previewDiv.style.display = '';
+    var applyBtn = document.getElementById('rvtools-apply-btn');
+    if (applyBtn) applyBtn.style.display = result.clusters.length ? '' : 'none';
+}
+
+// Apply the selected cluster's VMs as workloads, seed the cluster-name field,
+// close the modal, and recalculate.
+function applyRVToolsImport() { // eslint-disable-line no-unused-vars
+    if (!_rvtoolsSheets) return;
+    var opts = readRVToolsOptions();
+    if (!opts.cluster) {
+        _showRVToolsError('Select a source cluster to import.');
+        return;
+    }
+    var result = transformRVToolsRows(_rvtoolsSheets, {
+        mode: opts.mode,
+        storageSource: opts.storageSource,
+        includePoweredOff: opts.includePoweredOff,
+        cluster: opts.cluster
+    });
+    if (!result.workloads.length) {
+        _showRVToolsError('The selected cluster has no VMs to import with the current options.');
+        return;
+    }
+
+    // Assign ids and add to the in-memory workload list.
+    result.workloads.forEach(function(w) {
+        w.id = ++workloadIdCounter;
+        workloads.push(w);
+    });
+
+    // Seed the cluster-name field from the source cluster name (sanitised to
+    // the failover-cluster naming rules). Only fill it if currently blank so we
+    // never clobber a name the user already typed.
+    var nameInput = document.getElementById('cluster-name');
+    if (nameInput && !nameInput.value.trim() && opts.cluster !== '(no cluster)') {
+        var candidate = sanitiseClusterName(opts.cluster);
+        if (candidate) {
+            nameInput.value = candidate;
+            onClusterNameInput();
+        }
+    }
+
+    var importedCount = result.workloads.length;
+    var clusterLabel = opts.cluster;
+
+    _rvtoolsSheets = null;
+    closeImportModal();
+    renderWorkloads();
+    calculateRequirements();
+
+    showToast('Imported ' + importedCount + ' workload' + (importedCount !== 1 ? 's' : '')
+        + ' from "' + escapeHtml(clusterLabel) + '"', 'success');
+}
+
+// Inline validation for the editable cluster-name field. Shows a hint when the
+// value is non-empty but invalid; clears it otherwise.
+function onClusterNameInput() { // eslint-disable-line no-unused-vars
+    var input = document.getElementById('cluster-name');
+    var hint = document.getElementById('cluster-name-hint');
+    var hintText = document.getElementById('cluster-name-hint-text');
+    if (!input) return;
+    var val = input.value;
+    if (val === '') {
+        input.classList.remove('invalid');
+        if (hint) hint.style.display = 'none';
+        return;
+    }
+    if (isValidClusterName(val)) {
+        input.classList.remove('invalid');
+        if (hint) hint.style.display = 'none';
+    } else {
+        input.classList.add('invalid');
+        if (hint) hint.style.display = '';
+        if (hintText) hintText.textContent = 'Cluster name must be 1–15 characters, use only letters, numbers and hyphens, not be all-numeric, and not start or end with a hyphen.';
+    }
+}
+
 // Handle the selected file for import
 function handleSizerFileImport(event) {
     const file = event.target.files && event.target.files[0];
@@ -8033,6 +8539,11 @@ function handleSizerFileImport(event) {
 function applyImportedSizerState(d) {
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
+    var clusterNameEl = document.getElementById('cluster-name');
+    if (clusterNameEl) {
+        clusterNameEl.value = d.clusterName || '';
+        if (typeof onClusterNameInput === 'function') onClusterNameInput();
+    }
     // Restore disaggregated rack count before updating node options
     if (d.clusterType === 'disaggregated' && d.disaggRackCount) {
         var rackEl = document.getElementById('disagg-rack-count');

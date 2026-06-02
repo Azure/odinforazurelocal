@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.55] - 2026-06-02
+
+Adds **RVTools Excel import** to the Sizer (issue #230) — turn a VMware RVTools `.xlsx` export into Sizer workloads, entirely client-side.
+
+### Added
+
+- **RVTools import tab + toolbar button** in the Sizer ([`sizer/index.html`](sizer/index.html), [`sizer/sizer.js`](sizer/sizer.js)). A third tab in the Import dialog and a dedicated **📊 RVTools** toolbar button accept a standard RVTools *all* export (`.xlsx`).
+- **Vendored SheetJS Community 0.20.3** under [`vendor/`](vendor/) for reading `.xlsx`. It is **lazy-loaded** only when the RVTools tab is first opened (never a static `<script>` on the live site), and its SHA-256 is pinned and verified Node-side by [`scripts/run-tests.js`](scripts/run-tests.js) on every run.
+- **Pure RVTools transform** in [`sizer/sizer.js`](sizer/sizer.js): `transformRVToolsRows(sheets, options)` plus helpers `rvtoolsMiBToGB()`, `rvtoolsIsTemplate()`, `rvtoolsIsPoweredOn()`, `buildGroupedWorkloads()`, `buildPerVMWorkloads()`, `sanitiseClusterName()`, and `isValidClusterName()`. Reads `vInfo` (and `vCluster` / `vHost` when present), summarises each detected source cluster (VM count, vCPU, memory, storage, host count), and lets the user import **one** cluster into the single-cluster Sizer with a totals banner for the full file.
+- **Two consolidation modes** — **Grouped** (default) bands VMs by size class (vCPU / RAM) into one workload per band; **Per-VM** creates one workload per source VM. Individual VM names are surfaced **only** in Per-VM mode; Grouped band names describe the spec (e.g. *4 vCPU / 8 GB ×12*) and never a VM name.
+- **Storage source + power-state options** — choose **Provisioned** or **In Use** disk as the storage basis and optionally include powered-off VMs; RVTools templates are always excluded.
+- **Editable Cluster Name field** in the Sizer (`#cluster-name`, validated by `isValidClusterName()` / `onClusterNameInput()`). Seeded from the imported source-cluster name (sanitised to failover-cluster / NetBIOS rules) and carried through **Sizer → Designer → ARM** (`getSizerState`, `sizerPayload`, [`js/script.js`](js/script.js) `generateArmParameters()`, read back by [`arm/arm.js`](arm/arm.js)).
+
+### Changed
+
+- **Workloads list switches to a denser, scrollable layout** when more than 5 workloads are present (e.g. after a per-VM import) so it stays scannable — `renderWorkloads()` toggles a `.compact` class.
+
+### Security
+
+- All RVTools parsing happens **in the browser**; no RVTools data, VM names, or cluster names are transmitted. No new external network calls.
+
+### Tests
+
+- New *RVTools Excel Import* suite in [`tests/index.html`](tests/index.html) — 50 assertions across 8 groups (transform/filter/totals, grouped banding + privacy, per-VM naming, error paths, cluster-name sanitiser/validator, carry-through invariant + field UI, list compaction) plus the Node-side vendor-integrity gate. ESLint clean; HTML validation clean; full suite passes **1,290 / 1,290**.
+
+---
+
 ## [0.22.01] - 2026-06-01
 
 Improves the Sizer's **physical-host compute reserve / overhead** model (issue #232), reorients the **rack-layout diagrams** to fill bottom-up with real node names (issue #233), **removes the deprecated Low Capacity deployment type** (issue #234), and refines the **imported Azure Local instance** experience in the Sizer (issue #235).
