@@ -5045,8 +5045,14 @@ function calculateRequirements(options) {
                     }
                     const rawTBPerNode = (rawGBPerNode / 1024) || DEFAULT_RAW_TB_PER_NODE;
 
-                    const availVcpus = physCores * effNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
-                    const hostOverheadMemoryGBLoop = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
+                    // Use the same host-reservation math as the capacity bars / banner
+                    // (getHostCpuReservedCores + getHostMemoryReservedGB) so this loop's
+                    // utilisation check agrees with the >90% warning. Previously this used a
+                    // hardcoded 32 GB host overhead and didn't reserve host cores, so it
+                    // stopped adding nodes at ~89% while the banner showed >90% (invalid).
+                    const hostReservedCoresLoop = getHostCpuReservedCores(hwConfig, clusterType);
+                    const availVcpus = Math.max(physCores - hostReservedCoresLoop, 0) * effNodes * vcpuToCore - ARB_VCPU_OVERHEAD;
+                    const hostOverheadMemoryGBLoop = getHostMemoryReservedGB(hwConfig, clusterType);
                     const availMem = Math.max(memPerNode - hostOverheadMemoryGBLoop, 0) * effNodes - ARB_MEMORY_OVERHEAD_GB;
                     // Subtract Infrastructure_1 volume (256 GB usable) and S2D repair reservation from available storage
                     const s2dRepairTB = getS2dRepairReservedGB(nodeCount, rawGBPerNode > 0 ? (rawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
@@ -5206,8 +5212,8 @@ function calculateRequirements(options) {
                         }
                         const dRawTBPerNode = dRawGBPerNode / 1024 || DEFAULT_RAW_TB_PER_NODE;
 
-                        const dAvailVcpus = dPhysCores * dEffNodes * dVcpuToCore - ARB_VCPU_OVERHEAD;
-                        const dHostOverhead = 32 + (clusterType === 'aldo-mgmt' ? ALDO_APPLIANCE_OVERHEAD_GB : 0);
+                        const dAvailVcpus = Math.max(dPhysCores - getHostCpuReservedCores(hwConfig, clusterType), 0) * dEffNodes * dVcpuToCore - ARB_VCPU_OVERHEAD;
+                        const dHostOverhead = getHostMemoryReservedGB(hwConfig, clusterType);
                         const dAvailMem = Math.max(dMemPerNode - dHostOverhead, 0) * dEffNodes - ARB_MEMORY_OVERHEAD_GB;
                         const dS2dRepairTB = getS2dRepairReservedGB(nodeCount, dRawGBPerNode > 0 ? (dRawGBPerNode / (hwConfig.diskConfig.capacity.count || 1)) : 0) / 1024;
                         const dAvailStorage = Math.max((dRawTBPerNode * nodeCount) / resiliencyMultiplier - 0.25 - dS2dRepairTB / resiliencyMultiplier, 0);

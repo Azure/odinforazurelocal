@@ -5000,6 +5000,41 @@
             })()
         ]);
 
+        // --- Regression: conservative node loop overhead alignment (Cluster014, RVTools import) ---
+        // The conservative node-increment loop in calculateRequirements() must use the SAME
+        // host-reservation math as the capacity bars / >90% banner. Previously it used a
+        // hardcoded 32 GB host overhead, so it stopped at 2 nodes (~89%) while the banner
+        // showed 95% (invalid). With getHostMemoryReservedGB() (123 GB for 1536 GB nodes via
+        // the 8%-of-RAM term, #232), the loop must reject 2 nodes and accept 3.
+        testSuite('Node loop overhead alignment (Cluster014 regression)', 'sizer.js', [
+            (() => {
+                // Cluster014: 1536 GB/node all-flash, 1328 GB workload memory demand.
+                const hw = { totalPhysicalCores: 128, memoryGB: 1536, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                const hostOverhead = getHostMemoryReservedGB(hw, 'standard');
+                return assert(hostOverhead === 123,
+                    '1536 GB node host reservation = ceil(0.08 × 1536) = 123 GB (8% term wins)', 123, hostOverhead);
+            })(),
+            (() => {
+                // 2 nodes → effNodes = 1; availMem = (1536-123)×1 - 8 = 1405; 1328/1405 = 95% → >=90 (must bump)
+                const hw = { totalPhysicalCores: 128, memoryGB: 1536, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                const hostOverhead = getHostMemoryReservedGB(hw, 'standard');
+                const availMem = Math.max(hw.memoryGB - hostOverhead, 0) * 1 - ARB_MEMORY_OVERHEAD_GB;
+                const memPct = Math.round((1328 / availMem) * 100);
+                return assert(memPct >= 90,
+                    '2 nodes (effNodes 1): 1328 GB / 1405 usable = 95% — loop must reject (>=90%)', '>=90', memPct);
+            })(),
+            (() => {
+                // 3 nodes → effNodes = 2; availMem = (1536-123)×2 - 8 = 2818; 1328/2818 = 47% → <90 (accept)
+                const hw = { totalPhysicalCores: 128, memoryGB: 1536, diskConfig: { isTiered: false, capacity: { count: 8, sizeGB: 3584 } } };
+                const hostOverhead = getHostMemoryReservedGB(hw, 'standard');
+                const availMem = Math.max(hw.memoryGB - hostOverhead, 0) * 2 - ARB_MEMORY_OVERHEAD_GB;
+                const memPct = Math.round((1328 / availMem) * 100);
+                return assert(memPct < 90,
+                    '3 nodes (effNodes 2): 1328 GB / 2818 usable = 47% — loop must accept (<90%)', '<90', memPct);
+            })()
+        ]);
+
+
         testSuite('getHostCpuReservedCores()', 'sizer.js', [
             (() => {
                 const hw = { totalPhysicalCores: 120 };
