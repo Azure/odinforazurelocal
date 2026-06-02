@@ -8479,6 +8479,11 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
         workloads.push(w);
     });
 
+    // Track the RVTools import as a single "Sizes Calculated" event. Issue #230.
+    if (typeof trackFormCompletion === 'function') {
+        trackFormCompletion('sizerCalculation');
+    }
+
     // Seed the cluster-name field from the source cluster name (sanitised to
     // the failover-cluster naming rules). Only fill it if currently blank so we
     // never clobber a name the user already typed.
