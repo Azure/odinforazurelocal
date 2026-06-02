@@ -8402,7 +8402,7 @@ function renderRVToolsPreview(result, keepSelection) {
 
     html += '<div class="rvtools-table-wrap"><table class="rvtools-table"><thead><tr>'
         + '<th></th><th>Source cluster</th><th class="num">VMs</th><th class="num">Hosts</th>'
-        + '<th class="num">vCPU</th><th class="num">Memory (TB)</th><th class="num">Storage (TB)</th>'
+        + '<th class="num">vCPU</th><th class="num">Memory (GB)</th><th class="num">Storage (TB)</th>'
         + '</tr></thead><tbody>';
     result.clusters.forEach(function(c, i) {
         var id = 'rvtools-cluster-' + i;
@@ -8413,7 +8413,7 @@ function renderRVToolsPreview(result, keepSelection) {
             + '<td class="num">' + c.vmCount + '</td>'
             + '<td class="num">' + (c.hostCount || '—') + '</td>'
             + '<td class="num">' + c.vcpus + '</td>'
-            + '<td class="num">' + rvtoolsGBtoTB(c.memoryGB).toFixed(2) + '</td>'
+            + '<td class="num">' + c.memoryGB + '</td>'
             + '<td class="num">' + rvtoolsGBtoTB(c.storageGB).toFixed(2) + '</td>'
             + '</tr>';
     });

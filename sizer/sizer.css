@@ -2225,10 +2225,16 @@ header .header-description {
 .rvtools-table th {
     position: sticky;
     top: 0;
-    background: var(--subtle-bg);
+    /* Opaque background (not the translucent --subtle-bg) so scrolling rows
+       don't bleed through the sticky header in Edge/Chrome. */
+    background: var(--card-bg);
     color: var(--text-secondary);
     font-weight: 600;
     z-index: 1;
+    /* With border-collapse the th border scrolls away; use a box-shadow for a
+       divider that stays pinned to the header. */
+    border-bottom: none;
+    box-shadow: inset 0 -1px 0 var(--glass-border);
 }
 
 .rvtools-table td.num,
