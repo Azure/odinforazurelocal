@@ -227,6 +227,12 @@ Disaggregated deployments use a separate intent model with external SAN storage 
 - Includes timestamp and metadata
 - Can be re-imported to restore session
 
+### JSON Schemas (validate exports before import)
+- Machine-readable [JSON Schema](https://json-schema.org/) (draft-07) definitions for both export surfaces, so you can generate and **validate** ODIN JSON outside the UI (CI/CD, Terraform, scripts) before importing it
+- **Designer**: [`docs/json-schema/odin-design.schema.json`](docs/json-schema/odin-design.schema.json) — published at `https://azure.github.io/odinforazurelocal/docs/json-schema/odin-design.schema.json`
+- **Sizer**: [`docs/json-schema/odin-sizer.schema.json`](docs/json-schema/odin-sizer.schema.json) — published at `https://azure.github.io/odinforazurelocal/docs/json-schema/odin-sizer.schema.json`
+- See the **[JSON Schema reference & examples](docs/json-schema/README.md)** for both envelopes side by side, required vs optional fields, and how to validate from any language (ajv, python-jsonschema, or VS Code `$schema`)
+
 ### Configuration Report
 - Comprehensive configuration report covering deployment scenario, network, intents, IP plan, identity, security, and SDN options
 - Download as **Word** (DOCX-compatible), **Markdown** (with embedded diagrams), or **PowerPoint** (template-driven `.pptx` deck)
@@ -371,6 +377,11 @@ The [`tools/`](tools/) folder contains scripted [Playwright](https://playwright.
 ### Community
 - [Azure Arc - TechCommunity](https://techcommunity.microsoft.com/category/azure/blog/azurearcblog)
 - [Azure Local - GitHub Supportability Forum](https://github.com/Azure/AzureLocal-Supportability)
+
+### For Developers & Automation
+- [JSON Schema reference & examples](docs/json-schema/README.md) — validate ODIN exports outside the UI (CI/CD, Terraform, scripts)
+- [`odin-design.schema.json`](docs/json-schema/odin-design.schema.json) — Designer export schema (draft-07)
+- [`odin-sizer.schema.json`](docs/json-schema/odin-sizer.schema.json) — Sizer export schema (draft-07)
 
 ---
 
