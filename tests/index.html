@@ -10537,6 +10537,58 @@
             return results;
         })());
 
+        // Group K — resetRVToolsImport clears lingering preview/state
+        testSuite('RVTools: resetRVToolsImport clears preview & state (Group K)', 'sizer.js', (() => {
+            var results = [];
+
+            // Stub the import DOM and simulate a held workbook + visible preview.
+            var ids = ['rvtools-preview', 'rvtools-status', 'rvtools-error'];
+            ids.forEach(function (id) {
+                var el = document.createElement('div');
+                el.id = id;
+                document.body.appendChild(el);
+            });
+            var fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.id = 'rvtools-file';
+            document.body.appendChild(fileInput);
+            var applyBtn = document.createElement('button');
+            applyBtn.id = 'rvtools-apply-btn';
+            document.body.appendChild(applyBtn);
+
+            var preview = document.getElementById('rvtools-preview');
+            preview.innerHTML = '<table>previous import</table>';
+            preview.style.display = '';
+            applyBtn.style.display = '';
+            document.getElementById('rvtools-status').textContent = 'Reading...';
+            window._rvtoolsSheets = { vInfo: [{ VM: 'x' }] };
+
+            resetRVToolsImport();
+
+            // 38. preview emptied and hidden
+            results.push(assert(preview.innerHTML === '' && preview.style.display === 'none',
+                'resetRVToolsImport → preview cleared and hidden', true,
+                preview.innerHTML === '' && preview.style.display === 'none'));
+
+            // 39. apply button hidden
+            results.push(assert(applyBtn.style.display === 'none',
+                'resetRVToolsImport → apply button hidden', 'none', applyBtn.style.display));
+
+            // 40. held workbook discarded
+            results.push(assert(window._rvtoolsSheets === null,
+                'resetRVToolsImport → _rvtoolsSheets cleared', null, window._rvtoolsSheets));
+
+            // Clean up stub DOM.
+            ids.forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el && el.parentNode) el.parentNode.removeChild(el);
+            });
+            if (fileInput.parentNode) fileInput.parentNode.removeChild(fileInput);
+            if (applyBtn.parentNode) applyBtn.parentNode.removeChild(applyBtn);
+
+            return results;
+        })());
+
         // ========================================================================
         // FINAL SUMMARY
         // ========================================================================

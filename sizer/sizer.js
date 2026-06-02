@@ -8277,6 +8277,22 @@ function triggerRVToolsFilePicker() { // eslint-disable-line no-unused-vars
     }
 }
 
+// Clear all RVTools import UI + held workbook state so a previous import's
+// preview never lingers (e.g. after the Reset button or a fresh import).
+function resetRVToolsImport() {
+    _rvtoolsSheets = null;
+    var input = document.getElementById('rvtools-file');
+    if (input) input.value = '';
+    var previewDiv = document.getElementById('rvtools-preview');
+    if (previewDiv) { previewDiv.style.display = 'none'; previewDiv.innerHTML = ''; }
+    var applyBtn = document.getElementById('rvtools-apply-btn');
+    if (applyBtn) applyBtn.style.display = 'none';
+    var status = document.getElementById('rvtools-status');
+    if (status) { status.textContent = ''; status.style.display = 'none'; }
+    var errDiv = document.getElementById('rvtools-error');
+    if (errDiv) { errDiv.textContent = ''; errDiv.style.display = 'none'; }
+}
+
 function _showRVToolsError(msg) {
     var err = document.getElementById('rvtools-error');
     if (err) {
@@ -8826,6 +8842,9 @@ function resetScenario() {
     updateClusterInfo();
     renderWorkloads();
     calculateRequirements();
+
+    // Clear any lingering RVTools import preview/state.
+    resetRVToolsImport();
 }
 
 // Set default hardware config (Intel 6th Gen Xeon Granite Rapids / Sierra Forest, 32 cores)
