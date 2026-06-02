@@ -1,6 +1,6 @@
 # Issue #237 — ODIN design JSON Schema + import hardening (plan)
 
-Status: **in-flight / scoping** · Issue: [#237](https://github.com/Azure/odinforazurelocal/issues/237) · Owner: Neil
+Status: **shipped (v0.22.61)** · Issue: [#237](https://github.com/Azure/odinforazurelocal/issues/237) · Owner: Neil
 
 ## Why
 @soufiane-elsan asked (after re-scoping away from a hosted API) for ODIN designs to be
