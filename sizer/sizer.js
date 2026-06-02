@@ -5591,6 +5591,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
 
     const totalW = totalNodeW + infraPowerW;
     const totalBtu = Math.round(totalW * 3.412); // 1W ≈ 3.412 BTU/hr
+    // Annual energy assuming continuous (24/7/365) operation at the estimated load.
+    const annualKwh = Math.round(totalW * 24 * 365 / 1000);
 
     // Rack units: 2U per node + switches per rack
     var rackUnits;
@@ -5644,6 +5646,8 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
     // Update DOM
     document.getElementById('power-per-node').textContent = perNodeW.toLocaleString() + ' Watts';
     document.getElementById('power-total').textContent = totalW.toLocaleString() + ' Watts';
+    const powerKwhEl = document.getElementById('power-kwh');
+    if (powerKwhEl) { powerKwhEl.textContent = annualKwh.toLocaleString() + ' kWh/yr'; }
     document.getElementById('power-btu').textContent = totalBtu.toLocaleString();
     document.getElementById('rack-units').innerHTML = rackUnitLabel;
 
@@ -5654,6 +5658,7 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
         perNodeW: perNodeW,
         totalW: totalW,
         totalBtu: totalBtu,
+        annualKwh: annualKwh,
         rackUnits: rackUnits,
         nodeCount: nodeCount,
         infraPowerW: infraPowerW,
@@ -5670,6 +5675,9 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             psuEfficiency: psuEfficiency
         }
     };
+
+    // Refresh the optional running-cost estimate against the new annual energy.
+    updateRunningCost();
 
     // Update rack units label
     var rackUnitsLabelEl = document.getElementById('rack-units-label');
@@ -5803,6 +5811,28 @@ function updatePowerRackEstimates(nodeCount, hwConfig) {
             portCount: _designerPortCount || 4
         });
     }
+}
+
+// Update the optional annual running-cost figure from the user-supplied
+// electricity unit price (USD/kWh) × the last computed annual energy (kWh/yr).
+// Leaving the price box empty (or entering 0 / an invalid value) clears the
+// estimate back to a dash — the input is entirely optional.
+function updateRunningCost() {
+    var costEl = document.getElementById('power-cost');
+    var priceEl = document.getElementById('power-price-input');
+    if (!costEl) { return; }
+    var annualKwh = _lastPowerEstimate ? _lastPowerEstimate.annualKwh : null;
+    var price = priceEl ? parseFloat(priceEl.value) : NaN;
+    if (annualKwh == null || !isFinite(price) || price <= 0) {
+        costEl.textContent = '—';
+        return;
+    }
+    var annualCost = annualKwh * price;
+    costEl.textContent = annualCost.toLocaleString(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
+    }) + '/yr';
 }
 
 // Update sizing notes
