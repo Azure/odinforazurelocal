@@ -149,11 +149,25 @@ with the Designer schema.
      newer/unknown non-dangerous fields) — warn, don't reject.
    - No new runtime dependency: tiny self-contained validator or fetch+parse the JSON schema and do
      shallow key/enum checks. (Full ajv in-browser is overkill — avoid.)
+   - **SHIPPED (v0.22.61):** Designer `importConfiguration()` now guards BOTH copy loops with a
+     `DANGEROUS_KEYS` skip-list (`__proto__`/`constructor`/`prototype`) and soft-warns
+     (`console.warn`) on skipped keys — closes the prototype-pollution vector where `JSON.parse`'s
+     own-enumerable `__proto__` was assigned straight onto `state`. Sizer `applyImportedSizerState()`
+     strips dangerous own-keys defensively and validates `workloads[]` shape (drops non-objects /
+     arrays / unknown `type`s, coerces a non-array `workloads` to `[]`), each with a soft warning;
+     the rest of a valid import still applies. Both guards run before any side effects. Covered by 4
+     new browser tests in the "Import Hardening (#237)" suite. The **optional soft schema-validation
+     toast** was deliberately NOT built — it needs an in-browser validator (dependency/footprint) for
+     marginal value over the dangerous-key + shape guards; revisit only if requested.
 5. **Sync the version constants**: bump `WIZARD_VERSION` (`0.20.08` → current release) and add BOTH
    `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift again
    (fixes the wrong Designer report-footer version as a side-benefit). NB `SIZER_VERSION` is an
    integer payload-format version, not a release version — only bump it on a Sizer payload format
    change, and document that distinction.
+   - **SHIPPED (v0.22.61):** `WIZARD_VERSION` bumped `0.20.08` → `0.22.61` in `js/script.js` (the
+     Designer JSON-export envelope + report-footer version); `SIZER_VERSION` left at integer `1`
+     (payload format unchanged). Both constants added to the version-bump checklist in
+     `.github/copilot-instructions.md`, with the payload-format-vs-release distinction documented.
 
 ## Open questions
 - Publish location: `docs/json-schema/` IS useful end-user content → leave it **included** in GitHub

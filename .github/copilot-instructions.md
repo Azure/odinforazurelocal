@@ -79,7 +79,7 @@ node scripts/run-tests.js            # must show 958/958 passed
 ## CHANGELOG & Version Discipline
 - Every user-visible change gets an entry in `CHANGELOG.md` under the **current unreleased version heading** at the top of the file (create a new `## Version X.Y.Z` section if one doesn't exist for the in-progress release).
 - When a version ships, the latest version stays at the top of `README.md`'s release-notes section; **older versions move to "Appendix A — Version History"** at the bottom of `README.md` (do not leave multiple active release-notes sections in the top half of the README).
-- Version numbers must be bumped consistently in all of: `README.md` (header + appendix anchor), `CHANGELOG.md`, `index.html` (visible version string + "What's New" JS block), and `sizer/index.html` (visible version string).
+- Version numbers must be bumped consistently in all of: `README.md` (header + appendix anchor), `CHANGELOG.md`, `index.html` (visible version string + "What's New" JS block), and `sizer/index.html` (visible version string). Also keep the in-code version constants in step: `WIZARD_VERSION` in `js/script.js` (stamped into Designer JSON exports + report footer) and `SIZER_VERSION` in `sizer/sizer.js` (note: `SIZER_VERSION` is the Sizer *payload-format* integer, bumped only when the export shape changes — not on every release).
 - Commit messages: imperative mood, ≤72 char summary line, reference PR/issue numbers where relevant (e.g. `Fix storage-tier validation (#201)`).
 
 ## External Network Calls & Telemetry

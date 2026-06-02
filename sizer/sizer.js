@@ -8678,6 +8678,38 @@ function handleSizerFileImport(event) {
 
 // Apply an imported sizer state object to the UI (mirrors resumeSizerState)
 function applyImportedSizerState(d) {
+    // Import hardening (#237): the Sizer reads named properties off `d` rather
+    // than bulk-copying into a target, so it is not directly prototype-pollutable;
+    // but strip dangerous keys defensively in case future code iterates `d`, and
+    // validate the workloads[] array shape before trusting it (a hand-edited or
+    // malformed file could carry non-objects / unknown types that break the
+    // renderer and calculator). Invalid entries are dropped with a soft warning —
+    // the rest of the import still applies.
+    if (d && typeof d === 'object') {
+        ['__proto__', 'constructor', 'prototype'].forEach(function (k) {
+            if (Object.prototype.hasOwnProperty.call(d, k)) {
+                try { delete d[k]; } catch (e) { /* non-configurable — leave it, named reads ignore it */ }
+            }
+        });
+    }
+    var VALID_WORKLOAD_TYPES = ['vm', 'aks', 'avd', 'foundry', 'edgerag', 'videoindexer'];
+    if (d && d.workloads !== undefined && d.workloads !== null) {
+        if (!Array.isArray(d.workloads)) {
+            console.warn('Import: workloads was not an array — ignoring it.');
+            d.workloads = [];
+        } else {
+            var originalCount = d.workloads.length;
+            d.workloads = d.workloads.filter(function (w) {
+                return w && typeof w === 'object' && !Array.isArray(w) &&
+                    typeof w.type === 'string' && VALID_WORKLOAD_TYPES.indexOf(w.type) !== -1;
+            });
+            if (d.workloads.length !== originalCount) {
+                console.warn('Import: dropped ' + (originalCount - d.workloads.length) +
+                    ' invalid workload entr' + ((originalCount - d.workloads.length) === 1 ? 'y' : 'ies') + '.');
+            }
+        }
+    }
+
     // Restore cluster config
     document.getElementById('cluster-type').value = d.clusterType || 'standard';
     var clusterNameEl = document.getElementById('cluster-name');
