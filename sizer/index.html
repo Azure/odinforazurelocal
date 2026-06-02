@@ -1153,6 +1153,50 @@
         </div>
     </div>
 
+    <!-- Post-Import Instructions Modal (shown after an RVTools Excel import) -->
+    <div class="onboarding-overlay" id="rvtools-post-import-overlay" style="display: none;">
+        <div class="onboarding-card" style="max-width: 600px;">
+            <div class="onboarding-icon">📊</div>
+            <h2 class="onboarding-title">RVTools Import Complete</h2>
+            <p class="onboarding-description" id="rvtools-post-import-summary"></p>
+
+            <div class="onboarding-features">
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">📈</span>
+                    <div class="onboarding-feature-text">
+                        <strong>20% Growth Buffer Applied</strong>
+                        <em>Allow for Future Growth</em> was set to 20% to leave headroom on the sized hardware. Change it any time in the configuration panel.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">💾</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Set Your Storage</strong>
+                        RVTools reports VM disk usage, not your target cluster's physical disks. Set the disk count, disk size, and storage type to match your hardware.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">🔢</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Estimates, Not a Quote</strong>
+                        Imported figures are derived from the RVTools snapshot (templates excluded; powered-off VMs only if you opted in). Review and adjust each workload before relying on the sizing.
+                    </div>
+                </div>
+                <div class="onboarding-feature">
+                    <span class="onboarding-feature-icon">📊</span>
+                    <div class="onboarding-feature-text">
+                        <strong>Review Capacity</strong>
+                        Check the utilization bars, node recommendation, and sizing notes to see how the imported workloads fit your hardware.
+                    </div>
+                </div>
+            </div>
+
+            <div class="onboarding-buttons">
+                <button class="onboarding-btn onboarding-btn-primary" onclick="closeRVToolsPostImport()">Got it — Let's Configure</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../js/utils.js"></script>
     <script src="../js/notifications.js"></script>
     <script src="../js/analytics.js"></script>

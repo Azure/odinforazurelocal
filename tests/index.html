@@ -10410,6 +10410,94 @@
             return results;
         })());
 
+        // Group I — applyRVToolsImport defaults the growth buffer to 20%
+        testSuite('RVTools: import defaults growth buffer to 20% (Group I)', 'sizer.js', (() => {
+            var results = [];
+
+            // A shared #future-growth stub already exists (created for the
+            // autoScaleHardware suites). Reuse it rather than creating a second
+            // element, otherwise getElementById would return the wrong one.
+            var growthEl = document.getElementById('future-growth');
+            var savedGrowth = growthEl ? growthEl.value : null;
+
+            // IDs created/removed per run. NOTE: future-growth is intentionally
+            // NOT in this list — it is the shared stub above.
+            var stubIds = ['workloads-list', 'cluster-name', 'rvtools-post-import-overlay',
+                'rvtools-post-import-summary', 'rvtools-apply-btn', 'rvtools-preview',
+                'rvtools-status', 'rvtools-error', 'import-modal-overlay', 'rvtools-powered-off'];
+
+            // Minimal DOM the function reads before it would later throw on the
+            // full calculateRequirements stub (which is wrapped in try/catch).
+            function makeImportStub(growthValue) {
+                stubIds.forEach(function (id) {
+                    var el = document.createElement(
+                        id === 'cluster-name' ? 'input' : (id === 'rvtools-powered-off' ? 'input' : 'div'));
+                    el.id = id;
+                    if (id === 'rvtools-powered-off') { el.type = 'checkbox'; el.checked = false; }
+                    document.body.appendChild(el);
+                });
+                if (growthEl) growthEl.value = growthValue;
+                // Selection radios read by readRVToolsOptions().
+                function radio(name, value) {
+                    var r = document.createElement('input');
+                    r.type = 'radio'; r.name = name; r.value = value; r.checked = true;
+                    document.body.appendChild(r);
+                    return r;
+                }
+                radio('rvtools-cluster', 'ProdCluster');
+                radio('rvtools-mode', 'grouped');
+                radio('rvtools-storage', 'provisioned');
+
+                // Sheets the importer consumes (held on the global set by the file reader).
+                window._rvtoolsSheets = {
+                    vInfo: [
+                        { VM: 'a1', Powerstate: 'poweredOn', Template: false, CPUs: 4, Memory: 8192, 'Provisioned MiB': 102400, 'In Use MiB': 51200, Cluster: 'ProdCluster', Host: 'h1' },
+                        { VM: 'a2', Powerstate: 'poweredOn', Template: false, CPUs: 8, Memory: 16384, 'Provisioned MiB': 204800, 'In Use MiB': 102400, Cluster: 'ProdCluster', Host: 'h2' }
+                    ]
+                };
+            }
+            function cleanupImportStub() {
+                stubIds.forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el && el.parentNode) el.parentNode.removeChild(el);
+                });
+                ['rvtools-cluster', 'rvtools-mode', 'rvtools-storage'].forEach(function (n) {
+                    document.querySelectorAll('input[name="' + n + '"]').forEach(function (r) {
+                        if (r.parentNode) r.parentNode.removeChild(r);
+                    });
+                });
+                window._rvtoolsSheets = null;
+            }
+
+            var savedW = workloads.splice(0, workloads.length);
+
+            // 28. fresh import (growth on default "0") → bumped to "20"
+            makeImportStub('0');
+            try { applyRVToolsImport(); } catch (e) { /* full calc stub may throw, runs after growth set */ }
+            results.push(assert(
+                document.getElementById('future-growth').value === '20',
+                'applyRVToolsImport → growth buffer defaulted to "20" when left at "0"',
+                '20', document.getElementById('future-growth').value));
+            cleanupImportStub();
+            workloads.splice(0, workloads.length);
+
+            // 29. user already chose 30% → kept, not overwritten
+            makeImportStub('30');
+            try { applyRVToolsImport(); } catch (e) { /* see above */ }
+            results.push(assert(
+                document.getElementById('future-growth').value === '30',
+                'applyRVToolsImport → existing growth choice (30) preserved, not overwritten',
+                '30', document.getElementById('future-growth').value));
+            cleanupImportStub();
+
+            // Restore global state.
+            workloads.splice(0, workloads.length);
+            savedW.forEach(function (w) { workloads.push(w); });
+            if (growthEl && savedGrowth !== null) growthEl.value = savedGrowth;
+
+            return results;
+        })());
+
         // ========================================================================
         // FINAL SUMMARY
         // ========================================================================

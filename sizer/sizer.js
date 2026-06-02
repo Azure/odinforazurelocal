@@ -8461,13 +8461,57 @@ function applyRVToolsImport() { // eslint-disable-line no-unused-vars
     var importedCount = result.workloads.length;
     var clusterLabel = opts.cluster;
 
+    // Default the growth buffer to 20% for RVTools imports so the sized hardware
+    // carries headroom — but only if the user hasn't already chosen a value
+    // (i.e. it's still on the "No additional growth" default). Issue #230.
+    var growthSel = document.getElementById('future-growth');
+    var growthApplied = false;
+    if (growthSel && (growthSel.value === '0' || growthSel.value === '')) {
+        growthSel.value = '20';
+        growthApplied = true;
+    }
+
+    // Totals for the imported workloads (count-weighted), shown in the summary.
+    var impVms = 0, impVcpus = 0, impMemGB = 0, impStorageGB = 0;
+    result.workloads.forEach(function(w) {
+        var c = w.count || 1;
+        impVms += c;
+        impVcpus += (w.vcpus || 0) * c;
+        impMemGB += (w.memory || 0) * c;
+        impStorageGB += (w.storage || 0) * c;
+    });
+
     _rvtoolsSheets = null;
     closeImportModal();
     renderWorkloads();
     calculateRequirements();
 
+    // Post-import overlay (mirrors the Azure Local JSON import experience) —
+    // richer than a toast, so we can surface totals, the growth default, and
+    // the estimate caveats. Issue #230.
+    var summary = document.getElementById('rvtools-post-import-summary');
+    if (summary) {
+        var modeLabel = opts.mode === 'per-vm' ? 'one workload per VM' : 'grouped by VM size';
+        var storageLabel = opts.storageSource === 'inuse' ? 'in-use' : 'provisioned';
+        summary.innerHTML = 'Imported <strong>' + importedCount + '</strong> workload' + (importedCount !== 1 ? 's' : '')
+            + ' (<strong>' + impVms + '</strong> VM' + (impVms !== 1 ? 's' : '') + ', ' + modeLabel + ')'
+            + ' from <strong>"' + escapeHtml(clusterLabel) + '"</strong>.'
+            + '<br>Totals: <strong>' + impVcpus + '</strong> vCPU, <strong>' + impMemGB + '</strong> GB RAM, <strong>'
+            + impStorageGB + '</strong> GB ' + storageLabel + ' storage.'
+            + (growthApplied
+                ? '<br><br><em>Allow for Future Growth</em> has been set to <strong>20%</strong> for this import.'
+                : '<br><br>Your existing <em>Allow for Future Growth</em> setting was kept.');
+    }
+    var postOverlay = document.getElementById('rvtools-post-import-overlay');
+    if (postOverlay) postOverlay.style.display = 'flex';
+
     showToast('Imported ' + importedCount + ' workload' + (importedCount !== 1 ? 's' : '')
         + ' from "' + escapeHtml(clusterLabel) + '"', 'success');
+}
+
+function closeRVToolsPostImport() { // eslint-disable-line no-unused-vars
+    var overlay = document.getElementById('rvtools-post-import-overlay');
+    if (overlay) overlay.style.display = 'none';
 }
 
 // Inline validation for the editable cluster-name field. Shows a hint when the
