@@ -162,8 +162,9 @@ with the Designer schema.
 4. Sync WIZARD_VERSION (separate tiny PR, or fold into the schema PR).
 
 ## Notes
-- Prototype schemas live alongside this plan as `odin-design.schema.draft.json` and
-  `odin-sizer.schema.draft.json` for review; final home is `docs/json-schema/`.
+- Schemas shipped to their final home in `docs/json-schema/` (`odin-design.schema.json`,
+  `odin-sizer.schema.json`) + `docs/json-schema/README.md` in v0.22.61. The earlier
+  `*.schema.draft.json` prototypes have been removed now that the production files exist.
 - Sizer draft enums were confirmed from sizer/index.html `<option>` lists and sizer/sizer.js modal
   builders: clusterType (single/standard/rack-aware/disaggregated/aldo-mgmt), resiliency (2way/3way),
   cpuManufacturer (intel/amd/intel_edge), storageConfig (all-flash/mixed-flash/hybrid), gpuType
