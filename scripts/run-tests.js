@@ -7,7 +7,12 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-const outputFormat = process.argv.includes('--junit') ? 'junit' : 'nunit';
+const hasJunitFlag = process.argv.includes('--junit');
+const hasNunitFlag = process.argv.includes('--nunit');
+// When neither flag is passed, both reports are written by default. When a flag
+// is passed, only that format is written.
+const writeNunit = hasNunitFlag || (!hasJunitFlag && !hasNunitFlag);
+const writeJunit = hasJunitFlag || (!hasJunitFlag && !hasNunitFlag);
 
 // ---------------------------------------------------------------------------
 // Vendored-blob integrity pins (issue #230 — SheetJS for RVTools import).
@@ -352,14 +357,14 @@ function generateJUnitXML(results, passed, failed, total) {
         }
         
         // Generate and write XML reports
-        if (outputFormat === 'nunit' || !process.argv.includes('--junit')) {
+        if (writeNunit) {
             const nunitXml = generateNUnitXML(results.details, results.passed, results.failed, results.total);
             const nunitPath = path.join(resultsDir, 'nunit.xml');
             fs.writeFileSync(nunitPath, nunitXml);
             console.log(`NUnit XML report written to: ${nunitPath}`);
         }
         
-        if (outputFormat === 'junit' || !process.argv.includes('--nunit')) {
+        if (writeJunit) {
             const junitXml = generateJUnitXML(results.details, results.passed, results.failed, results.total);
             const junitPath = path.join(resultsDir, 'junit.xml');
             fs.writeFileSync(junitPath, junitXml);
