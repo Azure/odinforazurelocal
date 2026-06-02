@@ -23,6 +23,10 @@ Documents ODIN's export/import format as machine-readable **JSON Schemas** and h
 - **Sizer JSON-import confirmation** — importing a **Sizer Configuration** JSON file now shows a success toast (with the cluster name and workload count) on completion, matching the **Azure Local Instance** and **RVTools** import flows. Previously the file-based import applied silently with zero feedback, which felt inconsistent with the other two import options.
 - **Version-constant sync** — bumps the stale `WIZARD_VERSION` and adds both `WIZARD_VERSION` and `SIZER_VERSION` to the version-bump checklist so they don't drift again (`SIZER_VERSION` remains an integer payload-format version, not a release version).
 
+### Fixed
+
+- **Sizer Reset left disaggregated controls behind** — clicking **🔄 Reset** from a **Disaggregated Storage** configuration correctly restored the Deployment Type to **Hyperconverged** and node count to **2**, but the disaggregated-only **Number of Racks** and **Storage Connectivity** rows stayed visible (and the S2D storage fields stayed disabled). `resetScenario()` now calls `updateDisaggregatedUI(false)` and restores those controls to their defaults, matching the normal cluster-type-change path.
+
 ---
 
 ## [0.22.55] - 2026-06-02

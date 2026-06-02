@@ -8950,6 +8950,19 @@ function resetScenario() {
     document.getElementById('cluster-type').value = 'standard';
     updateNodeOptionsForClusterType();
     updateStorageForClusterType();
+    // Hide the disaggregated-only rows (Number of Racks, Storage Connectivity)
+    // and re-enable the S2D storage fields. resetScenario() sets cluster-type
+    // back to 'standard' directly rather than going through onClusterTypeChange(),
+    // so without this the disaggregated UI stays visible after a reset from a
+    // Disaggregated Storage configuration.
+    updateDisaggregatedUI(false);
+    // Restore the disaggregated controls to their HTML defaults so a later
+    // switch back to Disaggregated Storage starts clean rather than carrying
+    // the previous rack count / storage connectivity.
+    var disaggRackEl = document.getElementById('disagg-rack-count');
+    if (disaggRackEl) disaggRackEl.value = '2';
+    var disaggStorageEl = document.getElementById('disagg-storage-type');
+    if (disaggStorageEl) disaggStorageEl.value = 'fc_san';
     document.getElementById('node-count').value = '2';
     updateResiliencyOptions();
     document.getElementById('resiliency').value = '2way';
