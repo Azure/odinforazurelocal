@@ -19,7 +19,7 @@
             "tool": { "type": "string", "description": "Always 'ODIN Sizer for Azure Local'." },
             "version": {
               "type": ["integer", "string"],
-              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 1), NOT a release/semver version. Only bumps when the Sizer payload shape changes."
+              "description": "SIZER_VERSION — a PAYLOAD-FORMAT integer (currently 2), NOT a release/semver version. Only bumps when the Sizer payload shape changes. Bumped 1 → 2 in v0.22.62 when GitHub Enterprise Local (GHEL) became a first-class workload type."
             },
             "exportedAt": { "type": "string", "format": "date-time" },
             "url": { "type": "string", "description": "The Sizer page URL at export time." }
@@ -110,7 +110,7 @@
         "id": { "type": ["integer", "string"], "description": "Unique workload id (int counter in practice)." },
         "type": {
           "type": "string",
-          "enum": ["vm", "aks", "avd", "foundry", "edgerag", "videoindexer"]
+          "enum": ["vm", "aks", "avd", "foundry", "edgerag", "videoindexer", "ghel"]
         },
         "name": { "type": "string" },
         "gpuMode": {
@@ -192,6 +192,26 @@
             "configuration": { "type": "string", "enum": ["minimum", "recommended"], "description": "Microsoft's published cluster-wide sizing tiers." }
           },
           "required": ["type", "configuration"]
+        },
+        {
+          "title": "GitHub Enterprise Local (GHEL) workload",
+          "description": "GitHub Enterprise Server appliance VM on Azure Local. vCPU/memory/storage are derived from `tier` (see GHEL_TIERS in sizer.js, sourced from GHES 3.20 'Minimum recommended requirements').",
+          "properties": {
+            "type": { "const": "ghel" },
+            "tier": {
+              "type": "string",
+              "enum": ["trial", "up-to-1000", "1000-to-3000", "3000-to-5000", "5000-to-8000", "8000-to-10000"],
+              "description": "GHES user-count sizing tier."
+            },
+            "ha": { "type": "boolean", "description": "GHES replica-based HA. When true the appliance footprint is duplicated for the primary + at least one replica." },
+            "replicas": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 7,
+              "description": "Additional GHES HA replicas beyond the primary. GitHub caps total HA replicas at 8 (primary + 7). Mirrors `ha` for the basic case; the Advanced section can override up to 7."
+            }
+          },
+          "required": ["type", "tier"]
         }
       ]
     }
