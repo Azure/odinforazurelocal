@@ -2098,7 +2098,7 @@ function moveDisaggAdapter(portId, targetZone) {
     // it as an object key, so an attacker can't write arbitrary properties
     // (including '__proto__') onto state.disaggAdapterMapping.
     if (typeof getDisaggPortList === 'function') {
-        const _validIds = getDisaggPortList().map(function (p) { return p.id; });
+        const _validIds = getDisaggPortList().map(function(p) { return p.id; });
         if (_validIds.indexOf(portId) === -1) return;
     }
 

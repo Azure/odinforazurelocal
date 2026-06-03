@@ -7,16 +7,16 @@
  * (input/jinja2_templates/dellemc/os10/)
  */
 /* global window */
-(function () {
+(function() {
     'use strict';
 
-    var DellOs10 = {};
+    const DellOs10 = {};
 
     // ── system.j2 ────────────────────────────────────────────────────
-    DellOs10.renderSystem = function (data) {
-        var sw = data.switch;
-        var isBmc = sw.type === 'BMC';
-        var lines = [];
+    DellOs10.renderSystem = function(data) {
+        const sw = data.switch;
+        const isBmc = sw.type === 'BMC';
+        const lines = [];
 
         // Hostname and Banner
         lines.push('! system.j2 - hostname');
@@ -92,8 +92,8 @@
     };
 
     // ── login.j2 ─────────────────────────────────────────────────────
-    DellOs10.renderLogin = function () {
-        var lines = [];
+    DellOs10.renderLogin = function() {
+        const lines = [];
         lines.push('! login.j2');
         lines.push('password-attributes character-restriction upper 1 lower 1 numeric 1 special-char 1 min-length 15');
         lines.push('lockout-period 15 max-retry 3');
@@ -124,9 +124,9 @@
     };
 
     // ── qos.j2 ───────────────────────────────────────────────────────
-    DellOs10.renderQos = function (data) {
+    DellOs10.renderQos = function(data) {
         if (!data.qos) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! qos.j2');
 
         // ECN
@@ -197,13 +197,13 @@
     };
 
     // ── vlan.j2 ──────────────────────────────────────────────────────
-    DellOs10.renderVlans = function (data) {
+    DellOs10.renderVlans = function(data) {
         if (!data.vlans || !data.vlans.length) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! vlan.j2');
 
-        for (var i = 0; i < data.vlans.length; i++) {
-            var v = data.vlans[i];
+        for (let i = 0; i < data.vlans.length; i++) {
+            const v = data.vlans[i];
             lines.push('interface vlan' + v.vlan_id);
             lines.push('  description ' + v.name);
 
@@ -223,14 +223,14 @@
 
             // DHCP Relay
             if (v.interface && v.interface.dhcp_relay) {
-                for (var d = 0; d < v.interface.dhcp_relay.length; d++) {
+                for (let d = 0; d < v.interface.dhcp_relay.length; d++) {
                     lines.push('  ip helper-address ' + v.interface.dhcp_relay[d]);
                 }
             }
 
             // Redundancy (VRRP)
             if (v.interface && v.interface.redundancy && v.interface.redundancy.type === 'vrrp') {
-                var r = v.interface.redundancy;
+                const r = v.interface.redundancy;
                 lines.push('  vrrp-group ' + r.group);
                 lines.push('    priority ' + r.priority);
                 lines.push('    virtual-address ' + r.virtual_ip);
@@ -244,17 +244,17 @@
     };
 
     // ── interface.j2 ─────────────────────────────────────────────────
-    DellOs10.renderInterfaces = function (data) {
+    DellOs10.renderInterfaces = function(data) {
         if (!data.interfaces || !data.interfaces.length) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! interface.j2 - dell');
 
         // Access interfaces
-        for (var a = 0; a < data.interfaces.length; a++) {
-            var iface = data.interfaces[a];
+        for (let a = 0; a < data.interfaces.length; a++) {
+            const iface = data.interfaces[a];
             if (iface.type !== 'Access') continue;
-            var intfRange = iface.intf || (iface.start_intf + (iface.end_intf && iface.end_intf !== iface.start_intf ? '-' + iface.end_intf : ''));
-            var isRange = intfRange.indexOf('-') !== -1;
+            const intfRange = iface.intf || (iface.start_intf + (iface.end_intf && iface.end_intf !== iface.start_intf ? '-' + iface.end_intf : ''));
+            const isRange = intfRange.indexOf('-') !== -1;
 
             if (iface.shutdown) {
                 lines.push('! NOTE: This interface configuration initializes ports in shutdown state for security.');
@@ -281,11 +281,11 @@
         }
 
         // Trunk interfaces
-        for (var t = 0; t < data.interfaces.length; t++) {
-            var ti = data.interfaces[t];
+        for (let t = 0; t < data.interfaces.length; t++) {
+            const ti = data.interfaces[t];
             if (ti.type !== 'Trunk') continue;
-            var tRange = ti.intf || (ti.start_intf + (ti.end_intf && ti.end_intf !== ti.start_intf ? '-' + ti.end_intf : ''));
-            var tIsRange = tRange.indexOf('-') !== -1;
+            const tRange = ti.intf || (ti.start_intf + (ti.end_intf && ti.end_intf !== ti.start_intf ? '-' + ti.end_intf : ''));
+            const tIsRange = tRange.indexOf('-') !== -1;
             lines.push('interface ' + (tIsRange ? 'range ' : '') + ti.intf_type + ' ' + tRange);
             lines.push('  description ' + ti.name);
             lines.push('  switchport mode trunk');
@@ -312,11 +312,11 @@
         }
 
         // MLAG Peer Link interfaces
-        for (var ml = 0; ml < data.interfaces.length; ml++) {
-            var mi = data.interfaces[ml];
+        for (let ml = 0; ml < data.interfaces.length; ml++) {
+            const mi = data.interfaces[ml];
             if (mi.type !== 'MLAG') continue;
-            var mRange = mi.intf || (mi.start_intf + (mi.end_intf && mi.end_intf !== mi.start_intf ? '-' + mi.end_intf : ''));
-            var mIsRange = mRange.indexOf('-') !== -1;
+            const mRange = mi.intf || (mi.start_intf + (mi.end_intf && mi.end_intf !== mi.start_intf ? '-' + mi.end_intf : ''));
+            const mIsRange = mRange.indexOf('-') !== -1;
             lines.push('interface ' + (mIsRange ? 'range ' : '') + mi.intf_type + ' ' + mRange);
             lines.push('  description ' + mi.name);
             lines.push('  no switchport');
@@ -332,11 +332,11 @@
         }
 
         // L3 interfaces (Ethernet)
-        for (var l = 0; l < data.interfaces.length; l++) {
-            var li = data.interfaces[l];
+        for (let l = 0; l < data.interfaces.length; l++) {
+            const li = data.interfaces[l];
             if (li.type !== 'L3' || (li.intf_type || '').toLowerCase() === 'loopback') continue;
-            var lRange = li.intf || (li.start_intf + (li.end_intf && li.end_intf !== li.start_intf ? '-' + li.end_intf : ''));
-            var lIsRange = lRange.indexOf('-') !== -1;
+            const lRange = li.intf || (li.start_intf + (li.end_intf && li.end_intf !== li.start_intf ? '-' + li.end_intf : ''));
+            const lIsRange = lRange.indexOf('-') !== -1;
             lines.push('interface ' + (lIsRange ? 'range ' : '') + li.intf_type + ' ' + lRange);
             lines.push('  description ' + li.name);
             lines.push('  no switchport');
@@ -351,8 +351,8 @@
         }
 
         // Loopback interfaces
-        for (var lb = 0; lb < data.interfaces.length; lb++) {
-            var lbi = data.interfaces[lb];
+        for (let lb = 0; lb < data.interfaces.length; lb++) {
+            const lbi = data.interfaces[lb];
             if ((lbi.intf_type || '').toLowerCase() !== 'loopback') continue;
             lines.push('interface ' + lbi.intf);
             lines.push('  description ' + lbi.name);
@@ -370,13 +370,13 @@
     };
 
     // ── port_channel.j2 ──────────────────────────────────────────────
-    DellOs10.renderPortChannels = function (data) {
+    DellOs10.renderPortChannels = function(data) {
         if (!data.port_channels || !data.port_channels.length) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! port-channel.j2');
 
-        for (var p = 0; p < data.port_channels.length; p++) {
-            var pc = data.port_channels[p];
+        for (let p = 0; p < data.port_channels.length; p++) {
+            const pc = data.port_channels[p];
 
             // Port-channel interface
             lines.push('interface port-channel' + pc.id);
@@ -404,8 +404,8 @@
             lines.push('');
 
             // Member interfaces
-            for (var m = 0; m < (pc.members || []).length; m++) {
-                var member = pc.members[m];
+            for (let m = 0; m < (pc.members || []).length; m++) {
+                const member = pc.members[m];
                 lines.push('interface Ethernet ' + member);
                 lines.push('  description ' + pc.description);
                 lines.push('  no shutdown');
@@ -441,12 +441,12 @@
     };
 
     // ── vlt.j2 ───────────────────────────────────────────────────────
-    DellOs10.renderVlt = function (data) {
+    DellOs10.renderVlt = function(data) {
         // Find MLAG peer link interface range
-        var mlagRange = '';
+        let mlagRange = '';
         if (data.interfaces) {
-            for (var i = 0; i < data.interfaces.length; i++) {
-                var iface = data.interfaces[i];
+            for (let i = 0; i < data.interfaces.length; i++) {
+                const iface = data.interfaces[i];
                 if (iface.type === 'MLAG') {
                     if (iface.start_intf && iface.end_intf) {
                         mlagRange = 'ethernet' + iface.start_intf + '-' + iface.end_intf;
@@ -459,9 +459,9 @@
         }
 
         // Find iBGP peer IP
-        var ibgpPeerIp = '';
+        let ibgpPeerIp = '';
         if (data.bgp && data.bgp.neighbors) {
-            for (var n = 0; n < data.bgp.neighbors.length; n++) {
+            for (let n = 0; n < data.bgp.neighbors.length; n++) {
                 if (data.bgp.neighbors[n].description === 'iBGP_PEER') {
                     ibgpPeerIp = data.bgp.neighbors[n].ip;
                     break;
@@ -476,9 +476,9 @@
             return '';
         }
 
-        var priority = (data.switch && data.switch.type === 'TOR1') ? 1 : 2;
+        const priority = (data.switch && data.switch.type === 'TOR1') ? 1 : 2;
 
-        var lines = [];
+        const lines = [];
         lines.push('! vlt.j2');
         lines.push('vlt-domain 1');
         lines.push('  backup destination ' + ibgpPeerIp);
@@ -490,15 +490,15 @@
     };
 
     // ── prefix_list.j2 ──────────────────────────────────────────────
-    DellOs10.renderPrefixLists = function (data) {
+    DellOs10.renderPrefixLists = function(data) {
         if (!data.prefix_lists) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! prefix_list.j2');
-        for (var name in data.prefix_lists) {
-            var entries = data.prefix_lists[name];
-            for (var i = 0; i < entries.length; i++) {
-                var e = entries[i];
-                var line = 'ip prefix-list ' + name + ' seq ' + e.seq + ' ' + e.action + ' ' + e.prefix;
+        for (const name in data.prefix_lists) {
+            const entries = data.prefix_lists[name];
+            for (let i = 0; i < entries.length; i++) {
+                const e = entries[i];
+                let line = 'ip prefix-list ' + name + ' seq ' + e.seq + ' ' + e.action + ' ' + e.prefix;
                 if (e.prefix_filter) line += ' ' + e.prefix_filter;
                 lines.push(line);
             }
@@ -507,10 +507,10 @@
     };
 
     // ── bgp.j2 ──────────────────────────────────────────────────────
-    DellOs10.renderBgp = function (data) {
+    DellOs10.renderBgp = function(data) {
         if (!data.bgp) return '';
-        var bgp = data.bgp;
-        var lines = [];
+        const bgp = data.bgp;
+        const lines = [];
         lines.push('! bgp.j2');
         lines.push('router bgp ' + bgp.asn);
         lines.push('  router-id ' + bgp.router_id);
@@ -521,14 +521,14 @@
 
         // Networks
         lines.push('  address-family ipv4 unicast');
-        for (var n = 0; n < (bgp.networks || []).length; n++) {
+        for (let n = 0; n < (bgp.networks || []).length; n++) {
             lines.push('    network ' + bgp.networks[n]);
         }
         lines.push('');
 
         // Neighbors
-        for (var i = 0; i < (bgp.neighbors || []).length; i++) {
-            var nb = bgp.neighbors[i];
+        for (let i = 0; i < (bgp.neighbors || []).length; i++) {
+            const nb = bgp.neighbors[i];
             if (!nb.ip) continue;
 
             // Subnet-based neighbor (HNVPA template)
@@ -576,21 +576,21 @@
     };
 
     // ── static_route.j2 ─────────────────────────────────────────────
-    DellOs10.renderStaticRoutes = function (data) {
+    DellOs10.renderStaticRoutes = function(data) {
         if (!data.static_routes || !data.static_routes.length) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! static_route.j2');
-        for (var i = 0; i < data.static_routes.length; i++) {
-            var r = data.static_routes[i];
+        for (let i = 0; i < data.static_routes.length; i++) {
+            const r = data.static_routes[i];
             lines.push('ip route ' + r.prefix + ' ' + r.next_hop);
         }
         return lines.join('\n');
     };
 
     // ── Full config (combines all sections) ──────────────────────────
-    DellOs10.renderFullConfig = function (data) {
-        var sections = [];
-        var isBmc = data.switch && data.switch.type === 'BMC';
+    DellOs10.renderFullConfig = function(data) {
+        const sections = [];
+        const isBmc = data.switch && data.switch.type === 'BMC';
 
         sections.push(DellOs10.renderSystem(data));
         sections.push(DellOs10.renderLogin());
@@ -605,12 +605,12 @@
         }
         sections.push(DellOs10.renderStaticRoutes(data));
 
-        var output = sections.filter(function (s) { return s; }).join('\n\n');
+        const output = sections.filter(function(s) { return s; }).join('\n\n');
         return DellOs10.replaceInfraTokens(output, data.infrastructure);
     };
 
     // ── Replace infrastructure placeholder tokens ────────────────────
-    DellOs10.replaceInfraTokens = function (text, infra) {
+    DellOs10.replaceInfraTokens = function(text, infra) {
         if (!infra) return text;
         // Timezone replacement (Dell uses IANA name)
         if (infra.timezone && infra.timezone.iana) {
@@ -624,7 +624,7 @@
         if (infra.mgmtGateway) {
             text = text.split('[MGMT_GATEWAY_IP]').join(infra.mgmtGateway);
         }
-        var replacements = {
+        const replacements = {
             '[NTP_SERVER_IP]': infra.ntpServer,
             '[LOG_SERVER_IP]': infra.syslogServer,
             '[TACACS_KEY]': infra.tacacsKey,
@@ -638,7 +638,7 @@
         if (infra.tacacsServer2) {
             text = text.split('[TACACS_SERVER2]').join(infra.tacacsServer2);
         }
-        for (var token in replacements) {
+        for (const token in replacements) {
             if (replacements[token]) {
                 text = text.split(token).join(replacements[token]);
             }

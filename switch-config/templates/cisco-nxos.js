@@ -7,15 +7,15 @@
  * (input/jinja2_templates/cisco/nxos/)
  */
 /* global window */
-(function () {
+(function() {
     'use strict';
 
-    var CiscoNxos = {};
+    const CiscoNxos = {};
 
     // ── system.j2 ────────────────────────────────────────────────────
-    CiscoNxos.renderSystem = function (data) {
-        var sw = data.switch;
-        var lines = [];
+    CiscoNxos.renderSystem = function(data) {
+        const sw = data.switch;
+        const lines = [];
 
         // Hostname and Banner
         lines.push('! system.j2');
@@ -101,8 +101,8 @@
     };
 
     // ── login.j2 ─────────────────────────────────────────────────────
-    CiscoNxos.renderLogin = function () {
-        var lines = [];
+    CiscoNxos.renderLogin = function() {
+        const lines = [];
         lines.push('! login.j2');
         lines.push('fips mode enable');
         lines.push('user max-logins 1');
@@ -144,9 +144,9 @@
     };
 
     // ── qos.j2 ───────────────────────────────────────────────────────
-    CiscoNxos.renderQos = function (data) {
+    CiscoNxos.renderQos = function(data) {
         if (!data.qos) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! qos.j2');
         lines.push('policy-map type network-qos AZLOCAL-NWQOS');
         lines.push('  class type network-qos AZLOCAL-NWQOS-RDMA');
@@ -184,14 +184,14 @@
     };
 
     // ── vlan.j2 ──────────────────────────────────────────────────────
-    CiscoNxos.renderVlans = function (data) {
+    CiscoNxos.renderVlans = function(data) {
         if (!data.vlans || !data.vlans.length) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! vlan.j2');
 
         // VLAN definitions
-        for (var i = 0; i < data.vlans.length; i++) {
-            var vlan = data.vlans[i];
+        for (let i = 0; i < data.vlans.length; i++) {
+            const vlan = data.vlans[i];
             lines.push('vlan ' + vlan.vlan_id);
             lines.push('  name ' + vlan.name);
             if (vlan.shutdown) lines.push('  shutdown');
@@ -199,8 +199,8 @@
         }
 
         // SVI interfaces
-        for (var j = 0; j < data.vlans.length; j++) {
-            var v = data.vlans[j];
+        for (let j = 0; j < data.vlans.length; j++) {
+            const v = data.vlans[j];
             if (!v.interface) continue;
             lines.push('interface vlan' + v.vlan_id);
             lines.push('  description ' + v.name);
@@ -216,14 +216,14 @@
 
             // DHCP Relay
             if (v.interface.dhcp_relay) {
-                for (var d = 0; d < v.interface.dhcp_relay.length; d++) {
+                for (let d = 0; d < v.interface.dhcp_relay.length; d++) {
                     lines.push('  ip dhcp relay address ' + v.interface.dhcp_relay[d]);
                 }
             }
 
             // Redundancy (HSRP)
             if (v.interface.redundancy && v.interface.redundancy.type === 'hsrp') {
-                var r = v.interface.redundancy;
+                const r = v.interface.redundancy;
                 lines.push('  hsrp version 2');
                 lines.push('  hsrp ' + r.group);
                 lines.push('    priority ' + r.priority);
@@ -236,17 +236,17 @@
     };
 
     // ── interface.j2 ─────────────────────────────────────────────────
-    CiscoNxos.renderInterfaces = function (data) {
+    CiscoNxos.renderInterfaces = function(data) {
         if (!data.interfaces || !data.interfaces.length) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! interface.j2');
 
         // Access interfaces
-        for (var a = 0; a < data.interfaces.length; a++) {
-            var iface = data.interfaces[a];
+        for (let a = 0; a < data.interfaces.length; a++) {
+            const iface = data.interfaces[a];
             if (iface.type !== 'Access') continue;
-            var intfRange = iface.intf || (iface.start_intf + (iface.end_intf && iface.end_intf !== iface.start_intf ? '-' + iface.end_intf : ''));
-            var intfName = iface.intf_type + ' ' + intfRange;
+            const intfRange = iface.intf || (iface.start_intf + (iface.end_intf && iface.end_intf !== iface.start_intf ? '-' + iface.end_intf : ''));
+            const intfName = iface.intf_type + ' ' + intfRange;
             lines.push('interface ' + intfName);
             lines.push('  description ' + iface.name);
             lines.push('  no cdp enable');
@@ -268,11 +268,11 @@
         }
 
         // Trunk interfaces
-        for (var t = 0; t < data.interfaces.length; t++) {
-            var ti = data.interfaces[t];
+        for (let t = 0; t < data.interfaces.length; t++) {
+            const ti = data.interfaces[t];
             if (ti.type !== 'Trunk') continue;
-            var tRange = ti.intf || (ti.start_intf + (ti.end_intf && ti.end_intf !== ti.start_intf ? '-' + ti.end_intf : ''));
-            var tName = ti.intf_type + ' ' + tRange;
+            const tRange = ti.intf || (ti.start_intf + (ti.end_intf && ti.end_intf !== ti.start_intf ? '-' + ti.end_intf : ''));
+            const tName = ti.intf_type + ' ' + tRange;
             lines.push('interface ' + tName);
             lines.push('  description ' + ti.name);
             lines.push('  no cdp enable');
@@ -296,11 +296,11 @@
         }
 
         // L3 interfaces (Ethernet)
-        for (var l = 0; l < data.interfaces.length; l++) {
-            var li = data.interfaces[l];
+        for (let l = 0; l < data.interfaces.length; l++) {
+            const li = data.interfaces[l];
             if (li.type !== 'L3' || (li.intf_type || '').toLowerCase() === 'loopback') continue;
-            var lRange = li.intf || (li.start_intf + (li.end_intf && li.end_intf !== li.start_intf ? '-' + li.end_intf : ''));
-            var lName = li.intf_type + ' ' + lRange;
+            const lRange = li.intf || (li.start_intf + (li.end_intf && li.end_intf !== li.start_intf ? '-' + li.end_intf : ''));
+            const lName = li.intf_type + ' ' + lRange;
             lines.push('interface ' + lName);
             lines.push('  description ' + li.name);
             lines.push('  no cdp enable');
@@ -318,8 +318,8 @@
         }
 
         // Loopback interfaces
-        for (var lb = 0; lb < data.interfaces.length; lb++) {
-            var lbi = data.interfaces[lb];
+        for (let lb = 0; lb < data.interfaces.length; lb++) {
+            const lbi = data.interfaces[lb];
             if ((lbi.intf_type || '').toLowerCase() !== 'loopback') continue;
             lines.push('interface ' + lbi.intf);
             lines.push('  description ' + lbi.name);
@@ -337,13 +337,13 @@
     };
 
     // ── port_channel.j2 ──────────────────────────────────────────────
-    CiscoNxos.renderPortChannels = function (data) {
+    CiscoNxos.renderPortChannels = function(data) {
         if (!data.port_channels || !data.port_channels.length) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! port-channel.j2');
 
-        for (var p = 0; p < data.port_channels.length; p++) {
-            var pc = data.port_channels[p];
+        for (let p = 0; p < data.port_channels.length; p++) {
+            const pc = data.port_channels[p];
 
             // Port-channel interface
             lines.push('interface port-channel' + pc.id);
@@ -368,7 +368,7 @@
             lines.push('');
 
             // Member interfaces
-            for (var m = 0; m < (pc.members || []).length; m++) {
+            for (let m = 0; m < (pc.members || []).length; m++) {
                 lines.push('interface Ethernet ' + pc.members[m]);
                 lines.push('  description ' + pc.description);
                 lines.push('  no cdp enable');
@@ -397,15 +397,15 @@
     };
 
     // ── prefix_list.j2 ──────────────────────────────────────────────
-    CiscoNxos.renderPrefixLists = function (data) {
+    CiscoNxos.renderPrefixLists = function(data) {
         if (!data.prefix_lists) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! prefix_list.j2');
-        for (var name in data.prefix_lists) {
-            var entries = data.prefix_lists[name];
-            for (var i = 0; i < entries.length; i++) {
-                var e = entries[i];
-                var line = 'ip prefix-list ' + name + ' seq ' + e.seq + ' ' + e.action + ' ' + e.prefix;
+        for (const name in data.prefix_lists) {
+            const entries = data.prefix_lists[name];
+            for (let i = 0; i < entries.length; i++) {
+                const e = entries[i];
+                let line = 'ip prefix-list ' + name + ' seq ' + e.seq + ' ' + e.action + ' ' + e.prefix;
                 if (e.prefix_filter) line += ' ' + e.prefix_filter;
                 lines.push(line);
             }
@@ -414,10 +414,10 @@
     };
 
     // ── bgp.j2 ──────────────────────────────────────────────────────
-    CiscoNxos.renderBgp = function (data) {
+    CiscoNxos.renderBgp = function(data) {
         if (!data.bgp) return '';
-        var bgp = data.bgp;
-        var lines = [];
+        const bgp = data.bgp;
+        const lines = [];
         lines.push('! bgp.j2');
         lines.push('router bgp ' + bgp.asn);
         lines.push('  router-id ' + bgp.router_id);
@@ -427,7 +427,7 @@
 
         // Networks
         lines.push('  address-family ipv4 unicast');
-        for (var n = 0; n < (bgp.networks || []).length; n++) {
+        for (let n = 0; n < (bgp.networks || []).length; n++) {
             lines.push('    network ' + bgp.networks[n]);
         }
         lines.push('    maximum-paths 8');
@@ -435,8 +435,8 @@
         lines.push('');
 
         // Neighbors
-        for (var i = 0; i < (bgp.neighbors || []).length; i++) {
-            var nb = bgp.neighbors[i];
+        for (let i = 0; i < (bgp.neighbors || []).length; i++) {
+            const nb = bgp.neighbors[i];
             if (!nb.ip) continue;
             lines.push('  neighbor ' + nb.ip);
             lines.push('    description ' + nb.description);
@@ -462,21 +462,21 @@
     };
 
     // ── static_route.j2 ─────────────────────────────────────────────
-    CiscoNxos.renderStaticRoutes = function (data) {
+    CiscoNxos.renderStaticRoutes = function(data) {
         if (!data.static_routes || !data.static_routes.length) return '';
-        var lines = [];
+        const lines = [];
         lines.push('! static_route.j2');
-        for (var i = 0; i < data.static_routes.length; i++) {
-            var r = data.static_routes[i];
+        for (let i = 0; i < data.static_routes.length; i++) {
+            const r = data.static_routes[i];
             lines.push('ip route ' + r.prefix + ' ' + r.next_hop);
         }
         return lines.join('\n');
     };
 
     // ── Full config (combines all sections) ──────────────────────────
-    CiscoNxos.renderFullConfig = function (data) {
-        var sections = [];
-        var isBmc = data.switch && data.switch.type === 'BMC';
+    CiscoNxos.renderFullConfig = function(data) {
+        const sections = [];
+        const isBmc = data.switch && data.switch.type === 'BMC';
 
         sections.push(CiscoNxos.renderSystem(data));
         sections.push(CiscoNxos.renderLogin());
@@ -490,12 +490,12 @@
         }
         sections.push(CiscoNxos.renderStaticRoutes(data));
 
-        var output = sections.filter(function (s) { return s; }).join('\n\n');
+        const output = sections.filter(function(s) { return s; }).join('\n\n');
         return CiscoNxos.replaceInfraTokens(output, data.infrastructure);
     };
 
     // ── Replace infrastructure placeholder tokens ────────────────────
-    CiscoNxos.replaceInfraTokens = function (text, infra) {
+    CiscoNxos.replaceInfraTokens = function(text, infra) {
         if (!infra) return text;
         // Timezone replacement
         if (infra.timezone) {
@@ -515,7 +515,7 @@
         if (infra.mgmtVlan) {
             text = text.split('[MGMT_VLAN]').join(infra.mgmtVlan);
         }
-        var replacements = {
+        const replacements = {
             '[NTP_SERVER_IP]': infra.ntpServer,
             '[LOG_SERVER_IP]': infra.syslogServer,
             '[TACACS_KEY]': infra.tacacsKey,
@@ -526,13 +526,13 @@
         // Template has 4 occurrences: tacacs-server host ×2, aaa group server ×2
         // Replace alternating: server1, server2, server1, server2
         if (infra.tacacsServer1 || infra.tacacsServer2) {
-            var s1 = infra.tacacsServer1 || infra.tacacsServer2;
-            var s2 = infra.tacacsServer2 || infra.tacacsServer1;
-            var tacacsToken = '[TACACS_SERVER_IP]';
-            var useFirst = true;
-            var idx = text.indexOf(tacacsToken);
+            const s1 = infra.tacacsServer1 || infra.tacacsServer2;
+            const s2 = infra.tacacsServer2 || infra.tacacsServer1;
+            const tacacsToken = '[TACACS_SERVER_IP]';
+            let useFirst = true;
+            let idx = text.indexOf(tacacsToken);
             while (idx !== -1) {
-                var replacement = useFirst ? s1 : s2;
+                const replacement = useFirst ? s1 : s2;
                 text = text.substring(0, idx) + replacement + text.substring(idx + tacacsToken.length);
                 useFirst = !useFirst;
                 idx = text.indexOf(tacacsToken, idx + replacement.length);
@@ -541,9 +541,9 @@
         // Cisco uses [PLACEHOLDER] for SNMP (from original template)
         if (infra.snmpRo || infra.snmpRw) {
             // The Cisco template has two [PLACEHOLDER] lines — first is RO, second is RW
-            var roVal = infra.snmpRo || '[PLACEHOLDER]';
-            var rwVal = infra.snmpRw || '[PLACEHOLDER]';
-            var pIdx = text.indexOf('[PLACEHOLDER]');
+            const roVal = infra.snmpRo || '[PLACEHOLDER]';
+            const rwVal = infra.snmpRw || '[PLACEHOLDER]';
+            let pIdx = text.indexOf('[PLACEHOLDER]');
             if (pIdx !== -1) {
                 text = text.substring(0, pIdx) + roVal + text.substring(pIdx + '[PLACEHOLDER]'.length);
             }
@@ -552,7 +552,7 @@
                 text = text.substring(0, pIdx) + rwVal + text.substring(pIdx + '[PLACEHOLDER]'.length);
             }
         }
-        for (var token in replacements) {
+        for (const token in replacements) {
             if (replacements[token]) {
                 text = text.split(token).join(replacements[token]);
             }

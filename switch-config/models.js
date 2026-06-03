@@ -222,9 +222,9 @@ window.SWITCH_MODELS = {
 /**
  * Helper: Get all TOR models (for dropdown)
  */
-window.getTorModels = function () {
-    var models = [];
-    for (var key in window.SWITCH_MODELS) {
+window.getTorModels = function() {
+    const models = [];
+    for (const key in window.SWITCH_MODELS) {
         if (window.SWITCH_MODELS[key].type === 'TOR') {
             models.push({ key: key, label: window.SWITCH_MODELS[key].label, firmware: window.SWITCH_MODELS[key].firmware });
         }
@@ -235,9 +235,9 @@ window.getTorModels = function () {
 /**
  * Helper: Get all BMC models (for dropdown)
  */
-window.getBmcModels = function () {
-    var models = [];
-    for (var key in window.SWITCH_MODELS) {
+window.getBmcModels = function() {
+    const models = [];
+    for (const key in window.SWITCH_MODELS) {
         if (window.SWITCH_MODELS[key].type === 'BMC') {
             models.push({ key: key, label: window.SWITCH_MODELS[key].label, firmware: window.SWITCH_MODELS[key].firmware });
         }
