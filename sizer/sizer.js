@@ -3433,12 +3433,26 @@ function updateResiliencyRecommendation() {
     el.style.display = (clusterType === 'standard' && nodeCount >= 3 && resiliency === '2way') ? 'flex' : 'none';
 }
 
+// Update a label's visible text without wiping any child elements (e.g. the
+// MANUAL / AUTO-SCALED badge spans appended by markManualSet / markAutoScaled).
+// label.textContent = '...' would destroy those badges; this only touches the
+// leading text node.
+function _setLabelText(label, newText) {
+    if (!label) return;
+    for (let i = 0; i < label.childNodes.length; i++) {
+        if (label.childNodes[i].nodeType === Node.TEXT_NODE) {
+            label.childNodes[i].textContent = newText;
+            return;
+        }
+    }
+    label.insertBefore(document.createTextNode(newText), label.firstChild);
+}
+
 // Update node count options based on cluster type
 function updateNodeOptionsForClusterType() {
     const clusterType = document.getElementById('cluster-type').value;
     const nodeSelect = document.getElementById('node-count');
     const currentValue = parseInt(nodeSelect.value) || 3;
-
     if (clusterType === 'single') {
         // Single node: fixed at 1, disable dropdown
         nodeSelect.innerHTML = '<option value="1">1 Node</option>';
@@ -3497,7 +3511,7 @@ function updateNodeOptionsForClusterType() {
         }
         // Update label to say "Nodes per Rack"
         const nodeLabel = document.querySelector('label[for="node-count"]');
-        if (nodeLabel) nodeLabel.textContent = 'Nodes per Rack';
+        _setLabelText(nodeLabel, 'Nodes per Rack');
     } else {
         // Standard cluster: 2-16 nodes
         nodeSelect.disabled = false;
@@ -3515,7 +3529,7 @@ function updateNodeOptionsForClusterType() {
     // Reset node label back to default for non-disaggregated types
     if (clusterType !== 'disaggregated') {
         const nodeLabel = document.querySelector('label[for="node-count"]');
-        if (nodeLabel) nodeLabel.textContent = 'Number of Physical Nodes';
+        _setLabelText(nodeLabel, 'Number of Physical Nodes');
     }
 }
 
