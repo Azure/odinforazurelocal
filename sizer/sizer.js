@@ -7699,7 +7699,9 @@ function shareSizerURL() { // eslint-disable-line no-unused-vars
         return;
     }
     try {
-        var shareName = prompt('Enter a name for this configuration (optional):', '');
+        var clusterNameEl = document.getElementById('cluster-name');
+        var defaultName = (clusterNameEl && clusterNameEl.value ? clusterNameEl.value.trim() : '').substring(0, 100);
+        var shareName = prompt('Enter a name for this configuration (optional):', defaultName);
         if (shareName === null) return; // User cancelled
 
         var state = getSizerState();
