@@ -82,6 +82,24 @@ node scripts/run-tests.js            # must show 958/958 passed
 - Version numbers must be bumped consistently in all of: `README.md` (header + appendix anchor), `CHANGELOG.md`, `index.html` (visible version string + "What's New" JS block), and `sizer/index.html` (visible version string). Also keep the in-code version constants in step: `WIZARD_VERSION` in `js/script.js` (stamped into Designer JSON exports + report footer) and `SIZER_VERSION` in `sizer/sizer.js` (note: `SIZER_VERSION` is the Sizer *payload-format* integer, bumped only when the export shape changes — not on every release).
 - Commit messages: imperative mood, ≤72 char summary line, reference PR/issue numbers where relevant (e.g. `Fix storage-tier validation (#201)`).
 
+## JSON Schemas (`docs/json-schema/`) — keep in sync with Sizer / Designer changes
+The repo ships two public JSON Schemas that describe the export/import payloads:
+- [`docs/json-schema/odin-sizer.schema.json`](../docs/json-schema/odin-sizer.schema.json) — Sizer "Export JSON" payload. Source of truth: `getSizerState()` in `sizer/sizer.js`, per-workload shapes from `addWorkload()` / the `WORKLOAD_DEFAULTS` block.
+- [`docs/json-schema/odin-design.schema.json`](../docs/json-schema/odin-design.schema.json) — Designer "Export JSON" envelope + `state`. Source of truth: the Designer export path in `js/script.js` (stamped with `WIZARD_VERSION`).
+
+These are linked from the README and are the only public contract for third parties (and our own importers) consuming ODIN JSON. **They WILL drift if not actively maintained** — neither CI nor the test suite currently validates exports against the schemas, so a missed schema update is silent until a downstream consumer breaks.
+
+**Update the schema in the same PR** as any change that:
+- Adds a new workload `type` (Sizer) — add it to the `type` enum AND add a new `oneOf` branch describing its fields. Example: GHEL was added in v0.22.62 but the schema wasn't updated until a follow-up PR.
+- Adds/removes/renames a field on an existing workload, on `sizerState`, or on the Designer `state` object.
+- Adds a new value to any existing `enum` (e.g. a new `clusterType`, `gpuType`, `cpuManufacturer`, `storageConfig`, `resiliency`, AVD `profile`, Foundry `engine`/`modelClass`, etc.).
+- Changes the accepted shape of an envelope (wrapped vs bare, new top-level metadata keys, new required fields).
+- Bumps `SIZER_VERSION` in `sizer/sizer.js` or `WIZARD_VERSION` in `js/script.js` — update the matching `version` field description in the schema and note the reason in the same place the in-code constant is commented.
+
+**Schema-version bumps are decoupled from release version.** The schema `$id` URL and structure don't need a release bump — but if you make a breaking change to the schema shape (rename/remove a required field), call it out in the CHANGELOG entry so external consumers see it.
+
+**Validation tip** (optional, local-only): after editing a schema, sanity-check it against a representative export by running it through any JSON-Schema validator (e.g. `npx ajv-cli validate -s docs/json-schema/odin-sizer.schema.json -d <exported.json>` — `ajv-cli` is not a project dependency, install ad-hoc). The importers are deliberately permissive (`additionalProperties: true`, most fields nullable) so a stricter schema than the importer is fine; a looser one isn't.
+
 ## External Network Calls & Telemetry
 - The site's only external runtime calls are **Firebase (anonymous page-view and counter stats)** and **image/font assets served from the repo itself**. Do not add new third-party `<script>` tags, `fetch()` / `XMLHttpRequest` to external domains, analytics SDKs, ad networks, or telemetry beacons without explicit approval in the prompt.
 - All other data stays client-side in `localStorage` — do not introduce backend calls, serverless endpoints, or cross-origin POSTs.
