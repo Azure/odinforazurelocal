@@ -184,7 +184,7 @@ function buildRackFrame(scene, offsetX, offsetZ, facing) {
 
 // ── Place a 2U server node with detailed front/back ──
 
-function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskCount, portCount) {
+function placeServer(rackGroup, baseY, uStart, color, label, isGpu, diskCount, portCount) {
     var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
     var deviceHeight = 2 * RACK.U_HEIGHT - 0.004;
     var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
@@ -192,7 +192,7 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
     // Add meshes to the rack group (local coords) so rack rotation/position propagates.
-    scene = rackGroup;
+    var scene = rackGroup;
     var cx = 0;
 
     var bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0.3 });
@@ -344,14 +344,14 @@ function placeServer(scene, rackGroup, baseY, uStart, color, label, isGpu, diskC
 
 // ── Place a 1U ToR switch with ethernet ports ──
 
-function placeSwitch(scene, rackGroup, baseY, uStart, label) {
+function placeSwitch(rackGroup, baseY, uStart, label) {
     var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
     var deviceHeight = 1 * RACK.U_HEIGHT - 0.004;
     var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    scene = rackGroup;
+    var scene = rackGroup;
     var cx = 0;
 
     var switchMat = new THREE.MeshStandardMaterial({ color: COLORS.TOR_SWITCH, roughness: 0.45, metalness: 0.35 });
@@ -453,14 +453,14 @@ function placeSwitch(scene, rackGroup, baseY, uStart, label) {
 
 // ── Place a 1U BMC switch ──
 
-function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
+function placeBmcSwitch(rackGroup, baseY, uStart, label) {
     var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
     var deviceHeight = 1 * RACK.U_HEIGHT - 0.004;
     var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    scene = rackGroup;
+    var scene = rackGroup;
     var cx = 0;
 
     var bmcMat = new THREE.MeshStandardMaterial({ color: COLORS.BMC_SWITCH, roughness: 0.4, metalness: 0.3 });
@@ -536,14 +536,14 @@ function placeBmcSwitch(scene, rackGroup, baseY, uStart, label) {
 
 // ── FC Switch — 1U Fibre Channel switch in purple ──
 
-function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
+function placeFcSwitch(rackGroup, baseY, uStart, label) {
     var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
     var deviceHeight = 1 * RACK.U_HEIGHT - 0.004;
     var deviceDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    scene = rackGroup;
+    var scene = rackGroup;
     var cx = 0;
 
     var fcMat = new THREE.MeshStandardMaterial({ color: 0x9933cc, roughness: 0.4, metalness: 0.4 });
@@ -603,7 +603,7 @@ function placeFcSwitch(scene, rackGroup, baseY, uStart, label) {
 
 // ── SAN Appliance — 5U storage appliance in purple ──
 
-function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
+function placeSanAppliance(rackGroup, baseY, uStart, label) {
     var heightU = 5;
     var deviceWidth = RACK.WIDTH - RACK.POST_SIZE * 2 - 0.02;
     var deviceHeight = heightU * RACK.U_HEIGHT - 0.004;
@@ -611,7 +611,7 @@ function placeSanAppliance(scene, rackGroup, baseY, uStart, label) {
     var frontZ = -deviceDepth / 2;
     var backZ = deviceDepth / 2;
     var y = baseY + (uStart - 1) * RACK.U_HEIGHT + deviceHeight / 2 + 0.002;
-    scene = rackGroup;
+    var scene = rackGroup;
     var cx = 0;
 
     var sanMat = new THREE.MeshStandardMaterial({ color: 0x6d28d9, roughness: 0.3, metalness: 0.4 });
@@ -731,6 +731,11 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     var rDepth = RACK.DEPTH * 0.6;
     var spineGap = rHeight * 0.4; // vertical gap between stacked spine switches
     var baseY = RACK.OUTER_HEIGHT + 0.35;
+    // Spine front/rear face Z — invariant across the spine stack (every
+    // spine shares routerZ and rDepth), so hoist out of the loop rather
+    // than rely on `var` leakage when read further below.
+    var frontZ = routerZ - rDepth / 2;
+    var backRZ = routerZ + rDepth / 2;
 
     for (let si = 0; si < spineCount; si++) {
         var spineY = baseY + si * (rHeight + spineGap);
@@ -741,8 +746,6 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         scene.add(router);
 
         // Front panel
-        var frontZ = routerZ - rDepth / 2;
-        var backRZ = routerZ + rDepth / 2;
         var rpGeo = new THREE.BoxGeometry(rWidth - 0.004, rHeight - 0.004, 0.003);
         var rPanelFront = new THREE.Mesh(rpGeo, darkMat);
         rPanelFront.position.set(routerX, spineY, frontZ - 0.002);
@@ -814,6 +817,43 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         return rackCx - torDeviceW / 2 + 0.04 + portIdx * (qsfpW + 0.008);
     }
 
+    // Hoisted out of the per-rack loop so each helper is created once per
+    // placeCoreNetwork call instead of once per rack. Closures still capture
+    // the per-call invariants (routerX, rWidth, spineStackTopY, cableRadius,
+    // scene, blueMat); per-iteration values are passed as parameters.
+    //
+    // sideLandingX: keep the landing X on the same side as the drop so the
+    // final horizontal segment never crosses through the spine body.
+    // rackSide < 0 → land in the left half of the rear face; > 0 → right half.
+    // offsetFrac in 0..0.45 controls how far into the rear face the cable
+    // terminates (0 = at the side, 0.45 = near the centreline).
+    function sideLandingX(rackSide, offsetFrac) {
+        return routerX + rackSide * (rWidth * (0.45 - offsetFrac));
+    }
+    // makeUplinkCable: route above the top of the entire spine stack so the
+    // horizontal traversal never passes through any spine body. Per-cable
+    // stagger (ri) spreads the bundle vertically at the top.
+    function makeUplinkCable(ri, spineSideX, rearPortZ, exitZ, spineCableZ,
+                             portX, portY, landingX, landingY) {
+        var topY = spineStackTopY + 0.12 + ri * 0.015;
+        var pts = [
+            new THREE.Vector3(portX, portY, rearPortZ),       // at rear port
+            new THREE.Vector3(portX, portY, exitZ),           // out the rear of the ToR
+            new THREE.Vector3(portX, topY, exitZ),            // up to top
+            new THREE.Vector3(spineSideX, topY, exitZ),       // across in X to spine's side
+            new THREE.Vector3(spineSideX, topY, spineCableZ), // align Z to spine rear face
+            new THREE.Vector3(spineSideX, landingY, spineCableZ), // drop down the side of the spine
+            new THREE.Vector3(landingX, landingY, spineCableZ)    // into the rear face
+        ];
+        for (let pi = 0; pi < pts.length - 1; pi++) {
+            var segGeo = new THREE.TubeGeometry(
+                new THREE.LineCurve3(pts[pi], pts[pi + 1]),
+                2, cableRadius, 6, false
+            );
+            scene.add(new THREE.Mesh(segGeo, blueMat));
+        }
+    }
+
     // ── Blue cables: Management/Compute Trunks (each rack's ToRs → Spine) ──
     // Connect every rack's ToR to the bottom spine switch. All racks (in
     // either single-row or two-row disaggregated layouts) land on the
@@ -846,48 +886,16 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
         // Build a path that emerges horizontally from the rear of the ToR,
         // rises, crosses over, then drops down the SIDE of the spine (just
         // past its left or right face) before turning in to land on the
-        // rear face. This avoids cables visibly passing through the spine
-        // body.
-        // rackX_i is captured from the enclosing loop.
+        // rear face. This avoids cables visibly passing through the spine body.
         var rackSide = rackX_i < routerX ? -1 : 1;          // -1 = drop on spine left, +1 = right
         var spineSideX = routerX + rackSide * (rWidth / 2 + 0.09); // well past the spine side face
-        // Keep the landing X on the same side as the drop so the final
-        // horizontal segment never crosses through the spine body. rackSide
-        // < 0 → land in the left half of the rear face; > 0 → right half.
-        function sideLandingX(offsetFrac) {
-            // offsetFrac in 0..0.45 controls how far into the rear face the
-            // cable terminates (0 = at the side, 0.45 = near the centreline).
-            return routerX + rackSide * (rWidth * (0.45 - offsetFrac));
-        }
-        function makeUplinkCable(portX, portY, landingX, landingY) {
-            // Route above the top of the entire spine stack so the
-            // horizontal traversal never passes through any spine body.
-            // Per-cable stagger spreads the bundle vertically at the top.
-            var topY = spineStackTopY + 0.12 + ri * 0.015;
-            var pts = [
-                new THREE.Vector3(portX, portY, rearPortZ),       // at rear port
-                new THREE.Vector3(portX, portY, exitZ),           // out the rear of the ToR
-                new THREE.Vector3(portX, topY, exitZ),            // up to top
-                new THREE.Vector3(spineSideX, topY, exitZ),       // across in X to spine's side
-                new THREE.Vector3(spineSideX, topY, spineCableZ), // align Z to spine rear face
-                new THREE.Vector3(spineSideX, landingY, spineCableZ), // drop down the side of the spine
-                new THREE.Vector3(landingX, landingY, spineCableZ)    // into the rear face
-            ];
-            for (let pi = 0; pi < pts.length - 1; pi++) {
-                var segGeo = new THREE.TubeGeometry(
-                    new THREE.LineCurve3(pts[pi], pts[pi + 1]),
-                    2, cableRadius, 6, false
-                );
-                scene.add(new THREE.Mesh(segGeo, blueMat));
-            }
-        }
 
         // Give each of the two cables a slightly different landing X within
         // the rack's side of the spine rear face (so they don't overlap).
-        makeUplinkCable(qsfpX(rackX_i, 2), tor1QsfpY,
-            sideLandingX(0.15), routerBottomY);
-        makeUplinkCable(qsfpX(rackX_i, 3), tor2QsfpY,
-            sideLandingX(0.25), routerBottomY);
+        makeUplinkCable(ri, spineSideX, rearPortZ, exitZ, spineCableZ,
+            qsfpX(rackX_i, 2), tor1QsfpY, sideLandingX(rackSide, 0.15), routerBottomY);
+        makeUplinkCable(ri, spineSideX, rearPortZ, exitZ, spineCableZ,
+            qsfpX(rackX_i, 3), tor2QsfpY, sideLandingX(rackSide, 0.25), routerBottomY);
     }
 
     // ── Pink/Magenta cables: SMB Storage Trunks — rack-aware only (not disaggregated) ──
@@ -895,7 +903,6 @@ function placeCoreNetwork(scene, rack1X, rack2X, spineCount, allRackCount, rackS
     // Calculate actual TOR switch center Y positions (reuse torDeviceH from above)
     var tor1CenterY = 0.06 + (42 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002; // U42
     var tor2CenterY = 0.06 + (41 - 1) * RACK.U_HEIGHT + torDeviceH / 2 + 0.002; // U41
-    var torSwitchDepth = RACK.DEPTH - RACK.POST_SIZE * 2 - 0.06;
     var torBackZ = torSwitchDepth / 2 + 0.006;
     // Start/end Y at TOR center so vertical legs reach the ports
     var smbUpperY = tor1CenterY;
@@ -1361,14 +1368,14 @@ function renderRack3D(config) {
             var torU = RACK.TOTAL_U - t; // 42, 41
             var torNum = (isRackAware || isDisaggregated) ? (rackIndex * 2 + t + 1) : (t + 1);
             var torLabel = 'ToR ' + torNum;
-            placeSwitch(_rack3d.scene, rack.group, rack.baseY, torU, torLabel);
+            placeSwitch(rack.group, rack.baseY, torU, torLabel);
         }
 
         // Place BMC switch below ToR switches (1U)
         var bmcU = RACK.TOTAL_U - rackInfo.tor;
         var bmcNum = (isRackAware || isDisaggregated) ? (rackIndex + 1) : 1;
         var bmcLabel = 'BMC ' + bmcNum;
-        placeBmcSwitch(_rack3d.scene, rack.group, rack.baseY, bmcU, bmcLabel);
+        placeBmcSwitch(rack.group, rack.baseY, bmcU, bmcLabel);
 
         // Place FC switches for disaggregated + Fibre Channel (2 per rack, below BMC)
         var fcSwitchCount = 0;
@@ -1379,7 +1386,7 @@ function renderRack3D(config) {
                 var fcU = fcBaseU - fc;
                 var fcNum = (rackIndex * 2) + fc + 1;
                 var fcLabel = 'Fibre Channel ' + fcNum;
-                placeFcSwitch(_rack3d.scene, rack.group, rack.baseY, fcU, fcLabel);
+                placeFcSwitch(rack.group, rack.baseY, fcU, fcLabel);
             }
         }
 
@@ -1387,7 +1394,7 @@ function renderRack3D(config) {
         var sanApplianceU = 0;
         if (isDisaggregated) {
             sanApplianceU = 5;
-            placeSanAppliance(_rack3d.scene, rack.group, rack.baseY, 1, 'SAN Appliance');
+            placeSanAppliance(rack.group, rack.baseY, 1, 'SAN Appliance');
         }
 
         // Place server nodes filling the rack bottom-up (datacentre practice —
@@ -1407,7 +1414,7 @@ function renderRack3D(config) {
             if (serverStartU > topServerU) break;
             var color = COLORS.SERVER;
             var nodeLabel = 'Node ' + (nodeOffset + n + 1);
-            placeServer(_rack3d.scene, rack.group, rack.baseY, serverStartU - 1, color,
+            placeServer(rack.group, rack.baseY, serverStartU - 1, color,
                 nodeLabel, false, config.diskCount || 8, config.portCount || 4);
         }
 
