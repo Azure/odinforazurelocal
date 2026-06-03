@@ -8874,6 +8874,53 @@ function readRVToolsOptions() {
     };
 }
 
+// In-place refresh helper for renderRVToolsPreview. Returns true if it
+// successfully updated the existing DOM (cluster set unchanged), false if
+// the caller should fall back to a full innerHTML rebuild. Updating in place
+// preserves the modal's scroll position when the user clicks a cluster
+// checkbox or flips one of the option radios.
+function _updateRVToolsPreviewInPlace(previewDiv, result, selectedClusters) {
+    const tbody = previewDiv.querySelector('.rvtools-table tbody');
+    const totals = previewDiv.querySelector('.rvtools-totals');
+    if (!tbody || !totals) return false;
+    const rows = tbody.querySelectorAll('tr');
+    if (rows.length !== result.clusters.length) return false;
+    for (let i = 0; i < rows.length; i++) {
+        const cb = rows[i].querySelector('input[type="checkbox"][name="rvtools-cluster"]');
+        if (!cb || cb.value !== result.clusters[i].name) return false;
+    }
+
+    const t = result.totals;
+    totals.innerHTML = 'Found <strong>' + t.vmCount + '</strong> VM' + (t.vmCount !== 1 ? 's' : '')
+        + ' across <strong>' + t.clusterCount + '</strong> cluster' + (t.clusterCount !== 1 ? 's' : '')
+        + (t.hostCount ? ' / <strong>' + t.hostCount + '</strong> host' + (t.hostCount !== 1 ? 's' : '') : '')
+        + ' — <strong>' + t.vcpus + '</strong> vCPU, ' + rvtoolsFormatCapacity(t.memoryGB) + ' RAM, ' + rvtoolsFormatCapacity(t.storageGB) + ' storage total.'
+        + '<br><span style="color: var(--text-secondary);">Pick one or more source clusters to size below — selecting several consolidates their workloads into one cluster.</span>';
+
+    for (let i = 0; i < rows.length; i++) {
+        const c = result.clusters[i];
+        const cells = rows[i].querySelectorAll('td');
+        if (cells.length < 7) continue;
+        cells[2].textContent = c.vmCount;
+        cells[3].textContent = c.hostCount || '—';
+        cells[4].textContent = c.vcpus;
+        cells[5].textContent = c.memoryGB;
+        cells[6].textContent = rvtoolsGBtoTB(c.storageGB).toFixed(2);
+    }
+
+    const selectAll = previewDiv.querySelector('#rvtools-select-all');
+    if (selectAll) {
+        const selCount = result.clusters.filter(function(c) { return selectedClusters.indexOf(c.name) !== -1; }).length;
+        selectAll.indeterminate = selCount > 0 && selCount < result.clusters.length;
+        selectAll.checked = result.clusters.length > 0 && selCount === result.clusters.length;
+    }
+
+    const applyBtn = document.getElementById('rvtools-apply-btn');
+    if (applyBtn) applyBtn.style.display = result.clusters.length ? '' : 'none';
+
+    return true;
+}
+
 // Build the preview UI: totals banner, a per-cluster picker table, and the
 // consolidation / storage / powered-off options. When `keepSelection` is true
 // the existing cluster/option selections are preserved across a refresh.
@@ -8891,6 +8938,14 @@ function renderRVToolsPreview(result, keepSelection) {
     const storageSource = prev ? prev.storageSource : 'provisioned';
     const mode = prev ? prev.mode : 'per-vm';
     const includePoweredOff = prev ? prev.includePoweredOff : false;
+
+    // Fast path: when only option/selection state changed (cluster set is
+    // structurally identical to what's already rendered) update the totals
+    // banner and per-row numeric cells in place. Avoids rewriting innerHTML,
+    // which would reset the modal's scroll position on every checkbox click.
+    if (keepSelection && _updateRVToolsPreviewInPlace(previewDiv, result, selectedClusters)) {
+        return;
+    }
 
     const t = result.totals;
     let html = '';
