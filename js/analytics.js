@@ -72,12 +72,47 @@ const analytics = {
     enabled: false
 };
 
+// localStorage key for the user-facing opt-out checkbox in the stats bar.
+// Value '1' = opted out, any other value (or absent) = opted in.
+const ANALYTICS_OPTOUT_STORAGE_KEY = 'odin-analytics-opt-out';
+
+/**
+ * Returns true if the user (or their browser) has opted out of anonymous
+ * counter increments. Three independent signals, any one of which opts out:
+ *   1. localStorage flag set by the stats-bar checkbox (`odin-analytics-opt-out` === '1')
+ *   2. Browser Do Not Track header (`navigator.doNotTrack === '1'`)
+ *   3. Global Privacy Control signal (`navigator.globalPrivacyControl === true`)
+ * Reads are wrapped in try/catch because some sandboxed contexts throw on
+ * localStorage access.
+ */
+function isAnalyticsOptedOut() {
+    try {
+        if (typeof localStorage !== 'undefined'
+            && localStorage.getItem(ANALYTICS_OPTOUT_STORAGE_KEY) === '1') {
+            return true;
+        }
+    } catch (_) { /* localStorage blocked — fall through to navigator checks */ }
+    try {
+        if (typeof navigator !== 'undefined') {
+            if (navigator.doNotTrack === '1' || navigator.doNotTrack === 'yes') return true;
+            if (navigator.globalPrivacyControl === true) return true;
+        }
+    } catch (_) { /* navigator unavailable — treat as opted in */ }
+    return false;
+}
+
 /**
  * Initialize Firebase Analytics
  * @returns {boolean} True if initialization succeeded
  */
 function initializeAnalytics() {
     try {
+        // Honour user / browser opt-out signals — never load Firebase at all.
+        if (isAnalyticsOptedOut()) {
+            console.log('Analytics: opted out (localStorage / DNT / GPC) — Firebase not initialised');
+            return false;
+        }
+
         // Check if Firebase config is properly set up (not using placeholder values)
         const requiredConfigKeys = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
         const hasInvalidConfig = requiredConfigKeys.some((key) => {
@@ -108,6 +143,29 @@ function initializeAnalytics() {
     } catch (error) {
         console.warn('Analytics: Failed to initialize Firebase:', error.message);
         return false;
+    }
+}
+
+/**
+ * Persist the user's stats-bar opt-out choice and disable in-memory analytics
+ * for the rest of this page load. (Already-fired requests can't be recalled,
+ * but no further increments will be sent.) Called by the stats-bar checkbox.
+ */
+function setAnalyticsOptOut(optedOut) {
+    try {
+        if (optedOut) {
+            localStorage.setItem(ANALYTICS_OPTOUT_STORAGE_KEY, '1');
+            analytics.enabled = false;
+        } else {
+            localStorage.removeItem(ANALYTICS_OPTOUT_STORAGE_KEY);
+            // Re-enable only if Firebase was successfully initialised earlier
+            // this page load; otherwise the toggle takes effect next reload.
+            if (analytics.initialized && analytics.database) {
+                analytics.enabled = true;
+            }
+        }
+    } catch (error) {
+        console.warn('Analytics: Failed to persist opt-out preference:', error.message);
     }
 }
 

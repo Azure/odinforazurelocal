@@ -1828,7 +1828,8 @@ header .header-description {
     }
 
     .nav-feedback-text,
-    .nav-help-text {
+    .nav-help-text,
+    .nav-optout-text {
         display: none;
     }
 

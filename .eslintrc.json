@@ -42,6 +42,8 @@
     "initializeAnalytics": "readonly",
     "trackPageView": "readonly",
     "trackFormCompletion": "readonly",
+    "isAnalyticsOptedOut": "readonly",
+    "setAnalyticsOptOut": "readonly",
     "applyTheme": "readonly",
     "toggleTheme": "readonly",
     "increaseFontSize": "readonly",

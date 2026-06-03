@@ -112,9 +112,49 @@
     // Theme toggle
     html += '<button type="button" onclick="toggleTheme()" id="theme-toggle" class="nav-theme-toggle" style="margin-left: 0;" title="Toggle light/dark theme">\uD83C\uDF19</button>';
 
+    // Page-views opt-out toggle — excludes this browser from the anonymous
+    // page-view / feature-use counters. Persists in localStorage; also auto-on
+    // when the browser sends Do Not Track or Global Privacy Control.
+    // margin-left:0 keeps it adjacent to the theme toggle (the nav-theme-toggle
+    // class applies margin-left:auto, which would otherwise push it to the far right).
+    html += '<label id="nav-optout" class="nav-theme-toggle nav-optout" title="Page-views opt-out: when ticked, this browser is excluded from the anonymous page-view and feature-use counters. The setting is remembered in localStorage; browser Do Not Track and Global Privacy Control signals are also honoured automatically." style="display:flex; align-items:center; cursor:pointer; margin-left:0;">'
+        + '<span class="nav-optout-text" style="margin-right:10px;">Page views opt-out</span>'
+        + '<input type="checkbox" id="nav-optout-checkbox" style="margin:0; cursor:pointer;">'
+        + '</label>';
+
     html += '</div>';
 
     nav.innerHTML = html;
+
+    // Wire up the opt-out checkbox. analytics.js exposes isAnalyticsOptedOut() /
+    // setAnalyticsOptOut(); if it loaded after nav.js or is missing, fall back
+    // to the same localStorage key directly so the toggle still works.
+    const optoutBox = document.getElementById('nav-optout-checkbox');
+    if (optoutBox) {
+        // Reflect saved opt-out state at render time. We can't rely on
+        // isAnalyticsOptedOut() existing yet (analytics.js may load later, or
+        // not at all on some pages), so read the localStorage key and the
+        // DNT / GPC signals directly here.
+        try {
+            let optedOut = false;
+            try {
+                if (localStorage.getItem('odin-analytics-opt-out') === '1') optedOut = true;
+            } catch (_) { /* localStorage blocked */ }
+            if (!optedOut && (navigator.doNotTrack === '1' || navigator.doNotTrack === 'yes')) optedOut = true;
+            if (!optedOut && navigator.globalPrivacyControl === true) optedOut = true;
+            if (optedOut) optoutBox.checked = true;
+        } catch (_) { /* defensive — leave unchecked */ }
+        optoutBox.addEventListener('change', () => {
+            if (typeof setAnalyticsOptOut === 'function') {
+                setAnalyticsOptOut(optoutBox.checked);
+            } else {
+                try {
+                    if (optoutBox.checked) localStorage.setItem('odin-analytics-opt-out', '1');
+                    else localStorage.removeItem('odin-analytics-opt-out');
+                } catch (_) { /* localStorage blocked */ }
+            }
+        });
+    }
 
     // Define showNavHelp globally so the Help button works regardless of script load order.
     // Checks if the Knowledge tab is active; if so, calls showKnowledgeOnboarding()
