@@ -6387,7 +6387,11 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
             var usableMemPerNode = hwConfig.memoryGB - hostMemReservedGB;
             var maxVcpuPerNode = Math.max(hwConfig.totalPhysicalCores - hostCoresReserved, 0) * singleVmVcpuRatio;
             workloads.forEach(function(w) {
-                if (w.type === 'vm') {
+                // Only check single-VM placement for per-VM input mode. In 'total'
+                // input mode w.vcpus / w.memory are fleet aggregates with count=1,
+                // not the spec of any individual VM, so this check would be a
+                // false positive for any reasonably-sized fleet.
+                if (w.type === 'vm' && w.inputMode !== 'total') {
                     if (w.vcpus > maxVcpuPerNode) {
                         notes.push('🚫 Workload "' + (w.name || 'VM') + '" requires ' + w.vcpus + ' vCPUs per VM, which exceeds the per-machine vCPU capacity (' + maxVcpuPerNode + ' vCPUs at ' + singleVmVcpuRatio + ':1 ratio with ' + (hwConfig.totalPhysicalCores - hostCoresReserved) + ' usable cores after a ' + hostCoresReserved + '-core host reservation). This VM cannot be placed on a single machine.');
                         _vmExceedsNode = true;
