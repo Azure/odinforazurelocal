@@ -1510,19 +1510,11 @@ function renderRack3D(config) {
         // Bump camera distance for 4-spine to fit the taller stack
         if (spCount >= 4) camDist += 0.3;
     } else {
-        // Auto-zoom based on node count — more nodes need wider view
+        // Single rack: fixed framing so the full 42U rack body (plus core
+        // switch above) is always in view on load, regardless of how many
+        // server nodes are populated. Users can still scroll to zoom in.
         var stdRouterTopY = RACK.OUTER_HEIGHT + 0.35 + 0.05;
-        if (nodeCount >= 16) {
-            camDist = 4.8;
-        } else if (nodeCount >= 13) {
-            camDist = 4.3;
-        } else if (nodeCount >= 10) {
-            camDist = 3.8;
-        } else if (nodeCount >= 6) {
-            camDist = 3.4;
-        } else {
-            camDist = 3.0;
-        }
+        camDist = 3.2;
         camTargetY = RACK.OUTER_HEIGHT * 0.62;
         _rack3d.camera.position.set(1.4, stdRouterTopY * 1.0, -camDist * 0.92);
     }
