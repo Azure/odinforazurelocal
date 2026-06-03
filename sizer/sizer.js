@@ -561,6 +561,28 @@ function getVcpuRatio() {
     return el ? parseInt(el.value) || 4 : 4;
 }
 
+// Debounce the "VM exceeds per-machine capacity" toast. calculateRequirements()
+// runs in cascades during Designer import, RVTools import, cluster-type
+// changes, etc. — and intermediate passes can see a too-small hardware default
+// that auto-scale immediately resolves. Only surface the toast if the
+// condition is still true after the cascade settles.
+let _vmExceedsToastTimer = null;
+function _scheduleVmExceedsToast() {
+    if (_vmExceedsToastTimer) clearTimeout(_vmExceedsToastTimer);
+    _vmExceedsToastTimer = setTimeout(function() {
+        _vmExceedsToastTimer = null;
+        if (window._sizerVmExceedsNode) {
+            showToast('One or more VMs exceed per-machine capacity — configuration cannot be deployed', 'error');
+        }
+    }, 300);
+}
+function _clearVmExceedsToast() {
+    if (_vmExceedsToastTimer) {
+        clearTimeout(_vmExceedsToastTimer);
+        _vmExceedsToastTimer = null;
+    }
+}
+
 // Get human-readable GPU label from GPU type key
 function getGpuLabel(gpuType) {
     const model = GPU_MODELS[gpuType];
@@ -6406,7 +6428,9 @@ function updateSizingNotes(nodeCount, totalVcpus, totalMemory, totalStorage, res
                 }
             });
             if (_vmExceedsNode) {
-                showToast('One or more VMs exceed per-machine capacity — configuration cannot be deployed', 'error');
+                _scheduleVmExceedsToast();
+            } else {
+                _clearVmExceedsToast();
             }
         }
         // Store flag for Designer button gating
