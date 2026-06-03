@@ -678,7 +678,7 @@
                 <div class="per-node-section">
                     <h3 id="per-node-title">Nodes Hardware Requirements:</h3>
                     <p class="per-node-subtitle" id="per-node-subtitle">- includes N+1 nodes (for HA and update resiliency), compute uses a <a href="#vcpu-ratio" class="per-node-ratio-link" onclick="document.getElementById('vcpu-ratio').scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('vcpu-ratio').focus();return false;">4:1 vCPU overcommit ratio</a></p>
-                    <p class="per-node-subtitle" id="per-node-howcalc"><a href="#" class="per-node-ratio-link" onclick="showHardwareWeightingInfo(); return false;" title="How the auto-scaler picks node count, memory, ratio, and cluster type">how is this calculated?</a></p>
+                    <p class="per-node-subtitle" id="per-node-howcalc"><a href="#" class="per-node-ratio-link" onclick="showHardwareWeightingInfo(); return false;" title="How the auto-scaler picks node count, memory, ratio, and cluster type">How is this calculated?</a></p>
                     <div class="per-node-grid">
                         <div class="per-node-item">
                             <span class="label">Physical Cores</span>
@@ -1166,6 +1166,8 @@
                 <strong style="color: var(--accent-blue); font-size: 13px;">💡 You are always in control.</strong>
                 <p style="margin: 6px 0 0 0; color: var(--text-primary); font-size: 13px; line-height: 1.5;">Every auto-decision is advisory. If you have a fixed requirement &mdash; a specific node count, a specific memory size per node, a specific CPU SKU, or a specific vCPU:core ratio &mdash; just set it manually. As soon as you change a field, the Sizer locks that choice and the auto-scaler respects it for all future workload changes.</p>
             </div>
+
+            <p style="margin: 12px 0 0 0; color: var(--text-secondary); font-size: 12px;">Have a question or feedback? Please raise an <a href="https://github.com/Azure/odinforazurelocal/issues" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue); text-decoration: none;">Issue in GitHub</a>.</p>
 
             <div style="text-align: right; margin-top: 16px;">
                 <button onclick="closeHardwareWeightingInfo()" class="onboarding-btn onboarding-btn-primary">Got it</button>
